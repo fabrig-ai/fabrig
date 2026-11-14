@@ -269,6 +269,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     by the job's name in its run: `JOB: waiting for a runner labelled
     L1, L2`, `JOB: blocked by the jobs it needs`, `JOB: running at step
     N, NAME`, `JOB: pending, its job unread`;
+  - an effect refused at admission or failed at the forge, naming the
+    operation, its resource and the refusal or forge answer, with its
+    outbox entry and the task's release command;
   - its pull request or a merge refused for a cause not stale (section 8),
     `turn: WHY`.
 
@@ -336,7 +339,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   branches of its first changed member and of every member above it,
   its own effects (section 11), before anything else, so that the next
   round's job finds them new: from the member that left, or every
-  member's for a stale base. The members below keep their branches,
+  member's for a stale base. With no member remaining, no next round
+  needs new branches: task closure releases them instead, without a
+  separate kind-15 effect. The members below keep their branches,
   prefixes and receipts.
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the

@@ -199,6 +199,7 @@ pub struct StoryLimits {
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub omit_prepare: bool,
+    pub omit_landing_grant: Option<u16>,
     pub refuse_prepare: bool,
     pub dispatch_passes: Option<u32>,
     pub across: bool,
@@ -406,6 +407,7 @@ impl World {
             repairs,
             turn,
             omit_prepare,
+            omit_landing_grant,
             refuse_prepare,
             dispatch_passes: _,
             landing_members,
@@ -811,6 +813,21 @@ impl World {
                     limits.authority.executors = limits.authority.executors.max(10);
                     limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(10);
                 }
+                for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                    authority.grants = authority
+                        .grants
+                        .clone()
+                        .into_vec()
+                        .into_iter()
+                        .filter(|grant| Some(grant.kind) != omit_landing_grant)
+                        .collect();
+                }
+                policy.projections = policy
+                    .projections
+                    .into_vec()
+                    .into_iter()
+                    .filter(|grant| Some(grant.kind) != omit_landing_grant)
+                    .collect();
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
                 let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);

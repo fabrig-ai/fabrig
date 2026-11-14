@@ -5302,7 +5302,28 @@ pub(crate) fn outputs(
                         },
                         None => false,
                     };
-                    if let Some(tasks::Event::HoldFrom { why, .. }) = domain.core.connector_outbox(
+                    let failed = match outcome {
+                        skein_forge_client::Outcome::Failed(skein_forge::api::Error::Stale)
+                        | skein_forge_client::Outcome::Raced { .. }
+                        | skein_forge_client::Outcome::Made { .. }
+                        | skein_forge_client::Outcome::Queued
+                        | skein_forge_client::Outcome::Uncertain
+                        | skein_forge_client::Outcome::Held => false,
+                        skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Withdrawn => true,
+                    };
+                    if failed
+                        && landing_route::failed_effect_needs_hold(domain, task, entry)
+                        && domain.core.tasks.task(task).is_some()
+                    {
+                        let mut account = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+                        append(&mut account, &words);
+                        holds::recovery(domain, task, &mut account);
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+                            task,
+                            why: tasks::Hold::EffectFailed,
+                            source: Box::new(holds::source(domain, Some(entry), account.into_boxed())),
+                        }));
+                    } else if let Some(tasks::Event::HoldFrom { why, .. }) = domain.core.connector_outbox(
                         task,
                         domain.config.forge_connector,
                         entry,
@@ -6012,40 +6033,11 @@ pub(crate) fn effect_ask(
                     } else if answer != authority::Answer::Refuse
                         || domain.core.tasks.waiting_effect_problem(task).is_none()
                     {
-                        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-                        holds::effect(&mut words, &description);
-                        append(
-                            &mut words,
-                            match why {
-                                jig_domain_core::effects::connector::EffectRefusal::Authority => {
-                                    b" was vetoed by authority"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Obsolete => {
-                                    b" was refused: its procedure step or entry is no longer valid"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Description => {
-                                    b" was refused: its connector description is invalid"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Capacity => {
-                                    b" was refused: effect admission has no room"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Dependencies => {
-                                    b" was refused: its dependency is still pending"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Proposal => {
-                                    b" was refused: its proposal could not be admitted or addressed"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Unavailable => {
-                                    b" was refused: effect admission is unavailable"
-                                }
-                            },
-                        );
-                        holds::findings(&mut words, &findings);
-                        holds::recovery(domain, task, &mut words);
+                        let words = holds::effect_refusal(domain, task, &description, why, &findings);
                         domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                             task,
                             why: tasks::Hold::Procedure,
-                            source: Box::new(holds::source(domain, Some(entry), words.into_boxed())),
+                            source: Box::new(holds::source(domain, Some(entry), words)),
                         }));
                     }
                 }
@@ -6060,8 +6052,16 @@ pub(crate) fn effect_ask(
                         closing,
                     }));
                 }
-                Some(EffectFlight::Landing { entry, task, evidence, .. }) => {
+                Some(EffectFlight::Landing { entry, task, evidence, description }) => {
                     drop_landing(domain, env, entry, task, evidence, answer);
+                    if answer != authority::Answer::Wait {
+                        let words = holds::effect_refusal(domain, task, &description, why, &findings);
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+                            task,
+                            why: tasks::Hold::Effects,
+                            source: Box::new(holds::source(domain, Some(entry), words)),
+                        }));
+                    }
                 }
                 Some(EffectFlight::Tier { entry, task, .. }) => {
                     domain.work.push(Work::Forge(forge::Event::VetoTier { task, entry }));
@@ -6143,8 +6143,6 @@ fn drop_landing(
             }
         }
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
-    } else {
-        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
     }
 }
 
