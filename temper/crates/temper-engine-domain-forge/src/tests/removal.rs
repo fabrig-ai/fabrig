@@ -707,7 +707,7 @@ fn removed_history_restores_without_a_repository_but_live_names_still_require_it
     row.pending = None;
     row.change.state = temper_engine_domain_forge_change::State::Ended;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
     assert!(!crate::reconcile::references_resolve(
         &d,
         &LIMITS,

@@ -87,6 +87,13 @@ pub fn ending_with_binary(
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
+            Stop::ForgeLink { phase, link } => {
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
+                format!(
+                    "{binary} serve: restart refused during {during}: forge {:?} {:?} links missing {:?}\n",
+                    link.kind, link.key, link.need
+                )
+            }
             Stop::Setting(key) => {
                 let words = temper_engine_domain_forge::settings::retired_words(*key);
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&words))

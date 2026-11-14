@@ -715,7 +715,7 @@ fn without_records_serves_past_a_zero_cap() {
         &body(""),
     );
     assert!(response.starts_with(b"HTTP/1.1 200"));
-    assert!(peer.observations().is_empty());
+    assert_eq!(peer.observations(), []);
     peer.shutdown();
     for _ in 0..1000 {
         request::pass(&mut sim, server, &mut peer);

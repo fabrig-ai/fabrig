@@ -373,7 +373,7 @@ fn without_records_serves_past_a_zero_cap() {
     let response = world.response(fd);
     world.close(fd);
     assert!(response.starts_with(b"HTTP/1.1 200"));
-    assert!(world.peer.observations().is_empty());
+    assert_eq!(world.peer.observations(), []);
     world.settle();
 }
 

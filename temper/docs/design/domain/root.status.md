@@ -135,7 +135,7 @@ LINKED`, as for every link jig's start cannot make
   `missing_link` already finds the link). Serve retains its fail-stop report and backtrace. The request
   `store-crash-safe` of 2026-11-09 asks that a store failing a link
   check at start stop with a reason, not a panic; its plan built that
-  in jig alone.
+  in jig alone. [in flight: change 2733]
 - **Not yet:** 9: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while
