@@ -111,7 +111,8 @@ pub struct Store {
     start_open_failure: Option<restore::OpenFailure>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
-    census: census::State,
+    /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
+    census: Box<census::State>,
 }
 
 #[derive(Debug)]
@@ -202,7 +203,7 @@ impl Store {
         mut stores: Stores,
     ) -> Store {
         let codec_limits = checked_codec(limits).expect("the store's limits are valid");
-        let census = census::State::new();
+        let census = Box::new(census::State::new());
         if stores.store.last() == 0 && stores.store.is_empty() {
             stores.store.count(census.rule);
         }
