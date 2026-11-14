@@ -9,7 +9,7 @@ goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--p
   --deadline TIME: text, at most 1048576 bytes; optional. UTC to the minute, as 2026-10-24T17:00Z; required for a given deadline
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. Configured model name
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. Effort offered by that model
-  --sub-agent MODEL[:EFFORT]: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. Replace the template's sub-agents; needs --model; each model once, with its required effort
+  --sub-agent MODEL[:EFFORT]: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. Replace the template's sub-agents; needs --model; each model once, its effort optional as --model's
 Start a goal from a project's template
 Prints: `done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record goal_create.
@@ -19,9 +19,12 @@ and symbolic resources. --charter is required only for a chosen executor.
 A template with budget given needs --budget or --as-allowed; one
 with deadline given needs --deadline. Other absent controls keep defaults.
 --budget and --as-allowed are alternatives. --effort needs --model;
-a model declaring efforts requires --effort. Without --sub-agent,
-the template's sub-agents survive a model override. Explicit sub-agents
-replace them. Bounds and proposal judgement are the same as for goals
+without --effort the model's default effort is taken. A flag wins over
+the template for every run of the goal: --model replaces its model
+choice, its later choice included, keeping its sub-agents unless
+--sub-agent replaces them; without --model the template's choice holds
+whole. A model flag a bound refuses is named with its value and the
+bound, and nothing is made. Bounds and proposal judgement are as for goals
 set from a client: within bounds, created; past them but proposable,
 proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
 Then task show TASK --until replied.

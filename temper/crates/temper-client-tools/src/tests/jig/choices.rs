@@ -122,7 +122,10 @@ fn unknown_chat_model_names_the_usage_error() {
         root.submit(&["chat", "start", "hello", "--project", "shop", "--model", "unknown-model", "--key", "unknown"]);
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unknown-model\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (1, b"--model unknown-model: not among the models you may choose in this project\n".as_slice())
+    );
 }
 #[test]
 fn unknown_chat_effort_names_the_usage_error() {
@@ -142,7 +145,10 @@ fn unknown_chat_effort_names_the_usage_error() {
     ]);
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown effort: unknown-effort\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (1, b"--effort unknown-effort: not an effort chosen-model declares; it declares high\n".as_slice())
+    );
 }
 #[test]
 fn chat_model_lookup_is_scoped_to_the_project() {
@@ -160,7 +166,10 @@ fn chat_model_lookup_is_scoped_to_the_project() {
         root.submit(&["chat", "start", "hello", "--project", "other", "--model", "chosen-model", "--key", "other"]);
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: chosen-model\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (1, b"--model chosen-model: not among the models you may choose in this project\n".as_slice())
+    );
 }
 #[test]
 fn chat_effort_requires_a_model() {
@@ -223,9 +232,9 @@ fn a_long_unknown_model_prints_a_json_usage_error() {
     assert_eq!(answer.status, 1);
     let name = answer
         .stderr
-        .strip_prefix(b"{\"error\":\"model not offered: ")
+        .strip_prefix(b"{\"error\":\"--model ")
         .expect("prefix")
-        .strip_suffix(b"...\"}")
+        .strip_suffix(b"...: not among the models you may choose in this project\"}")
         .expect("cut marker");
     assert_eq!(name, "x".repeat(256).as_bytes());
 }
@@ -342,7 +351,7 @@ fn unknown_model_control_bytes_are_cut() {
         let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
         let call = root.submit(&["chat", "start", "hello", "--project", "shop", "--model", name, "--key", "control"]);
         let answer = root.answer(call).expect("usage error");
-        assert_eq!(answer.stderr.as_ref(), b"model not offered: safe...\n");
+        assert_eq!(answer.stderr.as_ref(), b"--model safe...: not among the models you may choose in this project\n");
     }
 }
 #[test]
@@ -352,8 +361,12 @@ fn unknown_model_echo_keeps_a_utf8_boundary() {
     name.push('é');
     let call = root.submit(&["chat", "start", "hello", "--project", "shop", "--model", &name, "--key", "unicode"]);
     let answer = root.answer(call).expect("usage error");
-    let echo =
-        answer.stderr.strip_prefix(b"model not offered: ").expect("prefix").strip_suffix(b"...\n").expect("cut marker");
+    let echo = answer
+        .stderr
+        .strip_prefix(b"--model ")
+        .expect("prefix")
+        .strip_suffix(b"...: not among the models you may choose in this project\n")
+        .expect("cut marker");
     assert_eq!(echo, "x".repeat(255).as_bytes());
 }
 
@@ -408,27 +421,87 @@ fn amend_takes_the_default_instead_of_the_previous_effort() {
 }
 
 #[test]
-fn goals_refuse_models_and_subagents_outside_the_offer() {
-    for extra in
-        [&["--model", "unoffered-model"][..], &["--model", "chosen-model", "--sub-agent", "unoffered-model"][..]]
-    {
-        let mut root = f::choice_root(super::goal_template::goal_me());
-        let argv = f::extended(super::goal_template::START, extra);
-        let call = root.submit(argv.as_slice());
-        assert!(root.sends.is_empty());
-        let answer = root.answer(call).expect("usage error");
-        assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unoffered-model\n".as_slice()));
+fn goals_refuse_each_model_flag_in_text_and_json_before_sending() {
+    for (extra, expected) in [
+        (
+            &["--model", "unoffered-model"][..],
+            "--model unoffered-model: not among the models you may choose in this project",
+        ),
+        (
+            &["--model", "chosen-model", "--effort", "max"][..],
+            "--effort max: not an effort chosen-model declares; it declares high",
+        ),
+        (
+            &["--model", "chosen-model", "--sub-agent", "unoffered-model:low"][..],
+            "--sub-agent unoffered-model:low: unoffered-model is not among the models you may choose in this project",
+        ),
+        (
+            &["--model", "chosen-model", "--sub-agent", "plain-model:max"][..],
+            "--sub-agent plain-model:max: max is not an effort plain-model declares; it declares low, medium",
+        ),
+        (
+            &["--model", "chosen-model", "--sub-agent", "chosen-model:high", "--sub-agent", "chosen-model"][..],
+            "--sub-agent chosen-model: chosen-model is already a sub-agent",
+        ),
+        (
+            &["--model", "empty-model", "--effort", "high"][..],
+            "--effort high: not an effort empty-model declares; it declares none",
+        ),
+    ] {
+        for json in [false, true] {
+            let mut me = super::goal_template::goal_me();
+            let models = &mut me.projects.get_mut(0).unwrap().models;
+            let mut empty = models.get(1).unwrap().clone();
+            empty.name = f::act_text(b"empty-model");
+            let mut offered = List::with_capacity(3);
+            offered.push(models.get(0).unwrap().clone()).unwrap();
+            let mut child = models.get(1).unwrap().clone();
+            child.efforts = List::from_boxed(Box::new([f::act_text(b"low"), f::act_text(b"medium")]));
+            offered.push(child).unwrap();
+            offered.push(empty).unwrap();
+            *models = offered;
+            let mut root = f::choice_root(me);
+            let argv = f::extended(super::goal_template::START, extra);
+            let argv = f::extended(argv.as_slice(), if json { &["--json"] } else { &[] });
+            let call = root.submit(argv.as_slice());
+            assert!(root.sends.is_empty());
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 1);
+            assert!(answer.stdout.is_empty());
+            let words = if json {
+                answer.stderr.strip_prefix(b"{\"error\":\"").unwrap().strip_suffix(b"\"}").unwrap()
+            } else {
+                answer.stderr.strip_suffix(b"\n").unwrap()
+            };
+            assert_eq!(words, expected.as_bytes());
+        }
     }
 }
 
 #[test]
 fn chat_subagent_validation_sends_nothing() {
     for (subagents, expected) in [
-        (["unknown-model", "plain-model"], b"model not offered: unknown-model\n".as_slice()),
-        (["chosen-model:low", "plain-model"], b"unknown effort: low\n".as_slice()),
-        (["plain-model:high", "chosen-model:high"], b"unknown effort: high\n".as_slice()),
-        (["chosen-model:high", "chosen-model:high"], b"sub-agent named twice: chosen-model\n".as_slice()),
-        (["chosen-model:high", "chosen-model:low"], b"sub-agent named twice: chosen-model\n".as_slice()),
+        (
+            ["unknown-model", "plain-model"],
+            b"--sub-agent unknown-model: unknown-model is not among the models you may choose in this project\n"
+                .as_slice(),
+        ),
+        (
+            ["chosen-model:low", "plain-model"],
+            b"--sub-agent chosen-model:low: low is not an effort chosen-model declares; it declares high\n".as_slice(),
+        ),
+        (
+            ["plain-model:high", "chosen-model:high"],
+            b"--sub-agent plain-model:high: high is not an effort plain-model declares; it declares none\n".as_slice(),
+        ),
+        (
+            ["chosen-model:high", "chosen-model:high"],
+            b"--sub-agent chosen-model:high: chosen-model is already a sub-agent\n".as_slice(),
+        ),
+        (
+            ["chosen-model:high", "chosen-model:low"],
+            b"--sub-agent chosen-model:low: chosen-model is already a sub-agent\n".as_slice(),
+        ),
     ] {
         let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
         let argv = subagent_words(&subagents);
@@ -476,7 +549,13 @@ fn chat_subagent_lookup_is_scoped_to_the_project() {
     let call = root.submit(argv.as_slice());
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: other-model\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (
+            1,
+            b"--sub-agent other-model: other-model is not among the models you may choose in this project\n".as_slice()
+        )
+    );
 }
 
 #[test]
@@ -541,4 +620,70 @@ fn subagent_words(subagents: &[&'static str]) -> List<&'static str> {
         words.push(*subagent).expect("sub-agent value");
     }
     words
+}
+
+#[test]
+fn chats_model_flag_removes_the_templates_later_choice() {
+    let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+    let call = root.submit(f::MODEL_CHAT);
+    assert_eq!(f::chat_task(&root, call).llm.as_ref().unwrap().later, None);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the echo test assembles supplied names and their bounded expected words")]
+fn every_model_flag_echo_is_bounded() {
+    for (name, cut) in
+        [("x".repeat(257), format!("{}...", "x".repeat(256))), ("safe\u{1b}unsafe".into(), "safe...".into())]
+    {
+        let with_effort = format!("{name}:max");
+        let low = format!("{name}:low");
+        for (extra, expected) in [
+            (
+                vec!["--model", name.as_str()],
+                format!("--model {cut}: not among the models you may choose in this project"),
+            ),
+            (
+                vec!["--model", "chosen-model", "--effort", name.as_str()],
+                format!("--effort {cut}: not an effort chosen-model declares; it declares high"),
+            ),
+            (
+                vec!["--model", "chosen-model", "--sub-agent", with_effort.as_str()],
+                format!("--sub-agent {cut}: {cut} is not among the models you may choose in this project"),
+            ),
+        ] {
+            let mut root = f::choice_root(super::goal_template::goal_me());
+            let argv = f::extended(super::goal_template::START, &extra);
+            let call = root.submit(argv.as_slice());
+            assert!(root.sends.is_empty());
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 1);
+            assert_eq!(answer.stderr.strip_suffix(b"\n").unwrap(), expected.as_bytes());
+        }
+        for (extra, expected) in [
+            (
+                vec!["--model", name.as_str(), "--effort", "max"],
+                format!("--effort max: not an effort {cut} declares; it declares low, {cut}"),
+            ),
+            (
+                vec!["--model", "chosen-model", "--sub-agent", with_effort.as_str()],
+                format!("--sub-agent {cut}: max is not an effort {cut} declares; it declares low, {cut}"),
+            ),
+            (
+                vec!["--model", "chosen-model", "--sub-agent", name.as_str(), "--sub-agent", low.as_str()],
+                format!("--sub-agent {cut}: {cut} is already a sub-agent"),
+            ),
+        ] {
+            let mut me = super::goal_template::goal_me();
+            let model = me.projects.get_mut(0).unwrap().models.get_mut(1).unwrap();
+            model.name = f::act_text(name.as_bytes());
+            model.efforts = List::from_boxed(Box::new([f::act_text(b"low"), f::act_text(name.as_bytes())]));
+            let mut root = f::choice_root(me);
+            let argv = f::extended(super::goal_template::START, &extra);
+            let call = root.submit(argv.as_slice());
+            assert!(root.sends.is_empty());
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 1);
+            assert_eq!(answer.stderr.strip_suffix(b"\n").unwrap(), expected.as_bytes());
+        }
+    }
 }
