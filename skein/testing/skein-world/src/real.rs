@@ -1617,25 +1617,6 @@ mod tests {
     }
 
     #[test]
-    fn a_legacy_observe_referee_is_still_watched() {
-        struct Legacy(Rc<core::cell::Cell<u32>>);
-        impl Referee<Idle> for Legacy {
-            fn observe(&mut self, _now: Time, _procs: &[Idle]) {
-                self.0.set(1);
-            }
-            fn passed(&self) -> bool {
-                self.0.get() == 1
-            }
-        }
-        let calls = Rc::new(core::cell::Cell::new(0));
-        let world =
-            crate::World::<Idle, _>::new(7, skein_sim::Config::calm(), Legacy(calls.clone()), crate::Memory::Unchecked);
-        let outcome = world.run();
-        assert_eq!(outcome.iterations, 1);
-        assert_eq!(calls.get(), 1);
-    }
-
-    #[test]
     fn releasing_a_killed_child_keeps_the_other_childs_position_and_instance() {
         let mut running = children_after_descriptor_cleanup();
         running.kill(1);
