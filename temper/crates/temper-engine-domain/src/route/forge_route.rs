@@ -42,7 +42,7 @@ pub(crate) use landing_route::form_landings;
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
 use landing_route::{describe_landing_effect, landing_decision};
-mod reds;
+pub(super) mod reds;
 pub use reds::{RunRed, reds_for_run};
 mod reads;
 use reads::read_answer;
@@ -1415,6 +1415,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ForgeRestored
             | Work::StartDone(_)
             | Work::Start(_)
+            | Work::CheckResults { .. }
             | Work::Decoded { .. }
             | Work::Core(_)
             | Work::Tasks(_)

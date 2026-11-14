@@ -255,15 +255,31 @@ impl Parent {
     /// Checks that nothing is left: every workspace released, every agent
     /// gone, nothing in flight.
     pub fn assert_settled(&self) {
-        assert!(self.jobs.values().all(|(_, gone)| *gone), "every job is gone");
-        assert!(self.preparing.is_empty(), "every prepare has ended");
-        assert!(self.delivering.is_empty(), "every delivery has ended");
+        self.check_settled().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Returns the first job, request, workspace or agent left unsettled.
+    pub fn check_settled(&self) -> Result<(), String> {
+        if !self.jobs.values().all(|(_, gone)| *gone) {
+            return Err("every job is gone".into());
+        }
+        if !self.preparing.is_empty() {
+            return Err("every prepare has ended".into());
+        }
+        if !self.delivering.is_empty() {
+            return Err("every delivery has ended".into());
+        }
         for (token, space) in &self.spaces {
-            assert!(space.released, "workspace {token:?} is released");
+            if !space.released {
+                return Err(format!("workspace {token:?} is released"));
+            }
         }
         for (token, agent) in &self.agents {
-            assert_eq!(agent.phase, Phase::Gone, "agent {token:?} is gone");
+            if agent.phase != Phase::Gone {
+                return Err(format!("agent {token:?} is gone: {:?}", agent.phase));
+            }
         }
+        Ok(())
     }
 
     /// Takes the host's request `request`, which is for the parent.

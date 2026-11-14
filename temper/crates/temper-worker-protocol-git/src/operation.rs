@@ -210,7 +210,8 @@ impl Operation {
         {
             match next {
                 Next::End(_) => return,
-                Next::Reds { .. }
+                Next::Results { .. }
+                | Next::Reds { .. }
                 | Next::Run(_)
                 | Next::Snapshot { .. }
                 | Next::Make

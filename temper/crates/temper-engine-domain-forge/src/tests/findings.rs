@@ -90,3 +90,79 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     crate::findings::erase_project(&mut d, 1, &mut erased);
     assert_eq!(d.findings(1).count(), 0);
 }
+
+fn signature() -> FindingSignature {
+    FindingSignature {
+        repository: REPO,
+        source: b"check".as_slice().into(),
+        ids: Box::new([b"test a::t x".as_slice().into()]),
+        first: Box::default(),
+    }
+}
+fn flake(d: &Domain, limits: &Limits, project: u32, signature: FindingSignature) -> Result<CheckFlake, FindingRefusal> {
+    d.prepare_check_flake(
+        limits,
+        Wall::EPOCH,
+        Filer::Task(51),
+        project,
+        signature,
+        b"delivery flake".as_slice().into(),
+        b"log".as_slice().into(),
+    )
+}
+#[test]
+fn check_flakes_file_with_a_signature_and_count_only_equal_open_flakes_in_the_project() {
+    let mut d = domain();
+    let limits = Limits { findings_per_project: 1, ..LIMITS };
+    let CheckFlake::Filed(write) = flake(&d, &limits, 1, signature()).unwrap() else { panic!("new filing") };
+    assert_eq!(write.erase, None);
+    assert_eq!(write.row.kind, FindingKind::Flake);
+    assert_eq!(write.row.severity, Severity::Low);
+    assert_eq!(write.row.area, None);
+    assert_eq!(write.row.state, FindingState::New);
+    assert_eq!(write.row.title.as_ref(), b"delivery flake");
+    assert_eq!(write.row.body.as_ref(), b"log");
+    assert_eq!(write.row.filer, Filer::Task(51));
+    assert_eq!(write.row.at, Wall::EPOCH);
+    assert_eq!(write.row.signature, Some(signature()));
+    assert_eq!(write.row.seen, Some(1));
+    let original = write.row.clone();
+    assert!(d.finding(1, 1).is_none(), "preparation writes nothing");
+    d.commit_finding(&limits, write, &mut Queue::uncapped());
+    let mut different = signature();
+    different.ids = Box::new([b"another key".as_slice().into()]);
+    assert!(matches!(flake(&d, &limits, 1, different), Err(FindingRefusal::Full(1))));
+    for state in [FindingState::New, FindingState::Backlog, FindingState::Routed] {
+        d.finding_rows_mut(&limits).get_mut(&(1, 1)).unwrap().state = state;
+        let CheckFlake::Counted(write) = d
+            .prepare_check_flake(
+                &limits,
+                Wall::from_nanos(99),
+                Filer::Party(4),
+                1,
+                signature(),
+                b"ignored title".as_slice().into(),
+                b"ignored body".as_slice().into(),
+            )
+            .unwrap()
+        else {
+            panic!("counted at the bound")
+        };
+        assert_eq!(write.erase, None);
+        assert_eq!(write.row, Finding { seen: Some(2), state, ..original.clone() });
+    }
+    assert!(matches!(flake(&d, &limits, 2, signature()).unwrap(), CheckFlake::Filed(_)), "project-local");
+    let mut other = signature();
+    other.repository.repository += 1;
+    assert!(matches!(flake(&d, &limits, 1, other).unwrap(), CheckFlake::Filed(_)), "repository differs");
+    d.finding_rows_mut(&limits).get_mut(&(1, 1)).unwrap().kind = FindingKind::Red;
+    assert!(matches!(flake(&d, &limits, 1, signature()).unwrap(), CheckFlake::Filed(_)), "kind differs");
+    d.finding_rows_mut(&limits).get_mut(&(1, 1)).unwrap().kind = FindingKind::Flake;
+    d.finding_rows_mut(&limits).get_mut(&(1, 1)).unwrap().state = FindingState::Dropped;
+    let CheckFlake::Filed(write) = flake(&d, &limits, 1, signature()).unwrap() else {
+        panic!("dropped match files anew")
+    };
+    assert_eq!(write.erase, Some(1));
+    assert_eq!(write.row.number, 2);
+    assert_eq!(write.row.seen, Some(1));
+}

@@ -1614,7 +1614,6 @@ fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_pa
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn setup_accepts_a_project_free_first_repository_row() {
     use skein_io::kernel::Exit;
     let scratch = support::Scratch::new("setup-project-free-row");
@@ -1633,30 +1632,29 @@ fn setup_accepts_a_project_free_first_repository_row() {
     ]
     .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
     assert_eq!(
-        support::forge_land::assert_forgejo_setup_after_sign_in(
+        support::forge_land::check_forgejo_setup_after_sign_in(
             "first",
             &calls,
             "forgejo-1: started\nrunner-1: started",
             None,
             scratch.path()
         ),
-        2
+        Ok(2)
     );
     let mut other_host = row;
     other_host["forges"][0]["host"] = json!("other.example:3000");
     calls[4].stdout = other_host.to_string().into_bytes();
-    assert!(
-        std::panic::catch_unwind(|| {
-            support::forge_land::assert_forgejo_setup_after_sign_in(
-                "first",
-                &calls,
-                "forgejo-1: started\nrunner-1: started",
-                None,
-                scratch.path(),
-            )
-        })
-        .is_err(),
-        "the text row must name the JSON row's resource host"
+    let finding = support::forge_land::check_forgejo_setup_after_sign_in(
+        "first",
+        &calls,
+        "forgejo-1: started\nrunner-1: started",
+        None,
+        scratch.path(),
+    )
+    .expect_err("the text row must name the JSON row's resource host");
+    assert_eq!(
+        finding,
+        "first: forges row: forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2); box: forgejo-1: started\nrunner-1: started"
     );
     scratch.remove();
 }

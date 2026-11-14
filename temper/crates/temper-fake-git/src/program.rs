@@ -360,6 +360,9 @@ impl<T: Transport> Git<T> {
                 self.transport.begin();
                 let result =
                     answer(self.checked.as_ref().expect("checked invocation"), &mut self.checkout, &mut self.transport);
+                if let Some(finding) = self.transport.finding() {
+                    panic!("{finding}");
+                }
                 match self.transport.missed() {
                     crate::Missing::None => result,
                     crate::Missing::Call(call) => {

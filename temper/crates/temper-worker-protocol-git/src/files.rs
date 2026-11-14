@@ -6,6 +6,7 @@ use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
 mod objects;
 mod reds;
+mod results;
 use objects::{Alternates, Make, Store};
 
 #[derive(Debug)]
@@ -36,6 +37,7 @@ pub(crate) struct Task {
 #[derive(Debug)]
 pub(crate) enum Phase {
     Reds(reds::Files),
+    Results(results::File),
     Layout(Layout),
     Make(Make),
     Store(Store),
@@ -127,8 +129,11 @@ fn count(result: Result<kernel::Done, Error>) -> Result<u32, Error> {
     }
 }
 impl Task {
-    pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Reds(reds::Files::new(directory, content, marker)) }
+    pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Reds(reds::Files::new(directory, content, marker, rerun)) }
+    }
+    pub fn results(directory: Box<[u8]>) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
     }
     pub fn layout() -> Task {
         Task { pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
@@ -180,6 +185,7 @@ impl Task {
     pub fn first(&mut self, dirs: &mut Directories, settings: &Settings) -> Action {
         match &mut self.phase {
             Phase::Reds(files) => files.first(settings),
+            Phase::Results(file) => file.first(settings),
             Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
             Phase::Make(make) => make.first(dirs),
             Phase::Store(store) => store.first(dirs),
@@ -238,6 +244,7 @@ impl Task {
         }
         match &mut self.phase {
             Phase::Reds(files) => files.complete(complete.result, settings, stop),
+            Phase::Results(file) => file.complete(complete, settings, stop),
             Phase::Layout(stage) => {
                 let action = layout(stage, complete.result, dirs, settings);
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }

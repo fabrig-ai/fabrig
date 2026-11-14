@@ -78,17 +78,17 @@ impl Walk {
         proxy: &Proxy,
         visitor: &mut Visitor,
         service: &mut temper_service::Service,
-    ) -> bool {
+    ) -> Result<bool, String> {
         if !self.handed {
             let Some(link) = service.links().pop() else {
-                return false;
+                return Ok(false);
             };
             if self.name == RESTORED {
                 caller.commands.push_back(Command::new(&[b"sign-out"]));
             }
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input = String::from_utf8(link.into_vec())
-                .expect("printed URL")
+                .map_err(|why| format!("printed URL: {why:?}"))?
                 .replace("https://one.example", &format!("http://{}", fixtures::CLIENTS))
                 .into_bytes()
                 .into();
@@ -100,14 +100,15 @@ impl Walk {
             || !proxy.ready()
             || self.calls.iter().any(|id| !visitor.answers.contains_key(id))
         {
-            return false;
+            return Ok(false);
         }
-        assert_eq!(
-            caller.answers[signing].exit,
-            skein_io::kernel::Exit::Code(0),
-            "sign-in: {}",
-            String::from_utf8_lossy(&caller.answers[signing].error)
-        );
+        match (&(caller.answers[signing].exit), &(skein_io::kernel::Exit::Code(0))) {
+            (left, right) if left != right => {
+                let finding = format!("sign-in: {}", String::from_utf8_lossy(&caller.answers[signing].error));
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
         if self.name == RESTORED {
             return self.restored(visitor);
         }
@@ -117,7 +118,8 @@ impl Walk {
                 self.calls.push(requests::ask(
                     visitor,
                     &c::Ask::MakeProject {
-                        name: c::Text::new(b"Project 2".as_slice().into(), 64).expect("name"),
+                        name: c::Text::new(b"Project 2".as_slice().into(), 64)
+                            .map_err(|why| format!("name: {why:?}"))?,
                         policy: 1,
                     },
                     152,
@@ -125,15 +127,23 @@ impl Walk {
             }
             1 => {
                 let answer = requests::answer(
-                    &visitor.answers[self.calls.last().expect("create project")].as_ref().expect("HTTP response").body,
-                );
-                assert!(matches!(answer, c::Answer::Done(_)), "project made before opening: {answer:?}");
+                    &visitor.answers[self.calls.last().ok_or_else(|| String::from("create project"))?]
+                        .as_ref()
+                        .ok_or_else(|| String::from("HTTP response"))?
+                        .body,
+                )?;
+                if !(matches!(answer, c::Answer::Done(_))) {
+                    return Err(format!("project made before opening: {answer:?}"));
+                }
             }
-            2 if self.name == "write_private_store" => return true,
+            2 if self.name == "write_private_store" => return Ok(true),
             2..=3 => self.calls.push(requests::ask(
                 visitor,
-                &c::Ask::SetVisibility { project: u32::try_from(self.stage - 1).expect("project"), public: true },
-                u8::try_from(160 + self.stage).expect("key"),
+                &c::Ask::SetVisibility {
+                    project: u32::try_from(self.stage - 1).map_err(|why| format!("project: {why:?}"))?,
+                    public: true,
+                },
+                u8::try_from(160 + self.stage).map_err(|why| format!("key: {why:?}"))?,
             )),
             4 => self.calls.push(visitor.send(
                 fixtures::CLIENTS,
@@ -142,20 +152,34 @@ impl Walk {
                 &[(b"Host", b"one.example")],
             )),
             5 => {
-                let answer = visitor.answers[self.calls.last().expect("public projects")].as_ref().expect("answer");
-                assert_eq!(answer.status, 200);
-                let projects =
-                    p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body)).expect("projects");
-                assert_eq!(projects.projects().len(), 2, "calibration exposes each real project's identifier");
+                let answer = visitor.answers[self.calls.last().ok_or_else(|| String::from("public projects"))?]
+                    .as_ref()
+                    .ok_or_else(|| String::from("answer"))?;
+                match (&(answer.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
+                    .map_err(|why| format!("projects: {why:?}"))?;
+                match (&(projects.projects().len()), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("calibration exposes each real project's identifier");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 IDS.with(|ids| *ids.borrow_mut() = projects.projects().iter().map(p::PublicProject::project).collect());
-                return true;
+                return Ok(true);
             }
-            other => panic!("previous store stage {other}"),
+            other => return Err(format!("previous store stage {other}")),
         }
         self.stage += 1;
-        false
+        Ok(false)
     }
-    fn restored(&mut self, visitor: &mut Visitor) -> bool {
+    fn restored(&mut self, visitor: &mut Visitor) -> Result<bool, String> {
         if self.stage == 0 {
             self.calls.push(visitor.send(
                 fixtures::CLIENTS,
@@ -164,11 +188,20 @@ impl Walk {
                 &[(b"Host", b"one.example")],
             ));
         } else if self.stage == 1 {
-            let answer = visitor.answers[&self.calls[0]].as_ref().expect("projects answer");
-            assert_eq!(answer.status, 200);
-            service_checks::policy(answer, false);
-            let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body)).expect("projects");
-            assert!(projects.projects().is_empty(), "opening an old store opens no project");
+            let answer = visitor.answers[&self.calls[0]].as_ref().ok_or_else(|| String::from("projects answer"))?;
+            match (&(answer.status), &(200)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            service_checks::policy(answer, false)?;
+            let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
+                .map_err(|why| format!("projects: {why:?}"))?;
+            if !(projects.projects().is_empty()) {
+                return Err(String::from("opening an old store opens no project"));
+            }
             for project in IDS.with(|ids| ids.borrow().clone()) {
                 for address in [fixtures::CLIENTS, PROXY] {
                     self.calls.push(visitor.send(
@@ -180,21 +213,39 @@ impl Walk {
                 }
             }
         } else {
-            assert_eq!(self.calls.len(), 5);
-            let baseline = visitor.answers[&self.calls[1]].as_ref().expect("unknown");
-            assert_eq!(baseline.status, 404);
-            assert!(baseline.body.is_empty());
-            for id in self.calls.iter().skip(1) {
-                let answer = visitor.answers[id].as_ref().expect("private project's answer");
-                assert_eq!(
-                    answer, baseline,
-                    "every restored project is the same unknown directly and through the proxy"
-                );
-                service_checks::policy(answer, false);
+            match (&(self.calls.len()), &(5)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
             }
-            return true;
+            let baseline = visitor.answers[&self.calls[1]].as_ref().ok_or_else(|| String::from("unknown"))?;
+            match (&(baseline.status), &(404)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            if !(baseline.body.is_empty()) {
+                return Err(format!("assertion failed: {}", stringify!(baseline.body.is_empty())));
+            }
+            for id in self.calls.iter().skip(1) {
+                let answer = visitor.answers[id].as_ref().ok_or_else(|| String::from("private project's answer"))?;
+                match (&(answer), &(baseline)) {
+                    (left, right) if left != right => {
+                        let finding =
+                            String::from("every restored project is the same unknown directly and through the proxy");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                service_checks::policy(answer, false)?;
+            }
+            return Ok(true);
         }
         self.stage += 1;
-        false
+        Ok(false)
     }
 }

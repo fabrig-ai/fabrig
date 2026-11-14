@@ -109,6 +109,11 @@ escalations waiting for the task's decision are relayed the same way, each namin
 
 ## 5. Delivery is a push
 
+A check refused goes back to the run as smith's feedback; its results,
+passed or refused, also go to the engine through the worker at the
+check's end, the goal's reds it passed and its flakes
+(`../forge/reds.md`, 5.6).
+
 smith's `deliver` is the worker's push (../worker/checkouts.md): the
 worker commits exactly the tree the run checked, with the result's
 `title` and `body`, and pushes it as a fast-forward, never forced, to the

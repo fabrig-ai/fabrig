@@ -12,6 +12,7 @@ use skein_world::{Host, Referee};
 
 #[derive(Debug)]
 pub struct Judge {
+    finding: Option<String>,
     story: Story,
     wake: Option<Time>,
     deadline: Option<Time>,
@@ -27,6 +28,7 @@ impl Judge {
     pub fn new(story: Story) -> Self {
         Self {
             story,
+            finding: None,
             wake: None,
             deadline: None,
             rejected: false,
@@ -40,6 +42,192 @@ impl Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, now: Time, processes: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, processes).err();
+        }
+    }
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let owner = processes
+            .iter()
+            .find_map(|process| match process {
+                Process::Owner(owner) => Some(owner),
+                Process::Issuer(_) | Process::Visitor(_) => None,
+            })
+            .ok_or("owner")?;
+        kept_before_lent(owner)?;
+        one_value_per_name(owner)?;
+        for heard in owner.child_heard() {
+            if let Heard::Granted { account, generation } = heard
+                && !matches!(owner.child_heard().last(), Some(Heard::Failed { .. }))
+                && !(owner.account_removed() || owner.table_value(*account, *generation).is_some())
+            {
+                return Err(String::from("every granted generation is readable until expiry"));
+            }
+        }
+        if owner.closed() {
+            {
+                let (observed_value, wanted) = (&(owner.trace().last()), &(Some(&Trace::Closed)));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "Closed is last; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            {
+                let (observed_value, wanted) = (
+                    &(owner.became_usable()),
+                    &(!matches!(
+                        self.story,
+                        Story::DamagedRecord
+                            | Story::RefusedGrant
+                            | Story::NoRecord
+                            | Story::AccountSignInMissingScope
+                            | Story::AccountSignInFull
+                    )),
+                );
+                if observed_value != wanted {
+                    return Err(format!(
+                        "the real child accepted its grant only with a readable record; account sign-in ended {:?}; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}",
+                        owner.account_sign_in_ended()
+                    ));
+                }
+            }
+            if self.story == Story::ClosedExchange && (!crate::world::exchange_finished(processes)) {
+                return Err(String::from("Closed follows the exchange's successful answer"));
+            }
+            let expected = fixtures::expected(self.story);
+            {
+                let (observed_value, wanted) = (&(owner.child_heard()), &(expected));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            no_value_outside_the_store(owner)?;
+        }
+        let paste_ready = matches!(self.story, Story::PastedAddress | Story::PastedState | Story::SignInAgain)
+            && processes
+                .iter()
+                .any(|process| matches!(process, Process::Visitor(visitor) if visitor.redirect().is_some()))
+            && (self.pasted == 0
+                || (self.story == Story::PastedState && self.pasted == 1 && owner.account_answers().len() >= 2));
+        self.wake = (paste_ready
+            || (owner.unstarted()
+                && processes
+                    .iter()
+                    .any(|process| matches!(process, Process::Issuer(peer) if peer.address().is_some())))
+            || (owner.is_empty() && !self.shutdown)
+            || (ends(self.story, owner, crate::world::exchange_seen(processes), visit_answered(processes))
+                && !self.closing)
+            || (owner.visit().is_some()
+                && processes.iter().any(|process| matches!(process, Process::Visitor(visitor) if !visitor.handed())))
+            || (self.story == Story::ClosedExchange && crate::world::exchange_seen(processes) && !self.closing)
+            || (owner.child_heard().len() == 1 && !self.rejected && fixtures::rejects(self.story)))
+        .then_some(now);
+        self.passed = (self.shutdown && processes.iter().all(Host::is_empty)).then_some(());
+        Ok(())
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.wake.or(self.deadline)
+    }
+    fn overdue(&self, now: Time) -> Option<String> {
+        (self.deadline.is_some_and(|due| now >= due) && self.passed.is_none())
+            .then(|| "accounts world did not settle".to_owned())
+    }
+    fn passed(&self) -> bool {
+        self.finding.is_none() && self.passed.is_some()
+    }
+}
+/// Whether the owner's story is done and it may close: a sign-in's once its
+/// visit is answered, an exchange's once it is seen, any other once the
+/// child heard what it wanted.
+fn ends(story: Story, owner: &Owner, exchange_seen: bool, _answered: bool) -> bool {
+    match story {
+        Story::SignIn | Story::PastedAddress | Story::PastedState | Story::SignInAgain | Story::AccountSignInVaryingPort => {
+            !owner.child_heard().is_empty()
+                || owner
+                    .account_sign_in_ended()
+                    .iter()
+                    .any(|end| matches!(end.end, jig_domain_accounts::End::Failed { failure } if failure != jig_domain_accounts::Failure::Cancelled))
+        }
+        Story::AccountSignInMissingScope => !owner.account_sign_in_ended().is_empty() && owner.account_removed(),
+        Story::AccountSignInFull => !owner.account_sign_in_ended().is_empty(),
+        Story::AccountSignOut { .. } => owner.account_removed(),
+        Story::RefusedRefresh | Story::RefusedGrant => {
+            owner.account_record_erased() && owner.child_heard().len() >= fixtures::wanted(story)
+        }
+        Story::ClosedExchange => exchange_seen || owner.child_heard().len() >= fixtures::wanted(story),
+        Story::Granted
+        | Story::Refreshed
+        | Story::Closed
+        | Story::RateLimitedRefresh
+        | Story::RejectedClient
+        | Story::DamagedRecord
+        | Story::NoRecord => owner.child_heard().len() >= fixtures::wanted(story),
+    }
+}
+/// Whether the visitor's visit has its answer.
+fn visit_answered(processes: &[Process]) -> bool {
+    processes.iter().any(|process| matches!(process, Process::Visitor(visitor) if visitor.status().is_some()))
+}
+/// Each granted generation's record was read from the store at start, or
+/// the store answered that it is durable, before the grant was heard.
+pub fn kept_before_lent(owner: &Owner) -> Result<(), String> {
+    let trace = owner.trace();
+    for (index, entry) in trace.iter().enumerate() {
+        if let Trace::Heard(Heard::Granted { account, generation }) = entry {
+            let kept = trace[..index].iter().any(|before| {
+                matches!(before, Trace::Loaded { account: a, generation: g } | Trace::Kept { account: a, generation: g }
+                    if a == account && g == generation)
+            });
+            if !kept {
+                return Err(format!(
+                    "no token reaches a run before its record is kept: {account} generation {generation}"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+/// A source's generation names one value.
+pub fn one_value_per_name(owner: &Owner) -> Result<(), String> {
+    let lent = owner.lent();
+    for (index, first) in lent.iter().enumerate() {
+        for second in &lent[index + 1..] {
+            if (first.account, first.generation) == (second.account, second.generation) {
+                {
+                    let (observed_value, wanted) = (&(first.digest), &(second.digest));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "a name never means two values; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+/// What the owner holds outside the store, its trace and the child's facts,
+/// names no token; the driver files nothing (the owner's `iterate` checks).
+pub fn no_value_outside_the_store(owner: &Owner) -> Result<(), String> {
+    let facts = format!("{:?}", owner.facts());
+    let trace = format!("{:?}", owner.trace());
+    for value in fixtures::VALUES {
+        let value = std::str::from_utf8(value).map_err(|why| format!("fixture values are text: {why:?}"))?;
+        if facts.contains(value) || trace.contains(value) {
+            return Err(String::from("no value outside the secrets' store"));
+        }
+    }
+    Ok(())
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, processes: &mut [Process]) -> Result<(), String> {
         self.deadline.get_or_insert(now.saturating_add(Duration::from_secs(180)));
         let address = processes.iter().find_map(|process| match process {
             Process::Issuer(peer) => peer.address(),
@@ -87,11 +275,8 @@ impl Referee<Process> for Judge {
                         && let Some(len) = redirect_len
                         && (self.pasted == 0 || retry)
                     {
-                        if retry {
-                            assert!(
-                                owner.account_sign_in_ended().is_empty(),
-                                "a refused paste leaves the sign-in waiting"
-                            );
+                        if retry && (!owner.account_sign_in_ended().is_empty()) {
+                            return Err(String::from("a refused paste leaves the sign-in waiting"));
                         }
                         owner.hand_paste(&redirect[..len], self.story == Story::PastedState && self.pasted == 0);
                         self.pasted += 1;
@@ -123,145 +308,7 @@ impl Referee<Process> for Judge {
                 }
             }
         }
-    }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
-        let owner = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Owner(owner) => Some(owner),
-                Process::Issuer(_) | Process::Visitor(_) => None,
-            })
-            .expect("owner");
-        kept_before_lent(owner);
-        one_value_per_name(owner);
-        for heard in owner.child_heard() {
-            if let Heard::Granted { account, generation } = heard
-                && !matches!(owner.child_heard().last(), Some(Heard::Failed { .. }))
-            {
-                assert!(
-                    owner.account_removed() || owner.table_value(*account, *generation).is_some(),
-                    "every granted generation is readable until expiry"
-                );
-            }
-        }
-        if owner.closed() {
-            assert_eq!(owner.trace().last(), Some(&Trace::Closed), "Closed is last");
-            assert_eq!(
-                owner.became_usable(),
-                !matches!(
-                    self.story,
-                    Story::DamagedRecord
-                        | Story::RefusedGrant
-                        | Story::NoRecord
-                        | Story::AccountSignInMissingScope
-                        | Story::AccountSignInFull
-                ),
-                "the real child accepted its grant only with a readable record; account sign-in ended {:?}",
-                owner.account_sign_in_ended()
-            );
-            if self.story == Story::ClosedExchange {
-                assert!(crate::world::exchange_finished(processes), "Closed follows the exchange's successful answer");
-            }
-            let expected = fixtures::expected(self.story);
-            assert_eq!(owner.child_heard(), expected);
-            no_value_outside_the_store(owner);
-        }
-        let paste_ready = matches!(self.story, Story::PastedAddress | Story::PastedState | Story::SignInAgain)
-            && processes
-                .iter()
-                .any(|process| matches!(process, Process::Visitor(visitor) if visitor.redirect().is_some()))
-            && (self.pasted == 0
-                || (self.story == Story::PastedState && self.pasted == 1 && owner.account_answers().len() >= 2));
-        self.wake = (paste_ready
-            || (owner.unstarted()
-                && processes
-                    .iter()
-                    .any(|process| matches!(process, Process::Issuer(peer) if peer.address().is_some())))
-            || (owner.is_empty() && !self.shutdown)
-            || (ends(self.story, owner, crate::world::exchange_seen(processes), visit_answered(processes))
-                && !self.closing)
-            || (owner.visit().is_some()
-                && processes.iter().any(|process| matches!(process, Process::Visitor(visitor) if !visitor.handed())))
-            || (self.story == Story::ClosedExchange && crate::world::exchange_seen(processes) && !self.closing)
-            || (owner.child_heard().len() == 1 && !self.rejected && fixtures::rejects(self.story)))
-        .then_some(now);
-        self.passed = (self.shutdown && processes.iter().all(Host::is_empty)).then_some(());
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.wake.or(self.deadline)
-    }
-    fn overdue(&self, now: Time) -> Option<String> {
-        (self.deadline.is_some_and(|due| now >= due) && self.passed.is_none())
-            .then(|| "accounts world did not settle".to_owned())
-    }
-    fn passed(&self) -> bool {
-        self.passed.is_some()
-    }
-}
-/// Whether the owner's story is done and it may close: a sign-in's once its
-/// visit is answered, an exchange's once it is seen, any other once the
-/// child heard what it wanted.
-fn ends(story: Story, owner: &Owner, exchange_seen: bool, _answered: bool) -> bool {
-    match story {
-        Story::SignIn | Story::PastedAddress | Story::PastedState | Story::SignInAgain | Story::AccountSignInVaryingPort => {
-            !owner.child_heard().is_empty()
-                || owner
-                    .account_sign_in_ended()
-                    .iter()
-                    .any(|end| matches!(end.end, jig_domain_accounts::End::Failed { failure } if failure != jig_domain_accounts::Failure::Cancelled))
-        }
-        Story::AccountSignInMissingScope => !owner.account_sign_in_ended().is_empty() && owner.account_removed(),
-        Story::AccountSignInFull => !owner.account_sign_in_ended().is_empty(),
-        Story::AccountSignOut { .. } => owner.account_removed(),
-        Story::RefusedRefresh | Story::RefusedGrant => {
-            owner.account_record_erased() && owner.child_heard().len() >= fixtures::wanted(story)
-        }
-        Story::ClosedExchange => exchange_seen || owner.child_heard().len() >= fixtures::wanted(story),
-        Story::Granted
-        | Story::Refreshed
-        | Story::Closed
-        | Story::RateLimitedRefresh
-        | Story::RejectedClient
-        | Story::DamagedRecord
-        | Story::NoRecord => owner.child_heard().len() >= fixtures::wanted(story),
-    }
-}
-/// Whether the visitor's visit has its answer.
-fn visit_answered(processes: &[Process]) -> bool {
-    processes.iter().any(|process| matches!(process, Process::Visitor(visitor) if visitor.status().is_some()))
-}
-/// Each granted generation's record was read from the store at start, or
-/// the store answered that it is durable, before the grant was heard.
-pub fn kept_before_lent(owner: &Owner) {
-    let trace = owner.trace();
-    for (index, entry) in trace.iter().enumerate() {
-        if let Trace::Heard(Heard::Granted { account, generation }) = entry {
-            let kept = trace[..index].iter().any(|before| {
-                matches!(before, Trace::Loaded { account: a, generation: g } | Trace::Kept { account: a, generation: g }
-                    if a == account && g == generation)
-            });
-            assert!(kept, "no token reaches a run before its record is kept: {account} generation {generation}");
-        }
-    }
-}
-/// A source's generation names one value.
-pub fn one_value_per_name(owner: &Owner) {
-    let lent = owner.lent();
-    for (index, first) in lent.iter().enumerate() {
-        for second in &lent[index + 1..] {
-            if (first.account, first.generation) == (second.account, second.generation) {
-                assert_eq!(first.digest, second.digest, "a name never means two values");
-            }
-        }
-    }
-}
-/// What the owner holds outside the store, its trace and the child's facts,
-/// names no token; the driver files nothing (the owner's `iterate` checks).
-pub fn no_value_outside_the_store(owner: &Owner) {
-    let facts = format!("{:?}", owner.facts());
-    let trace = format!("{:?}", owner.trace());
-    for value in fixtures::VALUES {
-        let value = std::str::from_utf8(value).expect("fixture values are text");
-        assert!(!facts.contains(value) && !trace.contains(value), "no value outside the secrets' store");
+
+        Ok(())
     }
 }

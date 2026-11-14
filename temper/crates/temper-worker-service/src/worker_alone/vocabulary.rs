@@ -14,6 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    ResultsIgnored { owner: u64, tag: u64, reason: Box<[u8]> },
     CannotSendWhole { wire: &'static str, version: u16 },
     Untranslated { kind: u16, halt: skein_codec::patch::Halt },
     StopBoundPassed { abandoned: u64 },

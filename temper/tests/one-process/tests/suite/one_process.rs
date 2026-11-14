@@ -16,53 +16,41 @@ fn a_changes_unencodable_review_after_two_restarts_cancels_and_closes() {
 }
 #[test]
 fn a_signal_mid_run_interrupts_its_run_and_the_next_start_takes_it_again() {
-    let mut failures = Vec::new();
     for (name, story) in
         [("chat", world::Story::ChatReadThenWait { words: b"Hello" }), ("coding", world::Story::CodingAtStop)]
     {
-        let result = std::panic::catch_unwind(|| {
-            let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), story, true);
-            assert_eq!(outcome.verdict, Verdict::Passed);
-            assert!(outcome.drained);
-            assert_eq!(outcome.restarts, 1);
-            if matches!(story, world::Story::ChatReadThenWait { .. }) {
-                assert_eq!(outcome.settings_revision, 2, "the hosted ctl change is retained");
-            }
-            let stopped = outcome.stopped.expect("signal found a run");
-            assert_eq!(
-                (stopped.tries[1].lost, stopped.interrupted),
-                (0, 1),
-                "{name}: no lost try and one Recheck terminal; {stopped:?}"
-            );
-            assert_eq!(outcome.claims_settled_at_restart, 0);
-            assert_eq!(stopped.tries[0], stopped.tries[1]);
-            assert_eq!(stopped.saved[0], stopped.saved[1]);
-            let next = stopped.next.expect("new attempt started");
-            assert!(next > stopped.attempt);
-            if matches!(story, world::Story::CodingAtStop) {
-                assert!(stopped.workspace.is_some(), "prepared workspace at agent Start");
-            }
-            assert!(stopped.writers.iter().all(|&(attempt, lost)| attempt == next && !lost));
-            if let Some([before, after]) = stopped.change {
-                assert_eq!(before, after);
-                assert_eq!(stopped.saved_head[0], stopped.saved_head[1], "saved branch is not rewound");
-                assert_eq!(stopped.checkout_head, stopped.saved_head[0], "checkout starts at the saved head");
-                assert_eq!(stopped.checkout_file.as_deref(), Some(b"fixed\n".as_slice()));
-                assert!(!stopped.saved[0].is_empty(), "producer parked and saved before the stop");
-                assert!(!stopped.writers.is_empty(), "producer owns its writer slot");
-            }
-        });
-        if let Err(why) = result {
-            failures.push(format!(
-                "{name}: {}",
-                why.downcast_ref::<String>()
-                    .map(String::as_str)
-                    .or_else(|| why.downcast_ref::<&str>().copied())
-                    .unwrap_or("panic")
-            ));
+        eprintln!("signal mid-run case {name}");
+        let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), story, true);
+        assert_eq!(outcome.verdict, Verdict::Passed);
+        assert!(outcome.drained);
+        assert_eq!(outcome.restarts, 1);
+        if matches!(story, world::Story::ChatReadThenWait { .. }) {
+            assert_eq!(outcome.settings_revision, 2, "the hosted ctl change is retained");
+        }
+        let stopped = outcome.stopped.expect("signal found a run");
+        assert_eq!(
+            (stopped.tries[1].lost, stopped.interrupted),
+            (0, 1),
+            "{name}: no lost try and one Recheck terminal; {stopped:?}"
+        );
+        assert_eq!(outcome.claims_settled_at_restart, 0);
+        assert_eq!(stopped.tries[0], stopped.tries[1]);
+        assert_eq!(stopped.saved[0], stopped.saved[1]);
+        let next = stopped.next.expect("new attempt started");
+        assert!(next > stopped.attempt);
+        if matches!(story, world::Story::CodingAtStop) {
+            assert!(stopped.workspace.is_some(), "prepared workspace at agent Start");
+        }
+        assert!(stopped.writers.iter().all(|&(attempt, lost)| attempt == next && !lost));
+        if let Some([before, after]) = stopped.change {
+            assert_eq!(before, after);
+            assert_eq!(stopped.saved_head[0], stopped.saved_head[1], "saved branch is not rewound");
+            assert_eq!(stopped.checkout_head, stopped.saved_head[0], "checkout starts at the saved head");
+            assert_eq!(stopped.checkout_file.as_deref(), Some(b"fixed\n".as_slice()));
+            assert!(!stopped.saved[0].is_empty(), "producer parked and saved before the stop");
+            assert!(!stopped.writers.is_empty(), "producer owns its writer slot");
         }
     }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 #[test]
 fn a_secret_in_a_root_fails_the_referee_naming_it() {

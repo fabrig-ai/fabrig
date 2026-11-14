@@ -1,6 +1,5 @@
 //! Tell's three routing steps (client/pages/needs-you.md, 1, Where it goes).
 use skein_lib::{List, Rng};
-use std::panic::catch_unwind;
 use temper_client_domain::{
     Address,
     address::{ChatsFilter, Filter, GoalsFilter, Step, WorkFilter},
@@ -187,12 +186,9 @@ fn sweep(seed: u64) -> Vec<Goes> {
 #[test]
 fn tell_route_follows_the_three_steps_and_replays() {
     for seed in 1..=SEEDS {
-        match catch_unwind(|| {
-            let first = sweep(seed);
-            assert_eq!(first, sweep(seed), "seed {seed} replays");
-        }) {
-            Ok(()) => (),
-            Err(error) => panic!("seed {seed}: Tell routing sweep panicked: {error:?}"),
-        }
+        eprintln!("seed {seed}: Tell routing sweep");
+        let first = sweep(seed);
+        eprintln!("seed {seed}: Tell routing replay");
+        assert_eq!(first, sweep(seed), "seed {seed} replays");
     }
 }

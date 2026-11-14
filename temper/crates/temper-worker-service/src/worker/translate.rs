@@ -6,8 +6,47 @@ use temper_protocol_worker_wire::{self as wire, v1};
 /// Encode the worker's typed read, with the run identity supplied by jig.
 #[must_use]
 pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
+    use temper_worker_domain::wire as worker;
     let value = match ask {
-        temper_worker_domain::wire::Ask::Reds => v1::Ask::Reds,
+        worker::Ask::Reds => v1::Ask::Reds,
+        worker::Ask::Results(results) => {
+            let mut passed = List::with_capacity(v1::CEILINGS.check_results_passed);
+            for key in results.passed {
+                passed.push(key).expect("bounded passed keys");
+            }
+            let mut failed = List::with_capacity(v1::CEILINGS.check_results_failed);
+            for key in results.failed {
+                failed.push(key).expect("bounded failed keys");
+            }
+            let mut flakes = List::with_capacity(v1::CEILINGS.check_results_flakes);
+            for flake in results.flakes {
+                flakes
+                    .push(
+                        v1::Flake::new(&v1::CEILINGS, v1::FlakeParts { key: flake.key, log: flake.log })
+                            .expect("bounded flake"),
+                    )
+                    .expect("bounded flakes");
+            }
+            v1::Ask::Results(
+                v1::CheckResults::new(
+                    &v1::CEILINGS,
+                    v1::CheckResultsParts {
+                        tag: results.tag,
+                        check_number: results.check,
+                        tree: results.tree,
+                        base: results.base,
+                        verdict: match results.verdict {
+                            worker::Verdict::Passed => v1::Verdict::Passed,
+                            worker::Verdict::Refused => v1::Verdict::Refused,
+                        },
+                        passed,
+                        failed,
+                        flakes,
+                    },
+                )
+                .expect("bounded check report"),
+            )
+        }
     };
     wire::ask(&value)
 }
@@ -22,6 +61,7 @@ pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<temper_worker_domain:
         return None;
     }
     Some(match answer {
+        v1::Answer::Kept => worker::Answer::Kept,
         v1::Answer::Reds(value) => {
             let mut reds = List::with_capacity(value.reds().len());
             for red in value.into_parts().reds.into_boxed() {

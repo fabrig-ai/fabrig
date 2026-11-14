@@ -1,6 +1,6 @@
 //! Host messages released after Waiting or inside a held program turn (smith/docs/design/protocol/programs.md 5.3, 5.9).
 //! Keeps a script cursor and release deadline; observes wire frames and fake
-//! state, never agent internals. `observe` schedules; `act` only sets the
+//! state, never agent internals. `watch` schedules; `act` only sets the
 //! parent's existing release flag, leaving heap ownership inside its calls.
 use super::{Proc, Time};
 use skein_io::kernel::Spawn;
@@ -69,16 +69,18 @@ impl Release {
         self.next == self.messages.len()
     }
 
-    pub(super) fn observe(&mut self, now: Time, procs: &[Proc]) {
-        let Some(message) = self.messages.get(self.next) else { return };
+    pub(super) fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        let Some(message) = self.messages.get(self.next) else { return Ok(()) };
         if self.at.is_some() {
-            return;
+            return Ok(());
         }
-        let Proc::Parent(parent) = &procs[0] else { panic!("parent first") };
+        let Proc::Parent(parent) = procs.first().ok_or("parent first")? else {
+            return Err(String::from("parent first"));
+        };
         let arrived = match message.when {
             When::Waiting(count) => {
                 parent.peer.observed().iter().filter(|frame| frame.kind == 0x010a).count()
-                    >= usize::try_from(count).expect("waiting count fits")
+                    >= usize::try_from(count).map_err(|_| String::from("waiting count fits"))?
             }
             When::Turn(turn) => {
                 procs.iter().any(|process| matches!(process, Proc::Fake(fake) if fake.active_turn() == Some(turn)))
@@ -95,22 +97,25 @@ impl Release {
             let delay = if self.held { Duration::from_millis(50) } else { Duration::from_millis(1) };
             self.at = Some(now.saturating_add(delay));
         }
+        Ok(())
     }
 
-    pub(super) fn act(&mut self, now: Time, procs: &mut [Proc]) {
+    pub(super) fn act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         if self.at.is_none_or(|at| at > now) {
-            return;
+            return Ok(());
         }
-        if self.held {
-            assert!(
-                procs.iter().any(|process| matches!(process, Proc::Fake(fake) if fake.pending_tool() == Some("wait"))),
-                "the MCP wait stays held before the host message"
-            );
+        if self.held
+            && !procs.iter().any(|process| matches!(process, Proc::Fake(fake) if fake.pending_tool() == Some("wait")))
+        {
+            return Err(String::from("the MCP wait stays held before the host message"));
         }
-        let Proc::Parent(parent) = &mut procs[0] else { panic!("parent first") };
+        let Proc::Parent(parent) = procs.first_mut().ok_or("parent first")? else {
+            return Err(String::from("parent first"));
+        };
         parent.program_message = true;
         self.next += 1;
         self.at = None;
+        Ok(())
     }
 }
 

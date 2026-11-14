@@ -107,9 +107,12 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   section 6), its title `Red after landing on
   BRANCH: tier NAME` and its body the red's news words (after-landing.md,
   section 7), once per landing the verdict reddens; the QA procedure,
-  from its tester's report (section 8); and verdicts, a flake
-  (after-landing.md, 5.2). Each is filed as `areas.md`, section 5 routes
-  it.
+  from its tester's report (section 8); verdicts, a flake
+  (after-landing.md, 5.2); and the root, for a flake of a delivery's
+  check, a test that failed under load and passed when its process ran
+  again, kind `flake`, severity `low`, no area, filed or counted as
+  `forge/reds.md`, 5.8 gives its title, body and signature. Each is
+  filed as `areas.md`, section 5 routes it.
 - **What a verdict files:** its reproduction is the tier's or gate's
   workflow at the run's commit with its failing tests alone; its first
   line, the failed job's failed step's last line (skein's `Read::Job`);
@@ -121,7 +124,17 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   tier or gate, by test id: a flake whose ids are all an open flake
   finding's is counted on it (its record's count, and a comment once
   per day at most), never filed again; a red's or a QA finding's is
-  filed anew, naming the open ones it overlaps.
+  filed anew, naming the open ones it overlaps. A delivery's check is a
+  source as a tier or gate is, named `check`: its flake's signature is
+  the repository, `check`, the test's key as its one id and no first line
+  (`forge/reds.md`, 5.8). Open is any state but `dropped`.
+- **Kept on the record** as options appended after its fields
+  (`../protocol/store.md`, 2): `signature`, the repository (its forge
+  and repository, as a `Change` row names one), the source (1 to 64
+  bytes: `check`, a tier's or a gate's name), the ids (1 to 64, each at
+  most 512 bytes, in byte order) and the first line (at most 512 bytes,
+  empty for a check's); and `seen`, the times a flake was seen, from 1. A
+  finding filed otherwise has neither.
 - **Purposes,** tag 9 in `forge/README.md`'s table: a finding's filing, by its
   source (a verdict's repository, tier and run; a QA pass and its
   case's number; a task's call) and, where it has one, its signature's

@@ -102,6 +102,7 @@ pub const DEVICE: u8 = 43;
 /// A goal's reds (temper/docs/design/domain/forge/reds.md, 6).
 pub const RED: u8 = 44;
 pub const RED_NUMBER: u8 = 45;
+pub const RED_PASS: u8 = 46;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_PROJECT: u8 = 127;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -242,6 +243,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         }
         forge::Key::Red { goal, key } => {
             writer.tag(RED).u64(*goal).bytes(key);
+        }
+        forge::Key::RedPass { change, key } => {
+            writer.tag(RED_PASS).u64(*change).bytes(key);
         }
         forge::Key::RedNumber => {
             writer.tag(RED_NUMBER);
@@ -510,6 +514,14 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
                 return None;
             }
             forge::Key::Red { goal, key }
+        }
+        RED_PASS => {
+            let change = reader.u64()?;
+            let key = reader.bytes()?;
+            if !forge::reds::key_fits(&key, limits.red_key_bytes) {
+                return None;
+            }
+            forge::Key::RedPass { change, key }
         }
         RED_NUMBER => forge::Key::RedNumber,
         AWAY => forge::Key::Away { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },

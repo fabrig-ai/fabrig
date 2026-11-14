@@ -582,15 +582,18 @@ fn object_reads_cache_whole_objects_and_the_ancestry_graph() {
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_out_of_order_replay_names_the_requested_and_logged_calls() {
     let mut route = Route::new(limits());
     route.receive(branch(), Ok(RemoteAnswer::Commit(BASE)), true);
     route.replay();
-    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| route.is_ancestor(BASE, TOPIC)))
-        .expect_err("order mismatch panics");
-    let message = panic.downcast_ref::<String>().expect("assertion message");
-    assert!(message.contains("Ancestor") && message.contains("Branch"), "{message}");
+    assert_eq!(route.finding(), None);
+    assert!(!route.is_ancestor(BASE, TOPIC), "an out-of-order call gets a placeholder");
+    let asked = Call::Ancestor { ancestor: BASE, commit: TOPIC };
+    let message = format!("replay asked {asked:?}; logged {:?}", branch());
+    assert_eq!(route.finding(), Some(message.as_str()));
+    assert_eq!(route.missed(), Missing::Call(asked));
+    assert_eq!(route.branch(REMOTE, b"main"), None, "the failed replay cannot consume a logged answer");
+    assert_eq!(route.finding(), Some(message.as_str()), "the first finding is retained");
 }
 
 #[test]

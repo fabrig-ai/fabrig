@@ -67,26 +67,33 @@ impl<'a> Post<'a> {
     pub fn unsigned(path: &'a str, body: &'a [u8], event: &'a [u8]) -> Self {
         Self { path, body, event, signed: false }
     }
-    fn send(&self, listener: SocketAddr, binary: &skein_world::end_to_end::Binary) -> u16 {
-        let mut stream = super::socket::Socket::connect(
-            listener,
-            "the webhook POST's connection",
-            SOCKET_DEADLINE,
-            ["the webhook POST's response", "the webhook POST's request"],
-            true,
-            Some(binary),
-        )
-        .expect("listener");
-        write!(stream, "POST {} HTTP/1.1\r\nHost: {listener}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nX-Forgejo-Event: {}\r\n",
-            self.path, self.body.len(), std::str::from_utf8(self.event).expect("event")).expect("request head");
-        if self.signed {
-            write!(stream, "X-Forgejo-Signature: {}\r\n", signature(SECRET, self.body)).expect("signature");
-        }
-        stream.write_all(b"\r\n").expect("head end");
-        stream.write_all(self.body).expect("body");
-        let mut line = String::new();
-        BufReader::new(stream).read_line(&mut line).expect("response");
-        line.split_whitespace().nth(1).expect("status").parse().expect("status number")
+    fn send(&self, listener: SocketAddr, binary: &skein_world::end_to_end::Binary) -> Result<u16, String> {
+        Ok({
+            let mut stream = super::socket::Socket::connect(
+                listener,
+                "the webhook POST's connection",
+                SOCKET_DEADLINE,
+                ["the webhook POST's response", "the webhook POST's request"],
+                true,
+                Some(binary),
+            )
+            .map_err(|error| format!("listener: {error:?}"))?;
+            write!(stream, "POST {} HTTP/1.1\r\nHost: {listener}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nX-Forgejo-Event: {}\r\n",
+            self.path, self.body.len(), std::str::from_utf8(self.event).map_err(|error| format!("event: {error:?}"))?).map_err(|error| format!("request head: {error:?}"))?;
+            if self.signed {
+                write!(stream, "X-Forgejo-Signature: {}\r\n", signature(SECRET, self.body))
+                    .map_err(|error| format!("signature: {error:?}"))?;
+            }
+            stream.write_all(b"\r\n").map_err(|error| format!("head end: {error:?}"))?;
+            stream.write_all(self.body).map_err(|error| format!("body: {error:?}"))?;
+            let mut line = String::new();
+            BufReader::new(stream).read_line(&mut line).map_err(|error| format!("response: {error:?}"))?;
+            line.split_whitespace()
+                .nth(1)
+                .ok_or(String::from("status"))?
+                .parse()
+                .map_err(|error| format!("status number: {error:?}"))?
+        })
     }
 }
 pub struct Ended {
@@ -95,6 +102,7 @@ pub struct Ended {
     pub stderr: Vec<u8>,
 }
 struct Judge<'a> {
+    failed: Option<String>,
     listener: SocketAddr,
     posts: &'a [Post<'a>],
     statuses: &'a mut Vec<u16>,
@@ -104,23 +112,38 @@ struct Judge<'a> {
 }
 impl Referee<Process> for Judge<'_> {
     fn act(&mut self, _: Time, procs: &mut [Process]) {
-        let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
-        if !self.sent && super::printed_link(&stdout.bytes).is_some() {
-            let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-            self.statuses.extend(self.posts.iter().map(|post| post.send(self.listener, binary)));
-            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-            binary.signal(Signal::Terminate);
-            self.sent = true;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Stdout(stdout)) = procs.get(1) else { return Err(String::from("stdout reader")) };
+            if !self.sent && super::printed_link(&stdout.bytes).is_some() {
+                let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("binary")) };
+                for post in self.posts {
+                    self.statuses.push(post.send(self.listener, binary)?);
+                }
+                let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("binary")) };
+                binary.signal(Signal::Terminate);
+                self.sent = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _: Time, procs: &[Process]) {
+    fn watch(&mut self, _: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = self.sent && procs.iter().all(Host::is_empty);
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        assert!(
-            self.sent || binary.exit_status().is_none(),
-            "serve failed: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
+        let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("binary")) };
+        if !self.sent && binary.exit_status().is_some() {
+            return Err(format!("serve failed: {}", String::from_utf8_lossy(binary.stderr())));
+        }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.deadline)
@@ -129,6 +152,9 @@ impl Referee<Process> for Judge<'_> {
         (!self.settled && now >= self.deadline).then(|| "webhook delivery or drain did not finish".into())
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -144,6 +170,7 @@ pub fn served_binary(mut binary: skein_world::end_to_end::Binary, listener: Sock
     let within = Duration::from_secs(60);
     let mut statuses = Vec::new();
     let mut world = real::World::new(Judge {
+        failed: None,
         listener,
         posts,
         statuses: &mut statuses,

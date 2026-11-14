@@ -81,36 +81,39 @@ struct Judge<'a> {
     signing_until: Time,
     signing: Option<super::patience::Patience>,
     checked: usize,
+    finding: Option<String>,
 }
-fn files(directory: &Path, output: &mut Vec<PathBuf>) {
+fn files(directory: &Path, output: &mut Vec<PathBuf>) -> Result<(), String> {
     if !directory.exists() {
-        return;
+        return Ok(());
     }
-    for entry in fs::read_dir(directory).expect("proof directory").map(|entry| entry.expect("proof entry")) {
+    for entry in fs::read_dir(directory).map_err(|error| format!("proof directory: {error}"))? {
+        let entry = entry.map_err(|error| format!("proof entry: {error}"))?;
         let path = entry.path();
-        if entry.file_type().expect("proof file type").is_dir() {
-            files(&path, output);
+        if entry.file_type().map_err(|error| format!("proof file type: {error}"))?.is_dir() {
+            files(&path, output)?;
         } else {
             output.push(path);
         }
     }
+    Ok(())
 }
-fn pushed(directory: &Path, forge: &Throwaway, baseline: &[u8]) -> Option<Push> {
+fn pushed(directory: &Path, forge: &Throwaway, baseline: &[u8]) -> Result<Option<Push>, String> {
     let heads: Vec<_> = forge
         .branch_heads()
         .into_iter()
         .filter(|(branch, commit)| branch.starts_with(b"temper/") && commit.as_ref() != baseline)
         .collect();
     if heads.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut paths = Vec::new();
-    files(&directory.join("workspaces"), &mut paths);
+    files(&directory.join("workspaces"), &mut paths)?;
     for path in paths {
         if path.file_name().is_none_or(|name| name != "HEAD") {
             continue;
         }
-        let git = path.parent().expect("HEAD parent");
+        let git = path.parent().ok_or("HEAD parent")?;
         if git.file_name().is_none_or(|name| name != ".git") {
             continue;
         }
@@ -120,16 +123,18 @@ fn pushed(directory: &Path, forge: &Throwaway, baseline: &[u8]) -> Option<Push> 
             .arg(git)
             .args(["cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"])
             .output()
-            .expect("git's object database");
-        assert!(output.status.success(), "the run's git objects can be read");
+            .map_err(|error| format!("git's object database: {error}"))?;
+        if !output.status.success() {
+            return Err("the run's git objects can be read".into());
+        }
         for line in output.stdout.split(|byte| *byte == b'\n') {
             let Some(commit) = line.strip_suffix(b" commit") else { continue };
             if let Some((branch, _)) = heads.iter().find(|(_, head)| head.as_ref() == commit) {
-                return Some((branch.clone(), commit.into()));
+                return Ok(Some((branch.clone(), commit.into())));
             }
         }
     }
-    None
+    Ok(None)
 }
 pub fn account_ready(value: &Value) {
     ready_account(value).unwrap_or_else(|message| panic!("{message}"));
@@ -153,27 +158,25 @@ pub fn ready_account(value: &Value) -> Result<(), String> {
     }
     Ok(())
 }
-fn tasks_ready(value: &Value) {
+fn tasks_ready(value: &Value) -> Result<(), String> {
     match value {
         Value::Object(fields) => {
-            assert!(
-                !fields
-                    .get("phase")
-                    .and_then(Value::as_str)
-                    .is_some_and(|phase| matches!(phase, "failed" | "cancelled")),
-                "live task cannot answer: {value}"
-            );
+            if fields.get("phase").and_then(Value::as_str).is_some_and(|phase| matches!(phase, "failed" | "cancelled"))
+            {
+                return Err(format!("live task cannot answer: {value}"));
+            }
             for child in fields.values() {
-                tasks_ready(child);
+                tasks_ready(child)?;
             }
         }
         Value::Array(items) => {
             for child in items {
-                tasks_ready(child);
+                tasks_ready(child)?;
             }
         }
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
+    Ok(())
 }
 impl Judge<'_> {
     fn running(&self) -> bool {
@@ -182,18 +185,15 @@ impl Judge<'_> {
     fn stopping(&self) -> bool {
         matches!(self.phase, Phase::Stopping | Phase::Settled)
     }
-    fn account(&mut self, now: Time, procs: &mut [Process]) {
+    fn account(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
         use super::ctl::{Call, Step};
-        let Process::Calls(calls) = &mut procs[2] else { panic!("live ctl") };
+        let Process::Calls(calls) = &mut procs[2] else { return Err("live ctl".into()) };
         if self.phase == Phase::Starting
             && let [_, connected, ..] = calls.ends()
         {
-            assert_eq!(
-                connected.exit,
-                Some(skein_io::kernel::Exit::Code(0)),
-                "connect: {}",
-                String::from_utf8_lossy(&connected.stderr)
-            );
+            if connected.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("connect: {}", String::from_utf8_lossy(&connected.stderr)));
+            }
             // This is the authorization address, never the browser's final callback or a token.
             notice(&String::from_utf8_lossy(&connected.stdout));
             client_notice(&String::from_utf8_lossy(calls.link()));
@@ -201,37 +201,31 @@ impl Judge<'_> {
         }
         if !self.running() && calls.ends().len() >= SETUP_CALLS {
             for ended in calls.ends() {
-                assert_eq!(
-                    ended.exit,
-                    Some(skein_io::kernel::Exit::Code(0)),
-                    "live sign-in: {}",
-                    String::from_utf8_lossy(&ended.stderr)
-                );
+                if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                    return Err(format!("live sign-in: {}", String::from_utf8_lossy(&ended.stderr)));
+                }
             }
-            let [_, _, _, account, ..] = calls.ends() else { panic!("live setup calls") };
-            account_ready(&super::ctl::json(account));
+            let [_, _, _, account, ..] = calls.ends() else { return Err("live setup calls".into()) };
+            ready_account(&super::ctl::try_json(account)?)?;
             let link = calls.link().to_vec();
             self.checked = SETUP_CALLS;
             self.phase = Phase::Running;
-            let Process::Person(person) = &mut procs[1] else { panic!("native person") };
+            let Process::Person(person) = &mut procs[1] else { return Err("native person".into()) };
             person.ctl_ready(&link);
         }
         if !self.running() {
-            return;
+            return Ok(());
         }
-        let Process::Calls(calls) = &mut procs[2] else { panic!("live ctl") };
+        let Process::Calls(calls) = &mut procs[2] else { return Err("live ctl".into()) };
         for ended in &calls.ends()[self.checked..] {
-            assert_eq!(
-                ended.exit,
-                Some(skein_io::kernel::Exit::Code(0)),
-                "live health read: {}",
-                String::from_utf8_lossy(&ended.stderr)
-            );
-            let value = super::ctl::json(ended);
+            if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("live health read: {}", String::from_utf8_lossy(&ended.stderr)));
+            }
+            let value = super::ctl::try_json(ended)?;
             if value.get("accounts").is_some() {
-                account_ready(&value);
+                ready_account(&value)?;
             } else {
-                tasks_ready(&value);
+                tasks_ready(&value)?;
             }
         }
         self.checked = calls.ends().len();
@@ -244,6 +238,7 @@ impl Judge<'_> {
                 calls.push(Step::Run(Call::new(arguments)));
             }
         }
+        Ok(())
     }
 }
 // Sign-in/account setup, inventory, charter/template reads and one settings change.
@@ -251,58 +246,72 @@ const SETUP_CALLS: usize = 8;
 fn sign_in_within() -> Duration {
     jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).driver.client.sign_in_time
 }
-impl Referee<Process> for Judge<'_> {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        self.account(now, procs);
+impl Judge<'_> {
+    fn drive(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
+        self.account(now, procs)?;
         if self.phase == Phase::Running && now >= self.poll {
-            assert!(completions(self.directory) <= 25, "live completion budget exceeded");
+            if check_completions(self.directory)? > 25 {
+                return Err("live completion budget exceeded".into());
+            }
             if self.pushed.borrow().is_none() {
-                *self.pushed.borrow_mut() = pushed(self.directory, self.forge, &self.baseline);
+                *self.pushed.borrow_mut() = pushed(self.directory, self.forge, &self.baseline)?;
             }
             self.poll = now.saturating_add(Duration::from_millis(500));
         }
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
+        let Process::Person(person) = &procs[1] else { return Err("native person".into()) };
         if !self.stopping()
             && person.finished
             && person.client.as_ref().is_some_and(Host::is_empty)
             && self.pushed.borrow().is_some()
         {
-            let Process::Calls(calls) = &mut procs[2] else { panic!("live ctl") };
+            let Process::Calls(calls) = &mut procs[2] else { return Err("live ctl".into()) };
             if !calls.idle() {
-                return;
+                return Ok(());
             }
             calls.release();
-            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
+            let Process::Binary(binary) = &mut procs[0] else { return Err("binary".into()) };
             binary.signal(Signal::Terminate);
             self.phase = Phase::Stopping;
         }
+        Ok(())
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+}
+impl Referee<Process> for Judge<'_> {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none()
+            && let Err(why) = self.drive(now, procs)
+        {
+            self.finding = Some(why);
+        }
+    }
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
         if self.stopping() && procs.iter().all(Host::is_empty) {
             self.phase = Phase::Settled;
         }
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
-        assert!(person.failed.is_none(), "{}", person.failed.as_deref().unwrap_or("person"));
-        assert!(
-            self.stopping() || binary.exit_status().is_none(),
-            "serve failed: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
+        let Process::Binary(binary) = &procs[0] else { return Err("binary".into()) };
+        let Process::Person(person) = &procs[1] else { return Err("native person".into()) };
+        if person.failed.is_some() {
+            return Err(person.failed.as_deref().unwrap_or("person").to_owned());
+        }
+        if !self.stopping() && binary.exit_status().is_some() {
+            return Err(format!("serve failed: {}", String::from_utf8_lossy(binary.stderr())));
+        }
         if !self.running()
             && let Some(patience) = &mut self.signing
             && let Some(figures) = patience.failed()
         {
-            panic!("ChatGPT sign-in deadline: {figures}");
+            return Err(format!("ChatGPT sign-in deadline: {figures}"));
         }
-        if !self.running() && self.signing.is_none() {
-            assert!(now < self.signing_until, "ChatGPT sign-in deadline");
+        if !self.running() && self.signing.is_none() && now >= self.signing_until {
+            return Err("ChatGPT sign-in deadline".into());
         }
-        assert!(
-            now < self.deadline || self.phase == Phase::Settled,
-            "live story deadline; pushed={}",
-            self.pushed.borrow().is_some()
-        );
+        if now >= self.deadline && self.phase != Phase::Settled {
+            return Err(format!("live story deadline; pushed={}", self.pushed.borrow().is_some()));
+        }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (self.phase != Phase::Settled).then_some(if !self.running() {
@@ -321,12 +330,11 @@ impl Referee<Process> for Judge<'_> {
         (self.phase != Phase::Settled && now >= self.deadline).then(|| "live native stories did not settle".into())
     }
     fn passed(&self) -> bool {
-        self.phase == Phase::Settled
+        self.finding.is_none() && self.phase == Phase::Settled
     }
 }
 
-#[must_use]
-pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Duration) -> Pushed {
+pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Duration) -> Result<Pushed, String> {
     use super::ctl::{Call, Calls, Step};
     let instructions = instructions.to_owned();
     let file = directory.join("settings.json");
@@ -352,6 +360,7 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
             super::patience::Patience::watching("the live story's ChatGPT sign-in", sign_in_within(), &binary)
         }),
         checked: 0,
+        finding: None,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![root], || {
@@ -391,22 +400,33 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
         calls.hold();
         Process::Calls(Box::new(calls))
     });
-    let outcome = world.run(&clock, deadline);
-    assert!(outcome.procs.iter().all(Host::is_empty), "all real io settles");
-    let Process::Binary(binary) = &outcome.procs[0] else { panic!("binary") };
-    assert_eq!(binary.exit_status(), Some(skein_io::kernel::Exit::Code(0)));
-    let Process::Person(person) = &outcome.procs[1] else { panic!("native person") };
-    let (branch, pushed) = pushed.borrow_mut().take().expect("a new run commit was pushed");
-    Pushed {
+    let outcome = world.try_run(&clock, deadline)?;
+    if !outcome.procs.iter().all(Host::is_empty) {
+        return Err("all real io settles".into());
+    }
+    let Process::Binary(binary) = &outcome.procs[0] else { return Err("binary".into()) };
+    if binary.exit_status() != Some(skein_io::kernel::Exit::Code(0)) {
+        return Err(format!(
+            "assertion failed: left == right; left: {:?}; right: {:?}",
+            binary.exit_status(),
+            Some(skein_io::kernel::Exit::Code(0))
+        ));
+    }
+    let Process::Person(person) = &outcome.procs[1] else { return Err("native person".into()) };
+    let (branch, pushed) = pushed.borrow_mut().take().ok_or("a new run commit was pushed")?;
+    Ok(Pushed {
         seen: Seen { signed_in: 1, finished: person.finished, stderr: binary.stderr().to_vec() },
         branch,
         pushed,
         wall_seconds: clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000,
-    }
+    })
 }
 
 #[must_use]
 pub fn completions(directory: &Path) -> u32 {
+    check_completions(directory).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_completions(directory: &Path) -> Result<u32, String> {
     count_completions(directory, &super::configuration::directories(directory))
 }
 
@@ -423,7 +443,7 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
             if let Some(before) = &before {
                 args.extend(["--before", before]);
             }
-            let read = super::ctl::alone(client, super::ctl::Call::new(&args));
+            let read = super::ctl::try_alone(client, super::ctl::Call::new(&args))?;
             if read.exit != Some(skein_io::kernel::Exit::Code(0)) {
                 return Err("completion read failed".into());
             }
@@ -448,40 +468,43 @@ pub fn ctl_completions(client: &Path, tasks: &[u64]) -> Result<u32, String> {
     u32::try_from(turns.len()).map_err(|_| "completion count overflow".into())
 }
 
-fn count_completions(config: &Path, directories: &temper_box_shell::directories::Directories) -> u32 {
+fn count_completions(config: &Path, directories: &temper_box_shell::directories::Directories) -> Result<u32, String> {
     use std::os::unix::ffi::OsStrExt;
-    let value = fs::read(config.join("temper.json")).expect("configuration");
+    let value = fs::read(config.join("temper.json")).map_err(|error| format!("configuration: {error:?}"))?;
     let document = jig_protocol_config::document(
         &value,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
     )
-    .expect("document");
+    .map_err(|error| format!("document: {error:?}"))?;
     let at = jig_protocol_config::read::Object::new(&document, 0)
-        .expect("object")
+        .map_err(|error| format!("object: {error:?}"))?
         .member(&document, b"engine")
-        .expect("engine member");
-    let engine =
-        temper_service::startup::engine(&document, at, &jig_directories(directories)).expect("engine configuration");
-    let limits = codec::limits(&engine.limits.core).expect("store codec limits");
+        .ok_or("engine member")?;
+    let engine = temper_service::startup::engine(&document, at, &jig_directories(directories))
+        .map_err(|error| format!("engine configuration: {error:?}"))?;
+    let limits = codec::limits(&engine.limits.core).ok_or("store codec limits")?;
     let mut paths = Vec::new();
     let deployment = Path::new(std::ffi::OsStr::from_bytes(&engine.deployment.directory));
-    files(&deployment.join("transcripts"), &mut paths);
+    files(&deployment.join("transcripts"), &mut paths)?;
     let mut count = 0;
     for path in paths {
-        let bytes = fs::read(path).expect("transcript");
+        let bytes = fs::read(path).map_err(|error| format!("transcript: {error:?}"))?;
         let mut at = 0;
         while at + 4 <= bytes.len() {
-            let length = usize::try_from(u32::from_be_bytes(bytes[at..at + 4].try_into().expect("frame length")))
-                .expect("u32 fits");
+            let length = usize::try_from(u32::from_be_bytes(
+                bytes[at..at + 4].try_into().map_err(|error| format!("frame length: {error:?}"))?,
+            ))
+            .map_err(|error| format!("u32 fits: {error:?}"))?;
             if length < 12 || at + length > bytes.len() {
                 break;
             }
-            transcripts::frame::decode(&bytes[at..at + length], &limits).expect("durable turn");
+            transcripts::frame::decode(&bytes[at..at + length], &limits)
+                .map_err(|error| format!("durable turn: {error:?}"))?;
             count += 1;
             at += length;
         }
     }
-    count
+    Ok(count)
 }
 
 /// Redact link secrets and structured credential values before diagnostic output.

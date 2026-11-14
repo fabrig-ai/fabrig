@@ -42,6 +42,10 @@ impl LastWord {
 }
 
 /// A scenario's referee, over its processes `P`.
+///
+/// Its methods never panic. A finding from `act`, `idle` or `passed` is
+/// kept for the next `watch`, with `passed` answering false while it is kept
+/// (skein/docs/design/testing/README.md, 5).
 pub trait Referee<P> {
     /// Injects what belongs to no process, before they run in an iteration.
     /// It changes only what a process lets be changed between iterations (a
@@ -51,15 +55,7 @@ pub trait Referee<P> {
 
     /// Watches every process after one iterated, returning a broken safety
     /// expectation's finding, naming the seed. The loop stops at its `Err`.
-    /// Implement this or `observe`; the default calls `observe`.
-    fn watch(&mut self, now: Time, procs: &[P]) -> Result<(), String> {
-        self.observe(now, procs);
-        Ok(())
-    }
-
-    /// Watches every process and panics on a broken expectation. Kept for
-    /// referees not yet implementing `watch`; by default does nothing.
-    fn observe(&mut self, _now: Time, _procs: &[P]) {}
+    fn watch(&mut self, now: Time, procs: &[P]) -> Result<(), String>;
 
     /// The world is idle: nothing runs before the clock moves. A referee may change here what it will answer.
     fn idle(&mut self, _now: Time, _procs: &[P], _settled: bool) {}

@@ -30,7 +30,7 @@ pub(crate) mod make;
 mod outage;
 mod rebase;
 #[path = "reds.rs"]
-mod reds;
+pub(crate) mod reds;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -218,6 +218,7 @@ pub struct Domain {
     pub(crate) findings: Option<Box<Map<(u32, u32), crate::Finding>>>,
     pub(crate) reds: Map<(u64, Box<[u8]>), crate::Red>,
     pub(crate) red_number: Option<u64>,
+    pub(crate) red_passes: Map<(u64, Box<[u8]>), crate::RedPass>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
@@ -857,6 +858,7 @@ impl Domain {
             findings: None,
             reds: Map::with_capacity(l.branch_reds.checked_mul(l.holds).expect("checked red capacity")),
             red_number: None,
+            red_passes: Map::with_capacity(l.branch_reds.checked_mul(l.changes).expect("checked red pass capacity")),
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
@@ -2481,6 +2483,11 @@ fn outcome_facts(
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
             let turn = d.landing.rows.contains_key(&task);
             let task = crate::landing::merged_owner(d, task, entry);
+            if let Some(row) = d.changes.get(&task).cloned()
+                && landed_commit(&row.change.state).is_none()
+            {
+                reds::landed(d, &env.limits, &row, out);
+            }
             let signed = match d.changes.get(&task) {
                 Some(row) => row.signed.clone(),
                 None => Box::new([]),
@@ -4265,6 +4272,9 @@ fn step_verified(
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
     let prior = row.change.clone();
     row.change = stepped.change;
+    if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
+        reds::landed(d, &env.limits, &row, out);
+    }
     crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
     d.changes.insert(task, row.clone()).expect("replaces change");
     save_change(d, out, row);
@@ -5229,6 +5239,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
                 if landed_commit(&prior.state).is_none()
                     && let Some(commit) = landed_commit(&row.change.state)
                 {
+                    reds::landed(d, &env.limits, &row, out);
                     crate::landing_log::landed(d, env.wall, commit, row.task, Box::new([]), out);
                 }
                 if !prior.owns_turn && in_queue(&prior.state) && !in_queue(&row.change.state) {
@@ -6557,6 +6568,11 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     row.delegate = None;
     row.drift = None;
     let mut saved = row.clone();
+    if landed_commit(&prior.state).is_none() && landed_commit(&saved.change.state).is_some() {
+        reds::landed(d, &env.limits, &saved, out);
+    } else {
+        reds::erase_passes(d, task, out);
+    }
     crate::change_history::advanced(d, env.wall, &mut saved, &prior, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
     if fresh && let Some(ending) = crate::readiness::ending_kind(saved.ending.as_ref().expect("ending set")) {
@@ -8120,6 +8136,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.reds.insert((row.goal, row.key.clone()), row).expect("restored red room checked");
         }
         Stored::RedNumber { last } => d.red_number = Some(last),
+        Stored::RedPass(row) => {
+            d.red_passes.insert((row.change, row.key.clone()), row).expect("restored red pass room checked");
+        }
         Stored::ForgeNumber { last } => {
             d.forge_number = d.forge_number.max(last);
         }
@@ -8977,6 +8996,13 @@ impl Domain {
                 for (_, row) in &self.reds {
                     if need == (Need::Task { task: row.goal, retired: None }) {
                         return Key::Red { goal: row.goal, key: row.key.clone() };
+                    }
+                }
+            }
+            RecordKind::RedPass => {
+                for (_, row) in &self.red_passes {
+                    if need == (Need::Task { task: row.change, retired: None }) {
+                        return Key::RedPass { change: row.change, key: row.key.clone() };
                     }
                 }
             }

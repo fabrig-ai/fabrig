@@ -21,6 +21,7 @@ const LIMITS: Limits = Limits {
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
     reds_read_ms: 5_000,
+    rerun_processes: 4,
     local_timeout: Duration::from_secs(10),
     facts: 64,
 };
@@ -158,7 +159,9 @@ impl Harness {
                     assert_eq!(to, Token::new(client), "the client's token is echoed");
                     return hold;
                 }
-                other @ (Request::Held { .. }
+                other @ (Request::Results { .. }
+                | Request::ResultsEnd { .. }
+                | Request::Held { .. }
                 | Request::Prepared { .. }
                 | Request::Pushed { .. }
                 | Request::Saved { .. }
@@ -309,7 +312,9 @@ fn landings(request: Request) -> Box<[Landing]> {
     match request {
         Request::Pushed { client: _, outcome: Outcome::Pushed { landings } }
         | Request::Saved { client: _, outcome: Outcome::Pushed { landings } } => landings,
-        other @ (Request::Held { .. }
+        other @ (Request::Results { .. }
+        | Request::ResultsEnd { .. }
+        | Request::Held { .. }
         | Request::Prepared { .. }
         | Request::Pushed { .. }
         | Request::Saved { .. }
@@ -324,7 +329,9 @@ fn refused(request: Request) -> Refusal {
         Request::Pushed { client: _, outcome: Outcome::Refused { refusal } }
         | Request::Saved { client: _, outcome: Outcome::Refused { refusal } }
         | Request::Prepared { client: _, prepared: Prepared::Refused { refusal } } => refusal,
-        other @ (Request::Held { .. }
+        other @ (Request::Results { .. }
+        | Request::ResultsEnd { .. }
+        | Request::Held { .. }
         | Request::Prepared { .. }
         | Request::Pushed { .. }
         | Request::Saved { .. }
@@ -932,7 +939,9 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
         match h.one(Event::Done { owner: hold, done }) {
             Request::Io { op: next, .. } => op = next,
             Request::Prepared { prepared: Prepared::Ready { .. }, .. } => return (hold, seen),
-            other @ (Request::Held { .. }
+            other @ (Request::Results { .. }
+            | Request::ResultsEnd { .. }
+            | Request::Held { .. }
             | Request::Prepared { .. }
             | Request::Pushed { .. }
             | Request::Saved { .. }
@@ -2851,7 +2860,9 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                     ready = true;
                     break;
                 }
-                other @ (Request::Held { .. }
+                other @ (Request::Results { .. }
+                | Request::ResultsEnd { .. }
+                | Request::Held { .. }
                 | Request::Prepared { .. }
                 | Request::Pushed { .. }
                 | Request::Saved { .. }

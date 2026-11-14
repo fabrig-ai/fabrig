@@ -469,6 +469,32 @@ the hour. What temper adds:
 - **A failure in the real-loop, process or live tier** is reported with
   the trace and the files the run left, since the seed does not replay
   there.
+- **Its checks return their findings,** as skein's do (skein's
+  `testing/README.md`, 5; skein's `../foundation/programming-model.md`,
+  10.4), and nothing in temper's tests catches a panic:
+  - every referee and judge of temper's worlds implements `watch`, in
+    every tier, and keeps what its `act` or `idle` finds for its next
+    `watch`; the real loop fails with the finding after its forced
+    cleanup, and a check's own test reads it through the world's
+    `try_run`;
+  - the one-process world's durable observer returns a current
+    generation's row that doesn't decode as its finding, which its
+    referee returns; an old generation's rows stay opaque until the
+    switch (2.5);
+  - the real loop's checks of a call's answer within its bound, of a
+    CLI timeout and of an overdue deadline with its diagnostic and
+    figures, each a returning form beside the assertion a story calls
+    at its top; a starved wait still passes as starved
+    (`real-loop.md`);
+  - the engine replay's digest and text comparisons (`checks.md`), the
+    fake git program's replay order (`fakes.md`, 3), the browser
+    stories' attribution (`../client/web/testing.md`, 3), the process
+    tier's printed link and cluster members (`process-tier.md`), and
+    the GitHub stories' secrets scans and teardown (`live-tier.md`);
+  - a harness that names a seed, a walk, a case or a story's step
+    writes it to stderr before it runs it, and a table of cases stops
+    at its first failing case, having named it. The runner prints a
+    failed test's output.
 
 The referee is built on skein's world harness (`skein-world`; skein's
 `testing/README.md`, section 5), as ordinary Rust: each world writes its

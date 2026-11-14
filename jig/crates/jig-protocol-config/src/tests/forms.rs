@@ -46,13 +46,5 @@ fn secret_files_drop_only_the_final_newline() {
 type Case = (&'static str, fn());
 
 fn table<const N: usize>(cases: [Case; N]) {
-    let mut failures = [None; N];
-    let mut passed = true;
-    for ((name, case), failure) in cases.into_iter().zip(&mut failures) {
-        if std::panic::catch_unwind(case).is_err() {
-            *failure = Some(name);
-            passed = false;
-        }
-    }
-    assert!(passed, "{failures:?}");
+    skein_rows::check(cases, |case| case());
 }

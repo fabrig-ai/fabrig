@@ -100,25 +100,32 @@ impl Seen {
         &self.observations
     }
     /// Freeze main after the person's push, including a story with no merge.
-    pub(crate) fn pushed(&mut self, handle: &Rc<RefCell<Forge>>) {
+    pub(crate) fn pushed(&mut self, handle: &Rc<RefCell<Forge>>) -> Result<(), String> {
         let forge = handle.borrow();
         let api::Answer::Commit(main) = forge
             .domain
             .inspect(&forge.config, b"acme/app", &api::Read::Branch { branch: b"main".as_slice().into() })
-            .expect("pushed main head")
+            .map_err(|error| format!("pushed main head: {error:?}"))?
         else {
-            panic!("main commit")
+            return Err("main commit".into());
         };
         self.main = forge
             .domain
             .object(main)
-            .expect("pushed main object")
+            .ok_or("pushed main object")?
             .tree
             .iter()
             .map(|(path, bytes)| (path.to_vec(), bytes.to_vec()))
             .collect();
+        Ok(())
     }
-    pub(crate) fn collect(&mut self, now: Time, peer: &Peer, handle: &Rc<RefCell<Forge>>, repository: &[u8]) {
+    pub(crate) fn collect(
+        &mut self,
+        now: Time,
+        peer: &Peer,
+        handle: &Rc<RefCell<Forge>>,
+        repository: &[u8],
+    ) -> Result<(), String> {
         let previous = self.observations.len();
         loop {
             let Some(observed) = handle.borrow_mut().domain.pop_observation() else { break };
@@ -127,29 +134,31 @@ impl Seen {
                 let api::Answer::Checks(checks) = forge
                     .domain
                     .inspect(&forge.config, repository, &api::Read::Checks { commit: *head })
-                    .expect("merged checks")
+                    .map_err(|error| format!("merged checks: {error:?}"))?
                 else {
-                    panic!("checks answer")
+                    return Err("checks answer".into());
                 };
                 self.merged_green =
                     !checks.is_empty() && checks.iter().all(|check| check.status.state == api::Check::Passed);
                 let api::Answer::Commit(main) = forge
                     .domain
                     .inspect(&forge.config, repository, &api::Read::Branch { branch: b"main".as_slice().into() })
-                    .expect("main head")
+                    .map_err(|error| format!("main head: {error:?}"))?
                 else {
-                    panic!("main commit")
+                    return Err("main commit".into());
                 };
                 self.main = forge
                     .domain
                     .object(main)
-                    .expect("main object")
+                    .ok_or("main object")?
                     .tree
                     .iter()
                     .map(|(path, bytes)| (path.to_vec(), bytes.to_vec()))
                     .collect();
             }
-            assert!(self.observations.len() < STORY_OBSERVATIONS as usize, "bounded domain observations");
+            if self.observations.len() >= STORY_OBSERVATIONS as usize {
+                return Err("bounded domain observations".into());
+            }
             self.observations.push(observed);
         }
         // Every forge change is observed; unchanged passes need no outside API read.
@@ -164,20 +173,22 @@ impl Seen {
                     repository,
                     &api::Read::OpenPulls { head: None, base: None, page: 1, limit: 32 },
                 )
-                .expect("outside open-pulls read")
+                .map_err(|error| format!("outside open-pulls read: {error:?}"))?
             else {
-                panic!("open pulls")
+                return Err("open pulls".into());
             };
             let pulls: Box<[_]> = pulls.iter().map(|pull| pull.number).collect();
             if self.snapshots.last().is_none_or(|last| last.branches != branches || last.pulls != pulls) {
-                assert!(self.snapshots.len() < STORY_OBSERVATIONS as usize, "bounded forge snapshots");
+                if self.snapshots.len() >= STORY_OBSERVATIONS as usize {
+                    return Err("bounded forge snapshots".into());
+                }
                 self.snapshots.push(Snapshot { at: now, branches, pulls });
             }
         }
-        self.collect_deliveries(peer.observations());
+        self.collect_deliveries(peer.observations())
     }
-    fn collect_deliveries(&mut self, records: &[Observation]) {
-        let suffix = records.get(self.peer_records..).expect("forge peer history never shrinks");
+    fn collect_deliveries(&mut self, records: &[Observation]) -> Result<(), String> {
+        let suffix = records.get(self.peer_records..).ok_or("forge peer history never shrinks")?;
         self.deliveries.extend(suffix.iter().filter_map(|record| {
             let Observation::Delivery { outcome, .. } = record else { return None };
             Some(match outcome {
@@ -189,6 +200,7 @@ impl Seen {
             })
         }));
         self.peer_records = records.len();
+        Ok(())
     }
 }
 pub(crate) struct State {
@@ -278,15 +290,16 @@ impl State {
         });
         self.hooked = true;
     }
-    pub(crate) fn advance(&mut self, now: Time, wall: Wall) {
-        self.push(now, wall, b"conflict.txt", b"other\n");
+    pub(crate) fn advance(&mut self, now: Time, wall: Wall) -> Result<(), String> {
+        self.push(now, wall, b"conflict.txt", b"other\n")
     }
-    pub(crate) fn push(&mut self, now: Time, wall: Wall, path: &[u8], words: &[u8]) {
+    pub(crate) fn push(&mut self, now: Time, wall: Wall, path: &[u8], words: &[u8]) -> Result<(), String> {
         let mut forge = self.handle.borrow_mut();
         let env = Env { now, wall, limits: forge.config.clone() };
         domain::advance(&mut forge.domain, &env, b"acme/app", b"main", path, words, OTHER)
-            .expect("another party's push");
+            .map_err(|error| format!("another party's push: {error:?}"))?;
         self.moved = true;
+        Ok(())
     }
 }
 

@@ -119,9 +119,46 @@ impl Domain {
                 hander: None,
                 goal: None,
                 reason: None,
+                signature: None,
+                seen: None,
             },
             erase,
         })
+    }
+    /// A delivery check counts only an equal, non-dropped flake of this project (findings.md, 4).
+    #[expect(clippy::too_many_arguments, reason = "the check report supplies its filing identity and words")]
+    pub fn prepare_check_flake(
+        &self,
+        limits: &Limits,
+        at: Wall,
+        filer: Filer,
+        project: u32,
+        signature: FindingSignature,
+        title: Box<[u8]>,
+        body: Box<[u8]>,
+    ) -> Result<CheckFlake, FindingRefusal> {
+        if !signature.fits() {
+            return Err(FindingRefusal::Words(b"signature".as_slice().into()));
+        }
+        for (_, row) in self.findings(project) {
+            if row.kind == FindingKind::Flake
+                && row.state != FindingState::Dropped
+                && row.signature.as_ref() == Some(&signature)
+            {
+                let mut row = row.clone();
+                row.seen = Some(row.seen.unwrap_or(0).saturating_add(1));
+                return Ok(CheckFlake::Counted(FindingWrite { row, erase: None }));
+            }
+        }
+        let mut write = self.prepare_file_finding(
+            limits,
+            at,
+            filer,
+            FileFinding { project, kind: FindingKind::Flake, severity: Severity::Low, area: None, title, body },
+        )?;
+        write.row.signature = Some(signature);
+        write.row.seen = Some(1);
+        Ok(CheckFlake::Filed(write))
     }
     pub fn prepare_hand_finding(&self, filer: Filer, call: HandFinding) -> Result<FindingWrite, FindingRefusal> {
         let row = self.finding(call.project, call.number).ok_or(FindingRefusal::NoFinding)?;

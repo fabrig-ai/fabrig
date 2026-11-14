@@ -969,16 +969,24 @@ impl Members {
     pub fn failure(&self) -> Option<&str> {
         self.failure.as_deref()
     }
+    /// Return the members' finding only once they have all stopped (testing/process-tier.md, the cluster).
+    pub fn verdict(&self) -> Result<bool, String> {
+        if self.stopped().is_none() {
+            return Ok(false);
+        }
+        if let Some(failure) = &self.failure {
+            return Err(failure.clone());
+        }
+        for stopped in &self.stopped {
+            if stopped.killed || !stopped.survivors.is_empty() {
+                return Err(format!("{} needed tree cleanup", stopped.name));
+            }
+        }
+        Ok(true)
+    }
     #[must_use]
     pub fn passed(&self) -> bool {
-        if self.stopped().is_none() {
-            return false;
-        }
-        assert!(self.failure.is_none(), "{}", self.failure.as_deref().unwrap_or(""));
-        for stopped in &self.stopped {
-            assert!(!stopped.killed && stopped.survivors.is_empty(), "{} needed tree cleanup", stopped.name);
-        }
-        true
+        self.verdict() == Ok(true)
     }
 }
 
@@ -986,8 +994,9 @@ struct Probe {
     settled: bool,
 }
 impl Referee<Binary> for Probe {
-    fn observe(&mut self, _now: Time, hosts: &[Binary]) {
+    fn watch(&mut self, _now: Time, hosts: &[Binary]) -> Result<(), String> {
         self.settled = hosts.iter().all(Host::is_empty);
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.settled
@@ -1014,6 +1023,34 @@ fn probe(scratch: &Path) {
     let binary = &outcome.procs[0];
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "cgroup probe exits successfully");
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
+}
+
+pub mod verdict_tests {
+    use super::Cluster;
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        path::PathBuf,
+    };
+
+    pub fn passed_accepts_only_a_successful_settled_verdict() {
+        let cluster = Cluster {
+            experiment: PathBuf::new(),
+            specs: Vec::new(),
+            bindings: BTreeMap::new(),
+            prepared: BTreeSet::new(),
+            agent_program: None,
+        };
+        let (mut members, _) = cluster.members();
+        members.failure = Some("worker ended unexpectedly".to_owned());
+        assert_eq!(members.verdict(), Ok(false), "keep a finding until settlement");
+        assert!(!members.passed());
+        members.stop();
+        assert_eq!(members.verdict(), Err("worker ended unexpectedly".to_owned()));
+        assert!(!members.passed(), "a settled finding is not a pass");
+        members.failure = None;
+        assert_eq!(members.verdict(), Ok(true));
+        assert!(members.passed());
+    }
 }
 
 pub mod deadline_tests {

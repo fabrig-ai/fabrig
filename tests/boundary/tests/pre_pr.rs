@@ -106,6 +106,22 @@ elif name == 'cargo':
     raise AssertionError('unexpected cargo command: ' + str(args))
 elif name == 'one-process':
     assert Path.cwd() == root, 'tests start at the root'
+    if args[:1] == ['--again']:
+        original = Path(args[1])
+        assert (original / 'results.json').is_file(), 'first run still exists'
+        assert args[2] == '--out'
+        directory = Path(args[3])
+        assert not directory.exists() and directory.parent == original.parent
+        binary, *names = args[4:]
+        ledger = state.get('head', {})
+        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1])
+        assert names == target.get('before', []) + [target['name']]
+        spend(100, ['again', args])
+        directory.mkdir(mode=0o700)
+        outcome = ledger['again'][target['name']]
+        (directory / 'results.json').write_text(json.dumps({'tests': [
+            dict(binary_id=binary, test_name=target['name'], outcome=outcome)]}))
+        sys.exit(0 if outcome == 'passed' else 100)
     assert args[:1] == ['--out']
     directory = Path(args[1])
     assert directory.name == 'tests' and not directory.exists()
@@ -360,6 +376,54 @@ fn a_goals_red_passes_a_failing_test() {
     assert!(log.contains("inherited: test A::rules rule (red, temper/reds)"), "{log}");
     assert!(log.contains("pre-pr: reds: 1 entries (temper/reds)"), "{log}");
     assert!(passed(root));
+}
+
+#[test]
+fn a_flake_reports_its_first_log_and_observed_reds() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    write(root, ".git/temper/reds-wait", "temper-reds-wait 1 1\n");
+    write(root, ".git/temper/rerun", "temper-rerun 1 4\n");
+    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules red\n- test A::rules green\n");
+    let flake = changed_field(test_failure("flake", "first log\n\nunder load"), "before", json!(["setup"]));
+    ledger(
+        root,
+        &json!({"head": {"tests": [flake, test_failure("red", "inherited"),
+            changed_field(test_failure("green", ""), "outcome", json!("passed"))],
+            "again": {"flake": "passed"}}}),
+    );
+    let output = deliver(root);
+    let log = text(&output);
+    assert!(output.status.success(), "flake refuses nothing: {log}");
+    assert!(
+        log.contains("flake: test A::rules flake (failed under load; passed when its process ran again: 2 tests,"),
+        "{log}"
+    );
+    assert!(log.contains("pre-pr: tests: inherited,"), "{log}");
+    let state = budget(root);
+    let again: Vec<_> = state["events"].as_array().expect("events").iter().filter(|e| e[0] == "again").collect();
+    assert_eq!(again.len(), 1, "goal reds must not run again: {state}");
+    let args = again.first().expect("one again")[1].as_array().expect("arguments");
+    assert_eq!(&args[4..], &[json!("A::rules"), json!("setup"), json!("flake")]);
+    let record = fs::read_to_string(root.join(".git/pre-pr-passed")).expect("passed record");
+    let fields: Vec<_> = record.split_whitespace().collect();
+    let tree = fields.first().expect("tree");
+    let base = fields.get(1).expect("base");
+    let results = fs::read_to_string(root.join(".git/temper/check-results")).expect("check results");
+    assert_eq!(
+        results,
+        format!(
+            "temper-check 1\ncheck {tree} {base} passed\npassed test A::rules green\nfailed test A::rules red\nflake test A::rules flake\n|\n| first log\n|\n| under load\n"
+        )
+    );
+    assert!(!root.join(".git/temper/check-results.tmp").exists());
+    fs::remove_file(root.join(".git/temper/check-results")).expect("worker consumes results");
+    let cached = deliver(root);
+    assert!(cached.status.success(), "{}", text(&cached));
+    assert!(text(&cached).contains("passed before"));
+    assert!(!root.join(".git/temper/check-results").exists(), "cache hit observes nothing");
 }
 
 #[test]

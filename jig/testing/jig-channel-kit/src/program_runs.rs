@@ -256,13 +256,14 @@ pub struct Run {
     pub results: Vec<u64>,
 }
 impl Run {
-    fn worker(&mut self, wire: &processes::Wire) {
-        self.starts = u32::try_from(wire.placements.len()).expect("attempts");
+    fn worker(&mut self, wire: &processes::Wire) -> Result<(), String> {
+        self.starts = u32::try_from(wire.placements.len()).map_err(|why| format!("attempts: {why:?}"))?;
         self.grants.clear();
         self.messages.clear();
         for (_, kind, body) in &wire.frames {
             if *kind == wire::Kind::Assignment.number() {
-                let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("assignment");
+                let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(body))
+                    .map_err(|why| format!("assignment: {why:?}"))?;
                 for message in assignment.messages() {
                     self.messages.push((assignment.attempt(), message.name(), message.words().to_vec()));
                 }
@@ -282,22 +283,29 @@ impl Run {
             .frames
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
-            .map(|(_, _, body)| wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("answer"))
-            .collect();
+            .map(|(_, _, body)| {
+                wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(body)).map_err(|why| format!("answer: {why:?}"))
+            })
+            .collect::<Result<_, _>>()?;
         self.limited = wire
             .frames
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Limited.number())
-            .map(|(_, _, body)| wire::Limited::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("limited notice"))
-            .collect();
+            .map(|(_, _, body)| {
+                wire::Limited::decode(&wire::CEILINGS, &mut Reader::new(body))
+                    .map_err(|why| format!("limited notice: {why:?}"))
+            })
+            .collect::<Result<_, _>>()?;
         self.unauthorized = wire
             .frames
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Unauthorized.number())
             .map(|(_, _, body)| {
-                wire::Unauthorized::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("unauthorized notice")
+                wire::Unauthorized::decode(&wire::CEILINGS, &mut Reader::new(body))
+                    .map_err(|why| format!("unauthorized notice: {why:?}"))
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
+        Ok(())
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -313,6 +321,7 @@ enum Opening {
     Ready,
 }
 struct Judge {
+    finding: Option<String>,
     shared: Rc<RefCell<Run>>,
     store: Store,
     rules: Rules,
@@ -327,70 +336,16 @@ struct Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        self.accounts.act(procs, Story::Chat, self.done);
-        if !self.done {
-            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat);
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
-        for proc in procs.iter_mut() {
-            if let Proc::Engine(host) = proc {
-                world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now);
-                let engine = host.service.engine().expect("engine");
-                world::answer_parties(engine, &mut self.party, &mut self.views);
-                if !self.period && self.party.sign_in.is_some() {
-                    engine.parties_in().push(core::Event::Period { project: 1, period: 1, budget: 100, next: None });
-                    self.period = true;
-                }
-            }
-        }
-        let turns = world::turns(&self.store).into_iter().cloned().collect();
-        let terminals: Vec<_> = self
-            .store
-            .rows
-            .values()
-            .filter_map(|row| {
-                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
-                    Some(answer.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let parked = terminals.iter().any(|answer| answer.end == jig_domain_tasks::End::Parked);
-        if self.case == Case::Open {
-            self.prepare_open(procs);
-        }
-        self.steer(procs, parked);
-        let signed_out = procs.iter().any(|process| {
-            let Proc::Client(client) = process else { return false };
-            client.received.iter().any(|received| {
-                use jig_client::contract::{Answer, DocumentOutcome, Outcome};
-                matches!(
-                    received,
-                    jig_client_protocol_kit::native::Received::Answer {
-                        answer: Answer::Done(Outcome::Document(DocumentOutcome::AccountSignedOut {
-                            confirmed: true, failed_hosts,
-                        })), ..
-                    } if failed_hosts.is_empty()
-                )
-            })
-        });
-        if self.case == Case::SignOut && signed_out && self.action == Action::Sent {
-            self.party.extend(Box::new([say([4; 16], b"Continue after signing out")]));
-            self.action = Action::Resumed;
-        }
-        self.done = match self.case {
-            Case::Waiting => {
-                terminals.iter().any(|answer| matches!(answer.end, jig_domain_tasks::End::Finished { .. }))
-            }
-            Case::SignOut => signed_out && !terminals.is_empty(),
-            Case::Open => terminals.iter().filter(|answer| answer.end == jig_domain_tasks::End::Parked).count() == 2,
-            Case::Answer | Case::Delegated | Case::Limited | Case::Unauthorized | Case::Builtin => {
-                !terminals.is_empty()
-            }
-        };
-        self.record(procs, turns, terminals, signed_out);
     }
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(SETTLE)).then(|| {
             format!(
@@ -402,7 +357,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -410,14 +365,14 @@ impl skein_world::Referee<Proc> for Judge {
 }
 
 impl Judge {
-    fn prepare_open(&mut self, procs: &mut [Proc]) {
+    fn prepare_open(&mut self, procs: &mut [Proc]) -> Result<(), String> {
         if self.opening == Opening::Creating
             && let Some(task) = self.party.last_task
         {
             let client = procs
                 .iter_mut()
                 .find_map(|p| if let Proc::Client(client) = p { Some(client) } else { None })
-                .expect("native watcher");
+                .ok_or("native watcher")?;
             client.account_request(jig_client::Event::Watch {
                 handle: jig_client::Handle { asker: jig_client::Asker(78), number: 70 },
                 subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Task { task }),
@@ -437,8 +392,9 @@ impl Judge {
             }
             self.opening = Opening::Ready;
         }
+        Ok(())
     }
-    fn steer(&mut self, procs: &mut [Proc], parked: bool) {
+    fn steer(&mut self, procs: &mut [Proc], parked: bool) -> Result<(), String> {
         if self.action == Action::Ready && matches!(self.case, Case::Waiting | Case::Open) && parked {
             self.shared.borrow_mut().sent_after_park = self.store.rows.values().find_map(|row| {
                 if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row
@@ -452,14 +408,14 @@ impl Judge {
             self.party.extend(Box::new([say([2; 16], b"After waiting")]));
             self.action = Action::Sent;
         }
-        if self.action == Action::Ready && self.case == Case::SignOut && waiting_on(procs, 1) {
+        if self.action == Action::Ready && self.case == Case::SignOut && waiting_on(procs, 1)? {
             let client = procs
                 .iter_mut()
                 .find_map(|p| if let Proc::Client(client) = p { Some(client) } else { None })
-                .expect("client");
+                .ok_or("client")?;
             let ask = jig_client::contract::Ask::SignOut {
                 holder: jig_client::contract::AskAccountHolder::Own,
-                source: self.accounts.source().expect("declared source"),
+                source: self.accounts.source().ok_or("declared source")?,
             };
             client.account_request(jig_client::Event::Send {
                 key: jig_client::Key { asker: jig_client::Asker(79), number: 1 },
@@ -470,10 +426,11 @@ impl Judge {
         }
         // Each new fake invocation begins its turn script again. A fresh word answers
         // the resumed invocation's own wait, after its initial resumption message.
-        if self.case == Case::Waiting && self.action == Action::Sent && waiting_on(procs, 2) {
+        if self.case == Case::Waiting && self.action == Action::Sent && waiting_on(procs, 2)? {
             self.party.extend(Box::new([say([3; 16], b"Continue after waiting")]));
             self.action = Action::Resumed;
         }
+        Ok(())
     }
     fn record(
         &self,
@@ -481,8 +438,8 @@ impl Judge {
         turns: Vec<core::TurnRecord>,
         terminals: Vec<core::TerminalRecord>,
         signed_out: bool,
-    ) {
-        let diagnostics = world::diagnostics(procs);
+    ) -> Result<(), String> {
+        let diagnostics = world::check_diagnostics(procs)?;
         let mut run = self.shared.borrow_mut();
         run.diagnostics = diagnostics;
         run.turns = turns;
@@ -549,7 +506,7 @@ impl Judge {
         for proc in procs {
             match proc {
                 Proc::Worker(host) => {
-                    run.worker(&host.wire);
+                    run.worker(&host.wire)?;
                     if self.done && !host.stopping {
                         host.stopping = true;
                         host.service.shutdown();
@@ -578,24 +535,27 @@ impl Judge {
                 Proc::Engine(_) | Proc::Agent { .. } | Proc::Auth(_) | Proc::Peer(_) | Proc::Probe(_) => {}
             }
         }
+        Ok(())
     }
 }
 
-fn waiting_on(procs: &[Proc], attempt: u64) -> bool {
-    procs.iter().any(|p| {
-        if let Proc::Worker(worker) = p {
-            worker.wire.frames.iter().any(|(_, kind, body)| {
-                if *kind != wire::Kind::Fact.number() {
-                    return false;
+fn waiting_on(procs: &[Proc], attempt: u64) -> Result<bool, String> {
+    for proc in procs {
+        if let Proc::Worker(worker) = proc {
+            for (_, kind, body) in &worker.wire.frames {
+                if *kind == wire::Kind::Fact.number() {
+                    let fact = wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body))
+                        .map_err(|why| format!("fact: {why:?}"))?;
+                    if fact.attempt() == attempt
+                        && matches!(fact.value(),wire::FactValue::Phase(phase) if *phase.value()==wire::Phase::Waiting)
+                    {
+                        return Ok(true);
+                    }
                 }
-                let fact = wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("fact");
-                fact.attempt() == attempt
-                    && matches!(fact.value(),wire::FactValue::Phase(phase) if *phase.value()==wire::Phase::Waiting)
-            })
-        } else {
-            false
+            }
         }
-    })
+    }
+    Ok(false)
 }
 
 fn party(case: Case) -> jig_fake_parties::Party {
@@ -614,6 +574,7 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     let client = files.open(base, b".", How::Directory).expect("client root");
     let shared = Rc::new(RefCell::new(Run::default()));
     let judge = Judge {
+        finding: None,
         shared: shared.clone(),
         store: Store::new(),
         rules: Rules::default(),
@@ -721,4 +682,73 @@ pub(crate) fn login_files(story: &smith_fake_claude::Story) -> Vec<Item> {
     items.push(Item::file(b"private/programs/alice/fake-claude.story", &story.encode()).mode(0o600));
     items.push(Item::file(b"private/programs/alice/fake-claude.login", b"claude.ai").mode(0o600));
     items
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        self.accounts.act(procs, Story::Chat, self.done)?;
+        if !self.done {
+            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat)?;
+        }
+        for proc in procs.iter_mut() {
+            if let Proc::Engine(host) = proc {
+                world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now)?;
+                let engine = host.service.engine().ok_or("engine")?;
+                world::answer_parties(engine, &mut self.party, &mut self.views)?;
+                if !self.period && self.party.sign_in.is_some() {
+                    engine.parties_in().push(core::Event::Period { project: 1, period: 1, budget: 100, next: None });
+                    self.period = true;
+                }
+            }
+        }
+        let turns = world::turns(&self.store).into_iter().cloned().collect();
+        let terminals: Vec<_> = self
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
+                    Some(answer.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let parked = terminals.iter().any(|answer| answer.end == jig_domain_tasks::End::Parked);
+        if self.case == Case::Open {
+            self.prepare_open(procs)?;
+        }
+        self.steer(procs, parked)?;
+        let signed_out = procs.iter().any(|process| {
+            let Proc::Client(client) = process else { return false };
+            client.received.iter().any(|received| {
+                use jig_client::contract::{Answer, DocumentOutcome, Outcome};
+                matches!(
+                    received,
+                    jig_client_protocol_kit::native::Received::Answer {
+                        answer: Answer::Done(Outcome::Document(DocumentOutcome::AccountSignedOut {
+                            confirmed: true, failed_hosts,
+                        })), ..
+                    } if failed_hosts.is_empty()
+                )
+            })
+        });
+        if self.case == Case::SignOut && signed_out && self.action == Action::Sent {
+            self.party.extend(Box::new([say([4; 16], b"Continue after signing out")]));
+            self.action = Action::Resumed;
+        }
+        self.done = match self.case {
+            Case::Waiting => {
+                terminals.iter().any(|answer| matches!(answer.end, jig_domain_tasks::End::Finished { .. }))
+            }
+            Case::SignOut => signed_out && !terminals.is_empty(),
+            Case::Open => terminals.iter().filter(|answer| answer.end == jig_domain_tasks::End::Parked).count() == 2,
+            Case::Answer | Case::Delegated | Case::Limited | Case::Unauthorized | Case::Builtin => {
+                !terminals.is_empty()
+            }
+        };
+        self.record(procs, turns, terminals, signed_out)?;
+
+        Ok(())
+    }
 }

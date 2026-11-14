@@ -356,6 +356,37 @@ more than one world needs them (testing-strategy.md, section 4):
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.
 
+**Their checks return their findings,** as skein's do
+(`skein/docs/design/testing/README.md`, 5;
+`skein/docs/foundation/programming-model.md`, 10.4), and nothing in jig's
+tests catches a panic:
+
+- **Every world's referee and judge** implements `watch`, and keeps what
+  its `act` or `idle` finds for its next `watch`.
+- **The conformance observer** (`jig-conformance`'s `core::Observer`, and
+  `jig-core-kit`'s over it) returns its findings rather than panicking:
+  each method that observes or checks returns `Result<_, String>`, its
+  `Err` the referee's error on an observation, with the time, a durable
+  row changed or gone, or a reply ahead of its commit's fence, in the
+  words it panics with now. Its callers pass it up, so no finding is
+  dropped: the core's world, the conformance harness and the
+  conformance world fail with it at their top, naming the seed and the
+  trace's tail, and a test of a check reads the `Err`.
+- **The views' referee** records what breaks in skein's domain judge
+  (`Judge::check`, `Judge::fail`), never asserting; its last delivery
+  following the subject's final change is a returning check too. Its
+  world fails on the verdict (`check_holding`); its tests read it.
+- **The client's model** (`jig-client-kit`) has a returning form of
+  applying a page's patches, whose finding is a patch that breaks the
+  model, a value patch that doesn't move its write count among them; the
+  world fails with it.
+- **A harness that names a seed, a story's choices, a scenario or a
+  case** writes it to stderr before it runs it, and adds the trace's tail
+  to a returned finding. A table of cases, the step crates' and the
+  core's bundle (`tests/core/tests/support/bundle.rs`) alike, names each
+  case, and the bundle its seed, before running it, and stops at the
+  first that fails. The runner prints a failed test's output.
+
 **A world's library is its own.** No package depends on a world; its own suite
 reads its kit through its library, which re-exports it.
 `jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds

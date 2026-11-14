@@ -133,18 +133,24 @@ impl World {
         output
     }
 
-    fn reds(&self, directory: &[u8], content: Option<Box<[u8]>>, marker: bool) -> git::Done {
+    fn reds(&self, directory: &[u8], content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> git::Done {
         let directory = self.root.join(OsStr::from_bytes(directory));
         fs::create_dir_all(&directory).expect("check directory");
         let file = directory.join("reds");
         if marker || content.is_none() {
             let _ = fs::remove_file(&file);
+            let _ = fs::remove_file(directory.join("check-results"));
         }
         if let Some(content) = content {
             let name = if marker { "reds-wait" } else { "reds" };
             let temporary = directory.join(format!("{name}.tmp"));
             fs::write(&temporary, content).expect("check file");
             fs::rename(temporary, directory.join(name)).expect("whole check file");
+        }
+        if let Some(rerun) = rerun {
+            let temporary = directory.join("rerun.tmp");
+            fs::write(&temporary, format!("temper-rerun 1 {rerun}\n")).expect("rerun marker");
+            fs::rename(temporary, directory.join("rerun")).expect("whole marker");
         }
         git::Done::Succeeded
     }
@@ -230,7 +236,10 @@ impl World {
                     *second = merging;
                     Next::Run(if merging.is_some() { invocation::Command::Unmerged } else { invocation::Command::Add })
                 }
-                Next::Reds { directory, content, marker } => return self.reds(&directory, content, marker),
+                Next::Reds { directory, content, marker, rerun } => {
+                    return self.reds(&directory, content, marker, rerun);
+                }
+                Next::Results { .. } => panic!("this delivery has no check results read"),
                 Next::End(done) => return done,
                 Next::Alternates => {
                     let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };
