@@ -23,6 +23,16 @@ fn make_with_cap_at(
     observations: u32,
     address: SocketAddr,
 ) -> oauth::Peer {
+    make_with_caps_at(transport, terms, observations, 4096, address)
+}
+
+fn make_with_caps_at(
+    transport: Transport,
+    terms: Option<issuer::Terms>,
+    observations: u32,
+    observation_bytes: u32,
+    address: SocketAddr,
+) -> oauth::Peer {
     let scheme = if transport == Transport::Plaintext { "http" } else { "https" };
     let document = skein_oauth::Limits {
         document_bytes: 1024,
@@ -49,7 +59,7 @@ fn make_with_cap_at(
         plaintext: 32_768,
         ciphertext: 32_768,
         observations,
-        observation_bytes: 4096,
+        observation_bytes,
     };
     oauth::Peer::new(
         address,
@@ -434,24 +444,23 @@ fn no_observation_holds_a_token_or_an_id_token() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
-    for recording in [true, false] {
-        let mut peer = make_with_cap(Transport::Plaintext, Some(terms()), 0);
+    // Accepted, document target and closed; document replies add no Answered record.
+    const EXCHANGE_RECORDS: u32 = 3;
+    const TARGET: &str = "/jwks";
+    let exchange_bytes = u32::try_from(TARGET.len()).expect("document target fits");
+    for (recording, records, bytes) in [(true, EXCHANGE_RECORDS, exchange_bytes), (false, 0, 0)] {
+        let mut peer =
+            make_with_caps_at(Transport::Plaintext, Some(terms()), records, bytes, (Ipv4Addr::LOCALHOST, 0).into());
         if !recording {
             peer = peer.without_records();
         }
         let mut sim = skein_sim::Sim::new(31, skein_sim::Config::calm());
         let (pid, client) = (sim.spawn_process(), sim.spawn_process());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            fetch(&mut sim, (pid, &mut peer), client, &request("GET", "/jwks", ""))
-        }));
-        if recording {
-            support::assert_panic(result, "world observation count cap");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert!(peer.observations().is_empty());
-            settle(&mut sim, pid, client, &mut peer);
-        }
+        let response = fetch(&mut sim, (pid, &mut peer), client, &request("GET", TARGET, ""));
+        settle(&mut sim, pid, client, &mut peer);
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert_eq!(peer.observations().len(), usize::try_from(records).unwrap());
+        assert_eq!(peer.observation_bytes(), u64::from(bytes));
     }
 }

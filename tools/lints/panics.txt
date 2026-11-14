@@ -189,9 +189,6 @@ skein/tests/browser/tests/browser_real.rs catch_unwind 1
 skein/tests/codec/tests/suite/fuzzy/generic.rs catch_unwind 1
 skein/tests/conformance/real/tests/suite/deadline.rs catch_unwind 2
 skein/tests/conformance/sim/src/lib.rs catch_unwind 2
-skein/tests/fake-peers/tests/suite/forge.rs catch_unwind 3
-skein/tests/fake-peers/tests/suite/llm.rs catch_unwind 1
-skein/tests/fake-peers/tests/suite/oauth.rs catch_unwind 1
 skein/tests/heap/tests/suite/meter.rs should_panic 6
 skein/tests/io/src/processes.rs catch_unwind 2
 skein/tests/lib/tests/suite/journal.rs should_panic 1

@@ -691,9 +691,18 @@ fn the_public_route_takes_its_scope_from_the_cache_key_alone() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
-    for recording in [true, false] {
+    // Accepted, head, credential, query, answered and closed (llm.md, 3).
+    const EXCHANGE_RECORDS: u32 = 6;
+    // body("") has model "gpt", one message with one text part "hi", and no system or tools.
+    const QUERY_BYTES: usize = b"gpt".len() + size_of::<api::Message>() + size_of::<api::Part>() + b"hi".len();
+    // request::request's four non-credential headers retain their wrappers, names and values.
+    const HEAD_BYTES_WITHOUT_LENGTH: usize = 4 * size_of::<skein_http::Header>()
+        + b"hostlocalhostcontent-typeapplication/jsonconnectionclosecontent-length".len();
+    let body = body("");
+    let exchange_bytes = u32::try_from(QUERY_BYTES + HEAD_BYTES_WITHOUT_LENGTH + body.len().to_string().len())
+        .expect("exchange payload fits");
+    for (recording, records, bytes) in [(true, EXCHANGE_RECORDS, exchange_bytes), (false, 0, 0)] {
         let endpoint = Endpoint::openai();
         let mut peer = make_scripted_with_limits(
             endpoint.clone(),
@@ -701,21 +710,37 @@ fn without_records_serves_past_a_zero_cap() {
             (Ipv4Addr::LOCALHOST, 0).into(),
             Transport::Plaintext,
             Box::new([]),
-            Limits { observations: 0, observation_bytes: 0, ..limits() },
+            Limits { observations: records, observation_bytes: bytes, ..limits() },
         )
         .unwrap();
         if !recording {
             peer = peer.without_records();
         }
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            send_request(&mut peer, &endpoint, b"authorization: Bearer k0\r\n", &body(""))
-        }));
-        if recording {
-            support::assert_panic(result, "the world's referee observation count fits its configured cap");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert_eq!((peer.observations()).len(), 0);
+        let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
+        let (server, client) = (sim.spawn_process(), sim.spawn_process());
+        let response = request::request(
+            &mut sim,
+            server,
+            client,
+            &mut peer,
+            &endpoint.target,
+            b"authorization: Bearer k0\r\n",
+            &body,
+        );
+        peer.shutdown();
+        for _ in 0..1000 {
+            if peer.is_empty() {
+                break;
+            }
+            request::pass(&mut sim, server, &mut peer);
         }
+        assert!(peer.is_empty());
+        sim.assert_quiescent(server);
+        sim.assert_no_open_fds(server);
+        sim.assert_no_open_fds(client);
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert_eq!(peer.observations().len(), usize::try_from(records).unwrap());
+        assert_eq!(peer.observation_bytes(), u64::from(bytes));
     }
 }
 
