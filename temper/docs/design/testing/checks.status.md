@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-12. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-14. Where the tree's code lags or departs from [checks.md](checks.md).
 
 
 - **Departs:** 1: temper's measured focused request-world sum is
@@ -120,3 +120,6 @@ after-landing execution (`../protocol/openid-provider.status.md`, 9).
    the neutral-owner exceptions remain `live-tier.status.md` (Departs, the whole document).
    the offline startup helper gap remains `live-tier.status.md` (Departs, the whole document).
    the held-record return's mechanism remains `live-tier.status.md` (Departs, the whole document).
+- **Not yet:** the whole document: the engine replay's digest and text
+  comparisons panic on a difference, and their test catches.
+  [in flight: change 2867]

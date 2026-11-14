@@ -969,16 +969,24 @@ impl Members {
     pub fn failure(&self) -> Option<&str> {
         self.failure.as_deref()
     }
+    /// Return the members' finding only once they have all stopped (testing/process-tier.md, the cluster).
+    pub fn verdict(&self) -> Result<bool, String> {
+        if self.stopped().is_none() {
+            return Ok(false);
+        }
+        if let Some(failure) = &self.failure {
+            return Err(failure.clone());
+        }
+        for stopped in &self.stopped {
+            if stopped.killed || !stopped.survivors.is_empty() {
+                return Err(format!("{} needed tree cleanup", stopped.name));
+            }
+        }
+        Ok(true)
+    }
     #[must_use]
     pub fn passed(&self) -> bool {
-        if self.stopped().is_none() {
-            return false;
-        }
-        assert!(self.failure.is_none(), "{}", self.failure.as_deref().unwrap_or(""));
-        for stopped in &self.stopped {
-            assert!(!stopped.killed && stopped.survivors.is_empty(), "{} needed tree cleanup", stopped.name);
-        }
-        true
+        self.verdict().unwrap_or_else(|why| panic!("{why}"))
     }
 }
 
@@ -986,8 +994,9 @@ struct Probe {
     settled: bool,
 }
 impl Referee<Binary> for Probe {
-    fn observe(&mut self, _now: Time, hosts: &[Binary]) {
+    fn watch(&mut self, _now: Time, hosts: &[Binary]) -> Result<(), String> {
         self.settled = hosts.iter().all(Host::is_empty);
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.settled

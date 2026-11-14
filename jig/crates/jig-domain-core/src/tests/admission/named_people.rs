@@ -61,6 +61,11 @@ fn amendment_input(core: &Core, named: u64) -> Event {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::print_stderr,
+    reason = "the table reports each route, person and case before running it (domain/testing.md, 7)"
+)]
 fn raw_writers_refuse_unknown_people_before_any_child_changes() {
     type Input = fn(&Core, u64) -> Event;
     let routes: [(&str, Input, u64); 4] = [
@@ -70,62 +75,57 @@ fn raw_writers_refuse_unknown_people_before_any_child_changes() {
         ("amendment", amendment_input, PERSON_TASK),
     ];
     // Four writers, with a held person and an absent person each.
-    let mut failures = List::with_capacity(8);
     for (route, input, target) in routes {
         for named in [PERSON, PERSON_TASK] {
-            let result = std::panic::catch_unwind(|| {
-                let (mut core, limits) = tree_core();
-                make_task(&mut core, &limits, PERSON);
-                let opens = core.open_person_pool(1, PERSON);
-                for event in [opens.0, opens.1].into_iter().flatten() {
-                    send_task(&mut core, &limits, event);
-                }
-                let person = person_task(&core, PERSON_TASK);
-                send_task(
-                    &mut core,
-                    &limits,
-                    tasks::Event::Make {
-                        reply_to: ReplyTo::new(Token::new(1)),
-                        creator: tasks::Party::Deployment { project: 1 },
-                        batch: Box::new([person]),
-                    },
-                );
-                let before = [core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()];
-                let funding = core.tasks.funding(PERIOD).copied();
-                let event = input(&core, named);
-                let mut out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, event);
-                let mut refused = None;
-                let mut writes = Queue::uncapped();
-                while let Some(request) = out.pop() {
-                    match request {
-                        Request::Now(now) => {
-                            if let Now::Link(LinkNow::RefusedPayload { problem, .. }) = *now {
-                                refused = Some(problem);
-                            }
+            let case = if named == PERSON { "held" } else { "absent" };
+            std::eprintln!("route {route}, named person {named}, case {case}");
+            let (mut core, limits) = tree_core();
+            make_task(&mut core, &limits, PERSON);
+            let opens = core.open_person_pool(1, PERSON);
+            for event in [opens.0, opens.1].into_iter().flatten() {
+                send_task(&mut core, &limits, event);
+            }
+            let person = person_task(&core, PERSON_TASK);
+            send_task(
+                &mut core,
+                &limits,
+                tasks::Event::Make {
+                    reply_to: ReplyTo::new(Token::new(1)),
+                    creator: tasks::Party::Deployment { project: 1 },
+                    batch: Box::new([person]),
+                },
+            );
+            let before = [core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()];
+            let funding = core.tasks.funding(PERIOD).copied();
+            let event = input(&core, named);
+            let mut out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, event);
+            let mut refused = None;
+            let mut writes = Queue::uncapped();
+            while let Some(request) = out.pop() {
+                match request {
+                    Request::Now(now) => {
+                        if let Now::Link(LinkNow::RefusedPayload { problem, .. }) = *now {
+                            refused = Some(problem);
                         }
-                        Request::Write(write) => writes.push(write),
-                        Request::Held(_) | Request::Ask { .. } | Request::ProjectMade { .. } => {}
                     }
+                    Request::Write(write) => writes.push(write),
+                    Request::Held(_) | Request::Ask { .. } | Request::ProjectMade { .. } => {}
                 }
-                if named == PERSON {
-                    assert_eq!(refused, None, "{route}");
-                    assert!(core.tasks.task(target).is_some(), "{route} admitted");
-                } else {
-                    assert_eq!(refused, Some(tasks::Problem::new(Some(target), tasks::Refusal::Unknown)), "{route}");
-                    assert!(writes.is_empty(), "{route}: {writes:?}");
-                    assert!(core.tasks.task(CREATED).is_none(), "{route}");
-                    assert_eq!(
-                        [core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()],
-                        before,
-                        "{route}"
-                    );
-                    assert_eq!(core.tasks.funding(PERIOD), funding.as_ref(), "{route}");
-                }
-            });
-            if result.is_err() {
-                failures.push((route, named)).expect("one result per row");
+            }
+            if named == PERSON {
+                assert_eq!(refused, None, "{route}");
+                assert!(core.tasks.task(target).is_some(), "{route} admitted");
+            } else {
+                assert_eq!(refused, Some(tasks::Problem::new(Some(target), tasks::Refusal::Unknown)), "{route}");
+                assert!(writes.is_empty(), "{route}: {writes:?}");
+                assert!(core.tasks.task(CREATED).is_none(), "{route}");
+                assert_eq!(
+                    [core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()],
+                    before,
+                    "{route}"
+                );
+                assert_eq!(core.tasks.funding(PERIOD), funding.as_ref(), "{route}");
             }
         }
     }
-    assert!(failures.is_empty(), "failed rows: {failures:?}");
 }

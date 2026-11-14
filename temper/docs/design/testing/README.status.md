@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+2026-11-14. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -141,4 +141,24 @@ that proof remains with the after-landing runs (11).
 
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
+
+- **Not yet:**
+  4.2: the real-loop world's judges implement `observe`.
+  [in flight: change 2865]
+  4.2: the one-process world's referees implement `observe`, its
+  durable observer panics on a current row that doesn't decode (2.5),
+  and its walk and signal cases catch to name themselves.
+  [in flight: change 2866]
+  4.2: temper's fuzzy sweeps catch a panic to name their seed.
+  [in flight: change 2868]
+  4.2: the cluster's `Members` has no returning verdict.
+  [in flight: change 2874]
+  4.2: the GitHub stories' judges implement `observe`.
+  [in flight: change 2875]
+  4.2: the cluster and case library's judges implement `observe`.
+  [in flight: change 2876]
+  4.2: the forge landing's, ctl's and the live story's judges implement
+  `observe`. [in flight: change 2877]
+  4.2: temper-box's other judges and its kit's implement `observe`.
+  [in flight: change 2878]
 

@@ -449,15 +449,7 @@ fn a_seeded_executor_override_keeps_a_compatible_choice() {
 }
 
 fn table<const N: usize>(cases: [Case; N]) {
-    let mut failures = [None; N];
-    let mut passed = true;
-    for ((name, case), failure) in cases.into_iter().zip(&mut failures) {
-        if std::panic::catch_unwind(case).is_err() {
-            *failure = Some(name);
-            passed = false;
-        }
-    }
-    assert!(passed, "{failures:?}");
+    skein_rows::check(cases, |case| case());
 }
 
 #[test]

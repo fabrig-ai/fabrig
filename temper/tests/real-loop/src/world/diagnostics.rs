@@ -223,7 +223,11 @@ struct Task {
     completed: Summary,
 }
 impl Tasks {
-    pub(super) fn observe(&mut self, engine: &temper_engine_domain::Domain, terminals: &Terminals) {
+    pub(super) fn observe(
+        &mut self,
+        engine: &temper_engine_domain::Domain,
+        terminals: &Terminals,
+    ) -> Result<(), String> {
         if self.revision != Some(engine.revision()) {
             self.revision = Some(engine.revision());
             for task in self.rows.values_mut() {
@@ -231,7 +235,7 @@ impl Tasks {
             }
             let tasks = engine.tasks();
             for row in &tasks.view_tasks() {
-                let task = tasks.task(row.number).expect("live view row");
+                let task = tasks.task(row.number).ok_or("live view row")?;
                 let parent = match task.requester {
                     jig_domain_tasks::Party::Task(parent) => Some(parent),
                     jig_domain_tasks::Party::Person(_) | jig_domain_tasks::Party::Deployment { .. } => None,
@@ -259,9 +263,9 @@ impl Tasks {
                 }
             }
         }
-        self.observe_terminals(terminals);
+        self.observe_terminals(terminals)
     }
-    fn observe_terminals(&mut self, terminals: &Terminals) {
+    fn observe_terminals(&mut self, terminals: &Terminals) -> Result<(), String> {
         if self.terminal_revision != terminals.revision {
             self.terminal_revision = terminals.revision;
             for number in &terminals.ended {
@@ -272,10 +276,11 @@ impl Tasks {
                     row.live = false;
                 }
             }
-            self.reclaim();
+            self.reclaim()?;
         }
+        Ok(())
     }
-    fn reclaim(&mut self) {
+    fn reclaim(&mut self) -> Result<(), String> {
         // Each pass removes at least one ended leaf, or stops; depth is at most
         // the retained task count. Summaries replace completed subtrees.
         for _ in 0..self.rows.len() {
@@ -291,7 +296,7 @@ impl Tasks {
                 break;
             }
             for number in leaves {
-                let row = self.rows.remove(&number).expect("ended leaf");
+                let row = self.rows.remove(&number).ok_or("ended leaf")?;
                 self.reclaimed = self.reclaimed.saturating_add(1);
                 if let Some(parent) = row.parent.and_then(|parent| self.rows.get_mut(&parent)) {
                     parent.completed.completed =
@@ -304,6 +309,7 @@ impl Tasks {
                 }
             }
         }
+        Ok(())
     }
     fn below(&self, mut task: u64, ancestor: u64) -> bool {
         for _ in 0..self.rows.len() {

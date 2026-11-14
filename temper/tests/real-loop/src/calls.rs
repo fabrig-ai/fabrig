@@ -483,32 +483,39 @@ impl Verdict {
     fn finish(deadline: &Deadline) -> Self {
         if deadline.passed() { Self::Expired(deadline.expired()) } else { Self::InTime }
     }
-    fn assert_answered(self, call: &Called) {
+    fn check_answered(self, call: &Called) -> Result<(), String> {
         match self {
-            Self::InTime => {}
+            Self::InTime => Ok(()),
             Self::Expired(Expired::Starved(starved)) => starved.pass(),
-            Self::Expired(Expired::Failed(figures)) => panic!("prompt answer: {call:?}\n{figures}"),
+            Self::Expired(Expired::Failed(figures)) => Err(format!("prompt answer: {call:?}\n{figures}")),
         }
     }
 }
 impl Called {
     /// Check the recorded answer bound after the world's cleanup and exit assertions.
     pub fn assert_answered_within_bound(&self) {
-        self.answer.borrow_mut().take().expect("call carries an answer bound").assert_answered(self);
+        self.check_answered_within_bound().unwrap_or_else(|error| panic!("{error}"));
+    }
+    pub fn check_answered_within_bound(&self) -> Result<(), String> {
+        self.answer.borrow_mut().take().ok_or("call carries an answer bound")?.check_answered(self)
     }
     /// Only an explicit CLI timeout can use its timeout's starvation verdict.
     pub(crate) fn assert_no_timeout(&self) {
+        self.check_no_timeout().unwrap_or_else(|error| panic!("{error}"));
+    }
+    pub(crate) fn check_no_timeout(&self) -> Result<(), String> {
         if self.exit != Some(Exit::Code(3)) || self.timeout.borrow().is_none() {
-            return;
+            return Ok(());
         }
         let timed_out = match serde_json::from_slice::<serde_json::Value>(&self.stdout) {
             Ok(value) => value["met"] == false && value["why"] == "timeout",
             Err(_) => self.stdout.split(|byte| *byte == b'\n').any(|line| line == b"not met: timeout"),
         };
         if timed_out {
-            self.timeout.borrow_mut().take().expect("CLI timeout bound").assert_answered(self);
-            panic!("CLI timed out before its harness bound: {self:?}");
+            self.timeout.borrow_mut().take().ok_or("CLI timeout bound")?.check_answered(self)?;
+            return Err(format!("CLI timed out before its harness bound: {self:?}"));
         }
+        Ok(())
     }
 }
 // A complete small rendered turn fits; a pipe chunk alone could miss a split reply.
@@ -735,12 +742,13 @@ impl Caller {
         if let Some(Step::EndsLeaving(leftovers)) = self.steps.last() { leftovers } else { &[] }
     }
 
-    pub(crate) fn check_program_stop(&self) {
+    pub(crate) fn check_program_stop(&self) -> Result<(), String> {
         for step in &self.steps {
             if let Step::ClaudeTurn { source } = step {
-                crate::claude::check_interrupted(&self.scratch, source);
+                crate::claude::check_interrupted(&self.scratch, source)?;
             }
         }
+        Ok(())
     }
 
     pub(crate) fn held_names(&self) -> impl Iterator<Item = &[u8]> {
@@ -1618,18 +1626,13 @@ mod read_condition_tests {
             tree_waited: None,
         }
     }
-    fn failure_text(action: impl FnOnce()) -> String {
-        let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(action)).expect_err("failed bound");
-        *error.downcast::<String>().expect("formatted deadline failure")
-    }
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_late_answer_fails_with_its_scheduler_figures() {
         let call = bounded_call();
         let figures = failed_answer();
         let expected = figures.to_string();
         *call.answer.borrow_mut() = Some(Verdict::Expired(Expired::Failed(figures)));
-        let message = failure_text(|| call.assert_answered_within_bound());
+        let message = call.check_answered_within_bound().expect_err("failed bound");
         assert!(message.contains("prompt answer:"), "{message}");
         assert!(message.contains(&expected), "{message}");
     }
@@ -1640,7 +1643,6 @@ mod read_condition_tests {
         call.assert_answered_within_bound();
     }
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_cli_timeout_fails_with_its_recorded_scheduler_figures() {
         for stdout in [b"task 1\nnot met: timeout\n".as_slice(), br#"{"met":false,"why":"timeout"}"#] {
             let mut call = bounded_call();
@@ -1649,8 +1651,13 @@ mod read_condition_tests {
             let figures = failed_answer();
             let expected = figures.to_string();
             *call.timeout.borrow_mut() = Some(Verdict::Expired(Expired::Failed(figures)));
-            let message = failure_text(|| call.assert_no_timeout());
+            let message = call.check_no_timeout().expect_err("failed CLI timeout bound");
+            assert!(message.contains("prompt answer:"), "{message}");
             assert!(message.contains(&expected), "{message}");
+
+            *call.timeout.borrow_mut() = Some(Verdict::InTime);
+            let message = call.check_no_timeout().expect_err("an early CLI timeout still fails");
+            assert!(message.contains("CLI timed out before its harness bound:"), "{message}");
         }
     }
     #[test]

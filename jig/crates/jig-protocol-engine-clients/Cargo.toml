@@ -29,6 +29,7 @@ jig-domain-views.workspace = true
 workspace = true
 
 [dev-dependencies]
+skein-rows.workspace = true
 smith-transcript.workspace = true
 jig-client-view = {path = "../jig-client-view"}
 jig-client-protocol-link = {path = "../jig-client-protocol-link"}
