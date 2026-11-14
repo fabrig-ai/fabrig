@@ -233,66 +233,77 @@ pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
 }
 
 struct Judge {
+    failed: Option<String>,
     sent: bool,
     deadline: super::patience::Patience,
     settled: bool,
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        if !self.sent
-            && let [signed, connected] = calls.ends()
-        {
-            assert_eq!(signed.exit, Some(Exit::Code(0)), "sign-in answered");
-            assert_eq!(
-                connected.exit,
-                Some(Exit::Code(0)),
-                "connect answered: {}",
-                String::from_utf8_lossy(&connected.stderr)
-            );
-            let answer = ctl::json(connected);
-            let address = answer["outcome"]["done"]["document"]["account_sign_in_started"]["address"]
-                .as_str()
-                .expect("sign-in address");
-            assert!(address.starts_with("http://127.0.0.1:"), "local authorization address");
-            // Nobody visits this address. Keep the issuer alive until temper exits.
-            let Process::Binary(binary) = &mut procs[0] else { panic!("temper") };
-            binary.signal(Signal::Terminate);
-            self.sent = true;
-            self.deadline = super::patience::Patience::watching("sign-in's SIGTERM stop", STOPS_WITHIN, binary);
+        if self.failed.is_some() {
+            return;
         }
-        let Process::Binary(binary) = &procs[0] else { panic!("temper") };
-        if binary.exit_status().is_some() {
-            let Process::Issuer(issuer) = &mut procs[2] else { panic!("issuer") };
-            issuer.shutdown();
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+            if !self.sent
+                && let [signed, connected] = calls.ends()
+            {
+                if signed.exit != Some(Exit::Code(0)) {
+                    return Err(String::from("sign-in answered"));
+                }
+                if connected.exit != Some(Exit::Code(0)) {
+                    return Err(format!("connect answered: {}", String::from_utf8_lossy(&connected.stderr)));
+                }
+                let answer = super::check_ctl_json(connected)?;
+                let address = answer["outcome"]["done"]["document"]["account_sign_in_started"]["address"]
+                    .as_str()
+                    .ok_or(String::from("sign-in address"))?;
+                if !address.starts_with("http://127.0.0.1:") {
+                    return Err(String::from("local authorization address"));
+                }
+                // Nobody visits this address. Keep the issuer alive until temper exits.
+                let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("temper")) };
+                binary.signal(Signal::Terminate);
+                self.sent = true;
+                self.deadline = super::patience::Patience::watching("sign-in's SIGTERM stop", STOPS_WITHIN, binary);
+            }
+            let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("temper")) };
+            if binary.exit_status().is_some() {
+                let Some(Process::Issuer(issuer)) = procs.get_mut(2) else { return Err(String::from("issuer")) };
+                issuer.shutdown();
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        let Process::Binary(binary) = &procs[0] else { panic!("temper") };
-        assert!(
-            binary.exit_status().is_none() || self.sent,
-            "serve exited early: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("temper")) };
+        if binary.exit_status().is_some() && !self.sent {
+            return Err(format!("serve exited early: {}", String::from_utf8_lossy(binary.stderr())));
+        }
         if self.sent
             && let Some(exit) = binary.exit_status()
+            && exit != Exit::Code(0)
         {
-            assert_eq!(exit, Exit::Code(0), "SIGTERM stops serve: {}", String::from_utf8_lossy(binary.stderr()));
+            return Err(format!("SIGTERM stops serve: {}", String::from_utf8_lossy(binary.stderr())));
         }
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
+        let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
         for ended in calls.ends() {
-            assert_eq!(
-                ended.exit,
-                Some(Exit::Code(0)),
-                "setup call failed: {}",
-                String::from_utf8_lossy(&ended.stderr)
-            );
+            if ended.exit != Some(Exit::Code(0)) {
+                return Err(format!("setup call failed: {}", String::from_utf8_lossy(&ended.stderr)));
+            }
         }
         self.settled = self.sent && procs.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
-            let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
             for ended in calls.ends().iter().chain(calls.pending()) {
                 eprintln!(
                     "setup call {:?}: stdout {}; stderr {}",
@@ -301,13 +312,21 @@ impl Referee<Process> for Judge {
                     String::from_utf8_lossy(&ended.stderr)
                 );
             }
-            panic!("sign-in setup or stop did not settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+            return Err(format!(
+                "sign-in setup or stop did not settle: {}; {figures}",
+                String::from_utf8_lossy(binary.stderr())
+            ));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -320,6 +339,7 @@ pub fn run(directory: &Path, issuer: oauth::Peer) {
     let root = skein_shell::open_root(directory).expect("scratch root");
     fds.push(root);
     let mut world = real::World::new(Judge {
+        failed: None,
         sent: false,
         deadline: super::patience::Patience::watching("sign-in's setup", super::WITHIN, &binary),
         settled: false,
@@ -361,6 +381,7 @@ enum PlanChat {
     Released,
 }
 struct AnswerJudge {
+    failed: Option<String>,
     plan: PlanChat,
     allowance: u64,
     chat_pages: usize,
@@ -371,120 +392,163 @@ struct AnswerJudge {
     deadline: Time,
 }
 impl Referee<Process> for AnswerJudge {
+    #[expect(clippy::too_many_lines, reason = "the signed-in chat phases retain the first action finding for watch")]
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        use ctl::{Call, Step};
-        // Go and See must finish before authorization can complete the sign-in.
-        const SIGNING_SEEN: u32 = 2;
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        if self.observation == Observation::Waiting
-            && let [_, me, _, pending, ..] = calls.ends()
-        {
-            let party = ctl::json(me)["party"]["number"].as_u64().expect("signed-in person");
-            let pending = ctl::json(pending);
-            let [signing] = pending["accounts"]["signing"].as_array().expect("signing list").as_slice() else {
-                panic!("one sign-in under way: {pending}")
-            };
-            assert_eq!(signing["provider"], 1);
-            assert_eq!(signing["holder"]["party"], party);
-            let signing = format!(
-                "Sign-in in progress: source {} · LLM provider 1 · Person {party}",
-                signing["source"].as_u64().expect("signing source")
-            );
-            let me = ctl::json(me);
-            assert_eq!(me["party"]["name"]["cut"], false, "person's full name");
-            let name = me["party"]["name"]["bytes"].as_str().expect("person's name");
-            let link = calls.link().to_vec();
-            let Process::Person(person) = &mut procs[5] else { panic!("native observer") };
-            person.observe(&link, super::person::signed_in_account(signing.as_bytes(), name.as_bytes()));
-            self.observation = Observation::Signing;
+        if self.failed.is_some() {
+            return;
         }
-        let Process::Person(person) = &procs[5] else { panic!("native observer") };
-        assert!(person.failed.is_none(), "{:?}", person.failed);
-        if self.observation == Observation::Signing && person.steps_seen() >= SIGNING_SEEN {
-            let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-            let connected = &calls.ends()[2];
-            let address = authorization_address(connected).expect("connect prints the address").to_vec();
-            let Process::Visitor(visitor) = &mut procs[3] else { panic!("browser") };
-            visitor.hand(&address);
-            self.observation = Observation::Visited;
-        }
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        for (index, ended) in calls.ends().iter().enumerate() {
-            assert_eq!(
-                ended.exit,
-                Some(Exit::Code(0)),
-                "ctl call {index}: {}; output {}",
-                String::from_utf8_lossy(&ended.stderr),
-                String::from_utf8_lossy(&ended.stdout)
-            );
-        }
-        if self.plan == PlanChat::Exceeded && calls.ends().len() == FIRST_REPLY_CALLS {
-            let revision = exceeded_hold(&calls.ends()[8], self.allowance);
-            assert_eq!(model_requests(procs), 1, "one model request before release");
-            let Process::Calls(calls) = &mut procs[1] else { panic!("ctl calls") };
-            calls.push(Step::Run(Call::new(&["task", "release", "1", "--hold", &revision.to_string(), "--json"])));
-            calls.push(Step::Run(Call::new(&["task", "show", "1", "--until", "held", "--json"])));
-            calls.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
-            calls.release();
-            self.plan = PlanChat::Released;
-        }
-        let Process::Calls(calls) = &mut procs[1] else { panic!("ctl calls") };
-        if self.plan == PlanChat::Answered
-            && !self.conversation_read
-            && calls.ends().len() == CONVERSATION_CALL + self.chat_pages + 1
-        {
-            let chat = ctl::json(calls.ends().last().expect("conversation page"));
-            self.chat_pages += 1;
-            if chat["activity"]["before"].is_null() {
-                // ctl reads a chat through its watch, which an ended chat ends: read
-                // the whole conversation, then Close.
-                calls.push(Step::Run(Call::new(&["chat", "close", "1", "--key", "close-plan-chat", "--json"])));
-                calls.push(Step::Run(Call::new(&["task", "show", "1", "--until", "ended", "--json"])));
-                calls.release();
-                self.conversation_read = true;
-            } else {
-                let before = chat["activity"]["before"]["value"].as_str().expect("older conversation cursor");
-                calls.push(Step::Run(Call::new(&["chat", "show", "1", "--before", before, "--json"])));
+        let result = (|| -> Result<(), String> {
+            use ctl::{Call, Step};
+            // Go and See must finish before authorization can complete the sign-in.
+            const SIGNING_SEEN: u32 = 2;
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+            if self.observation == Observation::Waiting
+                && let [_, me, _, pending, ..] = calls.ends()
+            {
+                let party =
+                    super::check_ctl_json(me)?["party"]["number"].as_u64().ok_or(String::from("signed-in person"))?;
+                let pending = super::check_ctl_json(pending)?;
+                let [signing] =
+                    pending["accounts"]["signing"].as_array().ok_or(String::from("signing list"))?.as_slice()
+                else {
+                    return Err(format!("one sign-in under way: {pending}"));
+                };
+                {
+                    let (left, right) = (&(signing["provider"]), &(1));
+                    if left != right {
+                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                    }
+                }
+                {
+                    let (left, right) = (&(signing["holder"]["party"]), &(party));
+                    if left != right {
+                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                    }
+                }
+                let signing = format!(
+                    "Sign-in in progress: source {} · LLM provider 1 · Person {party}",
+                    signing["source"].as_u64().ok_or(String::from("signing source"))?
+                );
+                let me = super::check_ctl_json(me)?;
+                if me["party"]["name"]["cut"] != false {
+                    return Err(String::from("person's full name"));
+                }
+                let name = me["party"]["name"]["bytes"].as_str().ok_or(String::from("person's name"))?;
+                let link = calls.link().to_vec();
+                let Some(Process::Person(person)) = procs.get_mut(5) else {
+                    return Err(String::from("native observer"));
+                };
+                person.observe(&link, super::person::signed_in_account(signing.as_bytes(), name.as_bytes()));
+                self.observation = Observation::Signing;
             }
-        }
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        let Process::Person(person) = &procs[5] else { panic!("native observer") };
-        let ready = if self.plan == PlanChat::Answered {
-            self.conversation_read && calls.ends().len() == CONVERSATION_CALL + self.chat_pages + 2
-        } else {
-            calls.ends().len() == FIRST_REPLY_CALLS + 3
-        };
-        if !self.stopped && ready && person.finished {
-            let Process::Binary(binary) = &mut procs[0] else { panic!("temper") };
-            binary.signal(Signal::Terminate);
-            for proc in procs {
-                match proc {
-                    Process::Peer(peer) => peer.shutdown(),
-                    Process::Issuer(issuer) => issuer.shutdown(),
-                    Process::Binary(_)
-                    | Process::Calls(_)
-                    | Process::Person(_)
-                    | Process::Stdout(_)
-                    | Process::Visitor(_) => {}
+            let Some(Process::Person(person)) = procs.get(5) else { return Err(String::from("native observer")) };
+            if person.failed.is_some() {
+                return Err(format!("{:?}", person.failed));
+            }
+            if self.observation == Observation::Signing && person.steps_seen() >= SIGNING_SEEN {
+                let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+                let connected = &calls.ends()[2];
+                let address =
+                    authorization_address(connected).ok_or(String::from("connect prints the address"))?.to_vec();
+                let Some(Process::Visitor(visitor)) = procs.get_mut(3) else { return Err(String::from("browser")) };
+                visitor.hand(&address);
+                self.observation = Observation::Visited;
+            }
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+            for (index, ended) in calls.ends().iter().enumerate() {
+                if ended.exit != Some(Exit::Code(0)) {
+                    return Err(format!(
+                        "ctl call {index}: {}; output {}",
+                        String::from_utf8_lossy(&ended.stderr),
+                        String::from_utf8_lossy(&ended.stdout)
+                    ));
                 }
             }
-            self.stopped = true;
+            if self.plan == PlanChat::Exceeded && calls.ends().len() == FIRST_REPLY_CALLS {
+                let revision = check_exceeded_hold(&calls.ends()[8], self.allowance)?;
+                if model_requests(procs) != 1 {
+                    return Err(String::from("one model request before release"));
+                }
+                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl calls")) };
+                calls.push(Step::Run(Call::new(&["task", "release", "1", "--hold", &revision.to_string(), "--json"])));
+                calls.push(Step::Run(Call::new(&["task", "show", "1", "--until", "held", "--json"])));
+                calls.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
+                calls.release();
+                self.plan = PlanChat::Released;
+            }
+            let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl calls")) };
+            if self.plan == PlanChat::Answered
+                && !self.conversation_read
+                && calls.ends().len() == CONVERSATION_CALL + self.chat_pages + 1
+            {
+                let chat = super::check_ctl_json(calls.ends().last().ok_or(String::from("conversation page"))?)?;
+                self.chat_pages += 1;
+                if chat["activity"]["before"].is_null() {
+                    // ctl reads a chat through its watch, which an ended chat ends: read
+                    // the whole conversation, then Close.
+                    calls.push(Step::Run(Call::new(&["chat", "close", "1", "--key", "close-plan-chat", "--json"])));
+                    calls.push(Step::Run(Call::new(&["task", "show", "1", "--until", "ended", "--json"])));
+                    calls.release();
+                    self.conversation_read = true;
+                } else {
+                    let before = chat["activity"]["before"]["value"]
+                        .as_str()
+                        .ok_or(String::from("older conversation cursor"))?;
+                    calls.push(Step::Run(Call::new(&["chat", "show", "1", "--before", before, "--json"])));
+                }
+            }
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+            let Some(Process::Person(person)) = procs.get(5) else { return Err(String::from("native observer")) };
+            let ready = if self.plan == PlanChat::Answered {
+                self.conversation_read && calls.ends().len() == CONVERSATION_CALL + self.chat_pages + 2
+            } else {
+                calls.ends().len() == FIRST_REPLY_CALLS + 3
+            };
+            if !self.stopped && ready && person.finished {
+                let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("temper")) };
+                binary.signal(Signal::Terminate);
+                for proc in procs {
+                    match proc {
+                        Process::Peer(peer) => peer.shutdown(),
+                        Process::Issuer(issuer) => issuer.shutdown(),
+                        Process::Binary(_)
+                        | Process::Calls(_)
+                        | Process::Person(_)
+                        | Process::Stdout(_)
+                        | Process::Visitor(_) => {}
+                    }
+                }
+                self.stopped = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        let Process::Binary(binary) = &procs[0] else { panic!("temper") };
-        assert!(self.stopped || binary.exit_status().is_none(), "serve: {}", String::from_utf8_lossy(binary.stderr()));
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("temper")) };
+        if !self.stopped && binary.exit_status().is_some() {
+            return Err(format!("serve: {}", String::from_utf8_lossy(binary.stderr())));
+        }
         self.settled = self.stopped && procs.iter().all(Host::is_empty);
-        let Process::Person(person) = &procs[5] else { panic!("native observer") };
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl calls") };
-        assert!(
-            now < self.deadline || self.settled,
-            "signed-in chat did not settle: observer step {}, finished {}, observation {:?}, calls {}",
-            person.steps_seen(),
-            person.finished,
-            self.observation,
-            calls.ends().len()
-        );
+        let Some(Process::Person(person)) = procs.get(5) else { return Err(String::from("native observer")) };
+        let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl calls")) };
+        if now >= self.deadline && !self.settled {
+            return Err(format!(
+                "signed-in chat did not settle: observer step {}, finished {}, observation {:?}, calls {}",
+                person.steps_seen(),
+                person.finished,
+                self.observation,
+                calls.ends().len()
+            ));
+        }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.deadline)
@@ -493,6 +557,9 @@ impl Referee<Process> for AnswerJudge {
         (!self.settled && now >= self.deadline).then(|| "signed-in chat deadline".into())
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -623,10 +690,17 @@ fn model_answers(procs: &[Process]) -> Vec<Result<(), skein_fake_llm_domain::api
 }
 
 fn exceeded_hold(ended: &super::Ended, allowance: u64) -> u64 {
-    let task = ctl::json(ended);
-    let held = &task["chip"]["details"]["owner"]["phase"]["held"];
-    assert_eq!(held["reason"], serde_json::json!({"exceeded":{"bound":"reasoning","value":allowance}}), "{task}");
-    held["revision"].as_u64().expect("hold revision")
+    check_exceeded_hold(ended, allowance).unwrap_or_else(|why| panic!("{why}"))
+}
+fn check_exceeded_hold(ended: &super::Ended, allowance: u64) -> Result<u64, String> {
+    Ok({
+        let task = super::check_ctl_json(ended)?;
+        let held = &task["chip"]["details"]["owner"]["phase"]["held"];
+        if held["reason"] != serde_json::json!({"exceeded":{"bound":"reasoning","value":allowance}}) {
+            return Err(format!("{task}"));
+        }
+        held["revision"].as_u64().ok_or(String::from("hold revision"))?
+    })
 }
 
 fn plan_chat(directory: &Path, issuer: oauth::Peer, exceeded: bool) {
@@ -640,6 +714,7 @@ fn plan_chat(directory: &Path, issuer: oauth::Peer, exceeded: bool) {
     let root = skein_shell::open_root(directory).expect("scratch root");
     fds.push(root);
     let mut world = real::World::new(AnswerJudge {
+        failed: None,
         plan: if exceeded { PlanChat::Exceeded } else { PlanChat::Answered },
         allowance,
         chat_pages: 0,

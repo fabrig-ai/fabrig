@@ -189,7 +189,6 @@ temper/crates/temper-fake-git/src/tests.rs catch_unwind 1
 temper/crates/temper-service/src/tests/members.rs should_panic 1
 temper/testing/temper-box-kit/src/forge_land.rs catch_unwind 2
 temper/testing/temper-box-kit/src/github.rs catch_unwind 2
-temper/testing/temper-box-kit/src/lib.rs catch_unwind 1
 temper/testing/temper-box-kit/src/live_github.rs catch_unwind 3
 temper/testing/temper-box-kit/src/live_github.rs resume_unwind 2
 temper/testing/temper-fixtures/src/ports/tests.rs should_panic 1

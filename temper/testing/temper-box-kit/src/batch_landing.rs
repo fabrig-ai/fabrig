@@ -177,46 +177,55 @@ pub fn configure(root: &Path, repository: u64) {
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
-fn read(root: &Path, arguments: &[&str]) -> Value {
-    let ended = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
-    assert_eq!(ended.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&ended.stderr));
-    ctl::json(&ended)
+fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
+    Ok({
+        let ended = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
+        if ended.exit != Some(Exit::Code(0)) {
+            return Err(format!("{}", String::from_utf8_lossy(&ended.stderr)));
+        }
+        super::check_ctl_json(&ended)?
+    })
 }
-fn change(root: &Path, task: u64) -> Value {
-    read(root, &["change", "show", &task.to_string()])
+fn change(root: &Path, task: u64) -> Result<Value, String> {
+    Ok({ read(root, &["change", "show", &task.to_string()])? })
 }
-fn landings(root: &Path) -> Value {
-    read(root, &["landing", "list", "--project", "1", "--ended"])
+fn landings(root: &Path) -> Result<Value, String> {
+    Ok({ read(root, &["landing", "list", "--project", "1", "--ended"])? })
 }
-fn landing(root: &Path, task: u64) -> Value {
-    read(root, &["landing", "show", &task.to_string()])
+fn landing(root: &Path, task: u64) -> Result<Value, String> {
+    Ok({ read(root, &["landing", "show", &task.to_string()])? })
 }
 fn get(forge: &Throwaway, route: &str) -> Value {
     forge.repository_observation("acme", "widget", route)
 }
-fn sha(value: &Value) -> &str {
-    &value.as_str().expect("commit")[..40]
+fn sha(value: &Value) -> Result<&str, String> {
+    Ok({ value.as_str().ok_or(String::from("commit"))?.get(..40).ok_or(String::from("commit"))? })
 }
-fn main(forge: &Throwaway) -> String {
-    get(forge, "branches/main")["commit"]["id"].as_str().expect("main tip").into()
+fn main(forge: &Throwaway) -> Result<String, String> {
+    Ok({ get(forge, "branches/main")["commit"]["id"].as_str().ok_or(String::from("main tip"))?.into() })
 }
-fn members(panel: &Value) -> &[Value] {
-    panel["members"].as_array().expect("members")
+fn members(panel: &Value) -> Result<&[Value], String> {
+    Ok({ panel["members"].as_array().ok_or(String::from("members"))? })
 }
-fn candidate(panel: &Value) -> &str {
-    sha(&members(panel).last().expect("top")["candidate"])
+fn candidate(panel: &Value) -> Result<&str, String> {
+    Ok({ sha(&members(panel)?.last().ok_or(String::from("top"))?["candidate"])? })
 }
 fn member_branch(task: u64, number: usize) -> String {
     if number == 1 { format!("temper/{task}/l{task}") } else { format!("temper/{task}/l{task}-{number}") }
 }
-fn gate_runs(forge: &Throwaway) -> Vec<Value> {
-    let runs = get(forge, "actions/runs?limit=100");
-    assert_eq!(
-        runs["total_count"].as_u64(),
-        Some(u64::try_from(runs["workflow_runs"].as_array().expect("runs").len()).expect("run count")),
-        "one bounded page holds every run"
-    );
-    runs["workflow_runs"].as_array().expect("runs").clone()
+fn gate_runs(forge: &Throwaway) -> Result<Vec<Value>, String> {
+    Ok({
+        let runs = get(forge, "actions/runs?limit=100");
+        if runs["total_count"].as_u64()
+            != Some(
+                u64::try_from(runs["workflow_runs"].as_array().ok_or(String::from("runs"))?.len())
+                    .map_err(|error| format!("run count: {error:?}"))?,
+            )
+        {
+            return Err(String::from("one bounded page holds every run"));
+        }
+        runs["workflow_runs"].as_array().ok_or(String::from("runs"))?.clone()
+    })
 }
 
 /// Fixture admission is checked without starting the owned forge or a process story.
@@ -284,6 +293,7 @@ enum Phase {
     Search(narrowed::Step),
 }
 struct Judge<'a> {
+    failed: Option<String>,
     chat: ChatJudge<'a>,
     root: &'a Path,
     forge: &'a Throwaway,
@@ -297,32 +307,45 @@ struct Judge<'a> {
     probes: Vec<u64>,
 }
 
-fn release(procs: &mut [Process], name: &[u8]) {
+fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
     for proc in procs {
         if let Process::Peer(peer) = proc {
-            peer.release(name).expect("release scripted turn");
+            peer.release(name).map_err(|error| format!("release scripted turn: {error:?}"))?;
         }
     }
+
+    Ok(())
 }
-fn calls(procs: &mut [Process]) -> &mut ctl::Calls {
-    let Process::Calls(calls) = &mut procs[2] else { panic!("person's ctl") };
-    calls
+fn calls(procs: &mut [Process]) -> Result<&mut ctl::Calls, String> {
+    Ok({
+        let Some(Process::Calls(calls)) = procs.get_mut(2) else { return Err(String::from("person's ctl")) };
+        calls
+    })
 }
 
 impl Judge<'_> {
-    fn reviews_pending(&self) -> bool {
-        CHANGES.into_iter().all(|task| {
-            let change = change(self.root, task);
-            change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"
+    fn reviews_pending(&self) -> Result<bool, String> {
+        Ok({
+            CHANGES.into_iter().try_fold(true, |all, task| {
+                if !all {
+                    return Ok(false);
+                }
+                let change = change(self.root, task)?;
+                Ok::<_, String>(change["step"] == "gating" && change["gates"][0]["verdict"] == "pending")
+            })?
         })
     }
-    fn keep_together(&mut self, procs: &mut [Process]) {
-        assert_eq!(landings(self.root)["landings"].as_array().expect("landings").len(), 0);
+    fn keep_together(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        if !landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
+            return Err(String::from(
+                "assertion failed: landings(self.root)?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
+            ));
+        }
         // The same dependency is lifted in one durable completion. This makes
         // three independent units eligible at quiescence, not a joined unit or
         // a race between three separately released reviews (landing.md, 9).
         for task in CHANGES {
-            calls(procs).push(ctl::Step::Run(
+            calls(procs)?.push(ctl::Step::Run(
                 ctl::Call::new(&[
                     "task",
                     "amend",
@@ -339,74 +362,163 @@ impl Judge<'_> {
             ));
         }
         self.phase = Phase::Keeping;
+
+        Ok(())
     }
-    fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Option<Proof> {
-        let run = self.barrier.waiting(previous)?;
-        let list = landings(self.root);
-        let rows = list["landings"].as_array().expect("landing list");
-        assert_eq!(rows.len(), if previous.is_some() { 2 } else { 1 }, "one landing per batch");
-        let row = rows.iter().find(|row| row["phase"] == "proving")?;
-        let task = row["task"].as_u64().expect("landing task");
-        assert_eq!(row["changes"], json!(expected), "sealed in queue order");
-        let panel = landing(self.root, task);
-        if members(&panel).iter().any(|member| member["candidate"].is_null()) {
-            return None;
-        }
-        assert_eq!(panel["phase"], "proving");
-        assert_eq!(panel["round"]["number"], 1);
-        assert_eq!(panel["train"]["branch"], "main");
-        assert_eq!(
-            members(&panel).iter().map(|member| member["change"].as_u64().expect("change")).collect::<Vec<_>>(),
-            expected
-        );
-        self.dispatched(run, candidate(&panel));
-        let runs = gate_runs(self.forge);
-        assert_eq!(runs.len(), if previous.is_some() { 2 } else { 1 }, "no push, member or merge runs");
-        self.stack(&panel);
-        Some(Proof { panel, run })
+    fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Result<Option<Proof>, String> {
+        Ok({
+            let Some(run) = self.barrier.waiting(previous) else {
+                return Ok(None);
+            };
+            let list = landings(self.root)?;
+            let rows = list["landings"].as_array().ok_or(String::from("landing list"))?;
+            if rows.len() != if previous.is_some() { 2 } else { 1 } {
+                return Err(String::from("one landing per batch"));
+            }
+            let Some(row) = rows.iter().find(|row| row["phase"] == "proving") else {
+                return Ok(None);
+            };
+            let task = row["task"].as_u64().ok_or(String::from("landing task"))?;
+            if row["changes"] != json!(expected) {
+                return Err(String::from("sealed in queue order"));
+            }
+            let panel = landing(self.root, task)?;
+            if members(&panel)?.iter().any(|member| member["candidate"].is_null()) {
+                return Ok(None);
+            }
+            {
+                let (left, right) = (&(panel["phase"]), &("proving"));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            {
+                let (left, right) = (&(panel["round"]["number"]), &(1));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            {
+                let (left, right) = (&(panel["train"]["branch"]), &("main"));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            {
+                let (left, right) = (
+                    &(members(&panel)?
+                        .iter()
+                        .map(|member| member["change"].as_u64().ok_or(String::from("change")))
+                        .collect::<Result<Vec<_>, _>>()?),
+                    &(expected),
+                );
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            self.dispatched(run, candidate(&panel)?)?;
+            let runs = gate_runs(self.forge)?;
+            if runs.len() != if previous.is_some() { 2 } else { 1 } {
+                return Err(String::from("no push, member or merge runs"));
+            }
+            self.stack(&panel)?;
+            Some(Proof { panel, run })
+        })
     }
-    fn dispatched(&self, run: u64, prefix: &str) {
+    fn dispatched(&self, run: u64, prefix: &str) -> Result<(), String> {
         let actual = get(self.forge, &format!("actions/runs/{run}"));
-        assert_eq!(actual["id"], run);
-        assert_eq!(actual["workflow_id"], "gate.yaml");
-        assert_eq!(actual["trigger_event"], "workflow_dispatch");
-        assert_eq!(actual["trigger_user"]["login"], "temper");
-        assert_eq!(actual["status"], "running");
-        assert_eq!(actual["commit_sha"], prefix, "proof at the chosen prefix");
+        {
+            let (left, right) = (&(actual["id"]), &(run));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(actual["workflow_id"]), &("gate.yaml"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(actual["trigger_event"]), &("workflow_dispatch"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(actual["trigger_user"]["login"]), &("temper"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(actual["status"]), &("running"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        if actual["commit_sha"] != prefix {
+            return Err(String::from("proof at the chosen prefix"));
+        }
+
+        Ok(())
     }
-    fn stack(&self, panel: &Value) {
-        let task = panel["task"].as_u64().expect("landing task");
-        let mut below = sha(&members(panel)[0]["base"]).to_owned();
-        for (index, member) in members(panel).iter().enumerate() {
+    fn stack(&self, panel: &Value) -> Result<(), String> {
+        let task = panel["task"].as_u64().ok_or(String::from("landing task"))?;
+        let mut below = sha(&members(panel)?[0]["base"])?.to_owned();
+        for (index, member) in members(panel)?.iter().enumerate() {
             let number = index + 1;
             let branch = member_branch(task, number);
-            let prefix = sha(&member["candidate"]);
+            let prefix = sha(&member["candidate"])?;
             let actual = get(self.forge, &format!("branches/{branch}"));
-            assert_eq!(actual["commit"]["id"], prefix, "a branch for each member's prefix");
+            if actual["commit"]["id"] != prefix {
+                return Err(String::from("a branch for each member's prefix"));
+            }
             let commit = get(self.forge, &format!("git/commits/{prefix}"));
-            assert_eq!(commit["parents"].as_array().expect("parents").len(), 2, "no-fast-forward merge");
-            assert_eq!(commit["parents"][0]["sha"], below, "main's first-parent line preserves queue order");
-            assert_eq!(commit["parents"][1]["sha"], sha(&member["head"]));
-            let change = change(self.root, member["change"].as_u64().expect("change"));
-            assert_eq!(sha(&change["head"]), sha(&member["head"]), "no member head rewritten");
+            if commit["parents"].as_array().ok_or(String::from("parents"))?.len() != 2 {
+                return Err(String::from("no-fast-forward merge"));
+            }
+            if commit["parents"][0]["sha"] != below {
+                return Err(String::from("main's first-parent line preserves queue order"));
+            }
+            {
+                let (left, right) = (&(commit["parents"][1]["sha"]), &(sha(&member["head"])?));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            let change = change(self.root, member["change"].as_u64().ok_or(String::from("change"))?)?;
+            if sha(&change["head"])? != sha(&member["head"])? {
+                return Err(String::from("no member head rewritten"));
+            }
             below = prefix.into();
         }
-        assert_eq!(panel["round"]["branch"], member_branch(task, members(panel).len()));
+        {
+            let (left, right) = (&(panel["round"]["branch"]), &(member_branch(task, members(panel)?.len())));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+
+        Ok(())
     }
 }
 
 impl Judge<'_> {
-    fn stop(&mut self, procs: &mut [Process]) {
+    fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
         let mut checked = Vec::new();
-        for proof in [self.first.as_ref().expect("first landing"), self.second.as_ref().expect("last landing")] {
-            let task = proof.panel["task"].as_u64().expect("landing task");
+        for proof in [
+            self.first.as_ref().ok_or(String::from("first landing"))?,
+            self.second.as_ref().ok_or(String::from("last landing"))?,
+        ] {
+            let task = proof.panel["task"].as_u64().ok_or(String::from("landing task"))?;
             if !checked.contains(&task) {
-                super::landing_by_turn::assert_history(self.root, 1, &landing(self.root, task), Some("private"));
+                super::landing_by_turn::check_history(self.root, 1, &landing(self.root, task)?, Some("private"))?;
                 checked.push(task);
             }
         }
-        calls(procs).release();
-        let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
+        calls(procs)?.release();
+        let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
         for proc in procs {
             if let Process::Peer(peer) = proc {
@@ -414,165 +526,336 @@ impl Judge<'_> {
             }
         }
         self.chat.phase = ChatPhase::Stopping;
+
+        Ok(())
     }
-    fn landed(&self, proof: &Proof) -> bool {
-        let panel = landing(self.root, proof.panel["task"].as_u64().expect("landing task"));
-        if panel["phase"] != "landed" {
-            return false;
-        }
-        assert_eq!(members(&panel).len(), members(&proof.panel).len());
-        for (member, prepared) in members(&panel).iter().zip(members(&proof.panel)) {
-            if !self.member_landed(member, prepared) {
-                return false;
+    fn landed(&self, proof: &Proof) -> Result<bool, String> {
+        Ok({
+            let panel = landing(self.root, proof.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
+            if panel["phase"] != "landed" {
+                return Ok(false);
             }
-        }
-        let pull =
-            get(self.forge, &format!("pulls/{}", panel["round"]["pull"]["number"].as_u64().expect("landing pull")));
-        assert_eq!(pull["merged"], true);
-        assert_eq!(pull["head"]["sha"], candidate(&proof.panel));
-        assert_eq!(pull["merge_commit_sha"], candidate(&proof.panel), "one fast-forward, no extra merge commit");
-        let run = get(self.forge, &format!("actions/runs/{}", proof.run));
-        assert_eq!(run["status"], "success");
-        true
+            {
+                let (left, right) = (&(members(&panel)?.len()), &(members(&proof.panel)?.len()));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            for (member, prepared) in members(&panel)?.iter().zip(members(&proof.panel)?) {
+                if !self.member_landed(member, prepared)? {
+                    return Ok(false);
+                }
+            }
+            let pull = get(
+                self.forge,
+                &format!("pulls/{}", panel["round"]["pull"]["number"].as_u64().ok_or(String::from("landing pull"))?),
+            );
+            {
+                let (left, right) = (&(pull["merged"]), &(true));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            {
+                let (left, right) = (&(pull["head"]["sha"]), &(candidate(&proof.panel)?));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            if pull["merge_commit_sha"] != candidate(&proof.panel)? {
+                return Err(String::from("one fast-forward, no extra merge commit"));
+            }
+            let run = get(self.forge, &format!("actions/runs/{}", proof.run));
+            {
+                let (left, right) = (&(run["status"]), &("success"));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            true
+        })
     }
-    fn member_landed(&self, member: &Value, prepared: &Value) -> bool {
-        assert_eq!(member["change"], prepared["change"]);
-        if member["landed"].is_null() {
-            return false;
-        }
-        assert_eq!(member["landed"], prepared["candidate"], "each member lands at its own prefix");
-        let change = change(self.root, member["change"].as_u64().expect("change"));
-        if change["merge"].is_null() {
-            return false;
-        }
-        assert_eq!(sha(&change["merge"]), sha(&member["landed"]));
-        let number = member["pull"]["number"].as_u64().expect("member pull");
-        let pull = get(self.forge, &format!("pulls/{number}"));
-        if pull["merged"] != true {
-            return false;
-        }
-        assert_eq!(pull["merge_commit_sha"], sha(&member["landed"]));
-        true
+    fn member_landed(&self, member: &Value, prepared: &Value) -> Result<bool, String> {
+        Ok({
+            {
+                let (left, right) = (&(member["change"]), &(prepared["change"]));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            if member["landed"].is_null() {
+                return Ok(false);
+            }
+            if member["landed"] != prepared["candidate"] {
+                return Err(String::from("each member lands at its own prefix"));
+            }
+            let change = change(self.root, member["change"].as_u64().ok_or(String::from("change"))?)?;
+            if change["merge"].is_null() {
+                return Ok(false);
+            }
+            {
+                let (left, right) = (&(sha(&change["merge"])?), &(sha(&member["landed"])?));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            let number = member["pull"]["number"].as_u64().ok_or(String::from("member pull"))?;
+            let pull = get(self.forge, &format!("pulls/{number}"));
+            if pull["merged"] != true {
+                return Ok(false);
+            }
+            {
+                let (left, right) = (&(pull["merge_commit_sha"]), &(sha(&member["landed"])?));
+                if left != right {
+                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+                }
+            }
+            true
+        })
     }
-    fn sample(&mut self, procs: &mut [Process]) {
+    #[expect(clippy::too_many_lines, reason = "the batch phases return their findings in causal order")]
+    fn sample(&mut self, procs: &mut [Process]) -> Result<(), String> {
         match self.phase {
             Phase::Reviews => {
-                if self.reviews_pending() {
-                    self.keep_together(procs);
+                if self.reviews_pending()? {
+                    self.keep_together(procs)?;
                 }
             }
             Phase::Keeping => {
-                let calls = calls(procs);
+                let calls = calls(procs)?;
                 if calls.foreground_idle() {
-                    assert_eq!(calls.ends().len(), turn_restart::SETUP_CALLS + 3);
+                    {
+                        let (left, right) = (&(calls.ends().len()), &(turn_restart::SETUP_CALLS + 3));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
                     for call in calls.ends() {
-                        assert_eq!(call.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&call.stderr));
+                        if call.exit != Some(Exit::Code(0)) {
+                            return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
+                        }
                     }
                     self.phase = Phase::Gates;
                 }
             }
             Phase::Gates => {
-                release(procs, b"batch-reviews");
-                if CHANGES.into_iter().all(|task| change(self.root, task)["gates"][0]["verdict"] == "passed") {
-                    assert_eq!(landings(self.root)["landings"].as_array().expect("landings").len(), 0);
-                    release(procs, b"batch-ready");
+                release(procs, b"batch-reviews")?;
+                if CHANGES.into_iter().try_fold(true, |all, task| {
+                    if !all {
+                        return Ok(false);
+                    }
+                    Ok::<_, String>(change(self.root, task)?["gates"][0]["verdict"] == "passed")
+                })? {
+                    if !landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
+                        return Err(String::from(
+                            "assertion failed: landings(self.root)?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
+                        ));
+                    }
+                    release(procs, b"batch-ready")?;
                     self.phase = Phase::Batch;
                 }
             }
             Phase::Batch => {
-                if let Some(proof) = self.proof(None, &CHANGES) {
-                    assert_eq!(main(self.forge), self.base, "main stays at the base throughout proof");
+                if let Some(proof) = self.proof(None, &CHANGES)? {
+                    if main(self.forge)? != self.base {
+                        return Err(String::from("main stays at the base throughout proof"));
+                    }
                     self.first = Some(proof);
                     match self.story {
                         Story::Green => {
-                            release(procs, b"batch-fourth");
+                            release(procs, b"batch-fourth")?;
                             self.phase = Phase::Fourth;
                         }
                         Story::Narrowed => {
-                            self.barrier.release(self.first.as_ref().expect("top proof").run);
+                            self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
                             self.phase = Phase::Search(narrowed::Step::One);
                         }
                     }
                 }
             }
             Phase::Fourth => {
-                release(procs, b"batch-reviews");
-                let fourth = change(self.root, FOURTH);
+                release(procs, b"batch-reviews")?;
+                let fourth = change(self.root, FOURTH)?;
                 if fourth["step"] == "ready" {
-                    let first = self.first.as_ref().expect("first proof");
-                    let list = landings(self.root);
-                    assert_eq!(list["landings"].as_array().expect("landings").len(), 1);
-                    let panel = landing(self.root, first.panel["task"].as_u64().expect("landing"));
-                    assert_eq!(panel["phase"], "proving", "fourth ready while the batch proves");
-                    assert_eq!(members(&panel).len(), CHANGES.len(), "a formed batch is sealed");
-                    for (member, prepared) in members(&panel).iter().zip(members(&first.panel)) {
-                        assert_eq!(member["change"], prepared["change"]);
-                        assert_eq!(member["candidate"], prepared["candidate"]);
+                    let first = self.first.as_ref().ok_or(String::from("first proof"))?;
+                    let list = landings(self.root)?;
+                    {
+                        let (left, right) =
+                            (&(list["landings"].as_array().ok_or(String::from("landings"))?.len()), &(1));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
                     }
-                    assert_eq!(get(self.forge, &format!("actions/runs/{}", first.run))["status"], "running");
-                    assert_eq!(main(self.forge), self.base);
+                    let panel = landing(self.root, first.panel["task"].as_u64().ok_or(String::from("landing"))?)?;
+                    if panel["phase"] != "proving" {
+                        return Err(String::from("fourth ready while the batch proves"));
+                    }
+                    if members(&panel)?.len() != CHANGES.len() {
+                        return Err(String::from("a formed batch is sealed"));
+                    }
+                    for (member, prepared) in members(&panel)?.iter().zip(members(&first.panel)?) {
+                        {
+                            let (left, right) = (&(member["change"]), &(prepared["change"]));
+                            if left != right {
+                                return Err(format!(
+                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                                ));
+                            }
+                        }
+                        {
+                            let (left, right) = (&(member["candidate"]), &(prepared["candidate"]));
+                            if left != right {
+                                return Err(format!(
+                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                                ));
+                            }
+                        }
+                    }
+                    {
+                        let (left, right) =
+                            (&(get(self.forge, &format!("actions/runs/{}", first.run))["status"]), &("running"));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
+                    {
+                        let (left, right) = (&(main(self.forge)?), &(self.base));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
                     self.barrier.release(first.run);
                     self.phase = Phase::Next;
                 }
             }
             Phase::Next => {
-                let first = self.first.as_ref().expect("first proof");
-                if self.landed(first)
-                    && let Some(proof) = self.proof(Some(first.run), &[FOURTH])
+                let first = self.first.as_ref().ok_or(String::from("first proof"))?;
+                if self.landed(first)?
+                    && let Some(proof) = self.proof(Some(first.run), &[FOURTH])?
                 {
-                    assert_eq!(main(self.forge), candidate(&first.panel));
-                    assert_eq!(sha(&members(&proof.panel)[0]["base"]), candidate(&first.panel));
+                    {
+                        let (left, right) = (&(main(self.forge)?), &(candidate(&first.panel)?));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
+                    {
+                        let (left, right) = (&(sha(&members(&proof.panel)?[0]["base"])?), &(candidate(&first.panel)?));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
                     self.barrier.release(proof.run);
                     self.second = Some(proof);
                     self.phase = Phase::Landed;
                 }
             }
             Phase::Landed => {
-                let second = self.second.as_ref().expect("second proof");
-                if self.landed(second) {
-                    assert_eq!(main(self.forge), candidate(&second.panel));
-                    let runs = gate_runs(self.forge);
-                    assert_eq!(runs.len(), 2, "one dispatched proof per landing, none after merging");
-                    for proof in [self.first.as_ref().expect("first"), second] {
-                        let runs: Vec<_> =
-                            runs.iter().filter(|run| run["commit_sha"] == candidate(&proof.panel)).collect();
-                        assert_eq!(runs.len(), 1);
-                        assert_eq!(runs[0]["id"], proof.run);
-                        assert_eq!(runs[0]["status"], "success");
+                let second = self.second.as_ref().ok_or(String::from("second proof"))?;
+                if self.landed(second)? {
+                    {
+                        let (left, right) = (&(main(self.forge)?), &(candidate(&second.panel)?));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
                     }
-                    release(procs, b"batch-owner");
+                    let runs = gate_runs(self.forge)?;
+                    if runs.len() != 2 {
+                        return Err(String::from("one dispatched proof per landing, none after merging"));
+                    }
+                    for proof in [self.first.as_ref().ok_or(String::from("first"))?, second] {
+                        let prefix = candidate(&proof.panel)?;
+                        let runs: Vec<_> = runs.iter().filter(|run| run["commit_sha"] == prefix).collect();
+                        {
+                            let (left, right) = (&(runs.len()), &(1));
+                            if left != right {
+                                return Err(format!(
+                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                                ));
+                            }
+                        }
+                        {
+                            let (left, right) = (&(runs[0]["id"]), &(proof.run));
+                            if left != right {
+                                return Err(format!(
+                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                                ));
+                            }
+                        }
+                        {
+                            let (left, right) = (&(runs[0]["status"]), &("success"));
+                            if left != right {
+                                return Err(format!(
+                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                                ));
+                            }
+                        }
+                    }
+                    release(procs, b"batch-owner")?;
                     self.phase = Phase::Ending;
                 }
             }
-            Phase::Search(step) => self.search(step, procs),
+            Phase::Search(step) => self.search(step, procs)?,
             Phase::Ending => {
-                release(procs, b"batch-owner");
-                let Process::Person(person) = &procs[1] else { panic!("person") };
+                release(procs, b"batch-owner")?;
+                let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
                 if person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
-                    self.stop(procs);
+                    self.stop(procs)?;
                 }
             }
         }
+
+        Ok(())
     }
 }
 impl Referee<Process> for Judge<'_> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if matches!(self.chat.phase, ChatPhase::SettingUp) {
-            if calls(procs).ends().len() < turn_restart::SETUP_CALLS {
-                return;
-            }
-            self.chat.act(now, procs);
+        if self.failed.is_some() {
+            return;
         }
-        if !self.chat.stopping() && now >= self.poll {
-            self.poll = now.saturating_add(Duration::from_millis(250));
-            let Process::Person(person) = &procs[1] else { panic!("person") };
-            if person.finished {
-                self.sample(procs);
+        let result = (|| -> Result<(), String> {
+            if matches!(self.chat.phase, ChatPhase::SettingUp) {
+                if calls(procs)?.ends().len() < turn_restart::SETUP_CALLS {
+                    return Ok(());
+                }
+                self.chat.act(now, procs);
+                if self.chat.failed.is_some() {
+                    return Ok(());
+                }
             }
+            if !self.chat.stopping() && now >= self.poll {
+                self.poll = now.saturating_add(Duration::from_millis(250));
+                let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
+                if person.finished {
+                    self.sample(procs)?;
+                }
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        self.chat.observe(now, procs);
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        self.chat.watch(now, procs)
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
@@ -585,6 +868,9 @@ impl Referee<Process> for Judge<'_> {
         self.chat.overdue(now).map(|why| format!("batch {:?}: {why}", self.phase))
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.chat.passed()
     }
 }
@@ -627,7 +913,9 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     let person_root = skein_shell::open_root(root).expect("native root");
     let progress = super::patience::Patience::watching("the batch landing", LANDING, &binary);
     let mut world = real::World::new(Judge {
+        failed: None,
         chat: ChatJudge {
+            failed: None,
             phase: ChatPhase::SettingUp,
             ending: Ending::Stop,
             deadline: progress,
@@ -640,7 +928,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         barrier,
         phase: Phase::Reviews,
         poll: clock.now().now,
-        base: main(forge),
+        base: main(forge).expect("main tip"),
         first: None,
         second: None,
         story,

@@ -288,14 +288,22 @@ pub fn printed_links(stdout: &[u8]) -> usize {
 pub fn without_secrets(stderr: &[u8]) -> String {
     String::from_utf8_lossy(stderr).split_inclusive('\n').filter(|line| !line.contains("secret=")).collect()
 }
-/// Panics with `run`, the count and filtered stderr, never a link's bytes.
-pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
+/// Returns `run`, the count and filtered stderr on failure, never a link's bytes.
+pub fn check_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) -> Result<(), String> {
     let count = printed_links(stdout);
-    assert!(
-        count == 1 && stdout.split_inclusive(|byte| *byte == b'\n').all(is_printed_link),
-        "{run}: expected one printed link; count={count}; stdout must hold complete link lines alone; box stderr:\n{}",
-        without_secrets(stderr)
-    );
+    if count != 1 || !stdout.split_inclusive(|byte| *byte == b'\n').all(is_printed_link) {
+        return Err(format!(
+            "{run}: expected one printed link; count={count}; stdout must hold complete link lines alone; box stderr:\n{}",
+            without_secrets(stderr)
+        ));
+    }
+    Ok(())
+}
+/// Panics with the finding, never a link's bytes.
+pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
+    if let Err(why) = check_one_printed_link(run, stdout, stderr) {
+        panic!("{why}");
+    }
 }
 
 pub mod printed_link_tests {
@@ -324,14 +332,14 @@ pub mod printed_link_tests {
             ("unfinished-second", unfinished.as_slice(), b"ready\n", 1, false, "ready\n"),
             ("only-non-link", b"not a link\n", b"ready\n", 0, false, "ready\n"),
         ] {
+            eprintln!("printed links: {name}");
             assert_eq!(super::printed_links(stdout), count, "{name}: link count");
             assert_eq!(super::without_secrets(stderr), diagnostic, "{name}: filtered stderr");
-            let result = std::panic::catch_unwind(|| super::assert_one_printed_link(name, stdout, stderr));
+            let result = super::check_one_printed_link(name, stdout, stderr);
             if valid {
                 assert!(result.is_ok(), "{name}: one complete link passes");
             } else {
-                let panic = result.expect_err("invalid stdout fails");
-                let message = panic.downcast_ref::<String>().expect("formatted panic");
+                let message = result.expect_err("invalid stdout fails");
                 assert!(message.contains(name), "run is named");
                 assert!(message.contains(&format!("count={count}")), "link count is reported");
                 assert!(message.ends_with(diagnostic), "filtered stderr is carried");
@@ -340,6 +348,11 @@ pub mod printed_link_tests {
             }
         }
     }
+}
+pub(crate) fn check_ctl_json(ended: &Ended) -> Result<serde_json::Value, String> {
+    serde_json::from_slice(&ended.stdout).map_err(|error| {
+        format!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
+    })
 }
 pub struct Ended {
     pub exit: Option<Exit>,
@@ -461,6 +474,7 @@ impl Delegate for Process {
     }
 }
 struct Judge {
+    failed: Option<String>,
     sent: bool,
     signal: Signal,
     deadline: patience::Patience,
@@ -468,31 +482,42 @@ struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
-        if !self.sent && printed_link(&stdout.bytes).is_some() {
-            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-            binary.signal(self.signal);
-            for proc in &mut *procs {
-                if let Process::Peer(peer) = proc {
-                    peer.shutdown();
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Stdout(stdout)) = procs.get(1) else { return Err(String::from("stdout reader")) };
+            if !self.sent && printed_link(&stdout.bytes).is_some() {
+                let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("binary")) };
+                binary.signal(self.signal);
+                for proc in &mut *procs {
+                    if let Process::Peer(peer) = proc {
+                        peer.shutdown();
+                    }
                 }
+                self.sent = true;
             }
-            self.sent = true;
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = self.sent && procs.iter().all(Host::is_empty);
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
-        assert!(
-            self.sent || binary.exit_status().is_none(),
-            "temper serve failed before its link: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
+        let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("binary")) };
+        let Some(Process::Stdout(stdout)) = procs.get(1) else { return Err(String::from("stdout reader")) };
+        if !self.sent && binary.exit_status().is_some() {
+            return Err(format!("temper serve failed before its link: {}", String::from_utf8_lossy(binary.stderr())));
+        }
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
-            panic!(
+            return Err(format!(
                 "signal sent: {}; stdout bytes: {}; exit: {:?}; binary empty: {}; stdout empty: {}; stderr: {}; {figures}",
                 self.sent,
                 stdout.bytes.len(),
@@ -500,13 +525,18 @@ impl Referee<Process> for Judge {
                 binary.is_empty(),
                 stdout.is_empty(),
                 String::from_utf8_lossy(binary.stderr())
-            );
+            ));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -520,6 +550,7 @@ fn run_signal(directory: &Path, signal: Signal, deadline: Duration, peer: Option
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
     let mut world = real::World::new(Judge {
+        failed: None,
         sent: false,
         signal,
         deadline: patience::Patience::watching(
@@ -584,6 +615,7 @@ enum ChatPhase {
     Settled,
 }
 struct ChatJudge<'a> {
+    failed: Option<String>,
     phase: ChatPhase,
     ending: Ending,
     deadline: patience::Patience,
@@ -598,56 +630,73 @@ impl ChatJudge<'_> {
 }
 impl Referee<Process> for ChatJudge<'_> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if matches!(self.phase, ChatPhase::SettingUp) {
-            let Process::Calls(calls) = &procs[2] else { panic!("native settings setup") };
-            if calls.ends().len() < NATIVE_SETUP_CALLS {
-                return;
-            }
-            for call in calls.ends() {
-                assert_eq!(call.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&call.stderr));
-            }
-            let link = calls.link().to_vec();
-            let Process::Person(person) = &mut procs[1] else { panic!("native person") };
-            person.ctl_ready(&link);
-            self.phase = ChatPhase::Running;
+        if self.failed.is_some() {
+            return;
         }
-        if !self.stopping() && now >= self.poll {
-            if let Some(forge) = self.forge {
-                self.merged = forge.merged_pull().is_some();
-            }
-            self.poll = now.saturating_add(Duration::from_secs(2));
-        }
-        let Process::Person(person) = &procs[1] else {
-            panic!("native person");
-        };
-        if !self.stopping()
-            && person.finished
-            && person.client.as_ref().is_some_and(Host::is_empty)
-            && (self.forge.is_none() || self.merged)
-        {
-            let Process::Binary(binary) = &mut procs[0] else {
-                panic!("binary");
-            };
-            match self.ending {
-                Ending::Stop | Ending::Box => binary.signal(Signal::Terminate),
-                Ending::Crash => binary.signal_tree(Signal::Kill),
-            }
-            for proc in procs {
-                if let Process::Peer(peer) = proc {
-                    peer.shutdown();
+        let result = (|| -> Result<(), String> {
+            if matches!(self.phase, ChatPhase::SettingUp) {
+                let Some(Process::Calls(calls)) = procs.get(2) else {
+                    return Err(String::from("native settings setup"));
+                };
+                if calls.ends().len() < NATIVE_SETUP_CALLS {
+                    return Ok(());
                 }
+                for call in calls.ends() {
+                    if call.exit != Some(Exit::Code(0)) {
+                        return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
+                    }
+                }
+                let link = calls.link().to_vec();
+                let Some(Process::Person(person)) = procs.get_mut(1) else { return Err(String::from("native person")) };
+                person.ctl_ready(&link);
+                self.phase = ChatPhase::Running;
             }
-            self.phase = ChatPhase::Stopping;
+            if !self.stopping() && now >= self.poll {
+                if let Some(forge) = self.forge {
+                    self.merged = forge.merged_pull().is_some();
+                }
+                self.poll = now.saturating_add(Duration::from_secs(2));
+            }
+            let Some(Process::Person(person)) = procs.get(1) else {
+                return Err(String::from("native person"));
+            };
+            if !self.stopping()
+                && person.finished
+                && person.client.as_ref().is_some_and(Host::is_empty)
+                && (self.forge.is_none() || self.merged)
+            {
+                let Process::Binary(binary) = &mut procs[0] else {
+                    return Err(String::from("binary"));
+                };
+                match self.ending {
+                    Ending::Stop | Ending::Box => binary.signal(Signal::Terminate),
+                    Ending::Crash => binary.signal_tree(Signal::Kill),
+                }
+                for proc in procs {
+                    if let Process::Peer(peer) = proc {
+                        peer.shutdown();
+                    }
+                }
+                self.phase = ChatPhase::Stopping;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         if self.stopping() && procs.iter().all(Host::is_empty) {
             self.phase = ChatPhase::Settled;
         }
-        let Process::Binary(binary) = &procs[0] else {
-            panic!("binary");
+        let Some(Process::Binary(binary)) = procs.first() else {
+            return Err(String::from("binary"));
         };
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
+        let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
         let queries = procs.iter().find_map(|proc| match proc {
             Process::Peer(peer) => Some(
                 peer.observations()
@@ -662,35 +711,43 @@ impl Referee<Process> for ChatJudge<'_> {
             | Process::Issuer(_)
             | Process::Visitor(_) => None,
         });
-        assert!(
-            person.failed.is_none(),
-            "{}; fake queries: {queries:?}; forge: {}; temper serve stderr: {}",
-            person.failed.as_deref().unwrap_or("person finished"),
-            if person.failed.is_some() {
-                self.forge.map_or_else(|| "none".into(), forgejo::Throwaway::failure_state)
-            } else {
-                "person running".into()
-            },
-            String::from_utf8_lossy(binary.stderr())
-        );
-        assert!(
-            binary.exit_status().is_none() || self.stopping(),
-            "temper serve failed: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
-        match self.ending {
-            Ending::Stop | Ending::Box => assert!(
-                binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)),
-                "temper serve did not stop cleanly: {}",
+        if person.failed.is_some() {
+            return Err(format!(
+                "{}; fake queries: {queries:?}; forge: {}; temper serve stderr: {}",
+                person.failed.as_deref().unwrap_or("person finished"),
+                if person.failed.is_some() {
+                    self.forge.map_or_else(|| "none".into(), forgejo::Throwaway::failure_state)
+                } else {
+                    "person running".into()
+                },
                 String::from_utf8_lossy(binary.stderr())
-            ),
-            Ending::Crash => assert!(!binary.stderr_overflowed(), "crashed temper serve overflowed stderr"),
+            ));
+        }
+        if binary.exit_status().is_some() && !self.stopping() {
+            return Err(format!("temper serve failed: {}", String::from_utf8_lossy(binary.stderr())));
+        }
+        match self.ending {
+            Ending::Stop | Ending::Box => {
+                if !binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)) {
+                    return Err(format!(
+                        "temper serve did not stop cleanly: {}",
+                        String::from_utf8_lossy(binary.stderr())
+                    ));
+                }
+            }
+            Ending::Crash => {
+                if binary.stderr_overflowed() {
+                    return Err(String::from("crashed temper serve overflowed stderr"));
+                }
+            }
         }
         if !matches!(self.phase, ChatPhase::Settled)
             && let Some(figures) = self.deadline.failed()
         {
-            panic!("native chat did not settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+            return Err(format!("native chat did not settle: {}; {figures}", String::from_utf8_lossy(binary.stderr())));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if matches!(self.phase, ChatPhase::Settled) {
@@ -702,6 +759,9 @@ impl Referee<Process> for ChatJudge<'_> {
         }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         matches!(self.phase, ChatPhase::Settled)
     }
 }
@@ -801,6 +861,7 @@ fn run_story(
     let root = skein_shell::open_root(directory).expect("client's parent root");
     let setting_up = peer.is_some();
     let mut world = real::World::new(ChatJudge {
+        failed: None,
         phase: if setting_up { ChatPhase::SettingUp } else { ChatPhase::Running },
         ending,
         forge,

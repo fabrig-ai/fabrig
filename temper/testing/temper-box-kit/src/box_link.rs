@@ -287,13 +287,15 @@ struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
         self.settled = procs.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
-            panic!("terminal sign-in: {figures}");
+            return Err(format!("terminal sign-in: {figures}"));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.patience.until() }
