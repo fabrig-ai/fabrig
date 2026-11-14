@@ -411,8 +411,65 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   temper-box serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes
   ```
 
-  Other commit failures retain their existing diagnostic. Earlier durable
-  data is recoverable; the refusal changes no stored or wire format.
+  Earlier durable data is recoverable; the refusal changes no stored or
+  wire format.
+- **Every other failed commit says why.** The engine stops with
+  `Stop::CommitFailed { number, why }`, `why` a `CommitStop`: either
+  `Store(CommitFailure)`, the store's cause as jig's
+  `protocol/store/README.md`, 5 gives it, or `Route(RouteStop)`, the
+  engine's store routing stopping on its own with `number` the last
+  commit it routed. The routing hands up `Up::Failed { number, why }`
+  for both, and the engine feeds `number` through the root's
+  `Uncommitted` policy, as for `FrameTooLarge`, before it stops. Nothing
+  else changes: the engine still stops at a failed commit, and nothing
+  stored or on a wire carries `why`. `RouteStop` is `Open` (the store
+  answered a refused open while the engine ran), `Secrets` (the store
+  answered its secrets not ready), `Cursor` (a load's continuation did
+  not translate into its cursor, or did not advance) or `Page` (a load's
+  page past the start could not be measured or cut). The host prints,
+  with its normal newline:
+
+  ```text
+  temper-box serve: commit {number} failed: {why}
+  ```
+
+  `{why}` is bounded, at most 160 bytes, with no record's contents. Its
+  byte and entry figures are grouped in threes with commas
+  (`268,435,456`); the commit numbers are plain:
+
+  | `why` | `{why}` |
+  |---|---|
+  | `Store(Refused(Full(Budget { used, budget, projected })))` | `the store's map is full ({used} of {budget} bytes; this commit needs {projected})` |
+  | `Store(Refused(Full(Entries { capacity })))` | `the store's map is full ({capacity} entries)` |
+  | `Store(Refused(Full(Numbers)))` | `the store's commit numbers are at their end` |
+  | `Store(Refused(TooLarge(Key)))` | `the store refused it: a key past the key limit` |
+  | `Store(Refused(TooLarge(Value)))` | `the store refused it: a value past the value limit` |
+  | `Store(Refused(TooLarge(Ops)))` | `the store refused it: more operations than the commit limit` |
+  | `Store(Refused(TooLarge(Frame)))` | `the store refused it: a frame past the commit limit` |
+  | `Store(Refused(TooLarge(Page)))` | `the store refused it: a page past the page limit` |
+  | `Store(Refused(TooLarge(Range)))` | `the store refused it: a range that ends before it starts` |
+  | `Store(Refused(Busy))` | `the store refused it: its queue is full` |
+  | `Store(Refused(Unavailable))` | `the store refused it: the store is not open` |
+  | `Store(Failed)` | `the store's log failed a write or a sync, so its outcome is uncertain` |
+  | `Store(Owner { owner })` | `the store committed root commit {owner} as its commit {number}` |
+  | `Store(Transcript)` | `a file step of its transcripts failed` |
+  | `Store(Check(CHECK))` | `the store's own check refused it: ` and CHECK's words, below |
+  | `Store(Stopped)` | `the store had stopped at another commit's failure` |
+  | `Route(Open)` | `the engine's store routing stopped: the store refused to open while the engine ran` |
+  | `Route(Secrets)` | `the engine's store routing stopped: the store's secrets were not ready` |
+  | `Route(Cursor)` | `the engine's store routing stopped: a load's cursor did not translate or advance` |
+  | `Route(Page)` | `the engine's store routing stopped: a load's page could not be measured or cut` |
+
+  CHECK's words: `Number` `its number is not the store's next`, `Closed`
+  `the store is not open`, `Queue` `the queue behind transcripts' syncs
+  is full`, `Writes` `more writes than the root's bound`, `Switching` `a
+  patch switch is pending`, `Encoding` `a key, record or frame past its
+  codec's limits`, `Copy` `a copy's first key is not in the map`, `Reads`
+  `a read of the map it needs failed`, `Capacity` `more operations than
+  the commit's bounds hold`, `Bytes` `its operations past the store's
+  commit bytes`. So the deployment that stopped at a full map prints
+  `temper-engine serve: commit 685204 failed: the store's map is full
+  (268,433,350 of 268,435,456 bytes; this commit needs 268,435,862)`.
 
 A stored open question's whole words and a held answer's words each have a
 schema ceiling of 65,536 bytes. Their runtime bounds, `open_words` and
