@@ -70,6 +70,17 @@ impl Drop for Kept {
     }
 }
 
+/// An executable and argv read while its retained process was alive.
+/// The file keeps the observed executable's identity if it is later unlinked
+/// (temper/docs/design/testing/process-tier.md, the newer-build story).
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub struct Executable {
+    pub path: std::path::PathBuf,
+    pub file: std::fs::File,
+    pub arguments: Vec<u8>,
+}
+
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub struct Guard {
@@ -110,6 +121,26 @@ impl Guard {
     #[must_use]
     pub fn children(&self, parent: u32) -> Vec<u32> {
         self.kept.iter().filter(|kept| kept.parent == parent).map(|kept| kept.pid).collect()
+    }
+
+    /// Read a retained process's executable, or `None` if it exited during the read.
+    /// An unreadable executable of a live process remains an error.
+    pub fn executable(&self, pid: u32) -> std::io::Result<Option<Executable>> {
+        let kept = self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process");
+        let exited = || skein_shell::keeper::pidfd_exited(kept.fd).expect("retained process exit");
+        if exited() {
+            return Ok(None);
+        }
+        let read = || {
+            let exe = format!("/proc/{pid}/exe");
+            Ok(Executable {
+                path: std::fs::read_link(&exe)?,
+                file: std::fs::File::open(&exe)?,
+                arguments: std::fs::read(format!("/proc/{pid}/cmdline"))?,
+            })
+        };
+        let result = read();
+        if exited() { Ok(None) } else { result.map(Some) }
     }
 
     /// The caller keeps this parent alive or unreaped throughout discovery.
