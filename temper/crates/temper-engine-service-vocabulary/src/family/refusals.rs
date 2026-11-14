@@ -1,6 +1,6 @@
 //! Sparse entrance facts without invented names, words or bounds (jig's
 //! client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(

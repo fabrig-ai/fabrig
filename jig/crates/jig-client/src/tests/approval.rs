@@ -1,6 +1,6 @@
 use super::*;
 use fixtures::{CREDENTIAL, Client};
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{Secret, Time, Token, Wall, Writer};
 
 pub(super) fn code() -> ApprovalCode {

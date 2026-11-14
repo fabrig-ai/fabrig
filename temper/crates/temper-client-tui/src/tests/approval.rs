@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use crate::{Told, Tui, approval_address, may_ask_again};
 use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{List, Queue, Secret, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Request, asked::State};
 
