@@ -579,6 +579,8 @@ impl Store {
             event @ (Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }
+            | Event::Job { .. }
+            | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }

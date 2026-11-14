@@ -1,7 +1,7 @@
 //! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening.md, 3).
 
 /// Whose patch levels the format row keeps, upstream first.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Owner {
     Skein,
     Smith,
@@ -18,6 +18,7 @@ pub struct PatchSet {
     pub patches: &'static [&'static str],
     /// The owner's mark across which windows start fresh.
     pub fresh: Option<&'static str>,
+    pub jobs: &'static [crate::jobs::Job],
 }
 /// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -59,6 +60,7 @@ impl PatchSets {
 
 /// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
 pub const JIG: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Jig,
     name: "jig",
     patches: &[],

@@ -87,6 +87,7 @@ fn opening(step: &Opening) -> &'static str {
             Patching::Mapping { .. } => "open patch directories",
             Patching::Recovering { .. } => "recover patch maps",
             Patching::Walking(_) => "walk patches",
+            Patching::Jobs(_) => "run jobs",
             Patching::Sealing { .. } => "seal patches",
             Patching::Checking(_) => "check patched records",
         },

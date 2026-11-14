@@ -3,6 +3,7 @@ use jig_protocol_store::{KeptFamily, KeptMap, Keys, Owner, PatchSet, patches};
 
 /// The component, core, children and secrets; Moved is held inside Carried.
 pub const JIG_PATCH_SET: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Jig,
     name: "jig",
     patches: patches::PATCHES,
@@ -24,6 +25,18 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             texts: patches::kept::jig_store_openings::TEXTS,
             map: KeptMap::Store,
             keys: &[Keys { from: &[0, 5], to: &[0, 6], root: "WorkerOpening" }],
+            frames: None,
+            flights: &[],
+        },
+        KeptFamily {
+            name: "jig-store-registry",
+            texts: patches::kept::jig_store_registry::TEXTS,
+            map: KeptMap::Store,
+            keys: &[
+                Keys { from: &[0, 6], to: &[0, 7], root: "Layout" },
+                Keys { from: &[0, 7], to: &[0, 8], root: "Text" },
+                Keys { from: &[0, 8], to: &[0, 9], root: "Job" },
+            ],
             frames: None,
             flights: &[],
         },

@@ -7,6 +7,7 @@ use skein_lib::{Queue, Token, Wall};
 
 const SETS: PatchSets = PatchSets {
     sets: &[PatchSet {
+        jobs: &[],
         owner: Owner::Jig,
         name: "jig",
         fresh: None,

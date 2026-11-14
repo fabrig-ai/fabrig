@@ -48,14 +48,21 @@ const NOTE: KeptFamily = KeptFamily {
     keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
 };
 const APPLICATION: PatchSet = PatchSet {
+    jobs: &[],
     fresh: None,
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
     patches: app::PATCHES,
 };
-const JIG: PatchSet =
-    PatchSet { fresh: None, owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], patches: jig::PATCHES };
+const JIG: PatchSet = PatchSet {
+    jobs: &[],
+    fresh: None,
+    owner: Owner::Jig,
+    name: upstream::NAME,
+    families: &[NOTE],
+    patches: jig::PATCHES,
+};
 pub(super) const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
 pub(super) const BASE: PatchSets = PatchSets {
     sets: &[
@@ -410,6 +417,7 @@ fn advance_moves_only_the_step_owners_families_with_blocks() {
 #[test]
 fn the_plan_honours_dependencies_through_all_four_owners() {
     const SKEIN: PatchSet = PatchSet {
+        jobs: &[],
         fresh: None,
         owner: Owner::Skein,
         name: "first",
@@ -417,6 +425,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         patches: &["patch 1\nowner first 1\n", "patch 1\nowner first 2\n"],
     };
     pub(super) const SMITH: PatchSet = PatchSet {
+        jobs: &[],
         fresh: None,
         owner: Owner::Smith,
         name: "second",
@@ -424,6 +433,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         patches: &["patch 1\nowner second 1 after first 1\n"],
     };
     const THIRD: PatchSet = PatchSet {
+        jobs: &[],
         fresh: None,
         owner: Owner::Jig,
         name: "third",
@@ -431,6 +441,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         patches: &["patch 1\nowner third 1 after second 1\n"],
     };
     const LAST: PatchSet = PatchSet {
+        jobs: &[],
         fresh: None,
         owner: Owner::Application,
         name: "last",
@@ -570,6 +581,7 @@ fn a_held_record_two_versions_behind_runs_each_pass() {
 fn an_identity_walk_of_another_owners_holder_is_allowed() {
     const HOLDER: &str = "family holder 1\nversioned record Holder { note: bytes 64 holds fixture-note Note }\n";
     const HOLDER_SET: PatchSet = PatchSet {
+        jobs: &[],
         fresh: None,
         owner: Owner::Application,
         name: "holder",
@@ -612,6 +624,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
     const PATCH: &str = "patch 1\nowner cycle 1\nfamily cycle-b 1 to 2\n";
     let sets = PatchSets {
         sets: &[PatchSet {
+            jobs: &[],
             fresh: None,
             owner: Owner::Application,
             name: "cycle",
@@ -637,6 +650,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
 }
 
 pub(super) const SMITH: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Smith,
     name: jig_test_patches_smith::NAME,
     fresh: Some(jig_test_patches_smith::FRESH),

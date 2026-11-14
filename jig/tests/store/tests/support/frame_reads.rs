@@ -16,6 +16,7 @@ pub(crate) const FRAME_KEY_BYTES: usize = 18;
 pub(crate) const SETS: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             patches: jig::PATCHES,
@@ -30,6 +31,7 @@ pub(crate) const SETS: PatchSets = PatchSets {
             }],
         },
         PatchSet {
+            jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             patches: smith::PATCHES,
@@ -189,7 +191,9 @@ pub(crate) fn decode(
                 | Event::Back { .. }
                 | Event::BackRefused { .. }
                 | Event::Closed { .. }
-                | Event::Patched { .. }) => panic!("decode event {other:?}"),
+                | Event::Patched { .. }
+                | Event::Job { .. }
+                | Event::Ran { .. }) => panic!("decode event {other:?}"),
             }
         }
         let event = match below.transcripts.pop().expect("read or stop") {

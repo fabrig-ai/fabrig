@@ -9,9 +9,23 @@ pub enum Own {
     Layouts,
     Wires,
     Opening(Box<str>),
+    Job { owner: crate::Owner, name: Box<str> },
+}
+const fn owner_byte(owner: crate::Owner) -> u8 {
+    match owner {
+        crate::Owner::Skein => 0,
+        crate::Owner::Smith => 1,
+        crate::Owner::Jig => 2,
+        crate::Owner::Application => 3,
+    }
 }
 pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
     match key {
+        Own::Job { owner, name } => {
+            writer.tag(8);
+            writer.tag(owner_byte(*owner));
+            writer.bytes(name.as_bytes());
+        }
         Own::Opening(worker) => {
             writer.tag(5);
             writer.bytes(worker.as_bytes());
@@ -43,6 +57,16 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
         3 => Own::Layouts,
         4 => Own::Wires,
         5 => Own::Opening(Box::from(core::str::from_utf8(&reader.bytes()?).ok()?)),
+        8 => Own::Job {
+            owner: match reader.tag()? {
+                0 => crate::Owner::Skein,
+                1 => crate::Owner::Smith,
+                2 => crate::Owner::Jig,
+                3 => crate::Owner::Application,
+                _ => return None,
+            },
+            name: Box::from(core::str::from_utf8(&reader.bytes()?).ok()?),
+        },
         1 => Own::Transcript { task: reader.u64()? },
         2 => Own::Attempt { task: reader.u64()?, attempt: reader.u64()? },
         _ => return None,

@@ -26,6 +26,8 @@ use skein_io::{
 use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
+mod jobs;
+
 const CHUNK: u32 = 4096;
 const KEY: &[u8] = b"row";
 const VALUE: &[u8] = b"committed";
@@ -181,6 +183,7 @@ fn stage(store: &Store) -> Stage {
                     Stage::Walking
                 }
             }
+            Patching::Jobs(_) => Stage::Walking,
             Patching::Sealing { .. } => Stage::Sealing,
             Patching::Checking(_) => Stage::Checking,
         },
@@ -1019,6 +1022,7 @@ const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
     frames: None,
 };
 const HEAD_SET: crate::PatchSet = crate::PatchSet {
+    jobs: &[],
     name: "heads",
     owner: crate::Owner::Application,
     families: &[HEAD_FAMILY],
@@ -1609,6 +1613,7 @@ const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
     keys: &[],
 };
 const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
+    jobs: &[],
     fresh: None,
     owner: crate::Owner::Application,
     name: "manifest-bounds",
