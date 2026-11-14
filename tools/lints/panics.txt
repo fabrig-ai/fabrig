@@ -142,7 +142,6 @@ temper/crates/temper-engine-domain/src/tests/resume.rs should_panic 1
 temper/crates/temper-engine-service-vocabulary/src/tests/store_route.rs should_panic 2
 temper/crates/temper-service/src/tests/members.rs should_panic 1
 temper/testing/temper-box-kit/src/forge_land.rs catch_unwind 2
-temper/testing/temper-box-kit/src/lib.rs catch_unwind 1
 temper/testing/temper-fixtures/src/ports/tests.rs should_panic 1
 temper/tests/engine/domain/src/oracle.rs should_panic 2
 temper/tests/engine/domain/src/walking.rs should_panic 1

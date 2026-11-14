@@ -33,10 +33,13 @@ pub fn box_log(data: &Path) -> String {
 /// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box.md, 2).
 #[must_use]
 pub fn serve_listening(data: &Path) -> bool {
+    check_serve_listening(data).unwrap_or_else(|why| panic!("{why}"))
+}
+fn check_serve_listening(data: &Path) -> Result<bool, String> {
     match std::fs::read_to_string(data.join("box/logs/serve.log")) {
-        Ok(log) => log.contains("listening clients "),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(error) => panic!("serve log: {error}"),
+        Ok(log) => Ok(log.contains("listening clients ")),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!("serve log: {error}")),
     }
 }
 
@@ -68,6 +71,7 @@ enum Phase {
     Stopping,
 }
 struct Judge {
+    failed: Option<String>,
     data: Option<PathBuf>,
     plan: Plan,
     forgejo: Option<SocketAddr>,
@@ -83,14 +87,14 @@ struct Judge {
     settled: bool,
 }
 impl Judge {
-    fn advance(&mut self, binary: &mut Binary, address: SocketAddr) {
+    fn advance(&mut self, binary: &mut Binary, address: SocketAddr) -> Result<(), String> {
         let pids = &binary.tree_status().live_pids;
         match self.phase {
             Phase::AwaitingServe => {
                 // Plain serve prints its own link once listening; a box prints before it starts.
-                if self.data.as_deref().is_none_or(serve_listening) {
+                if self.data.as_deref().map_or(Ok(true), check_serve_listening)? {
                     self.phase = Phase::Linked;
-                    self.advance(binary, address);
+                    self.advance(binary, address)?;
                 }
             }
             Phase::Linked => {
@@ -100,14 +104,19 @@ impl Judge {
                     Plan::Exit => {}
                     Plan::KillForgejo => {
                         if let Some(engine) = find(pids, &self.temper_program, b"serve")
-                            && let Some(forgejo) =
-                                find(pids, self.forgejo_program.as_deref().expect("Forgejo restart plan"), b"web")
+                            && let Some(forgejo) = find(
+                                pids,
+                                self.forgejo_program.as_deref().ok_or(String::from("Forgejo restart plan"))?,
+                                b"web",
+                            )
                         {
                             let killed = std::process::Command::new("/usr/bin/kill")
                                 .args(["-KILL", &forgejo.to_string()])
                                 .status()
-                                .expect("kill Forgejo");
-                            assert!(killed.success(), "Forgejo's pid accepted the kill");
+                                .map_err(|error| format!("kill Forgejo: {error:?}"))?;
+                            if !killed.success() {
+                                return Err(String::from("Forgejo's pid accepted the kill"));
+                            }
                             self.phase = Phase::Killed { engine, forgejo };
                         }
                     }
@@ -115,7 +124,7 @@ impl Judge {
             }
             Phase::Killed { engine, forgejo } => {
                 if let Some(restarted) =
-                    find(pids, self.forgejo_program.as_deref().expect("Forgejo restart plan"), b"web")
+                    find(pids, self.forgejo_program.as_deref().ok_or(String::from("Forgejo restart plan"))?, b"web")
                     && restarted != forgejo
                     && self.forgejo.and_then(|address| status(address, "/api/v1/version")) == Some(200)
                 {
@@ -128,6 +137,8 @@ impl Judge {
             }
             Phase::Stopping => {}
         }
+
+        Ok(())
     }
     fn stop(&mut self, binary: &mut Binary) {
         if binary.exit_status().is_none() {
@@ -146,35 +157,57 @@ pub fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        let Process::Stdout(stdout) = &procs[1] else { panic!("stdout reader") };
-        let engine = printed_link(&stdout.bytes)
-            .and_then(|link| std::str::from_utf8(link).ok()?.strip_prefix("http://")?.split('/').next()?.parse().ok());
-        let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-        if now >= self.next_probe {
-            if let Some(engine) = engine {
-                self.advance(binary, engine);
-            }
-            self.next_probe = now.saturating_add(Duration::from_millis(200));
+        if self.failed.is_some() {
+            return;
         }
-        let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && left && !binary.is_empty() {
-            binary.signal_tree(Signal::Kill);
-            self.cleanup = true;
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Stdout(stdout)) = procs.get(1) else { return Err(String::from("stdout reader")) };
+            let engine = printed_link(&stdout.bytes).and_then(|link| {
+                std::str::from_utf8(link).ok()?.strip_prefix("http://")?.split('/').next()?.parse().ok()
+            });
+            let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("binary")) };
+            if now >= self.next_probe {
+                if let Some(engine) = engine {
+                    self.advance(binary, engine)?;
+                }
+                self.next_probe = now.saturating_add(Duration::from_millis(200));
+            }
+            let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
+            if !self.cleanup && left && !binary.is_empty() {
+                binary.signal_tree(Signal::Kill);
+                self.cleanup = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = procs.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
-            let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-            panic!("box did not finish and settle: {}; {figures}", String::from_utf8_lossy(binary.stderr()));
+            let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("binary")) };
+            return Err(format!(
+                "box did not finish and settle: {}; {figures}",
+                String::from_utf8_lossy(binary.stderr())
+            ));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.cleanup || self.settled { None } else { self.deadline.until().map(|until| until.min(self.next_probe)) }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -234,6 +267,7 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         None
     };
     let mut world = real::World::new(Judge {
+        failed: None,
         data,
         plan,
         forgejo,
@@ -334,6 +368,7 @@ pub struct StoryOutcome<T> {
     pub checked: T,
 }
 struct StoryJudge<'a, F, T> {
+    failed: Option<String>,
     check: Option<F>,
     ending: Signal,
     checked: &'a Cell<Option<T>>,
@@ -346,43 +381,54 @@ struct StoryJudge<'a, F, T> {
 }
 impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
-        let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
-        let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-        if !self.stopping && finished {
-            self.checked.set(Some(self.check.take().expect("one check before stopping")(binary)));
-            if self.ending == Signal::Kill {
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
+            let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
+            let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("binary")) };
+            if !self.stopping && finished {
+                self.checked.set(Some(self.check.take().ok_or(String::from("one check before stopping"))?(binary)));
+                if self.ending == Signal::Kill {
+                    binary.signal_tree(Signal::Kill);
+                    self.cleanup = true;
+                } else {
+                    binary.signal(Signal::Terminate);
+                }
+                self.stopping = true;
+            }
+            let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
+            if !self.cleanup && left && !binary.is_empty() {
                 binary.signal_tree(Signal::Kill);
                 self.cleanup = true;
-            } else {
-                binary.signal(Signal::Terminate);
             }
-            self.stopping = true;
-        }
-        let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && left && !binary.is_empty() {
-            binary.signal_tree(Signal::Kill);
-            self.cleanup = true;
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = self.stopping && procs.iter().all(Host::is_empty);
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
+        let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("binary")) };
+        let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
         let stderr = String::from_utf8_lossy(binary.stderr());
         if person.choosing_playground() {
             for name in ["fake-llm.log", "fake-forge-1.log", "prepare-1.log"] {
                 let path = self.logs.join(name);
-                assert!(
-                    std::fs::read(&path).is_ok_and(|bytes| bytes.is_empty()) || !path.exists(),
-                    "the demo's fakes stay dormant at the welcome: {}",
-                    path.display()
-                );
+                if !std::fs::read(&path).is_ok_and(|bytes| bytes.is_empty()) && path.exists() {
+                    return Err(format!("the demo's fakes stay dormant at the welcome: {}", path.display()));
+                }
             }
             self.dormant_checked.set(true);
         }
         if person.failed.is_some() {
-            for node in person.client.as_ref().expect("native client").tree().nodes() {
+            for node in person.client.as_ref().ok_or(String::from("native client"))?.tree().nodes() {
                 eprintln!(
                     "{:?}: {} {}",
                     node.role,
@@ -391,25 +437,36 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
                 );
             }
         }
-        assert!(person.failed.is_none(), "{:?}; temper box stderr: {stderr}", person.failed);
-        assert!(binary.exit_status().is_none() || self.stopping, "temper box ended before the person: {stderr}");
-        assert!(
-            binary
-                .exit_status()
-                .is_none_or(|exit| exit == if self.ending == Signal::Kill { Exit::Signal(9) } else { Exit::Code(0) }),
-            "temper box failed: {stderr}"
-        );
-        assert!(!binary.stderr_overflowed(), "temper box overflowed stderr: {stderr}");
+        if person.failed.is_some() {
+            return Err(format!("{:?}; temper box stderr: {stderr}", person.failed));
+        }
+        if binary.exit_status().is_some() && !self.stopping {
+            return Err(format!("temper box ended before the person: {stderr}"));
+        }
+        if !binary
+            .exit_status()
+            .is_none_or(|exit| exit == if self.ending == Signal::Kill { Exit::Signal(9) } else { Exit::Code(0) })
+        {
+            return Err(format!("temper box failed: {stderr}"));
+        }
+        if binary.stderr_overflowed() {
+            return Err(format!("temper box overflowed stderr: {stderr}"));
+        }
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
-            panic!("native person did not settle: {stderr}; {figures}");
+            return Err(format!("native person did not settle: {stderr}; {figures}"));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -470,6 +527,7 @@ pub fn run_story_with_box<T>(
     let checked = Cell::new(None);
     let dormant_checked = Cell::new(false);
     let mut world = real::World::new(StoryJudge {
+        failed: None,
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
@@ -511,6 +569,7 @@ pub struct CtlOutcome<T> {
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
 struct CtlJudge<'a, F, T> {
+    failed: Option<String>,
     data: PathBuf,
     resuming_playground: Option<[PathBuf; 2]>,
     fail_on_panic: Option<()>,
@@ -556,9 +615,13 @@ fn report_face_stop(calls: &super::ctl::Calls, stderr: &[u8], failed: bool, expi
     }
     eprintln!("face box stderr: {}", String::from_utf8_lossy(stderr));
 }
-fn release_llm(calls: &mut super::ctl::Calls, peers: &mut [Process], release_answers: &mut Option<usize>) {
+fn release_llm(
+    calls: &mut super::ctl::Calls,
+    peers: &mut [Process],
+    release_answers: &mut Option<usize>,
+) -> Result<(), String> {
     use skein_fake_peers::llm::Observation;
-    let Some((name, cue)) = calls.llm_release() else { return };
+    let Some((name, cue)) = calls.llm_release() else { return Ok(()) };
     let peer = peers
         .iter_mut()
         .find_map(|proc| match proc {
@@ -570,7 +633,7 @@ fn release_llm(calls: &mut super::ctl::Calls, peers: &mut [Process], release_ans
             | Process::Issuer(_)
             | Process::Visitor(_) => None,
         })
-        .expect("scripted model owns the hold");
+        .ok_or(String::from("scripted model owns the hold"))?;
     let observations = peer.observations();
     let before = *release_answers.get_or_insert(observations.len());
     let answered = observations.iter().enumerate().skip(before).any(|(index, event)| {
@@ -595,8 +658,10 @@ fn release_llm(calls: &mut super::ctl::Calls, peers: &mut [Process], release_ans
         *release_answers = None;
     } else {
         // The review task can be visible before its model reaches the hold.
-        peer.release(name).expect("release scripted review");
+        peer.release(name).map_err(|error| format!("release scripted review: {error:?}"))?;
     }
+
+    Ok(())
 }
 fn restart_engine(
     calls: &mut super::ctl::Calls,
@@ -604,27 +669,31 @@ fn restart_engine(
     now: Time,
     restart_at: &mut Option<Time>,
     expected_exits: &mut Vec<(usize, u8)>,
-) {
+) -> Result<(), String> {
     if calls.restarting_engine() {
         // Let the started caller enter its wait before stopping the engine.
         // This is an action's schedule, not a failure deadline.
         let at = *restart_at.get_or_insert(now.saturating_add(Duration::from_secs(1)));
         if now >= at {
             let engine = find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper-box"), b"serve")
-                .expect("box engine");
+                .ok_or(String::from("box engine"))?;
             let status = std::process::Command::new("/usr/bin/kill")
                 .args(["-TERM", &engine.to_string()])
                 .status()
-                .expect("stop engine");
-            assert!(status.success(), "engine accepts a clean stop");
+                .map_err(|error| format!("stop engine: {error:?}"))?;
+            if !status.success() {
+                return Err(String::from("engine accepts a clean stop"));
+            }
             let index = calls.engine_restarting();
             expected_exits.push((index, 3));
             *restart_at = None;
         }
     }
+
+    Ok(())
 }
 impl<F, T> CtlJudge<'_, F, T> {
-    fn resume_playground(&mut self, binary: &Binary) {
+    fn resume_playground(&mut self, binary: &Binary) -> Result<(), String> {
         if find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper-box"), b"serve").is_some()
             && let Some([config, client]) = self.resuming_playground.take()
         {
@@ -632,12 +701,16 @@ impl<F, T> CtlJudge<'_, F, T> {
             let continued = std::process::Command::new("/usr/bin/kill")
                 .args(["-CONT", &parent.to_string()])
                 .status()
-                .expect("resume box parent");
-            assert!(continued.success());
+                .map_err(|error| format!("resume box parent: {error:?}"))?;
+            if !continued.success() {
+                return Err(String::from("assertion failed: continued.success()"));
+            }
         }
+
+        Ok(())
     }
 
-    fn bound(&mut self, calls: &super::ctl::Calls, binary: &Binary, failed: bool) {
+    fn bound(&mut self, calls: &super::ctl::Calls, binary: &Binary, failed: bool) -> Result<(), String> {
         if !self.stopping
             && !calls.idle()
             && !failed
@@ -648,120 +721,147 @@ impl<F, T> CtlJudge<'_, F, T> {
                 eprintln!("last unmet ctl read: {}", String::from_utf8_lossy(&read.stdout));
             }
             report_face_stop(calls, binary.stderr(), false, true);
-            panic!("box ctl story did not finish: {figures}");
+            return Err(format!("box ctl story did not finish: {figures}"));
         }
+
+        Ok(())
     }
 }
 impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
+    #[expect(clippy::too_many_lines, reason = "ctl actions retain the first finding for watch")]
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        let Process::Binary(binary) = &procs[0] else { panic!("box") };
-        self.resume_playground(binary);
-        let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
-        let failed = calls.ends().iter().enumerate().any(|(index, call)| {
-            let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-            calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
-        });
-        if let Some(face) = &self.face {
-            let Process::Calls(calls) = &mut procs[1] else { panic!("ctl") };
-            if matches!(self.visit, Visit::AwaitingAddress)
-                && let Some(address) = calls.ends().iter().find_map(super::sign_in::authorization_address)
-            {
-                let address = address.to_vec();
-                let Process::Visitor(visitor) = &mut procs[face.visitor] else { panic!("visitor") };
-                visitor.hand(&address);
-                self.visit = Visit::Handed;
-            }
-            let Process::Calls(calls) = &mut procs[1] else { panic!("ctl") };
-            if !failed && let Some(reply) = &mut self.reply {
-                reply.advance(calls, &mut self.expected_exits);
-            }
+        if self.failed.is_some() {
+            return;
         }
-        if let Some(index) = self.tab {
-            let (drivers, visitors) = procs.split_at_mut(index);
-            let Process::Calls(calls) = &mut drivers[1] else { panic!("ctl") };
-            let Process::Visitor(visitor) = &mut visitors[0] else { panic!("tab visitor") };
-            if calls.visiting() {
-                if matches!(self.tab_visit, Visit::Handed) && visitor.is_empty() {
-                    let hops = visitor.hops().to_vec();
-                    calls.visited(hops.last().expect("landing hop").status);
-                    let mut visits = self.visits.take();
-                    visits.push(hops);
-                    self.visits.set(visits);
-                    self.tab_visit = Visit::AwaitingAddress;
-                } else if matches!(self.tab_visit, Visit::AwaitingAddress) {
-                    let address =
-                        calls.ends().last().and_then(visit_address).expect("last act printed a browser address");
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("box")) };
+            self.resume_playground(binary)?;
+            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl")) };
+            let failed = calls.ends().iter().enumerate().any(|(index, call)| {
+                let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
+                calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
+            });
+            if let Some(face) = &self.face {
+                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
+                if matches!(self.visit, Visit::AwaitingAddress)
+                    && let Some(address) = calls.ends().iter().find_map(super::sign_in::authorization_address)
+                {
+                    let address = address.to_vec();
+                    let Some(Process::Visitor(visitor)) = procs.get_mut(face.visitor) else {
+                        return Err(String::from("visitor"));
+                    };
                     visitor.hand(&address);
-                    calls.visit_handed();
-                    self.tab_visit = Visit::Handed;
+                    self.visit = Visit::Handed;
+                }
+                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
+                if !failed && let Some(reply) = &mut self.reply {
+                    reply.advance(calls, &mut self.expected_exits);
                 }
             }
-        }
-        let (drivers, peers) = procs.split_at_mut(2);
-        let [Process::Binary(binary), Process::Calls(calls)] = drivers else { panic!("box and ctl") };
-        restart_engine(calls, binary, now, &mut self.restart_at, &mut self.expected_exits);
-        release_llm(calls, peers, &mut self.release_answers);
-        // A release before the response reaches its hold changes nothing.
-        // Keep driving it even when the held peer has no io or timer ready
-        // (testing/process-tier.md, the scripts' process cadence).
-        self.next_release = calls.llm_release().map(|_| now.saturating_add(Duration::from_millis(20)));
-        if self.on_link.is_some()
-            && printed_link(calls.stdout()).is_some()
-            && serve_listening(&self.data)
-            && let Some(on_link) = self.on_link.take()
-        {
-            on_link();
-        }
-        calls.observe_box_stderr(binary.stderr(), now);
-        // The box's stderr may end a call: judge the calls again after it.
-        let failed = calls.ends().iter().enumerate().any(|(index, call)| {
-            let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-            calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
-        });
-        let failed = failed
-            || self.fail_on_panic.is_some()
-                && binary.stderr().windows(b"panicked at".len()).any(|part| part == b"panicked at");
-        self.bound(calls, binary, failed);
-        if !self.stopping && (calls.idle() || failed || binary.exit_status().is_some()) {
-            if self.face.is_some() || failed {
-                report_face_stop(calls, binary.stderr(), failed, false);
-                eprintln!("pending scripted release: {:?}", calls.llm_release());
-            }
-            if calls.idle() && !failed && binary.exit_status().is_none() {
-                assert!(self.resuming_playground.is_none(), "the kept reset was observed after restart");
-                self.checked.set(Some(self.check.take().expect("one live check")(binary)));
-            }
-            // A held batch keeps its root open for the reply referee. Release
-            // it on failure too, so cancellation drains that descriptor.
-            calls.release();
-            calls.cancel();
-            for proc in peers {
-                match proc {
-                    Process::Peer(peer) => peer.shutdown(),
-                    Process::Issuer(issuer) => issuer.shutdown(),
-                    Process::Binary(_)
-                    | Process::Calls(_)
-                    | Process::Person(_)
-                    | Process::Stdout(_)
-                    | Process::Visitor(_) => {}
+            if let Some(index) = self.tab {
+                let (drivers, visitors) = procs.split_at_mut(index);
+                let Process::Calls(calls) = &mut drivers[1] else { return Err(String::from("ctl")) };
+                let Process::Visitor(visitor) = &mut visitors[0] else { return Err(String::from("tab visitor")) };
+                if calls.visiting() {
+                    if matches!(self.tab_visit, Visit::Handed) && visitor.is_empty() {
+                        let hops = visitor.hops().to_vec();
+                        calls.visited(hops.last().ok_or(String::from("landing hop"))?.status);
+                        let mut visits = self.visits.take();
+                        visits.push(hops);
+                        self.visits.set(visits);
+                        self.tab_visit = Visit::AwaitingAddress;
+                    } else if matches!(self.tab_visit, Visit::AwaitingAddress) {
+                        let address = calls
+                            .ends()
+                            .last()
+                            .and_then(visit_address)
+                            .ok_or(String::from("last act printed a browser address"))?;
+                        visitor.hand(&address);
+                        calls.visit_handed();
+                        self.tab_visit = Visit::Handed;
+                    }
                 }
             }
-            if binary.exit_status().is_none() {
-                binary.signal(Signal::Terminate);
+            let (drivers, peers) = procs.split_at_mut(2);
+            let [Process::Binary(binary), Process::Calls(calls)] = drivers else {
+                return Err(String::from("box and ctl"));
+            };
+            restart_engine(calls, binary, now, &mut self.restart_at, &mut self.expected_exits)?;
+            release_llm(calls, peers, &mut self.release_answers)?;
+            // A release before the response reaches its hold changes nothing.
+            // Keep driving it even when the held peer has no io or timer ready
+            // (testing/process-tier.md, the scripts' process cadence).
+            self.next_release = calls.llm_release().map(|_| now.saturating_add(Duration::from_millis(20)));
+            if self.on_link.is_some()
+                && printed_link(calls.stdout()).is_some()
+                && check_serve_listening(&self.data)?
+                && let Some(on_link) = self.on_link.take()
+            {
+                on_link();
             }
-            self.stopping = true;
-        }
-        let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && (left || now >= self.cleanup_deadline) && !binary.is_empty() {
-            binary.signal_tree(Signal::Kill);
-            self.cleanup = true;
+            calls.observe_box_stderr(binary.stderr(), now);
+            // The box's stderr may end a call: judge the calls again after it.
+            let failed = calls.ends().iter().enumerate().any(|(index, call)| {
+                let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
+                calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
+            });
+            let failed = failed
+                || self.fail_on_panic.is_some()
+                    && binary.stderr().windows(b"panicked at".len()).any(|part| part == b"panicked at");
+            self.bound(calls, binary, failed)?;
+            if !self.stopping && (calls.idle() || failed || binary.exit_status().is_some()) {
+                if self.face.is_some() || failed {
+                    report_face_stop(calls, binary.stderr(), failed, false);
+                    eprintln!("pending scripted release: {:?}", calls.llm_release());
+                }
+                if calls.idle() && !failed && binary.exit_status().is_none() {
+                    if self.resuming_playground.is_some() {
+                        return Err(String::from("the kept reset was observed after restart"));
+                    }
+                    self.checked.set(Some(self.check.take().ok_or(String::from("one live check"))?(binary)));
+                }
+                // A held batch keeps its root open for the reply referee. Release
+                // it on failure too, so cancellation drains that descriptor.
+                calls.release();
+                calls.cancel();
+                for proc in peers {
+                    match proc {
+                        Process::Peer(peer) => peer.shutdown(),
+                        Process::Issuer(issuer) => issuer.shutdown(),
+                        Process::Binary(_)
+                        | Process::Calls(_)
+                        | Process::Person(_)
+                        | Process::Stdout(_)
+                        | Process::Visitor(_) => {}
+                    }
+                }
+                if binary.exit_status().is_none() {
+                    binary.signal(Signal::Terminate);
+                }
+                self.stopping = true;
+            }
+            let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
+            if !self.cleanup && (left || now >= self.cleanup_deadline) && !binary.is_empty() {
+                binary.signal_tree(Signal::Kill);
+                self.cleanup = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = self.stopping && procs.iter().all(Host::is_empty);
         if self.face.is_some() && self.cleanup && !self.settled {
             eprintln!("face drain: {:?}", procs.iter().map(Host::is_empty).collect::<Vec<_>>());
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled {
@@ -773,6 +873,9 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -1066,6 +1169,7 @@ fn run_ctl_peers<T>(
     let visits = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        failed: None,
         data: data.clone(),
         resuming_playground,
         fail_on_panic,
@@ -1152,6 +1256,7 @@ pub fn dying_with_test(mut command: Command) -> Command {
 /// Drive a crash story; the probe either cuts at its boundary or lets ctl finish.
 /// The keeper drains every descendant before the deployment is started again.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the cut judge and its world share the kept finding")]
 pub fn run_ctl_with_cut(
     directory: &Path,
     flags: Vec<String>,
@@ -1159,6 +1264,7 @@ pub fn run_ctl_with_cut(
     mut cut: impl FnMut(&Binary, &super::ctl::Calls) -> bool,
 ) -> CtlOutcome<()> {
     struct CutJudge<'a, F> {
+        failed: Option<String>,
         inner: CtlJudge<'a, fn(&Binary), ()>,
         cut: &'a mut F,
         killed: &'a Cell<bool>,
@@ -1167,27 +1273,45 @@ pub fn run_ctl_with_cut(
     }
     impl<F: FnMut(&Binary, &super::ctl::Calls) -> bool> Referee<Process> for CutJudge<'_, F> {
         fn act(&mut self, now: Time, procs: &mut [Process]) {
-            let [Process::Binary(binary), Process::Calls(calls), ..] = procs else { panic!("box and ctl") };
-            if self.armed && !self.killed.get() && calls.idle() {
-                binary.signal(Signal::Kill);
-                self.killed.set(true);
-            } else if !self.armed && binary.exit_status().is_none() && (self.cut)(binary, calls) {
-                // Keep the boundary while the caller reaps; it shares the observer's cgroup.
-                binary.signal(Signal::Stop);
-                calls.cancel();
-                self.inner.stopping = true;
-                self.armed = true;
+            if self.failed.is_some() {
+                return;
             }
-            self.next_probe = now.saturating_add(Duration::from_millis(2));
-            self.inner.act(now, procs);
+            let result = (|| -> Result<(), String> {
+                let [Process::Binary(binary), Process::Calls(calls), ..] = procs else {
+                    return Err(String::from("box and ctl"));
+                };
+                if self.armed && !self.killed.get() && calls.idle() {
+                    binary.signal(Signal::Kill);
+                    self.killed.set(true);
+                } else if !self.armed && binary.exit_status().is_none() && (self.cut)(binary, calls) {
+                    // Keep the boundary while the caller reaps; it shares the observer's cgroup.
+                    binary.signal(Signal::Stop);
+                    calls.cancel();
+                    self.inner.stopping = true;
+                    self.armed = true;
+                }
+                self.next_probe = now.saturating_add(Duration::from_millis(2));
+                self.inner.act(now, procs);
+
+                Ok(())
+            })();
+            if let Err(why) = result {
+                self.failed = Some(why);
+            }
         }
-        fn observe(&mut self, now: Time, procs: &[Process]) {
-            self.inner.observe(now, procs);
+        fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+            if let Some(why) = self.failed.take() {
+                return Err(why);
+            }
+            self.inner.watch(now, procs)
         }
         fn next_deadline(&self) -> Option<Time> {
             if self.inner.settled { None } else { Some(self.next_probe) }
         }
         fn passed(&self) -> bool {
+            if self.failed.is_some() {
+                return false;
+            }
             self.inner.passed()
         }
     }
@@ -1204,7 +1328,9 @@ pub fn run_ctl_with_cut(
     let visits = Cell::new(Vec::new());
     let killed = Cell::new(false);
     let mut world = real::World::new(CutJudge {
+        failed: None,
         inner: CtlJudge {
+            failed: None,
             data: data.clone(),
             fail_on_panic: Some(()),
             expected_exits: Vec::new(),
