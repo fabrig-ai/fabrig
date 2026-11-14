@@ -20,7 +20,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - Step crates follow the strict subset (`skein/docs/foundation/programming-model.md, 10`): no `std`, no `unsafe` but where a module says why, every `match` lists every variant (no `_`, no `matches!`), no indexing, no unchecked arithmetic, no `as`, no `unwrap`. The workspace's lints and each tree's `clippy.toml` hold it.
 - A package's `[lints]` block and its `clippy.toml` are copies of a definition (`tools/lints/design.md`): a new crate takes a profile with `tools/lints/lints.py --set`, and the gate holds it there.
 - Test crates are ordinary Rust under their tree's `tests/clippy.toml`: one thread, one loop, and a seed replays.
-- A change to a stored family's schema brings its patch, `cargo run -p skein-codegen -- patch <crate>`, and the golden store's line (`temper/docs/design/protocol/baseline.md`, 7); `fabrig-boundary`'s `patches` test holds it.
+- A change to a registered family's schema (its crate's `schema/registered`: jig's map families, `temper-store`) moves no version and brings no patch: an added field takes a default (`= value`), a renamed part its former name (`was`), and a change no plan derives is its owner's written job (`jig/docs/design/protocol/store/layouts.md`). A change to any other stored family's schema brings its patch, `cargo run -p skein-codegen -- patch <crate>`, and the golden store's line (`temper/docs/design/protocol/baseline.md`, 7); `fabrig-boundary`'s `patches` test holds it.
 - Some Markdown is read by tests (`.config/gate/read-by-tests.txt`): a docs change there needs its tests.
 - Public code names no path or address of a machine outside the repository, and nothing private: emails, UUIDs, session names, tokens.
 

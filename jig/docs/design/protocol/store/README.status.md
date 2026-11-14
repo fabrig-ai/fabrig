@@ -1,9 +1,10 @@
 # store: status
 
-2026-11-13. Where jig's code lags or departs from [README.md](README.md).
+2026-11-14. Where jig's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
+- **Not yet:** 1, 4.4: no registry's rows at open [in flight: change 2846].
 
 `records.md`, section 1's tasks-v9 terminal includes a bounded failed-activation reason.
 Its schema, generated codec, goldens and layout fingerprint change together

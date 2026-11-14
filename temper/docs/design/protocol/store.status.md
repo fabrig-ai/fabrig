@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-13. Where temper's code lags or departs from [store.md](store.md).
+2026-11-14. Where temper's code lags or departs from [store.md](store.md).
 
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
@@ -65,3 +65,6 @@ Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store
 - **Not yet:** 4, the tier rows' ceilings of 257: nothing checks `forge.changes` against them before the store's sizing, so a value past 128 refuses the start as past the codec's bounds, naming no limit.
 
 - **Not yet:** 4, the tier rows' ceilings of 2049: the schema still holds 257, so `forge.changes` is at most 128.
+
+- **Not yet:** 4: `temper-store` declares no value types and no current text [in flight: change 2845].
+- **Not yet:** 4: no `temper_protocol_store::jobs::page`, and the service routes no job [in flight: change 2842].
