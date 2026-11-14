@@ -43,6 +43,13 @@ pub fn schema(limits: &Limits) -> Option<Schema> {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
+    let Some(schema) = schema(limits) else { return false };
+    valid_with_schema(limits, &schema)
+}
+
+/// Checks these bounds against the full schema prepared for this construction.
+#[must_use]
+pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     if limits.room < 270
         || limits.handshake == Duration::ZERO
         || limits.hello == Duration::ZERO
@@ -52,9 +59,6 @@ pub fn valid(limits: &Limits) -> bool {
     {
         return false;
     }
-    let Some(schema) = schema(limits) else {
-        return false;
-    };
     let Some(channel) = channel(limits) else {
         return false;
     };
@@ -85,6 +89,6 @@ pub fn valid(limits: &Limits) -> bool {
         }
     }
     limits.workers.checked_add(limits.opening).is_some()
-        && skein_channel::valid(&schema, Role::Responder, &channel)
+        && skein_channel::valid(schema, Role::Responder, &channel)
         && wire::v14::decoded_bound(&codec).is_some()
 }

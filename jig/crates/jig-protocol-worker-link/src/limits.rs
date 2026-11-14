@@ -47,6 +47,14 @@ pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
+    let Some(bodies) = sizes::limits(&limits.sizes) else { return false };
+    let Ok(schema) = wire::schema(&bodies) else { return false };
+    valid_with_schema(limits, &schema)
+}
+
+/// Checks bounds using the full channel table prepared by the caller.
+#[must_use]
+pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
     if limits.room < 270
         || limits.ping == Duration::ZERO
         || limits.silence < limits.ping.saturating_mul(3)
@@ -61,9 +69,6 @@ pub fn valid(limits: &Limits) -> bool {
         return false;
     }
     let Some(bodies) = sizes::limits(&limits.sizes) else {
-        return false;
-    };
-    let Ok(schema) = wire::schema(&bodies) else {
         return false;
     };
     let Ok(channel) = channel_limits(limits) else {
@@ -89,7 +94,7 @@ pub fn valid(limits: &Limits) -> bool {
             }
         }
     }
-    channel::valid(&schema, Role::Initiator, &channel)
+    channel::valid(schema, Role::Initiator, &channel)
         && limits.sizes.slots.checked_mul(limits.sizes.calls).is_some()
         && limits.sizes.slots.checked_mul(limits.sizes.turns).is_some()
         && limits.sizes.accounts.checked_add(limits.sizes.credentials).is_some()

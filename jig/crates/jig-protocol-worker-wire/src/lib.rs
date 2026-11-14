@@ -29,7 +29,9 @@ mod tests;
 
 pub use v14::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
 
-pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, schema_for, terms_gap};
+pub use kinds::{
+    KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
+};
 pub use v14::{
     AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
     Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,

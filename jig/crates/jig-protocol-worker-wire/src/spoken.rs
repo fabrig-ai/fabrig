@@ -43,10 +43,16 @@ pub struct Agreed {
 /// Jig's wires, then its dependencies' wires, in the statement's order.
 #[must_use]
 pub fn spoken() -> List<Spoken> {
-    let mut wires = List::with_capacity(4);
-    for wire in [
+    with_worker(
         Spoken::of(crate::wire::FAMILY, crate::patches::kept::jig_worker_wire::TEXTS, crate::wire::FLOOR)
             .expect("jig's kept wire"),
+    )
+}
+
+pub(crate) fn with_worker(worker: Spoken) -> List<Spoken> {
+    let mut wires = List::with_capacity(4);
+    for wire in [
+        worker,
         Spoken::of(
             smith_channel::pieces::wire::FAMILY,
             smith_channel::patches::kept::smith_pieces::TEXTS,
