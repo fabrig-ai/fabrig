@@ -448,7 +448,7 @@ impl World {
 
     fn run_iterations(&mut self, iterations: u32) -> Result<(), String> {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate().map_err(|detail| self.finding(&detail))?;
             if self.has_work_now() {
                 continue;
             }
@@ -469,7 +469,7 @@ impl World {
 
     /// One iteration of the loop, as the shell would run it.
     #[expect(clippy::too_many_lines, reason = "the loop checks each routed decision in order")]
-    fn iterate(&mut self) {
+    fn iterate(&mut self) -> Result<(), String> {
         self.stage.tick(self.now);
         self.deliver();
         let mut made = Vec::new();
@@ -502,13 +502,13 @@ impl World {
                     assert_eq!(count, 1, "a job is refused or prepared");
                     let request = self.stage.out.pop().expect("counted");
                     self.job_assigned(run, attempt, &request);
-                    self.route(request);
+                    self.route(request)?;
                 }
                 Taken::Assign { run, attempt } => {
                     assert_eq!(count, 1, "an assignment is refused or prepared");
                     let request = self.stage.out.pop().expect("counted");
                     self.assigned(run, attempt, &request);
-                    self.route(request);
+                    self.route(request)?;
                 }
                 Taken::Acknowledged { .. }
                 | Taken::Started { .. }
@@ -541,7 +541,7 @@ impl World {
                         }
                     }
                     for request in requests {
-                        self.route(request);
+                        self.route(request)?;
                     }
                     for agent in left {
                         for open in self.calls.values() {
@@ -581,6 +581,7 @@ impl World {
                 self.stage.inbox.push_front(Arrival { event, stale: false, duplicate: true });
             }
         }
+        Ok(())
     }
 
     fn path(&mut self, path: &'static str) {
@@ -843,8 +844,8 @@ impl World {
 
     /// Hands the host's `request` to whom it is for, checking it on the way.
     #[expect(clippy::too_many_lines, reason = "one exhaustive match checks every host output at its destination")]
-    fn route(&mut self, request: Request) {
-        self.refusals.request(&request);
+    fn route(&mut self, request: Request) -> Result<(), String> {
+        self.refusals.request(&request)?;
         self.trace.log(self.now, format_args!("host -> {request:?}"));
         match request {
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
@@ -958,6 +959,7 @@ impl World {
             | Request::Release { .. }
             | Request::Agent(ToAgent::Grant { .. }) => self.parcel(request),
         }
+        Ok(())
     }
 
     fn send_engine(&mut self, request: Request) {
