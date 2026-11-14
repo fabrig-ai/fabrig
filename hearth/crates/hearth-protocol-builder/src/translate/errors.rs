@@ -28,7 +28,7 @@ pub fn fault(
             tokenizer::Error::Stream(_) => return None,
         },
         config::Fault::Stream(_) => return None,
-        config::Fault::Declaration(value) => target::Decode::Declaration(declared(value)),
+        config::Fault::Declaration(value) => target::Decode::Declaration(value),
         config::Fault::Duplicate { key, first } => {
             return Some((target::Decode::Duplicate { key }, Some(super::documents::position(first))));
         }
@@ -46,113 +46,13 @@ pub fn fault(
             config::Shape::Member => target::Decode::Member,
             config::Shape::Settings { task } => target::Decode::Settings { task },
             config::Shape::Unknown { field } => target::Decode::Unknown { field },
-            config::Shape::Wrong { field } => target::Decode::Wrong { field: config_field(field) },
-            config::Shape::Missing { field } => target::Decode::Missing { field: config_field(field) },
-            config::Shape::Misplaced { field } => target::Decode::Misplaced { field: config_field(field) },
+            config::Shape::Wrong { field } => target::Decode::Wrong { field },
+            config::Shape::Missing { field } => target::Decode::Missing { field },
+            config::Shape::Misplaced { field } => target::Decode::Misplaced { field },
         },
     };
     Some((fault, None))
 }
-fn config_field(field: config::Field) -> target::Field {
-    match field {
-        config::Field::Kind => target::Field::Kind,
-        config::Field::Firmware => target::Field::Firmware,
-        config::Field::Hardware => target::Field::Hardware,
-        config::Field::On => target::Field::On,
-        config::Field::Mutable => target::Field::Mutable,
-    }
-}
-#[must_use]
-pub fn declared(value: config::Declared) -> target::Declared {
-    match value {
-        config::Declared::Unknown { of } => target::Declared::Unknown { of: object(of) },
-        config::Declared::Later => target::Declared::Later,
-        config::Declared::Wrong { expected } => target::Declared::Wrong { expected: config_expected(expected) },
-        config::Declared::Missing { key } => target::Declared::Missing { key: required(key) },
-        config::Declared::Name => target::Declared::Name,
-        config::Declared::Doc => target::Declared::Doc,
-        config::Declared::Order => target::Declared::Order,
-        config::Declared::Optional => target::Declared::Optional,
-        config::Declared::Bound => target::Declared::Bound,
-        config::Declared::Above => target::Declared::Above,
-        config::Declared::Enum => target::Declared::Enum,
-        config::Declared::Settings => target::Declared::Settings,
-        config::Declared::Secret => target::Declared::Secret,
-    }
-}
-
-#[must_use]
-pub fn object(value: config::Object) -> target::Object {
-    match value {
-        config::Object::Declaration => target::Object::Declaration,
-        config::Object::Read => target::Object::Read,
-        config::Object::Guard => target::Object::Guard,
-        config::Object::Script => target::Object::Script,
-        config::Object::Bless => target::Object::Bless,
-        config::Object::Entry(map) => target::Object::Entry(declaration_map(map)),
-        config::Object::Range => target::Object::Range,
-        config::Object::Spec => target::Object::Spec,
-        config::Object::Export => target::Object::Export,
-        config::Object::Type => target::Object::Type,
-    }
-}
-
-#[must_use]
-pub fn config_expected(value: config::Expected) -> target::Expected {
-    match value {
-        config::Expected::Object => target::Expected::Object,
-        config::Expected::String => target::Expected::String,
-        config::Expected::Strings => target::Expected::Strings,
-        config::Expected::Bool => target::Expected::Bool,
-        config::Expected::Int => target::Expected::Int,
-        config::Expected::Field(takes) => target::Expected::Field(config_takes(takes)),
-        config::Expected::True => target::Expected::True,
-        config::Expected::Type => target::Expected::Type,
-    }
-}
-
-#[must_use]
-pub fn required(value: config::Required) -> target::Required {
-    match value {
-        config::Required::If => target::Required::If,
-        config::Required::Message => target::Required::Message,
-        config::Required::Type => target::Required::Type,
-        config::Required::Doc => target::Required::Doc,
-        config::Required::Value => target::Required::Value,
-    }
-}
-
-#[must_use]
-pub fn config_takes(value: config::entries::Takes) -> target::Takes {
-    match value {
-        config::entries::Takes::Text => target::Takes::Text,
-        config::entries::Takes::Int => target::Takes::Int,
-        config::entries::Takes::Bool => target::Takes::Bool,
-        config::entries::Takes::Strings => target::Takes::Strings,
-        config::entries::Takes::Range => target::Takes::Range,
-    }
-}
-
-#[must_use]
-pub fn declaration_map(value: config::entries::Map) -> render::revision::declaration::Map {
-    match value {
-        config::entries::Map::Packages => render::revision::declaration::Map::Packages,
-        config::entries::Map::Preseeds => render::revision::declaration::Map::Preseeds,
-        config::entries::Map::Initramfs => render::revision::declaration::Map::Initramfs,
-        config::entries::Map::Software => render::revision::declaration::Map::Software,
-        config::entries::Map::Files => render::revision::declaration::Map::Files,
-        config::entries::Map::Users => render::revision::declaration::Map::Users,
-        config::entries::Map::Groups => render::revision::declaration::Map::Groups,
-        config::entries::Map::Presets => render::revision::declaration::Map::Presets,
-        config::entries::Map::Tmpfiles => render::revision::declaration::Map::Tmpfiles,
-        config::entries::Map::Data => render::revision::declaration::Map::Data,
-        config::entries::Map::Secrets => render::revision::declaration::Map::Secrets,
-        config::entries::Map::Identity => render::revision::declaration::Map::Identity,
-        config::entries::Map::Cmdline => render::revision::declaration::Map::Cmdline,
-        config::entries::Map::Live => render::revision::declaration::Map::Live,
-    }
-}
-
 #[must_use]
 pub fn syntax(value: hearth_protocol_template::error::ErrorKind) -> target::Syntax {
     use hearth_protocol_template::error::ErrorKind as Source;

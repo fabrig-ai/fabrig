@@ -53,45 +53,6 @@ pub fn every_entry_condition() -> [(config::entries::Entry, hearth_protocol_temp
         )
     })
 }
-pub const FIELD_NAMES: &[config::entries::Name] = &[
-    config::entries::Name::Action,
-    config::entries::Name::Age,
-    config::entries::Name::Algorithm,
-    config::entries::Name::Argument,
-    config::entries::Name::Base,
-    config::entries::Name::Class,
-    config::entries::Name::Component,
-    config::entries::Name::Copy,
-    config::entries::Name::Count,
-    config::entries::Name::Directory,
-    config::entries::Name::From,
-    config::entries::Name::Gecos,
-    config::entries::Name::Gid,
-    config::entries::Name::Group,
-    config::entries::Name::Groups,
-    config::entries::Name::Home,
-    config::entries::Name::Kind,
-    config::entries::Name::Link,
-    config::entries::Name::Mode,
-    config::entries::Name::Order,
-    config::entries::Name::Owner,
-    config::entries::Name::Param,
-    config::entries::Name::Password,
-    config::entries::Name::Path,
-    config::entries::Name::Paths,
-    config::entries::Name::PublicPath,
-    config::entries::Name::Sha256,
-    config::entries::Name::Shell,
-    config::entries::Name::Strip,
-    config::entries::Name::Subordinate,
-    config::entries::Name::Template,
-    config::entries::Name::Type,
-    config::entries::Name::Uid,
-    config::entries::Name::Unit,
-    config::entries::Name::Unpack,
-    config::entries::Name::Url,
-    config::entries::Name::Value,
-];
 pub fn declaration_text(text: &[u8]) -> config::declaration::Text {
     config::declaration::Text { at: config::Position { offset: 0, line: 3, column: 5 }, text: bytes::copy_of(text) }
 }

@@ -10,7 +10,7 @@ fn simulate_back(input: vector::Simulate) -> target::Packages {
     packages.sources = target::Sources {
         suite: source.suite.as_bytes().into(),
         architecture: source.architecture.as_bytes().into(),
-        components: components_back(source.components),
+        components: source.components,
         archive: input_archive(&source.archive),
         updates: source.updates,
         security: optional_archive(source.security),
@@ -77,19 +77,6 @@ fn a_resolve_of_test_min_translates_to_41_1s_simulate() {
 
 fn optional_archive(time: Option<vector::Timestamp>) -> Option<Box<[u8]>> {
     Some(input_archive(&time?))
-}
-fn components_back(components: Box<[vector::Component]>) -> Box<[target::Component]> {
-    let mut back = skein_lib::List::with_capacity(4);
-    for component in components {
-        back.push(match component {
-            vector::Component::Main => target::Component::Main,
-            vector::Component::Contrib => target::Component::Contrib,
-            vector::Component::NonFree => target::Component::NonFree,
-            vector::Component::NonFreeFirmware => target::Component::NonFreeFirmware,
-        })
-        .expect("four components");
-    }
-    back.into_boxed()
 }
 fn inst_back(inst: render::resolution::Inst) -> hearth_protocol_mmdebstrap::output::Inst {
     hearth_protocol_mmdebstrap::output::Inst {

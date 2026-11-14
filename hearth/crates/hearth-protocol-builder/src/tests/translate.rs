@@ -1,65 +1,4 @@
-use crate::{
-    config::document as source,
-    git_machine::listing,
-    render::revision as target,
-    translate::{documents, listing as entries},
-};
-
-const MODES: &[(listing::Mode, target::Mode)] = &[
-    (listing::Mode::File, target::Mode::File),
-    (listing::Mode::Executable, target::Mode::Executable),
-    (listing::Mode::Link, target::Mode::Link),
-    (listing::Mode::Submodule, target::Mode::Submodule),
-];
-fn mode_back(mode: target::Mode) -> listing::Mode {
-    match mode {
-        target::Mode::File => listing::Mode::File,
-        target::Mode::Executable => listing::Mode::Executable,
-        target::Mode::Link => listing::Mode::Link,
-        target::Mode::Submodule => listing::Mode::Submodule,
-    }
-}
-#[test]
-fn each_mode_translates_and_back() {
-    for (source, target) in MODES {
-        assert_eq!(entries::mode_to_render(*source), *target, "mode {source:?}");
-        assert_eq!(mode_back(*target), *source, "mode {target:?}");
-    }
-}
-const KINDS: &[(source::Runs, target::Runs)] = &[
-    (source::Runs::Metal, target::Runs::Metal),
-    (source::Runs::Vm, target::Runs::Vm),
-    (source::Runs::Container, target::Runs::Container),
-];
-fn kind_back(kind: target::Runs) -> source::Runs {
-    match kind {
-        target::Runs::Metal => source::Runs::Metal,
-        target::Runs::Vm => source::Runs::Vm,
-        target::Runs::Container => source::Runs::Container,
-    }
-}
-#[test]
-fn each_placement_kind_translates_and_back() {
-    for (source, target) in KINDS {
-        assert_eq!(documents::runs(*source), *target, "kind {source:?}");
-        assert_eq!(kind_back(*target), *source, "kind {target:?}");
-    }
-}
-const FIRMWARE: &[(source::Firmware, target::Firmware)] =
-    &[(source::Firmware::Efi, target::Firmware::Efi), (source::Firmware::Bios, target::Firmware::Bios)];
-fn firmware_back(firmware: target::Firmware) -> source::Firmware {
-    match firmware {
-        target::Firmware::Efi => source::Firmware::Efi,
-        target::Firmware::Bios => source::Firmware::Bios,
-    }
-}
-#[test]
-fn each_firmware_translates_and_back() {
-    for (source, target) in FIRMWARE {
-        assert_eq!(documents::boot(*source), *target, "firmware {source:?}");
-        assert_eq!(firmware_back(*target), *source, "firmware {target:?}");
-    }
-}
+use crate::{config::document as source, render::revision as target, translate::documents};
 
 #[test]
 fn a_containers_placement_keeps_its_host_position_and_mutability() {
@@ -676,16 +615,6 @@ fn line_kind_back(kind: client_diff::LineKind) -> diff::LineKind {
         client_diff::LineKind::NoNewline => diff::LineKind::NoNewline,
     }
 }
-fn git_kind_back(kind: diff::LineKind) -> crate::git_machine::hunks::Kind {
-    use crate::git_machine::hunks::Kind;
-    match kind {
-        diff::LineKind::Hunk => Kind::Hunk,
-        diff::LineKind::Context => Kind::Context,
-        diff::LineKind::Removed => Kind::Removed,
-        diff::LineKind::Added => Kind::Added,
-        diff::LineKind::NoNewline => Kind::NoNewline,
-    }
-}
 fn sizes_back(value: Option<client_diff::Sizes>) -> Option<render::parts::config::Sizes> {
     let value = value?;
     Some(render::parts::config::Sizes { before: value.before, after: value.after })
@@ -700,45 +629,20 @@ fn hunks_back(hunks: client_diff::Hunks) -> diff::Hunks {
     }
     diff::Hunks { lines: lines.into_boxed(), left_out: hunks.left_out, binary: hunks.binary }
 }
-const HUNK_KINDS: &[(crate::git_machine::hunks::Kind, diff::LineKind, client_diff::LineKind)] = &[
-    (crate::git_machine::hunks::Kind::Hunk, diff::LineKind::Hunk, client_diff::LineKind::Header),
-    (crate::git_machine::hunks::Kind::Context, diff::LineKind::Context, client_diff::LineKind::Context),
-    (crate::git_machine::hunks::Kind::Removed, diff::LineKind::Removed, client_diff::LineKind::Removed),
-    (crate::git_machine::hunks::Kind::Added, diff::LineKind::Added, client_diff::LineKind::Added),
-    (crate::git_machine::hunks::Kind::NoNewline, diff::LineKind::NoNewline, client_diff::LineKind::NoNewline),
+const HUNK_KINDS: &[(diff::LineKind, client_diff::LineKind)] = &[
+    (diff::LineKind::Hunk, client_diff::LineKind::Header),
+    (diff::LineKind::Context, client_diff::LineKind::Context),
+    (diff::LineKind::Removed, client_diff::LineKind::Removed),
+    (diff::LineKind::Added, client_diff::LineKind::Added),
+    (diff::LineKind::NoNewline, client_diff::LineKind::NoNewline),
 ];
 #[test]
 fn each_hunk_line_kind_translates_and_back() {
-    for (row, (git, render, records)) in HUNK_KINDS.iter().enumerate() {
-        let translated = crate::translate::hunks::kind(*git);
-        assert_eq!(translated, *render, "row {row}: git kind");
-        assert_eq!(git_kind_back(translated), *git, "row {row}: git kind and back");
+    for (row, (render, records)) in HUNK_KINDS.iter().enumerate() {
         let translated = changes::line_kind(*render);
         assert_eq!(translated, *records, "row {row}: records kind");
         assert_eq!(line_kind_back(translated), *render, "row {row}: records kind and back");
     }
-}
-#[test]
-fn retained_hunk_text_and_counts_translate_from_git() {
-    let hunks = crate::git_machine::hunks::Hunks {
-        lines: Box::new([crate::git_machine::hunks::Line {
-            kind: crate::git_machine::hunks::Kind::NoNewline,
-            text: skein_lib::bytes::copy_of(b" No newline at end of file"),
-        }]),
-        left_out: 401,
-        binary: false,
-    };
-    assert_eq!(
-        crate::translate::hunks::hunks(hunks),
-        diff::Hunks {
-            lines: Box::new([diff::Line {
-                kind: diff::LineKind::NoNewline,
-                text: skein_lib::bytes::copy_of(b" No newline at end of file")
-            }]),
-            left_out: 401,
-            binary: false
-        }
-    );
 }
 
 #[test]
