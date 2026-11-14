@@ -96,7 +96,7 @@ pub struct Store {
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
     registry: Box<registry::Layouts>,
-    layout_work: Box<skein_codec::layout::Workspace>,
+    layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -229,7 +229,7 @@ impl Store {
             codec_limits,
             layouts: format::layouts(),
             registry: Box::new(registry::Layouts::new()),
-            layout_work: Box::new(skein_codec::layout::Workspace::new()),
+            layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,

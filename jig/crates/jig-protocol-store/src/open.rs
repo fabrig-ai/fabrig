@@ -241,13 +241,18 @@ fn get_row(store: &mut Store, owner: Token, key: Box<[u8]>, opening: bool) -> Re
     skein_kv::down(
         &mut store.stores.store,
         &crate::memory_env(store.limits.store),
-        skein_kv::Request::Get { owner, key },
+        skein_kv::Request::Get { owner, key: key.clone() },
         &mut above,
         &mut below,
     );
     assert!(below.is_empty(), "a memory get issues no file operation");
     match restore::reader::joined(above.pop()) {
-        Ok(value) => Ok(value),
+        Ok(mut value) => {
+            if let Some(value) = &mut value {
+                crate::registry::read(store, &key, value);
+            }
+            Ok(value)
+        }
         Err(failure) => {
             if let Some(site) = site {
                 store.open_failed(restore::OpenFailure::Data(restore::Failure::at(

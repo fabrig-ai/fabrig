@@ -4,6 +4,7 @@ use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, Unplanned, ValueType};
 use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH, WRITTEN};
 use skein_lib::{Buffer, Reader};
+mod edges;
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
@@ -217,7 +218,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let mut value = [0, 1, 0, 0, 0, 0, 3, 0, 1, 42];
     let mut out = Buffer::with_capacity(32);
     assert_eq!(
-        store.registry.read(b"\x02h/0", &mut value, &mut out, &mut store.layout_work),
+        store.registry.read(b"\x02h/0", &mut value, &mut out, &mut store.layout_work.workspace),
         &[0, 1, 0, 0, 0, 0, 4, 0, 1, 42, 7]
     );
     let mut value = [0, 1, 1];
@@ -291,7 +292,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
         (b"\x02b/0", vec![0, 3, 0, 42], vec![0, 3, 0, 42]),
     ] {
         let mut input = input;
-        assert_eq!(store.registry.read(key, &mut input, &mut out, &mut store.layout_work), expected);
+        assert_eq!(store.registry.read(key, &mut input, &mut out, &mut store.layout_work.workspace), expected);
     }
     let mut value = [0, 2, 0, 42, 7];
     assert_eq!(store.registry.write(key, &mut value), Ok(()));
@@ -322,7 +323,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     );
     crate::registry::open(&mut store, false).unwrap();
     let mut value = [0, 7, 2];
-    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut out, &mut store.layout_work), &[0, 2, 2]);
+    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut out, &mut store.layout_work.workspace), &[0, 2, 2]);
 }
 fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
     let number = store.stores.store.last() + 1;
