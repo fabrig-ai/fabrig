@@ -313,6 +313,47 @@ pub fn host_run_record() -> w::HostRun {
     .expect("literal")
 }
 #[must_use]
+pub fn bounded_store_census_record() -> w::StoreCensus {
+    let l = w::CEILINGS;
+    let mut keyspaces = List::with_capacity(129);
+    for n in 0_u8..129 {
+        let mut heads = List::with_capacity(8);
+        for h in 0_u16..8 {
+            heads
+                .push(
+                    w::CensusHead::new(
+                        &l,
+                        w::CensusHeadParts { head: if h == 0 { None } else { Some(h) }, rows: u64::from(h) + 10 },
+                    )
+                    .expect("bounded census head"),
+                )
+                .expect("eight heads");
+        }
+        keyspaces
+            .push(
+                w::CensusKeyspace::new(
+                    &l,
+                    w::CensusKeyspaceParts {
+                        prefix: Box::new([n; 8]),
+                        name: Box::new([b'n'; 48]),
+                        rows: u64::from(n),
+                        keys: 11,
+                        values: 13,
+                        heads,
+                        puts: 17,
+                        erases: 19,
+                        written: u64::MAX,
+                    },
+                )
+                .expect("bounded census row"),
+            )
+            .expect("129 keyspaces");
+    }
+    w::StoreCensus::new(&l, w::StoreCensusParts { commit: u64::MAX, since: 679_000, keyspaces })
+        .expect("bounded census")
+}
+
+#[must_use]
 pub fn deployment_rows_record() -> w::Deployment {
     let l = limits();
     let run = host_run_record();
@@ -368,6 +409,7 @@ pub fn deployment_rows_record() -> w::Deployment {
             key_bytes: 256,
             readiness: Box::new([]),
             store: w::StoreFill::new(&l, w::StoreFillParts { bytes: 31, mark: 37 }).expect("literal"),
+            census: None,
             hosts: pieces([encoded(host.measure(), |w| host.encode(w))]),
             attempts: pieces([encoded(run.measure(), |w| run.encode(w))]),
             accounts: pieces([encoded(account.measure(), |w| account.encode(w))]),

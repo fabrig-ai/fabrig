@@ -11,6 +11,7 @@ use skein_lib::{Duration, List, Wall};
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Deployment {
     pub store: StoreFill,
+    pub census: Option<Box<StoreCensus>>,
     pub hosts: List<Host>,
     pub attempts: List<HostRun>,
     pub accounts: List<Account>,
@@ -44,6 +45,37 @@ pub struct Deployment {
     pub readiness: List<super::PayerReadiness>,
     /// Whether additional provider/payer rows were omitted.
     pub readiness_cut: bool,
+}
+
+/// Census bounds (client/domain/contract/documents.md, 1).
+pub const CENSUS_ROWS: usize = 129;
+pub const CENSUS_PREFIX: usize = 8;
+pub const CENSUS_NAME: usize = 48;
+pub const CENSUS_HEADS: usize = 8;
+
+/// Last store report (protocol/store/README.md, 6.3; client/domain/contract/documents.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct StoreCensus {
+    pub commit: u64,
+    pub since: u64,
+    pub keyspaces: List<CensusKeyspace>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct CensusKeyspace {
+    pub prefix: Box<[u8]>,
+    pub name: Box<str>,
+    pub rows: u64,
+    pub keys: u64,
+    pub values: u64,
+    pub heads: List<CensusHead>,
+    pub puts: u64,
+    pub erases: u64,
+    pub written: u64,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CensusHead {
+    pub head: Option<u16>,
+    pub rows: u64,
 }
 
 /// Store map bytes at the last commit answer and its admission mark (protocol/store/README.md, 6.2).

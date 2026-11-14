@@ -1,7 +1,7 @@
 //! Fixed version refusals and family admission envelopes (protocol/client/README.md, 6 and 8).
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_core_vocabulary::documents;
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;

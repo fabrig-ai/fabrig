@@ -337,7 +337,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v21::CEILINGS,
+    wire: jig_client_protocol_wire::v22::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 

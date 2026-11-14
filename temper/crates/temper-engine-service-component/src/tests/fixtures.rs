@@ -1673,7 +1673,7 @@ pub fn forge_connecting(
     request: temper_client_protocol_wire::v1::Request,
     bundle: Secret,
 ) {
-    use jig_client_protocol_wire::v21 as j;
+    use jig_client_protocol_wire::v22 as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());

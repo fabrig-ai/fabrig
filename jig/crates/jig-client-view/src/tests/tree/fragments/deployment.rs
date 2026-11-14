@@ -32,6 +32,7 @@ fn empty() -> Deployment {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         store: StoreFill { bytes: 0, mark: 0 },
+        census: None,
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),
@@ -289,7 +290,7 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
 }
 #[test]
 fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wrong_checked_shapes() {
-    const DEPLOYMENT_PHRASES: usize = 292;
+    const DEPLOYMENT_PHRASES: usize = 305;
     let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_normal"); // Pending settings and placed-hold capacity facts.
     let english = crate::words::phrases::english::language();
     let mut second = english.clone();
@@ -769,6 +770,47 @@ fn the_deployment_page_shows_the_store_fill_against_its_mark() {
     value.store = StoreFill { bytes: 6789, mark: 9012 };
     let client = domain(value);
     let tree = build(&client, &store_words(), crate::tests::tree::cards::limits());
+    goldens.check(&tree);
+}
+
+#[test]
+fn the_deployment_page_shows_the_last_census_and_omits_an_absent_one() {
+    let words = store_words();
+    let client = domain(empty());
+    let absent = build(&client, &words, crate::tests::tree::cards::limits());
+    assert!(!absent.nodes().iter().any(|node| node.name.as_deref() == Some(b"Store census".as_slice())));
+    let mut value = empty();
+    value.census = Some(Box::new(StoreCensus {
+        commit: 680_058,
+        since: 679_000,
+        keyspaces: list(vec![
+            CensusKeyspace {
+                prefix: Box::new([1, 1, 10]),
+                name: "tasks.milestones".into(),
+                rows: 993_441,
+                keys: 19_868_820,
+                values: 39_737_640,
+                heads: list(vec![CensusHead { head: Some(12), rows: 993_441 }]),
+                puts: 120,
+                erases: 0,
+                written: 6480,
+            },
+            CensusKeyspace {
+                prefix: Box::new([2, 255]),
+                name: "".into(),
+                rows: 3,
+                keys: 6,
+                values: 9,
+                heads: list(vec![CensusHead { head: None, rows: 3 }]),
+                puts: 5,
+                erases: 2,
+                written: 15,
+            },
+        ]),
+    }));
+    let client = domain(value);
+    let tree = build(&client, &words, crate::tests::tree::cards::limits());
+    let mut goldens = Goldens::new("tree/fragments/deployment/the_store_census");
     goldens.check(&tree);
 }
 

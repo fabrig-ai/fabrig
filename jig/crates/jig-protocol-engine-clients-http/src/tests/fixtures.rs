@@ -214,7 +214,7 @@ pub fn cookie_header() -> skein_http::Header {
     }
 }
 pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -245,8 +245,8 @@ pub fn sign_in_reply(path: &[u8], token: &[u8; 40], expires: u64) -> kit::Reply 
         signed_in_reply(token, expires)
     }
 }
-pub fn signed_in(path: &[u8], bytes: &[u8]) -> jig_client_protocol_wire::v21::SignedIn {
-    use jig_client_protocol_wire::v21 as w;
+pub fn signed_in(path: &[u8], bytes: &[u8]) -> jig_client_protocol_wire::v22::SignedIn {
+    use jig_client_protocol_wire::v22 as w;
     if path == b"/jig/v1/sign-in/approval" {
         let w::ApprovalSignInAnswer::SignedIn(value) =
             w::ApprovalSignInAnswer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("approval answer")
