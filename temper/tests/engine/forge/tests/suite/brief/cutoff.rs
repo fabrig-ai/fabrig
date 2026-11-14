@@ -77,7 +77,7 @@ fn refusal(world: &World, stage: &'static str) {
 }
 
 fn files_notice() -> &'static str {
-    "[files omitted from page 1: not read by the section's cutoff; the pull changes 2 files; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"
+    "[files cut at the brief's deadline: 0 of 2 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn slow_comparison_is_sized_at_the_cutoff() {
     refusal(&world, "compare");
     let words = words(&mut world, SECTION);
     assert!(words.contains("File: shared"), "{words}");
-    assert!(words.contains("[comparison omitted: not read by the section's cutoff]"), "{words}");
+    assert!(words.contains("[comparison cut at the brief's deadline: not read; read it in your checkout]"), "{words}");
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn a_pull_answered_after_the_cutoff_starts_no_files_read() {
     world.run_until_read(&api::Read::Pull { number: pull, ci: false });
     world.slow_calls(Duration::from_secs(40));
     world.run_for(23);
-    assert!(sizes(&world, SECTION).is_empty(), "identity reads have no cutoff");
+    assert!(sizes(&world, SECTION).is_empty(), "a lone identity waits on at its cutoff");
     let at = until_sized(&mut world, SECTION, cutoff.saturating_add(Duration::from_secs(40)));
     assert!(at > cutoff);
     refusal(&world, "files");

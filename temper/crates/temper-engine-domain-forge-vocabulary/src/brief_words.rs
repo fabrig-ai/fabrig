@@ -45,6 +45,9 @@ pub fn checks() -> BriefUnread {
         words: Box::from(b"the failed checks do not fit their section".as_slice()),
     }
 }
+pub fn landing_gone() -> BriefUnread {
+    BriefUnread { fate: BriefFate::Permanent, words: Box::from(b"the landing no longer keeps its failure".as_slice()) }
+}
 pub fn bounds() -> BriefUnread {
     BriefUnread { fate: BriefFate::Permanent, words: Box::from(b"the connector cannot hold this section".as_slice()) }
 }

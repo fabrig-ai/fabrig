@@ -200,7 +200,8 @@ what has arrived from HTTP, at most the remaining intake room, and meets
 the tokenizer's finer demands locally. There is at most one body read
 outstanding below. HTTP retains responsibility for framing and the body
 bound, so read-ahead cannot cross a response. Header lines and raw bodies
-keep their own demands.
+keep their own demands; a raw body of unknown length (chunked, or ending
+at close) reads what has arrived, at most `chunk`, never a byte a demand.
 
 A pump routes at most 64 child-machine movements. At that boundary,
 local work remains ready or its answer remains queued. Held bytes meet

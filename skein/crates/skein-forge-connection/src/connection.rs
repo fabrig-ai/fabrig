@@ -676,11 +676,13 @@ impl Connection {
             Receiving::Tail { remaining, .. } => (env.limits.chunk, *remaining),
             Receiving::Json | Receiving::Empty => return,
         };
-        let count = match remaining {
-            Some(left) => room.min(u32::try_from(left).unwrap_or(u32::MAX)).max(1),
-            None => 1,
+        // Unsized raw bodies take what has arrived within their retention room
+        // (skein/docs/design/forge/connection.md, 3.2).
+        let read = match remaining {
+            Some(left) => Read::Fill(room.min(u32::try_from(left).unwrap_or(u32::MAX)).max(1)),
+            None => Read::Arrived { max: room.max(1) },
         };
-        self.http_down(env, http::Request::Body(Down::Demand { read: Read::Fill(count), room: 0 }));
+        self.http_down(env, http::Request::Body(Down::Demand { read, room: 0 }));
     }
     fn upload(&mut self, env: &Env<Limits>, event: Up) {
         let room = self.http_env(env).limits.send;
