@@ -78,6 +78,8 @@ pub(crate) fn save(core: &Core, record: &tasks::Stored, at: skein_lib::Wall, out
         | tasks::Stored::Milestone(_)
         | tasks::Stored::PersonProposal(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::Summary(_)
+        | tasks::Stored::Retention(_)
         | tasks::Stored::Stub(_)
         | tasks::Stored::Ledger(_)
         | tasks::Stored::Writer(_)

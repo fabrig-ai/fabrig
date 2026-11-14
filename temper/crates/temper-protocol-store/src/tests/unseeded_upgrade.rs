@@ -177,12 +177,17 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     disk.restart();
 
     let mut map = disk.map(2);
-    for (family, number, id, key) in [("temper-store", 12, 25, tagged_change), ("jig-store-tasks", 0, 13, task_key)] {
+    for (family, number, id, key, binary) in [
+        ("temper-store", 12, 25, Some(tagged_change), true),
+        ("jig-store-tasks", 0, 13, Some(task_key), false),
+        ("jig-store-tasks", 0, 14, None, true),
+    ] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let family = SETS.sets.iter().flat_map(|s| s.families).find(|f| f.name == family).unwrap();
-        let schema = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+        let expected_text = if binary { family.current } else { family.texts.last().unwrap() };
+        let schema = skein_codec::schema::parse(expected_text.as_bytes()).unwrap();
         let ty = family.types.iter().find(|t| t.number == number).unwrap();
         let expected = schema
             .layout(schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap(), &[])
@@ -192,7 +197,9 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         let text_key = store::keys::encode_own(&store::keys::Own::Text(*layout.text()), 1024).unwrap();
         let text = kv_get(&mut disk, &mut map, text_key).unwrap();
         let text = store::registry_v1::Text::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&text)).unwrap();
-        assert_eq!(text.text(), family.current.as_bytes());
-        assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
+        assert_eq!(text.text(), expected_text.as_bytes());
+        if let Some(key) = key {
+            assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
+        }
     }
 }

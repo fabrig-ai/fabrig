@@ -113,7 +113,9 @@ pub fn is_update(key: &Key) -> bool {
     match key {
         Key::Tasks(tasks::Key::Update { .. }) => true,
         Key::Tasks(
-            tasks::Key::Live(_)
+            tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
             | tasks::Key::Stub(_)
@@ -148,7 +150,9 @@ pub fn ended_delegate_row(
     let edge = match &row.value {
         crate::Record::Tasks(tasks::Stored::EndedDelegate(edge)) => edge,
         crate::Record::Tasks(
-            tasks::Stored::EndedByParty(_)
+            tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)
             | tasks::Stored::Delegate(_)
             | tasks::Stored::Update(_)

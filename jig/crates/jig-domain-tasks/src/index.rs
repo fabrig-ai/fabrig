@@ -129,6 +129,12 @@ pub enum Key {
     },
     /// One durable placed hold, after the existing key families.
     PlacedHold(u64),
+    Summary(u64),
+    Retention {
+        stage: crate::RetentionStage,
+        since: Wall,
+        number: u64,
+    },
 }
 
 impl Key {
@@ -143,7 +149,9 @@ impl Key {
             | Self::Writer(_)
             | Self::Pool(_)
             | Self::PersonProposal(_) => true,
-            Self::Ended(_)
+            Self::Summary(_)
+            | Self::Retention { .. }
+            | Self::Ended(_)
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)
             | Self::History { .. }

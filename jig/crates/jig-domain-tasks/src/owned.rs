@@ -16,6 +16,16 @@ use core::mem::{size_of, size_of_val};
 #[must_use]
 pub fn stored_bytes(record: &Stored) -> Option<u64> {
     match record {
+        Stored::Summary(row) => {
+            let words = match &row.result {
+                Some(result) => bytes(result.words.len())?,
+                None => 0,
+            };
+            bytes(size_of::<crate::TaskSummary>())?
+                .checked_add(bytes(row.title.len())?)?
+                .checked_add(bytes(row.reason.len())?)?
+                .checked_add(words)
+        }
         Stored::PlacedHold(hold) => bytes(size_of::<crate::PlacedHold>())?
             .checked_add(bytes(hold.reason.len())?)?
             .checked_add(bytes(size_of_val(&*hold.exempt))?),
@@ -71,7 +81,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(total)
         }
         Stored::Live(task) | Stored::Ended(task) => task_bytes(task),
-        Stored::Result(_)
+        Stored::Retention(_)
+        | Stored::Result(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
         | Stored::EndedDelegate(_)

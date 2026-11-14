@@ -9,6 +9,7 @@ mod placed;
 pub mod proposals;
 pub mod record;
 pub mod state;
+mod summary;
 pub mod value;
 use crate::tasks_v13 as wire;
 use alloc::boxed::Box;
@@ -17,6 +18,9 @@ use skein_lib::{Reader, Writer};
 
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    task_summary_title: 0,
+    task_summary_reason: 0,
+    summary_result_words: 0,
     end_failed_with_reason_reason: 0,
     end_refused_with_reason_reason: 0,
     failed_retry_reason_some: 0,
@@ -136,6 +140,9 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        task_summary_title: domain::SUMMARY_TEXT,
+        task_summary_reason: domain::SUMMARY_TEXT,
+        summary_result_words: domain::SUMMARY_TEXT,
         end_failed_with_reason_reason: domain::REASON_BYTES,
         end_refused_with_reason_reason: domain::REASON_BYTES,
         failed_retry_reason_some: domain::REASON_BYTES,
@@ -315,6 +322,8 @@ pub fn encode(
         domain::Stored::Live(row) => wire::Value::LiveTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
+        domain::Stored::Summary(row) => wire::Value::Summary(Box::new(summary::encode(row, limits)?)),
+        domain::Stored::Retention(row) => wire::Value::Retention(summary::retention(*row, limits)?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value, models })?;
     let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
@@ -330,6 +339,8 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {
+        wire::Value::Summary(row) => domain::Stored::Summary(Box::new(summary::decode(*row)?)),
+        wire::Value::Retention(row) => domain::Stored::Retention(summary::read_retention(row)),
         wire::Value::LiveTalk(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),

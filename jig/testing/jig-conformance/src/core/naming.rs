@@ -59,7 +59,9 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
                     name.outlives = Some(r::Outlives::Spend);
                 }
             }
-            tasks::Key::Result { .. }
+            tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::Result { .. }
             | tasks::Key::Writer(_)
             | tasks::Key::Pool(_)
             | tasks::Key::PersonProposal(_)
@@ -141,7 +143,9 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 tasks::Writer::Run { task, .. } => name.task = Some(task),
                 tasks::Writer::Effect { .. } => {}
             },
-            tasks::Stored::Update(_)
+            tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::Update(_)
             | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)
             | tasks::Stored::EndedDelegate(_)

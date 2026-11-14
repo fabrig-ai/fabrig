@@ -365,7 +365,26 @@ enum HoldMode { stop, drain }
 record SubtreeScope { task: u64 }
 enum HoldScope { subtree: SubtreeScope, project }
 record PlacedHold { number: u64 project: u32 owner: HoldOwner mode: HoldMode scope: HoldScope reason: bytes 524288 placed_at: u64 revision: u64 exempt: list 4096 u64 lifted: bool }
-enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord }
+# Ended task summaries and next stages (protocol/store/retention.md, 3–4).
+record SummaryCancelled { by: Party at: u64 }
+enum SummaryEnding { done, failed, cancelled: SummaryCancelled }
+record SummaryVerdict { code: u32 }
+record SummaryChange { connector: u16 kind: u16 resource: u64 }
+enum SummaryResultKind { job, approved, report, verdict: SummaryVerdict, change: SummaryChange, no_change, failed }
+record SummaryResult { kind: SummaryResultKind words: bytes 256 }
+record SummaryEndings { done: u32 failed: u32 }
+record TaskSummary {
+    number: u64 root: u64 depth: u32 requester: Party project: u32 label: u32
+    flags: Flags tracked: option u32 executor: Executor title: bytes 256
+    ending: SummaryEnding reason: bytes 256 result: option SummaryResult cuts: u8
+    created_at: u64 changed: u64 last_activity: u64 ended_at: u64
+    numbers: Numbers deadline: option u64 funder: Funder ended_delegates: SummaryEndings
+    attempt: u64 activity: u64 result_position: u64 last_reply: u64
+}
+enum RetentionStage { turns, record, summary, forgotten, proposal }
+record RetentionRow { stage: RetentionStage since: u64 number: u64 }
+
+enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord, summary: boxed TaskSummary, retention: RetentionRow }
 record ModelName { value: text 4096 }
 versioned record Row { value: Value models: list 64 ModelName }
 record CapacityActionBatch { first: option u64 members: u32 }

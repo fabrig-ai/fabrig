@@ -43,6 +43,7 @@ mod kept;
 mod keys;
 mod refusals;
 pub(crate) mod revisions;
+mod summary;
 mod waiting;
 
 mod close_project;
