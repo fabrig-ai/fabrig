@@ -380,6 +380,45 @@ tests catches a panic:
   applying a page's patches, whose finding is a patch that breaks the
   model, a value patch that doesn't move its write count among them; the
   world fails with it.
+- **The client's world** (`jig-client-kit`'s `World`) has a returning
+  form of each entry point that observes: `try_client`,
+  `try_client_with`, `try_event`, `try_send_raw` and `try_run`, each
+  answering `Result<_, String>` beside its form that fails, which keeps
+  its signature. The `Err` is the referee's first finding
+  (`check_holding`, a missed deadline among them) with the seed and the
+  trace's tail; the first stops the world, which observes nothing after
+  it. The forms that fail call the returning ones and panic with the
+  `Err`, and no returning form calls a form that fails. A test of a
+  check, its heap envelope's among them, reads the `Err`.
+- **The restart oracle** (`jig-core-kit`'s `World`):
+  `World::finish(&mut self) -> Result<(), String>` runs the closing cold
+  restart and readback once and returns the oracle's first finding, a
+  durable document's field that differs, a row left out, a header or a
+  transcript among them, each comparison returning rather than
+  asserting. `close` and the world's `Drop`, which runs only when
+  nothing is unwinding, panic with it at the top. A test of the oracle
+  calls `finish` and reads the `Err`.
+- **The store's files read back** (`jig-test-store-files`'s `Store`):
+  `retained`, `readback`, `readback_of` and `transcript` answer
+  `Result<_, ReadbackFinding>`, the finding a store that is not quiet
+  (`NotQuiescent`), an application key no record names
+  (`ApplicationKey { key }`), a value that does not decode
+  (`ApplicationValue { key }`), or a transcript that does not read whole
+  (`Transcript { task, backwards, .. }`), naming what it read. A
+  readback that finds one changes nothing it reads, and its callers, the
+  restart oracle and the crash's recovery check among them, pass it up.
+- **The host's and the notes' worlds:** `jig-host-world`'s refusal
+  referee (`Referee::request`) and its scripted turn engine
+  (`receive_turn`: a replay that changes its turn, a turn past a gap),
+  and `jig-notes-world`'s referee (`before_commit`, `after_commit`)
+  answer `Result<(), String>`, returning before they record what they
+  refuse; their worlds fail with it at their top.
+- **No test triggers an assertion** (`skein/docs/foundation/programming-model.md`,
+  10.4). A limit an assertion guards is tested at its bound, comparing
+  what the build used with its price; a call out of a step's order, a
+  stale continuation or a duplicate key is tested through the outcomes
+  around it; a cause outside the process is a refusal, and its test
+  reads the refusal.
 - **A harness that names a seed, a story's choices, a scenario or a
   case** writes it to stderr before it runs it, and adds the trace's tail
   to a returned finding. A table of cases, the step crates' and the

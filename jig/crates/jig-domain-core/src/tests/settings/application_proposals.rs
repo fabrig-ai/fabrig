@@ -148,20 +148,6 @@ fn assert_no_application_writes(output: &[Request]) {
 }
 
 #[test]
-#[should_panic(expected = "checked application value")]
-fn application_proposal_value_mismatch_breaks_the_checked_promise() {
-    let (core, _) = application_core();
-    let charter = core.current.charter(1).unwrap().clone();
-    let mut proposal = s::Proposal {
-        key: None,
-        against: 1,
-        items: Box::new([item(1, 1, s::Edit::Set(s::Value::Charter(Box::new(charter))))]),
-        applications: Box::default(),
-    };
-    s::application::keep_proposal(&core, &mut proposal, 1, &mut Queue::uncapped());
-}
-
-#[test]
 fn application_only_proposal_keeps_its_sized_set() {
     let (mut core, limits) = application_core();
     let output =
@@ -416,10 +402,13 @@ fn application_proposal_set_restores_its_sized_edits() {
 
 #[test]
 fn empty_or_malformed_application_proposals_keep_nothing() {
+    let (fixture, _) = application_core();
+    let charter = fixture.current.charter(1).unwrap().clone();
     for items in [
         Box::<[s::Item]>::default(),
         Box::from([set(99, 1)].as_slice()),
         Box::from([set(1, 0)].as_slice()),
+        Box::from([item(1, 1, s::Edit::Set(s::Value::Charter(Box::new(charter))))].as_slice()),
         Box::from([set(1, 1), set(1, 1)].as_slice()),
         Box::from([item(1, 1, s::Edit::Set(s::Value::Application(b"123456789".as_slice().into())))].as_slice()),
         Box::from([set(1, 1), set(1, 2), set(1, 3), set(1, 4), set(1, 5)].as_slice()),

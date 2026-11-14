@@ -318,7 +318,7 @@ fn disk_referee(world: &mut World, label: &str) {
     assert!(world.domain.ready(), "{label}: {:?}", world.domain.start_failure());
     assert_eq!(world.domain.start_failure(), None, "{label}");
     assert!(!world.stopped, "{label}");
-    let actual = world.store.readback();
+    let actual = world.store.readback().expect("complete readback");
     assert_eq!(actual, world.store.rows, "{label}: complete store readback");
     assert_eq!(Some(&actual), world.store.prefixes.get(&world.store.applied), "{label}: whole decision prefix");
 }

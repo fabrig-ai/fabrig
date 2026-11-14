@@ -159,18 +159,18 @@ fn invalid_world_storage_declarations_are_rejected() {
 }
 
 #[test]
-#[should_panic(expected = "tree fits its node capacity")]
-fn a_world_fixture_beyond_its_node_bound_is_rejected() {
+fn a_world_fixture_at_its_node_bound_fits() {
     let limits = Limits::for_world(&world_domain(), super::words(), super::family_words(), 1, 0).unwrap();
     let mut builder = Builder::new(&limits.tree);
     builder.open(Role::Page);
-    builder.open(Role::Text);
+    builder.close();
+    let tree = builder.finish();
+    assert_eq!(tree.len(), limits.tree.nodes);
 }
 
 #[test]
-#[should_panic(expected = "slots fit their capacity")]
-fn a_world_fixture_beyond_its_slot_bound_is_rejected() {
-    let limits = Limits::for_world(&world_domain(), super::words(), super::family_words(), 8, 0).unwrap();
+fn a_world_fixture_at_its_slot_bound_fits() {
+    let limits = Limits::for_world(&world_domain(), super::words(), super::family_words(), 3, 1).unwrap();
     let mut builder = Builder::new(&limits.tree);
     builder.open(Role::Page);
     builder.slot(
@@ -180,6 +180,10 @@ fn a_world_fixture_beyond_its_slot_bound_is_rejected() {
         },
         b"loading",
     );
+    builder.close();
+    let tree = builder.finish();
+    assert_eq!(tree.used().slots, limits.tree.slots);
+    assert_eq!(tree.len(), limits.tree.nodes);
 }
 
 #[test]

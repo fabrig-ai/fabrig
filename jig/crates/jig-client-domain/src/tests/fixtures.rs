@@ -259,9 +259,8 @@ pub(crate) const PARTY: u64 = 1;
 pub(crate) const OTHER_PARTY: u64 = 2;
 pub(crate) const ENGINE_KEY: skein_lib::RequestKey = [1; 16];
 pub(crate) const OTHER_ENGINE_KEY: skein_lib::RequestKey = [2; 16];
-/// Given names distinct from the two drawn-key fixtures.
+/// A given name distinct from the two drawn-key fixtures.
 pub(crate) const NAME: skein_lib::RequestKey = [3; 16];
-pub(crate) const OTHER_NAME: skein_lib::RequestKey = [4; 16];
 pub(crate) const ME_WATCH: Token = Token::new(1);
 pub(crate) fn stop() -> Ask {
     Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: SUBJECT_TASK }))

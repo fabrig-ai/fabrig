@@ -5,7 +5,8 @@ use jig_conformance_world::{Testing, replay};
 fn a_forked_snapshot_replays_to_the_durable_rows() {
     let world = replay::fresh(Scenario::LateCopy, Cut::None, 81, false).expect("fresh story");
     let rows = world.store.rows.clone();
-    let forked = jig_conformance::Harness::<Testing>::from_snapshot(world.cold_snapshot()).expect("fork restarts");
+    let forked = jig_conformance::Harness::<Testing>::from_snapshot(world.cold_snapshot().expect("snapshot readback"))
+        .expect("fork restarts");
     assert_eq!(forked.store.rows, rows);
 }
 

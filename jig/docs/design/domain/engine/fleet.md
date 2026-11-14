@@ -129,6 +129,29 @@ The fleet child domain knows the hosts and the runs they host:
   failing charter's number; model window and output also name the model's
   position. Callers can then read required and offered amounts without
   repeating admission policy.
+- **The needs fit their bound before the fleet holds them.** The fleet
+  keeps the charters' needs, in owned bytes, within `fleet.needs_bytes`
+  and each held version's room beside it. Both sides of that bound come
+  from outside the process, the configuration and the store's settings,
+  so each is a refusal before the fleet is given needs past it, never the
+  fleet's assertion to meet: a configuration whose charters' needs
+  (`fleet_needs::configured`) pass it refuses the start as a
+  configuration problem naming `fleet.needs_bytes`
+  (`../../protocol/limits.md`), and stored settings whose needs
+  (`fleet_needs::current`) pass it refuse the start before
+  `Event::Needs` is sent, as `Failure::NeedsPastLimit { held, limit }`
+  (`restart.md`). Both ask the fleet's one check:
+
+  ```rust
+  pub fn needs_fit(limits: &Limits, versions: u32, needs: &Needs) -> Result<(), NeedsPast>  // jig-domain-fleet
+  pub struct NeedsPast { pub held: u64, pub limit: u64 }  // held: the needs' owned bytes, u64::MAX past a u64
+  ```
+
+  The fleet's construction and `Event::Needs` keep their assertions,
+  which these refusals meet, and its tests build it with needs at the
+  bound exactly. A settings change that grows the needs past the bound
+  is accepted and refuses the next start, naming the bound to raise;
+  refusing it at its proposal is open (`README.md`, section 10).
 - **A hello waits for the stored settings.** The fleet judges a hello's
   agent bounds against the needs of the settings the store holds
   (`settings.md`, 7), never the configuration's alone: from its construction until

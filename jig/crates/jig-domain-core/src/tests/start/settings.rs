@@ -214,6 +214,99 @@ fn whole_settings_fit_is_checked_by_load_core() {
 }
 
 #[test]
+fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
+    use crate::{fleet, settings::fleet_needs};
+    fn configured() -> crate::Config {
+        let mut value = config(401);
+        let mut models = List::with_capacity(64);
+        for number in 1_u64..=64 {
+            let mut model = value.settings.models[0].clone();
+            let digits = skein_lib::Decimal::of(number);
+            let mut name = skein_lib::Writer::new(128);
+            name.put([b'm'; 128].get(digits.as_bytes().len()..).unwrap()).unwrap();
+            name.put(digits.as_bytes()).unwrap();
+            model.name = name.finish();
+            models.push(model).unwrap();
+        }
+        value.settings.models = models.into_boxed();
+        value.defaults.charters[0].policy.model = value.settings.models[0].clone();
+        value
+    }
+    let mut limits = limits();
+    limits.tasks.charters = 32;
+    limits.settings.versions = 1;
+    limits.settings.alternatives = 63;
+    limits.run_bytes = 65_536;
+    let writer = Core::new(configured(), &limits).unwrap();
+    let mut rows = List::with_capacity(128);
+    for row in settings_rows(&writer).into_boxed() {
+        rows.push(row).unwrap();
+    }
+    let mut all = configured();
+    let mut charters = List::with_capacity(32);
+    for number in 1..=32 {
+        let mut charter = all.defaults.charters[0].clone();
+        charter.number = number;
+        charter.rest = true;
+        rows.push(Record::Changed {
+            setting: Setting::Charter(number),
+            changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(charter.clone()))) },
+        })
+        .unwrap();
+        charters.push(charter).unwrap();
+    }
+    all.defaults.charters = charters.into_boxed();
+    let needs = fleet_needs::configured(&all, &limits);
+    limits.fleet.needs_bytes = 0;
+    let past = fleet::needs_fit(&limits.fleet, limits.settings.versions, &needs).unwrap_err();
+    for budget in [past.held - past.limit - 1, past.held - past.limit] {
+        limits.fleet.needs_bytes = budget;
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let mut core = Core::new(configured(), &limits).unwrap();
+        let _begin = core.start_begin(false, env.wall);
+        let mut header = core.counters.deployment();
+        header.commits = 1;
+        assert_eq!(core.restore_core(CoreRecord::Deployment(header), &limits), Restored::Deployment { commits: 1 });
+        let mut bounds = crate::tests::fixtures::bounds();
+        bounds.endpoints[0].window = 0;
+        let mut fleet_out = Queue::uncapped();
+        fleet::step(
+            &mut core.fleet,
+            &Env { now: env.now, wall: env.wall, limits: limits.fleet },
+            fleet::Event::Hello {
+                worker: 0,
+                channel: skein_lib::Token::new(77),
+                hello: jig_domain_link::Hello {
+                    jobs: Box::default(),
+                    bounds,
+                    slots: 1,
+                    stop_bound: skein_lib::Duration::ZERO,
+                    workstreams: Box::default(),
+                    hosting: Box::default(),
+                },
+            },
+            &mut fleet_out,
+        );
+        assert!(fleet_out.is_empty());
+        for row in &rows {
+            assert_eq!(restore(&mut core, &env, row.clone()), Restored::Live, "failure {:?}", core.start_failure());
+        }
+        let action = core.start_done(&env, Phase::LoadCore, &mut Queue::uncapped());
+        if budget == past.held - past.limit {
+            super::step_phase(action, Phase::LoadInbox);
+            assert_eq!(core.start_failure(), None);
+            assert_eq!(core.fleet.hello_refusals().len(), 1, "fitting needs release the held hello");
+        } else {
+            let expected = Failure::NeedsPastLimit { held: past.held, limit: past.held - 1 };
+            let Action::Refused(found) = action else { panic!("needs fit refused") };
+            assert_eq!(found, expected);
+            assert_eq!(core.start_failure(), Some(expected));
+            assert!(core.fleet.hello_refusals().is_empty(), "refused needs never reach the fleet");
+        }
+    }
+}
+
+#[test]
 fn held_rows_past_each_limit_keep_their_refusal_detail() {
     for versions in [false, true] {
         let (mut core, mut env) = loaded();
