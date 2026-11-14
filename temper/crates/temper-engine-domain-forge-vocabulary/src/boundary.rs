@@ -1371,6 +1371,7 @@ pub enum Stored {
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
     Red(crate::Red),
+    RedPass(crate::RedPass),
     RedNumber {
         last: u64,
     },
@@ -1433,6 +1434,7 @@ pub enum Key {
     Follow { project: u32, follow: u32 },
     Red { goal: u64, key: Box<[u8]> },
     RedNumber,
+    RedPass { change: u64, key: Box<[u8]> },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
