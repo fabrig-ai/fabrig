@@ -134,11 +134,21 @@ impl<P: Host, R: Referee<P>> CheckedWorld<P, R> {
 /// Runs unhosted processes on the shared real kernel; `World` also hosts spawns.
 #[must_use]
 pub fn run<P: Host, R: Referee<P>>(procs: Vec<P>, referee: R, clock: &Clock, patience: Duration) -> Outcome<P> {
+    try_run(procs, referee, clock, patience).unwrap_or_else(|why| crate::fail(&why))
+}
+
+/// Runs unhosted processes, returning the first finding after forced cleanup.
+pub fn try_run<P: Host, R: Referee<P>>(
+    procs: Vec<P>,
+    referee: R,
+    clock: &Clock,
+    patience: Duration,
+) -> Result<Outcome<P>, String> {
     let mut world = World::new(referee);
     for proc in procs {
         world.spawn(|| proc);
     }
-    world.run(clock, patience)
+    world.try_run(clock, patience)
 }
 
 /// A killed hosted child, reported after its operations and descriptors settle.
@@ -296,6 +306,11 @@ impl<P: Host, R: Referee<P>> World<P, R> {
     /// Opens one kernel with room for every root, hosted instance and teardown operation.
     #[must_use]
     pub fn run(self, clock: &Clock, patience: Duration) -> Outcome<P> {
+        self.try_run(clock, patience).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Runs until settled, returning the first finding after forced cleanup.
+    pub fn try_run(self, clock: &Clock, patience: Duration) -> Result<Outcome<P>, String> {
         assert!(!self.procs.is_empty(), "a real loop runs at least one process");
         let limits: Vec<u32> = self.procs.iter().map(Host::operations).collect();
         let roots = limits.iter().try_fold(0_u32, |sum, limit| sum.checked_add(*limit)).expect("root operations fit");
@@ -311,14 +326,12 @@ impl<P: Host, R: Referee<P>> World<P, R> {
             .and_then(|sum| sum.checked_add(1))
             .expect("world operations fit");
         let ring = match self.backend {
-            Some(backend) => Ring::new_on(operations, limits, backend).unwrap_or_else(|error| {
-                crate::fail(&format!(
-                    "forced backend {backend:?} is not usable here, so the real loop cannot run: {error}"
-                ))
-            }),
-            None => Ring::new(operations, limits).unwrap_or_else(|error| {
-                crate::fail(&format!("the host's backend is not usable here, so the real loop cannot run: {error}"))
-            }),
+            Some(backend) => Ring::new_on(operations, limits, backend).map_err(|error| {
+                format!("forced backend {backend:?} is not usable here, so the real loop cannot run: {error}")
+            })?,
+            None => Ring::new(operations, limits).map_err(|error| {
+                format!("the host's backend is not usable here, so the real loop cannot run: {error}")
+            })?,
         };
         let Ring { mut kernel, state: ring } = ring;
         let ids: Vec<usize> = (0..self.procs.len()).collect();
@@ -546,7 +559,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         iterations: u32,
         now: Time,
         last_word: Option<Time>,
-    ) -> ! {
+    ) -> String {
         let expired = deadline.expired();
         let figures = match &expired {
             Expired::Starved(starved) => starved.figures(),
@@ -558,15 +571,15 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             Expired::Starved(starved) if starved_passes() => {
                 starved.pass();
             }
-            Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
+            Expired::Starved(_) | Expired::Failed(_) => diagnostic,
         }
     }
 
-    fn referee_deadline_reached(self, kernel: &mut Kernel, deadline: &Deadline, now: Time, why: &str) -> ! {
+    fn referee_deadline_reached(self, kernel: &mut Kernel, deadline: &Deadline, now: Time, why: &str) -> String {
         let Some(until) = self.referee_deadline(now) else {
             let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, None);
             self.forced_cleanup(kernel);
-            crate::fail(&diagnostic);
+            return diagnostic;
         };
         let expired = deadline.expired_at("the referee's expectation", until);
         let figures = match &expired {
@@ -579,7 +592,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             Expired::Starved(starved) if starved_passes() => {
                 starved.pass();
             }
-            Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
+            Expired::Starved(_) | Expired::Failed(_) => diagnostic,
         }
     }
 
@@ -605,7 +618,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         now >= until
     }
 
-    fn run(mut self, kernel: &mut Kernel, clock: &Clock, patience: Duration) -> Outcome<P> {
+    fn run(mut self, kernel: &mut Kernel, clock: &Clock, patience: Duration) -> Result<Outcome<P>, String> {
         let deadline = Deadline::arm("the real loop", patience);
         let start = deadline.start();
         self.world.controls.sched_start.set(deadline.thread_start());
@@ -615,11 +628,11 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let Now { now, wall } = clock.now();
             if let Some(why) = check_policy_wake(&mut policy_wake, now) {
                 self.forced_cleanup(kernel);
-                crate::fail(&why);
+                return Err(why);
             }
             if self.begin_iteration(now, deadline.until()) {
                 let iterations = self.iterations;
-                self.deadline_reached(kernel, &deadline, iterations, now, last_word);
+                return Err(self.deadline_reached(kernel, &deadline, iterations, now, last_word));
             }
             self.world.referee.act(now, &mut self.world.procs);
             if let Some(starved) = self.world.referee.starved() {
@@ -628,9 +641,16 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             }
             self.signals();
             self.reap(kernel);
-            if let Some(starved) = self.drive(now, wall) {
-                self.forced_cleanup(kernel);
-                starved.pass();
+            match self.drive(now, wall) {
+                Ok(Some(starved)) => {
+                    self.forced_cleanup(kernel);
+                    starved.pass();
+                }
+                Ok(None) => {}
+                Err(why) => {
+                    self.forced_cleanup(kernel);
+                    return Err(why);
+                }
             }
             if last_word.is_none() && self.world.referee.passed() {
                 last_word = Some(self.world.referee.last_word().at(now));
@@ -647,7 +667,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     self.processes.iter().all(|process| process.fds.is_empty()),
                     "settled hosts leave no owned descriptor open"
                 );
-                return Outcome {
+                return Ok(Outcome {
                     peaks: self.world.heap.as_ref().map(Heap::report),
                     held: self.world.heap.as_ref().map(Heap::held),
                     procs: self.world.procs,
@@ -655,10 +675,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     iterations: self.iterations,
                     start,
                     end: now,
-                };
+                });
             }
             if let Some(why) = self.world.referee.overdue(now) {
-                self.referee_deadline_reached(kernel, &deadline, now, &why);
+                return Err(self.referee_deadline_reached(kernel, &deadline, now, &why));
             }
             let until = self.wait_until(deadline.until());
             self.policy_wake(last_word, &mut policy_wake);
@@ -667,7 +687,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     // Supplied completions have been reaped; this pass only drives host state.
-    fn drive(&mut self, now: Time, wall: skein_lib::Wall) -> Option<crate::Starved> {
+    fn drive(&mut self, now: Time, wall: skein_lib::Wall) -> Result<Option<crate::Starved>, String> {
         let mut at = 0;
         let mut observed = false;
         while at < self.world.procs.len() {
@@ -701,21 +721,21 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 at = at.checked_add(1).expect("bounded host count");
             }
             if ran {
-                self.world.referee.observe(now, &self.world.procs);
+                self.world.referee.watch(now, &self.world.procs)?;
                 if let Some(starved) = self.world.referee.starved() {
-                    return Some(starved);
+                    return Ok(Some(starved));
                 }
                 observed = true;
             }
         }
         if !observed {
             // Even a pass with only retained exits observes what act did.
-            self.world.referee.observe(now, &self.world.procs);
+            self.world.referee.watch(now, &self.world.procs)?;
             if let Some(starved) = self.world.referee.starved() {
-                return Some(starved);
+                return Ok(Some(starved));
             }
         }
-        None
+        Ok(None)
     }
 
     fn forced_cleanup(mut self, kernel: &mut Kernel) {
@@ -1301,6 +1321,7 @@ mod tests {
         );
     }
 
+    #[derive(Debug)]
     struct Idle {
         completions: Queue<Complete>,
         submissions: Queue<Submit>,
@@ -1344,7 +1365,9 @@ mod tests {
     }
 
     impl Referee<Idle> for Quiet {
-        fn observe(&mut self, _now: Time, _procs: &[Idle]) {}
+        fn watch(&mut self, _now: Time, _procs: &[Idle]) -> Result<(), String> {
+            Ok(())
+        }
         fn next_deadline(&self) -> Option<Time> {
             self.deadline
         }
@@ -1438,9 +1461,12 @@ mod tests {
                 proc.marked = true;
             }
         }
-        fn observe(&mut self, _now: Time, procs: &[Idle]) {
-            assert!(procs.iter().all(|proc| proc.marked), "act is visible to observe");
+        fn watch(&mut self, _now: Time, procs: &[Idle]) -> Result<(), String> {
+            if !procs.iter().all(|proc| proc.marked) {
+                return Err(String::from("act is visible to observe"));
+            }
             self.0.borrow_mut().push(procs.iter().map(|proc| proc.iterations).collect());
+            Ok(())
         }
         fn passed(&self) -> bool {
             !self.0.borrow().is_empty()
@@ -1466,7 +1492,7 @@ mod tests {
         retain_exited(&mut running, 2);
         assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
         running.world.referee.act(Time::ZERO, &mut running.world.procs);
-        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).expect("the referee holds").is_none());
         running.settle_children();
         assert!(running.settled(0));
         assert_eq!(running.iterations, 1);
@@ -1482,7 +1508,7 @@ mod tests {
         }
         assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
         running.world.referee.act(Time::ZERO, &mut running.world.procs);
-        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).expect("the referee holds").is_none());
         running.settle_children();
         assert!(running.settled(0));
         assert_eq!(running.iterations, 1);
@@ -1497,7 +1523,7 @@ mod tests {
         running.kill(1);
         assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
         running.world.referee.act(Time::ZERO, &mut running.world.procs);
-        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).is_none());
+        assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).expect("the referee holds").is_none());
         running.settle_children();
         assert!(running.settled(0));
         assert_eq!(running.iterations, 1);
@@ -1517,6 +1543,91 @@ mod tests {
         let outcome = world.run();
         assert_eq!(outcome.iterations, 1);
         assert_eq!(*seen.borrow(), [Vec::<u32>::new()]);
+    }
+
+    struct Third(Rc<core::cell::Cell<u32>>);
+
+    impl Referee<Idle> for Third {
+        fn watch(&mut self, _now: Time, _procs: &[Idle]) -> Result<(), String> {
+            let calls = self.0.get().checked_add(1).expect("bounded test observations");
+            self.0.set(calls);
+            if calls >= 3 {
+                return Err(String::from("seed 7: the third observation failed"));
+            }
+            Ok(())
+        }
+        fn passed(&self) -> bool {
+            false
+        }
+    }
+
+    fn idle() -> Idle {
+        Idle {
+            completions: Queue::with_capacity(2),
+            submissions: Queue::with_capacity(2),
+            iterations: 0,
+            marked: false,
+            work: false,
+            deadline: None,
+            policy: None,
+        }
+    }
+
+    #[test]
+    fn simulated_watch_returns_the_first_finding_and_stops_observing() {
+        let calls = Rc::new(core::cell::Cell::new(0));
+        let mut world = crate::World::new(7, skein_sim::Config::calm(), Third(calls.clone()), crate::Memory::Unchecked);
+        for _ in 0_u32..4 {
+            world.spawn(idle);
+        }
+        let finding = world.try_run().expect_err("the third watch fails");
+        assert_eq!(finding, "seed 7: the third observation failed");
+        assert_eq!(calls.get(), 3);
+    }
+
+    #[test]
+    fn an_idle_simulated_world_returns_its_whole_finding() {
+        let mut world = crate::World::new(
+            7,
+            skein_sim::Config::calm(),
+            Quiet { deadline: None, passed: false },
+            crate::Memory::Unchecked,
+        );
+        world.spawn(idle);
+        let finding = world.try_run().expect_err("nothing can meet the referee's expectation");
+        assert_eq!(
+            finding,
+            "seed 7: at 0 ns, the world is idle, unsettled, with nothing due\nthe last 1 lines of the trace:\nskein-sim seed 7\n"
+        );
+    }
+
+    #[test]
+    fn real_drive_returns_a_watch_finding_before_another_host_runs() {
+        let calls = Rc::new(core::cell::Cell::new(2));
+        let mut running = children_with(Third(calls.clone()));
+        let finding = running.drive(Time::ZERO, Wall::from_nanos(0)).expect_err("the first host's observation fails");
+        assert_eq!(finding, "seed 7: the third observation failed");
+        assert_eq!(calls.get(), 3);
+        assert_eq!(running.world.procs.iter().map(|proc| proc.iterations).collect::<Vec<_>>(), [1, 0, 0]);
+    }
+
+    #[test]
+    fn a_legacy_observe_referee_is_still_watched() {
+        struct Legacy(Rc<core::cell::Cell<u32>>);
+        impl Referee<Idle> for Legacy {
+            fn observe(&mut self, _now: Time, _procs: &[Idle]) {
+                self.0.set(1);
+            }
+            fn passed(&self) -> bool {
+                self.0.get() == 1
+            }
+        }
+        let calls = Rc::new(core::cell::Cell::new(0));
+        let world =
+            crate::World::<Idle, _>::new(7, skein_sim::Config::calm(), Legacy(calls.clone()), crate::Memory::Unchecked);
+        let outcome = world.run();
+        assert_eq!(outcome.iterations, 1);
+        assert_eq!(calls.get(), 1);
     }
 
     #[test]

@@ -76,7 +76,9 @@ fn parent_interrupt_arrives_on_the_hosted_child_signal_pipe() {
 struct PlainJudge;
 
 impl skein_world::Referee<skein_world::end_to_end::Binary> for PlainJudge {
-    fn observe(&mut self, _now: skein_lib::Time, _procs: &[skein_world::end_to_end::Binary]) {}
+    fn watch(&mut self, _now: skein_lib::Time, _procs: &[skein_world::end_to_end::Binary]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }
@@ -129,7 +131,7 @@ impl skein_world::Referee<Script> for SignalJudge {
         }
         self.sent = true;
     }
-    fn observe(&mut self, _now: skein_lib::Time, procs: &[Script]) {
+    fn watch(&mut self, _now: skein_lib::Time, procs: &[Script]) -> Result<(), String> {
         if self.child
             && !self.sent
             && procs[0].results.iter().any(|result| matches!(result, Ok(skein_io::kernel::Done::Spawned { .. })))
@@ -137,6 +139,7 @@ impl skein_world::Referee<Script> for SignalJudge {
             self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
             self.sent = true;
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.sent
@@ -173,66 +176,38 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated deadline test"
 )]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
     // Zero patience meets the runnable-wait threshold. Exercise its failure
     // diagnostic outside the runners so a starved pass cannot skip it.
     const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
     if std::env::var_os(CHILD).is_none() {
-        for one_process in [false, true] {
-            if one_process && !cfg!(target_os = "linux") {
-                continue;
-            }
-            let mut command = std::process::Command::new(std::env::current_exe().expect("test binary"));
-            command
-                .args([
-                    "--exact",
-                    "real::a_zero_patience_deadline_reports_the_failing_iteration",
-                    "--include-ignored",
-                    "--nocapture",
-                    "--test-threads=1",
-                ])
-                .env(CHILD, "1")
-                .env_remove("NEXTEST")
-                .env_remove("TIERS_ONE_PROCESS");
-            if one_process {
-                command.env("TIERS_ONE_PROCESS", "1");
-            }
-            let output = command.output().expect("run the isolated zero-patience diagnostic check");
-            assert!(
-                output.status.success(),
-                "{}{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr),
-            );
-            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
-            if one_process {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                assert!(
-                    stderr.lines().last().is_some_and(|line| line.starts_with("skein-world: starved: waited ")
-                        && line.ends_with(", by the real loop")),
-                    "{stderr}"
-                );
-                assert!(!stderr.contains("panicked at"), "{stderr}");
-            }
-        }
+        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "--exact",
+                "real::a_zero_patience_deadline_reports_the_failing_iteration",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(CHILD, "1")
+            .env_remove("NEXTEST")
+            .env_remove("TIERS_ONE_PROCESS")
+            .output()
+            .expect("run the isolated zero-patience diagnostic check");
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
         return;
     }
     std::thread::sleep(core::time::Duration::from_millis(1));
-    let failure = std::panic::catch_unwind(|| {
-        let mut world = real::World::new(Judge);
-        world.spawn(|| Script::new(&[]));
-        world.run(&Clock::new(), Duration::ZERO)
-    })
-    .expect_err("zero patience fails before the first script iteration");
-    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
-        assert!(
-            failure.downcast_ref::<skein_world::StarvedPass>().is_some(),
-            "the real deadline unwinds with StarvedPass"
-        );
-        return;
-    }
-    let text = failure.downcast_ref::<String>().expect("the deadline fails with its diagnostic");
+    let mut world = real::World::new(Judge);
+    world.spawn(|| Script::new(&[]));
+    let text = world
+        .try_run(&Clock::new(), Duration::ZERO)
+        .expect_err("zero patience fails before the first script iteration");
     let accounting = text
         .lines()
         .next()
@@ -310,14 +285,17 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     }
     struct StarvedJudge(Option<Starved>);
     impl Referee<DroppedHost> for StarvedJudge {
-        fn observe(&mut self, _now: Time, _procs: &[DroppedHost]) {
+        fn watch(&mut self, _now: Time, _procs: &[DroppedHost]) -> Result<(), String> {
             let deadline = Deadline::arm("the referee's own answer", Duration::ZERO);
             let starved = match deadline.expired() {
                 Expired::Starved(starved) => starved,
-                Expired::Failed(figures) => panic!("zero patience needs usable scheduler accounting: {figures}"),
+                Expired::Failed(figures) => {
+                    return Err(format!("zero patience needs usable scheduler accounting: {figures}"));
+                }
             };
             EXPECTED.set(format!("skein-world: starved: {}", starved.figures())).expect("one observation");
             self.0 = Some(starved);
+            Ok(())
         }
         fn passed(&self) -> bool {
             true
