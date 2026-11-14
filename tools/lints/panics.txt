@@ -21,7 +21,6 @@ jig/crates/jig-domain-core/src/tests/jobs.rs should_panic 4
 jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/settings/templates.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/start.rs should_panic 4
-jig/crates/jig-domain-core/src/tests/start/inbox.rs should_panic 1
 jig/crates/jig-domain-fleet/src/tests/needs.rs should_panic 1
 jig/crates/jig-domain-people/src/tests/act_charges.rs should_panic 1
 jig/crates/jig-domain-people/src/tests/ended.rs should_panic 1
