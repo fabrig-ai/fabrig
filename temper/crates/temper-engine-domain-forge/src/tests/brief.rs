@@ -1086,6 +1086,242 @@ fn a_maximal_task_pull_and_remarks_fit_the_assembled_brief() {
     assert!(task.len() + pull.len() + remarks.len() + 768 <= 14_592);
 }
 
+fn landing_repair(why: change::Repair) -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.change.state = change::State::Repairing { requested: true, why };
+    outputs(&mut d, Event::Change { row });
+    d
+}
+
+fn landing_ci() -> BriefSource {
+    BriefSource::Ci { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) }
+}
+
+fn gather_landing_ci(d: &mut Domain, partner: Option<Token>) -> Box<[Request]> {
+    outputs(d, Event::PlanBrief { section: SECTION, source: landing_ci(), partner });
+    outputs(
+        d,
+        Event::GatherPlanned {
+            task: 9,
+            section: SECTION,
+            parts: 2,
+            bytes: SHIPPED_CI,
+            ci_budget: SHIPPED_CI,
+            deadline: env().now.saturating_add(Duration::from_secs(30)),
+        },
+    )
+}
+
+fn kept_landing_failure(d: &mut Domain) {
+    use temper_engine_domain_forge_landing as policy;
+    let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
+    round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
+    let row = LandingRow {
+        job: None,
+        landing: policy::Landing {
+            last_left: None,
+            round,
+            task: 61,
+            project: 5,
+            phase: policy::Phase::Cancelled,
+            preparation: 1,
+            stale_proofs: 0,
+            branch: b"main".as_slice().into(),
+            members: Box::new([policy::Member {
+                round: None,
+                unit: 0,
+                branch: b"temper/1/l61".as_slice().into(),
+                combined: None,
+                recorded: false,
+                told: false,
+                judging: false,
+                leave_told: false,
+                left: Some(policy::Leave::Failed { gate: 0, run: 7 }),
+                change: fixtures::CHANGE,
+                repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+                pull: 1,
+                head: Some(HEAD),
+                base: Some(fixtures::BASE),
+                candidate: Some([7; 32]),
+                gates: Box::new([]),
+                asked: None,
+                landed: None,
+            }]),
+        },
+        asks: Box::new([None]),
+        entries: Box::new([]),
+    };
+    outputs(d, Event::Restore { record: Stored::Landing(row) });
+}
+
+fn kept_candidate_failure(d: &mut Domain) {
+    use temper_engine_domain_forge_landing as policy;
+    assert!(d.project_landing(
+        5,
+        change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            tiers: Box::new([]),
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+            }]),
+        }]),
+        policy::Project::DEFAULT,
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: Duration::from_millis(7_200_000),
+        },
+    ));
+    outputs(
+        d,
+        Event::Restore {
+            record: Stored::Receipt {
+                key: ReceiptKey {
+                    project: 5,
+                    repository: REPO,
+                    check: crate::Check::Gate(b"gate".as_slice().into()),
+                    key: [7; 32],
+                },
+                receipt: Receipt {
+                    logs: b"receipt's failed step and log\n".as_slice().into(),
+                    failures: None,
+                    passed: false,
+                    run: ReceiptRun { id: 7, number: 7, url: b"/actions/runs/7".as_slice().into() },
+                    candidate: [7; 32],
+                    ended: env().wall,
+                },
+            },
+        },
+    );
+}
+
+fn assert_gathered_landing(d: &mut Domain, out: &[Request], words: &[u8]) {
+    assert_eq!(out, &[Request::BriefSized { section: SECTION, size: Ok(u32::try_from(words.len()).unwrap()) }]);
+    assert_eq!(take(d).as_ref(), words);
+    assert!(!d.brief_pending.contains_key(&SECTION));
+    assert!(d.brief_fetches.is_empty());
+    assert!(d.document_fetches.is_empty());
+}
+
+#[test]
+fn a_landing_repair_reads_the_kept_round_failure_at_gather() {
+    let mut d = landing_repair(change::Repair::Landing { gate: 0 });
+    kept_landing_failure(&mut d);
+    let out = gather_landing_ci(&mut d, None);
+    assert_gathered_landing(&mut d, &out, b"kept round's failed step and log\n");
+}
+
+#[test]
+fn a_candidate_repair_reads_its_receipt_after_the_landing_retires() {
+    let mut d = landing_repair(change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None });
+    kept_candidate_failure(&mut d);
+    assert!(d.landing.rows.is_empty());
+    let out = gather_landing_ci(&mut d, None);
+    assert_gathered_landing(&mut d, &out, b"receipt's failed step and log\n");
+}
+
+#[test]
+fn landing_repairs_without_their_failure_answer_at_gather() {
+    const PULL: Token = Token::new(100);
+    const REASON: &[u8] = b"the landing no longer keeps its failure";
+    const MARKER: &[u8] = b"[the failed checks could not be read: the landing no longer keeps its failure]\n";
+    for (why, keep_receipt, remove_repository) in [
+        (change::Repair::Landing { gate: 0 }, false, false),
+        (change::Repair::Landing { gate: 0 }, true, false),
+        (change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None }, false, false),
+        (change::Repair::LandingAt { gate: 1, candidate: [7; 32], below: None }, true, false),
+        (change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None }, true, true),
+    ] {
+        for partner in [None, Some(PULL)] {
+            let mut d = landing_repair(why);
+            kept_candidate_failure(&mut d);
+            if !keep_receipt {
+                d.landing.receipts = skein_lib::Map::with_capacity(LIMITS.receipts_per_gate);
+            }
+            if remove_repository {
+                d.repositories.remove(&REPO).expect("adopted repository");
+            }
+            if partner.is_some() {
+                outputs(
+                    &mut d,
+                    Event::PlanBrief {
+                        section: PULL,
+                        partner: None,
+                        source: BriefSource::Pull {
+                            item: BriefItem { repository: REPO.repository, number: 1 },
+                            head: BriefCommit(HEAD),
+                        },
+                    },
+                );
+            }
+            let out = gather_landing_ci(&mut d, partner);
+            let [
+                Request::BriefReadRefused { section: SECTION, stage: "checks", reason, heads: None, error: None },
+                Request::BriefSized { section: SECTION, size },
+            ] = out.as_ref()
+            else {
+                panic!("one refusal and one immediate answer: {out:?}");
+            };
+            assert_eq!(reason.as_bytes(), REASON);
+            if partner.is_some() {
+                assert_eq!(*size, Ok(u32::try_from(MARKER.len()).unwrap()));
+                assert_eq!(take(&mut d).as_ref(), MARKER);
+            } else {
+                assert_eq!(*size, Err(BriefUnread { fate: BriefFate::Permanent, words: REASON.into() }));
+                assert!(d.take_brief(SECTION).is_none());
+            }
+            assert!(!d.brief_pending.contains_key(&SECTION));
+            assert!(d.brief_fetches.is_empty());
+            assert!(d.document_fetches.is_empty());
+        }
+    }
+}
+
+#[test]
+fn a_deferred_section_requires_its_own_read() {
+    let (mut d, owner) = pending_checks();
+    let mut out = Queue::uncapped();
+    brief::require_read(&mut d, SECTION, landing_ci(), &mut out);
+    assert!(out.is_empty(), "a section with its read stays pending");
+    d.brief_fetches.remove(&owner).expect("section's checks read");
+    outputs(
+        &mut d,
+        Event::GatherBriefHeld {
+            section: Token::new(100),
+            source: landing_ci(),
+            parts: 2,
+            bytes: SHIPPED_CI,
+            max_job_bytes: 512,
+        },
+    );
+    brief::require_read(&mut d, SECTION, landing_ci(), &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "checks",
+            reason: "the change cannot be named in its section",
+            heads: None,
+            error: None,
+        })
+    );
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::unnamed()) }));
+    assert!(out.is_empty());
+    assert!(!d.brief_pending.contains_key(&SECTION));
+    assert_eq!(d.brief_fetches.len(), 1, "another section's read cannot answer this section");
+}
+
 fn pending_checks() -> (Domain, Token) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
