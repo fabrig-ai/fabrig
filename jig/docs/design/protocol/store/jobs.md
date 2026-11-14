@@ -140,9 +140,11 @@ know is its refusal, `why` saying so.
 
 ## 4. Written jobs
 
-A written job converts a registered value type's values from a layout
-no derived plan reaches (`layouts.md`, 6; skein's
-`data/codec/layouts.md`, 2) to the binary's.
+A written job converts a registered value type's values to the
+binary's layout from a layout that no derived plan reaches, or from one
+whose values are not all the root it names (`layouts.md`, 6; skein's
+`data/codec/layouts.md`, 2). jig's first is `charter-versions`
+(`layouts.md`, 2).
 
 - **Its pages** hold only the values of its value type whose head is the
   id of its `from` layout in the registry, as they are stored: the read
