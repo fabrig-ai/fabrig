@@ -53,7 +53,6 @@ fake status supplies it; this does not establish a real-login render check.
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
   3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 8: the live probes start `claude` with an ordinary spawn, so one outlives a probe that ends without unwinding [in flight: change 2682].
 
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`

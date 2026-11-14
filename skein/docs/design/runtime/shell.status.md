@@ -31,7 +31,6 @@ a table (`temper/docs/design/cli/README.md`), alongside the six tools and
 fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
 are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
-- **Not yet:** 3: the parent-side spawn, `spawn_dying_with_parent` [in flight: change 2677].
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
