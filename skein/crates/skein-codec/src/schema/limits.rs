@@ -154,7 +154,8 @@ fn fill(schema: &Schema, count: u32, names: &[&str], values: &[u32], sizes: &mut
                 let mut size = if versioned { 2_u64 } else { 0_u64 };
                 for index in first.index()..add(first.index(), count) {
                     let field = schema.field(FieldIx::new(index));
-                    size = size.checked_add(field_size(schema, field, schema.spelled(declaration.name), &limits, sizes)?)?;
+                    size =
+                        size.checked_add(field_size(schema, field, schema.spelled(declaration.name), &limits, sizes)?)?;
                 }
                 size
             }

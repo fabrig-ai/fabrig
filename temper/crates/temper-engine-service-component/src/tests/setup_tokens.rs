@@ -82,6 +82,7 @@ impl Tokens {
         user
     }
     pub(super) fn scan(&self, engine: &crate::engine::Engine) {
+        let forges = alloc::format!("{:?}", engine.domain.forges());
         for secret in [&self.api, &self.git, &self.hook] {
             for note in &engine.notes {
                 assert!(!contains(alloc::format!("{note:?}").as_bytes(), secret.expose()));
@@ -95,7 +96,7 @@ impl Tokens {
             for answer in &engine.setup.answers {
                 assert!(!contains(alloc::format!("{answer:?}").as_bytes(), secret.expose()));
             }
-            assert!(!contains(alloc::format!("{:?}", engine.domain.forges()).as_bytes(), secret.expose()));
+            assert!(!contains(forges.as_bytes(), secret.expose()));
         }
     }
 }
