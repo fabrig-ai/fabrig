@@ -177,6 +177,7 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     let (job, rest) = bytes.as_ref().split_first().unwrap();
     assert_eq!(*job, 0, "no pending job");
     assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
+    let bytes = patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes)));
     let after = v24::ChangeRow::decode(&v24::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());
@@ -189,7 +190,7 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
     );
     assert_eq!(crate::STORE_VERSION, 24);
-    assert_eq!(crate::patches::PATCHES.len(), 12);
+    assert_eq!(crate::patches::PATCHES.len(), 13);
 }
 
 fn check_change_history_rows() {

@@ -321,7 +321,11 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   under the same name. An older version's record is read as a generic
   value of its kept text and patched (`baseline.md`), so no older
   version's code is kept. `temper-protocol-store` keeps the schema, the
-  kept texts, the patches, the golden bytes and the translations. The
+  kept texts, the patches, the golden bytes and the translations.
+  Its generated patch module, `patches/mod.rs`, stays in its directory but
+  compiles in `temper-protocol-store-patches`, which `temper-protocol-store`
+  re-exports as `patches`, so that the kept versions' tables count against
+  that crate's size and not the owner's (`tools/crates/design.md`, 2.3). The
   drift test, `temper-codecs-world`'s, reads the schema and golden bytes
   there and the code in the codec crate.
 - **Collections** are pieces or counted lists by jig's rule (jig's
