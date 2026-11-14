@@ -89,6 +89,7 @@ fn pending(task: u64) -> PendingStep {
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     }
 }
 fn follower_facts(d: &Domain) -> change::Facts {

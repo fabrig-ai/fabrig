@@ -244,10 +244,14 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     }
     let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
+        if let Some(pending) = d.steps.get(&owner) { super::read_session::pause(d, pending.task); }
         reading.outage |= outage;
         reading.wait.again(env, outage);
         state(d).reads.insert(owner, reading).expect("retains its pending read");
         return true;
+    }
+    if reading.outage && let Some(pending) = d.steps.get(&owner) {
+        super::read_session::ended(d, env, pending.task, env.wall);
     }
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)

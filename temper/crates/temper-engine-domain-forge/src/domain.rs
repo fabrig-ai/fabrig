@@ -29,6 +29,7 @@ pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
 mod rebase;
+pub(crate) mod read_session;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -118,6 +119,7 @@ pub(crate) struct PendingStep {
     paths: Box<[Box<[u8]>]>,
     paths_whole: bool,
     woken: bool,
+    retry_at: Option<skein_lib::Time>,
 }
 /// Comparison at its head and the first time the last judged reviews were kept.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -254,6 +256,7 @@ pub struct Domain {
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
     pub(crate) steps: Map<Token, PendingStep>,
+    pub(crate) read_sessions: Map<u64, read_session::Session>,
     // Volatile, bounded by changes (temper/docs/design/domain/forge/adoption.md, 1).
     change_connections: Option<Box<Map<u64, skein_lib::Wall>>>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
@@ -886,6 +889,7 @@ impl Domain {
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            read_sessions: Map::with_capacity(l.changes),
             change_connections: None,
             start_conflicts: Map::with_capacity(l.changes),
             review_requests: Map::with_capacity(l.changes),
@@ -1005,6 +1009,7 @@ impl Domain {
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
         .chain(if self.stopping { None } else { outage::deadline(self) })
+        .chain(if self.stopping { None } else { retry_deadline(self) })
         .min()
     }
 
@@ -1014,7 +1019,7 @@ impl Domain {
         if self.stopping || self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next: Option<skein_lib::Wall> = None;
+        let mut next = read_session::deadline(self);
         for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
@@ -1561,6 +1566,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::Connection { forge, state } => {
+            let was_connected = !connection_wait::disconnected(&d.connection(forge));
+            let connected = !connection_wait::disconnected(&state);
             if d.forge_ended(forge) {
                 return;
             }
@@ -1605,6 +1612,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
+            if was_connected != connected { read_session::connection(d, env, forge, connected); }
             match d.connection(forge) {
                 crate::Connection::Connected { .. } => connection_wait::connected(d, env, forge, out),
                 crate::Connection::NotConnected
@@ -2132,13 +2140,10 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     for task in &changes {
         d.change_due.remove(task);
-        let owner = step_owner(d, *task);
-        if let Some(owner) = owner {
-            fire_gather(d, env, owner, out);
-        } else {
-            emit(out, Request::WakeProcedure { task: *task });
-        }
+        emit(out, Request::WakeProcedure { task: *task });
     }
+    read_session::fire(d, env, out);
+    retry_gathers(d, env, out);
     let mut landings = List::with_capacity(env.limits.landings);
     for (task, when) in &d.landing.due {
         if *when <= env.wall && landings.room() > 0 {
@@ -3635,6 +3640,8 @@ fn delegate_result(
     words: &[u8],
     out: &mut Queue<Request>,
 ) {
+    let exempt = read_session::until(d, task).is_none() && d.read_sessions.contains_key(&task);
+    if exempt { read_session::ended(d, env, task, ended_at.unwrap_or(env.wall)); }
     let Some(row) = d.changes.get_mut(&task) else { return };
     // A pushing child can end after a gate has replaced the delegate slot.
     // Its terminal still releases the procedure's conflict wait.
@@ -3709,6 +3716,7 @@ fn delegate_result(
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
     let saved = row.clone();
+    if agent { read_session::ended(d, env, task, saved.change.since); }
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
@@ -3718,6 +3726,7 @@ fn delegate_result(
 
 /// The last done dependency refreshes producing before jig's Met steps it (change/repairs.md).
 fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    read_session::ended(d, env, task, env.wall);
     let Some(row) = d.changes.get_mut(&task) else { return };
     let owned = row.change.owns_turn;
     let mut ended = false;
@@ -3909,40 +3918,38 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
     None
 }
 
-fn fire_gather(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-    if outage::reading(d, owner) {
-        return;
+fn retry_deadline(d: &Domain) -> Option<skein_lib::Time> {
+    let mut next: Option<skein_lib::Time> = None;
+    for (_, pending) in &d.steps {
+        if let Some(at) = pending.retry_at {
+            next = Some(match next { Some(before) => before.min(at), None => at });
+        }
     }
-    let pending = d.steps.remove(&owner).expect("collected gather");
-    let Some(row) = d.changes.get(&pending.task) else { return };
-    if row.terminal() {
-        emit(out, Request::WakeProcedure { task: pending.task });
-        return;
+    next
+}
+
+fn retry_gathers(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut due = List::with_capacity(env.limits.changes);
+    for (owner, pending) in &d.steps {
+        if let Some(at) = pending.retry_at
+            && at <= env.now
+        {
+            due.push(*owner).expect("bounded capacity retries");
+        }
     }
-    if let change::State::Held { .. } = row.change.state {
-        d.steps.insert(owner, pending).expect("held read keeps its room");
-        return;
+    for owner in due.into_boxed() {
+        if let Some(pending) = d.steps.remove(&owner) {
+            restart_step(d, env, pending, out);
+        }
     }
-    if connection_wait::waiting(d, row.task, row.repository.forge) {
-        connection_wait::wait(d, env, row.task, out);
-        return;
-    }
-    let exempt = pending.heard.delegate_live || waits_for_dependencies(row, &pending);
-    let until = skein_lib::Wall::from_nanos(
-        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
-    );
-    if !exempt && env.wall >= until {
-        wait_for_forge(d, env, &pending, None, out);
-        return;
-    }
-    if exempt {
-        let row = d.changes.get_mut(&pending.task).expect("gather's change");
-        row.change.since = env.wall;
-        let saved = row.clone();
-        save_change(d, out, saved);
-    }
-    arm_gather(d, env, &pending);
-    d.steps.insert(owner, pending).expect("gather keeps its room");
+}
+
+fn restart_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
+    step_change(d, env, StepInput {
+        task: pending.task, entry: pending.entry, heard: pending.heard, gates: pending.gates,
+        queue_repair_active: pending.queue_repair_active, kept: pending.kept, merge_job: pending.merge_job,
+        pending: pending.pending,
+    }, out);
 }
 
 fn step_owner(d: &Domain, task: u64) -> Option<Token> {
@@ -3954,20 +3961,10 @@ fn step_owner(d: &Domain, task: u64) -> Option<Token> {
     None
 }
 
-// A step's reads spend its wait's stall, even while wakes replace its snapshot
-// (temper/docs/design/domain/forge/change/repairs.md, Stalls).
+// A read session survives restarts and capacity retries independently of the
+// completed policy step's wait (change/repairs.md, Stalls).
 fn arm_gather(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
-    let Some(row) = d.changes.get(&pending.task) else { return };
-    if row.terminal() {
-        return;
-    }
-    if let change::State::Held { .. } = row.change.state {
-        return;
-    }
-    let until = skein_lib::Wall::from_nanos(
-        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
-    );
-    d.wait_change(env, pending.task, Some(until));
+    read_session::refresh(d, env, pending);
 }
 
 #[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing, containment and connection waits")]
@@ -3996,6 +3993,12 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::Refused { task });
         return;
     };
+    if row.terminal() {
+        d.read_sessions.remove(&task);
+        if let Some(owner) = step_owner(d, task) {
+            d.steps.remove(&owner);
+        }
+    }
     if let Some(decision) = change_terminal(row) {
         emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
@@ -4098,6 +4101,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     };
     arm_gather(d, env, &pending);
     d.steps.insert(owner, pending).expect("step capacity checked");
@@ -4218,6 +4222,7 @@ fn step_verified(
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     };
     let facts = change_facts(d, env, &row, &pending, merge);
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
@@ -4269,6 +4274,7 @@ fn step_read(
     arm_gather(d, env, &pending);
     let Some(row) = d.changes.get(&pending.task) else { return };
     if row.terminal() {
+        d.read_sessions.remove(&pending.task);
         if let Some(decision) = change_terminal(row) {
             emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
         } else if let Some(merge) = landed_commit(&row.change.state) {
@@ -4291,8 +4297,8 @@ fn step_read(
     }
     if pending.stage != StepStage::Paths && result == Err(skein_forge::api::Error::Busy) {
         branch_due(d, pending.task);
-        let retry = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
-        wait_for_forge(d, env, &pending, Some(retry), out);
+        pending.retry_at = Some(env.now.saturating_add(Duration::from_secs(1)));
+        d.steps.insert(owner, pending).expect("capacity retry keeps the gather");
         return;
     }
     if result == Err(skein_forge::api::Error::NotConnected) {
@@ -4300,6 +4306,7 @@ fn step_read(
         return;
     }
     if admission::read_failed(row, &pending, &result, out) {
+        d.read_sessions.remove(&pending.task);
         branch_due(d, pending.task);
         return;
     }
@@ -4868,33 +4875,17 @@ fn wake_after_turn(d: &mut Domain, row: &ChangeRow, owned: bool) {
 }
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
-    d.change_due.remove(&pending.task);
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let until = skein_lib::Wall::from_nanos(
-        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
-    );
-    let active = if let change::State::Held { .. } = row.change.state { false } else { true };
-    if active && pending.woken && env.wall >= until && !pending.heard.delegate_live && !waits_for_dependencies(row, &pending) {
+    let until = if let change::State::Held { .. } = row.change.state { None } else { read_session::until(d, pending.task) };
+    let expired = match until { Some(until) => env.wall >= until, None => false };
+    if pending.woken && expired {
         wait_for_forge(d, env, &pending, None, out);
         return;
     }
     if pending.woken {
-        step_change(
-            d,
-            env,
-            StepInput {
-                task: pending.task,
-                entry: pending.entry,
-                heard: pending.heard,
-                gates: pending.gates,
-                queue_repair_active: pending.queue_repair_active,
-                kept: pending.kept,
-                merge_job: pending.merge_job,
-                pending: pending.pending,
-            },
-            out,
-        );
+        restart_step(d, env, pending, out);
     } else {
+        d.read_sessions.remove(&pending.task);
         decide_step(d, env, pending, out);
     }
 }
@@ -4905,60 +4896,56 @@ fn waits_for_dependencies(row: &ChangeRow, pending: &PendingStep) -> bool {
 
 /// Missing bases and uncertain reads count a stall except while producing waits for dependencies.
 fn wait_for_forge(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    pending: &PendingStep,
-    retry: Option<skein_lib::Wall>,
-    out: &mut Queue<Request>,
+    d: &mut Domain, env: &Env<Limits>, pending: &PendingStep,
+    retry: Option<skein_lib::Wall>, out: &mut Queue<Request>,
 ) {
-    let Some(mut row) = d.changes.get(&pending.task).cloned() else { return };
+    let Some(row) = d.changes.get(&pending.task) else { return };
     if row.terminal() {
-        emit(out, Request::WakeProcedure { task: row.task });
+        d.read_sessions.remove(&pending.task);
+        emit(out, Request::WakeProcedure { task: pending.task });
         return;
     }
     if let change::State::Held { .. } = row.change.state {
-        emit(
-            out,
-            Request::ChangeDecision { task: row.task, decision: change::Decision::None, entry: None, evidence: None },
-        );
+        d.read_sessions.remove(&pending.task);
+        emit(out, Request::ChangeDecision { task: pending.task, decision: change::Decision::None, entry: None, evidence: None });
         return;
     }
-    let dependencies = waits_for_dependencies(&row, pending);
     if connection_wait::waiting(d, row.task, row.repository.forge) {
         connection_wait::wait(d, env, row.task, out);
         return;
     }
-    if pending.heard.delegate_live || dependencies {
-        row.change.since = env.wall;
-    }
-    let until = skein_lib::Wall::from_nanos(
-        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
-    );
-    let decision = if dependencies {
-        change::Decision::Wait { until: retry }
-    } else if env.wall >= until {
-        row.change.owns_turn = false;
-        row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
-        change::Decision::Hold(change::Hold::Stalled)
-    } else {
-        let until = match retry {
-            Some(retry) => retry.min(until),
-            None => until,
-        };
-        change::Decision::Wait { until: Some(until) }
+    arm_gather(d, env, pending);
+    let until = match read_session::until(d, pending.task) {
+        Some(until) if env.wall >= until => {
+            hold_read_session(d, env, pending.task, Some(pending), out);
+            return;
+        }
+        Some(until) => Some(match retry { Some(retry) => retry.min(until), None => until }),
+        None => retry,
     };
-    if let Some(prior) = d.changes.insert(row.task, row.clone()).expect("replaces change")
-        && prior != row
-    {
-        save_change(d, out, row);
-    }
-    let evidence = if decision == change::Decision::Hold(change::Hold::Stalled) {
-        let row = d.changes.get(&pending.task).expect("held change");
-        Some(step_evidence(d, row, pending, row.change.clone()))
-    } else {
-        None
+    emit(out, Request::ChangeDecision { task: pending.task, decision: change::Decision::Wait { until }, entry: None, evidence: None });
+}
+
+fn hold_read_session(d: &mut Domain, env: &Env<Limits>, task: u64, pending: Option<&PendingStep>, out: &mut Queue<Request>) {
+    let Some(mut row) = d.changes.get(&task).cloned() else { return };
+    let before = crate::panel::ready(&row);
+    let prior = row.change.clone();
+    let owned = row.change.owns_turn;
+    row.change.owns_turn = false;
+    row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+    let evidence = match pending {
+        Some(pending) => step_evidence(d, &row, pending, prior),
+        None => crate::ChangeEvidence {
+            touched: crate::Touched::UNKNOWN, prior, head: row.change.last_head, base_tip: [0; 32],
+            contains_base: change::Status::Unknown, ci: change::Status::Unknown, gates: Box::new([]),
+            reviews: Box::new([]), reviews_complete: false, size: None,
+        },
     };
-    emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence });
+    d.read_sessions.remove(&task);
+    d.changes.insert(task, row.clone()).expect("held read's change");
+    wake_after_turn(d, &row, owned);
+    save_queue_change(d, env, before, row, out);
+    emit(out, Request::ChangeDecision { task, decision: change::Decision::Hold(change::Hold::Stalled), entry: None, evidence: Some(evidence) });
 }
 
 fn titled_change(
@@ -5244,6 +5231,7 @@ fn drive_check(
     };
     match action {
         Action::Write => {
+            d.read_sessions.remove(&row.task);
             let prior = row.change.clone();
             emit_change_effect(d, env, &mut row, &pending, prior, change::Effect::FollowCheck { head }, out);
         }
@@ -5260,6 +5248,7 @@ fn drive_check(
         }
         Action::Done | Action::Wait | Action::Held => {
             let task = row.task;
+            d.read_sessions.remove(&task);
             let decision = match action {
                 Action::Held => {
                     row.change.state =
@@ -6013,6 +6002,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         d.steps.remove(&owner);
     }
     d.change_due.remove(&task);
+    read_session::restart(d, env, task, env.wall);
     branch_due(d, task);
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
@@ -8431,6 +8421,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         for task in changes.into_boxed() {
             end_change(d, env, task, out);
             d.change_due.remove(&task);
+            d.read_sessions.remove(&task);
             emit(
                 out,
                 Request::ChangeDecision { task, decision: change::Decision::Cancel, entry: None, evidence: None },
