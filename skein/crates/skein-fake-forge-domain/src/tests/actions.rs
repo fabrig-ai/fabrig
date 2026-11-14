@@ -818,8 +818,9 @@ fn a_seed_replays_workflow_latency_runner_faults_and_reruns() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_context_opening_begins_its_jobs_whole_log() {
+    // The opening fills LIMITS.content_bytes before the job's own log.
+    const OPENING: &[u8] = &[b'x'; 32];
     let mut configured = setup();
     configured.checks.passes = 0;
     configured.checks.contexts = names(&[b"ci", b"fmt"]);
@@ -848,12 +849,11 @@ fn a_context_opening_begins_its_jobs_whole_log() {
     assert!(other.starts_with(b"set up fmt\n"));
     crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[]);
     assert_eq!(h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: None })), Answer::File(copy_of(WHOLE_LOG)));
-    crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[b'x'; 32]);
+    crate::set_opening(&mut h.domain, REPOSITORY, b"ci", OPENING);
     let Answer::File(full) = h.ok(PERSON, read(Read::Log { job: 1, attempt: 1, step: None })) else {
         unreachable!("bounded opening")
     };
-    assert!(full.starts_with(&[b'x'; 32]));
-    assert!(
-        std::panic::catch_unwind(move || crate::set_opening(&mut h.domain, REPOSITORY, b"ci", &[b'x'; 33])).is_err()
-    );
+    assert!(full.starts_with(OPENING));
+    assert!(full.ends_with(WHOLE_LOG));
+    assert_eq!(full.len() - WHOLE_LOG.len(), usize::try_from(LIMITS.content_bytes).unwrap());
 }

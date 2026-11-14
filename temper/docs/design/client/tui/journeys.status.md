@@ -1,7 +1,6 @@
 # journeys: status
 
-2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
-
+2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the

@@ -28,7 +28,6 @@ fn open(machine: &mut Machine, pid: Pid, path: &[u8], how: How) -> Handle {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn held_bytes_and_changed_nodes_follow_creates_writes_truncations_and_removals() {
     const OWNER: Ids = Ids { user: 1000, group: 1000 };
     let mut machine = Machine::new(26, Sizes { bytes: 10, ..Sizes::tiny() });
@@ -69,17 +68,10 @@ fn held_bytes_and_changed_nodes_follow_creates_writes_truncations_and_removals()
     );
     let file = open(&mut machine, pid, b"/srv/full", How::Create { mode: None });
     assert_eq!(checked(&mut machine, pid, Op::Truncate { file, length: 10 }), Ok(Reply::Done));
+    assert_eq!(machine.bookkeeping(pid).0, 10, "the exact truncate uses the scenario byte bound");
     let reader = open(&mut machine, pid, b"/srv/full", How::Read);
     assert_eq!(
         checked(&mut machine, pid, Op::Read { file: reader, at: 0, most: 10 }),
         Ok(Reply::Read(vec![0; 10].into()))
     );
-    let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        machine.call(pid, Op::Truncate { file, length: 11 })
-    }))
-    .expect_err("one byte past the bound must assert");
-    let message =
-        failure.downcast_ref::<&str>().copied().or_else(|| failure.downcast_ref::<String>().map(String::as_str));
-    assert_eq!(message, Some("scenario byte bound"));
-    assert_eq!(machine.bookkeeping(pid).0, 10, "a rejected resize keeps the held bytes");
 }

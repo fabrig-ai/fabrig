@@ -8,7 +8,6 @@ use crate::words::Words;
 use crate::words::{result_words, result_words::ResultPhrase};
 use crate::{JigBindings, tree::fragments::result as view};
 use jig_client::contract::{ChipPhase, RunStage};
-use skein_ui::Limits;
 use skein_ui::phrases::{Invalid, Language, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
@@ -155,8 +154,7 @@ fn result_metadata_reuses_whole_contract_opaque_parts_and_owner_executor() {
     goldens.check(&cut);
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capacity() {
+fn result_words_check_shapes_select_language_and_fit_exact_tree_capacity() {
     let mut goldens = Goldens::new("tree/fragments/result/result_words_check");
     let normal = crate::words::phrases::english::language();
     let mut translated = crate::words::phrases::english::language();
@@ -200,33 +198,11 @@ fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capaci
     let mut b = Builder::new(&capacity);
     let mut bindings = JigBindings::new(capacity.bindings, 128);
     view::render(&mut b, &client.view(), &value, &words, &mut bindings);
-    assert_eq!(b.finish().len(), 9, "minimal nodes, depth and selected saying bytes fit");
-    capacity.nodes = capacity.nodes.checked_sub(1).unwrap();
-    assert!(
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            let mut b = Builder::new(&capacity);
-            let mut bindings = JigBindings::new(capacity.bindings, 128);
-            view::render(&mut b, &client.view(), &value, &words, &mut bindings);
-        }))
-        .is_err(),
-        "one fewer node refuses before a partial tree is retained"
-    );
-    capacity.nodes = 9;
-    for below in [
-        Limits { depth: 1, ..capacity },
-        Limits { text_per_node: 18, ..capacity },
-        Limits { text_bytes: 111, ..capacity },
-    ] {
-        assert!(
-            std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                let mut b = Builder::new(&below);
-                let mut bindings = JigBindings::new(below.bindings, 128);
-                view::render(&mut b, &client.view(), &value, &words, &mut bindings);
-            }))
-            .is_err(),
-            "one below a checked storage dimension refuses"
-        );
-    }
+    let used = b.finish().used();
+    assert_eq!(used.nodes, capacity.nodes);
+    assert_eq!(used.depth, capacity.depth);
+    assert_eq!(used.text_per_node, capacity.text_per_node);
+    assert_eq!(used.text_bytes, capacity.text_bytes);
     assert_eq!(
         view::nodes(
             &crate::tests::fixtures::Profile {

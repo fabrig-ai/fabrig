@@ -762,7 +762,7 @@ kind, name for a program's, and its hold, limited with its reset,
 refused or moving; each account's facts, at most 24, a record apart that goes
 with its account (`../../domain/accounts.md`, 3.7); restored at start by fit and
 link, a set past its limit refusing the start and a link the start cannot make
-a panic (`../../domain/accounts.md`, 3.6), and facts whose account is gone dropped
+refusing it too (`../../domain/accounts.md`, 3.6), and facts whose account is gone dropped
 as they are read; a source's record or key named by the
 source's number, and erased when the source goes (4.4, `secrets.md`;
 `../../domain/accounts.md`, 3.5). The installation's identifier is the

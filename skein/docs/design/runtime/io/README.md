@@ -249,10 +249,11 @@ simulator's machine seam (../../testing/README.md, 4).
 
 - **Step tests** (`crates/skein-io/src/tests/`): each cell of both
   machines driven by hand, the refusals at a full slab, stale tokens
-  dropped going down and asserted going up, every outcome of a cancel in
-  every order, each call with the kernel queues' declared room; sends
-  within the room granted, and one past it, or with none granted,
-  asserted.
+  dropped going down, every outcome of a cancel in every order, each
+  call with the kernel queues' declared room; sends within the room
+  granted, up to all of it. A stale token going up, and a send past the
+  room or with none granted, are the owner's bugs, asserted and untested
+  (`skein/docs/foundation/programming-model.md`, 10.4).
 - **io worlds** (`tests/io`, `skein-io-world`): `skein_world`'s loop
   over the simulator drives each process's io, on the stage a service
   runs on, and a scripted owner, which runs

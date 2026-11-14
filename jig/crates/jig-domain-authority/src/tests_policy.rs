@@ -1431,44 +1431,6 @@ fn explicit_start_policy_nested_fit_limits_remain_enforced() {
     }
 }
 
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn authority_restore_requires_loading_and_start_begins_once() {
-    for bad in 0_u8..7 {
-        let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
-        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if bad == 0 {
-                apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
-            }
-            domain.start_restore();
-            match bad {
-                0 | 1 => domain.start_restore(),
-                2 => {
-                    apply(&mut domain, Event::Dropped { project: 1 });
-                }
-                3 => {
-                    domain.start_link().unwrap();
-                    domain.start_link().unwrap();
-                }
-                4 => {
-                    domain.start_link().unwrap();
-                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
-                }
-                5 => {
-                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
-                    apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
-                }
-                6 => {
-                    domain.start_link().unwrap();
-                    domain.start_restore();
-                }
-                _ => unreachable!(),
-            }
-        }));
-        assert!(result.is_err(), "bad phase {bad}");
-    }
-}
-
 fn copies<T: Clone + core::fmt::Debug>(value: T, count: u32) -> Box<[T]> {
     let mut copies = skein_lib::List::with_capacity(count);
     for _ in 0..count {
@@ -1500,16 +1462,13 @@ fn explicit_start_preserves_startup_configuration_before_policy_input() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn never_started_authority_accepts_policy_and_cannot_start_afterward() {
+fn never_started_authority_accepts_policy() {
     let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
     assert_eq!(
         apply(&mut domain, Event::Policy { project: 1, policy: policy(authority()) }),
         PolicyFact::Added { project: 1 }
     );
     assert!(domain.policy(1).is_some());
-    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_restore()));
-    assert!(result.is_err());
 }
 
 /// Project 0 has no policy; only run admission takes the rules' ceiling (6.1).

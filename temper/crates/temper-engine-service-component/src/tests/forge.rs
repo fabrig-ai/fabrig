@@ -146,8 +146,9 @@ fn a_forge_call_waiting_past_its_deadline_reaches_the_root_unavailable() {
             op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings),
         },
     );
-    service.engine.as_mut().expect("engine").forge.env.now = Time::from_nanos(11_000_000_000);
     let engine = service.engine.as_mut().expect("engine");
+    engine.forge.env.now =
+        engine.forge.env.now.saturating_add(engine.forge.env.limits.deadline).saturating_add(Duration::from_secs(1));
     engine.forge.component.fire(&engine.forge.env, &mut engine.forge.above, &mut engine.forge.io);
     let Some(skein_forge_connection::Event::Answered(answer)) =
         service.engine.as_mut().expect("engine").forge.above.pop()
