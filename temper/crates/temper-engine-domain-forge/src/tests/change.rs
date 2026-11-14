@@ -1515,6 +1515,7 @@ fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending()
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
     d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = Some(fixtures::HEAD);
+    let since = d.change(fixtures::CHANGE).expect("change").change.since;
     outputs(&mut d, dependency_step());
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
     fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
@@ -1532,7 +1533,7 @@ fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending()
     );
     let row = d.change(fixtures::CHANGE).expect("change");
     assert_eq!(row.change.state, change::State::Producing { requested: false });
-    assert_eq!(row.change.since, env().wall);
+    assert_eq!(row.change.since, since, "an undecided gather cannot move the policy clock");
 }
 
 #[test]
@@ -2584,6 +2585,7 @@ fn restarted_producing() -> Domain {
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.change.state = change::State::Producing { requested: true };
+    row.change.since = Wall::EPOCH;
     outputs(&mut d, Event::Change { row });
     fixtures::step_change(&mut d);
     for _ in 0_u32..3 {
@@ -2733,6 +2735,7 @@ fn an_unanswered_gather_keeps_live_agent_and_dependency_exemptions() {
     use temper_engine_domain_forge_change as change;
     for dependency in [false, true] {
         let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
+        let since = d.change(fixtures::CHANGE).unwrap().change.since;
         outputs(&mut d, if dependency { dependency_step() } else { waiting_step(true, false) });
         let mut clock = env();
         clock.wall = Wall::from_nanos(
@@ -2744,6 +2747,34 @@ fn an_unanswered_gather_keeps_live_agent_and_dependency_exemptions() {
             !matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { .. }),
             "exemption={dependency}: {out:?}"
         );
-        assert_eq!(d.change(fixtures::CHANGE).unwrap().change.since, clock.wall);
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().change.since, since, "the gather cannot move the policy's clock");
+    }
+}
+
+#[test]
+fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
+    use crate::domain::read_session::client_refusals;
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
+    for owner in 0_u64..u64::from(CLIENT.pending) {
+        outputs(&mut d, Event::Client(skein_forge_client::Event::Read {
+            owner: Token::new(8000_u64.saturating_add(owner)), repository: REPO,
+            read: skein_forge::api::Read::Settings,
+        }));
+    }
+    assert_eq!(client_refusals(&mut d), 0);
+    let first = outputs(&mut d, waiting_step(false, false));
+    for request in &first {
+        assert!(!matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }), "a live gather cannot park: {first:?}");
+    }
+    assert_eq!(client_refusals(&mut d), 1);
+    let mut clock = env();
+    for _ in 0_u32..3 {
+        let retried = fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
+        assert_eq!(client_refusals(&mut d), 1, "the client is asked again");
+        for request in &retried {
+            assert!(!matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }), "a retry retains the offered step: {retried:?}");
+        }
+        assert_eq!(d.steps.len(), 1);
     }
 }

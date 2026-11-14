@@ -12,19 +12,16 @@ fn held_reads(ci: bool) -> (World, u64) {
     let (mut world, _, task, producer) = preparing(false);
     if ci {
         waiting(&mut world, task, &producer, true);
-    } else {
-        let branch = row(&world, task).branch.clone();
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
-            .expect("producer pushed");
+        let _unanswered = super::ci_poll::hold_reviews(&mut world);
+        assert!(matches!(row(&world, task).change.state, State::Checking { .. }));
+        return (world, task);
     }
+    let branch = row(&world, task).branch.clone();
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1).expect("producer pushed");
     world.hold_reads_at_any_step = true;
     world.held_reads = Some(Vec::new());
-    if ci {
-        party(&mut world, 160, people::Ask::Say { project: 1, task, words: b"Read CI again.".as_slice().into() });
-    } else {
-        super::ci_poll::finish(&mut world, &producer);
-    }
+    super::ci_poll::finish(&mut world, &producer);
     for _ in 0..STEPS {
         world.tick();
         if world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty())
@@ -94,16 +91,10 @@ fn a_busy_client_retries_then_holds_at_producing() {
         world.tick();
     }
     assert!(matches!(row(&world, task).change.state, State::Producing { .. }));
-    assert!(
-        live_task(&world, task).attempt > before + 1,
-        "Busy reads retry: before {before}, now {}; state {:?}, phase {:?}, since {:?}",
-        live_task(&world, task).attempt,
-        row(&world, task).change.state,
-        live_task(&world, task).phase,
-        row(&world, task).change.since
-    );
+    assert_eq!(live_task(&world, task).attempt, before, "read retries cannot park the offered procedure step");
     let bound = world.env.limits.forge.change_policy.stall;
-    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    let past = world.env.now.saturating_add(bound.saturating_add(Duration::from_secs(1)));
+    while world.env.now <= past { world.tick(); }
     stalled_words(&world, task, "producing", "the forge to answer its reads");
 }
 
@@ -324,6 +315,10 @@ fn a_stored_question_of_an_ended_asker_no_longer_exempts_the_stall() {
     jump(&mut world, half);
     assert!(!matches!(row(&world, task).change.state, State::Held { .. }));
     jump(&mut world, half.saturating_add(Duration::from_secs(1)));
+    for _ in 0..STEPS {
+        if matches!(row(&world, task).change.state, State::Held { .. }) { break; }
+        world.tick();
+    }
     assert_stalled(&world, task);
     assert_eq!(row(&world, task).change.since, ended.ended_at.expect("asker's end"));
 }
