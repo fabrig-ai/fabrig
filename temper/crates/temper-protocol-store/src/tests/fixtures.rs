@@ -683,7 +683,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v22::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v23::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -741,13 +741,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v22::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v23::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v22::Row {
-    use crate::v22 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v23::Row {
+    use crate::v23 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -1193,6 +1193,12 @@ pub fn tier_goals() -> Box<[top::TierGoal]> {
 }
 
 pub fn finding() -> top::Finding {
+    let mut ids = List::with_capacity(64);
+    for number in 0_u8..64 {
+        let mut id: Box<[u8]> = Box::new([b'k'; 512]);
+        *id.last_mut().expect("nonempty signature key") = number;
+        ids.push(id).expect("bounded signature ids");
+    }
     top::Finding {
         project: u32::MAX,
         number: u32::MAX,
@@ -1208,5 +1214,12 @@ pub fn finding() -> top::Finding {
         hander: Some(top::Filer::Party(u64::MAX)),
         goal: Some(u64::MAX),
         reason: Some(Box::new([b'r'; 400])),
+        signature: Some(top::FindingSignature {
+            repository: REPO,
+            source: Box::new([b's'; 64]),
+            ids: ids.into_boxed(),
+            first: Box::new([b'f'; 512]),
+        }),
+        seen: Some(u32::MAX),
     }
 }

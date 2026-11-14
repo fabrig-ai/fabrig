@@ -8,7 +8,8 @@ use temper_worker_domain_checkout::git;
 pub(crate) struct Files {
     directory: Box<[u8]>,
     content: Option<Box<[u8]>>,
-    marker: bool,
+    writing: Writing,
+    rerun: Option<u32>,
     phase: Phase,
     parent: Option<Fd>,
     directory_fd: Option<Fd>,
@@ -17,12 +18,19 @@ pub(crate) struct Files {
     temporary: bool,
     failed: bool,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Writing {
+    Reds,
+    Marker,
+    Rerun,
+}
 #[derive(Clone, Copy, Debug)]
 enum Phase {
     Parent,
     Directory,
     OpenDirectory,
     Clear,
+    ClearResults,
     Discard,
     Open,
     Write,
@@ -33,11 +41,12 @@ enum Phase {
     CloseParent,
 }
 impl Files {
-    pub fn new(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool) -> Self {
+    pub fn new(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> Self {
         Self {
             directory,
             content,
-            marker,
+            writing: if marker { Writing::Marker } else { Writing::Reds },
+            rerun,
             phase: Phase::Parent,
             parent: None,
             directory_fd: None,
@@ -48,11 +57,15 @@ impl Files {
         }
     }
     fn name(&self, temporary: bool) -> Box<[u8]> {
-        Box::from(match (self.marker, temporary) {
-            (false, false) => b"reds".as_slice(),
-            (false, true) => b"reds.tmp",
-            (true, false) => b"reds-wait",
-            (true, true) => b"reds-wait.tmp",
+        if self.writing == Writing::Rerun {
+            return Box::from(if temporary { b"rerun.tmp".as_slice() } else { b"rerun" });
+        }
+        Box::from(match (self.writing, temporary) {
+            (Writing::Reds, false) => b"reds".as_slice(),
+            (Writing::Reds, true) => b"reds.tmp",
+            (Writing::Marker, false) => b"reds-wait",
+            (Writing::Marker, true) => b"reds-wait.tmp",
+            (Writing::Rerun, _) => unreachable!("rerun names handled above"),
         })
     }
     pub fn first(&self, settings: &Settings) -> Action {
@@ -75,6 +88,11 @@ impl Files {
             Phase::Clear => {
                 Op::Remove { dir: dir.expect("temper opened"), name: Box::from(b"reds".as_slice()), directory: false }
             }
+            Phase::ClearResults => Op::Remove {
+                dir: dir.expect("temper opened"),
+                name: Box::from(b"check-results".as_slice()),
+                directory: false,
+            },
             Phase::Discard | Phase::Cleanup => {
                 Op::Remove { dir: dir.expect("temper opened"), name: self.name(true), directory: false }
             }
@@ -103,7 +121,7 @@ impl Files {
     }
     pub fn complete(&mut self, result: Result<Done, Error>, settings: &Settings, stop: bool) -> Action {
         let allowed = match self.phase {
-            Phase::Clear | Phase::Discard | Phase::Cleanup => result == Err(Error::NotFound),
+            Phase::Clear | Phase::ClearResults | Phase::Discard | Phase::Cleanup => result == Err(Error::NotFound),
             Phase::Directory => result == Err(Error::Exists),
             Phase::Parent
             | Phase::OpenDirectory
@@ -138,13 +156,26 @@ impl Files {
             },
             Phase::Close => self.file = None,
             Phase::Cleanup => self.temporary = false,
-            Phase::Rename if result.is_ok() => self.temporary = false,
+            Phase::Rename if result.is_ok() => {
+                self.temporary = false;
+                if let Some(rerun) = self.rerun.take() {
+                    self.writing = Writing::Rerun;
+                    self.written = 0;
+                    self.content = Some(crate::invocation::joined(&[
+                        b"temper-rerun 1 ",
+                        skein_lib::Decimal::of(u64::from(rerun)).as_bytes(),
+                        b"\n",
+                    ]));
+                    self.phase = Phase::Discard;
+                    return if self.failed { self.drain(settings) } else { self.first(settings) };
+                }
+            }
             Phase::CloseDirectory => self.directory_fd = None,
             Phase::CloseParent => {
                 self.parent = None;
                 return Self::end(self.failed);
             }
-            Phase::Clear | Phase::Directory | Phase::Discard | Phase::Rename => {}
+            Phase::Clear | Phase::ClearResults | Phase::Directory | Phase::Discard | Phase::Rename => {}
         }
         if self.failed {
             return self.drain(settings);
@@ -153,14 +184,15 @@ impl Files {
             Phase::Parent => Phase::Directory,
             Phase::Directory => Phase::OpenDirectory,
             Phase::OpenDirectory => {
-                if self.marker || self.content.is_none() {
+                if self.writing == Writing::Marker || self.content.is_none() {
                     Phase::Clear
                 } else {
                     Phase::Discard
                 }
             }
-            Phase::Clear if self.content.is_none() => Phase::CloseDirectory,
-            Phase::Clear => Phase::Discard,
+            Phase::Clear => Phase::ClearResults,
+            Phase::ClearResults if self.content.is_none() => Phase::CloseDirectory,
+            Phase::ClearResults => Phase::Discard,
             Phase::Discard => Phase::Open,
             Phase::Open => Phase::Write,
             Phase::Write => {

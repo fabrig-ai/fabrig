@@ -20,6 +20,7 @@ pub fn checkout() -> checkout::Limits {
         path_bytes: 64,
         remote_timeout: Duration::from_secs(30),
         reds_read_ms: 5_000,
+        rerun_processes: 4,
         local_timeout: Duration::from_secs(5),
         facts: 8,
     }

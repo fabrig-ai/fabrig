@@ -73,9 +73,9 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
-    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    AreaRow, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
+    FindingRefusal, FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, HandFinding,
+    HandFindingAnswer, Holder, Severity, Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -109,7 +109,7 @@ pub use panel::{
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
-pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedRecorded, RedRefusal, RedReply};
+pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedPass, RedRecorded, RedRefusal, RedReply};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};
 pub use result::{ChangeResult, ResultText};
@@ -316,6 +316,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Red(row) => Key::Red { goal: row.goal, key: row.key.clone() },
         Stored::RedNumber { .. } => Key::RedNumber,
+        Stored::RedPass(row) => Key::RedPass { change: row.change, key: row.key.clone() },
         Stored::Playground(_) => Key::Playground,
         Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
@@ -549,11 +550,24 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
         Stored::Red(row) => skein_lib::len_u64(row.key.len())
             .checked_add(skein_lib::len_u64(row.head.len()))?
             .checked_add(skein_lib::len_u64(row.why.len())),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
+            if let Some(signature) = &row.signature {
+                bytes = bytes
+                    .checked_add(skein_lib::len_u64(signature.source.len()))?
+                    .checked_add(skein_lib::len_u64(signature.first.len()))?
+                    .checked_add(
+                        skein_lib::len_u64(signature.ids.len())
+                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                for id in &signature.ids {
+                    bytes = bytes.checked_add(skein_lib::len_u64(id.len()))?;
+                }
+            }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
             }

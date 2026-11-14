@@ -14,7 +14,8 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
-    pub(crate) domain: root::Domain,
+    // Keep the root's state out of service construction and movement frames.
+    pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
@@ -137,7 +138,7 @@ impl Engine {
         let credentials = values.identities.numbers();
         store.routes.patch_context().executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
-            Ok(domain) => domain,
+            Ok(domain) => Box::new(domain),
             Err(problem) => {
                 let (path, what) = crate::startup::checks::membership(problem);
                 let mut problems = jig_protocol_config::Problems::empty();

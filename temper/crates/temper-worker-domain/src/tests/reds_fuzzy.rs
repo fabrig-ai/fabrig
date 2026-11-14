@@ -106,6 +106,7 @@ fn render(world: &World, op: &Op) -> Option<Box<[u8]>> {
                 sequence::after(op, &Command::Reds(command), code, &stdout, b"", 0, &fixtures::limits().checkout)
             }
             Next::Reds { content, .. } => return content,
+            Next::Results { .. } => return None,
             Next::End(_)
             | Next::Run(_)
             | Next::Snapshot { .. }

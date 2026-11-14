@@ -232,6 +232,8 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             hander: None,
             goal: None,
             reason: None,
+            signature: None,
+            seen: None,
         }),
         RecordKind::Red => Stored::Red(Red {
             goal: n,
@@ -242,6 +244,9 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             at: 0,
             generation: n,
         }),
+        RecordKind::RedPass => {
+            Stored::RedPass(RedPass { change: n, key: b"test a::t x".as_slice().into(), generation: n })
+        }
         RecordKind::RedNumber => Stored::RedNumber { last: n },
         RecordKind::HistoryProject => Stored::HistoryProject(crate::history::Project {
             project: number,

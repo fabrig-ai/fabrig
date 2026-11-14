@@ -148,16 +148,21 @@ on vsr-rs"; nothing acts on it, and Home on All projects' What follows
 what draws it beside the follows, from the first four projects'
 `follows` documents (`client/pages/home.md`, 1), within a shipped
 client's 26 watches (`protocol/configuration/limits.md`). A goal's reds
-are temper's records, milestone B1 of `draft/branch-reds.md`
+are temper's records, milestones B1 and B2 of `draft/branch-reds.md`
 (`domain/forge/reds.md`). A goal's coordinator records and ends them with
 the `red` tool, at most `forge.branch_reds` a goal. At each check's start
 the worker asks the engine for them through an application's ask on
 jig's channel (jig's `domain/hosts/hub.md`, 10), and writes those whose
 commit the check's base contains to `temper/reds`, which fabrig's
 delivery check reads beside `.temper/known-reds.md`, its cache keyed on
-the file. Reds end by the tool or with their goal; ending by what lands,
-flakes and the list's removal are B2 and B3
-(`draft/branch-reds.status.md`).
+the file. The check runs a failing test's process again, through
+one-process's `--again`, and a test that passes then is a flake, refusing
+nothing; at its end it writes `temper/check-results`, which the worker
+reports to the engine, passed or refused. A change keeps the reds its
+passed checks passed, and they end when it lands into the goal's branch;
+each flake is filed or counted as a `flake` finding (`domain/findings.md`,
+4). Reds end too by the tool and with their goal; the list's removal is
+B3 (`draft/branch-reds.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need

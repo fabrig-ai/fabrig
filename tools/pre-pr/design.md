@@ -1,9 +1,10 @@
 # The delivery check
 
-Provisional, 2026-11-11. What fabrig's `.temper/pre-pr` runs when a run
+Provisional, 2026-11-14. What fabrig's `.temper/pre-pr` runs when a run
 delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
-from `temper/docs/design/draft/delivery-checks.md`. Coding agents run no build
+from `temper/docs/design/draft/delivery-checks.md` and, for the goal's reds,
+its flakes and its results, `temper/docs/design/draft/branch-reds.md`. Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
 no CI, so this is a change's only check before it lands there; the landing's
@@ -44,8 +45,18 @@ boundary (smith's run.md, 8.1).
   no build; citations compare their counted findings and design sizes
   there too. Inherited failures are named and pass (section 5); every
   other failure refuses.
+- **Its process again.** A failing test no entry names runs once more
+  after the run, its process's tests up to it in one process with
+  nothing else of the check running, at most temper's `temper/rerun`
+  bound; passing then, it failed under load: a flake, named, refusing
+  nothing (sections 4 and 5).
 - **A summary last,** within the host's kept tail: each failing check and
-  test with its log's tail, then the inherited ones (section 6).
+  test with its log's tail, then the flakes and the inherited ones
+  (section 6).
+- **Its results for temper.** Under temper's marker it writes
+  `temper/check-results` at its end, passed or refused: its tree, base
+  and verdict, the goal's reds it passed or failed, and its flakes with
+  their logs, which the worker reports to the engine (section 6).
 - **Fast on a warm checkout:** no `cargo clean`, no whole-workspace run,
   no build at the base, and the passed-tree cache keyed by tree, base and
   the goal's reds (sections 7 and 8).
@@ -214,6 +225,37 @@ delivery hears every failure; the verdict is section 6's.
    refuses. A `junit.xml`, `results.json` or `run.json` the check needs and
    cannot read is a failure of the check itself.
 
+   **A failing test's process again** (`temper/docs/design/draft/branch-reds.md`,
+   7). After the run and before the judgement, each test failure the
+   known reds and `temper/reds` name no entry for (section 5), a test
+   `results.json` gives the `outcome` `failed` or `crashed`, runs once
+   more: `python3 -I -B tools/tiers/one-process --again <dir>/tests --out
+   <dir>/again-<n> <binary id> <names>`, the names the test's `before` in
+   `results.json`, then the test, so its process's tests up to it in the
+   same order, in one process, with no build and nothing else of the
+   check running (`tools/tiers/design.md`, 11.9). `<n>` counts from 1;
+   they run one at a time, in the order of the failures' keys. A failure
+   an entry names refuses nothing already and is not run again, so that
+   a goal's expected failures never spend the bound; nor is a build
+   failure, a failure of the check itself or a cancelled test.
+   - **The bound is temper's:** `temper/rerun`, at `git rev-parse
+     --git-path temper/rerun`, one line, `temper-rerun 1 N`, N from 0 to
+     16, read once with the reds, before the cache's check
+     (`temper/docs/design/domain/forge/reds.md`, 5.2). No file is 0, as
+     a checkout outside temper has none; a file of another form is 0, and
+     one line says so, `pre-pr: rerun: ignored temper/rerun (malformed)`.
+     Where more failures would run again than N, none does, since that
+     many is no flake, and one line says so: `pre-pr: tests again: none
+     (<F> failures, at most <N> run again)`.
+   - **Its lines:** each announced `pre-pr: tests again: <binary id>
+     <name> (<K> tests) …`, K the names, and ended `pre-pr: tests again:
+     <binary id> <name>: passed|failed, <seconds> s`.
+   - **What it decides:** the test's `outcome` in that run's
+     `results.json` `passed` makes it a flake (section 5); any other
+     outcome, an exit other than 0 or 100, or a directory the check can't
+     read leaves it failed, judged as section 5 judges it, its log the
+     first run's, its alone label included.
+
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
    unstaged and untracked documentation. The checker also enforces the
@@ -348,6 +390,11 @@ cause.
   `check one-process`, `check selection`).
 - **A starved test** is neither failed nor inherited: section 4's warning
   names it, and it refuses nothing, listed or not.
+- **A flake,** a failing test that passed when its process ran again
+  (section 4), failed under load: it refuses nothing and is neither the
+  delivery's nor inherited. The summary names it and the results file
+  carries it (section 6). One that failed again is judged as above: a
+  test that depends on an earlier one stays the delivery's.
 - **A base run that cannot run** (the worktree cannot be made, or a
   tree's `scripts/old_forms.py` fails of itself at the base): the
   exceeded counts stay the delivery's, and the summary says why the base
@@ -375,6 +422,9 @@ cause.
     has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
     `[… N bytes cut]`;
+  - then each flake (section 5): `flake: test <binary id> <name> (failed
+    under load; passed when its process ran again: <K> tests, <seconds>
+    s)`, then its first run's log as a failure's, within the same bound;
   - then each inherited failure, one line each: a known red as
     `inherited: test <binary id> <name> (known red, .temper/known-reds.md)`
     or `inherited: clippy <package> <code> <file> (known red,
@@ -386,7 +436,30 @@ cause.
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
-  failures included; 1 otherwise.
+  failures and flakes included; 1 otherwise. The tests' end line says
+  `inherited` where each of their failures was inherited or a flake.
+- **The results file,** for temper (`temper/docs/design/domain/forge/reds.md`,
+  5.5, its form): where the check found a marker `temper/reds-wait` of
+  its form (section 5), after the summary, passed or refused, it writes
+  `temper/check-results` at `git rev-parse --git-path
+  temper/check-results`, through `temper/check-results.tmp` renamed:
+  - `temper-check 1`, then `check <tree> <base> passed|refused`, `<base>`
+    `-` without one;
+  - for each entry of `temper/reds` (not of the list) that the run
+    selected: `passed <key>` or `failed <key>`, in key order. A `- test`
+    entry is selected where its test is in the run's `results.json`:
+    `passed` where its `outcome` is `passed`, `failed` where its
+    failure is section 5's, inherited or not, and neither where it
+    starved, was cancelled or went unobserved; an ignored test the run
+    never selected is neither. A `- lint` entry is selected where its
+    package is in the lints' set and clippy ended with no failure of the
+    check itself: `failed` where an error has its key, `passed` where none
+    does and no error without a lint code is in its package, which would
+    hide its lints;
+  - then each flake, `flake <key>`, its first run's log as the summary
+    cuts it, each line `| <text>`, an empty one `|`.
+
+  A cache hit writes none, nor does a check that wrote no summary.
 
 ## 7. The passed-tree cache
 
@@ -400,7 +473,10 @@ base does not move, so a `finish` repeats its `deliver`'s pass, while a
 red ended or recorded since changes the file and so the key, and a pass
 under a red that has ended is never reused. A failure, an interruption or
 a timeout never writes it. An earlier record of another shape, the
-two-field one included, matches nothing.
+two-field one included, matches nothing. A cache hit observes nothing:
+it writes no `temper/check-results` (section 6), so temper keeps what the
+check's last pass reported. The record holds the last pass alone, so a
+hit is always of the last tree that passed here.
 
 ## 8. Time
 
@@ -469,6 +545,22 @@ written while the check waits is read; no marker and no file print
 nothing. Its cache: a pass with a reds file is reused with the same bytes
 and not after they change, nor after the file goes, and a two-field record
 matches nothing.
+
+It runs a failing test's process again from a fake one-process whose
+`--again` runs answer from the ledger: a failure no entry names that
+passes again is a flake, refusing nothing, named in the summary and
+written to the results file with its log; one that fails again refuses,
+its alone label kept; a failure an entry names is not run again; more
+failures than `temper/rerun`'s N, an N of 0, no file and a malformed one
+run none again, each with its line; the command: `--again` the run's
+directory, a fresh `--out`, the binary id, then the test's `before` and
+the test.
+
+It writes the results file only under a marker: its header and check
+line, passed and refused; a `temper/reds` entry passed, failed (inherited)
+and starved (neither), a lint entry passed and failed, an entry of the
+list alone never written; a flake's `|` lines; nothing on a cache hit,
+and nothing without a marker.
 
 It reads a one-process run's directory as section 4 does, from a fake run
 that writes the files: failures from `junit.xml`, keyed by binary id and

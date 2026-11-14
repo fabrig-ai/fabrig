@@ -23,9 +23,13 @@ struct Channel {
     engine_read: Option<stream::Read>,
     worker_read: Option<stream::Read>,
     hello: Option<jig_domain_link::Hello>,
+    cannot_send: Option<(&'static str, u16)>,
 }
 impl Channel {
     fn new() -> Self {
+        Self::at_version(payload::wire::VERSION)
+    }
+    fn at_version(version: u16) -> Self {
         let settings = fixtures::engine();
         let limits = crate::workers::limits(&settings).unwrap();
         let largest = payload::largest(&v1::CEILINGS).unwrap();
@@ -48,11 +52,16 @@ impl Channel {
             busy: Duration::from_millis(100),
         };
         let secret = b"reader-secret".as_slice();
+        let mut application = payload::application(&fixtures::wire_limits()).unwrap();
+        if version != payload::wire::VERSION {
+            let spoken = application.spoken.get_mut(0).unwrap();
+            *spoken = jig_protocol_worker_wire::Spoken::current(spoken.name, version, spoken.layout(version).unwrap());
+        }
         let engine = engine::Component::new(
             &limits,
             Box::new([engine::Worker { name: b"reader".as_slice().into(), digest: skein_io::digest::digest(secret) }]),
             jig_protocol_worker_wire::spoken(),
-            payload::application(&fixtures::wire_limits()).unwrap(),
+            application,
         )
         .unwrap();
         let worker = worker::Component::new(
@@ -77,6 +86,7 @@ impl Channel {
             to_worker: Intake::with_capacity(limits.room),
             engine_read: None,
             worker_read: None,
+            cannot_send: None,
             hello: Some(jig_domain_link::Hello {
                 jobs: Box::new([]),
                 slots: 1,
@@ -89,8 +99,10 @@ impl Channel {
         channel.engine.down(Time::ZERO, engine::Event::Accepted { connection: CONNECTION }, &mut channel.engine_out);
         channel.worker.fire(Time::ZERO, &mut channel.worker_out);
         channel.settle();
-        let Some(engine::Request::Hello { channel: name, .. }) = channel.up.pop() else { panic!("hello crosses") };
-        assert_eq!(name, CONNECTION);
+        if version == payload::wire::VERSION {
+            let Some(engine::Request::Hello { channel: name, .. }) = channel.up.pop() else { panic!("hello crosses") };
+            assert_eq!(name, CONNECTION);
+        }
         channel
     }
     fn engine_lower(&mut self, event: LowerEvent) {
@@ -157,8 +169,11 @@ impl Channel {
                         assert!(parts.is_empty());
                         self.down.push(down);
                     }
+                    worker::Request::CannotSendWhole { wire, version } => {
+                        self.cannot_send = Some((wire, version));
+                        return;
+                    }
                     other @ (worker::Request::Lower { .. }
-                    | worker::Request::CannotSendWhole { .. }
                     | worker::Request::Untranslated { .. }
                     | worker::Request::Refused { .. }
                     | worker::Request::RelayCancelled { .. }
@@ -202,15 +217,27 @@ impl Channel {
     }
 }
 
-#[test]
-fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
+fn exchange(
+    ask: temper_worker_domain::wire::Ask,
+    expected: temper_worker_domain::wire::Answer,
+) -> (crate::Service, u64) {
     let (mut service, run) = fixtures::claimed_chat_on(CONNECTION);
-    reds::seed_reds(&mut service, run.task);
+    let results = match &ask {
+        temper_worker_domain::wire::Ask::Reds => {
+            reds::seed_reds(&mut service, run.task);
+            false
+        }
+        temper_worker_domain::wire::Ask::Results(_) => {
+            reds::seed_check_change(&mut service, run.task);
+            true
+        }
+    };
     let commits = service.engine.as_ref().unwrap().domain.deployment().commits;
     let mut channel = Channel::new();
     let mut limits = fixtures::engine().jig.limits.hub;
-    limits.application_ask_bytes = 1;
-    limits.application_answer_bytes = 141_317;
+    let largest = payload::largest(&v1::CEILINGS).unwrap();
+    limits.application_ask_bytes = largest.ask;
+    limits.application_answer_bytes = largest.answer;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut host = hub::Hub::new(&limits);
     let mut out = Queue::uncapped();
@@ -239,7 +266,7 @@ fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
         hub::Event::Ask {
             run: Token::new(run.task),
             attempt: Token::new(run.attempt),
-            bytes: temper_worker_service::translate::ask(temper_worker_domain::wire::Ask::Reds),
+            bytes: temper_worker_service::translate::ask(ask),
         },
         &mut out,
     );
@@ -264,15 +291,68 @@ fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
     };
     assert_eq!((task.raw(), attempt.raw(), number), (run.task, run.attempt, 1));
     let answer = temper_worker_service::translate::answer(&bytes, &v1::CEILINGS);
-    assert_eq!(
-        answer,
-        Some(temper_worker_domain::wire::Answer::Reds {
-            reds: Box::new([
-                temper_worker_domain::wire::Red { key: b"lint p c f".as_slice().into(), head: Box::new([1; 20]) },
-                temper_worker_domain::wire::Red { key: b"test a::t x".as_slice().into(), head: Box::new([2; 32]) },
-            ])
-        })
-    );
+    assert_eq!(answer, Some(expected));
     assert!(out.is_empty());
-    assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, commits);
+    if results {
+        assert!(service.engine.as_ref().unwrap().domain.deployment().commits > commits);
+    } else {
+        assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, commits);
+    }
+    (service, run.task)
+}
+
+#[test]
+fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
+    use temper_worker_domain::wire::{Answer, Ask, Red};
+    exchange(
+        Ask::Reds,
+        Answer::Reds {
+            reds: Box::new([
+                Red { key: b"lint p c f".as_slice().into(), head: Box::new([1; 20]) },
+                Red { key: b"test a::t x".as_slice().into(), head: Box::new([2; 32]) },
+            ]),
+        },
+    );
+}
+
+#[test]
+fn a_hosted_runs_results_are_kept_through_jigs_channel() {
+    use temper_engine_domain_forge as forge;
+    let mut report = super::results::report();
+    report.tag = forge::tag(1, 41);
+    report.passed = Box::new([b"test a::t x".as_slice().into()]);
+    let (mut service, task) =
+        exchange(temper_worker_domain::wire::Ask::Results(report), temper_worker_domain::wire::Answer::Kept);
+    let rows = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
+    let mut pass = None;
+    let mut finding = None;
+    for record in &rows {
+        if let root::Record::Forge { row } = record {
+            if let forge::Stored::RedPass(row) = row.as_ref() {
+                assert!(pass.replace(row).is_none());
+            }
+            if let forge::Stored::Finding(row) = row.as_ref() {
+                assert!(finding.replace(row).is_none());
+            }
+        }
+    }
+    assert_eq!(
+        pass.expect("the report's pass is durable"),
+        &forge::RedPass { change: task, key: b"test a::t x".as_slice().into(), generation: 2 }
+    );
+    let finding = finding.expect("the report's flake is durable");
+    assert_eq!(
+        (finding.project, finding.filer, finding.kind, finding.seen),
+        (1, forge::Filer::Task(task), forge::FindingKind::Flake, Some(1))
+    );
+    assert_eq!(finding.title.as_ref(), b"Flake in a delivery's check: test fabrig-x::t b");
+    assert!(finding.body.ends_with(b"Its log under load:\nboom"));
+}
+
+#[test]
+fn a_v9_worker_closes_at_a_v8_engines_statement_before_hello() {
+    let channel = Channel::at_version(8);
+    assert_eq!(channel.cannot_send, Some((payload::wire::FAMILY, 8)));
+    assert!(channel.hello.is_some(), "the worker never became ready to send hello");
+    assert!(channel.up.is_empty(), "the engine sees no worker record");
 }

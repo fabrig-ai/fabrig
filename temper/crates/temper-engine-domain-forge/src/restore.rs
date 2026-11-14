@@ -326,6 +326,12 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             room(K::Red, Rows(K::Red), held, l.branch_reds, replacing)?;
             room(K::Red, Rows(K::Red), d.reds.len(), d.reds.capacity(), replacing)
         }
+        Stored::RedPass(row) => {
+            let replacing = d.red_passes.contains_key(&(row.change, row.key.clone()));
+            let held = u32::try_from(d.red_passes(row.change).count()).expect("bounded red passes");
+            room(K::RedPass, Rows(K::RedPass), held, l.branch_reds, replacing)?;
+            room(K::RedPass, Rows(K::RedPass), d.red_passes.len(), d.red_passes.capacity(), replacing)
+        }
         Stored::RedNumber { .. } => room(K::RedNumber, Rows(K::RedNumber), u32::from(d.red_number.is_some()), 1, false),
         Stored::Finding(row) => {
             let replacing = d.finding_rows().contains_key(&(row.project, row.number));

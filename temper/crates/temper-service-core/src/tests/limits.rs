@@ -175,3 +175,34 @@ fn reds_wait_is_stock_in_both_profiles_and_outside_its_range_names_the_override(
         assert!(skein_lib::bytes::find(&out.finish(), b"checkout.reds_read_ms").is_some());
     }
 }
+
+#[test]
+fn rerun_processes_is_stock_and_accepts_its_endpoints_but_names_seventeen() {
+    use crate::startup::{
+        configured_limits,
+        problems::{SharedProblems, render_problem},
+    };
+    use jig_protocol_config::{self as config, Path};
+    use skein_lib::Writer;
+    for profile in [Profile::Small, Profile::Standard] {
+        assert_eq!(limits::profile(profile).checkout.rerun_processes, 4);
+        for value in [0, 16] {
+            let mut shared = limits::profile(profile);
+            limits::apply(&mut shared, b"checkout.rerun_processes", value).unwrap();
+            assert_eq!(u64::from(shared.checkout.rerun_processes), value);
+        }
+    }
+    let document = config::document(
+        br#"{"profile":"small","overrides":{"checkout.rerun_processes":17}}"#,
+        &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 },
+    )
+    .unwrap();
+    let mut problems = SharedProblems::empty();
+    let _limits = configured_limits(&document, 0, &Path::root().member(b"limits"), &mut problems);
+    assert!(!problems.is_empty());
+    let problem = problems.problems.get(0).unwrap();
+    let size = render_problem(problem, &mut Writer::new(0), true);
+    let mut out = Writer::new(size);
+    render_problem(problem, &mut out, false);
+    assert!(skein_lib::bytes::find(&out.finish(), b"checkout.rerun_processes").is_some());
+}

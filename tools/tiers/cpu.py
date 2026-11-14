@@ -434,15 +434,25 @@ def one_process_summary(directory, limits, pair, run):
     warnings.extend(f"{pair} {item['binary_id']}: a process left a descendant holding its output"
                     for item in processes if item['leaked'])
     unobserved = []
+    single_process = False
+    crashed_binaries = {t['binary_id'] for t in data['tests'] if t['outcome'] == 'crashed'}
+    if data['unobserved'] and data['cancelled'] is None:
+        path = directory / 'plan.json'
+        single_process = path.is_file() and json.loads(path.read_text()).get('single_process', False)
     for item in sorted(data['unobserved'], key=identity):
         key = identity(item)
         if key in seen:
             raise ValueError('duplicate selected test')
         seen.add(key)
+        reason = 'the run was cancelled before it'
         if data['cancelled'] is None:
-            raise ValueError('unobserved test without cancellation')
+            # Again runs promise one process, so a crash leaves later names
+            # unobserved instead of starting the ordinary fresh process (11.9).
+            if not single_process or key[0] not in crashed_binaries:
+                raise ValueError('unobserved test without cancellation')
+            reason = 'the again process crashed before it'
         unobserved.append(dict(binary_id=key[0], test_name=key[1], attempt=1))
-        warnings.append(f'{pair} {key[0]} {key[1]}: unobserved, the run was cancelled before it')
+        warnings.append(f'{pair} {key[0]} {key[1]}: unobserved, {reason}')
     if len(seen) != data['selected']:
         raise ValueError('selected count disagrees with test coverage')
     suite = dict(tests=len(tests), attempts=len(tests), wall_s=run['wall_s'],
