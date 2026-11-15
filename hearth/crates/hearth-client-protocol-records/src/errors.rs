@@ -70,26 +70,12 @@ pub(crate) fn text(item: &Error, lines: &mut Lines) {
         lines.put(b")");
     }
     lines.put(b"\n");
-    match &item.kind {
-        Kind::Tool(tool) => {
-            for line in &tool.tail {
-                lines.put(b"  ");
-                lines.put(line);
-                lines.put(b"\n");
-            }
+    if let Some(tool) = item.kind.tool() {
+        for line in &tool.tail {
+            lines.put(b"  ");
+            lines.put(line);
+            lines.put(b"\n");
         }
-        Kind::Reserved(_)
-        | Kind::Exported(_)
-        | Kind::Ids(_)
-        | Kind::Resolution(_)
-        | Kind::Store(_)
-        | Kind::Evaluation(_)
-        | Kind::Schema(_)
-        | Kind::Guard(_)
-        | Kind::Collision(_)
-        | Kind::Decode(_)
-        | Kind::Repository(_)
-        | Kind::Composition(_) => {}
     }
 }
 pub(crate) fn json(item: &Error, json: &mut Encoder) {

@@ -167,21 +167,8 @@ impl Client {
         let record = match answer {
             Answer::Spec(spec) => Record::Spec(Box::new(spec)),
             Answer::Error(mut error) => {
-                use crate::render::errors::Kind;
-                match &mut error.kind {
-                    Kind::Store(fault) => fault.store = skein_lib::bytes::copy_of(store),
-                    Kind::Reserved(_)
-                    | Kind::Exported(_)
-                    | Kind::Ids(_)
-                    | Kind::Resolution(_)
-                    | Kind::Evaluation(_)
-                    | Kind::Schema(_)
-                    | Kind::Guard(_)
-                    | Kind::Collision(_)
-                    | Kind::Decode(_)
-                    | Kind::Repository(_)
-                    | Kind::Tool(_)
-                    | Kind::Composition(_) => {}
+                if let Some(error) = error.kind.store_mut() {
+                    error.store = skein_lib::bytes::copy_of(store);
                 }
                 Record::Error(error)
             }
