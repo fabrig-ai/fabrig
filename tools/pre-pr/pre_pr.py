@@ -651,6 +651,53 @@ def settled(error):
     return error['inherited'] or 'flake' in error
 
 
+def failure_groups(errors):
+    """The summary's class order; inherited takes precedence over a flake."""
+    return ([e for e in errors if not settled(e)],
+            sorted((e for e in errors if 'flake' in e and not e['inherited']), key=lambda e: e['key']),
+            [e for e in errors if e['inherited']])
+
+
+def failure_counts(errors):
+    return dict(zip(('new', 'flake', 'inherited'), map(len, failure_groups(errors))))
+
+
+def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
+    """Keep every structured failure atomically, before the summary (sections 6–7)."""
+    path = 'temper/pre-pr-failures.json'
+    try:
+        result = git(['rev-parse', '--git-path', path], root, env)
+        if result.returncode:
+            raise ValueError(result.stderr.decode(errors='replace'))
+        path = (root / os.fsdecode(result.stdout).strip()).resolve()
+        entries = []
+        for kind, group in zip(('new', 'flake', 'inherited'), failure_groups(errors)):
+            for error in group:
+                key = error['key']
+                structured = None
+                if key and error['name'].startswith('test '):
+                    structured = dict(zip(('kind', 'binary', 'test'), ('test', *key)))
+                elif key and error['name'].startswith('clippy '):
+                    structured = dict(zip(('kind', 'package', 'code', 'file', 'message'), ('lint', *key)))
+                elif key and len(key) == 4 and error['name'].startswith('old-forms '):
+                    structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
+                entries.append({'class': kind, 'name': error['name'], 'key': structured})
+        header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
+                  'cached': cached, 'verdict': 'refused' if verdict else 'passed',
+                  'counts': failure_counts(errors)}
+        text = json.dumps(header, ensure_ascii=False)[:-1] + ', "failures": [\n'
+        text += ',\n'.join(json.dumps(entry, ensure_ascii=False) for entry in entries) + '\n]}\n'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name('pre-pr-failures.json.tmp')
+        temporary.write_bytes(text.encode('utf-8', errors='backslashreplace'))
+        temporary.replace(path)
+        return f'every key in {path}'
+    except (OSError, ValueError) as error:
+        message = str(error).split('\n', 1)[0].split('\r', 1)[0]
+        message = message.encode('utf-8', errors='backslashreplace')[:512].decode('utf-8', errors='ignore')
+        return f'not written to {path}: {message}'
+
+
 def timed(name, action, pending=None):
     print(f'pre-pr: {name} …', flush=True)
     start = time.monotonic()
@@ -671,25 +718,30 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason, starved=None):
+def summary(base_id, lints, tests, errors, reason, failures_tail, starved=None):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not settled(e) for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
     header = f'pre-pr: {"refused" if refused else "passed"} ({base_text})\n'
-    header += f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
+    counts = failure_counts(errors)
+    header += (f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
+               f'{counts["inherited"]} inherited; {failures_tail}\n')
+    sets = f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
     if starved:
-        header += starved + '\n'
+        sets += starved + '\n'
     if reason:
-        header += tail(reason)
-    entries = [e['name'] + '\n' + e['log'] for e in errors if not settled(e)]
+        sets += tail(reason)
+    new, flakes, inherited_errors = failure_groups(errors)
+    entries = [e['name'] + '\n' + e['log'] for e in new]
     entries += [f'flake: {e["name"]} (failed under load; passed when its process ran again: '
                 f'{e["flake"][0]} tests, {e["flake"][1]:.3f} s)\n' + e['log']
-                for e in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key'])]
+                for e in flakes]
     entries += ['inherited: ' + e['name'] +
                 (' (red, temper/reds)' if e['name'].startswith(('test ', 'clippy ')) else '') + '\n'
-                for e in errors if e['inherited']]
-    # Even large package sets must leave room for the first failure and the count.
-    header = header.encode()[:4096].decode('utf-8', errors='ignore') + '\n'
+                for e in inherited_errors]
+    # Keep the verdict and file pointer whole, cutting only the sets and warnings.
+    room = max(0, 4096 - len(header.encode()) - 1)
+    header += sets.encode()[:room].decode('utf-8', errors='ignore') + '\n'
     output = header
     for index, entry in enumerate(entries):
         remaining = len(entries) - index
@@ -717,7 +769,9 @@ def main():
     outcomes = {}
 
     def conclude():
-        verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
+        refused = any(not settled(e) for e in errors)
+        failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env)
+        verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved)
         if marker:
             check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env)
         return verdict
@@ -728,6 +782,10 @@ def main():
         record = f'{tree_id} {base_id or "-"} {digest or "-"}'
         if cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, reds {digest or "-"})', flush=True)
+            failures_tail = failure_file(tree_id, base_id, False, True, [], root, env)
+            if failures_tail.startswith('every key in '):
+                failures_tail = failures_tail.removeprefix('every key ')
+            print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
         runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
         with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
