@@ -3,7 +3,9 @@
 - **Named after the tree.** Every branch temper makes is under the
   repository's prefix (`temper/` by default, one deployment's on a
   repository: `adoption.md`) and its tree's root task:
-  - a change's own branch: `temper/<root>/c<task>`;
+  - a change's own branch: `temper/<root>/c<task>`, pushed by its
+    producer, or made by temper at the head a change a person opened
+    takes from the branch they pushed (`change/opened.md`, 4);
   - a task's saved work: `<prefix><root>/s<task>` in each writable
     repository, using that repository's own prefix (`temper/` by
     default). The task is the running agent's, even when its workstream

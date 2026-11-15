@@ -330,6 +330,16 @@ its writes paged so that a restart part-way starts and resumes, while a
 context another project adopts stays (`domain/forge/adoption.md`, 1;
 `protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
 
+A person opens a change from a branch they pushed with `temper ctl
+change open`: the root expands the client's `OpenChange` into one change
+task of their own, requested and funded by them within their role's
+creating offer, and the change's first state, taking, reads the branch's
+head once, keeps it and makes the change's own branch at it, then lands
+it as any change, under `turn` or `queue`, leaving the pushed branch
+untouched; the client's wire moved its version for it
+(`domain/forge/change/opened.md`; `draft/mechanical-changes.status.md`,
+M1). Its walk on dev.fabrig.ai follows landing.
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -407,6 +417,7 @@ Design documents:
 - [`domain/forge/change/README.md`](domain/forge/change/README.status.md)
 - [`domain/forge/change/branch-path.md`](domain/forge/change/branch-path.status.md)
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
+- [`domain/forge/change/opened.md`](domain/forge/change/opened.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
 - [`domain/forge/drafts.md`](domain/forge/drafts.status.md)

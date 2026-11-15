@@ -96,6 +96,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | Step | It says |
 |---|---|
 | producing | T21 producing it, as a chip |
+| taking | in place of producing, for a change opened from a pushed branch: `taking BRANCH`, then the head it kept (`../../domain/forge/change/opened.md`, 4) |
 | opening | opening its pull request |
 | checking | CI on its head, and for how long |
 | gating | which gates are running, as chips, and which requirements wait |

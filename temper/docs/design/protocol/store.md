@@ -258,6 +258,15 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     family 12 and, for each row, puts the change's two parts and
     erases its row, in answers within the commit edge: 379 rows on
     dev.fabrig.ai. Afterwards family 12 is empty.
+  - **A change opened from a pushed branch** (`../domain/forge/change/opened.md`,
+    6): the cold part gains `source`, an option of `ChangeSource`, the
+    source branch's name (bytes, within the change's branch bound) and
+    `at`, an option of a commit, put when the change is made; the
+    change's record in the hot part gains `kept`, an option of a commit,
+    the head taking selected; and `ChangeLive` gains `taking`, appended
+    after its last variant so that every stored tag keeps its meaning.
+    `source` and `kept` default to none: a stored change has neither and
+    reads as before, with no version moved and no patch (section 4).
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
   events kept, `whole_since`, its hours' marks, the change being swept

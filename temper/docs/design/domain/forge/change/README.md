@@ -9,7 +9,9 @@ branch. Its parameters:
 - **the branch,** held by the task: one it is handed, already pushed (a
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks/holds.md`, 4), or its own, named after its tree
-  (`../branches.md`), which a producing task pushes; or, held by its
+  (`../branches.md`), which a producing task pushes, or which temper
+  makes at the head a person pushed, for a change they open from it
+  (`opened.md`); or, held by its
   requester and not by the task, its requester's held branch: the
   requester's own goal branch (`../branches.md`, 1), which the change lands whole
   (below);
@@ -189,6 +191,15 @@ the start as a malformed parameter. A change with parameter 18 takes
 question route `up` with no parameter 14, never starts early, under its
 follow's `owner` start produces only once its owner's word starts it, and
 carries its follow's check (`../follows.md`, sections 4 and 6).
+
+The source of a change a person opens from a branch they pushed is bytes
+parameter 19, `BRANCH` or `BRANCH:COMMIT` (`opened.md`, 3.1), made by the
+root's expansion of their request alone. The start keeps it with the
+change (`source`); a value outside that form, or beside parameter 3,
+number parameter 11 of 1, or parameter 16, 17 or 18, refuses the start as
+a malformed parameter. Such a change has no producing task: its first
+state is taking, which makes its own branch at the source's head
+(`opened.md`, 4).
 
 ## 2. Its way to landing
 
