@@ -158,6 +158,11 @@ pub const fn views_for(streams: u32) -> views::Limits {
 #[must_use]
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
+        retention: jig_domain_core::RetentionLimits {
+            turns: skein_lib::Duration::from_secs(14 * 86_400),
+            records: skein_lib::Duration::from_secs(30 * 86_400),
+            summaries: skein_lib::Duration::from_secs(365 * 86_400),
+        },
         public: limits.public,
         routes: limits.routes,
         fill_mark: FILL_MARK,

@@ -838,6 +838,10 @@ impl World {
                     }
                     self.store.pending.push_back((number, writes));
                 }
+                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
@@ -854,7 +858,6 @@ impl World {
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
-                | engine::Request::Store(_)
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }

@@ -395,7 +395,9 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                         | accounts::Stored::Facts { .. },
                     )
                     | core::Record::Tasks(
-                        tasks::Stored::ClosedLedger(_) | tasks::Stored::Summary(_) | tasks::Stored::Retention(_),
+                        tasks::Stored::ClosedLedger(_)
+                        // Retention rows are left, erased alone when due (protocol/store/retention.md, 4; brief, Step 6).
+                        | tasks::Stored::Retention(_),
                     )
                     | core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_)),
                 ) => false,
