@@ -18,6 +18,8 @@ pub enum Line {
     Address(Box<[u8]>),
     Local,
     Front,
+    SetUp,
+    BoxLog(Box<[u8]>),
     Box,
     Stored { key: Box<[u8]>, bytes: Box<[u8]> },
     Credential(Box<[u8]>),
@@ -165,7 +167,8 @@ impl Line {
                 w.number(u64::from(rgb.green));
                 w.number(u64::from(rgb.blue));
             }
-            Self::BoxLine(bytes)
+            Self::BoxLog(bytes)
+            | Self::BoxLine(bytes)
             | Self::BoxStage(bytes)
             | Self::Version(bytes)
             | Self::Address(bytes)
@@ -179,6 +182,7 @@ impl Line {
             }
             Self::Plain
             | Self::Front
+            | Self::SetUp
             | Self::Unlend
             | Self::Local
             | Self::Box
@@ -255,6 +259,8 @@ impl Line {
             Self::Address(_) => "address",
             Self::Local => "local",
             Self::Front => "front",
+            Self::SetUp => "set-up",
+            Self::BoxLog(_) => "box-log",
             Self::BoxLine(_) => "box-line",
             Self::BoxStage(_) => "box-stage",
             Self::StopBox => "stop-box",
@@ -635,6 +641,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         }),
         b"local" => Line::Local,
         b"front" => Line::Front,
+        b"set-up" => Line::SetUp,
+        b"box-log" => Line::BoxLog(r.bytes()?),
         b"lent" => Line::Lent { number: r.count()?, exit: r.login_exit()? },
         b"lend" => Line::Lend { number: r.count()?, name: r.bytes()? },
         b"unlend" => Line::Unlend,

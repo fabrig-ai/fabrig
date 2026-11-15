@@ -181,6 +181,7 @@ impl World {
         let settings = Settings {
             record: recording,
             front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
+                set_up: false,
                 executable: b"/bin/temper".as_slice().into(),
                 directories: temper_shell::directories::Directories {
                     config: b"/config".as_slice().into(),

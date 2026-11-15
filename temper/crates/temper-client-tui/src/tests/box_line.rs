@@ -40,6 +40,21 @@ fn each_box_line_reads_and_prints_back() {
 }
 
 #[test]
+fn group_lines_require_a_name_and_roundtrip() {
+    for (bytes, line) in [
+        (b"starting Forgejo".as_slice(), BoxLine::Starting { name: copy_of(b"Forgejo") }),
+        (b"started Forgejo".as_slice(), BoxLine::Started { name: copy_of(b"Forgejo") }),
+        (b"dormant Forgejo".as_slice(), BoxLine::Dormant { name: copy_of(b"Forgejo") }),
+    ] {
+        assert_eq!(BoxLine::read(bytes), Some(line.clone()));
+        assert_eq!(line.print().as_ref(), bytes);
+    }
+    for bytes in [b"starting".as_slice(), b"starting ", b"started", b"started ", b"dormant", b"dormant "] {
+        assert_eq!(BoxLine::read(bytes), None, "a group line needs a name: {bytes:?}");
+    }
+}
+
+#[test]
 fn each_box_stage_reads_and_prints_back() {
     use crate::{BoxEnd, BoxStage};
     let rows: &[(&[u8], BoxStage)] = &[

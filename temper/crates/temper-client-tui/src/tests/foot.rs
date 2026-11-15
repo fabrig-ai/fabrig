@@ -748,7 +748,7 @@ fn notice_states() {
         let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Notice { notice: Some(notice.clone()) });
         if box_state {
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
             tui.step(Told::BoxLine { line: crate::BoxLine::Restarting { step: b"forgejo-3".as_slice().into() } });
         }
         let mut part = foot::read(&root, &tui, &words, f::NOW);
@@ -1217,7 +1217,7 @@ fn question_states() {
         let mut root = super::launchpad::home(None, rows.as_slice());
         act(&mut root, d::pages::Act::ChatWords { words: prefix.as_bytes().into() });
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Front);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
         tui.step(Told::Quitting);
         let part = foot::read(&root, &tui, &words, f::NOW);
         let list = part.list.as_ref().expect("quit question stands before every other list");
@@ -1395,7 +1395,7 @@ fn note_states() {
         assert_eq!(node.styles.as_slice(), &[look::NOTE]);
         assert_eq!(f::text(render.tree(), node).as_ref(), want.as_bytes());
     }
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     let notes = foot::read_notes(&root, &tui, &words);
     let mut log = None;
     let mut exit = None;
@@ -1511,7 +1511,7 @@ fn the_foots_are_their_goldens() {
             tui.step(Told::ThemeList { open: true });
         }
         if *kind == 6 {
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
             tui.step(Told::BoxLine { line: crate::BoxLine::Restarting { step: b"forgejo-3".as_slice().into() } });
             tui.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/qiut".as_slice().into() }) });
         }
@@ -1635,7 +1635,7 @@ fn front_notes() {
     for (name, front, log, gave_up, lines, expected) in rows {
         let mut tui = Tui::new(f::ADDRESS);
         if front {
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
         }
         for line in lines {
             tui.step(Told::BoxLine { line: crate::BoxLine::Log { line } });
@@ -1705,7 +1705,7 @@ fn quit_priority() {
         }
         let words = f::words();
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Front);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
         let before = foot::read(&root, &tui, &words, f::NOW);
         assert!(before.list.is_some(), "the other list stands before quitting: {standing:?}");
         tui.step(Told::Quitting);
@@ -1743,7 +1743,7 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
             if playground { Some((Some(1), temper_client_protocol_wire::v1::PlaygroundState::Running)) } else { None },
         );
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Front);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
         if let Some(gave_up) = step {
             tui.step(Told::BoxLine {
                 line: if gave_up {
@@ -1784,7 +1784,7 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
     for (raw, expected) in steps {
         for gave_up in [false, true] {
             let mut tui = Tui::new(f::ADDRESS);
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
             tui.step(Told::BoxLine {
                 line: if gave_up {
                     crate::BoxLine::GaveUp { step: raw.clone() }
@@ -1842,7 +1842,7 @@ fn the_box_start_stands_first_on_the_welcomes_quiet_line() {
         (BoxStage::Ended { end: BoxEnd::Exited { code: 0 } }, Some("old log"), ""),
     ] {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Front);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
         tui.step(Told::Local { local: Local::Signing });
         tui.step(Told::Size { columns: 110 });
         tui.step(Told::Stage { stage: stage.clone() });
@@ -1890,7 +1890,7 @@ fn the_box_start_stands_first_on_the_welcomes_quiet_line() {
     ] {
         let mut tui = Tui::new(f::ADDRESS);
         if front {
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
         }
         tui.step(Told::Local { local });
         tui.step(Told::Stage { stage: BoxStage::Running });
@@ -1898,6 +1898,48 @@ fn the_box_start_stands_first_on_the_welcomes_quiet_line() {
         let part = foot::read(root, &tui, &words, f::NOW);
         assert_eq!(part.box_start.as_deref(), if shown { Some("Starting serve�".as_bytes()) } else { None }, "{name}");
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the group rows inspect the quiet line's right child")]
+fn a_starting_group_occupies_the_box_states_place_on_the_quiet_right() {
+    type NameCase = (Box<[u8]>, Box<[u8]>);
+    let root = root(true, true, false, false, false);
+    let words = f::words();
+    let rows: [NameCase; 5] = [
+        (b"Forgejo".as_slice().into(), b"Forgejo".as_slice().into()),
+        (Box::from(*b"bad \xff"), "bad �".as_bytes().into()),
+        (Box::new([b'x'; 64]), Box::new([b'x'; 64])),
+        (Box::new([b'x'; 65]), Box::new([b'x'; 64])),
+        ("界".repeat(22).as_bytes().into(), "界".repeat(21).as_bytes().into()),
+    ];
+    for (name, expected) in rows {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
+        tui.step(Told::BoxLine { line: crate::BoxLine::Starting { name } });
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        let expected = skein_lib::bytes::concat(&[&expected, " starting…".as_bytes()]);
+        assert_eq!(part.box_state, Some((expected.clone(), look::HINT)));
+        part.columns = 160;
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).expect("quiet line");
+        let left = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let right = &tree.nodes()[f::index(tree, left.id).checked_add(usize::try_from(left.size).unwrap()).unwrap()];
+        assert_eq!(f::text(tree, right), expected);
+        assert!(has(tree, look::HINT, &expected));
+        assert!(foot::read_notes(&root, &tui, &words).gave_up.is_none());
+    }
+}
+
+#[test]
+fn a_started_group_notice_uses_the_groups_name() {
+    let root = root(true, true, false, false, false);
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Notice { notice: Some(crate::Notice::Started { name: b"Forgejo".as_slice().into() }) });
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    assert_eq!(part.notice.as_deref(), Some(b"Forgejo started".as_slice()));
+    assert!(has(draw(part).tree(), look::SIGNAL, b"Forgejo started"));
 }
 
 const WALK_QUESTION: c::ObjectKey = c::ObjectKey::Question { task: 9, message: 1 };
@@ -2305,7 +2347,7 @@ fn walk_states() {
     act(&mut root, d::pages::Act::Cancel);
     act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Chats }));
     assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::EndWalk);
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     tui.step(Told::Quitting);
     assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::Stay);
 }
@@ -2468,7 +2510,7 @@ fn the_theme_list_reads_the_terminal_and_selected_choice() {
             for name in [b"Auto".as_slice(), b"Light", b"Dark"] {
                 assert_eq!(f::find(view.tree(), Role::MenuItem, name).styles.as_slice(), &[look::OPTION]);
             }
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
             tui.step(Told::Quitting);
             assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::Stay);
         }

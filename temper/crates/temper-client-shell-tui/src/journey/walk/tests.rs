@@ -80,6 +80,8 @@ struct World {
 impl World {
     fn new() -> (Self, Duties) {
         let facts = Facts {
+            set_up: false,
+            box_log: Box::default(),
             seed: 7,
             now: Time::ZERO,
             wall: Wall::EPOCH,
