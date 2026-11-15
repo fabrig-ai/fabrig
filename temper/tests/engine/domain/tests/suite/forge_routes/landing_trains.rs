@@ -3,22 +3,162 @@ use super::super::{goal_branch, goal_landing};
 use super::*;
 
 fn goal_world() -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        false,
-        1000,
-        Gate::default(),
-        None,
-        StoryLimits { turn: true, spec_bytes: Some(1024), ..StoryLimits::default() },
-    );
+    goal_world_with(StoryLimits { turn: true, spec_bytes: Some(1024), ..StoryLimits::default() })
+}
+
+fn goal_world_with(limits: StoryLimits) -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits);
     world.adopt();
-    world.send(hello_prepare(3));
+    let mut hello = hello_prepare(limits.slots.unwrap_or(3));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("hello")
+    };
+    worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(hello);
     let ask = goal_branch::goal_request(&world, true);
     let goal = assigned_chat(&mut world, 92, ask);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     world.until(Until::Ready);
     (world, goal, branch)
+}
+
+fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: &[u8]) -> (u64, engine::Assignment) {
+    let assigned = world.assigned.len();
+    let answer = goal_landing::mine(world, goal, call, br#"{"words":"Independent main change","landing":"main"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else {
+        panic!("main change: {answer:?}; errors {:?}", world.call_errors)
+    };
+    let producer = reviews::next_assignment(world, assigned);
+    let branch = producer.workspace.repositories[0].push.clone().expect("producer branch");
+    world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 1).expect("producer pushes");
+    (made[0].task, producer)
+}
+
+#[test]
+fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
+    let (mut world, goal, branch) = goal_world_with(StoryLimits {
+        turn: true,
+        batch: Some(3),
+        slots: Some(4),
+        tasks: Some(12),
+        spec_bytes: Some(2048),
+        inbox_messages: Some(16),
+        ..StoryLimits::default()
+    });
+    world.manual_prepare_jobs();
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+    let chat = assigned_chat(&mut world, 93, people::Ask::Create { project, batch });
+    let (upstream, producer_upstream) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 101, b"upstream");
+    let (dependent, producer_dependent) = main_producer(&mut world, &chat, 102, b"dependent");
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(950)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [95; 16],
+        ask: people::Ask::Amend {
+            project: 1,
+            task: dependent,
+            revision: live_task(&world, dependent).revisions.spec,
+            release: None,
+            amendment: people::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(Box::new([upstream])),
+                authority: None,
+                llm: None,
+                reason: b"Land the goal branch change first".as_slice().into(),
+            },
+        },
+    }));
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, dependent).waiting_on.as_ref(), [upstream]);
+    finish_child(&mut world, &producer_dependent, b"Dependent main change");
+    let (other, producer_other) = main_producer(&mut world, &chat, 103, b"other");
+    finish_child(&mut world, &producer_other, b"Independent main change");
+    finish_child(&mut world, &producer_upstream, b"Goal change");
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if landing_rows(&world).len() == 2 && world.jobs.len() == 2 {
+            break;
+        }
+    }
+    assert_eq!(landing_rows(&world).len(), 2);
+    assert_eq!(live_task(&world, dependent).waiting_on.as_ref(), [upstream]);
+    assert_eq!(goal_landing::row(&world, dependent).change.landing, None);
+    let before = landing_rows(&world).iter().map(|row| row.landing.task).collect::<Vec<_>>();
+    world.drain_cut();
+    world.restart_same();
+    let mut hello = hello_prepare(4);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("hello")
+    };
+    worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(hello);
+    world.automatic_prepare_jobs();
+    let mut saw_upstream = false;
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        saw_upstream |= goal_landing::ended(&world, upstream).is_some();
+        if goal_landing::row(&world, dependent).change.landing.is_some() {
+            assert!(saw_upstream, "dependent only forms after upstream ends");
+        }
+        for change in [upstream, dependent, other] {
+            assert!(!matches!(task_row(&world, change).expect("change task").phase, tasks::Phase::Held { .. }));
+        }
+        if [upstream, dependent, other].iter().all(|change| goal_landing::ended(&world, *change).is_some()) {
+            break;
+        }
+    }
+    assert!(
+        saw_upstream,
+        "landings {:?}; jobs {:?}; tasks {:?}",
+        landing_rows(&world),
+        world.jobs,
+        world
+            .store
+            .rows
+            .values()
+            .filter_map(|record| {
+                if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = record {
+                    Some((row.number, &row.phase))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        [upstream, dependent, other].iter().all(|change| goal_landing::ended(&world, *change).is_some()),
+        "{:?}",
+        landing_rows(&world)
+    );
+    let rows = landing_rows(&world);
+    assert_eq!(rows.len(), 3, "no duplicate landing after restart");
+    assert!(before.iter().all(|task| rows.iter().any(|row| row.landing.task == *task)));
+    for change in [upstream, dependent, other] {
+        assert_eq!(
+            rows.iter().filter(|row| row.landing.members.iter().any(|member| member.change == change)).count(),
+            1
+        );
+    }
+    assert_eq!(
+        world
+            .writes
+            .iter()
+            .filter(|write| matches!(write, api::Write::Merge { how: api::MergeHow::FastForwardOnly, .. }))
+            .count(),
+        3
+    );
+    world.close();
 }
 
 fn await_change(world: &mut World, change: u64) {
