@@ -206,7 +206,8 @@ forge, temper adds:
   walks to the states QA's cases start from,
   `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
-  from a command line), and `client/web/mockups/` the pages' design: their look,
+  from a command line), `client/ctl/tools-crates.md` the agents' tools'
+  crates and how they were cut into them, and `client/web/mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
   Its documents go by surface (the user, 2026-11-07): what is generic
