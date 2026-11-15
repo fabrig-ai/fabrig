@@ -1,6 +1,6 @@
 # The channel across versions
 
-Provisional, 2026-11-13. How an engine and a worker of two builds talk
+Provisional, 2026-11-13, revised 2026-11-15. How an engine and a worker of two builds talk
 once each speaks a range of each wire's versions: what each side states
 and the engine states back, the terms at an older agreed version, what
 the channel's two components translate and how, and what cannot go
@@ -133,12 +133,21 @@ them is its own (temper's `protocol/wires.md`).
   (smith's, the application's) are translated first, each by its
   wire's bridge and agreed version, and the jig record holding them then
   as a whole; on receipt, the jig record first, then what it holds.
-- **The bridges are the component's:** each component makes, when it is
-  made, the bridges of jig's wires from their crates' generated
-  `kept::<family>::bridge` with capacities from its limits, and takes
-  the application's (8). They translate bytes and never decode smith's
-  or the application's records into types, so the components still link
-  no smith type (`../../domain/hosts/hub.md`, 8).
+- **The bridges are the component's, made when a version needs them:**
+  a component makes a wire's bridge the first time it converts a record
+  or a part of that wire between two versions, or checks a newer
+  worker's sends on it at an older agreed version (6.3), and keeps it
+  from then on. On a link whose agreed version of a wire is the wire's
+  current, that wire's bridge is never made, and its kept texts stay
+  their owner's static texts, unparsed. jig's wires' bridges come from
+  their crates' generated `kept::<family>::bridge`, with capacities from
+  their kept texts' worst cases; the application's from the `Kept` it
+  hands over (8), with a capacity within its limits. A bridge that
+  cannot be made halts the conversion that needed it as *untranslated*
+  (`Room`), and counts its wire's sends not total at 6.3's check.
+- **They translate bytes** and never decode smith's or the
+  application's records into types, so the components still link no
+  smith type (`../../domain/hosts/hub.md`, 8).
 
 ### 5.2 jig's records
 
@@ -287,16 +296,52 @@ them is its own (temper's `protocol/wires.md`).
 pub enum Carried { Items, Left, Saved, Preparation, JobSpec, JobResult, Grant, Ask, Answer }
 pub struct Root { pub carried: Carried, pub wire: &'static str, pub declaration: &'static str }
 pub struct Application {
-    pub spoken: List<Spoken>,  // its wires, stated at the opening, as before
-    pub bridges: List<Bridge>, // one for each wire a root names
-    pub roots: List<Root>,     // what each carried part holds; a part with none crosses as is
+    pub spoken: List<Spoken>, // its wires, stated at the opening, as before
+    pub kept: List<Kept>,     // one for each wire a root names; its bridge made when a version needs it (5.1)
+    pub roots: List<Root>,    // what each carried part holds; a part with none crosses as is
+}
+impl Application {
+    /// An application whose opaque parts cross unchanged: no kept wire, no root.
+    pub fn opaque(spoken: List<Spoken>) -> Application;
+}
+/// A wire's kept versions, as its owner's generated patch module holds them.
+#[derive(Clone, Debug)]
+pub struct Kept {
+    pub family: &'static str,             // the wire, as its roots and its `Spoken` name it
+    pub texts: &'static [&'static str],   // its `kept::<family>::TEXTS`, oldest first, the last current
+    pub patches: &'static [&'static str], // its owner's `PATCHES`
+    pub floor: u16,                       // its `kept::<family>::FLOOR`
+    pub sites: Sites,                     // its owner's `sites` (skein's `bridge::Sites`)
+    pub names: &'static [&'static str],   // the limits its texts' bounds name; empty for none
+    pub values: List<u32>,                // their values, in `names`' order
+}
+impl Kept {
+    /// The wire's bridge, planned from its texts (below).
+    pub fn bridge(&self) -> Result<Bridge, BridgeError>;
 }
 ```
 
+- **A `Kept`'s bridge** is skein's `Bridge::from_schemas` over its
+  texts, parsed, with its patches, floor and sites, and a capacity:
+  `versions` the texts' count, `patches` twice the patches' count,
+  `text` skein's `schema::MAX_TEXT`, `bytes` the largest bound of any
+  declaration of any kept text within `names` and `values`
+  (`Schema::bounds_within`), and `nodes` eight per byte, as jig's
+  translation sizes its own. A bound missing or past `u32` refuses it
+  with `Room`. Making it parses every kept text and plans every patch
+  and reverse, which is why it waits until a version needs it (5.1).
 - **Both components take it** where they took the application's
-  `List<Spoken>` (`wires.md`, 2). A root naming a wire with no bridge,
-  or a declaration its current text lacks, refuses the component's
-  construction (`Unusable`).
+  `List<Spoken>` (`wires.md`, 2), and check its roots when they are
+  made, making no bridge: each `Kept`'s current text, its last, is
+  parsed once for it. A root naming a wire with no `Kept`, a
+  declaration that current text lacks, or a `Kept` whose current text
+  does not parse or names another family than its `family`, refuses
+  the component's construction (`Unusable`).
+- **Admission checks the roots a worker sends** (6.3): at an older
+  agreed version of an application wire, the component makes the
+  wire's bridge and counts the wire not total unless each sent root's
+  reverse is total down to that version; at the wire's current, the
+  construction's check holds it, with no bridge made.
 - **The engine keeps each channel's agreed versions** with its
   connection, as `wires.md`, 3 has it, and the worker's link the
   statement's.
@@ -322,6 +367,16 @@ across versions is the application's (temper's `protocol/wires.md`, 11).
   value; a charter, a result, a turn and a window's turns, and a part
   of each `Carried` with a root; a turn kept in a version the worker
   reads crossing as written.
+- **Bridges made when a version needs them** (5.1 and 8), in the wire
+  crate, counting the bridges each translation has made: a link at
+  every wire's current, the application's included, translating a part
+  of each `Carried` with a root both ways and checking a newer worker's
+  sends, with none made; the first part at an older agreed version of
+  the application's wire making its bridge, and the next reusing it;
+  construction refusing a root with no `Kept`, a declaration its
+  current text lacks and a `Kept` naming another family, with none
+  made. `Kept::bridge` makes the bridge `Bridge::new` makes over the
+  same texts and patches: its floor, current, layouts and conversions.
 - **What cannot go down:** an assignment whose charter holds what the
   agreed version cannot, refused *untranslated* with no frame sent, its
   task claiming again with no try spent and placed on another channel,
