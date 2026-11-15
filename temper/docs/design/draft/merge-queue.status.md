@@ -1,12 +1,14 @@
 # merge-queue: status
 
-2026-11-13. Where the design lags or departs from [merge-queue.md](merge-queue.md).
+2026-11-15. Where the design lags or departs from [merge-queue.md](merge-queue.md).
 
 Its execution's M1 to M3 are designed: `../domain/landing.md` and the documents it cites carry trains, batches of units stacked by the merge train's job, a branch per member, proof at the top, the landing's pull request fast-forwarded, and `../domain/landing-search.md` a red round of several units narrowed by prefixes, the blamed unit repaired, the green prefix landed in the round's turn and the units above it in the next round.
 
+- **Design lags:**
+  - 7.2: a green prefix found by probes by test still turns: `../domain/landing-search.md`, 4 and 5 turn at every green prefix but the base (`probes-by-test.status.md`).
 - **Design departs:**
   - 5.1: a member's branch in the landing is named per landing and member, `temper/<root>/l<task>-<n>`, the first member's the landing's own (`../domain/landing.md`, 5.1), not per round: the landing holds every branch it writes from its making, its members being sealed, as its one branch was held before batches. A round that ends unlanded deletes the branches from its first changed member up and keeps those below, rather than making the next round's branches beside them. The goal's designer, 2026-11-13.
-  - 4.4, 7.2: a unit the round's search blames leaves without ending the round, which goes on to its turn at the green prefix (`../domain/landing-search.md`, 4), where 4.4 has any member leaving end its round; 7.2 lands the green prefix in the round's turn, which needs the round to outlive the blame. Its pull request is opened anew from the green prefix's branch, since a round's pull request is from the branch whose head it merges. The goal's designer, 2026-11-13.
+  - 4.4, 7.2: a unit a whole search blames leaves without ending the round, which goes on to its turn at the green prefix (`../domain/landing-search.md`, 4), where 4.4 has any member leaving end its round; 7.2 lands the green prefix in the round's turn, which needs the round to outlive the blame. Its pull request is opened anew from the green prefix's branch, since a round's pull request is from the branch whose head it merges. The goal's designer, 2026-11-13.
   - 7.2: a probe dispatches the train's blocking test gates alone, an advisory gate being the candidate's (`../domain/landing-search.md`, 3): an advisory verdict holds nothing, so a probe's verdict cannot read it. The goal's designer, 2026-11-13.
   - 12: the queue that lands green and the red narrowed are checked in the engine's forge world on the fake forge (`../domain/landing.md`, 16), not as process stories; the process tier's landing-by-turn stories on the fake forge show what processes show, an engine killed mid-proof and a worker restarted mid-delivery, on the cluster's processes with the fake git; and the red narrowed stays on the owned Forgejo and its runner, by choice and in no budgeted run, trimmed to its probes' dispatch-only runs, the members' merge marks and a merged pull's head as Forgejo keeps it, which the fake forge does not show (`../testing/process-tier.md`). The user's request of 2026-11-15, re-layering landing by turn's tests by skein's testing strategy, 1 and 2.9; the goal's designer, 2026-11-15.
 - **Open:**
