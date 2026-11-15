@@ -37,6 +37,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
     .ok()?;
     protocol::sizes::fill(&mut kv, &sizes)?;
     kv.page.bytes = sizes.key.checked_add(sizes.value)?;
+    kv.record = kv.record.min(kv.page.bytes);
     let limits = protocol::Limits {
         core: root.core,
         store: kv,
@@ -46,6 +47,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         queue: kv.queued,
         files: profile.files,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks)?,
+        fetch: profile.fetch,
         orphan_erases: profile.orphan_erases,
         held: profile.held,
     };

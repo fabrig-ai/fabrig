@@ -87,7 +87,7 @@ fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
     let map_bytes = map.store.key.checked_add(map.store.value).unwrap();
     assert_eq!(map.store.page.bytes, map_bytes);
     // Sizing only: make the frame larger than the map without allocating it.
-    for (transcript, page) in [(8, map_bytes), (map_bytes, map_bytes.checked_add(64).unwrap())] {
+    for (transcript, page) in [(8, map_bytes), (map_bytes, map_bytes.checked_add(69).unwrap())] {
         root.loads.transcript_bytes = transcript;
         // Model startup's turn-plus-record and decoded read-row load bounds.
         root.loads.bytes = transcript.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();
@@ -117,7 +117,7 @@ fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
 #[test]
 fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
     let (mut root, _, profile) = fixtures::store_limits();
-    root.loads.transcript_bytes = 4_582_867;
+    root.loads.transcript_bytes = 4_582_862;
     // Model startup's turn-plus-record and decoded read-row load bounds.
     root.loads.bytes =
         root.loads.transcript_bytes.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();

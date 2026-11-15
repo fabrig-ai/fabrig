@@ -428,6 +428,9 @@ fn route_core_with_job(
                 let replaced = save(decision, &env.limits, Write::Save(Record::Core(record)));
                 domain.release_bytes(replaced, "replaced write's turn body was held");
             }
+            core::Request::Write(core::Write::DropHistory { task }) => {
+                save(decision, &env.limits, Write::DropHistory { task });
+            }
             core::Request::Write(core::Write::DropTranscript { task }) => {
                 save(decision, &env.limits, Write::DropTranscript { task });
             }

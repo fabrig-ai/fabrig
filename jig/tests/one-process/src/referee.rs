@@ -291,7 +291,10 @@ impl Referee {
             outcome.idle_elapsed = self.idle_until.is_some_and(|until| now >= until);
             outcome.idle_elapsed && parked
         } else {
+            // Observe the retry on its agent pipe before terminating the fixture.
+            // A taken claim can precede its worker's asynchronous spawn.
             task.attempt == 2
+                && service.wire.events.iter().any(|event| matches!(event, rules::Observed::Assigned { attempt: 2, .. }))
         })
     }
     fn say(&mut self, now: Time, event: rules::Observed) -> Result<(), String> {
@@ -503,7 +506,7 @@ impl skein_world::Referee<Proc> for Referee {
                             }
                         });
                     }
-                    root::Write::Wires => {}
+                    root::Write::DropHistory { .. } | root::Write::Wires => {}
                     root::Write::CopySettingsRevision(number) => {
                         use jig_domain_core as core;
                         let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(

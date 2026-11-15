@@ -33,6 +33,7 @@ members = [
     "skein/crates/skein-forge-client",
     "skein/crates/skein-forge-connection",
     "skein/crates/skein-forge-setup",
+    "skein/crates/skein-deflate",
     "skein/crates/skein-http",
     "skein/crates/skein-io",
     "skein/crates/skein-json",
@@ -486,6 +487,7 @@ skein-codegen = { path = "skein/testing/skein-codegen" }
 skein-channel = { path = "skein/crates/skein-channel" }
 skein-io = { path = "skein/crates/skein-io" }
 skein-kv = { path = "skein/crates/skein-kv" }
+skein-deflate = { path = "skein/crates/skein-deflate" }
 skein-http = { path = "skein/crates/skein-http" }
 skein-json = { path = "skein/crates/skein-json" }
 skein-llm = { path = "skein/crates/skein-llm" }

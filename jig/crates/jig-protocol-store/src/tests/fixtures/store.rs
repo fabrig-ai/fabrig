@@ -27,6 +27,9 @@ fn kv_limits() -> skein_kv::Limits {
         snapshot_after: 134_217_728,
         chunk: 16_778_260,
         page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
+        record: 16_777_216,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_nanos(1_000_000_000),
     }
 }
@@ -35,12 +38,13 @@ pub fn limits() -> Limits {
     Limits {
         core: CORE_LIMITS,
         store: kv_limits(),
-        secrets: kv_limits(),
+        secrets: skein_kv::Limits { record: 1, ..kv_limits() },
         commits: crate::sizes::Commits { in_flight: 2, writes: 4 },
         joins: 32,
         queue: 2,
         files: 2,
         reads: 4,
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }
@@ -348,8 +352,35 @@ pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_do
 }
 pub fn opened_with_transcripts() -> (Store, Below) {
     let mut store = opened();
-    committed(&mut store, Box::new([header(1)]));
+    committed_with_places(&mut store, Box::new([header(1)]), &[LIVE, ENDED, 23]);
     (store, below())
+}
+
+pub fn committed_with_places(store: &mut Store, writes: Box<[Write]>, tasks: &[u64]) {
+    // These fixtures exercise files belonging to tasks with transcript places.
+    let number = store.stores.store.last().checked_add(1).expect("fixture commit");
+    let crate::Phase::Ready { format_due, .. } = store.phase else { panic!("ready fixture") };
+    let mut pending = crate::commits::operations(store, number, writes, format_due).expect("fixture operations");
+    let mut ops = List::with_capacity(32);
+    for op in pending.ops {
+        ops.push(op).expect("first operations");
+    }
+    for task in tasks {
+        ops.push(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Transcript { task: *task }, KEY_LIMIT).expect("old_place key"),
+            value: codec::component::Transcript { length: 0, window: 0 }.encode().expect("old_place"),
+        })
+        .expect("old_place slot");
+    }
+    pending.ops = ops.into_boxed();
+    store.phase = crate::Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };
+    store.transcripts.current = Some(pending);
+    let mut above = Queue::uncapped();
+    let mut below = below();
+    crate::transcripts::write::fire(store, &env(), &mut above, &mut below);
+    let Some(Event::Committed { number: found, .. }) = above.pop() else { panic!("fixture commit") };
+    assert_eq!(found, number);
+    assert!(above.is_empty());
 }
 #[derive(Clone)]
 pub enum Answer {
@@ -487,6 +518,7 @@ pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_voc
             | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
+            | file::Request::RemoveIn { .. }
             | file::Request::ListPage { .. }
             | file::Request::Lock { .. }
             | file::Request::List { .. } => panic!("unexpected transcript write"),

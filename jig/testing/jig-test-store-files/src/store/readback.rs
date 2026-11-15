@@ -100,6 +100,9 @@ impl Store {
             protocol::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
         let mut captured = None;
         loop {
+            if self.reached_kill() {
+                return Err(ReadbackFinding::NotQuiescent);
+            }
             let env = self.env();
             if let Some(disk) = &mut self.disk {
                 disk.drive(self.component.as_mut().expect("component"), &env, &mut above);
@@ -159,6 +162,8 @@ impl Store {
         let mut found = BTreeMap::new();
         let mut transcripts = BTreeMap::new();
         let mut attempts = Vec::new();
+        let mut log_transcripts = BTreeMap::new();
+        let mut windows = Vec::new();
         let installation = keys::installation(self.component_limits.store.key).expect("installation key");
         for (key, value) in rows {
             if let Some(decoded) = keys::decode(key) {
@@ -201,8 +206,37 @@ impl Store {
             } else if *key == installation {
                 codec::accounts::Installation::decode(value)
                     .map_err(|failure| inventory(key, format!("installation row: {failure:?}")))?;
+            } else if key.starts_with(&protocol::logs::EXTENTS) {
+                if key.len() != 10 || value.len() != 8 {
+                    return Err(inventory(key, "log extent key and value widths"));
+                }
+                let length = Reader::new(value).u64().ok_or_else(|| inventory(key, "log extent"))?;
+                let log = Reader::new(&key[2..]).u64().ok_or_else(|| inventory(key, "log name"))?;
+                if log % 2 == 1 {
+                    log_transcripts.insert(log / 2, codec::component::Transcript { length, window: length });
+                }
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
+                    keys::Own::History { task } => {
+                        codec::component::HistoryLog::decode(value)
+                            .map_err(|failure| inventory(key, format!("history log: {failure:?}")))?;
+                        for row in self.history(task)? {
+                            let row = root::Record::Core(row);
+                            if found.insert(row.key(), row).is_some() {
+                                return Err(inventory(key, "history and map keys are disjoint"));
+                            }
+                        }
+                    }
+                    keys::Own::TurnLog { task } => {
+                        let row = codec::component::TurnLog::decode(value)
+                            .map_err(|failure| inventory(key, format!("turn log: {failure:?}")))?;
+                        windows.push((key, task, row.window));
+                    }
+                    keys::Own::LogAttempt { task, attempt } => {
+                        let row = codec::component::LogAttempt::decode(value)
+                            .map_err(|failure| inventory(key, format!("log attempt: {failure:?}")))?;
+                        attempts.push((key, task, attempt, row.first, true));
+                    }
                     keys::Own::Format => {
                         codec::component::Format::decode(value)
                             .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
@@ -256,17 +290,31 @@ impl Store {
                     keys::Own::Attempt { task, attempt } => {
                         let index = codec::component::Attempt::decode(value)
                             .map_err(|failure| inventory(key, format!("attempt index: {failure:?}")))?;
-                        attempts.push((key, task, attempt, index));
+                        attempts.push((key, task, attempt, index.first, false));
                     }
                 }
             }
         }
-        for (key, task, _, index) in attempts {
-            // A drop leaves attempt places for bounded later commits (protocol/store/transcripts.md, 5).
-            let Some(transcript) = transcripts.get(&task) else { continue };
-            if index.first >= transcript.length {
+        for (key, task, window) in windows {
+            let transcript =
+                log_transcripts.entry(task).or_insert(codec::component::Transcript { length: 0, window: 0 });
+            if let Some(window) = window {
+                if window >= transcript.length {
+                    return Err(inventory(key, "window within committed turns log"));
+                }
+                transcript.window = window;
+            }
+        }
+        for (key, task, _, first, log) in attempts {
+            // A drop leaves attempt places for bounded later commits (protocol/store/logs.md, 5).
+            let places = if log { &log_transcripts } else { &transcripts };
+            let Some(transcript) = places.get(&task) else { continue };
+            if first >= transcript.length {
                 return Err(inventory(key, "attempt begins within committed transcript"));
             }
+        }
+        for (task, transcript) in log_transcripts {
+            transcripts.entry(task).or_insert(transcript);
         }
         for task in transcripts.keys() {
             let forwards = self.transcript(*task, false)?;
@@ -282,6 +330,53 @@ impl Store {
                 if found.insert(row.key(), row).is_some() {
                     return Err(inventory(&key, "unique transcript turn key"));
                 }
+            }
+        }
+        Ok(found)
+    }
+
+    /// Discover history from its map place, never from the typed mirror.
+    fn history(&mut self, task: u64) -> Result<Vec<core::Record>, ReadbackFinding> {
+        let mut found = Vec::new();
+        let mut after = None;
+        loop {
+            let event = self.readback_query(Request::Read {
+                owner: READER,
+                range: core::reads::Range {
+                    party: 0,
+                    scope: core::reads::Scope::TaskOwnRows { task },
+                    after,
+                    backwards: false,
+                    rows: self.component_limits.store.page.rows,
+                    bytes: u64::from(self.component_limits.store.page.bytes),
+                },
+            })?;
+            let Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. } = event else {
+                return Err(ReadbackFinding::Inventory {
+                    key: None,
+                    reason: format!("complete history read: {event:?}"),
+                });
+            };
+            for row in rows {
+                let key = keys::encode(&row.value.key(), self.component_limits.store.key).expect("history key");
+                if keys::logged(&key) == Some(task) {
+                    found.push(row.value);
+                }
+            }
+            if next.is_none() {
+                break;
+            }
+            after = next;
+        }
+        let event = self.readback_query(Request::Get {
+            owner: READER,
+            key: Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::Ended(task))),
+        })?;
+        match event {
+            Event::Got { row: Some(protocol::Row::Jig(row)), .. } => found.push(row),
+            Event::Got { row: None, .. } => {}
+            other => {
+                return Err(ReadbackFinding::Inventory { key: None, reason: format!("ended history get: {other:?}") });
             }
         }
         Ok(found)

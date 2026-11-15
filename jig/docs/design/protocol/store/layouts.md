@@ -249,7 +249,9 @@ memory for the read edge. A layout with no plan is refused, unless:
   or done; or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
-  there (`README.md`, 6.3), where it is retired (5.4).
+  there (`README.md`, 6.3), where it is retired (5.4). A value type a
+  task log holds (`logs.md`, 2) has every layout held, since the census
+  counts the map alone (`logs.md`, 8).
 
 The refusal, `OpenRefusal::Layout`, names the family, the value type
 (its number, root and variant), the id, why (`Underived`'s, a text its
@@ -265,7 +267,8 @@ not: the refusal names the family as the row's key spells it.
 A layout that is not its value type's binary layout and that no value
 holds (5.3's second exception) has its row erased by the next open that
 writes (`opening.md`, 2), with each text no other row names. No open
-writes for retirement alone.
+writes for retirement alone. A log-held value type's layouts never
+retire (`logs.md`, 8).
 
 ### 5.5 When the open writes
 

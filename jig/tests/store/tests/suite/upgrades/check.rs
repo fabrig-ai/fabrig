@@ -71,6 +71,7 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
     limits.secrets.ops = 1;
     limits.secrets.value = 128;
     limits.secrets.page.bytes = 128;
+    limits.secrets.record = 1;
     let mut world = records.committed_with(SEED, patches::BASE, 1, limits, &[]);
     let before = patches::source(&mut world);
     world.patch_sets(patches::SETS);

@@ -573,8 +573,11 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   | `Store(Refused(TooLarge(Frame)))` | `the store refused it: a frame past the commit limit` |
   | `Store(Refused(TooLarge(Page)))` | `the store refused it: a page past the page limit` |
   | `Store(Refused(TooLarge(Range)))` | `the store refused it: a range that ends before it starts` |
+  | `Store(Refused(TooLarge(Record)))` | `the store refused it: a log's record past the record limit` |
+  | `Store(Refused(TooLarge(Log)))` | `the store refused it: a log past its length limit` |
   | `Store(Refused(Busy))` | `the store refused it: its queue is full` |
   | `Store(Refused(Unavailable))` | `the store refused it: the store is not open` |
+  | `Store(Refused(Logs))` | `the store refused it: a log's operation its log rule refuses` |
   | `Store(Failed)` | `the store's log failed a write or a sync, so its outcome is uncertain` |
   | `Store(Owner { owner })` | `the store committed root commit {owner} as its commit {number}` |
   | `Store(Transcript)` | `a file step of its transcripts failed` |

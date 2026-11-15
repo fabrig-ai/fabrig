@@ -257,8 +257,7 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
     }
 }
 
-#[test]
-fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
+fn patching_world() -> World {
     const BASE: crate::PatchSet = crate::PatchSet {
         jobs: &[],
         owner: crate::Owner::Application,
@@ -297,6 +296,12 @@ fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
     world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
     world.store.patch_sets(AFTER);
     world.adopt();
+    world
+}
+
+#[test]
+fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
+    let mut world = patching_world();
     let mut yielded = false;
     for _ in 0_u32..1000 {
         world.step();
@@ -330,5 +335,46 @@ fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
         }
     }
     assert!(opened, "copy opens before the switch");
+    world.close();
+}
+
+#[test]
+fn a_patched_copy_without_a_logs_directory_opens_and_keeps_the_host_runnable() {
+    let mut world = patching_world();
+    let mut opened = false;
+    let mut runnable = false;
+    for _ in 0_u32..1000 {
+        world.step();
+        if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
+            let hosted = Hosted {
+                component: world.store,
+                drivers: world.host,
+                above: Queue::uncapped(),
+                secrets: Queue::uncapped(),
+                sources: Queue::uncapped(),
+                env: fixtures::env(),
+                not_ready: NotReady::Above,
+                closing: false,
+            };
+            assert!(hosted.work_pending(fixtures::env().now));
+            world.store = hosted.component;
+            world.host = hosted.drivers;
+            runnable = true;
+        }
+        for event in &world.above {
+            if let Event::Opened { pending: true, .. } = event {
+                opened = true;
+            }
+        }
+        if opened {
+            break;
+        }
+    }
+    assert!(opened && runnable, "copy recovers and runs its patch: {:?}", world.above);
+    let root = world.machine.reopen_root(0);
+    for path in [b"generations/1/store/logs".as_slice(), b"generations/2/store/logs".as_slice()] {
+        assert_eq!(world.machine.open(root, path, How::Directory), Err(skein_fake_machine::Refusal::NotFound));
+    }
+    world.machine.close(root);
     world.close();
 }

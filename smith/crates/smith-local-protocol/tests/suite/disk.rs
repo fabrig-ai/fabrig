@@ -262,7 +262,7 @@ fn kind(request: &file::Request) -> Kind {
         file::Request::Load { .. } => Kind::Load,
         file::Request::Scan { .. } => Kind::Scan,
         file::Request::Store { .. } => Kind::Store,
-        file::Request::Remove { .. } => Kind::Remove,
+        file::Request::Remove { .. } | file::Request::RemoveIn { .. } => Kind::Remove,
         file::Request::SyncDirectory { .. } => Kind::Sync,
         file::Request::Close { .. } => Kind::Close,
         file::Request::OpenDirectory { .. } => Kind::Open,

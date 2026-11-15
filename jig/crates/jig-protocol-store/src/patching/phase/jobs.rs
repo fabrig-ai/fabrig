@@ -28,6 +28,15 @@ pub(crate) struct Running {
     first: bool,
 }
 impl Running {
+    pub(crate) fn writes_history(&self) -> bool {
+        if !self.registered {
+            return false;
+        }
+        match self.pending.get(self.index) {
+            Some((Owner::Jig, job)) => job.name == "task-logs",
+            Some((Owner::Skein | Owner::Smith | Owner::Application, _)) | None => false,
+        }
+    }
     pub(super) fn ready(&self) -> bool {
         match self.waiting {
             Waiting::Ready => true,
@@ -278,6 +287,7 @@ fn consumed(owner: Owner, rows: &[pages::WalkRow], through: Option<Box<[u8]>>) -
 fn size(op: &skein_kv::Op, key: &[u8]) -> Option<u64> {
     let key = u32::try_from(key.len()).ok()?;
     Some(u64::from(match op {
+        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => return None,
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))

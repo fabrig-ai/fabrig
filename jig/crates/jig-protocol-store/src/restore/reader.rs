@@ -4,7 +4,7 @@ use crate::{Cursor, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{Key, Record, RestoreRange};
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token, length::len_u64};
+use skein_lib::{List, Token, length::len_u64};
 
 #[derive(Debug)]
 pub struct Loaded {
@@ -173,17 +173,7 @@ pub(crate) fn ended(store: &mut Store, key: &Key, source: &RowSite) -> Result<Op
     let Some(encoded) = keys::encode(key, store.limits.store.key) else {
         return Err(Failure::at(Cause::Join { target, failure: JoinFailure::KeyEncoding }, source.clone()));
     };
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    skein_kv::down(
-        &mut store.stores.store,
-        &crate::memory_env(store.limits.store),
-        skein_kv::Request::Get { owner: Token::new(0), key: encoded },
-        &mut above,
-        &mut below,
-    );
-    assert!(below.is_empty(), "memory census joins issue no files");
-    let value = match joined(above.pop()) {
+    let value = match crate::view::get(store, encoded) {
         Ok(value) => value,
         Err(failure) => return Err(Failure::at(Cause::Join { target, failure }, source.clone())),
     };
@@ -211,6 +201,8 @@ pub(crate) fn joined(event: Option<skein_kv::Event>) -> Result<Option<Box<[u8]>>
             skein_kv::Event::Opened { .. }
             | skein_kv::Event::Committed { .. }
             | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. },

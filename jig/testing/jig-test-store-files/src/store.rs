@@ -7,6 +7,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 
+mod faults;
 mod readback;
 pub use readback::ReadbackFinding;
 #[cfg(test)]
@@ -151,7 +152,7 @@ impl Store {
             };
             protocol::Store::over(&component_limits, application, models, stores)
         };
-        component.patch_sets(sets);
+        component.patch_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
         routes.configure_restore(&component_limits).expect("restart page bounds fit");
@@ -241,7 +242,7 @@ impl Store {
     pub fn unread_transcript(&mut self, task: u64) {
         match &mut self.disk {
             Some(disk) => disk.unread_transcript(task),
-            None => self.files.unread_transcript(task),
+            None => self.unread_memory_turn(task, 0),
         }
     }
     pub fn fault(&mut self, fault: Fault) {
@@ -346,7 +347,7 @@ impl Store {
             self.files.crash(seed);
             protocol::Store::over(&self.component_limits, application, &self.models, stores)
         });
-        self.component.as_mut().expect("rebuilt component").patch_sets(self.sets);
+        self.component.as_mut().expect("rebuilt component").patch_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
         self.routes = route::Routes::new(self.limits.routes);
         self.routes.configure(&self.limits);
@@ -369,7 +370,11 @@ impl Store {
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
             assert!(self.applied >= self.acknowledged, "acknowledged prefix survives");
-            let actual = self.readback()?;
+            let actual = self.readback();
+            if self.reached_kill() {
+                return Ok(());
+            }
+            let actual = actual?;
             assert_eq!(Some(&actual), self.prefixes.get(&self.applied), "recovery is one whole submitted prefix");
             self.rows = actual;
             self.prefixes.retain(|number, _| *number <= self.applied);
@@ -700,6 +705,24 @@ impl Store {
         self.drive(requests, Queue::uncapped());
     }
 }
+// The default memory worlds run the binary's jobs too; explicit sets describe upgrade fixtures.
+const HISTORY_SETS: protocol::PatchSets = protocol::PatchSets {
+    sets: &[protocol::PatchSet {
+        patches: &[],
+        jobs: &[*protocol::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
+        families: &[
+            protocol::KeptFamily { types: &[], texts: &[], ..protocol::STORE_FAMILIES[3] },
+            protocol::KeptFamily { types: &[], texts: &[], ..protocol::STORE_FAMILIES[4] },
+        ],
+        ..protocol::JIG_STORE_PATCH_SET
+    }],
+};
+fn component_sets(sets: protocol::PatchSets) -> protocol::PatchSets {
+    // Domain worlds exercise log storage without pricing layout planning;
+    // explicit upgrade fixtures supply registered families themselves.
+    if sets.sets.is_empty() { HISTORY_SETS } else { sets }
+}
+
 /// Derive admission from the caller's actual budgets, never from fixture counts.
 #[must_use]
 pub fn component_limits(root: &root::Limits) -> Limits {
@@ -715,6 +738,9 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         snapshot_after: 1,
         chunk: 1,
         page: skein_kv::Page { rows: 2, bytes: u32::MAX },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     };
     let sizes = protocol::sizes::check_commits(
@@ -733,7 +759,9 @@ pub fn component_limits(root: &root::Limits) -> Limits {
     kv.segment = u64::from(sizes.commit) * 2;
     kv.snapshot_after = u64::from(sizes.commit);
     kv.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).expect("bounded largest row");
-    kv.page.bytes = sizes.key.checked_add(sizes.value).expect("one largest row fits");
+    // One task can hold every history row of an admitted commit in one record.
+    kv.record = sizes.commit;
+    kv.page.bytes = sizes.key.checked_add(sizes.value).expect("one largest row fits").max(kv.record);
     protocol::sizes::whole(kv.chunk).expect("the largest row chunk also holds the whole manifest");
     Limits {
         core: root.core,
@@ -744,6 +772,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         queue: 8,
         files: 8,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }
@@ -765,7 +794,7 @@ fn apply(rows: &mut BTreeMap<root::Key, root::Record>, writes: &[root::Write]) {
                     }
                 });
             }
-            root::Write::Wires => {}
+            root::Write::DropHistory { .. } | root::Write::Wires => {}
             root::Write::CopySettingsRevision(number) => {
                 use jig_domain_core as core;
                 let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));

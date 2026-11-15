@@ -38,7 +38,10 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                     layouts.texts.insert(digest, Text { bytes, schema: None, stored: true }).expect("uncapped texts");
                 }
                 Some(
-                    keys::Own::Format
+                    keys::Own::History { .. }
+                    | keys::Own::TurnLog { .. }
+                    | keys::Own::LogAttempt { .. }
+                    | keys::Own::Format
                     | keys::Own::Layouts
                     | keys::Own::Wires
                     | keys::Own::Opening(_)
@@ -242,6 +245,7 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
 pub(super) fn size(op: &skein_kv::Op) -> Option<u64> {
     let key = u32::try_from(op.key().len()).ok()?;
     Some(u64::from(match op {
+        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => return None,
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))

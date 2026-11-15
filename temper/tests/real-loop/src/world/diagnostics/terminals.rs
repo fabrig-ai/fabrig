@@ -1,5 +1,5 @@
-//! Terminal task keys in successful engine journal writes and syncs
-//! (jig/docs/design/protocol/store/records.md, 1; skein/docs/design/data/kv.md, 3 and 4).
+//! Ended keys and history places in successful engine journal writes and syncs
+//! (jig/docs/design/protocol/store/logs.md, 3; skein/docs/design/data/kv.md, 3 and 4).
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{Queue, Reader};
 use std::collections::BTreeMap;
@@ -82,7 +82,13 @@ fn terminal_keys(bytes: &[u8]) -> Option<Vec<u64>> {
             match kind {
                 1 => {
                     let length = records.u32()?;
-                    records.skip(length)?;
+                    let value = records.bytes(length)?;
+                    if let Some(jig_protocol_store::keys::Own::History { task }) =
+                        jig_protocol_store::keys::decode_own(key)
+                        && jig_protocol_store::codec::component::HistoryLog::decode(value).ok()?.record.is_some()
+                    {
+                        ended.push(task);
+                    }
                     if let Some(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(task))) =
                         jig_protocol_store::keys::decode(key)
                     {

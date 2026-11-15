@@ -40,7 +40,7 @@ temper-sign-in-callback = { max-threads = 1 }
 default-filter = """
 (
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
-  & not (kind(test) & test(/^fuzzy::/)) & not binary(/^browser_/) & not binary(=live)
+  & not ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/)) & not binary(/^browser_/) & not binary(=live)
 ) | (
   package(/^smith(-|$)/)
   & not (kind(test) & test(/^fuzzy::/))
@@ -97,7 +97,7 @@ priority = 10
 default-filter = """
 (
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
-  & (kind(test) & test(/^fuzzy::/))
+  & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
 ) | (
   package(/^smith(-|$)/)
   & (kind(test) & test(/^fuzzy::/)) & not binary(=live)

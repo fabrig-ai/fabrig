@@ -176,6 +176,13 @@ pub enum Request {
         /// Removes an empty directory when true, a file when false; never its contents.
         directory: bool,
     },
+    /// Removes a name in an io-owned directory (runtime/io/files.md).
+    RemoveIn {
+        owner: Token,
+        root: Token,
+        name: Box<[u8]>,
+        directory: bool,
+    },
     List {
         owner: Token,
         root: Fd,
@@ -315,6 +322,13 @@ impl core::fmt::Debug for Request {
                 .finish(),
             Request::Remove { owner, root, name, directory } => f
                 .debug_struct("Remove")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .field("directory", directory)
+                .finish(),
+            Request::RemoveIn { owner, root, name, directory } => f
+                .debug_struct("RemoveIn")
                 .field("owner", owner)
                 .field("root", root)
                 .field("name", name)

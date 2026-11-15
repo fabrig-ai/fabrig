@@ -809,6 +809,7 @@ dependencies = [
  "jig-test-store",
  "serde_json",
  "skein-channel",
+ "skein-deflate",
  "skein-fake-channel",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -3061,6 +3062,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-deflate"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "skein-echo-client"
 version = "0.0.0"
 dependencies = [
@@ -3346,6 +3354,7 @@ dependencies = [
 name = "skein-forge"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-json",
  "skein-lib",
  "skein-rows",
@@ -3531,6 +3540,7 @@ dependencies = [
 name = "skein-http"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-lib",
  "skein-rows",
 ]
@@ -3609,6 +3619,7 @@ dependencies = [
 name = "skein-kv"
 version = "0.0.0"
 dependencies = [
+ "skein-deflate",
  "skein-io",
  "skein-lib",
 ]
@@ -7008,6 +7019,7 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-codec",
+ "skein-deflate",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",

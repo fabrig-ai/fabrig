@@ -29,7 +29,7 @@ fn observed_world(seed: u64) -> World {
 fn opaque_turn(bytes: &[u8]) -> root::Record {
     root::Record::Core(core::Record::Core(core::CoreRecord::Turn(core::TurnRecord {
         opens_window: false,
-        task: u64::MAX - 1,
+        task: (1_u64 << 63) - 2,
         attempt: u64::MAX - 2,
         turn: u32::MAX,
         spent: u64::MAX - 3,

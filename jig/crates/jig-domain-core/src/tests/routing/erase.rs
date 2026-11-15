@@ -76,8 +76,14 @@ fn unnamed(out: &Queue<Request>) -> Box<[(u16, u64)]> {
 fn ended(core: &mut Core, limits: &Limits, record: tasks::TaskRecord) -> Queue<Request> {
     let out = start(core, limits, record.project);
     let (_, range) = load(&out);
-    assert_eq!(range.scope, crate::reads::Scope::EndedTasks);
-    page(core, limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(record)))]), None)
+    assert_eq!(range.scope, crate::reads::Scope::TaskSummaries);
+    page(
+        core,
+        limits,
+        &out,
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&record))))]),
+        None,
+    )
 }
 
 fn finish_rows(core: &mut Core, limits: &Limits, rows: &Queue<Request>) -> (Queue<Request>, Queue<Request>) {
@@ -101,6 +107,79 @@ fn every_connector_is_told_in_the_decision_that_erases_the_record() {
     assert!(unnamed(&cleanup).is_empty());
     assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
     assert_eq!(unnamed(&record_out).as_ref(), &[(1, 9), (2, 9)]);
+    assert!(drops_history(&record_out));
+    assert!(!drops_history(&cleanup), "not before owner");
+}
+
+fn drops_history(out: &Queue<Request>) -> bool {
+    for request in out {
+        if let Request::Write(Write::DropHistory { task: 9 }) = request {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn retention_finishes_kept_and_forgotten_records_with_a_history_drop() {
+    for whole in [false, true] {
+        let (mut core, mut limits) = make_tree();
+        limits.retention.turns = Duration::ZERO;
+        limits.retention.records = Duration::ZERO;
+        let mut out = Queue::uncapped();
+        scan(&mut core, &env(&limits), &mut out, Select::Retention);
+        let out = page(&mut core, &limits, &out, Box::new([]), None);
+        let row = tasks::RetentionRow { stage: tasks::RetentionStage::Record, since: Wall::EPOCH, number: 9 };
+        let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Retention(row))]), None);
+        let mut record = fixtures::ended_report(9, tasks::Party::Person(99));
+        record.flags.retention = if whole { tasks::Retention::ForgottenOnceRead } else { tasks::Retention::Kept };
+        let out =
+            page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(record)))]), None);
+        let out = page(&mut core, &limits, &out, Box::new([]), None);
+        assert_eq!(load(&out).1.scope, crate::reads::Scope::TaskOwnRows { task: 9 });
+        let rows = page(&mut core, &limits, &out, Box::new([]), None);
+        let (cleanup, last) = finish_rows(&mut core, &limits, &rows);
+        assert!(!drops_history(&rows) && !drops_history(&cleanup));
+        assert!(drops_history(&last));
+        assert!(erases(&last).contains(&Key::Tasks(tasks::Key::Ended(9))));
+        assert_eq!(erases(&last).contains(&Key::Tasks(tasks::Key::Summary(9))), whole);
+        let mut summary = false;
+        for request in &last {
+            if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Retention(row)))) = request {
+                summary |= row.stage == tasks::RetentionStage::Summary && row.number == 9;
+            }
+        }
+        assert_eq!(summary, !whole);
+    }
+}
+
+#[test]
+fn forgotten_remains_drop_history_with_the_summary_not_the_read_mark() {
+    let (mut core, mut limits) = make_tree();
+    limits.retention.turns = Duration::ZERO;
+    limits.retention.records = Duration::ZERO;
+    limits.retention.summaries = Duration::ZERO;
+    let mut out = Queue::uncapped();
+    scan(&mut core, &env(&limits), &mut out, Select::Retention);
+    for _ in 0_u8..3 {
+        out = page(&mut core, &limits, &out, Box::new([]), None);
+    }
+    let row = tasks::RetentionRow { stage: tasks::RetentionStage::Forgotten, since: Wall::EPOCH, number: 9 };
+    let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Retention(row))]), None);
+    let record = fixtures::ended_report(9, tasks::Party::Person(1));
+    let out = page(
+        &mut core,
+        &limits,
+        &out,
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&record))))]),
+        None,
+    );
+    let rows = page(&mut core, &limits, &out, Box::new([]), None);
+    let (cleanup, last) = finish_rows(&mut core, &limits, &rows);
+    assert!(!drops_history(&rows) && !drops_history(&cleanup));
+    assert!(drops_history(&last));
+    assert!(erases(&last).contains(&Key::Tasks(tasks::Key::Summary(9))));
+    assert!(!erases(&last).contains(&Key::Tasks(tasks::Key::Ended(9))));
 }
 
 #[test]
@@ -166,7 +245,7 @@ fn an_ended_task_is_erased_whole_and_its_record_last() {
     }
     assert!(dropped);
     assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
-    assert_eq!(load(&record_out).1.scope, crate::reads::Scope::EndedTasks);
+    assert_eq!(load(&record_out).1.scope, crate::reads::Scope::TaskSummaries);
 }
 
 #[test]
@@ -215,13 +294,18 @@ fn the_walk_erases_only_the_selected_projects_tasks() {
         &mut core,
         &limits,
         &out,
-        Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(other)))]),
-        Some(Key::Tasks(tasks::Key::Ended(8))),
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&other))))]),
+        Some(Key::Tasks(tasks::Key::Summary(8))),
     );
     assert!(erases(&skipped).is_empty());
-    assert_eq!(load(&skipped).1.after, Some(crate::reads::Position::Owner(Key::Tasks(tasks::Key::Ended(8)))));
-    let selected =
-        page(&mut core, &limits, &skipped, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(selected)))]), None);
+    assert_eq!(load(&skipped).1.after, Some(crate::reads::Position::Owner(Key::Tasks(tasks::Key::Summary(8)))));
+    let selected = page(
+        &mut core,
+        &limits,
+        &skipped,
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&selected))))]),
+        None,
+    );
     let rows = page(&mut core, &limits, &selected, Box::new([]), None);
     let (cleanup, record) = finish_rows(&mut core, &limits, &rows);
     assert_eq!(
@@ -239,13 +323,17 @@ fn a_walk_with_nothing_selected_ends_at_once() {
     let (mut core, limits) = make_tree();
     let out = start(&mut core, &limits, 2);
     let other = fixtures::ended_report(9, tasks::Party::Person(1));
-    let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(other)))]), None);
+    let out = page(
+        &mut core,
+        &limits,
+        &out,
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&other))))]),
+        None,
+    );
     assert!(erases(&out).is_empty());
-    assert_eq!(load(&out).1.scope, crate::reads::Scope::TaskSummaries);
-    let out = page(&mut core, &limits, &out, Box::new([]), None);
-    assert!(out.is_empty(), "the empty walk finishes after records and summaries");
+    assert!(out.is_empty(), "the empty walk finishes after summaries");
     let out = start(&mut core, &limits, 1);
-    assert_eq!(load(&out).1.scope, crate::reads::Scope::EndedTasks, "completion releases the next walk");
+    assert_eq!(load(&out).1.scope, crate::reads::Scope::TaskSummaries, "completion releases the next walk");
 }
 
 #[test]
@@ -260,7 +348,13 @@ fn a_busy_page_is_asked_again() {
     assert!(erases(&out).is_empty());
     let mut row = fixtures::ended_report(9, tasks::Party::Person(1));
     row.project = 1;
-    let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(row)))]), None);
+    let out = page(
+        &mut core,
+        &limits,
+        &out,
+        Box::new([Record::Tasks(tasks::Stored::Summary(Box::new(tasks::TaskSummary::of(&row))))]),
+        None,
+    );
     let (token, range) = load(&out);
     let out = crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
     assert_eq!(load(&out).1, range, "a busy task page also retries");
@@ -294,12 +388,9 @@ fn a_second_selection_waits_for_the_active_walk() {
     let (mut core, limits) = make_tree();
     let first = start(&mut core, &limits, 1);
     assert!(start(&mut core, &limits, 2).is_empty());
-    let summaries = page(&mut core, &limits, &first, Box::new([]), None);
-    assert_eq!(load(&summaries).1.scope, crate::reads::Scope::TaskSummaries);
-    let second = page(&mut core, &limits, &summaries, Box::new([]), None);
-    assert_eq!(load(&second).1.scope, crate::reads::Scope::EndedTasks);
-    let summaries = page(&mut core, &limits, &second, Box::new([]), None);
-    let ended = page(&mut core, &limits, &summaries, Box::new([]), None);
+    let second = page(&mut core, &limits, &first, Box::new([]), None);
+    assert_eq!(load(&second).1.scope, crate::reads::Scope::TaskSummaries);
+    let ended = page(&mut core, &limits, &second, Box::new([]), None);
     assert!(ended.is_empty());
 }
 

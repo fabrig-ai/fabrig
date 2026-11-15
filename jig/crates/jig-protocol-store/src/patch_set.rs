@@ -47,6 +47,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
             keys: &[KeyRange { from: &[1, 0, 6, 1], to: &[1, 0, 6, 2] }],
             converts: None,
         },
+        crate::jobs::task_logs::JOB,
     ],
     owner: Owner::Jig,
     name: "jig",

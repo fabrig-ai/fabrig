@@ -13,6 +13,7 @@ skein-codec
 skein-io
 skein-sim
 skein-shell
+skein-deflate
 skein-http
 skein-json
 skein-channel

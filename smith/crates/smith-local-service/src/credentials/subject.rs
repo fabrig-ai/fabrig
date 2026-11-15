@@ -75,6 +75,7 @@ impl Accounts {
             | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
+            | file::Request::RemoveIn { .. }
             | file::Request::List { .. }
             | file::Request::ListPage { .. } => unreachable!("private keeper file vocabulary"),
         }

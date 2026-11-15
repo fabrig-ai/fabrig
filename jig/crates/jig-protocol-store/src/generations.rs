@@ -6,7 +6,7 @@ use skein_io::{
     file,
     kernel::{Error, Kind},
 };
-use skein_lib::{Decimal, List, Queue, Writer};
+use skein_lib::{Decimal, List, Queue, Stack, Writer};
 
 pub(crate) const ACTIVE: &[u8] = b"active";
 pub(crate) const GENERATIONS: &[u8] = b"generations";
@@ -17,7 +17,10 @@ pub(crate) const FIRST: u64 = 1;
 pub(crate) const ACTIVE_BYTES: u32 = 21;
 /// Both the world and service drivers accept 32 entries per page.
 pub(crate) const PAGE: u32 = 32;
-pub(crate) const DEPTH: u32 = 3;
+/// Generation, store, logs, shard.
+pub(crate) const DEPTH: u32 = 4;
+/// Deployment, scratch and transcript roots, store/logs/shard pairs, and two copy files.
+pub(crate) const COPY_HANDLES: u32 = 11;
 
 /// The digest is kept only in memory for the switch's `Expect::Digest` (protocol/store/opening.md 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -154,7 +157,7 @@ pub(crate) fn remove(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Requ
 /// Empty a caller-owned scratch root, without removing the root itself (opening.md 5).
 pub(crate) fn empty(root: Root, queue: &mut Queue<file::Request>) -> Removing {
     let name: Box<[u8]> = Box::from(b".".as_slice());
-    let mut levels = List::with_capacity(5);
+    let mut levels = List::with_capacity(DEPTH.checked_add(2).expect("scratch and generations levels"));
     queue.push(file::Request::OpenDirectory { owner: OWNER, root: root.fd, name: name.clone(), no_follow: true });
     levels.push(Level { parent: root, name, root: None, entries: Box::new([]), next: 0 }).expect("scratch root fits");
     Removing { levels, step: Step::Opening, keep_root: true }
@@ -293,7 +296,8 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
 }
 
 /// The copy keeps its roots and files on the transcripts driver, away from kv's
-/// handles. Even beside the transcript root it needs at most six open slots.
+/// handles. A rehearsal's patch can keep deployment, scratch and transcript roots
+/// beside three directory pairs and two copy files (`COPY_HANDLES`).
 #[derive(Debug)]
 enum CopyStep {
     Generation,
@@ -326,9 +330,20 @@ enum CopyWay {
     Link,
     Copy,
 }
+/// The parent's bounded page and open cursor, suspended until its child is synced and closed.
+#[derive(Debug)]
+struct CopyParent {
+    source: Root,
+    destination: Root,
+    entries: Box<[file::Entry]>,
+    next: usize,
+    last: bool,
+}
 /// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
 /// A patch links the snapshot and all but the newest log segment, found over every
-/// page first; a rehearsal copies everything. Refused links fall back to copies.
+/// page first, and every task log in logs/shard; a rehearsal copies everything.
+/// Refused links fall back to copies. Two suspended directory pages bound the
+/// depth-first logs walk, with each destination synced before returning to its parent.
 /// Directories are made 0o700, secrets opened private, copied files created
 /// exclusively 0o600 through one bounded chunk. Copied files, map directories and
 /// finally generations are synced. No source bytes change; a standing destination fails.
@@ -344,6 +359,7 @@ pub(crate) struct Copying {
     map: Map,
     source: Option<Root>,
     destination: Option<Root>,
+    parents: Stack<CopyParent>,
     reading: Option<skein_lib::Token>,
     writing: Option<skein_lib::Token>,
     entries: Box<[file::Entry]>,
@@ -388,6 +404,7 @@ pub(crate) fn copy_between(
         map: Map::Store,
         source: None,
         destination: None,
+        parents: Stack::with_capacity(2),
         reading: None,
         writing: None,
         entries: Box::new([]),
@@ -418,7 +435,22 @@ fn copy_fail(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progres
         queue.push(file::Request::Close { owner: OWNER, file: root.token });
         return Progress::Pending;
     }
+    if copy_parent(copying) {
+        let root = copying.source.take().expect("restored parent source");
+        queue.push(file::Request::Close { owner: OWNER, file: root.token });
+        return Progress::Pending;
+    }
     Progress::Failed
+}
+/// Restore the suspended page after its child has closed, or while draining a failure.
+fn copy_parent(copying: &mut Copying) -> bool {
+    let Some(parent) = copying.parents.pop() else { return false };
+    copying.source = Some(parent.source);
+    copying.destination = Some(parent.destination);
+    copying.entries = parent.entries;
+    copying.next = parent.next;
+    copying.last = parent.last;
+    true
 }
 fn copy_page(copying: &mut Copying, queue: &mut Queue<file::Request>) {
     copying.entries = Box::new([]);
@@ -431,11 +463,39 @@ fn copy_page(copying: &mut Copying, queue: &mut Queue<file::Request>) {
 }
 fn copy_next(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progress {
     if let Some(entry) = copying.entries.get(copying.next) {
-        if entry.kind != Kind::File {
+        if entry.kind == Kind::Directory {
+            let enter = copying.map == Map::Store
+                && (copying.parents.is_empty() && entry.name.as_ref() == b"logs" || copying.parents.len() == 1);
+            if !enter {
+                return copy_fail(copying, queue);
+            }
+            queue.push(file::Request::MakeDirectory {
+                owner: OWNER,
+                root: copying.destination.expect("destination directory open").token,
+                path: entry.name.clone(),
+                mode: 0o700,
+            });
+            copying
+                .parents
+                .push(CopyParent {
+                    source: copying.source.take().expect("source directory open"),
+                    destination: copying.destination.take().expect("destination directory open"),
+                    entries: core::mem::replace(&mut copying.entries, Box::new([])),
+                    next: copying.next,
+                    last: copying.last,
+                })
+                .expect("logs and one shard bound the stack");
+            copying.step = CopyStep::StoreDirectory;
+            return Progress::Pending;
+        }
+        if entry.kind != Kind::File || copying.parents.len() == 1 {
             return copy_fail(copying, queue);
         }
         let sealed = if let Some(number) = segment(&entry.name) { Some(number) < copying.newest } else { false };
-        if copying.way == CopyWay::Link && copying.map == Map::Store && (entry.name.as_ref() == b"snapshot" || sealed) {
+        if copying.way == CopyWay::Link
+            && copying.map == Map::Store
+            && (copying.parents.len() == 2 || entry.name.as_ref() == b"snapshot" || sealed)
+        {
             queue.push(file::Request::HardLink {
                 owner: OWNER,
                 from_root: copying.source.expect("source map open").fd,
@@ -532,12 +592,12 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let file::Event::Made { .. } = arrived.event else {
                 return copy_fail(copying, queue);
             };
-            queue.push(file::Request::OpenDirectory {
-                owner: OWNER,
-                root: copying.root.fd,
-                name: map(copying.to, Map::Store),
-                no_follow: true,
-            });
+            let (root, name) = if let Some(parent) = copying.parents.top() {
+                (parent.destination.fd, parent.entries.get(parent.next).expect("child entry retained").name.clone())
+            } else {
+                (copying.root.fd, map(copying.to, Map::Store))
+            };
+            queue.push(file::Request::OpenDirectory { owner: OWNER, root, name, no_follow: true });
             copying.step = CopyStep::Destination;
         }
         CopyStep::Destination => {
@@ -547,12 +607,12 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             // An Opened terminal always carries its descriptor from the service.
             let fd = arrived.fd.expect("opened directory has its descriptor");
             copying.destination = Some(Root { token: file, fd });
-            queue.push(file::Request::OpenDirectory {
-                owner: OWNER,
-                root: copying.source_root.fd,
-                name: map(copying.from, copying.map),
-                no_follow: true,
-            });
+            let (root, name) = if let Some(parent) = copying.parents.top() {
+                (parent.source.fd, parent.entries.get(parent.next).expect("child entry retained").name.clone())
+            } else {
+                (copying.source_root.fd, map(copying.from, copying.map))
+            };
+            queue.push(file::Request::OpenDirectory { owner: OWNER, root, name, no_follow: true });
             copying.step = CopyStep::Source;
         }
         CopyStep::Source => {
@@ -562,7 +622,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let fd = arrived.fd.expect("opened directory has its descriptor");
             copying.source = Some(Root { token: file, fd });
             copy_page(copying, queue);
-            if copying.way == CopyWay::Link && copying.map == Map::Store {
+            if copying.way == CopyWay::Link && copying.map == Map::Store && copying.parents.is_empty() {
                 copying.step = CopyStep::Newest;
             }
         }
@@ -817,6 +877,9 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
                 return copy_fail(copying, queue);
             };
             copying.entries = Box::new([]);
+            if copy_parent(copying) {
+                return copy_advance(copying, queue);
+            }
             match copying.map {
                 Map::Store => {
                     copying.map = Map::Secrets;

@@ -24,6 +24,9 @@ pub struct Commit<'a> {
 pub enum Write<'a> {
     Save(&'a core::Record),
     Erase(core::Key),
+    DropHistory {
+        task: u64,
+    },
     DropTranscript {
         task: u64,
     },

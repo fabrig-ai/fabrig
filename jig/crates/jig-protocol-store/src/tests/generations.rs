@@ -102,12 +102,13 @@ fn removing_a_tree_takes_files_and_directories_deepest_first() {
 fn removing_deeper_than_a_generation_fails() {
     let mut disk = Disk::new(&[
         Item::directory(b"target"),
-        Item::directory(b"target/a"),
-        Item::directory(b"target/a/b"),
-        Item::directory(b"target/a/b/c"),
+        Item::directory(b"target/store"),
+        Item::directory(b"target/store/logs"),
+        Item::directory(b"target/store/logs/0000000000000000"),
+        Item::directory(b"target/store/logs/0000000000000000/nested"),
     ]);
     assert_eq!(remove(&mut disk), Progress::Failed);
-    assert!(disk.tree().iter().any(|(p, _, _)| p.as_ref() == b"target/a/b/c"));
+    assert!(disk.tree().iter().any(|(p, _, _)| p.as_ref() == b"target/store/logs/0000000000000000/nested"));
 }
 #[test]
 fn a_removal_cut_at_each_operation_is_finished_by_the_next() {

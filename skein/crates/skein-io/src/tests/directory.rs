@@ -387,3 +387,37 @@ fn a_hard_link_refuses_either_invalid_name_before_any_record() {
         }
     }
 }
+
+#[test]
+fn remove_in_resolves_the_directory_token_and_refuses_non_names_or_unknown_tokens() {
+    let mut page = Page::new();
+    for directory in [false, true] {
+        step::down(
+            &mut page.io,
+            &page.env,
+            Request::RemoveIn { owner: OWNER, root: page.directory, name: Box::from(&b"entry"[..]), directory },
+            &mut page.events,
+            &mut page.subs,
+        );
+        let submit = page.subs.pop().expect("remove in the adopted directory");
+        assert_eq!(submit.kind, Op::Remove { dir: CACHE, name: Box::from(&b"entry"[..]), directory });
+        complete(&mut page.io, &page.env, submit, Ok(Done::Nothing), &mut page.events, &mut page.subs);
+        assert_eq!(page.events.pop(), Some(Event::Removed { owner: OWNER }));
+    }
+    for (root, name, error) in [
+        (page.directory, b"dir/entry".as_slice(), Error::InvalidArgument),
+        (Token::new(999), b"entry".as_slice(), Error::NotFound),
+    ] {
+        step::down(
+            &mut page.io,
+            &page.env,
+            Request::RemoveIn { owner: OWNER, root, name: Box::from(name), directory: false },
+            &mut page.events,
+            &mut page.subs,
+        );
+        assert_eq!(page.events.pop(), Some(Event::failed(OWNER, error)));
+        assert!(page.subs.is_empty());
+    }
+    assert!(page.events.is_empty() && page.io.takes());
+    assert_eq!(page.io.descriptor(page.directory), Some(CACHE));
+}

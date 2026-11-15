@@ -575,7 +575,9 @@ impl RequestWorld {
                     changes.push(jig_fake_store::Write::Save { key: row.key(), row });
                 }
                 root::Write::Wires => {}
-                root::Write::DropTranscript { .. } => panic!("no tasks in the answer workload"),
+                root::Write::DropHistory { .. } | root::Write::DropTranscript { .. } => {
+                    panic!("no tasks in the answer workload")
+                }
             }
         }
         self.store.submit(number, changes.into_boxed_slice(), 0);

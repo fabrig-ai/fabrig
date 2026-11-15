@@ -47,6 +47,9 @@ fn file(disk: &mut Machine, root: Opened, path: &[u8]) -> Vec<u8> {
 fn apply(rows: &mut Rows, ops: Box<[skein_kv::Op]>) {
     for op in ops {
         match op {
+            skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                unreachable!("decoded commit frames contain map operations")
+            }
             skein_kv::Op::Put { key, value } => {
                 rows.insert(key.into_vec(), value.into_vec());
             }

@@ -25,6 +25,9 @@ pub struct Limits {
     pub chunk: u32,
     pub page: Page,
     pub deadline: Duration,
+    pub record: u32,
+    pub log: u64,
+    pub logs: u32,
 }
 
 impl Limits {
@@ -53,6 +56,11 @@ impl Limits {
             && self.chunk > 0
             && self.page.rows > 0
             && self.page.bytes > 0
+            && self.record > 0
+            && self.record <= self.page.bytes
+            && self.record.checked_add(17).is_some()
+            && self.log >= u64::from(self.record).saturating_add(17)
+            && self.logs > 0
             && self.deadline.as_nanos() > 0
             && u64::from(self.chunk) >= u64::from(self.key).saturating_add(u64::from(self.value)).saturating_add(20)
     }

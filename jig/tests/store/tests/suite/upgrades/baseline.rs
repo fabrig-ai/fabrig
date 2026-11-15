@@ -11,7 +11,7 @@ mod fixed {
 type Row = (Box<[u8]>, Box<[u8]>);
 
 /// One source commit in skein's framed format (skein/docs/design/data/kv.md, 3).
-fn source_commit(rows: &[Row]) -> Vec<u8> {
+pub(crate) fn source_commit(rows: &[Row], position: u64) -> Vec<u8> {
     let mut body = Vec::new();
     for (key, value) in rows {
         body.push(1);
@@ -22,7 +22,7 @@ fn source_commit(rows: &[Row]) -> Vec<u8> {
     }
     let mut frame = b"SKVC".to_vec();
     frame.extend(1_u16.to_be_bytes());
-    frame.extend(1_u64.to_be_bytes());
+    frame.extend(position.to_be_bytes());
     frame.extend(u32::try_from(rows.len()).expect("row count").to_be_bytes());
     frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
     frame.extend(body);
@@ -77,7 +77,7 @@ fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_pro
         Item::directory(b"generations/1"),
         Item::directory(b"generations/1/store"),
         Item::directory(b"generations/1/secrets").mode(0o700),
-        Item::file(b"generations/1/store/log-00000000000000000001", &source_commit(&rows)),
+        Item::file(b"generations/1/store/log-00000000000000000001", &source_commit(&rows, 1)),
         Item::file(b"active", b"1\n"),
     ]);
     world.patch_sets(sets);

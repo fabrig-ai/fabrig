@@ -65,6 +65,7 @@ smith-domain.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
 skein-codec.workspace = true
+skein-deflate.workspace = true
 skein-oauth-accounts.workspace = true
 skein-http.workspace = true
 skein-push.workspace = true
