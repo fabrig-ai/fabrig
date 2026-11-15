@@ -659,6 +659,9 @@ fn a_goal_reads_the_resolution_under_its_closers_conflicting_landing() {
     assert!(world.root.tasks().task(resolver.task).is_none(), "resolver retained outside the core");
     let text = scripted_task_read(&mut world, &goal, 97, resolver.task, true);
     assert!(text.contains("Done: resolved the closer landing conflict."), "{text}");
+    // The result is readable before its admitted landing follow-up has finished.
+    // Finish that work before taking the frozen restart snapshot.
+    wait_ended(&mut world, landing);
     world.close();
 }
 

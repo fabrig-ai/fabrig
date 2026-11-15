@@ -179,6 +179,11 @@ pub fn limits() -> engine::Limits {
         public_watermark: (engine::default_watermark(&journal)).checked_div(2).expect("half the watermark"),
         public_reads: 0,
         public: jig_domain_core::PublicIndexLimits::OFF,
+        retention: jig_domain_core::RetentionLimits {
+            turns: Duration::from_secs(14 * 86_400),
+            records: Duration::from_secs(30 * 86_400),
+            summaries: Duration::from_secs(365 * 86_400),
+        },
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,

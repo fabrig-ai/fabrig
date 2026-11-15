@@ -494,6 +494,7 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
         public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
         public_reads: jig.clients.public.reads,
         public: jig.core.public,
+        retention: jig.core.retention,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,
@@ -610,6 +611,21 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn retention_overrides_reach_the_effective_core_limits() {
+        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+        for (name, value) in [
+            (b"retention.turns_ms".as_slice(), 13),
+            (b"retention.records_ms".as_slice(), 23),
+            (b"retention.summaries_ms".as_slice(), 37),
+        ] {
+            jig_protocol_config::overrides::apply(&mut jig, name, value).unwrap();
+        }
+        let root = engine(&jig, &profile(Profile::Small)).expect("coherent projected limits");
+        assert_eq!(root.retention, jig.core.retention);
+        assert_eq!(engine::core_limits(&root).retention, jig.core.retention);
+    }
+
     #[test]
     fn small_forge_calls_have_room_for_a_merge() {
         let limits = profile(Profile::Small);

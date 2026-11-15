@@ -563,24 +563,6 @@ pub static NAMES: [Name; 246] = [
         value: |limits| limits.core.people.request_retention.as_millis(),
     },
     Name {
-        name: "retention.turns_ms",
-        unit: Unit::Milliseconds,
-        line: "Bounds how long ended tasks keep their transcripts.",
-        value: |limits| limits.core.retention.turns.as_millis(),
-    },
-    Name {
-        name: "retention.records_ms",
-        unit: Unit::Milliseconds,
-        line: "Bounds how long ended tasks keep their full records and decided person proposals.",
-        value: |limits| limits.core.retention.records.as_millis(),
-    },
-    Name {
-        name: "retention.summaries_ms",
-        unit: Unit::Milliseconds,
-        line: "Bounds how long ended tasks keep their summaries.",
-        value: |limits| limits.core.retention.summaries.as_millis(),
-    },
-    Name {
         name: "people.facts",
         unit: Unit::Count,
         line: "Bounds capacity of optional content-free observations.",
@@ -1305,6 +1287,24 @@ pub static NAMES: [Name; 246] = [
         unit: Unit::Count,
         line: "Bounds the lineage of a public card.",
         value: |limits| u64::from(limits.core.public.depth),
+    },
+    Name {
+        name: "retention.turns_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their transcripts.",
+        value: |limits| limits.core.retention.turns.as_millis(),
+    },
+    Name {
+        name: "retention.records_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their full records and decided person proposals.",
+        value: |limits| limits.core.retention.records.as_millis(),
+    },
+    Name {
+        name: "retention.summaries_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their summaries.",
+        value: |limits| limits.core.retention.summaries.as_millis(),
     },
     Name {
         name: "link.chunk",
