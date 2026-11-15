@@ -6225,6 +6225,7 @@ dependencies = [
  "skein-push",
  "skein-ui",
  "skein-world",
+ "smith-domain-run",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
@@ -6237,6 +6238,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]

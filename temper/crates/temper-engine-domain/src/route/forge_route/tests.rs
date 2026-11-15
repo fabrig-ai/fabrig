@@ -1431,13 +1431,28 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
 }
 
 #[test]
-fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
+fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
     use super::forge_change::{Delegate, Repair};
     use crate::boundary::Work;
     use jig_domain_brief::{GatherEvent, Planned};
     use skein_lib::{List, Queue};
 
-    for (why, kinds) in [(Repair::Ci, [3, 1]), (Repair::Semantic, [1, 3]), (Repair::Review { head: [7; 32] }, [3, 2])] {
+    for (why, kinds) in [
+        (Repair::Ci, [1, 3]),
+        (Repair::Semantic, [1, 3]),
+        (Repair::Landing { gate: 1 }, [1, 3]),
+        (Repair::LandingAt { gate: 1, candidate: SHA1, below: None }, [1, 3]),
+        (
+            Repair::LandingAt {
+                gate: 1,
+                candidate: SHA1,
+                below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+            },
+            [1, 3],
+        ),
+        (Repair::Gate(1), [2, 3]),
+        (Repair::Review { head: [7; 32] }, [2, 3]),
+    ] {
         let (mut domain, env) = two_forges();
         let mut row = change_row(Some(7));
         row.change.last_head = Some(SHA1);
@@ -1499,6 +1514,12 @@ fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
 
 #[test]
 fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context() {
+    let brief = planned_ci_repair(super::forge_change::Repair::Ci);
+    assert_eq!(brief.sections[6].title.as_ref(), b"CI");
+    assert_eq!(brief.sections[7].title.as_ref(), b"Pull request");
+}
+
+fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brief {
     use crate::boundary::Work;
     use jig_domain_brief::{Core, GatherEvent, Planned};
     use skein_lib::{List, Queue, Writer};
@@ -1510,7 +1531,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     env.limits.brief = domain.limits.brief;
     let mut row = change_row(Some(7));
     row.change.last_head = Some(SHA1);
-    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(why)));
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
@@ -1551,7 +1572,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     let failure = b"Failed check: / changes (pull_request)\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\nFailed step: 1 changes\nEnd of its log:\n";
     let end = b"\nMissing changes/2.md\nRepair the failed check.\n";
     ci.put(failure).unwrap();
-    for _ in failure.len()..4096 - end.len() {
+    for _ in failure.len()..4096_usize.checked_sub(end.len()).unwrap() {
         ci.put(b"l").unwrap();
     }
     ci.put(end).unwrap();
@@ -1561,9 +1582,8 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
         }
     }
-    let Planned::Connector { kind: 3, .. } = sections[6] else { panic!("pull precedes its reason") };
-    let Planned::Connector { kind: 1, .. } = sections[7] else { panic!("CI follows the pull") };
     let plan = jig_domain_brief::plan(&sections, budget).expect("bounded repair");
+    let mut rendered = List::with_capacity(8);
     for placed in &plan.order {
         let section = &sections[usize::try_from(placed.index).unwrap()];
         match section {
@@ -1577,8 +1597,87 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
             Planned::Connector { .. } => panic!("two repair sections"),
         }
+        let (title, text): (&[u8], &[u8]) = match section {
+            Planned::Connector { kind: 1, .. } => (b"CI", &ci),
+            Planned::Connector { kind: 3, .. } => (b"Pull request", &pull),
+            Planned::Core { text, .. } => (b"Task", text),
+            Planned::Connector { .. } => panic!("two repair sections"),
+        };
+        rendered
+            .push(smith_domain_run::Section {
+                title: title.into(),
+                text: text[..usize::try_from(placed.size).unwrap()].into(),
+            })
+            .unwrap();
     }
     assert_eq!(plan.size, budget);
+    smith_domain_run::Brief { sections: rendered.into_boxed() }
+}
+
+#[test]
+fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
+    use skein_lib::Duration;
+    use smith_domain_run as run;
+
+    let brief = planned_ci_repair(super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None });
+    let mut ci = None;
+    let mut pull = None;
+    for section in &brief.sections {
+        match section.title.as_ref() {
+            b"CI" => ci = Some(section.text.clone()),
+            b"Pull request" => pull = Some(section.text.clone()),
+            _ => {}
+        }
+    }
+    let ci = ci.expect("CI section");
+    let pull = pull.expect("pull section");
+    let mut charter = run::Charter {
+        mode: run::Mode::Finite,
+        resume: false,
+        waiting: Duration::ZERO,
+        instructions: b"Repair the failed landing check.".as_slice().into(),
+        brief,
+        conventions: None,
+        grants: run::charter::Grants {
+            contract: 1,
+            wait: false,
+            deliver: None,
+            save: false,
+            tools: run::charter::Tools { inspect: true, modify: true, shell: true },
+            agents: false,
+            host_tools: Box::new([]),
+        },
+        outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
+        budget: run::Budget { turns: 1, spend: 100, time: Duration::from_secs(60) },
+        reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },
+        llm: run::charter::Llm {
+            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+            dialect: 1,
+            account: None,
+            endpoint: run::charter::Endpoint(0),
+            model: b"model".as_slice().into(),
+            effort: None,
+            window: 65_536,
+            output: 256,
+        },
+        models: Box::new([]),
+        check_timeout: None,
+    };
+    let bound = charter.owned_bytes().unwrap().checked_sub(1024).unwrap();
+    temper_protocol_brief::fit_brief_bytes(&mut charter, bound);
+    assert!(charter.owned_bytes().unwrap() <= bound);
+    assert_eq!(charter.brief.sections.len(), 8, "no section is omitted");
+    for section in &charter.brief.sections {
+        match section.title.as_ref() {
+            b"CI" => assert!(section.text == ci, "the failed step and log end survive charter fitting whole"),
+            b"Pull request" => {
+                assert!(section.text.len() < pull.len(), "pull contents yield to the charter bound");
+                assert!(section.text.starts_with(b"Pull request: #7\n"));
+                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+            }
+            _ => {}
+        }
+    }
 }
 
 #[test]

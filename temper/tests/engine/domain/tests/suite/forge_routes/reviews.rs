@@ -2276,7 +2276,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 }
 
 #[test]
-fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
+fn a_gate_repairs_with_its_whole_remarks_before_its_named_pull() {
     let small =
         temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
     let world = World::configured_limits(
@@ -2309,7 +2309,7 @@ fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
         .iter()
         .position(|part| part.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews))
         .expect("remarks section");
-    assert!(pull_at < reviews_at);
+    assert!(reviews_at < pull_at);
     let engine::BriefBody::Text(pull) = &repair.sections[pull_at].body else { panic!("readable pull") };
     let row = change_row(&world, requester(&world, repair.task));
     let identity = format!(
