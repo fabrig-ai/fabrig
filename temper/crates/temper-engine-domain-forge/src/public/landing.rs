@@ -56,7 +56,7 @@ impl Domain {
         w::PublicLanding::new(
             l,
             w::PublicLandingParts {
-                search: match row.round.search {
+                search: match &row.round.search {
                     Some(search) => Some(
                         w::PublicSearch::new(
                             l,

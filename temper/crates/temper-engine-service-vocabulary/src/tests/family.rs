@@ -1904,7 +1904,7 @@ fn a_first_round_search_uses_its_members_base_at_boundary_zero() {
     let mut value = landing_view();
     value.step = forge::LandingStep::Probing;
     value.round.upstream = None;
-    value.round.search = Some(forge::LandingSearch { green: 0, red: 1 });
+    value.round.search = Some(forge::LandingSearch { tests: forge::LandingSearchTests::Whole, green: 0, red: 1 });
     value.members[0].base = Some([0x22; 32]);
     value.members[0].candidate = Some([0x33; 32]);
     value.members[0].left = None;
@@ -1922,7 +1922,7 @@ fn a_later_search_keeps_its_base_after_a_prior_turn_and_a_cut() {
         let mut value = landing_view();
         value.step = forge::LandingStep::Probing;
         value.round.upstream = None;
-        value.round.search = Some(forge::LandingSearch { green: 0, red: 2 });
+        value.round.search = Some(forge::LandingSearch { tests: forge::LandingSearchTests::Whole, green: 0, red: 2 });
         let mut red = value.members[0].clone();
         red.change = 52;
         red.base = if cleared { None } else { Some([0x22; 32]) };
@@ -1955,7 +1955,7 @@ fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     value.step = forge::LandingStep::Probing;
     value.probe = Some([0x11; 32]);
     value.round.upstream = Some([0x22; 32]);
-    value.round.search = Some(forge::LandingSearch { green: 0, red: 2 });
+    value.round.search = Some(forge::LandingSearch { tests: forge::LandingSearchTests::Whole, green: 0, red: 2 });
     let mut red = value.members[0].clone();
     red.change = 52;
     red.candidate = Some([0x33; 32]);
@@ -1974,7 +1974,7 @@ fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     assert_eq!(search.probe(), &Some([0x11; 32]));
     value.step = forge::LandingStep::Proving;
     value.probe = None;
-    value.round.search = Some(forge::LandingSearch { green: 1, red: 2 });
+    value.round.search = Some(forge::LandingSearch { tests: forge::LandingSearchTests::Whole, green: 1, red: 2 });
     value.members[1].candidate = None;
     value.members[1].left = Some(forge::LandingLeave::Blamed { gate: 2, run: 7, red: [0x33; 32], green: [0x11; 32] });
     let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)

@@ -67,7 +67,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
             w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
         }
         d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(row)),
-        d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
+        d::Stored::Landing(row) => w::Value::Landing(Box::new(landing::encode(row))),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
             w::Value::Application(application::encode(*token, *until, outcome))
@@ -162,7 +162,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)?),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
@@ -342,6 +342,10 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_state_members: forge.landing_members,
         landing_state_branch: forge.name_bytes,
         landing_member_gates: forge.gates,
+        landing_by_test_gates: forge.gates,
+        landing_by_test_probed: forge.gates.checked_mul(forge.landing_members)?,
+        landing_selection_tests: forge.tiers.failing_tests,
+        landing_searched_changes: forge.landing_members,
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,

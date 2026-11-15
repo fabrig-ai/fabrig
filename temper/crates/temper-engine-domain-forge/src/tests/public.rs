@@ -413,6 +413,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
+                    searched: None,
                     round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                     task: LANDING,
@@ -902,6 +903,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                     job: None,
                     landing: policy::Landing {
                         last_left: None,
+                        searched: None,
                         round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                         task,
@@ -1128,7 +1130,7 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
     let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
     row.phase = policy::Phase::Proving;
     row.round.upstream = Some(BASE);
-    row.round.search = Some(policy::Search { green: 0, red: 2 });
+    row.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 0, red: 2 });
     for (index, member) in row.members.iter_mut().enumerate() {
         member.landed = None;
         member.left = None;
@@ -1143,7 +1145,7 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
     assert_eq!((search.red().member(), search.red().prefix()), (2, &MERGE));
     assert_eq!(search.probe(), &Some(CANDIDATE));
     let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
-    row.round.search = Some(policy::Search { green: 1, red: 2 });
+    row.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 1, red: 2 });
     row.members[1].candidate = None;
     row.members[1].left = Some(policy::Leave::Blamed { gate: 0, run: 7, red: MERGE, green: CANDIDATE });
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());

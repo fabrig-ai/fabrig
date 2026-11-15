@@ -809,7 +809,10 @@ impl Domain {
 
 fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
     let mut facts = List::with_capacity(u32::try_from(gates.len()).expect("bounded gates"));
+    // A later change supplies failed ids and dispatch room (landing-search-by-test.md, 10).
+    let mut failed = List::with_capacity(u32::try_from(gates.len()).expect("bounded gates"));
     for gate in gates {
+        failed.push(None).expect("one per gate");
         facts
             .push(policy::GateFacts {
                 blocking: gate.blocking,
@@ -835,6 +838,7 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
         merge: policy::Status::Unknown,
         merged: None,
         gates: facts.into_boxed(),
+        failed: failed.into_boxed(),
         contained: policy::Status::Unknown,
         candidate: None,
         preparation: policy::Preparation::Idle,
@@ -1725,7 +1729,7 @@ fn gathered(
     }
 }
 pub(crate) fn round_top(row: &LandingRow) -> Option<u16> {
-    if let Some(search) = row.landing.round.search
+    if let Some(search) = &row.landing.round.search
         && policy::probe(&row.landing).is_none()
         && search.green != 0
         && row.landing.round.ending != Some(policy::RoundEnd::Cut)
@@ -1954,7 +1958,7 @@ fn proof_member(row: &LandingRow, member: u16) -> u16 {
     if row.landing.round.branch.is_empty() { member } else { round_effect_top(row) }
 }
 fn stack_candidate(row: &LandingRow) -> Option<api::Commit> {
-    if let Some(search) = row.landing.round.search
+    if let Some(search) = &row.landing.round.search
         && policy::probe(&row.landing).is_none()
         && search.green != 0
     {
@@ -1969,7 +1973,7 @@ fn stack_candidate(row: &LandingRow) -> Option<api::Commit> {
     top
 }
 fn round_effect_top(row: &LandingRow) -> u16 {
-    if let Some(search) = row.landing.round.search
+    if let Some(search) = &row.landing.round.search
         && policy::probe(&row.landing).is_none()
         && row.landing.round.ending != Some(policy::RoundEnd::Cut)
         && search.green != 0
@@ -2060,7 +2064,7 @@ fn round_words(d: &Domain, row: &LandingRow) -> (Box<[u8]>, Box<[u8]>) {
             append_words(&mut body, part);
         }
     }
-    if let Some(search) = row.landing.round.search {
+    if let Some(search) = &row.landing.round.search {
         let red = row.landing.members.get(usize::from(search.red.checked_sub(1).expect("red"))).expect("red member");
         let Some(policy::Leave::Blamed { red: prefix, green, .. }) = red.left else { unreachable!("blamed boundary") };
         append_words(&mut body, b"Search: red at ");
@@ -2349,6 +2353,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         &facts,
         &project,
         &policy::Limits {
+            // A later change measures dispatch room (landing-search-by-test.md, 10).
+            tests_bytes: 0,
             members: env.limits.landing_members,
             gates: env.limits.gates,
             poll: skein_lib::Duration::from_nanos(
@@ -3479,7 +3485,7 @@ pub(crate) fn hinted(d: &mut Domain, hint: &api::Hint, out: &mut Queue<Request>)
 fn repair_below(row: &LandingRow, green: api::Commit) -> change::Below {
     let mut below = change::Below { green, changes: [None; 4] };
     let mut slots = below.changes.iter_mut();
-    let end = row.landing.round.search.expect("blamed boundary").green;
+    let end = row.landing.round.search.as_ref().expect("blamed boundary").green;
     for member in row.landing.members.iter().take(usize::from(end)) {
         if member.candidate.is_some() {
             *slots.next().expect("at most four members below the blamed unit") =
@@ -4183,7 +4189,7 @@ impl Domain {
                 }
             }
             crate::LandingNews::Probing => {
-                let search = row.landing.round.search?;
+                let search = row.landing.round.search.as_ref()?;
                 let probe = row.landing.members.get(usize::from(policy::probe(&row.landing)?))?;
                 let red = row.landing.members.get(usize::from(search.red.checked_sub(1)?))?;
                 for part in [

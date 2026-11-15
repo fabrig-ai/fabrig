@@ -267,7 +267,7 @@ record LandingPhase { place: LandingPlace held: option LandingFaults }
 record GateKey { key: fixed 32 }
 record DispatchedKey { key: fixed 32 try_: u16 }
 enum GateProofState { unkeyed, keyed: GateKey, dispatched: DispatchedKey, passed: GateKey, failed: GateKey }
-enum GatePosted { nothing, pending, verdict }
+enum GatePosted { nothing, pending, verdict, by_test }
 record GateProof { proof: GateProofState posted: GatePosted faults: u32 }
 record LandingTimeout { member: u16 gate: u16 run: u64 }
 record LandingGateRefused { gate: u64 }
@@ -281,9 +281,16 @@ record LandingMember { round: option u16 change: u64 repository: Repository pull
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
 enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
-record LandingSearch { green: u16 red: u16 }
+record FailingTest { test_id: bytes 4096 }
+record LandingSelection { tests: list 1024 FailingTest }
+record LandingSelectedGate { selection: option LandingSelection }
+record LandingProbed { member: u16 gate: u16 run: u64 passed: bool }
+record LandingByTest { gates: list 64 LandingSelectedGate probed: list 4096 LandingProbed }
+enum LandingSearchTests { whole, by_test: LandingByTest, whole_again }
+record LandingSearch { green: u16 red: u16 tests: LandingSearchTests = whole }
+record LandingSearched { red: fixed 32 green: option fixed 32 changes: list 64 u64 }
 record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
-record LandingState { last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
+record LandingState { searched: option LandingSearched = none last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }
 record LandingPrefix { prefix: fixed 32 }
@@ -304,7 +311,6 @@ enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
-record FailingTest { test_id: bytes 4096 }
 record FailedTests { tests: list 1024 FailingTest }
 enum Failures { tests: FailedTests, many }
 record BlamedFailures { failures: Failures }
@@ -571,7 +577,7 @@ enum Filer { task: Number, party: Number }
 record FindingSignature { repository: Repository source: bytes 64 ids: list 64 bytes 512 first: bytes 512 }
 record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 signature: option FindingSignature seen: option u32 }
 record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 at: u64 }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot }
 
 versioned record Row { value: Value }
 

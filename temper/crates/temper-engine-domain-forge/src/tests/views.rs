@@ -119,6 +119,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
         job: None,
         landing: policy::Landing {
             last_left: None,
+            searched: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task,
@@ -894,12 +895,14 @@ fn searching_landings_show_the_probe_in_the_landing_and_train() {
     change.change.ready_since = Some(env().wall);
     change.change.landing = Some(61);
     assert_eq!(view(&d, 61).step, LandingStep::Proving, "candidate not red yet");
-    d.landing.rows.get_mut(&61).unwrap().landing.round.search = Some(policy::Search { green: 0, red: 2 });
+    d.landing.rows.get_mut(&61).unwrap().landing.round.search =
+        Some(policy::Search { tests: policy::SearchTests::Whole, green: 0, red: 2 });
     assert_eq!(view(&d, 61).step, LandingStep::Probing);
     let got = changes(&d);
     let flight = got.queues[0].in_flight.as_ref().unwrap();
     assert_eq!((flight.step, flight.probe), (LandingStep::Probing, Some(fixtures::HEAD)));
-    d.landing.rows.get_mut(&61).unwrap().landing.round.search = Some(policy::Search { green: 1, red: 2 });
+    d.landing.rows.get_mut(&61).unwrap().landing.round.search =
+        Some(policy::Search { tests: policy::SearchTests::Whole, green: 1, red: 2 });
     assert_eq!(view(&d, 61).step, LandingStep::Proving, "no internal boundary to probe");
     d.landing.rows.get_mut(&61).unwrap().landing.round.ending = Some(policy::RoundEnd::Cut);
     assert_eq!(view(&d, 61).step, LandingStep::Leaving);

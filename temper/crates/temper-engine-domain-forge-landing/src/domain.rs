@@ -141,7 +141,7 @@ pub(crate) fn matches_turn(phase: &Phase) -> bool {
 }
 
 fn top(landing: &Landing) -> Option<u16> {
-    if let Some(search) = landing.round.search
+    if let Some(search) = &landing.round.search
         && probe(landing).is_none()
         && search.green != 0
     {
@@ -164,7 +164,7 @@ fn top(landing: &Landing) -> Option<u16> {
 /// Bounds in the stored search count members from 1, with 0 the base.
 #[must_use]
 pub fn probe(landing: &Landing) -> Option<u16> {
-    let search = landing.round.search?;
+    let search = landing.round.search.as_ref()?;
     let mut boundaries = List::with_capacity(u32::try_from(landing.members.len()).expect("members"));
     for (index, member) in landing.members.iter().enumerate() {
         let number = position(index).checked_add(1).expect("member number");
@@ -218,14 +218,18 @@ fn followed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
             continue;
         }
         for (number, (gate, fact)) in member.gates.iter_mut().zip(&fresh.gates).enumerate() {
-            let Proof::Dispatched { key, .. } = gate.proof else { continue };
+            let key = match gate.proof {
+                Proof::Dispatched { key, .. } => key,
+                Proof::Keyed { key } if gate.posted == Posted::ByTest => key,
+                Proof::Unkeyed | Proof::Keyed { .. } | Proof::Passed { .. } | Proof::Failed { .. } => continue,
+            };
             if fact.posting == Status::Pending {
                 return Some(Decision::Wait { until: None });
             }
             let posting = match fact.receipt {
                 Status::Passed => {
                     gate.proof = Proof::Passed { key };
-                    Some(Posting::Ran { passed: true })
+                    if gate.posted == Posted::ByTest { None } else { Some(Posting::Ran { passed: true }) }
                 }
                 Status::Failed => {
                     gate.proof = Proof::Failed { key };
@@ -513,6 +517,7 @@ fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {
     if landing.round.pull.is_none() {
         if let Some(pull) = facts.opened {
             landing.round.pull = Some(pull);
+            landing.searched = None;
         } else if facts.opening == Status::Failed {
             landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Turn };
             return done(landing, Decision::Hold(Hold::Turn));
@@ -578,7 +583,21 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
             *gate = GateProof { proof: Proof::Unkeyed, posted: Posted::Nothing, faults: 0 };
         }
     }
-    if ending == crate::RoundEnd::Cut && landing.round.search.expect("cut searches").green != 0 {
+    let by_test = match &landing.round.search {
+        Some(search) => match search.tests {
+            crate::SearchTests::ByTest { .. } => true,
+            crate::SearchTests::Whole | crate::SearchTests::WholeAgain => false,
+        },
+        None => false,
+    };
+    if by_test {
+        for member in landing.members.get_mut(..usize::from(first)).expect("kept members") {
+            for gate in &mut member.gates {
+                *gate = GateProof { proof: Proof::Unkeyed, posted: Posted::Nothing, faults: 0 };
+            }
+        }
+    }
+    if ending == crate::RoundEnd::Cut && !by_test && landing.round.search.as_ref().expect("cut searches").green != 0 {
         landing.phase = Phase::Proving;
         return done(landing, Decision::None);
     }
@@ -642,7 +661,7 @@ fn failed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
 }
 
 fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limits, now: Wall) -> Stepped {
-    if let Some(search) = landing.round.search {
+    if let Some(search) = &landing.round.search {
         if probe(&landing).is_some() {
             return probing(landing, facts, project, limits, now);
         }
@@ -680,7 +699,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
             if landing.round.search.is_some() && !fact.blocking {
                 continue;
             }
-            let decision = gate_step(gate, fact, position(index), position(number), candidate, project);
+            let decision = gate_step(gate, fact, position(index), position(number), candidate, project, false);
             match decision {
                 Decision::None => {}
                 Decision::Wait { .. } => {
@@ -708,7 +727,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                         .get(usize::from(gate))
                         .expect("gate")
                         .run;
-                    return red(landing, facts, gate, run);
+                    return red(landing, facts, limits, gate, run);
                 }
                 Decision::Prepare { .. }
                 | Decision::Leave { .. }
@@ -743,6 +762,7 @@ fn gate_step(
     number: u16,
     candidate: crate::Commit,
     project: Project,
+    by_test: bool,
 ) -> Decision {
     let key = match gate.proof {
         Proof::Unkeyed => match fact.key {
@@ -763,7 +783,7 @@ fn gate_step(
                 }
             };
             gate.proof = Proof::Passed { key };
-            if gate.posted != Posted::Verdict {
+            if gate.posted != Posted::Verdict && gate.posted != Posted::ByTest {
                 if fact.posting == Status::Pending {
                     return Decision::Wait { until: None };
                 }
@@ -808,6 +828,11 @@ fn gate_step(
         Flight::Other => Decision::Wait { until: None },
         Flight::None => match gate.proof {
             Proof::Keyed { .. } => {
+                if by_test {
+                    gate.posted = Posted::ByTest;
+                } else if gate.posted == Posted::ByTest {
+                    gate.posted = Posted::Nothing;
+                }
                 gate.proof = Proof::Dispatched { key, try_: 1 };
                 Decision::Dispatch { member, gate: number, key, try_: 1 }
             }
@@ -836,7 +861,7 @@ fn gate_step(
     }
 }
 
-fn red(mut landing: Landing, facts: &Facts, gate: u16, run: u64) -> Stepped {
+fn red(mut landing: Landing, facts: &Facts, limits: &Limits, gate: u16, run: u64) -> Stepped {
     let mut units = skein_lib::Set::with_capacity(u32::try_from(landing.members.len()).expect("members admitted"));
     for member in &landing.members {
         if active(member) {
@@ -845,7 +870,11 @@ fn red(mut landing: Landing, facts: &Facts, gate: u16, run: u64) -> Stepped {
     }
     let top = top(&landing).expect("red has a top");
     if units.len() > 1 {
-        landing.round.search = Some(crate::Search { green: 0, red: top.checked_add(1).expect("member number") });
+        landing.round.search = Some(crate::Search {
+            green: 0,
+            red: top.checked_add(1).expect("member number"),
+            tests: selection(facts.members.get(usize::from(top)).expect("top facts"), limits),
+        });
         return done(landing, Decision::None);
     }
     let why = crate::Leave::Failed { gate, run };
@@ -941,6 +970,13 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
 // A probe takes only blocking receipts at its own prefix; older flights are
 // followed by the top and cannot move these bounds (landing-search.md, 3, 6).
 fn probing(mut landing: Landing, facts: &Facts, project: Project, limits: &Limits, now: Wall) -> Stepped {
+    let by_test = match &landing.round.search.as_ref().expect("search").tests {
+        crate::SearchTests::ByTest { .. } => true,
+        crate::SearchTests::Whole | crate::SearchTests::WholeAgain => false,
+    };
+    if by_test {
+        return probing_tests(landing, facts, project, limits, now);
+    }
     let index = probe(&landing).expect("probe");
     let member = landing.members.get_mut(usize::from(index)).expect("probe member");
     let fresh = facts.members.get(usize::from(index)).expect("probe facts");
@@ -950,7 +986,7 @@ fn probing(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
         if !fact.blocking {
             continue;
         }
-        let decision = gate_step(gate, fact, index, position(number), candidate, project);
+        let decision = gate_step(gate, fact, index, position(number), candidate, project, false);
         if let Decision::Repair { .. } = decision {
             landing.round.search.as_mut().expect("search").red = index.checked_add(1).expect("member number");
             return done(landing, Decision::None);
@@ -974,7 +1010,7 @@ fn probing(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
 }
 
 fn boundary(mut landing: Landing, facts: &Facts) -> Stepped {
-    let search = landing.round.search.expect("boundary");
+    let search = landing.round.search.as_ref().expect("boundary");
     let red_index = search.red.checked_sub(1).expect("red above base");
     let red_member = landing.members.get(usize::from(red_index)).expect("red member");
     let red = red_member.candidate.expect("red prefix");
@@ -989,22 +1025,178 @@ fn boundary(mut landing: Landing, facts: &Facts) -> Stepped {
             .candidate
             .expect("green prefix")
     };
+    let by_test = match &search.tests {
+        crate::SearchTests::ByTest { .. } => true,
+        crate::SearchTests::Whole | crate::SearchTests::WholeAgain => false,
+    };
+    let green_prefix = if search.green == 0 { None } else { Some(green) };
     let mut failed = None;
     for (number, fact) in facts.members.get(usize::from(red_index)).expect("red facts").gates.iter().enumerate() {
-        if fact.blocking && fact.receipt == Status::Failed {
+        let selected_failure = match &search.tests {
+            crate::SearchTests::Whole | crate::SearchTests::WholeAgain => true,
+            crate::SearchTests::ByTest { gates, .. } => match gates.get(number).expect("gate") {
+                Some(selected) => intersects(
+                    selected,
+                    failed_ids(facts.members.get(usize::from(red_index)).expect("red facts"), number),
+                ),
+                None => false,
+            },
+        };
+        if fact.blocking && fact.receipt == Status::Failed && selected_failure {
             failed = Some((position(number), fact.run));
             break;
         }
     }
     let (gate, run) = failed.expect("red receipt");
+    let mut changes = List::with_capacity(u32::try_from(landing.members.len()).expect("members"));
     for (index, member) in landing.members.iter_mut().enumerate() {
         if member.unit == unit && active(member) {
+            changes.push(member.change).expect("members");
             member.left = Some(crate::Leave::Blamed { gate, run, red, green });
             landing.round.changed = Some(landing.round.changed.unwrap_or(position(index)).min(position(index)));
         }
+    }
+    if by_test {
+        landing.searched = Some(crate::Searched { red, green: green_prefix, changes: changes.into_boxed() });
     }
     landing.round.ending = Some(crate::RoundEnd::Cut);
     cascade(&mut landing, facts);
     let decision = notify_leave(&mut landing).expect("blamed leaves");
     done(landing, decision)
+}
+
+// The room includes one line feed per id (landing-search-by-test.md, 3).
+fn selection(fresh: &crate::MemberFacts, limits: &Limits) -> crate::SearchTests {
+    let mut gates = List::with_capacity(u32::try_from(fresh.gates.len()).expect("gates"));
+    for (number, fact) in fresh.gates.iter().enumerate() {
+        let selected = if fact.blocking && fact.receipt == Status::Failed {
+            let Some(ids) = failed_ids(fresh, number) else {
+                return crate::SearchTests::Whole;
+            };
+            let mut room = skein_lib::usize_of(limits.tests_bytes);
+            for id in ids {
+                let Some(left) = room.checked_sub(id.len().saturating_add(1)) else {
+                    return crate::SearchTests::Whole;
+                };
+                room = left;
+            }
+            Some(Box::from(ids))
+        } else {
+            None
+        };
+        gates.push(selected).expect("one per gate");
+    }
+    crate::SearchTests::ByTest { gates: gates.into_boxed(), probed: Box::new([]) }
+}
+
+fn intersects(selected: &[crate::TestId], failed: Option<&[crate::TestId]>) -> bool {
+    if let Some(failed) = failed {
+        for id in selected {
+            if failed.contains(id) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn probing_tests(mut landing: Landing, facts: &Facts, project: Project, limits: &Limits, now: Wall) -> Stepped {
+    let original_top = top(&landing).expect("top");
+    let index = probe(&landing).expect("probe");
+    let member = landing.members.get_mut(usize::from(index)).expect("probe member");
+    let fresh = facts.members.get(usize::from(index)).expect("probe facts");
+    let candidate = member.candidate.expect("probe prefix");
+    let search = landing.round.search.as_mut().expect("search");
+    let (gates, probed) = match &mut search.tests {
+        crate::SearchTests::ByTest { gates, probed } => (gates, probed),
+        crate::SearchTests::Whole | crate::SearchTests::WholeAgain => unreachable!("by test"),
+    };
+    let mut blocked = false;
+    for (number, (gate, fact)) in member.gates.iter_mut().zip(&fresh.gates).enumerate() {
+        let Some(selected) = gates.get(number).expect("selection per gate") else { continue };
+        if !fact.blocking {
+            continue;
+        }
+        gate.posted = Posted::ByTest;
+        if fact.receipt == Status::Passed {
+            continue;
+        }
+        if fact.receipt == Status::Failed && intersects(selected, failed_ids(fresh, number)) {
+            // Every red gate narrows, even if another gate supplied the first red.
+            for (number, selected) in gates.iter_mut().enumerate() {
+                let fact = fresh.gates.get(number).expect("gate");
+                if fact.blocking
+                    && fact.receipt == Status::Failed
+                    && let Some(ids) = selected
+                    && let Some(failed) = failed_ids(fresh, number)
+                    && intersects(ids, Some(failed))
+                {
+                    let mut kept = List::with_capacity(u32::try_from(ids.len()).expect("selected ids"));
+                    for id in ids.iter() {
+                        if failed.contains(id) {
+                            kept.push(id.clone()).expect("selection narrows");
+                        }
+                    }
+                    *ids = kept.into_boxed();
+                    let proof = member.gates.get_mut(number).expect("gate");
+                    if let Some(key) = fact.key {
+                        proof.proof = Proof::Failed { key };
+                    }
+                }
+            }
+            search.red = index.checked_add(1).expect("member number");
+            return done(landing, Decision::None);
+        }
+        let mut verdict = None;
+        for outcome in probed.iter() {
+            if outcome.member == index.checked_add(1).expect("member number") && outcome.gate == position(number) {
+                verdict = Some(outcome.passed);
+                break;
+            }
+        }
+        if let Some(passed) = verdict {
+            if passed {
+                continue;
+            }
+            // No assumption made by a selected run enters the whole search.
+            search.green = 0;
+            search.red = original_top.checked_add(1).expect("member number");
+            landing.round.search.as_mut().expect("search").tests = crate::SearchTests::WholeAgain;
+            for member in &mut landing.members {
+                for proof in &mut member.gates {
+                    if proof.posted == Posted::ByTest {
+                        proof.proof = match proof.proof {
+                            Proof::Keyed { key } | Proof::Dispatched { key, .. } | Proof::Passed { key } => {
+                                Proof::Keyed { key }
+                            }
+                            Proof::Unkeyed | Proof::Failed { .. } => proof.proof,
+                        };
+                    }
+                }
+            }
+            return done(landing, Decision::None);
+        }
+        let mut absent = *fact;
+        absent.receipt = Status::Unknown;
+        let decision = gate_step(gate, &absent, index, position(number), candidate, project, true);
+        if let Decision::Wait { .. } = decision {
+            blocked = true;
+            continue;
+        }
+        if let Decision::Hold(why) = decision {
+            landing.phase = Phase::Held { was: Box::new(landing.phase), why };
+        }
+        if decision != Decision::None {
+            return done(landing, decision);
+        }
+    }
+    if blocked {
+        return wait(landing, Some(Wall::from_nanos(now.as_nanos().saturating_add(limits.poll.as_nanos()))));
+    }
+    landing.round.search.as_mut().expect("search").green = index.checked_add(1).expect("member number");
+    done(landing, Decision::None)
+}
+
+fn failed_ids(fresh: &crate::MemberFacts, number: usize) -> Option<&[crate::TestId]> {
+    fresh.failed.get(number)?.as_deref()
 }

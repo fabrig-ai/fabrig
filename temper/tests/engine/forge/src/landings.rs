@@ -56,6 +56,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
         job: None,
         landing: landing::Landing {
             last_left: None,
+            searched: None,
             round: landing::Round::new(format!("temper/1/l{LANDING}").into_bytes().into_boxed_slice()),
 
             task: LANDING,

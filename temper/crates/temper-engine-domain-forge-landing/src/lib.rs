@@ -20,8 +20,8 @@ mod verdict;
 
 pub use boundary::{
     CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Leave,
-    Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Project, Proof, Repository, Round,
-    RoundEnd, Search, Status, Stepped, WORKFLOW_BYTES,
+    Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Probed, Project, Proof, Repository,
+    Round, RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, probe, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};

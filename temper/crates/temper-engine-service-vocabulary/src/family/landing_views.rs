@@ -61,7 +61,7 @@ pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::
     })
 }
 pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w::LandingSearch> {
-    let search = value.round.search?;
+    let search = value.round.search.as_ref()?;
     w::LandingSearch::new(
         limits,
         w::LandingSearchParts {
@@ -77,7 +77,7 @@ fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<
         match value.round.upstream {
             Some(base) => base,
             None => {
-                let red = value.round.search?.red.checked_sub(1)?;
+                let red = value.round.search.as_ref()?.red.checked_sub(1)?;
                 let member = value.members.get(usize::from(red))?;
                 if let Some(base) = member.base {
                     base
