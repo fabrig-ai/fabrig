@@ -159,6 +159,8 @@ impl Store {
         let mut found = BTreeMap::new();
         let mut transcripts = BTreeMap::new();
         let mut attempts = Vec::new();
+        let mut log_transcripts = BTreeMap::new();
+        let mut windows = Vec::new();
         let installation = keys::installation(self.component_limits.store.key).expect("installation key");
         for (key, value) in rows {
             if let Some(decoded) = keys::decode(key) {
@@ -205,20 +207,26 @@ impl Store {
                 if key.len() != 10 || value.len() != 8 {
                     return Err(inventory(key, "log extent key and value widths"));
                 }
-                Reader::new(value).u64().ok_or_else(|| inventory(key, "log extent"))?;
+                let length = Reader::new(value).u64().ok_or_else(|| inventory(key, "log extent"))?;
+                let log = Reader::new(&key[2..]).u64().ok_or_else(|| inventory(key, "log name"))?;
+                if log % 2 == 1 {
+                    log_transcripts.insert(log / 2, codec::component::Transcript { length, window: length });
+                }
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
                     keys::Own::History { .. } => {
                         codec::component::HistoryLog::decode(value)
                             .map_err(|failure| inventory(key, format!("history log: {failure:?}")))?;
                     }
-                    keys::Own::TurnLog { .. } => {
-                        codec::component::TurnLog::decode(value)
+                    keys::Own::TurnLog { task } => {
+                        let row = codec::component::TurnLog::decode(value)
                             .map_err(|failure| inventory(key, format!("turn log: {failure:?}")))?;
+                        windows.push((key, task, row.window));
                     }
-                    keys::Own::LogAttempt { .. } => {
-                        codec::component::LogAttempt::decode(value)
+                    keys::Own::LogAttempt { task, attempt } => {
+                        let row = codec::component::LogAttempt::decode(value)
                             .map_err(|failure| inventory(key, format!("log attempt: {failure:?}")))?;
+                        attempts.push((key, task, attempt, row.first, true));
                     }
                     keys::Own::Format => {
                         codec::component::Format::decode(value)
@@ -273,17 +281,31 @@ impl Store {
                     keys::Own::Attempt { task, attempt } => {
                         let index = codec::component::Attempt::decode(value)
                             .map_err(|failure| inventory(key, format!("attempt index: {failure:?}")))?;
-                        attempts.push((key, task, attempt, index));
+                        attempts.push((key, task, attempt, index.first, false));
                     }
                 }
             }
         }
-        for (key, task, _, index) in attempts {
-            // A drop leaves attempt places for bounded later commits (protocol/store/transcripts.md, 5).
-            let Some(transcript) = transcripts.get(&task) else { continue };
-            if index.first >= transcript.length {
+        for (key, task, window) in windows {
+            let transcript =
+                log_transcripts.entry(task).or_insert(codec::component::Transcript { length: 0, window: 0 });
+            if let Some(window) = window {
+                if window >= transcript.length {
+                    return Err(inventory(key, "window within committed turns log"));
+                }
+                transcript.window = window;
+            }
+        }
+        for (key, task, _, first, log) in attempts {
+            // A drop leaves attempt places for bounded later commits (protocol/store/logs.md, 5).
+            let places = if log { &log_transcripts } else { &transcripts };
+            let Some(transcript) = places.get(&task) else { continue };
+            if first >= transcript.length {
                 return Err(inventory(key, "attempt begins within committed transcript"));
             }
+        }
+        for (task, transcript) in log_transcripts {
+            transcripts.entry(task).or_insert(transcript);
         }
         for task in transcripts.keys() {
             let forwards = self.transcript(*task, false)?;

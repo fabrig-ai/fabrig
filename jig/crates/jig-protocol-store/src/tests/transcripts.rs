@@ -82,7 +82,7 @@ fn a_turns_save_puts_no_turn_row_in_the_map() {
     assert_eq!(fixtures::get_kv(&mut store, &key), None);
 }
 #[test]
-fn a_turn_is_saved_as_a_row_until_transcript_files_land() {
+fn an_existing_transcript_keeps_writing_its_file() {
     let (mut store, below) = writing();
     let (bytes, below) = turn_bytes(&mut store, below);
     let expected = fixtures::turn(LIVE, 1, 1, b"one");
@@ -455,7 +455,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
     };
     fixtures::answer(store, Io::Transcripts(Arrived { event, fd: None }))
 }
-fn answer_reads(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> Box<[Event]> {
+pub(super) fn answer_reads(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> Box<[Event]> {
     for _ in 0_u32..4096 {
         let (events, next) = read_answer(store, below, disk, chunk);
         if !events.is_empty() {

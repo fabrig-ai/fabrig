@@ -58,8 +58,8 @@ pub(super) fn summary(world: &World, task: u64) -> bool {
     world.store.rows.contains_key(&key(tasks::Key::Summary(task)))
 }
 pub(super) fn places(world: &mut World, task: u64) -> bool {
-    let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Transcript { task }, u32::MAX)
-        .expect("transcript key");
+    let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::TurnLog { task }, u32::MAX)
+        .expect("turn-log key");
     world.store.retained().expect("quiescent store").contains_key(&key)
 }
 pub(super) fn indexes(world: &World, task: u64) -> usize {

@@ -4,6 +4,7 @@ mod layouts;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
+use jig_channel_kit::world::store::logs;
 use jig_domain_core as core;
 use jig_protocol_store::{codec, keys, transcripts};
 use skein_io::kernel::{Complete, Done, Fd, Op};
@@ -17,6 +18,7 @@ pub struct Commit {
     pub writes: Vec<root::Write>,
     pub(crate) installation: Option<[u8; 16]>,
     pub(crate) wires: bool,
+    turn_ends: BTreeMap<u64, Option<u64>>,
 }
 #[derive(Default)]
 pub struct Store {
@@ -142,7 +144,7 @@ impl Store {
     }
     /// A cold world's existing transcript files precede every recovered map row.
     pub(crate) fn transcript_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
-        self.files.insert(path, bytes);
+        self.files.insert(logs::path(&path).unwrap_or(path), bytes);
     }
     pub(crate) fn recovering(&mut self) {
         self.observed_through = self.applied;
@@ -190,7 +192,7 @@ impl Store {
                     {
                         *validated = 0;
                     }
-                    let file = self.files.entry(path.clone()).or_default();
+                    let file = self.files.entry(logs::path(&path).unwrap_or_else(|| path.clone())).or_default();
                     file.resize(file.len().max(at + bytes.len()), 0);
                     file[at..at + bytes.len()].copy_from_slice(&bytes);
                     if path.as_slice() == b"active" {
@@ -309,6 +311,16 @@ impl Store {
                 }
             }
         }
+        for (task, end) in &commit.turn_ends {
+            match end {
+                Some(end) => {
+                    self.lengths.insert(*task, *end);
+                }
+                None => {
+                    self.lengths.remove(task);
+                }
+            }
+        }
         self.applied = commit.number;
     }
     fn decode(
@@ -349,6 +361,10 @@ impl Store {
         Some(core::Record::Tasks(codec::tasks::decode_live(value, &cold, &limits.tasks, names).ok()?))
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one ordered observation of map puts, transcript files and turns-log extents"
+    )]
     fn commit(
         &mut self,
         number: u64,
@@ -362,6 +378,7 @@ impl Store {
         let mut writes = Vec::new();
         let mut installation = None;
         let mut wires = false;
+        let mut turn_ends = BTreeMap::new();
         for op in &ops {
             match op {
                 skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
@@ -369,7 +386,38 @@ impl Store {
                 }
                 skein_kv::Op::Put { key, value } => {
                     let value = self.layouts.serving(key, value.clone())?;
-                    if let Some(key) = keys::decode(key) {
+                    if let Some((log, end)) = logs::extent(key, &value) {
+                        if log % 2 == 1 {
+                            let task = log / 2;
+                            let name = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
+                            let bytes = self.files.get(&name).ok_or("turns log write precedes map commit")?;
+                            let mut at = self.lengths.get(&task).copied().unwrap_or(0);
+                            let bound = u32::try_from(
+                                jig_protocol_store::core_v6::TurnRecord::encoded_bound(&limits.core)
+                                    .ok_or("turn body bound")?,
+                            )
+                            .map_err(|why| why.to_string())?;
+                            while at < end {
+                                let (length, body) = logs::record(
+                                    bytes
+                                        .get(
+                                            usize::try_from(at).map_err(|why| why.to_string())?
+                                                ..usize::try_from(end).map_err(|why| why.to_string())?,
+                                        )
+                                        .ok_or("whole turns-log extent")?,
+                                    bound,
+                                )
+                                .ok_or("whole turns-log record")?;
+                                let turn = codec::core::read_turn(&body, limits)
+                                    .map_err(|why| format!("turns-log body: {why:?}"))?;
+                                writes.push(root::Write::Save(root::Record::Core(core::Record::Core(
+                                    core::CoreRecord::Turn(turn),
+                                ))));
+                                at += u64::try_from(length).map_err(|why| why.to_string())?;
+                            }
+                            turn_ends.insert(task, Some(end));
+                        }
+                    } else if let Some(key) = keys::decode(key) {
                         let row = self
                             .decode(&key, &value, &ops, limits, names)
                             .ok_or_else(|| String::from("real stored row decodes"))?;
@@ -424,7 +472,13 @@ impl Store {
                     }
                 }
                 skein_kv::Op::Erase { key } => {
-                    if let Some(key) = keys::decode(key) {
+                    if key.starts_with(&jig_protocol_store::logs::EXTENTS) && key.len() == 10 {
+                        let log = Reader::new(&key[2..]).u64().ok_or("log name")?;
+                        if log % 2 == 1 {
+                            turn_ends.insert(log / 2, None);
+                            writes.push(root::Write::DropTranscript { task: log / 2 });
+                        }
+                    } else if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
                     } else if let Some(keys::Own::History { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropHistory { task });
@@ -438,7 +492,7 @@ impl Store {
                 }
             }
         }
-        Ok(Commit { number, writes, installation, wires })
+        Ok(Commit { number, writes, installation, wires, turn_ends })
     }
 }
 type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;

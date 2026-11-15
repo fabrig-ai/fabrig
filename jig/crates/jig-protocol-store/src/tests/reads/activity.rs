@@ -14,7 +14,7 @@ fn transcript_page_with_last(last: &[u8]) -> (Store, Box<[u8]>) {
     let mut store = fixtures::opened();
     let mut owner = task_owner();
     owner.activity = 5;
-    fixtures::committed(
+    fixtures::committed_with_places(
         &mut store,
         Box::new([
             fixtures::header(1),
@@ -22,6 +22,7 @@ fn transcript_page_with_last(last: &[u8]) -> (Store, Box<[u8]>) {
             fixtures::save(turn_line(1, 1)),
             fixtures::save(fixtures::activity_line(CHILD, 2)),
         ]),
+        &[CHILD],
     );
     fixtures::committed(
         &mut store,

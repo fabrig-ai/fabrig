@@ -774,7 +774,7 @@ pub use store::{
 };
 
 pub use store::limits as store_limits;
-pub use store::{Answer, events, opened_with_transcripts, script, written};
+pub use store::{Answer, committed_with_places, events, opened_with_transcripts, script, written};
 
 /// An amendment retaining every field, with the supplied explanation.
 #[must_use]

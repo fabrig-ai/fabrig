@@ -23,6 +23,7 @@ mod restore;
 mod secrets;
 mod start_pages;
 mod transcripts;
+mod turns_logs;
 
 mod settings;
 

@@ -105,7 +105,7 @@ impl Reply {
             if state.ok_or("committed state")?.writing.is_some() {
                 return Err(String::from("committed reply has no writing"));
             }
-            if client.text(RUN).is_some() {
+            if client.text(RUN).is_some_and(|text| text.turn.number <= TURN) {
                 return Err(String::from("committed turn clears retained provisional text"));
             }
             self.committed = true;

@@ -46,7 +46,15 @@ impl Disk {
     pub fn unread_transcript(&mut self, task: u64) {
         let root = self.machine.reopen_root(0);
         let name = format!("transcripts/{:016x}/{task:016x}", task >> 12);
-        let file = self.machine.open(root, name.as_bytes(), How::Write).expect("kept transcript");
+        let file = if let Ok(file) = self.machine.open(root, name.as_bytes(), How::Write) {
+            file
+        } else {
+            let active = self.read(b"active").expect("active generation");
+            let active = std::str::from_utf8(&active).expect("generation name").trim();
+            let log = jig_protocol_store::logs::turns(task).expect("turns log");
+            let name = format!("generations/{active}/store/logs/{:016x}/{log:016x}", log >> 12);
+            self.machine.open(root, name.as_bytes(), How::Write).expect("kept turns log")
+        };
         self.machine.truncate(file, 0).expect("writable transcript");
         self.machine.sync(file);
         self.machine.close(file);

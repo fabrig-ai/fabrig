@@ -7,6 +7,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 
+mod faults;
 mod readback;
 pub use readback::ReadbackFinding;
 #[cfg(test)]
@@ -241,7 +242,7 @@ impl Store {
     pub fn unread_transcript(&mut self, task: u64) {
         match &mut self.disk {
             Some(disk) => disk.unread_transcript(task),
-            None => self.files.unread_transcript(task),
+            None => self.unread_memory_turn(task, 0),
         }
     }
     pub fn fault(&mut self, fault: Fault) {
@@ -737,6 +738,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
     kv.snapshot_after = u64::from(sizes.commit);
     kv.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).expect("bounded largest row");
     kv.page.bytes = sizes.key.checked_add(sizes.value).expect("one largest row fits");
+    kv.record = kv.page.bytes;
     protocol::sizes::whole(kv.chunk).expect("the largest row chunk also holds the whole manifest");
     Limits {
         core: root.core,

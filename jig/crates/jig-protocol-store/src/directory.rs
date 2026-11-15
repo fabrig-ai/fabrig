@@ -969,6 +969,10 @@ pub(crate) fn events_up(
                 }
             }
             skein_kv::Event::Refused { owner, refusal } => {
+                if owner == crate::transcripts::read::LOG_OWNER {
+                    crate::transcripts::read::log_arrived(store, None, above, below);
+                    continue;
+                }
                 stopped(store);
                 if !secret {
                     crate::transcripts::failed(store, Some(owner.raw()), crate::CommitFailure::Refused(refusal), above);
@@ -982,8 +986,20 @@ pub(crate) fn events_up(
             }
             skein_kv::Event::OpenFailed { .. } => refuse(store, above),
             skein_kv::Event::Recovered { .. } | skein_kv::Event::RecoveryFailed { .. } => stopped(store),
-            skein_kv::Event::LogRead { records, next, .. } => crate::view::read(store, records, next, above),
-            skein_kv::Event::LogUnread { .. } => crate::view::unread(store, above),
+            skein_kv::Event::LogRead { owner, records, next } => {
+                if owner == crate::transcripts::read::LOG_OWNER {
+                    crate::transcripts::read::log_arrived(store, Some(records), above, below);
+                } else {
+                    crate::view::read(store, records, next, above);
+                }
+            }
+            skein_kv::Event::LogUnread { owner, .. } => {
+                if owner == crate::transcripts::read::LOG_OWNER {
+                    crate::transcripts::read::log_arrived(store, None, above, below);
+                } else {
+                    crate::view::unread(store, above);
+                }
+            }
             skein_kv::Event::Got { .. } | skein_kv::Event::Loaded { .. } | skein_kv::Event::Closed { .. } => {
                 stopped(store);
             }

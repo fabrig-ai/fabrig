@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_867);
+    let document = transcript_document(4_582_862);
     fixtures::start(
         &document,
         &config::Directories::working(),
@@ -61,7 +61,7 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_868);
+    let document = transcript_document(4_582_863);
     let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4582932 bytes, needs a store page past the profile's ceiling of 4582931 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);

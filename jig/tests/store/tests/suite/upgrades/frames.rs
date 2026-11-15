@@ -78,7 +78,7 @@ fn answer(world: &mut World, event: Event, halt: Option<Halt>, offset: u64) -> V
     };
     assert_eq!(owner, READER);
     assert_eq!(of, Owner::Smith);
-    let mut expected = keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, 64).expect("task key").to_vec();
+    let mut expected = keys::encode_own(&keys::Own::TurnLog { task: frames::TASK }, 64).expect("task key").to_vec();
     expected.extend(offset.to_be_bytes());
     assert_eq!(key.as_ref(), expected);
     let result = if let Some(halt) = halt {
@@ -459,7 +459,18 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
 fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
     const COUNT: u32 = 3;
     let transcript = frame_reads::turn(1, b"said", b"replay", 0);
-    let stride = len_u64(frames::frame(6, &transcript).len());
+    let limits = patches::limits();
+    let codec = store::codec::limits(&limits.core).expect("codec");
+    let kv = skein_kv::Store::memory(&limits.store);
+    let mut offsets = Vec::new();
+    let mut end = 0;
+    for number in 1..=COUNT {
+        offsets.push(end);
+        let mut turn = root::turn(frames::TASK, frames::ATTEMPT, number, &transcript);
+        if number == 1 { turn.spent = frames::SPENT; }
+        let body = store::codec::core::turn(&turn, &codec).expect("turn body");
+        end += kv.frame(&body).expect("log frame").len();
+    }
     let mut world = fixture(frame_reads::SETS, &transcript);
     for turn in 2..=COUNT {
         assert_eq!(
@@ -478,7 +489,7 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
                 world.request(ask(TranscriptRead::Page { task: frames::TASK, backwards, after }, READ_BYTES));
             for index in page {
                 assert_eq!(events.len(), 1, "{events:?}");
-                events = answer(&mut world, events.remove(0), None, u64::from(*index) * stride);
+                events = answer(&mut world, events.remove(0), None, offsets[usize::try_from(*index).expect("bounded frame")]);
             }
             let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
                 panic!("page terminal: {events:?}")
