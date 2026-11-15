@@ -417,7 +417,10 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   - **Dropped,** naming a missing repository and not exempt: rows of
     `BranchHead` 6, `PullState` 7, `Ci` 8, the client's `Live` (11,
     variant 0), `Receipt` 24, `Tier` 28, `Verification` 29 and
-    `LandingLog` 30, erased whole, each judged by its key; and a `Names`
+    `LandingLog` 30, erased whole, each judged by its key; an
+    `Application` row (15) whose `Adopted` outcome names one, erased
+    whole, judged by its value: a settled answer for a project that is
+    gone, whose retry the forge would refuse; and a `Names`
     row (4) loses each resource naming one, put again with the rest, or
     erased when none is left, as a release does. None of these has a
     partner keyed apart from its repository, so pairs go together.
@@ -425,7 +428,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     naming a missing one and not exempt: `ProposedEffect` 1, `Hold` 3,
     `Subscription` 5, `Entry` 10, the client's `Repository` (11,
     variant 1), `Issue` 13, `Release` 14 (its pending name),
-    `Application` 15 (an `Adopted` outcome), `Landing` 23 (each
+    `Landing` 23 (each
     member), `Follow` 42 and `ChangeCold` 47; they may stand for a
     pending effect, a live owner or a kept answer, and a person clears
     them. The page is refused, `key` the row's and `why`
@@ -443,7 +446,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     that cannot fit alone refuses.
   - **Its counts,** in order: `dropped`, then `BranchHead`,
     `PullState`, `Ci`, `Client`, `Receipt`, `Tier`, `Verification`,
-    `LandingLog` and `Names`: the rows each answer erased of that
+    `LandingLog`, `Application` and `Names`: the rows each answer erased of that
     family, `Names` the resources removed, and `dropped` their sum
     (`binaries.md`, 2, prints them).
 - **A repository's tag** is its forge's number and its id, packed

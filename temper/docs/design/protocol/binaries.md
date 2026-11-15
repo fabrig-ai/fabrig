@@ -243,7 +243,7 @@ default; the document is `temper.json` in the configuration directory
   and, for a job that counts (jig's `protocol/store/jobs.md`, 3), `; `
   then each of its counts as `{name} {count}`, joined by `, `, in the
   job's order, zeros included:
-  `temper-box serve: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; dropped 5, BranchHead 1, PullState 2, Ci 0, Client 0, Receipt 2, Tier 0, Verification 0, LandingLog 0, Names 0`
+  `temper-box serve: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; dropped 5, BranchHead 1, PullState 2, Ci 0, Client 0, Receipt 2, Tier 0, Verification 0, LandingLog 0, Application 0, Names 0`
   (`store.md`, 4). `upgrade --check`'s line is the same with `upgrade`
   for `serve`, then `; ` and its time.
 - **`temper-box program-login NAME`:** a program's login for
