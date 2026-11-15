@@ -28,23 +28,38 @@ pub(super) fn plan_world_with_limits(
     limits: &StoryLimits,
     silent_ci: bool,
 ) -> (World, engine::Assignment) {
+    plan_world_with_gate(bound, Gate::default(), limits, silent_ci)
+}
+
+pub(super) fn plan_world_with_gate(
+    bound: Option<u32>,
+    gate: Gate,
+    timing: &StoryLimits,
+    silent_ci: bool,
+) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
         silent_ci,
         1000,
-        Gate { approval: None, agent: false, owner: false },
+        gate,
         None,
-        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*limits },
+        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*timing },
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();
-    let mut bounds = protocol::bounds();
-    bounds.message_bytes = world.env.limits.tasks.message_bytes;
-    world.send(protocol::hello_with(CHANNEL, 0, 3, bounds, Box::new([])));
+    let mut hello =
+        if timing.turn { super::landing::hello_prepare(3) } else { protocol::hello_slots(CHANNEL, 3, Box::new([])) };
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("hello")
+    };
+    worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(hello);
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(BUDGET * 2) };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;

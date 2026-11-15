@@ -188,7 +188,9 @@ const FORGE: forge::Limits = forge::Limits {
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
-    key_entries: 16,
+    // Entries of one tree a landing key reads: a real repository's root runs past the
+    // fixture's 16 (domain/landing.md, 6.1); forge.key_entries overrides it.
+    key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
@@ -406,10 +408,10 @@ const STANDARD_ROOT: Root = Root {
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds (engine::row_bound):
         // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
-        // + 21 executor places * 8 bytes per AuthorityExecutor
+        // + 22 executor places * 8 bytes per AuthorityExecutor
         // + 8 bytes for the question wake watermark
-        // + 56 bytes for Option<OpenAttempt> = 22,467,896.
-        transcript_bytes: 22_467_896,
+        // + 56 bytes for Option<OpenAttempt> = 22,467,904.
+        transcript_bytes: 22_467_904,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
@@ -714,6 +716,28 @@ mod making_tests {
             let mut limits = limits.forge;
             limits.makings = count;
             assert!(!forge::valid(&limits));
+        }
+    }
+}
+
+#[cfg(test)]
+mod key_entry_tests {
+    use super::*;
+    // A staging prepare read 17 entries of a real repository's root past the fixture's 16.
+    #[test]
+    fn a_landing_key_reads_a_real_root_and_takes_a_dotted_override() {
+        for selected in [Profile::Small, Profile::Standard] {
+            let limits = profile(selected);
+            assert_eq!(limits.forge.key_entries, 256);
+            for value in [1, 17, 4096] {
+                let mut changed = limits;
+                apply(&mut changed, b"forge.key_entries", value).unwrap();
+                assert_eq!((find(b"forge.key_entries").unwrap().value)(&changed), value);
+                assert!(forge::valid(&changed.forge));
+            }
+            let mut changed = limits;
+            assert_eq!(apply(&mut changed, b"forge.key_entries", 0), Err(Refused::Range));
+            assert_eq!(changed.forge.key_entries, 256);
         }
     }
 }

@@ -164,6 +164,28 @@ pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
     false
 }
 
+/// Gate dispatch and rerun failures are retried by the landing policy
+/// (temper/docs/design/domain/landing.md, 7.4); other terminal writes need an account.
+pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -> bool {
+    let Some(row) = domain.forge.landing(task) else { return false };
+    for pending in &row.entries {
+        if pending.entry != entry {
+            continue;
+        }
+        match pending.operation {
+            forge::Operation::Dispatch | forge::Operation::Rerun => return false,
+            forge::Operation::Pending
+            | forge::Operation::Verdict
+            | forge::Operation::Merge
+            | forge::Operation::Open
+            | forge::Operation::Close
+            | forge::Operation::Delete
+            | forge::Operation::Record => {}
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     let Some(change) = domain.forge.change(task) else { return };
@@ -418,17 +440,24 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             StepEnd::Wait
         }
         landing::Decision::Prepare { .. } => {
-            if let Some(delegate) = prepare_delegate(domain, env, task) {
-                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-                }));
-                return;
-            }
-            StepEnd::Hold(tasks::Hold::Procedure)
+            let decision = match prepare_delegate(domain, env, task) {
+                Ok(delegate) => ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+                Err(reason) => {
+                    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+                    append(&mut words, b"prepare job: ");
+                    append(&mut words, reason);
+                    super::holds::recovery(domain, task, &mut words);
+                    super::holds::decision(domain, env, task, words.into_boxed())
+                }
+            };
+            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                task,
+                step,
+                connector,
+                code,
+                decision,
+            }));
+            return;
         }
         landing::Decision::Hold(_) => {
             let words = domain.forge.landing_hold_words(task).unwrap_or(Box::from(b"prepare job: failed".as_slice()));
@@ -520,7 +549,7 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
     words.into_boxed()
 }
 
-fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
+pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
     let members = match domain.forge.landing(context.task) {
         Some(row) => u32::try_from(row.landing.members.len()).expect("bounded members"),
         None => 0,
@@ -559,7 +588,28 @@ fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Prepara
             }
         }
     }
-    landing::Preparation::Idle
+    if admitted_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
+}
+
+// A policy intent precedes jig's admission; the durable job record names the admitted suffix
+// (temper/docs/design/domain/landing.md, 5.2; temper/docs/design/domain/landing-history.md, 3.3).
+fn admitted_prepare(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.landing(task) else { return false };
+    let Some(job) = &row.job else { return false };
+    if job.round != row.landing.preparation || job.step.job != forge::history::Job::Prepare {
+        return false;
+    }
+    let mut admitted = job.members.iter();
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.left.is_none()
+            && member.landed.is_none()
+            && member.candidate.is_none()
+            && admitted.next().copied() != Some(u16::try_from(index).expect("bounded members"))
+        {
+            return false;
+        }
+    }
+    admitted.next().is_none()
 }
 fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
     let row = domain.forge.landing(task)?;
@@ -637,23 +687,23 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
         members: members.into_boxed(),
     })
 }
-fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {
-    let request = prepare_request(domain, env, task)?;
-    let bound = domain.config.prepare_kind?;
-    let context = domain.core.tasks.delegation(task)?;
+fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Result<super::super::Delegate, &'static [u8]> {
+    let bound = domain.config.prepare_kind.ok_or(b"prepare job kind 1 is not declared".as_slice())?;
+    let request = prepare_request(domain, env, task)
+        .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
+    let context = domain.core.tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
+    let spec = super::prepare::spec(&request, bound.spec)
+        .ok_or(b"prepare specification exceeds its declared spec bytes".as_slice())?;
     let mut authority = context.authority;
     authority.tools.0 = 0;
     authority.budget.spend = 0;
     authority.delegation.kinds = Box::new([]);
     authority.delegation.tasks = 0;
     authority.delegation.depth = 0;
-    Some(super::super::Delegate {
+    Ok(super::super::Delegate {
         executor: tasks::Executor::Job { kind: forge::PREPARE_KIND },
         spec: tasks::Spec {
-            job: Some(Box::new(tasks::JobSpec {
-                bytes: super::prepare::spec(&request, bound.spec)?,
-                deadline: bound.deadline,
-            })),
+            job: Some(Box::new(tasks::JobSpec { bytes: spec, deadline: bound.deadline })),
             asks: false,
             words: Box::new([]),
             parameters: Box::new([]),

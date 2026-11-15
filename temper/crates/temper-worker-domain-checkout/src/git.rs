@@ -96,9 +96,9 @@ pub enum Op {
     /// Whether head and upstream share a commit absent from base (protocol/git.md, 4.9).
     Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
-    /// rename detection. Ends Paths with the first non-Markdown name in git's
-    /// order, or none. Each path is bounded; the file count is not.
-    DiffPaths { at: Place, before: Commit, after: Commit },
+    /// rename detection. Ends Paths with the first name in git's order, or none;
+    /// `markdown: false` excludes Markdown names for design delivery. Each path is bounded; the file count is not.
+    DiffPaths { at: Place, before: Commit, after: Commit, markdown: bool },
     /// Merge fetched `theirs` into the checked-out commit, without committing;
     /// leave conflict markers and merge state on disk. Ends Merged/Conflicted.
     Merge { at: Place, theirs: Commit, identity: u32, account: Option<u64> },

@@ -273,6 +273,11 @@ impl Throwaway {
 
     /// Add a fixture file through the person's API, retaining its exact bytes.
     pub fn add_file(&self, file: &str, content: &[u8]) {
+        self.add_file_on("main", file, content);
+    }
+
+    /// Move a fixture branch through the owned person's contents API.
+    pub fn add_file_on(&self, branch: &str, file: &str, content: &[u8]) {
         let path = format!("/api/v1/repos/acme/widget/contents/{file}");
         let size = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
@@ -283,7 +288,7 @@ impl Throwaway {
         skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, content, &mut encoded).expect("base64 file");
         let encoded = encoded.finish();
         let content = std::str::from_utf8(&encoded).expect("base64 text");
-        let body = serde_json::to_vec(&json!({"branch":"main","message":format!("Add {file}"),"content":content}))
+        let body = serde_json::to_vec(&json!({"branch":branch,"message":format!("Add {file}"),"content":content}))
             .expect("contents JSON");
         let response = self
             .instance

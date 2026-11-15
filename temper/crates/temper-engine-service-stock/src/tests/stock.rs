@@ -2070,3 +2070,20 @@ fn the_stock_has_no_foreman() {
     );
     assert!(!include_str!("../stock/ask.txt").contains("answer change questions"));
 }
+
+#[test]
+fn the_prepare_executor_needs_both_stock_executor_limits() {
+    use jig_domain_core::settings::Setting;
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    for name in [b"authority.executors".as_slice(), b"tasks.executor_kinds".as_slice()] {
+        let mut limits = engine.limits;
+        config::overrides::apply(&mut limits, name, 21).unwrap();
+        assert_eq!(crate::stock::floors(&defaults, &limits), Ok(()));
+        config::overrides::apply(&mut limits, name, 20).unwrap();
+        assert_eq!(
+            crate::stock::floors(&defaults, &limits),
+            Err(crate::stock::Floor { limit: name, configured: 20, needed: 21, setting: Setting::Rules })
+        );
+    }
+}

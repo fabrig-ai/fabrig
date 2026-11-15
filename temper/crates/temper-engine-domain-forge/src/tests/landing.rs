@@ -933,6 +933,95 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
+/// A restored merge is recovered by its outbox entry, not proposed again (domain/landing.md, 12).
+#[test]
+fn a_restored_turn_waits_for_its_existing_merge_entry() {
+    let mut d = turn_fixture();
+    let mut row = d.landing.rows.get(&61).expect("turn").clone();
+    row.entries = Box::new([LandingEntry {
+        entry: 90,
+        member: 0,
+        gate: 0,
+        operation: Operation::Merge,
+        run: None,
+        preparation: Some(row.landing.preparation),
+        base: Some(fixtures::BASE),
+    }]);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Entry {
+                entry: skein_forge_client::Entry {
+                    number: 90,
+                    task: 61,
+                    repository: REPO,
+                    effect: skein_forge_client::Effect {
+                        write: skein_forge::api::Write::Merge {
+                            number: 2,
+                            head: fixtures::HEAD,
+                            how: skein_forge::api::MergeHow::FastForwardOnly,
+                        },
+                        condition: skein_forge_client::Condition::Merge { base: b"main".as_slice().into() },
+                    },
+                    start: None,
+                    attempt: None,
+                    failures: 0,
+                    queued: false,
+                },
+                held: false,
+            },
+        },
+    );
+    let requests = turn_reviews(&mut d);
+    let mut waiting = false;
+    for request in &requests {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { .. }, entry: None, .. } = request {
+            waiting = true;
+        }
+    }
+    assert!(waiting, "the saved merge retains its turn: {requests:?}");
+    assert_eq!(d.landing.rows.get(&61).expect("turn").entries.len(), 1);
+    assert!(d.entries.get(&91).is_none(), "no second merge is proposed");
+}
+
+/// Startup's coherent read does not replace the idle procedure's lost poll (domain/landing.md, 12).
+#[test]
+fn a_restored_turn_keeps_a_poll_after_its_startup_read() {
+    use skein_forge::api::Answer;
+    let mut d = landing_fixture();
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    outputs(&mut d, Event::Restore { record: Stored::Landing(merge_landing_row(false)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    let mut requests: Box<[Request]> = Box::new([]);
+    for answer in [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(fixtures::open_pull()),
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+    ] {
+        requests = fixtures::answer_next(&mut d, Ok(answer));
+    }
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }), "startup refresh: {requests:?}");
+    outputs(&mut d, Event::SettleOutbox);
+    assert!(d.landing.due.contains_key(&61), "an idle turn still needs its poll after startup's wake");
+    let mut later = env();
+    let until = *d.landing.due.get(&61).expect("restored poll");
+    later.now = later.now.saturating_add(Duration::from_nanos(until.as_nanos().saturating_sub(later.wall.as_nanos())));
+    later.wall = until;
+    let mut out = Queue::uncapped();
+    fire(&mut d, &later, &mut out);
+    let mut woke = false;
+    for request in &out {
+        if *request == (Request::WakeProcedure { task: 61 }) {
+            woke = true;
+        }
+    }
+    assert!(woke, "the restored poll wakes its procedure");
+}
+
 fn merge_evidence(requests: &[Request]) -> &[LandingEvidence] {
     for request in requests {
         if let Request::LandingDecision {
@@ -1937,4 +2026,192 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
         };
         assert_eq!(decision, Some(expected));
     }
+}
+
+fn connected_member_landing() -> Domain {
+    let mut d = landing_fixture();
+    fixtures::connect(&mut d);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    member_landing(&mut d);
+    d
+}
+
+#[test]
+fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
+    let mut d = connected_member_landing();
+    let row = d.landing.rows.get_mut(&61).expect("round");
+    row.landing.phase = policy::Phase::Preparing;
+    row.landing.round.pull = None;
+    row.landing.round.combined = None;
+    row.landing.members[0].candidate = None;
+    let report = br#"{"combined":[{"member":1,"by":"merge"}],"conflicts":[]}"#;
+    let prepared = preparation::outcomes(report, LIMITS.landing_members).expect("prepare report");
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: prepared.clone(),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: report.as_slice().into(),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Busy));
+    let row = d.landing.rows.get(&61).expect("waiting round");
+    assert_eq!(preparation::outcomes(&row.landing.round.failure, LIMITS.landing_members), Some(prepared));
+}
+
+#[test]
+fn a_busy_landing_read_retries_before_the_hearing_fallback() {
+    let mut d = connected_member_landing();
+    let mut clock = env();
+    clock.limits.client.fallback = Duration::from_secs(300);
+    fixtures::repository_heard(&mut d, &clock, REPO);
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &clock,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    let owner = *d.landing.pending.iter().next().expect("landing read").0;
+    landing::answered(&mut d, &clock, owner, Err(skein_forge::api::Error::Busy), &mut out);
+    while let Some(request) = out.pop() {
+        assert!(
+            !matches!(request, Request::LandingDecision { .. }),
+            "busy admission retains the gather rather than waiting for the repository fallback"
+        );
+    }
+    assert!(!landing::read_waiting(&d), "the rejected read yields the current ready pass");
+    d.reclaim();
+    assert!(landing::read_waiting(&d), "client admission retries without advancing the clock to the fallback");
+    assert!(d.is_ready(), "the retained read is immediately runnable after reclamation");
+}
+
+/// A successor reads the key's run even after its dispatcher ends (domain/landing.md, 6 and 7).
+#[test]
+fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
+    use skein_forge::api::{Answer, Op, Read};
+    const KEY: policy::Key = [7; 32];
+    let mut d = connected_member_landing();
+    let after = d.after_landing(5).expect("project");
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+            }]),
+            tiers: Box::new([])
+        }]),
+        policy::Project::DEFAULT,
+        after
+    ));
+    d.landing.rows.get_mut(&61).expect("dispatcher").landing.members[0].gates = Box::new([policy::GateProof {
+        proof: policy::Proof::Keyed { key: KEY },
+        posted: policy::Posted::Nothing,
+        faults: 0,
+    }]);
+    let mut successor = d.landing.rows.get(&61).expect("dispatcher").clone();
+    successor.landing.task = 62;
+    d.landing.rows.insert(62, successor).expect("successor row");
+    d.landing.rows.get_mut(&61).expect("dispatcher").landing.phase = policy::Phase::Landed;
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY };
+    d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, KEY)).expect("main key");
+    let mut flight = runs::follow();
+    flight.commit = fixtures::HEAD;
+    d.landing.flights.insert(key.clone(), flight).expect("shared flight");
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 62,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    let run = skein_forge::api::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: skein_forge::api::Event::Dispatch,
+        actor: *d.writers.get(&REPO.forge).expect("writer"),
+        state: skein_forge::api::RunState::Completed,
+        conclusion: Some(skein_forge::api::Conclusion::Success),
+        url: b"https://forge/run/7".as_slice().into(),
+        created: Time::from_nanos(20),
+        jobs: Box::new([]),
+    };
+    let mut taken = false;
+    for _ in 0..7_u32 {
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Runs { commit, .. }) => {
+                assert_eq!(commit, fixtures::HEAD);
+                Answer::Runs { runs: Box::new([run.clone()]), more: false }
+            }
+            Op::Read(Read::Run { run: id }) => {
+                assert_eq!(id, run.id);
+                taken = true;
+                Answer::Run(run.clone())
+            }
+            Op::Read(_) | Op::Write(_) => panic!("unexpected read {op:?}"),
+        };
+        fixtures::answer(&mut d, call, Ok(answer));
+        if taken {
+            break;
+        }
+    }
+    assert!(taken, "a waiter follows the shared flight");
+    let receipt = d.receipt(&key).expect("receipt shared by key");
+    assert!(receipt.passed);
+    assert_eq!((receipt.candidate, receipt.run.id), (fixtures::HEAD, run.id));
+    assert!(!d.landing.flights.contains_key(&key));
 }

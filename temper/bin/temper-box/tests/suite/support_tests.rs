@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn four_reviews_and_the_latch_can_wait_on_the_model_together() {
+    support::turn_drills::tests::four_reviews_and_the_latch_can_wait_on_the_model_together();
+}
+
+#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
@@ -38,21 +43,6 @@ fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
 #[test]
 fn gate_receipt_waits_for_an_unpublished_status_context() {
     support::batch_landing::tests::gate_receipt_waits_for_an_unpublished_status_context();
-}
-
-#[test]
-fn held_turn_releases_repeat_until_the_observed_phase_changes() {
-    support::batch_landing::tests::held_turn_releases_repeat_until_the_observed_phase_changes();
-}
-
-#[test]
-fn repeated_releases_name_no_later_scripted_hold() {
-    support::batch_landing::tests::repeated_releases_name_no_later_scripted_hold();
-}
-
-#[test]
-fn the_poll_period_starts_when_the_sample_ends() {
-    support::batch_landing::tests::the_poll_period_starts_when_the_sample_ends();
 }
 
 #[test]

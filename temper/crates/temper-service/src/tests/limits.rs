@@ -316,8 +316,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // Task row 22,467,664 + 21 * 8 executors + 8 question watermark + 56 open attempt.
-                transcript_bytes: 22_467_896,
+                // Task row 22,467,664 + 22 * 8 executors + 8 question watermark + 56 open attempt.
+                transcript_bytes: 22_467_904,
                 result_bytes: 335_619,
                 ..small.root.journal
             },

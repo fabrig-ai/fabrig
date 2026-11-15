@@ -52,10 +52,10 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         ("core.run_bytes", 32_768),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("authority.executors", 21),
+        ("authority.executors", 22),
         ("tasks.authority_grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 21),
+        ("tasks.executor_kinds", 22),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
