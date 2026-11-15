@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where skein's code lags or departs from [README.md](README.md).
+2026-11-15. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's
@@ -65,6 +65,10 @@ counted around each reused pass, never by an address.
   worlds, skein's browser suite and the UI example's tier take another
   package's binary from two directories above the test's executable,
   which the pinned nightly's cargo can put deeper. [in flight: change 2976]
+  6: `tests/boundary/tests/skein_worlds.rs` reads its sources twice: the
+  seam's rule from git's tracked Rust sources, and the `#[path]` rule from
+  a second walk of `skein/`'s directories, untracked files among them,
+  each source either rule matches parsed by itself. [in flight: change 3962]
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

@@ -369,22 +369,62 @@ pub struct Tree {
 /// Unreadable sources and unsupported includes are recorded in `Tree::failures`.
 #[must_use]
 pub fn module_tree(package: &Path, root: &Path) -> Tree {
-    let mut tree = Tree::default();
-    let mut seen = BTreeSet::new();
-    let mut pending = vec![(normalized(root), true)];
-    while let Some((file, root)) = pending.pop() {
-        if !seen.insert(file.clone()) {
-            continue;
-        }
-        match fs::read_to_string(&file) {
-            Ok(source) => {
-                tree.files.insert(file.clone(), source.lines().count());
-                let (children, failures) = source_modules(package, &file, root, &source);
-                tree.failures.extend(failures);
-                pending.extend(children.into_iter().map(|path| (normalized(&path), false)));
+    Trees::default().tree(package, root)
+}
+
+struct Scan {
+    lines: Option<usize>,
+    children: Vec<PathBuf>,
+    failures: Vec<String>,
+}
+
+/// One run's module-tree reader (tools/crates/design.md, 3). Text is read once;
+/// scans are shared by targets with the same file, root role and package.
+/// Read failures remain findings in every tree that reaches the file.
+#[derive(Default)]
+pub struct Trees {
+    sources: BTreeMap<PathBuf, Result<String, String>>,
+    scans: BTreeMap<(PathBuf, bool, PathBuf), Scan>,
+    /// Files the reader tried to read from disk, including unreadable sources.
+    pub read: usize,
+}
+
+impl Trees {
+    fn scan(&mut self, package: &Path, file: &Path, root: bool) -> &Scan {
+        let key = (file.to_path_buf(), root, package.to_path_buf());
+        self.scans.entry(key).or_insert_with(|| {
+            let source = self.sources.entry(file.to_path_buf()).or_insert_with(|| {
+                self.read += 1;
+                fs::read_to_string(file).map_err(|why| format!("{}: {why}", file.display()))
+            });
+            match source {
+                Ok(source) => {
+                    let (children, failures) = source_modules(package, file, root, source);
+                    Scan { lines: Some(source.lines().count()), children, failures }
+                }
+                Err(why) => Scan { lines: None, children: Vec::new(), failures: vec![why.clone()] },
             }
-            Err(why) => tree.failures.push(format!("{}: {why}", file.display())),
-        }
+        })
     }
-    tree
+
+    /// Read one target's tree by section 2.1, sharing reads and scans with the run.
+    /// Unreadable sources and unsupported includes are recorded in `Tree::failures`.
+    #[must_use]
+    pub fn tree(&mut self, package: &Path, root: &Path) -> Tree {
+        let mut tree = Tree::default();
+        let mut seen = BTreeSet::new();
+        let mut pending = vec![(normalized(root), true)];
+        while let Some((file, root)) = pending.pop() {
+            if !seen.insert(file.clone()) {
+                continue;
+            }
+            let scan = self.scan(package, &file, root);
+            if let Some(lines) = scan.lines {
+                tree.files.insert(file, lines);
+            }
+            tree.failures.extend(scan.failures.iter().cloned());
+            pending.extend(scan.children.iter().map(|path| (normalized(path), false)));
+        }
+        tree
+    }
 }

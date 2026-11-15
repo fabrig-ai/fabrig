@@ -1,6 +1,8 @@
 //! A world's library is its own (skein/docs/design/testing/README.md, 6): no package
 //! depends on a package under skein/tests/, and no #[path] leaves its package.
+//! One tracked-source walk feeds both source rules (tools/crates/design.md, 3).
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -81,19 +83,6 @@ fn world_edges(packages: &[Package]) -> Vec<String> {
     failures
 }
 
-/// The seam's one world (skein/docs/design/forge/connection.md, 10).
-fn seam_source(path: &Path, source: &str) -> Vec<String> {
-    if path.starts_with("skein/crates/skein-forge-connection")
-        || path.starts_with("skein/tests/forge/machine")
-        || !source.contains("skein_forge_connection")
-    {
-        return Vec::new();
-    }
-    let mut seam = SeamPaths::default();
-    seam.visit_file(&syn::parse_file(source).unwrap_or_else(|why| panic!("{}: {why}", path.display())));
-    if seam.0 { vec![format!("{}: seam is private to skein-forge-machine-world", path.display())] } else { Vec::new() }
-}
-
 #[derive(Default)]
 struct SeamPaths(bool);
 
@@ -123,23 +112,6 @@ fn seam_use(tree: &syn::UseTree, prefix: &str) -> bool {
     }
 }
 
-fn seam_sources(root: &Path) -> Vec<String> {
-    let output = Command::new("git")
-        .current_dir(root)
-        .args(["ls-files", "-z", "--", "*.rs"])
-        .output()
-        .expect("list tracked Rust sources");
-    assert!(output.status.success(), "git ls-files: {}: {}", output.status, String::from_utf8_lossy(&output.stderr));
-    let mut failures = Vec::new();
-    for raw in output.stdout.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
-        let path = std::str::from_utf8(raw).expect("tracked path is UTF-8");
-        let source = fs::read_to_string(root.join(path)).unwrap_or_else(|why| panic!("{path}: {why}"));
-        failures.extend(seam_source(Path::new(path), &source));
-    }
-    failures.sort();
-    failures
-}
-
 #[derive(Default)]
 struct Paths(Vec<String>);
 
@@ -158,43 +130,92 @@ impl<'ast> Visit<'ast> for Paths {
     }
 }
 
-fn path_crossings(root: &Path) -> Vec<String> {
-    let mut directories = vec![root.join("skein")];
-    let mut failures = Vec::new();
-    while let Some(directory) = directories.pop() {
-        for entry in fs::read_dir(&directory).expect("skein directory is readable") {
-            let entry = entry.expect("skein directory entry is readable");
-            let path = entry.path();
-            let kind = entry.file_type().expect("skein file type is readable");
-            if kind.is_dir() {
-                directories.push(path);
-            } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "rs") {
-                let source = fs::read_to_string(&path).expect("Rust source is readable");
-                if !source.contains("path") {
-                    continue;
-                }
-                let mut paths = Paths::default();
-                paths.visit_file(&syn::parse_file(&source).unwrap_or_else(|why| panic!("{}: {why}", path.display())));
-                let parent = path.parent().expect("source directory");
-                let package = parent
-                    .ancestors()
-                    .find(|directory| directory.join("Cargo.toml").is_file())
-                    .expect("Rust source has a package");
-                for target in paths.0 {
-                    let resolved = normalized(&parent.join(&target));
-                    if !resolved.starts_with(package) {
-                        failures.push(format!(
-                            "{}: #[path = {target:?}] leaves {}",
-                            path.strip_prefix(root).expect("source under root").display(),
-                            package.strip_prefix(root).expect("package under root").display(),
-                        ));
-                    }
+#[derive(Default)]
+struct Walk {
+    failures: Vec<String>,
+    read: usize,
+    parsed: usize,
+}
+
+impl Walk {
+    fn source(&mut self, root: &Path, path: &Path, source: &str, manifests: &BTreeSet<PathBuf>) {
+        let seam = !path.starts_with("skein/crates/skein-forge-connection")
+            && !path.starts_with("skein/tests/forge/machine")
+            && source.contains("skein_forge_connection");
+        let paths = path.starts_with("skein") && source.contains("path");
+        if !seam && !paths {
+            return;
+        }
+        let parsed = syn::parse_file(source).unwrap_or_else(|why| panic!("{}: {why}", path.display()));
+        self.parsed += 1;
+        if seam {
+            let mut seam = SeamPaths::default();
+            seam.visit_file(&parsed);
+            if seam.0 {
+                self.failures.push(format!("{}: seam is private to skein-forge-machine-world", path.display()));
+            }
+        }
+        if paths {
+            let mut paths = Paths::default();
+            paths.visit_file(&parsed);
+            let absolute = root.join(path);
+            let parent = absolute.parent().expect("source directory");
+            let package = parent
+                .ancestors()
+                .find(|directory| manifests.contains(&directory.join("Cargo.toml")))
+                .expect("Rust source has a package");
+            for target in paths.0 {
+                let resolved = normalized(&parent.join(&target));
+                if !resolved.starts_with(package) {
+                    self.failures.push(format!(
+                        "{}: #[path = {target:?}] leaves {}",
+                        path.display(),
+                        package.strip_prefix(root).expect("package under root").display(),
+                    ));
                 }
             }
         }
     }
-    failures.sort();
-    failures
+}
+
+fn walk(root: &Path, paths: &[&str], mut read: impl FnMut(&str) -> String) -> Walk {
+    let manifests = paths
+        .iter()
+        .filter(|path| Path::new(path).file_name().is_some_and(|name| name == "Cargo.toml"))
+        .map(|path| root.join(path))
+        .collect();
+    let mut walk = Walk::default();
+    for path in paths.iter().map(Path::new).filter(|path| path.extension().is_some_and(|extension| extension == "rs")) {
+        let source = read(path.to_str().expect("tracked path is UTF-8"));
+        walk.read += 1;
+        walk.source(root, path, &source, &manifests);
+    }
+    walk.failures.sort();
+    walk
+}
+
+fn tracked_walk(root: &Path) -> Walk {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files", "-z"])
+        .output()
+        .expect("list tracked sources and manifests");
+    assert!(output.status.success(), "git ls-files: {}: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let paths: Vec<_> = output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|raw| std::str::from_utf8(raw).expect("tracked path is UTF-8"))
+        .collect();
+    walk(root, &paths, |path| fs::read_to_string(root.join(path)).unwrap_or_else(|why| panic!("{path}: {why}")))
+}
+
+fn fixture(files: &[(&str, &str)]) -> Walk {
+    let paths: Vec<_> = files.iter().map(|(path, _)| *path).collect();
+    walk(Path::new("/workspace"), &paths, |path| {
+        files.iter().find(|(name, _)| *name == path).expect("fixture source").1.to_owned()
+    })
 }
 
 #[test]
@@ -237,7 +258,7 @@ fn seam_is_private_to_the_machine_world() {
         ("temper/crates/x/src/lib.rs", "use skein_forge_connection::Component;", false),
         ("temper/crates/x/src/lib.rs", r#"const TEXT: &str = "skein_forge_connection::seam::GitHub";"#, false),
     ] {
-        let failures = seam_source(Path::new(path), source);
+        let failures = fixture(&[(path, source)]).failures;
         let expected =
             if expected { vec![format!("{path}: seam is private to skein-forge-machine-world")] } else { vec![] };
         assert_eq!(failures, expected, "{path}: {source}");
@@ -253,20 +274,39 @@ fn attributes_stay_within_the_nearest_package() {
         ("#[cfg(any())]\n# [ path = r\"../../other/src/lib.rs\" ] mod other;", true),
         ("// #[path = \"../../other.rs\"]\nconst TEXT: &str = \"path = outside\";", false),
     ] {
-        let scratch = skein_scratch::Scratch::new("world-boundary");
-        let root = scratch.path();
-        fs::create_dir_all(root.join("skein/outer/nested/src")).expect("fixture source directory");
-        for file in ["skein/outer/Cargo.toml", "skein/outer/nested/Cargo.toml"] {
-            fs::write(root.join(file), "[package]\npath = \"../../outside\"\n").expect("fixture manifest");
-        }
-        fs::write(root.join("skein/outer/nested/src/lib.rs"), source).expect("fixture source");
+        let walk = fixture(&[
+            ("skein/outer/Cargo.toml", "[package]\npath = \"../../outside\"\n"),
+            ("skein/outer/nested/Cargo.toml", "[package]\npath = \"../../outside\"\n"),
+            ("skein/outer/nested/src/lib.rs", source),
+        ]);
         let expected = if expected {
             vec!["skein/outer/nested/src/lib.rs: #[path = \"../../other/src/lib.rs\"] leaves skein/outer/nested"]
         } else {
             vec![]
         };
-        assert_eq!(path_crossings(root), expected, "{source}");
+        assert_eq!(walk.failures, expected, "{source}");
     }
+}
+
+#[test]
+fn one_walk_reads_each_source_and_parses_for_both_rules_once() {
+    let source = "use skein_forge_connection::seam::GitHub; #[path = \"../../other/src/lib.rs\"] mod other;";
+    let walk = fixture(&[
+        ("skein/outer/nested/Cargo.toml", ""),
+        ("skein/outer/nested/src/lib.rs", source),
+        ("temper/crates/x/src/lib.rs", source),
+        ("skein/outer/nested/src/main.rs", "fn main() {}"),
+    ]);
+    assert_eq!(walk.read, 3);
+    assert_eq!(walk.parsed, 2);
+    assert_eq!(
+        walk.failures,
+        [
+            "skein/outer/nested/src/lib.rs: #[path = \"../../other/src/lib.rs\"] leaves skein/outer/nested",
+            "skein/outer/nested/src/lib.rs: seam is private to skein-forge-machine-world",
+            "temper/crates/x/src/lib.rs: seam is private to skein-forge-machine-world",
+        ]
+    );
 }
 
 #[test]
@@ -283,8 +323,9 @@ fn skein_worlds_are_private_to_their_packages() {
         assert!(packages.iter().any(|package| package.directory.starts_with(tree)), "metadata reads {tree}");
     }
     let mut failures = world_edges(&packages);
-    failures.extend(seam_sources(&root));
-    failures.extend(path_crossings(&root));
+    let walk = tracked_walk(&root);
+    eprintln!("Read {} Rust source files; parsed {} files.", walk.read, walk.parsed);
+    failures.extend(walk.failures);
     assert!(
         failures.is_empty(),
         "A world's library is its own (skein/docs/design/testing/README.md, 6):\n{}",

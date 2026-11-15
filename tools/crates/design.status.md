@@ -4,6 +4,7 @@
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-client-domain` until its split [in flight: change 3592].
 
+- **Not yet:** 3: no one walk per binary: `shared_test_code.rs` reads each test binary's module tree afresh, so a file several binaries reach is read and scanned once for each, and `skein_worlds.rs` reads its sources twice, its walk counting nothing [in flight: change 3962].
 - **Not yet:** 3.2: no shared-test-code check, `tests/boundary/tests/shared_test_code.rs`, and no reader in `fabrig-boundary`'s library: `sizes.rs` holds its own [in flight: change 2020].
 - **Not yet:** 3.2: no `skein-browser-rig`: `skein-browser-world`'s test binaries each compile its real rig and its pages [in flight: change 2049].
 - **Not yet:** 3.2: no `jig-test-kit`: `jig-test`'s two test binaries each compile its support and the accounts kit's visitor [in flight: change 2050].
