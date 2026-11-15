@@ -21,6 +21,26 @@ fn wall_time_counts_from_the_epoch() {
     assert!(Wall::EPOCH < wall);
 }
 
+#[test]
+fn basic_utc_writes_the_runs_second_and_calendar_boundaries() {
+    for (seconds, expected) in [
+        (0, "19700101T000000Z"),
+        (1_794_733_232, "20261115T090032Z"),
+        (1_794_700_800, "20261115T000000Z"),
+        (1_794_787_199, "20261115T235959Z"),
+        (951_827_696, "20000229T123456Z"),
+        (1_706_745_599, "20240131T235959Z"),
+    ] {
+        let wall = Wall::from_nanos(seconds * 1_000_000_000 + 999_999_999);
+        let mut text = crate::Writer::new(16);
+        wall.write_basic_utc(&mut text).expect("sixteen UTC bytes");
+        assert_eq!(text.finish().as_ref(), expected.as_bytes(), "{seconds}");
+    }
+    let mut short = crate::Writer::new(15);
+    assert_eq!(Wall::EPOCH.write_basic_utc(&mut short), Err(crate::Overflow));
+    assert_eq!(short.written(), 0, "an undersized writer receives no partial timestamp");
+}
+
 fn at(nanos: u64) -> Time {
     Time::from_nanos(nanos)
 }

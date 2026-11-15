@@ -88,18 +88,42 @@ the look, 11 what is open.
   Only a recording takes them: a run without one, as the shipped
   `temper-box`'s always is (section 2), gives Alt+m and Alt+s to the host as
   any other key.
-- **A save** writes the file whole, `recording` in the TUI's directory
-  (`README.md`, 2), `0o600`, a synced temporary replacing it,
-  through skein-io's file layer on the run's own io. The recorder goes
-  on after a save, so each save is a whole recording and a later one
-  holds more. Closing saves once more, as it is, before the terminal's
-  `LEAVE`; a save that fails says nothing on the screen, and the next
-  save tries again.
-- **One run, one recording:** a recording starts with the TUI and is
-  whole at each save; the next TUI run replaces it.
+- **A save** writes the run's file whole, `recording-TIME` in the TUI's
+  directory (`README.md`, 2; *Each run its own file*, below), `0o600`, a
+  synced temporary replacing it, through skein-io's file layer on the
+  run's own io. The recorder goes on after a save, so each save is a
+  whole recording and a later one holds more. Closing saves once more,
+  as it is, before the terminal's `LEAVE`; a save that fails says
+  nothing on the screen, and the next save tries again.
+- **Each run its own file** (the user's request `tui-19` of 2026-11-15,
+  "to not overwrite the last journey when saving", after a recording of
+  a `/close` they wanted to report was replaced by the next run's): a
+  recording starts with the TUI and is whole at each save, and each run
+  saves to a file of its own, `recording-TIME`, TIME the run's start,
+  the wall clock at its first iteration, in UTC, in the basic form
+  `YYYYMMDDTHHMMSSZ`: `recording-20261115T090032Z`. A save within the
+  run replaces that run's file alone, and no run replaces another's.
+  Two runs started within one second share a name, the later's saves
+  replacing the earlier's: the name's grain is the second.
+- **The last ten kept:** a run that records, once it has its file's
+  name and before its first save, removes the oldest recordings beyond
+  the newest nine, so that with its own the directory holds ten: of the
+  directory's entries, the files named `recording-` and a TIME of that
+  form exactly, oldest first by name, which is by time. It removes
+  nothing else: a `recording` an earlier build saved, a save's
+  temporary and the directory's other files stay. A removal that fails
+  says nothing on the screen; the next run that records tries again.
+- **Said at the end** (the request's third ask, left to the designer):
+  once the terminal is left, a run that recorded writes one line to
+  standard error, before any other line it writes there: "temper:
+  recorded to PATH" where its last save, the closing one, stored the
+  file, else "temper: couldn't save the recording to PATH", PATH the
+  file's whole path. Standard error, since standard output is the
+  terminal's and closes with it.
 - **The file keeps every original:** it is the person's, in their
-  private directory, and `add` takes it (section 6). It is never
-  committed as it is.
+  private directory, and `add` takes it (section 6). Each kept file
+  holds the box's sign-in link until `add` redacts it (section 5). It is
+  never committed as it is.
 
 ### 3.2 The file
 
@@ -506,7 +530,9 @@ ordinary Rust over skein's harness:
   what the setup made; a `mark` in it is refused when it is read, since
   the TUI's `walk` marks its own frames. Its steps and their bounds are
   the browser's; nothing of them reaches the recording.
-- **A save** is told by the `recording` file replaced (3.1).
+- **A save** is told by the run's file replaced (3.1): the one
+  `recording-TIME` in the TUI's directory of the attempt's fresh
+  scratch directory, which holds no other run's.
 - **What it reads and starts:** as the browser's; the box, Chromium and
   the TUI all stopped at its end, the scratch directory removed unless
   it failed, which it then names with what failed.

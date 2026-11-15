@@ -11,6 +11,7 @@ pub const BOX: Region = Region { owner: OWNER, number: 4 };
 pub const LIST: Region = Region { owner: OWNER, number: 5 };
 pub const PANE: Region = Region { owner: OWNER, number: 6 };
 pub const HEADER: Region = Region { owner: OWNER, number: 7 };
+pub(crate) const HEADER_LINE: Region = Region { owner: OWNER, number: 8 };
 pub const TITLE: Style = Style { owner: OWNER, token: 0 };
 pub const HINT: Style = Style { owner: OWNER, token: 1 };
 pub const LIVE: Style = Style { owner: OWNER, token: 2 };
@@ -98,6 +99,7 @@ pub const NAMES: Names<'static> = Names {
         b"tui-list",
         b"tui-pane",
         b"tui-header",
+        b"tui-header-line",
     ],
 };
 /// The link field's binding token under OWNER.

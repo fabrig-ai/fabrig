@@ -104,6 +104,28 @@ impl Wall {
         self.0.div_euclid(1_000_000_000)
     }
 
+    /// Write sixteen UTC bytes in basic form, `YYYYMMDDTHHMMSSZ`, discarding
+    /// fractional seconds. Refuse whole if the writer has too little room.
+    pub fn write_basic_utc(self, out: &mut crate::Writer) -> Result<(), crate::Overflow> {
+        let date = self.civil();
+        let seconds = self.as_secs().rem_euclid(86_400);
+        let mut bytes = *b"00000000T000000Z";
+        for (range, mut value) in [
+            (0..4, u64::from(date.year)),
+            (4..6, u64::from(date.month)),
+            (6..8, u64::from(date.day)),
+            (9..11, seconds.div_euclid(3_600)),
+            (11..13, seconds.div_euclid(60).rem_euclid(60)),
+            (13..15, seconds.rem_euclid(60)),
+        ] {
+            for byte in bytes.get_mut(range).expect("UTC component within sixteen bytes").iter_mut().rev() {
+                *byte = b'0'.saturating_add(u8::try_from(value.rem_euclid(10)).expect("decimal digit"));
+                value = value.div_euclid(10);
+            }
+        }
+        out.put(&bytes)
+    }
+
     /// The UTC date holding this time. Every `Wall` has one.
     #[must_use]
     pub fn civil(self) -> Civil {

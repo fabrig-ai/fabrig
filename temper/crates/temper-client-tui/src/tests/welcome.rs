@@ -348,8 +348,7 @@ fn the_welcome_says_each_state() {
                     want.push(PENDING.as_bytes().into()).unwrap();
                 }
                 want.push(ONCE.as_bytes().into()).unwrap();
-                want.push(b"In the browser".as_slice().into()).unwrap();
-                want.push("1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes().into()).unwrap();
+                want.push("In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes().into()).unwrap();
             }
             Expect::After { marks, forge } => {
                 want.push(FOLLOW.as_bytes().into()).unwrap();
@@ -428,6 +427,44 @@ fn the_welcome_says_each_state() {
             assert!(connecting, "{name}: Connecting");
         }
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the frame print is validated UTF-8 for row comparisons")]
+fn the_welcome_link_wraps_at_the_welcomes_column() {
+    let root = welcome_root(&[], false, Some(false), None);
+    let view = build(&root, &front(Some(PRINTED)));
+    let mut frame = skein_ui_screen::Frame::new(FULL);
+    skein_ui_screen::render(
+        view.tree(),
+        &crate::theme(Scheme::Dark, None),
+        FULL,
+        &mut skein_ui_screen::Focus::default(),
+        &mut frame,
+    );
+    let printed = frame.print();
+    let printed = core::str::from_utf8(&printed).unwrap();
+    let mut lines = printed.lines().skip(4);
+    assert_eq!(lines.next().unwrap(), " Welcome. Set temper up in your browser: open this link on this machine.");
+    assert_eq!(lines.next().unwrap(), "");
+    let mut joined = List::with_capacity(u32::try_from(PRINTED.len()).unwrap());
+    let mut wrapped = 0_u16;
+    for line in &mut lines {
+        if line.is_empty() {
+            break;
+        }
+        let link = line.strip_prefix(' ').expect("each link row starts at column 1");
+        assert!(!link.starts_with(' '), "no description indent on a wrapped row");
+        for byte in link.as_bytes() {
+            joined.push(*byte).unwrap();
+        }
+        wrapped += 1;
+    }
+    assert_eq!(wrapped, 2);
+    assert_eq!(joined.as_slice(), PRINTED);
+    assert_eq!(lines.next().unwrap(), " It signs you in as this temper's owner, once, within 2 hours.");
+    assert_eq!(lines.next().unwrap(), "");
+    assert_eq!(lines.next().unwrap(), " In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready");
 }
 
 #[test]
@@ -1089,8 +1126,7 @@ fn the_starting_box_welcomes_are_their_goldens() {
                     OPEN.as_bytes(),
                     PENDING.as_bytes(),
                     ONCE.as_bytes(),
-                    b"In the browser",
-                    "1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes(),
+                    "In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes(),
                 ]
             );
             let mut frame = skein_ui_screen::Frame::new(FULL);
@@ -1104,10 +1140,11 @@ fn the_starting_box_welcomes_are_their_goldens() {
             let printed = frame.print();
             let text = core::str::from_utf8(&printed).unwrap();
             let body_rows: Vec<_> = text.lines().take(20).map(str::to_owned).collect();
-            assert_eq!(body_rows[4], "");
-            assert_eq!(body_rows[5], "   The link comes here once the box has started.");
-            assert_eq!(body_rows[6], "");
-            assert_eq!(body_rows[7], "   It signs you in as this temper's owner, once, within 2 hours.");
+            assert_eq!(body_rows[5], "");
+            assert_eq!(body_rows[6], " The link comes here once the box has started.");
+            assert_eq!(body_rows[7], "");
+            assert_eq!(body_rows[8], " It signs you in as this temper's owner, once, within 2 hours.");
+            assert_eq!(body_rows[10], " In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready");
             if let Some(first) = &first_body {
                 assert_eq!(&body_rows, first, "the body's rows do not move while the box starts");
             } else {

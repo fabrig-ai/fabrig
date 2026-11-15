@@ -1,8 +1,14 @@
+#[path = "tests/close.rs"]
+mod close;
+
 #[path = "tests/talk.rs"]
 mod talk;
 
 #[path = "tests/tell.rs"]
 mod tell;
+
+#[path = "tests/own.rs"]
+mod own;
 
 #[path = "tests/goal.rs"]
 mod goal;
