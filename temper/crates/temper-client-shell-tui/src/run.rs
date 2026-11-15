@@ -25,6 +25,8 @@ pub struct Settings {
     pub directory: Box<[u8]>,
     pub address: Box<[u8]>,
     pub scheme: Option<Scheme>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub boxed: bool,
     pub link_file: Option<Box<[u8]>>,
     pub note: Option<Note>,
@@ -77,6 +79,8 @@ pub struct Run {
     operations: u32,
     start: Option<(Option<Scheme>, Box<[u8]>)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
+    plain: bool,
+    version: Box<[u8]>,
     boxed: bool,
     front: bool,
     box_child: Option<front::Child>,
@@ -156,6 +160,8 @@ impl Run {
             operations.checked_add(if recording.is_some() { 2 } else { 0 }).expect("file and cancel operations");
         let capacity = operations.checked_mul(2).expect("completion and submission room");
         Ok(Self {
+            plain: settings.plain,
+            version: settings.version,
             host,
             shell,
             terminal,
@@ -475,6 +481,8 @@ impl Run {
             size,
             scheme,
             background,
+            plain: self.plain,
+            version: std::mem::take(&mut self.version),
             boxed: self.boxed,
             address,
             local: self.front || self.link_file.is_some(),
@@ -491,6 +499,8 @@ impl Run {
                 size: start.size,
                 scheme: start.scheme,
                 background: start.background,
+                plain: start.plain,
+                version: start.version.clone(),
                 boxed: start.boxed,
                 address: start.address.clone(),
                 local: start.local,
@@ -1150,6 +1160,8 @@ mod tests {
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
             scheme: Some(Scheme::Dark),
+            plain: false,
+            version: Box::default(),
             boxed: false,
             link_file: None,
             note: None,
@@ -1161,6 +1173,24 @@ mod tests {
             record: None,
             front: None,
         }
+    }
+
+    #[test]
+    fn the_run_hands_the_terminal_and_build_to_start() {
+        let mut settings = settings();
+        settings.plain = true;
+        settings.version = b"0.0.0 (b948f40d6df1)".as_slice().into();
+        settings.link_file = Some(b"link".as_slice().into());
+        settings.record = Some(Fd::new(8));
+        let mut run =
+            Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
+        run.started(None, Vec::new());
+        let frame = String::from_utf8(run.host.frame().print().into_vec()).unwrap();
+        assert_eq!(frame.lines().next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
+        let recorder = run.recording.as_ref().unwrap().recorder.as_ref().unwrap();
+        let lines = journey::lines(&recorder.save(&mut run.host)).expect("recorded Start");
+        assert!(lines.contains(&journey::Line::Plain));
+        assert!(lines.contains(&journey::Line::Version(b"0.0.0 (b948f40d6df1)".as_slice().into())));
     }
 
     #[test]

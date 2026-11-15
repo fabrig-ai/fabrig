@@ -14,6 +14,8 @@ fn ready(found: bool) -> Run {
         directory: b"tui".as_slice().into(),
         address: b"127.0.0.1:8367".as_slice().into(),
         scheme: Some(Scheme::Dark),
+        plain: false,
+        version: Box::default(),
         boxed: true,
         link_file: None,
         note: None,
