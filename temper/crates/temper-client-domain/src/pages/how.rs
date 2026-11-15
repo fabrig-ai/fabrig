@@ -132,7 +132,7 @@ pub fn parts(facts: &Facts) -> Parts {
 /// Gather from `me`, the forge's kinds 7 and 8, ways and roles held for the address.
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Facts {
-    use crate::{Address, forge::stock_ways::State};
+    use crate::{Address, pages::stock_ways::State};
     let pages = root.pages();
     let me = pages.me(root.client());
     let asking = match me {

@@ -7,7 +7,7 @@ use crate::{
 };
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::forge::stock_ways::{StockWays, WayAct};
+use temper_client_domain::pages::stock_ways::{StockWays, WayAct};
 use temper_client_domain::{Address, pages::Act};
 use temper_client_protocol_wire::v1 as wire;
 

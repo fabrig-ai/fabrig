@@ -1,6 +1,8 @@
 //! temper's addresses and the pages' filters (client/pages/README.md), and their paths (client/web/README.md, 2.3).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
+/// Jig's raw authorization query ceiling, shared with its wire codec.
+pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v24::CEILINGS.authorize_query;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
     Inbox { filter: Filter },
@@ -267,8 +269,7 @@ pub fn parse(path: &[u8]) -> Place {
     let fields = path.get(query..).expect("query in path").strip_prefix(b"?").unwrap_or(b"");
     let route = path.get(..query).expect("query in path");
     if route == b"/oauth/authorize" {
-        return if fields.len() <= usize::try_from(crate::authorize::QUERY_BYTES).expect("jig query ceiling fits usize")
-        {
+        return if fields.len() <= usize::try_from(QUERY_BYTES).expect("jig query ceiling fits usize") {
             Place::Authorize { query: fields.into() }
         } else {
             Place::AuthorizeMalformed

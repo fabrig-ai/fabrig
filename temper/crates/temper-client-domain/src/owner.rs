@@ -1,4 +1,9 @@
 //! Exhaustive child askers (client/README.md, 3.3).
+/// Bounded routing and child facts for the shell to observe.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Fact {
+    UnknownAsker,
+}
 /// A child owning every handle and request it gives the shared client.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Owner {
