@@ -19,6 +19,8 @@ use crate::{adoption, brief, held, topics};
 mod admission;
 mod ci_news;
 mod connection_wait;
+#[cfg(test)]
+mod frozen;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 pub(crate) mod heads;
@@ -663,7 +665,7 @@ impl Domain {
 
     pub(crate) fn touched_at(&self, row: &ChangeRow) -> crate::Touched {
         match self.review_heads.get(&row.task) {
-            Some(kept) if kept.head == row.change.last_head && !row.terminal() => kept.touched,
+            Some(kept) if kept.head == row.change.last_head && !row.frozen() => kept.touched,
             Some(_) | None => crate::Touched::UNKNOWN,
         }
     }
@@ -695,7 +697,7 @@ impl Domain {
     /// Returns whether a watched panel needs a new document.
     pub fn keep_review_facts(&mut self, wall: skein_lib::Wall, task: u64, facts: crate::ReviewFacts) -> bool {
         let Some(row) = self.changes.get(&task) else { return false };
-        if row.terminal() || self.review_facts.get(&task) == Some(&facts) {
+        if row.frozen() || self.review_facts.get(&task) == Some(&facts) {
             return false;
         }
         let same_head = match self.review_facts.get(&task) {
@@ -1467,7 +1469,7 @@ impl Domain {
     pub fn changes_for(&self, repository: skein_forge::api::Repository, limit: u32) -> Box<[u64]> {
         let mut tasks = List::with_capacity(limit);
         for (task, row) in &self.changes {
-            if row.repository == repository {
+            if row.repository == repository && !row.frozen() {
                 tasks.push(*task).expect("change table bounds this list");
             }
         }
@@ -1947,6 +1949,12 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
         Event::JobHistory { task, job } => {
+            if job.outcome.is_none()
+                && let Some(row) = d.changes.get(&task)
+                && row.frozen()
+            {
+                return;
+            }
             if job.outcome.is_some() {
                 let mut reading = None;
                 for (owner, pending) in &d.steps {
@@ -1960,6 +1968,15 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::landing::job_woken(d, task);
             }
             crate::job_history::heard(d, env.wall, task, job, out);
+            if job.outcome.is_some()
+                && let Some(mut row) = d.changes.get(&task).cloned()
+                && row.frozen()
+            {
+                // An open attempt ends without gathering new branch facts after its change's end.
+                crate::job_history::merged(d, env.wall, &mut row, None, out);
+                d.changes.insert(task, row.clone()).expect("retained job owner");
+                save_change(d, out, row);
+            }
         }
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
@@ -2021,7 +2038,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::ReviewsChanged { task } => reviews_changed(d, env, task, out),
         Event::ReviewRequested { task, head } => {
             if let Some(row) = d.changes.get_mut(&task)
-                && !row.terminal()
+                && !row.frozen()
             {
                 let owned = row.change.owns_turn;
                 row.change.owns_turn = false;
@@ -3548,7 +3565,7 @@ fn delegated(
         emit(out, Request::Refused { task });
         return;
     };
-    if row.delegate == Some((child, kind)) {
+    if row.frozen() || row.delegate == Some((child, kind)) {
         return;
     }
     match kind {
@@ -4169,7 +4186,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::Refused { task });
         return;
     };
-    if row.terminal() {
+    if row.frozen() {
         d.read_sessions.remove(&task);
         if let Some(owner) = step_owner(d, task) {
             d.steps.remove(&owner);
@@ -4187,6 +4204,9 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     }
     if let Some(merge) = landed_commit(&row.change.state) {
         step_verified(d, env, task, merge, heard, out);
+        return;
+    }
+    if row.frozen() {
         return;
     }
     let owner = step_owner(d, task);
@@ -4456,7 +4476,7 @@ fn step_read(
     }
     arm_gather(d, env, &pending);
     let Some(row) = d.changes.get(&pending.task) else { return };
-    if row.terminal() {
+    if row.frozen() {
         d.read_sessions.remove(&pending.task);
         if let Some(decision) = change_terminal(row) {
             emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
@@ -5622,7 +5642,7 @@ pub(crate) fn in_queue(state: &change::State) -> bool {
 /// New review facts change membership without changing the change's first ready time.
 fn reviews_changed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
-    if row.terminal() {
+    if row.frozen() {
         return;
     }
     let yielded = yield_approval_turn(d, &mut row);
@@ -7939,7 +7959,7 @@ fn wake_head_dependents(
         return;
     }
     for (task, row) in &d.changes {
-        if row.repository.forge != name.forge || row.repository.repository != name.repository {
+        if row.frozen() || row.repository.forge != name.forge || row.repository.repository != name.repository {
             continue;
         }
         if crate::items::branch_matches(name, &row.branch) && !d.procedure_wakes.contains_key(task) {
@@ -7954,12 +7974,32 @@ fn wake_head_dependents(
 }
 
 fn completed_branch(d: &Domain, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    let mut completed = false;
     for (_, row) in &d.changes {
-        if row.repository == repository && row.branch.as_ref() == branch && row.terminal() {
-            return true;
+        if row.repository == repository && row.branch.as_ref() == branch {
+            if !row.frozen() {
+                return false;
+            }
+            completed = true;
         }
     }
-    false
+    // A goal's own watch still judges its branch, beside retained ended changes.
+    for (task, names) in &d.names {
+        if let Some(row) = d.changes.get(task)
+            && row.frozen()
+        {
+            continue;
+        }
+        for name in names {
+            if name.forge == repository.forge
+                && name.repository == repository.repository
+                && crate::items::branch_matches(name, branch)
+            {
+                return false;
+            }
+        }
+    }
+    completed
 }
 
 fn branch_changed(
@@ -8077,7 +8117,7 @@ fn wake_pull_changes(
     facts: bool,
 ) {
     for (_, row) in &d.changes {
-        if row.repository != repository || row.pull != Some(pull.number) {
+        if row.frozen() || row.repository != repository || row.pull != Some(pull.number) {
             continue;
         }
         if !facts {
@@ -8140,7 +8180,7 @@ fn pull_changed(
     }
     let mut changed = List::with_capacity(env.limits.changes);
     for (_, row) in &d.changes {
-        if row.repository == resource.repository && row.pull == Some(pull.number) {
+        if !row.frozen() && row.repository == resource.repository && row.pull == Some(pull.number) {
             // A cancelled change's release closes its own pull (8.6): no drift.
             let cancelling = match d.releases.get(&row.task) {
                 Some(release) => release.ending == ReleaseEnding::Cancelled,
@@ -8294,7 +8334,7 @@ fn change_on_held_branch(row: &ChangeRow, name: &Name, holder: u64) -> bool {
         && row.repository.forge == name.forge
         && row.repository.repository == name.repository
         && crate::items::branch_matches(name, &row.branch)
-        && row.change.state != change::State::Ended
+        && !row.frozen()
 }
 
 // The requester goes on beside its change; every other writer still stops it (domain/forge/change/README.md, 3).
@@ -8352,6 +8392,24 @@ fn settled_update_observation(
     false
 }
 
+/// Retained resources raise no drift of their ended owners; live owners judge their own watches.
+fn frozen_observation(d: &Domain, resource: &skein_forge_client::Resource, change: &crate::DriftChange) -> bool {
+    let number = match change {
+        crate::DriftChange::PullClosed { number } | crate::DriftChange::Retargeted { number, .. } => *number,
+        crate::DriftChange::Branch { .. } => match &resource.what {
+            skein_forge_client::What::Pull(number) => *number,
+            skein_forge_client::What::Branch(branch) => return completed_branch(d, resource.repository, branch),
+            skein_forge_client::What::Repository | skein_forge_client::What::Issue(_) => return false,
+        },
+    };
+    for (_, row) in &d.changes {
+        if row.repository == resource.repository && row.pull == Some(number) && row.frozen() {
+            return true;
+        }
+    }
+    false
+}
+
 pub(crate) fn drift(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -8359,12 +8417,17 @@ pub(crate) fn drift(
     change: crate::DriftChange,
     out: &mut Queue<Request>,
 ) {
-    if settled_update_observation(d, &resource, &change, &env.limits) {
+    if frozen_observation(d, &resource, &change) || settled_update_observation(d, &resource, &change, &env.limits) {
         return;
     }
     let mut affected = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         if to_client(name, &env.limits) == Some(resource.clone()) {
+            if let Some(change) = d.changes.get(&row.task)
+                && change.frozen()
+            {
+                continue;
+            }
             let repeated = match &row.drift {
                 Some(known) => known.change == change,
                 None => false,

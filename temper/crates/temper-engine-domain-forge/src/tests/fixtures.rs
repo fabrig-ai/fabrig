@@ -85,6 +85,32 @@ pub fn open_pull() -> skein_forge::api::Pull {
     }
 }
 
+pub fn frozen_rows() -> Box<[ChangeRow]> {
+    use temper_engine_domain_forge_change::State;
+    let mut rows = skein_lib::List::uncapped();
+    for state in [
+        State::Landed { merge: HEAD, since: env().wall },
+        State::Red { merge: HEAD, since: env().wall },
+        State::Cleared { merge: HEAD },
+        State::Uncleared { merge: HEAD },
+        State::NoChange { words: Box::new([]) },
+        State::Ended,
+    ] {
+        let mut row = opening_row();
+        row.change.state = state;
+        rows.push(row).unwrap();
+    }
+    for ending in
+        [Ending::Landed, Ending::NoChange, Ending::Cancelled, Ending::Failed { line: b"failed".as_slice().into() }]
+    {
+        let mut row = opening_row();
+        row.change.state = State::Checking { head: HEAD };
+        row.ending = Some(ending);
+        rows.push(row).unwrap();
+    }
+    rows.into_boxed()
+}
+
 pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {

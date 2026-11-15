@@ -699,9 +699,7 @@ fn history_driver() -> (Driver, [u64; 2]) {
         .expect("adopted repository");
     repository.project = 1;
     writer.event(forge::Event::Restore { record: forge::Stored::Repository(repository) });
-    let mut row = temper_engine_forge_world::changes::change_row();
-    row.change.state = temper_engine_domain_forge_change::State::Ended;
-    row.ending = Some(forge::Ending::NoChange);
+    let row = temper_engine_forge_world::changes::change_row();
     writer.event(forge::Event::Change { row });
     let public = [forge::PublicTask { task: CHANGE, goal: None }];
     let before = writer.public(1, wire::PUBLIC_CHANGE, Some(CHANGE), &public).expect("public change");

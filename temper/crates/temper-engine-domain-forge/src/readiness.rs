@@ -298,7 +298,7 @@ pub(crate) fn advanced(
     {
         ending(d, env, row, ending_kind, out);
     }
-    if prior.last_head != row.change.last_head && !crate::domain::matches_updating(&prior.state) {
+    if !row.frozen() && prior.last_head != row.change.last_head && !crate::domain::matches_updating(&prior.state) {
         unavailable(d, env, row, h::Unready::HeadMoved, out);
     }
     if let Some(why) = hold(&prior.state)
@@ -369,10 +369,7 @@ fn intervals(
         return;
     }
     let before = row.history;
-    if row.ending.is_some()
-        || ended(&row.change.state).is_some()
-        || crate::domain::landed_commit(&row.change.state).is_some()
-    {
+    if row.frozen() {
         clear(row);
         if before != row.history {
             persist(d, row, out);
@@ -526,7 +523,7 @@ pub(crate) fn base_ci(
         if row.repository == owner.repository
             && row.base == owner.base
             && !row.base_repair
-            && !row.terminal()
+            && !row.frozen()
             && line(row)
         {
             tasks.push(*task).expect("bounded changes");

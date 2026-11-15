@@ -8,6 +8,9 @@ impl Domain {
     /// Save an event and its indexes in the caller's decision. No event is retained.
     pub fn write_event(&mut self, wall: Wall, change: u64, step: Step, out: &mut Queue<Request>) -> Option<u64> {
         let mut row = self.changes.get(&change)?.clone();
+        if row.frozen() && !after_end(&row, &step) {
+            return None;
+        }
         let project = self.repository(row.repository)?.project;
         let mut history = match self.history_projects.get(&project) {
             Some(row) => row.clone(),
@@ -100,6 +103,52 @@ impl Domain {
         crate::domain::save_change(self, out, row);
         sweep::written(self, project, wall, out);
         Some(number)
+    }
+}
+
+// The ending step writes its own end; interval writers pair and retire their open starts.
+// After its end, only verification and those interval ends remain (landing-history.md, 2.2).
+fn after_end(row: &crate::ChangeRow, step: &Step) -> bool {
+    match step.what {
+        What::Landed
+        | What::Ended { .. }
+        | What::JobEnded { .. }
+        | What::Answered { .. }
+        | What::Released { .. }
+        | What::RoundEnded { .. }
+        | What::LandingEnded { .. } => true,
+        What::After { .. } => crate::domain::landed_commit(&row.change.state).is_some(),
+        What::Recorded { .. } => {
+            crate::domain::landed_commit(&row.change.state).is_some()
+                && match step.operation {
+                    Operation::Of(number) => row.pull == Some(number),
+                    Operation::Own => false,
+                }
+        }
+        What::Ready
+        | What::Unready { .. }
+        | What::Joined { .. }
+        | What::Departed { .. }
+        | What::Selected
+        | What::Update { .. }
+        | What::Updated { .. }
+        | What::Job { .. }
+        | What::Conflict { .. }
+        | What::Asked { .. }
+        | What::Pushed
+        | What::Delivered { .. }
+        | What::Paused { .. }
+        | What::Resumed
+        | What::Formed { .. }
+        | What::Gate { .. }
+        | What::GateEnded { .. }
+        | What::Proved { .. }
+        | What::Search
+        | What::Searched { .. }
+        | What::Probe
+        | What::ProbeEnded { .. }
+        | What::Turn { .. }
+        | What::Held { .. } => false,
     }
 }
 
