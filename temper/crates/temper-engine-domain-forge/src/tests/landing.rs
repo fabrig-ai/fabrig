@@ -1889,12 +1889,23 @@ fn dispatch_inputs_add_only_an_opted_in_base_at_the_forges_commit_width() {
             Input { name: b"temper_commit".as_slice().into(), value: b"cd".repeat(width).into_boxed_slice() },
             Input { name: b"temper_key".as_slice().into(), value: b"ab".repeat(32).into_boxed_slice() },
         ];
-        assert_eq!(landing::inputs(candidate, key, None).as_ref(), &expected);
-        let mut expected = expected.to_vec();
-        expected.push(Input { name: b"temper_base".as_slice().into(), value: b"ef".repeat(width).into_boxed_slice() });
-        let inputs = landing::inputs(candidate, key, Some(base));
-        assert_eq!(inputs.as_ref(), expected.as_slice());
-        assert!(inputs.len() <= skein_forge::api::INPUTS);
+        for base in [None, Some(base)] {
+            for probe in [false, true] {
+                let mut expected = expected.to_vec();
+                if base.is_some() {
+                    expected.push(Input {
+                        name: b"temper_base".as_slice().into(),
+                        value: b"ef".repeat(width).into_boxed_slice(),
+                    });
+                }
+                if probe {
+                    expected.push(Input { name: b"temper_probe".as_slice().into(), value: b"yes".as_slice().into() });
+                }
+                let inputs = landing::inputs(candidate, key, base, probe);
+                assert_eq!(inputs.as_ref(), expected.as_slice());
+                assert!(inputs.len() <= skein_forge::api::INPUTS);
+            }
+        }
     }
 }
 
