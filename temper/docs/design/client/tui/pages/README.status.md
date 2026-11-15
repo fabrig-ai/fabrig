@@ -19,11 +19,6 @@
   a space in the box, the caret after it, where it goes to its place
   not yet started; no such place is drawn or kept [in flight: change
   4200].
-- **Not yet:** the opening's *The link's state*; 1, *The quiet line*,
-  *A narrow terminal* and *The notice*: the link's state ends the quiet
-  line's left half, a design session and a talk leave it out while
-  Live, the sign-in screen's stands at its row's right, and a narrow
-  notice goes first, before the state [in flight: change 4196].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
