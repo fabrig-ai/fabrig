@@ -342,7 +342,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   member's for a stale base. With no member remaining, no next round
   needs new branches: task closure releases them instead, without a
   separate kind-15 effect. The members below keep their branches,
-  prefixes and receipts.
+  prefixes and receipts. A prepare still running settles before cleanup;
+  its delivered prefixes are read and retained even when the round ends
+  before preparation recorded them. A restart at that boundary resumes
+  the same cleanup before any new prepare.
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the
   base (5.2); with none, the last kept prefix is its top, and no job is
@@ -447,7 +450,13 @@ The default, for a project with no prepare command:
   strand that intent. The retained job record (landing-history.md,
   3.3) identifies an admitted job by its round and ordered suffix members,
   even after its child leaves the live delegate list. A failed prefix
-  read is no evidence of an absent push.
+  read is no evidence of an absent push. A base found stale as preparation
+  ends closes that round before proof. After cleanup, the next round reads
+  its new base and advances its preparation number before asking for its
+  suffix: an earlier round's admitted job cannot keep that suffix waiting.
+  Before that base is initialized, no prepare report belongs to the new
+  round: repeated reports and retained combinations from the ended round
+  are discarded before its branches are read, including after restart.
   A repeated job compares each rebuilt prefix's whole tree with the
   existing branch, including Markdown paths, and checks that the existing
   tip contains the prefix below and, for a merge, the member's head.
@@ -1028,8 +1037,10 @@ forge's world holds:
   changed keys run in its next landing;
 - **a runner's fault** is rerun, never repaired, and past its bound
   holds the landing; a run past `gate_timeout` holds it;
-- **a stale base at the turn** ends the round, every member stacked
-  again, and the next round lands;
+- **a stale base as prepare ends or at the turn** ends the round, every
+  member stacked again once on the new base, and the next round lands;
+  a released prepare's prefixes are cleaned before that new job, including
+  after restarts during cleanup and before the new preparation's delivery;
 - **a restart** in each phase finds the landing again and carries it
   on, a batch's included;
 - **news** at each step to each member's goal, and the changes view

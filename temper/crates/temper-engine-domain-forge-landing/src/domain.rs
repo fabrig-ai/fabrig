@@ -495,6 +495,17 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
         }
         return done(landing, Decision::Prepare { member: position(index), head, main });
     }
+    for (member, fresh) in landing.members.iter().zip(&facts.members) {
+        if active(member) && member.base != Some(fresh.main) {
+            landing.round.ending = Some(crate::RoundEnd::Stale);
+            landing.round.changed = Some(0);
+            return done(landing, Decision::None);
+        }
+    }
+    prepared(landing, facts)
+}
+
+fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {
     if top(&landing).is_none() {
         landing.phase = Phase::Landed;
         return done(landing, Decision::Finish);
@@ -516,6 +527,19 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
 }
 
 fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Stepped {
+    // A released prepare can finish before its prefixes enter the round.
+    // Its pushes settle before cleanup (domain/landing.md, 5.1–5.2).
+    if facts.preparation == crate::Preparation::Running {
+        return wait(landing, None);
+    }
+    for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
+        if member.candidate.is_none()
+            && let Some((candidate, combined)) = fresh.candidate
+        {
+            member.candidate = Some(candidate);
+            member.combined = Some(combined);
+        }
+    }
     if landing.round.pull.is_some() && facts.closed != Status::Passed {
         return if facts.closed == Status::Pending { wait(landing, None) } else { done(landing, Decision::Close) };
     }

@@ -885,6 +885,39 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
     }
 }
 
+// No prepare can belong to a train round before its base is initialized.
+// Retire repeated results before prefix reads can wait on a deleted branch
+// (temper/docs/design/domain/landing.md, 5.1–5.2, 15).
+fn retire_preparation(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    heard: &mut LandingHeard,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = d.landing.rows.get(&task) else { return };
+    if row.landing.round.branch.is_empty() {
+        return;
+    }
+    let mut uninitialized = false;
+    for member in &row.landing.members {
+        if member.left.is_none() && member.landed.is_none() && member.base.is_none() {
+            uninitialized = true;
+        }
+    }
+    if !uninitialized {
+        return;
+    }
+    heard.outcomes = Box::new([]);
+    heard.failure = Box::new([]);
+    let failure = crate::preparation::next_round(&row.landing.round.failure, env.limits.landing_members);
+    if row.landing.round.failure != failure {
+        let mut row = row.clone();
+        row.landing.round.failure = failure;
+        save(d, row, out);
+    }
+}
+
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -899,6 +932,7 @@ pub(crate) fn step(
     if let Some(job) = heard.job.take() {
         crate::job_history::heard(d, env.wall, task, job, out);
     }
+    retire_preparation(d, env, task, &mut heard, out);
     remember_preparation(d, env, task, &heard, out);
     if let Some(row) = d.landing.rows.get(&task)
         && row.landing.phase == policy::Phase::Cancelled
@@ -1609,7 +1643,13 @@ fn gathered(
         }
     }
     if row.landing.round.ending.is_some() {
-        collect(d, env, owner, p, out);
+        if row.landing.round.ending == Some(policy::RoundEnd::Stale)
+            && p.heard.preparation != policy::Preparation::Running
+        {
+            round_member(d, env, owner, p, row, 0, out);
+        } else {
+            collect(d, env, owner, p, out);
+        }
         return;
     }
     if row.landing.phase != policy::Phase::Waiting && row.landing.phase != policy::Phase::Preparing {
@@ -1650,7 +1690,10 @@ fn round_member(
     out: &mut Queue<Request>,
 ) {
     for (index, member) in row.landing.members.iter().enumerate().skip(usize::from(from)) {
-        if member.left.is_some() || member.landed.is_some() {
+        if member.left.is_some()
+            || member.landed.is_some()
+            || (row.landing.round.ending.is_some() && member.candidate.is_some())
+        {
             continue;
         }
         p.stage =

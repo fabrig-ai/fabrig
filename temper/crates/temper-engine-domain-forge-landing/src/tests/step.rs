@@ -1100,3 +1100,46 @@ fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
     found(&mut f);
     assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Open);
 }
+
+#[test]
+fn a_released_prepares_prefix_is_deleted_before_the_stale_round_restarts() {
+    let mut f = facts();
+    f.members[0].candidate = None;
+    let asked = decide(&preparing(), &f);
+    let mut held = asked.landing;
+    held.phase = Phase::Held { was: Box::new(Phase::Preparing), why: Hold::Prepare };
+    f.released = true;
+    f.members[0].main = NEW;
+    f.members[0].candidate = Some((HEAD, crate::Combine::Merge));
+    let released = decide(&held, &f);
+    assert_eq!(released.landing.round.ending, Some(crate::RoundEnd::Stale));
+    f.released = false;
+    let cleanup = decide(&released.landing, &f);
+    assert_eq!(cleanup.decision, Decision::Delete { member: 0 });
+    assert_eq!(cleanup.landing.members[0].candidate, Some(HEAD));
+    f.members[0].deleted = Status::Passed;
+    let stale = decide(&cleanup.landing, &f);
+    assert_eq!(stale.decision, Decision::Stale);
+    f.members[0].candidate = None;
+    let fresh = decide(&stale.landing, &f);
+    assert_eq!(fresh.decision, Decision::Prepare { member: 0, head: HEAD, main: NEW });
+    assert_eq!(fresh.landing.preparation, 2);
+    assert_eq!(decide(&fresh.landing, &f).decision, Decision::Wait { until: None });
+}
+
+#[test]
+fn a_prepare_finishing_on_a_stale_base_closes_before_proof() {
+    let mut f = facts();
+    f.members[0].candidate = None;
+    let asked = decide(&preparing(), &f);
+    f.members[0].candidate = Some((HEAD, crate::Combine::Merge));
+    f.members[0].main = NEW;
+    let finished = decide(&asked.landing, &f);
+    assert_eq!(finished.landing.phase, Phase::Preparing);
+    assert_eq!(finished.landing.round.ending, Some(crate::RoundEnd::Stale));
+    assert_eq!(finished.landing.preparation, 1);
+    assert_eq!(finished.landing.members[0].candidate, Some(HEAD));
+    assert_eq!(finished.decision, Decision::None);
+    f.preparation = crate::Preparation::Running;
+    assert_eq!(decide(&finished.landing, &f).decision, Decision::Wait { until: None });
+}

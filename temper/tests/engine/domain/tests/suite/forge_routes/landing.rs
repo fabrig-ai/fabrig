@@ -1213,3 +1213,6 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
         assert!(words.contains(expected), "{words}");
     }
 }
+
+#[path = "landing_stale_round.rs"]
+mod stale_round;
