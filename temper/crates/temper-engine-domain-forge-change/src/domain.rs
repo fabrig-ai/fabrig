@@ -494,7 +494,8 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
                     change.last_head = Some(head);
                     match facts.pull {
                         Pull::Open { .. } => pushed(&change, head),
-                        Pull::Missing | Pull::Closed | Pull::Merged { .. } => State::Opening { requested: false },
+                        Pull::Closed => State::Reopening { requested: false, retarget: false },
+                        Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
                     }
                 }
                 None => State::Producing { requested: false },
@@ -529,7 +530,10 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         | State::First { .. }
             if !open =>
         {
-            State::Opening { requested: false }
+            match pull {
+                Pull::Closed => State::Reopening { requested: false, retarget: false },
+                Pull::Missing | Pull::Open { .. } | Pull::Merged { .. } => State::Opening { requested: false },
+            }
         }
         State::Ready { head, .. }
         | State::Queued { head, .. }
