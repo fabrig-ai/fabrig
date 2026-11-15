@@ -2,7 +2,7 @@
 use super::{
     Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, takes_no_messages, tasks,
 };
-use jig_domain_core::StepMessage;
+use jig_domain_core::{StepAmendment, StepMessage};
 
 /// A proposed step's relay is saved only after jig admits the whole step.
 #[derive(Hash, Debug)]
@@ -27,10 +27,13 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         None => None,
     };
     let mut messages = List::with_capacity(env.limits.tasks.batch);
-    for message in decision.messages {
+    for message in core::mem::replace(&mut decision.messages, Box::new([])) {
         messages.push(message).expect("decision messages fit the step batch");
     }
-    let Inbox { mut messages, asked, answer } = take(row, offered, &questions, delegate, env, messages);
+    let Inbox { mut messages, asked, answer, amendment } = take(row, offered, &questions, delegate, env, messages);
+    if let Some(reason) = amendment {
+        amend_producer(domain, env, task, reason, &mut decision);
+    }
     if questions.route == change::Route::None {
         decision.messages = messages.into_boxed();
         return decision;
@@ -148,6 +151,51 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         }
     }
     decision
+}
+
+fn amend_producer(domain: &Domain, env: &Env<Limits>, task: u64, reason: &[u8], decision: &mut ProcedureStep) {
+    let Some(row) = domain.forge.change(task) else { return };
+    let Some((child, change::Delegate::Produce)) = row.delegate else { return };
+    let Some(record) = domain.core.tasks.task(child) else { return };
+    match record.phase {
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
+        tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return,
+    }
+    let Some(words) = super::production_words(domain, env, task, row) else { return };
+    if words == record.spec.words {
+        return;
+    }
+    let Some(change) = domain.core.tasks.task(task) else { return };
+    let mut spec = record.spec.clone();
+    spec.words = words;
+    let mut amendments = List::uncapped();
+    for amendment in core::mem::replace(&mut decision.amendments, Box::new([])) {
+        amendments.push(amendment).expect("existing step amendments");
+    }
+    amendments
+        .push(StepAmendment {
+            task: child,
+            revision: record.revisions.spec,
+            amendment: tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: Some(spec),
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: super::producer_amendment_words(
+                    task,
+                    change.revisions.spec,
+                    reason,
+                    env.limits.tasks.message_bytes,
+                ),
+            },
+        })
+        .expect("one producer amendment");
+    decision.amendments = amendments.into_boxed();
 }
 
 fn question_words(words: &[u8], reasons: &[u8], bound: u32) -> Box<[u8]> {
@@ -274,6 +322,7 @@ struct Inbox<'a> {
     messages: List<StepMessage>,
     asked: List<change::Asked<'a>>,
     answer: Option<&'a [u8]>,
+    amendment: Option<&'a [u8]>,
 }
 
 fn take<'a>(
@@ -286,6 +335,7 @@ fn take<'a>(
 ) -> Inbox<'a> {
     let mut asked = List::with_capacity(u32::try_from(change::QUESTIONS_OPEN).expect("question bound fits u32"));
     let mut answer = None;
+    let mut amendment = None;
     let accepts_answer = match questions.open.first() {
         Some(question) => question.stands == change::Stands::Asked,
         None => false,
@@ -294,6 +344,30 @@ fn take<'a>(
         if word.number > offered {
             continue;
         }
+        let kind = match word.kind {
+            tasks::MessageKind::Amendment { .. } => {
+                amendment = Some(word.words.as_ref());
+                continue;
+            }
+            tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
+            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => tasks::MessageKind::Words,
+            tasks::MessageKind::Result(_)
+            | tasks::MessageKind::Escalation { .. }
+            | tasks::MessageKind::Proposal { .. }
+            | tasks::MessageKind::ProposalDecision { .. }
+            | tasks::MessageKind::SettingsDecision { .. }
+            | tasks::MessageKind::FinishRequested { .. }
+            | tasks::MessageKind::Met { .. }
+            | tasks::MessageKind::Notice { .. }
+            | tasks::MessageKind::QuestionAnswered { .. }
+            | tasks::MessageKind::QuestionOwed
+            | tasks::MessageKind::NothingAwaited
+            | tasks::MessageKind::QuestionEnded { .. }
+            | tasks::MessageKind::Timer { .. }
+            | tasks::MessageKind::PersonStalled { .. }
+            | tasks::MessageKind::EffectNotMade { .. }
+            | tasks::MessageKind::News { .. } => continue,
+        };
         let tasks::Party::Task(target) = word.from else { continue };
         if questions.route != change::Route::None {
             if word.kind == tasks::MessageKind::Question
@@ -314,27 +388,7 @@ fn take<'a>(
         if messages.room() == 0 {
             continue;
         }
-        let kind = match word.kind {
-            tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
-            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => tasks::MessageKind::Words,
-            tasks::MessageKind::Result(_)
-            | tasks::MessageKind::Escalation { .. }
-            | tasks::MessageKind::Proposal { .. }
-            | tasks::MessageKind::ProposalDecision { .. }
-            | tasks::MessageKind::SettingsDecision { .. }
-            | tasks::MessageKind::FinishRequested { .. }
-            | tasks::MessageKind::Amendment { .. }
-            | tasks::MessageKind::Met { .. }
-            | tasks::MessageKind::Notice { .. }
-            | tasks::MessageKind::QuestionAnswered { .. }
-            | tasks::MessageKind::QuestionOwed
-            | tasks::MessageKind::NothingAwaited
-            | tasks::MessageKind::QuestionEnded { .. }
-            | tasks::MessageKind::Timer { .. }
-            | tasks::MessageKind::PersonStalled { .. }
-            | tasks::MessageKind::EffectNotMade { .. }
-            | tasks::MessageKind::News { .. } => continue,
-        };
+
         if row.requester != word.from && !row.delegates.contains(&target) && !row.references.contains(&target) {
             continue;
         }
@@ -348,7 +402,7 @@ fn take<'a>(
         };
         messages.push(StepMessage { target, kind, words }).expect("reply room checked");
     }
-    Inbox { messages, asked, answer }
+    Inbox { messages, asked, answer, amendment }
 }
 
 fn has_ask(acts: &[change::RelayAct]) -> bool {
