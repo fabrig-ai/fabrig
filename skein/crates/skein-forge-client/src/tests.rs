@@ -3,6 +3,7 @@ mod budget;
 mod contracts;
 mod fixtures;
 use fixtures::{Harness, Sent, at, configured, listing_item, terminal};
+mod fence;
 mod keep;
 mod locate;
 mod outbox;

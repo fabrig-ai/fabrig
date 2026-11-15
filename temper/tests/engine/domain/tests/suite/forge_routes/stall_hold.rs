@@ -367,7 +367,7 @@ fn a_stalled_update_names_its_wait_and_reaches_its_goal() {
     let (mut world, goal, _, _, task) =
         super::goal_closer::updating_landing_with_stall(false, Some(Duration::from_secs(5)));
     let State::Updating { from, base, .. } = row(&world, task).change.state else { panic!("updating") };
-    world.hold_write_answers = Some(HoldWrite::All);
+    world.hold_write_answers = Some(HoldWrite::Update);
     for _ in 0..STEPS {
         world.tick();
         if !world.held_write_answers.is_empty() {

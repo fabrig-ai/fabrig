@@ -1220,8 +1220,12 @@ fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: 
         engine::Parts::none(),
     );
     world.send(event);
+    let tasks::Party::Task(change) = live(world, producer.task).requester else { panic!("change requester") };
     for _ in 0..1000 {
-        if world.merges == 1 {
+        if matches!(
+            goal_landing::row(world, change).change.state,
+            temper_engine_domain_forge_change::State::Landed { .. }
+        ) {
             break;
         }
         world.tick();

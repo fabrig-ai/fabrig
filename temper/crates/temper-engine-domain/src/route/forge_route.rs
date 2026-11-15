@@ -2583,6 +2583,7 @@ pub(super) fn start_recovered_change(
                     gates,
                     clean: Box::new([]),
                     gate_failures: Box::new([]),
+                    released_resolution: false,
                     released: None,
                     repairs: 0,
                     resolutions: 0,
@@ -2675,6 +2676,9 @@ pub(super) fn start_recovered_change(
             .forge_delegating
             .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
             .expect("one released relay per change step");
+        let record = domain.core.tasks.task(task).expect("released change");
+        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
@@ -2685,6 +2689,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
+        // A retired delegate's inbox terminal is not fresh evidence (change/repairs.md, A release).
+        let Some((current, _)) = domain.forge.change(task).expect("registered change").delegate else { continue };
+        if child != current {
+            continue;
+        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
@@ -4705,6 +4714,7 @@ fn delegate_change_step(
         return;
     }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
             env,

@@ -26,6 +26,9 @@ pub(super) struct Observation {
 
 pub(super) fn pending(d: &Domain, task: u64) -> Option<(u64, Commit, Commit)> {
     let row = d.changes.get(&task)?;
+    if row.frozen() {
+        return None;
+    }
     let change::State::Preparing { from, main, .. } = row.change.state else { return None };
     let number = row.pending?;
     let entry = d.entries.get(&number)?;
@@ -153,6 +156,12 @@ pub(super) fn answered(
         }
     }
     let Some(task) = task else { return };
+    if let Some(row) = d.changes.get(&task)
+        && row.frozen()
+    {
+        d.rebases.remove(&task);
+        return;
+    }
     let status = super::ancestry_status(result);
     let observation = d.rebases.get_mut(&task).expect("read owns observation");
     observation.read = None;
@@ -189,6 +198,11 @@ pub(super) fn outcome(
     };
     d.rebase_hints.remove(&task);
     let Some(observation) = d.rebases.remove(&task) else { return };
+    if let Some(row) = d.changes.get(&task)
+        && row.frozen()
+    {
+        return;
+    }
     if observation.entry == entry && made != Some(observation.head) && (!observation.owned || made.is_some()) {
         judge(d, env, &observation, out);
     }

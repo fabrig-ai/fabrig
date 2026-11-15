@@ -134,30 +134,13 @@ fn resolutions_and_repairs_deliver_their_heads_too() {
 }
 
 #[test]
-fn a_turned_members_change_event_names_its_round_or_the_older_rows_preparation() {
-    for (round, expected) in [(Some(1), 1), (None, 2)] {
-        let mut world = landings::first_landing();
-        let mut row = world.change(landings::CHANGE).clone();
-        row.change.landing = Some(landings::LANDING);
-        world.event(top::Event::Restore { record: top::Stored::Change(Box::new(row)) });
-        let mut landing = world.landing(landings::LANDING).clone();
-        landing.landing.preparation = 2;
-        let member = &mut landing.landing.members[0];
-        assert!(member.landed.is_some(), "the prefix member already turned");
-        member.round = round;
-        let unit = member.unit;
-        world.event(top::Event::Restore { record: top::Stored::Landing(landing) });
-        world.event(top::Event::Delegated {
-            task: landings::CHANGE,
-            child: CHILD,
-            kind: change::Delegate::Repair(change::Repair::Ci),
-        });
-        let events: Vec<_> = world
-            .history(landings::CHANGE)
-            .into_iter()
-            .filter(|event| matches!(event.what, h::What::Asked { task: CHILD, .. }))
-            .collect();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].landing, Some(h::InLanding { task: landings::LANDING, round: expected, unit }));
-    }
+fn a_turned_member_starts_no_repair_interval() {
+    let mut world = landings::first_landing();
+    let before = world.history(landings::CHANGE).len();
+    world.event(top::Event::Delegated {
+        task: landings::CHANGE,
+        child: CHILD,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+    });
+    assert_eq!(world.history(landings::CHANGE).len(), before);
 }

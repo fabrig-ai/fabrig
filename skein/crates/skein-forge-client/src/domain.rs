@@ -194,6 +194,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Hint { hint } => keep::poll::hint(d, env, hint),
         Event::Writer { resource, taken } => keep::poll::writer(d, env, &resource, taken),
         Event::Pushed { resource, commit } => keep::poll::pushed(d, env, &resource, commit, out),
+        Event::Fence { resource } => keep::poll::fence(d, env, &resource),
         Event::Make { entry } => {
             d.identity_used = true;
             outbox::make(d, env, entry, false, out);

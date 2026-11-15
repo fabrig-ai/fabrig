@@ -37,6 +37,21 @@ fn opening_drift_keeps_the_expected_head_even_when_the_pull_agrees_with_the_bran
     assert_eq!(decide(&fresh, &f, &heard()).change.last_head, Some(NEW));
 }
 
+#[test]
+fn a_release_finding_its_pull_closed_reopens_instead_of_opening() {
+    // A general release and a moved branch both keep ownership of their closed pull.
+    for (why, was) in
+        [(Hold::Stalled, State::Checking { head: HEAD }), (Hold::BranchMoved, State::Opening { requested: true })]
+    {
+        let c = change(State::Held { was: Box::new(was), why });
+        let f = Facts { pull: Pull::Closed, ..facts() };
+        let lifted = decide(&c, &f, &Heard { released: true, ..heard() });
+        assert_eq!(lifted.change.state, State::Reopening { requested: false, retarget: false });
+        let reopening = decide(&lifted.change, &f, &heard());
+        assert_eq!(reopening.decision, Decision::Effect(Effect::Reopen));
+    }
+}
+
 fn comparing_states() -> [State; 8] {
     [
         State::Checking { head: HEAD },

@@ -1,6 +1,6 @@
 # forge-client: status
 
-2026-11-14. Where skein's code lags or departs from [client.md](client.md).
+2026-11-15. Where skein's code lags or departs from [client.md](client.md).
 
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).

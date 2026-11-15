@@ -81,7 +81,7 @@ what the row's `head` and `base` hold.
 | `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase` | its head; the base's tip | the entry's number, 0 |
 | `updated` | that update settles | `outcome`: `updated`, `conflict` or `failed` | the new head, when updated; the base's tip | the entry's number, 0 |
 | `job` | a prepare job (`turn`) or a merge job (`queue`, `merge_job`) is delegated, its task heard | `job`: `prepare` or `merge`; `task` | its head; the base | the job's task, its attempt |
-| `job-ended` | that job's result is heard | `job`; `outcome`: `done`, `conflict`, `failed` or `lost` | the prefix or head it pushed, where it pushed one | the job's task, its attempt |
+| `job-ended` | that attempt's end is heard, each attempt's as it ends (*A job's attempt*, below) | `job`; `outcome`: `done`, `conflict`, `failed`, `timeout`, `cancelled` or `lost`; `class`, where `failed`: `unprepared`, `run`, `result`, `unstarted`, `undelivered` or `unknown` | the prefix or head it pushed, where it pushed one | the job's task, its attempt |
 | `conflict` | a conflict is found: by a job, an update, the forge's mergeability or its merge | `with`: `branch` or `earlier` (an earlier member alone); `files`, how many, 0 where unknown | its head; the base | own |
 | `asked` | a resolution, a repair or a judgement is delegated to the change, its task heard | `ask`: `resolution`, `repair` or `judgement`; `task`; `gate`, the judgement's or a repair's gate number, where it has one | the head asked at; the base, for a resolution | the delegate's task, 0 |
 | `answered` | that delegate's result is heard | `ask`; `outcome`: `pushed`, `passed`, `refused`, `nothing`, `failed` or `cancelled` | the head it pushed, where it pushed one | the delegate's task, 0 |
@@ -113,6 +113,29 @@ what the row's `head` and `base` hold.
   are written where the forge's top observes the queue admitting or
   ejecting the change; where it observes neither, nothing is written for
   it (`forge/queues.status.md`).
+- **A job's attempt** (2026-11-15) ends once, named by what ended it,
+  as the engine hears it: `done` or `conflict`, its result read back as
+  ever; `timeout`, its run past its deadline; `cancelled`, the job's
+  task cancelled, by its change or a party; `lost`, its worker lost
+  (contact with it lost, it shut down, or the fleet presumed it lost),
+  and only then; otherwise `failed`, with the class of the worker's
+  failure: `unprepared` (its workspace was not prepared), `run` (its
+  command failed), `result` (its result could not be read or was not
+  valid), `unstarted` (it never started), `undelivered` (its push or
+  delivery failed, a push that timed out among them, since the engine
+  hears no push's timeout apart), or `unknown` (a failure heard with no
+  class, and every `failed` written before this rule). A retry's claim
+  writes no end for the attempt before it: that attempt's end was heard
+  as it ended, and one the engine has no record of, its worker presumed
+  lost before the claim, is `lost`.
+- **After its end** (2026-11-15): from its `landed` or its `ended`, a
+  change's history gains no event but its verification's (`after`, and
+  `recorded`, its own pull request's merge recorded) and the end of an
+  interval open at its end (a `job-ended`, an `answered`, a `released`,
+  its round's `round-ended`, its landing's `landing-ended`), each once
+  as 2.3 pairs it. A push to its branch, its pull request closed or
+  reopened, a conflict, a hold, a job's claim: none is written for it
+  (`forge/keeping-up.md`, 3).
 
 ### 2.3 Its identity
 

@@ -254,7 +254,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 
 | Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
 |---|---|---|---|---|
-| 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request, or one with its recorded number or pushed head |
+| 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request alone, never a closed or merged one (`change/README.md`, 2, step 2) |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
 | 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`../landing.md`, 5.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (section 6) | its head contains the base tip it asked for |
 | 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (`queues.md`, 1) | conditional | merged, and at which commit; or in the forge's merge queue |
@@ -302,12 +302,15 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   Branch names can repeat across deployments and a repository's past.
   A change accepts an open pull request on its branches. A closed or
   merged one is its own only when its number is the one the change
-  recorded, or its head is a head the change pushed (`last_head`). Other
-  closed or merged pull requests are Missing to the change; their numbers
-  are never recorded. The change can then produce and open a new pull
-  request on the reused names. Once it records a number, its fresh reads
-  use that number rather than the branches, so an older pull request
-  cannot replace its own. Its own closed pull request is drift and is
+  recorded (2026-11-15: never by its head, since a change remade at a
+  cancelled one's head would take that one's closed pull request).
+  Other closed or merged pull requests are Missing to the change; their
+  numbers are never recorded. The change can then produce and open a
+  new pull request on the reused names. It records the number of the
+  one it opens from the opening's answer, and the one it takes open from
+  its read, in the step that settles each; from then on its reads use
+  that number rather than the branches, so an older pull request cannot
+  replace its own, and it opens no other (`change/README.md`, 2, step 2). Its own closed pull request is drift and is
   reopened on release (`change/README.md`, 3). A branch is created
   only while none of its name exists, but another hand can delete it, and
   nothing then shows it was made: its creation is unrecoverable.
@@ -323,7 +326,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   `forge/README.md`, section 5; temper's word and namespace,
   `../../protocol/forge/README.md`, section 3). A pull request's branches locate
   a candidate; the change owns it when it is open on those branches or
-  the change knows its number or pushed head, as above. An entry's start,
+  the change knows its number, as above. An entry's start,
   and the find that reads only what came after it, are the client's (skein's
   `forge/client.md`, section 7).
 - **An effect's identity** is its purpose, and the top encodes it. The
@@ -638,10 +641,11 @@ restored change is judged by the rules as they are. temper's steps:
    its task for a person; a goal's own branch is made again (`branches.md`, 1);
 3. it steps every change once, and every goal's issue. A change reads
    its recorded pull request by number. Without a number, it reads by
-   branches and accepts an open pull request, or a closed or merged one
-   at its pushed head. This recovers an uncertain open whose reply was
-   lost, even if it merged before the restart. Other closed or merged
-   history is Missing and never supplies the change's pull number.
+   branches and accepts an open pull request alone. This recovers an
+   uncertain open whose reply was lost. Closed or merged history is
+   Missing and never supplies the change's pull number: one of its own
+   merged before the restart with its number unrecorded is found by its
+   head, which the landing branch then holds (`change/README.md`, 2).
 
 Its listings start from the newest time the store kept for each
 repository with an issue or pull watch, inclusive, so what changed while

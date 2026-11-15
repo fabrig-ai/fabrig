@@ -245,6 +245,7 @@ pub(super) fn land(
     file: &[u8],
     report: &[u8],
 ) -> u64 {
+    world.until(Until::Ready);
     let branch = producer.workspace.repositories[0].push.clone().expect("producer's push branch");
     assert_eq!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base })),
