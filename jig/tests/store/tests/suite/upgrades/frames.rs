@@ -467,7 +467,9 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
     for number in 1..=COUNT {
         offsets.push(end);
         let mut turn = root::turn(frames::TASK, frames::ATTEMPT, number, &transcript);
-        if number == 1 { turn.spent = frames::SPENT; }
+        if number == 1 {
+            turn.spent = frames::SPENT;
+        }
         let body = store::codec::core::turn(&turn, &codec).expect("turn body");
         end += kv.frame(&body).expect("log frame").len();
     }
@@ -489,7 +491,12 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
                 world.request(ask(TranscriptRead::Page { task: frames::TASK, backwards, after }, READ_BYTES));
             for index in page {
                 assert_eq!(events.len(), 1, "{events:?}");
-                events = answer(&mut world, events.remove(0), None, offsets[usize::try_from(*index).expect("bounded frame")]);
+                events = answer(
+                    &mut world,
+                    events.remove(0),
+                    None,
+                    offsets[usize::try_from(*index).expect("bounded frame")],
+                );
             }
             let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
                 panic!("page terminal: {events:?}")

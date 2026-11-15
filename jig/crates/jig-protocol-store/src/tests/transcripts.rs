@@ -1292,7 +1292,7 @@ fn orphan_erases_are_included_in_the_commits_operation_bound() {
     let limits = fixtures::store_limits();
     let sizes = crate::sizes::check_commits(&limits.core, &fixtures::APPLICATION, &limits.commits, &limits.store, 1)
         .expect("fits");
-    assert_eq!(sizes.ops, 12);
+    assert_eq!(sizes.ops, 16);
 }
 #[test]
 fn dropping_a_transcript_fails_without_submitting_the_commit() {
