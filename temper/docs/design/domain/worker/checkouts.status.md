@@ -28,9 +28,6 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
-- **Not yet:** 1.1 and 1.2: a failed prepare's detail is its stage, its fault and git's words alone, with no workspace, repository, command or times, and no bound of its own (`temper-worker-domain-checkout/src/hold.rs`, `preparation_detail`). [in flight: change 3725]
-- **Not yet:** 1.3: the worker puts no host before a failed preparation's detail and logs no line for it (`temper-worker-service/src/worker.rs`, `run_answer`). [in flight: change 3722]
-- **Not yet:** 1.4: serve's run-failure line keeps a detail's last 4,096 bytes, not its first (`temper-engine-shell/src/lines.rs`, `run_failure_line`). [in flight: change 3723]
 - **Not yet:** the whole document: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written
