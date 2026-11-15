@@ -404,6 +404,9 @@ pub fn released(change: &Change, now: Wall) -> Change {
     match &change.state {
         State::Held { was, why } => {
             next.state = *was.clone();
+            if *why == Hold::Failed && resolving_state(was) {
+                next.released_resolution = true;
+            }
             next.released = Some(*why);
             next.gate_failures = Box::new([]);
             next.repairs = 0;
@@ -437,6 +440,35 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Ended => {}
     }
     next
+}
+
+fn resolving_state(state: &State) -> bool {
+    match state {
+        State::Resolving { .. } => true,
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Ready { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::WaitingProducer { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Ended => false,
+    }
 }
 
 fn released_step(change: Change, why: Hold, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
@@ -1337,6 +1369,7 @@ fn resolving_due(
     change.owns_turn = false;
     change.clean = Box::new([]);
     change.state = State::Resolving { requested: true, base };
+    change.released_resolution = false;
     change.since = now;
     Stepped { change, decision: Decision::Delegate(Delegate::Resolve { base }) }
 }
@@ -1452,7 +1485,9 @@ fn waiting_producer(
     }
     let Some(head) = facts.branch else { return hold(change, Hold::BranchMissing) };
     change.last_head = Some(head);
+    let released = change.released_resolution;
     if change.way == Way::Turn {
+        change.released_resolution = false;
         // The pull targets the goal branch, not the preparation's main tip.
         // Retry that preparation at the final pushed head to judge its conflict.
         let ready_since = change.ready_since.unwrap_or(now);
@@ -1463,6 +1498,7 @@ fn waiting_producer(
     match facts.mergeable {
         Status::Passed => take_pushed_head(change, head, now),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
+        Status::Failed if released => resolving_due(change, facts.base_tip, facts, standing, now, limits),
         Status::Failed => match facts.delegate {
             // A released resolution asks directly at the base now read, with no
             // merge job (temper/docs/design/domain/forge/change/repairs.md, A release).
@@ -1533,6 +1569,7 @@ fn delegated(
 }
 
 fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    change.released_resolution = false;
     change.clean = Box::new([]);
     change.owns_turn = false;
     change.state = pushed(&change, head);

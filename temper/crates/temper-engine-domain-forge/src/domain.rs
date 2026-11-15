@@ -2060,12 +2060,24 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             );
         }
         Event::ReleaseChange { task, release } => {
-            if let Some(row) = d.changes.get_mut(&task)
-                && release.is_some()
-            {
-                row.task_release = release;
+            let take = match d.changes.get(&task) {
+                Some(row) => match &release {
+                    Some(release) => match &row.task_release {
+                        Some(prior) => release.revision > prior.revision,
+                        None => true,
+                    },
+                    None => matches_held(&row.change.state),
+                },
+                None => false,
+            };
+            if take {
+                if let Some(row) = d.changes.get_mut(&task)
+                    && release.is_some()
+                {
+                    row.task_release = release;
+                }
+                release_change(d, env, task, out);
             }
-            release_change(d, env, task, out);
         }
         Event::GoalReleased { task } => goal_branch::accept_release(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
@@ -3599,6 +3611,17 @@ fn delegated(
     save_change(d, out, saved);
 }
 
+fn merge_delegate(kind: change::Delegate) -> bool {
+    match kind {
+        change::Delegate::Merge { .. } => true,
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Repair(_)
+        | change::Delegate::Resolve { .. }
+        | change::Delegate::Gate { .. } => false,
+    }
+}
+
 fn task_account(prior: &[u64], child: u64) -> Box<[u64]> {
     let mut tasks = List::uncapped();
     for task in prior {
@@ -3661,6 +3684,16 @@ fn delegate_admission_refused(
     }
     let before = crate::panel::ready(row);
     row.change.state = unasked(row, kind);
+    match kind {
+        change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => {
+            row.change.state =
+                change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+        }
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Repair(_)
+        | change::Delegate::Gate { .. } => {}
+    }
     row.delegate_status = change::Status::Unknown;
     let saved = row.clone();
     save_queue_change(d, env, before, saved, out);
@@ -3765,7 +3798,7 @@ fn delegate_result(
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
     if expected != child
-        || (crate::change_history::asked(kind).is_some()
+        || ((crate::change_history::asked(kind).is_some() || merge_delegate(kind))
             && (row.delegate_status == change::Status::Passed || row.delegate_status == change::Status::Failed))
     {
         return;
@@ -3956,6 +3989,9 @@ fn cancelled_delegate_words(kind: change::Delegate, child: u64, words: &[u8]) ->
 }
 
 fn completed_merge(row: &mut ChangeRow, status: change::Status, words: &[u8], kind: Option<(u32, u32)>) {
+    if status == change::Status::Failed {
+        producer_result(row, false, true, words);
+    }
     if status == change::Status::Passed {
         let bound = match kind {
             Some((_, result)) => skein_lib::usize_of(result),
@@ -4179,7 +4215,12 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     heard.start_conflict = d.start_conflict(task);
     heard.review_request = d.review_requests.get(&task).copied();
     if heard.released {
-        release_change(d, env, task, out);
+        if let Some(row) = d.changes.get(&task)
+            && row.task_release.is_none()
+            && matches_held(&row.change.state)
+        {
+            release_change(d, env, task, out);
+        }
         heard.released = false;
     }
     let Some(row) = d.changes.get(&task) else {
@@ -5353,7 +5394,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if let Some(base_tip) = pending.base_tip {
         crate::settle::observe(d, env, &row, pending.pull.as_ref(), base_tip);
     }
-    if row.change.released == Some(change::Hold::BranchMoved)
+    if takes_released_head(&row.change)
         && let Some(head) = pending.branch
     {
         accept_released_branch(d, env, &mut row, head, out);
@@ -5383,7 +5424,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         Some((_, change::Delegate::Close)) => pending.heard.delegate_live,
         Some(_) | None => false,
     };
-    if row.delegate_status != change::Status::Unknown && !live_close {
+    if row.delegate_status == change::Status::Passed && !live_close {
         row.delegate = None;
     }
     let mut reviewed = false;
@@ -6374,6 +6415,39 @@ fn record_change_head(
     record_written_head(d, env, resource, name, commit, row.task, out);
 }
 
+fn matches_held(state: &change::State) -> bool {
+    match state {
+        change::State::Held { .. } => true,
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Judging { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Preparing { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended => false,
+    }
+}
+
+fn takes_released_head(change: &change::Change) -> bool {
+    change.released_resolution || change.released == Some(change::Hold::BranchMoved)
+}
+
 /// A release adopts an observed head, including the client's drift baseline.
 fn accept_released_branch(
     d: &mut Domain,
@@ -6400,6 +6474,26 @@ fn accept_released_branch(
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
+/// Removing the durable delegate reference retires its terminal from recovery
+/// (temper/docs/design/domain/forge/change/repairs.md, A release).
+fn retire_failed_delegate(row: &mut ChangeRow) {
+    if row.delegate_status != change::Status::Failed {
+        return;
+    }
+    match row.delegate {
+        // A close job's own release still reads its kept result.
+        Some((_, change::Delegate::Close)) => return,
+        Some((_, change::Delegate::Resolve { .. } | change::Delegate::Merge { .. })) => {
+            row.change.released_resolution = true;
+        }
+        Some((_, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. })) | None => {}
+    }
+    row.delegate = None;
+    row.delegate_status = change::Status::Unknown;
+    row.producer_failure = None;
+    row.merge_result = None;
+}
+
 /// Released updates and re-runs drop failed results, retaining conflicts
 /// (temper/docs/design/domain/forge/README.md, 6, and change/README.md, 2, step 3).
 fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
@@ -6414,6 +6508,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         return;
     };
     let before = crate::panel::ready(row);
+    retire_failed_delegate(row);
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;
     row.change = released;
