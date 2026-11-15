@@ -99,7 +99,7 @@ fn act(front: &mut Joint, root: &mut Root, role: skein_ui::Role, name: &[u8], ac
     h::event(front, root, event);
 }
 #[test]
-fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
+fn owned_setup_progress_omits_pins_on_welcome_and_standalone() {
     let (mut front, mut root) = owned_fixture(Some(b"64.5.6"));
     act(&mut front, &mut root, skein_ui::Role::Button, b"Set up a Forgejo here", skein_ui::Act::Press);
     h::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));
@@ -116,7 +116,7 @@ fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
     front.engine.settle();
     h::settle(&mut front, &mut root);
     let shown = text(&root);
-    assert!(shown.contains("Fetching Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+    assert!(shown.contains("Fetching Forgejo"), "{shown}");
     assert!(
         !Temper::tree(&draw(&root)).nodes().iter().any(|n| n.name.as_deref() == Some("Open Forgejo ↗".as_bytes())),
         "not offered before adoption"
@@ -129,12 +129,12 @@ fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
         front.engine.settle();
         h::settle(&mut front, &mut root);
         let shown = text(&root);
-        assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+        assert!(shown.contains("Fetched Forgejo"), "{shown}");
     }
     h::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     let shown = text(&root);
-    assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
-    assert!(shown.contains("Preparing: its database, temper’s admin, your account"), "{shown}");
+    assert!(shown.contains("Fetched Forgejo"), "{shown}");
+    assert!(shown.contains("Preparing Forgejo"), "{shown}");
 }
 #[test]
 fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
@@ -154,7 +154,7 @@ fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
     front.engine.settle();
     h::settle(&mut front, &mut root);
     let shown = text(&root);
-    assert!(shown.contains("Fetching Forgejo and its runner"), "{shown}");
+    assert!(shown.contains("Fetching Forgejo"), "{shown}");
     assert!(!shown.contains("Fetching Forgejo 71.2.3"), "{shown}");
 }
 
@@ -291,7 +291,7 @@ fn owned_setup_says_how_far_the_fetch_has_gone() {
             .position(|node| node.role == Role::List && node.name.as_deref() == Some(b"Each step"))
             .expect("setup steps");
         let first = nodes[steps..].iter().find(|node| node.role == Role::Text).expect("first setup step");
-        let fetching = format!("Fetching Forgejo 71.2.3 and its runner 64.5.6 · {figure}");
+        let fetching = format!("Fetching Forgejo · {figure}");
         assert_eq!(first.text.iter().map(|run| run.text.as_ref()).collect::<Vec<_>>(), [fetching.as_bytes()]);
     }
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
@@ -302,7 +302,7 @@ fn owned_setup_says_how_far_the_fetch_has_gone() {
     h::settle(&mut front, &mut root);
     let shown = text(&root);
     assert!(shown.contains("Forgejo on this machine · work/hello · Setting up: preparing"), "{shown}");
-    assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+    assert!(shown.contains("Fetched Forgejo"), "{shown}");
     assert!(!shown.contains('%') && !shown.contains(" MB"), "{shown}");
     let view = browser_draw(&root);
     let progress =

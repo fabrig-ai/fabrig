@@ -1008,12 +1008,18 @@ fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
     let connection = w::Connection::SettingUp(
         w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Source), fetched: None }).unwrap(),
     );
-    let root = root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, connection);
-    let view = f::browser_page_view(&root);
-    let text = f::main_text(view.tree());
-    let text = core::str::from_utf8(&text).unwrap();
-    assert!(text.contains("Connecting sign-in through temper"));
-    assert!(!text.contains("Starting Forgejo and its runner"));
+    for address in [
+        Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
+        Address::Welcome { step: temper_client_domain::Step::Model { way: None } },
+    ] {
+        let root = root(address, connection.clone());
+        for view in [f::browser_page_view(&root), f::page_view(&root)] {
+            let text = f::main_text(view.tree());
+            let text = core::str::from_utf8(&text).unwrap();
+            assert!(text.contains("Connecting sign-in through temper"));
+            assert!(!text.contains("Starting Forgejo"));
+        }
+    }
 }
 
 #[test]

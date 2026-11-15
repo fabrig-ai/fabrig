@@ -2196,7 +2196,7 @@ static HOLDS: [Holds; samples::N] = [
                 name: "Forgejo on this machine",
                 description: "Forge 3 · Forgejo · Setting up: preparing · work/hello",
             },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
@@ -3392,7 +3392,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "42%" },
-            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 42%" },
+            Part::Text { text: "Fetching Forgejo · 42%" },
         ],
     },
     Holds {
@@ -3410,7 +3410,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "41 MB" },
-            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 41 MB" },
+            Part::Text { text: "Fetching Forgejo · 41 MB" },
         ],
     },
     Holds {
@@ -3837,7 +3837,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
@@ -3931,7 +3931,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
