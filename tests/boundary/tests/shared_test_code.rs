@@ -2,13 +2,14 @@
 //! Test binaries are exactly the targets with `test = true`; each tree reads by
 //! section 2.1's rules. Exceptions cover a package's files at or below a path,
 //! and fail when they cover no shared file. Unreadable sources always fail.
+//! One reader serves every target of the run (tools/crates/design.md, 3).
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use fabrig_boundary::{Package, module_tree, packages};
+use fabrig_boundary::{Package, Trees, packages};
 use serde_json::{Value, json};
 use skein_scratch::Scratch;
 
@@ -42,10 +43,10 @@ struct Sharing {
     failures: Vec<String>,
 }
 
-fn measure(workspace: &Path, package: &Package) -> Sharing {
+fn measure(workspace: &Path, package: &Package, trees: &mut Trees) -> Sharing {
     let mut sharing = Sharing { package: package.name.clone(), files: BTreeMap::new(), failures: Vec::new() };
     for target in package.targets.iter().filter(|target| target.test) {
-        let tree = module_tree(&package.directory, &target.root);
+        let tree = trees.tree(&package.directory, &target.root);
         let binary = format!("{} {}", target.kinds.join("/"), target.name);
         sharing.failures.extend(tree.failures.into_iter().map(|why| format!("{binary}: {why}")));
         for file in tree.files.keys() {
@@ -95,7 +96,9 @@ fn workspace_test_binaries_share_only_excepted_sources() {
     assert!(output.status.success(), "cargo metadata: {}\n{}", output.status, String::from_utf8_lossy(&output.stderr));
     let packages = packages(&String::from_utf8(output.stdout).expect("cargo metadata is UTF-8"))
         .expect("workspace metadata reads");
-    let sharings: Vec<_> = packages.iter().map(|package| measure(&workspace, package)).collect();
+    let mut trees = Trees::default();
+    let sharings: Vec<_> = packages.iter().map(|package| measure(&workspace, package, &mut trees)).collect();
+    eprintln!("Read {} Rust source files.", trees.read);
     for exception in EXCEPTIONS {
         let count: usize = sharings
             .iter()
@@ -125,13 +128,15 @@ fn package(scratch: &Scratch, name: &str, directory: &str, targets: &[Value]) ->
     json!({"id": name, "name": name, "manifest_path": scratch.path().join(directory).join("Cargo.toml"), "targets": targets})
 }
 
-fn scan(scratch: &Scratch, members: &[Value]) -> Vec<Sharing> {
+fn scan(scratch: &Scratch, members: &[Value]) -> (Vec<Sharing>, usize) {
     let metadata = json!({"workspace_members": members.iter().map(|package| &package["id"]).collect::<Vec<_>>(), "packages": members});
-    packages(&metadata.to_string())
+    let mut trees = Trees::default();
+    let sharings = packages(&metadata.to_string())
         .expect("fixture metadata")
         .iter()
-        .map(|package| measure(scratch.path(), package))
-        .collect()
+        .map(|package| measure(scratch.path(), package, &mut trees))
+        .collect();
+    (sharings, trees.read)
 }
 
 #[test]
@@ -143,7 +148,7 @@ fn each_shared_file_names_its_package_and_all_binaries() {
         ("demo/tests/support/mod.rs", "mod helper;"),
         ("demo/tests/support/helper.rs", "// helper"),
     ]);
-    let sharings = scan(
+    let (sharings, read) = scan(
         &scratch,
         &[package(
             &scratch,
@@ -156,6 +161,7 @@ fn each_shared_file_names_its_package_and_all_binaries() {
             ],
         )],
     );
+    assert_eq!(read, 5);
     assert_eq!(
         findings(&sharings, &[]),
         [
@@ -163,6 +169,30 @@ fn each_shared_file_names_its_package_and_all_binaries() {
             "demo: demo/tests/support/mod.rs: test a, test b",
         ]
     );
+}
+
+#[test]
+fn a_files_role_decides_its_children() {
+    let scratch = scratch(&[
+        ("demo/src/lib.rs", "mod a;"),
+        ("demo/src/a.rs", "mod b;"),
+        ("demo/src/b.rs", "// root's child"),
+        ("demo/src/a/b.rs", "// module's child"),
+    ]);
+    let (sharings, read) = scan(
+        &scratch,
+        &[package(
+            &scratch,
+            "demo",
+            "demo",
+            &[
+                target(&scratch, "lib", "demo", "demo/src/lib.rs", true),
+                target(&scratch, "test", "x", "demo/src/a.rs", true),
+            ],
+        )],
+    );
+    assert_eq!(read, 4);
+    assert_eq!(findings(&sharings, &[]), ["demo: demo/src/a.rs: lib demo, test x"]);
 }
 
 #[test]
@@ -174,7 +204,7 @@ fn test_flag_alone_selects_test_binaries() {
     ]);
     for kind in ["lib", "bin", "test", "bench", "example"] {
         for enabled in [false, true] {
-            let sharings = scan(
+            let (sharings, _) = scan(
                 &scratch,
                 &[package(
                     &scratch,
@@ -199,7 +229,7 @@ fn repeated_paths_within_one_binary_are_one_file() {
         ("tests/a.rs", "mod support; #[path = \"./support.rs\"] mod again; include!(\"support.rs\");"),
         ("tests/support.rs", "// one binary"),
     ]);
-    let sharings =
+    let (sharings, _) =
         scan(&scratch, &[package(&scratch, "demo", "", &[target(&scratch, "test", "a", "tests/a.rs", true)])]);
     assert_eq!(findings(&sharings, &[]), Vec::<String>::new());
 }
@@ -211,7 +241,7 @@ fn files_reached_by_different_packages_are_not_shared_within_either() {
         ("two/tests/b.rs", "mod support;"),
         ("two/tests/support.rs", "// cross-package source"),
     ]);
-    let sharings = scan(
+    let (sharings, _) = scan(
         &scratch,
         &[
             package(&scratch, "one", "one", &[target(&scratch, "test", "a", "one/tests/a.rs", true)]),
@@ -230,7 +260,7 @@ fn exceptions_cover_only_the_named_packages_path_and_must_cover_a_finding() {
         ("tests/support/helper.rs", "// helper"),
         ("tests/support_extra.rs", "// outside directory"),
     ]);
-    let sharings = scan(
+    let (sharings, _) = scan(
         &scratch,
         &[package(
             &scratch,
@@ -255,7 +285,8 @@ fn exceptions_cover_only_the_named_packages_path_and_must_cover_a_finding() {
             "other: tests/support (until kit): remove it: the check's exceptions only shrink",
         ]
     );
-    let single = scan(&scratch, &[package(&scratch, "demo", "", &[target(&scratch, "test", "a", "tests/a.rs", true)])]);
+    let (single, _) =
+        scan(&scratch, &[package(&scratch, "demo", "", &[target(&scratch, "test", "a", "tests/a.rs", true)])]);
     assert_eq!(
         findings(&single, &exceptions),
         [
@@ -268,7 +299,7 @@ fn exceptions_cover_only_the_named_packages_path_and_must_cover_a_finding() {
 #[test]
 fn source_failures_are_never_excepted_or_skipped() {
     let scratch = scratch(&[("tests/a.rs", "mod missing; include!(env!(\"OTHER\"));")]);
-    let sharings =
+    let (sharings, _) =
         scan(&scratch, &[package(&scratch, "demo", "", &[target(&scratch, "test", "a", "tests/a.rs", true)])]);
     let failures = findings(&sharings, &[Exception { package: "demo", path: "tests", until: "kit" }]);
     assert_eq!(failures.len(), 3, "{failures:?}");
@@ -278,4 +309,22 @@ fn source_failures_are_never_excepted_or_skipped() {
         "{failures:?}"
     );
     assert_eq!(failures[2], "demo: tests (until kit): remove it: the check's exceptions only shrink");
+
+    let expected: Vec<_> = failures[..2]
+        .iter()
+        .cloned()
+        .chain(failures[..2].iter().map(|why| why.replacen("test a:", "test b:", 1)))
+        .collect();
+    let (sharings, read) = scan(
+        &scratch,
+        &[package(
+            &scratch,
+            "demo",
+            "",
+            &[target(&scratch, "test", "a", "tests/a.rs", true), target(&scratch, "test", "b", "tests/a.rs", true)],
+        )],
+    );
+    assert_eq!(read, 2);
+    let failures = findings(&sharings, &[Exception { package: "demo", path: "tests", until: "kit" }]);
+    assert_eq!(failures, expected);
 }
