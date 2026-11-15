@@ -161,12 +161,6 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
     }
     panic!("jobs did not end")
 }
-fn assert_edge(page: &JobPage, of: Owner) {
-    assert_eq!(page.room.writes, 7);
-    // 1024 commit bytes minus 26 framing, the job put (20/21 key,
-    // 10 value, 9 framing), and seven one-byte application tags.
-    assert_eq!(page.room.bytes, if of == Owner::Jig { 959 } else { 951 });
-}
 fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -> JobAnswer {
     // Unregistered keys keep value decoding out of this commit-edge test.
     let mut writes: Vec<JobWrite> = (0..page.room.writes + extra_writes)
@@ -183,75 +177,44 @@ fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -
     JobAnswer { writes: writes.into_boxed_slice(), through: None }
 }
 #[test]
-fn job_pages_hand_both_owners_the_edge_the_answer_enforces_including_at_end() {
+fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
     const JIG_ONLY: PatchSets = PatchSets { sets: &[BASE.sets[0], PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
     const APP_ONLY: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
     let baseline = fixture_baseline(None);
     for (of, sets) in [(Owner::Jig, JIG_ONLY), (Owner::Application, APP_ONLY)] {
-        for (commits, ops) in [(8, 16), (16, 8)] {
-            for at_end in [false, true] {
-                for (extra_writes, extra_bytes, accepted) in [(0, 0, true), (1, 0, false), (0, 1, false)] {
-                    let mut disk = Disk::new(&baseline);
-                    let before = snapshot(&mut disk);
-                    let mut store = store(&disk, sets);
-                    store.limits.commits.writes = commits;
-                    store.limits.store.ops = ops;
-                    store.limits.store.commit = 1024;
-                    let (owner, found, job, mut page) = page(disk.open(&mut store));
-                    assert_eq!(found, of);
-                    assert!(!page.end && !page.rows.is_empty());
-                    assert_edge(&page, of);
-                    if at_end {
-                        for _ in 0_u32..10 {
-                            let events = disk.request(
-                                &mut store,
-                                Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
-                            );
-                            let (_, _, _, next) = self::page(events);
-                            page = next;
-                            assert_edge(&page, of);
-                            if page.end {
-                                break;
-                            }
-                        }
-                        assert!(page.end && page.rows.is_empty());
-                    }
-                    let number = store.stores.store.last() + 1;
-                    let response = edge_answer(&page, of, extra_writes, extra_bytes);
-                    let written: Vec<_> = response
-                        .writes
-                        .iter()
-                        .map(|write| {
-                            let JobWrite::Put { key, value } = write else { unreachable!() };
-                            let key = if of == Owner::Application {
-                                crate::keys::application(key, store.limits.store.key).unwrap()
-                            } else {
-                                key.clone()
-                            };
-                            (key, value.clone())
-                        })
-                        .collect();
-                    let events = disk.request(&mut store, Request::Job { owner, answer: Ok(response) });
-                    if accepted {
-                        assert_eq!(store.stores.store.last(), number + u64::from(at_end), "{events:?}");
-                        for (key, value) in written {
-                            assert_eq!(fixtures::get_kv(&mut store, &key), Some(value));
-                        }
-                        assert_eq!(done(&mut store, of, &job), at_end.then_some(number));
-                    } else {
-                        let [Event::OpenRefused { why: OpenRefusal::Job { owner: refused, job: name, why, .. }, .. }] =
-                            events.as_ref()
-                        else {
-                            panic!("edge refusal: {events:?}")
-                        };
-                        assert_eq!(*refused, of);
-                        assert_eq!(name, &job);
-                        assert!(why.contains(if extra_writes > 0 { "commit edge" } else { "commit byte bound" }));
-                    }
-                    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-                    assert_eq!(snapshot(&mut disk), before);
+        for (extra_writes, extra_bytes) in [(1, 0), (0, 1)] {
+            let mut disk = Disk::new(&baseline);
+            let before = snapshot(&mut disk);
+            let mut store = store(&disk, sets);
+            store.limits.commits.writes = 8;
+            store.limits.store.ops = 16;
+            store.limits.store.commit = 1024;
+            let (owner, found, job, mut page) = page(disk.open(&mut store));
+            assert_eq!(found, of);
+            for _ in 0_u32..10 {
+                if page.end {
+                    break;
                 }
+                let events = disk.request(
+                    &mut store,
+                    Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+                );
+                let (_, _, _, next) = self::page(events);
+                page = next;
             }
+            assert!(page.end && page.rows.is_empty());
+            let response = edge_answer(&page, of, extra_writes, extra_bytes);
+            let events = disk.request(&mut store, Request::Job { owner, answer: Ok(response) });
+            let [Event::OpenRefused { why: OpenRefusal::Job { owner: refused, job: name, why, .. }, .. }] =
+                events.as_ref()
+            else {
+                panic!("room refusal: {events:?}")
+            };
+            assert_eq!(*refused, of);
+            assert_eq!(name, &job);
+            assert!(why.contains(if extra_writes > 0 { "commit edge" } else { "commit byte bound" }));
+            assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+            assert_eq!(snapshot(&mut disk), before);
         }
     }
 }

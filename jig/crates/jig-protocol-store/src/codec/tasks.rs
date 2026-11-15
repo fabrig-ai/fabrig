@@ -415,9 +415,7 @@ pub fn decode_cold(
     let wire::RowParts { value: part, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
-        wire::Value::Attempt(_)
-        | wire::Value::Hold(_)
-        | wire::Value::Ledger(_)
+        wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -435,6 +433,8 @@ pub fn decode_cold(
         | wire::Value::Delegate(_)
         | wire::Value::EndedByParty(_)
         | wire::Value::EndedByProject(_)
+        | wire::Value::Attempt(_)
+        | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
         | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)
@@ -464,9 +464,7 @@ pub fn decode_live(
         wire::Row::decode(limits, &mut Reader::new(hot))?.into_parts();
     let hot = match part {
         wire::Value::LiveHot(hot) => hot,
-        wire::Value::Attempt(_)
-        | wire::Value::Hold(_)
-        | wire::Value::Ledger(_)
+        wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -484,6 +482,8 @@ pub fn decode_live(
         | wire::Value::Delegate(_)
         | wire::Value::EndedByParty(_)
         | wire::Value::EndedByProject(_)
+        | wire::Value::Attempt(_)
+        | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
         | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)
@@ -495,9 +495,7 @@ pub fn decode_live(
         wire::Row::decode(limits, &mut Reader::new(cold))?.into_parts();
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
-        wire::Value::Attempt(_)
-        | wire::Value::Hold(_)
-        | wire::Value::Ledger(_)
+        wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -515,6 +513,8 @@ pub fn decode_live(
         | wire::Value::Delegate(_)
         | wire::Value::EndedByParty(_)
         | wire::Value::EndedByProject(_)
+        | wire::Value::Attempt(_)
+        | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
         | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)

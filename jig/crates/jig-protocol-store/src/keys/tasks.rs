@@ -3,10 +3,6 @@ use jig_domain_tasks::{Funder, Key, Newest, UpdateObject};
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
-        Key::LiveCold(task) => {
-            writer.tag(24);
-            writer.u64(*task);
-        }
         Key::Attempt { task, attempt } => {
             writer.tag(22);
             writer.u64(*task);
@@ -16,6 +12,10 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.tag(23);
             writer.u64(*task);
             writer.u64(*position);
+        }
+        Key::LiveCold(task) => {
+            writer.tag(24);
+            writer.u64(*task);
         }
         Key::PlacedHold(hold) => {
             writer.tag(21);

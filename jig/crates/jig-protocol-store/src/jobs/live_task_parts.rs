@@ -8,7 +8,7 @@ use skein_lib::{List, Reader};
 
 pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     let mut writes = List::uncapped();
-    let mut bytes = 0_u32;
+    let mut bytes = 0_u64;
     let mut through = None;
     for row in &page.rows {
         let converted = split(row).ok_or(refusal(Some(row.key.clone()), "invalid whole live task"))?;
@@ -20,20 +20,14 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             Converted::Pair(pair) => pair,
         };
         {
-            let mut size = 0_u32;
+            let mut size = 0_u64;
             for write in &pair {
-                let JobWrite::Put { key, value } = write else { unreachable!("parts are puts") };
-                let put = skein_kv::put_bytes(
-                    u32::try_from(key.len()).expect("bounded job key"),
-                    u32::try_from(value.len()).expect("bounded job value"),
-                )
-                .ok_or(refusal(Some(row.key.clone()), "live parts exceed row bounds"))?;
-                size = size.checked_add(put).ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
+                size = size
+                    .checked_add(write.bytes())
+                    .ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
             }
             let total = bytes.checked_add(size).ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
-            if writes.len().checked_add(2).expect("bounded job writes") > page.room.writes
-                || u64::from(total) > page.room.bytes
-            {
+            if writes.len().checked_add(2).expect("bounded job writes") > page.room.writes || total > page.room.bytes {
                 if through.is_none() {
                     return Err(refusal(Some(row.key.clone()), "live parts exceed commit edge"));
                 }
@@ -70,9 +64,7 @@ fn split(row: &super::JobRow) -> Option<Converted> {
         wire::Value::LiveHot(hot) => return (hot.run().number() == number).then_some(Converted::Passed),
         wire::Value::Live(record) => tasks::record::read_before_talk(record, &wire::CEILINGS).ok()?,
         wire::Value::LiveTalk(record) => tasks::record::read_task_record(record, &wire::CEILINGS).ok()?,
-        wire::Value::Attempt(_)
-        | wire::Value::Hold(_)
-        | wire::Value::Ledger(_)
+        wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -89,6 +81,8 @@ fn split(row: &super::JobRow) -> Option<Converted> {
         | wire::Value::Delegate(_)
         | wire::Value::EndedByParty(_)
         | wire::Value::EndedByProject(_)
+        | wire::Value::Attempt(_)
+        | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveCold(_) => return None,
