@@ -45,9 +45,10 @@ The owner's vocabulary (`skein-kv::Request` and `Event`):
 
 | Request | Terminal event |
 |---|---|
-| `Commit { ops }`, each op a `Put { key, value }` or an `Erase { key }` | `Committed { number }`; `Refused` (too large, past the budget, too many queued); `Failed` (the store stopped; outcome uncertain) |
+| `Commit { ops }`, each op a `Put { key, value }`, an `Erase { key }`, an `Append { log, frame }` or a `Drop { log }` (section 6) | `Committed { number }`; `Refused` (too large, past the budget, too many queued); `Failed` (the store stopped; outcome uncertain) |
 | `Get { key }` | `Got { value }` |
 | `Load { range, max }` | `Loaded { rows, next }` |
+| `ReadLog { log, at, direction, max }` (section 6) | `LogRead { records, next }` or `LogUnread { at }` |
 | `Open { root }` | `Opened { last }` or `OpenFailed` |
 | `Close` | `Closed` |
 
@@ -71,7 +72,9 @@ After a fatal file failure, repair reports `Recovered { last }` or
     `Limits::ops`), `Frame` (the commit's encoded frame past
     `Limits::commit`, or past what a frame can encode), `Page` (a load's
     `max` zero or past `Limits::page`, or its first row past the `max`
-    it asked), `Range` (a load's range ending before its start).
+    it asked), `Range` (a load's range ending before its start),
+    `Record` (a payload log's record past `Limits::record`) and `Log`
+    (a payload log's end past `Limits::log`, section 6).
   - `Full(Exhausted)`, `Exhausted` naming what the commit would
     exhaust: `Budget { used, budget, projected }`, the map's bytes,
     where `budget` is `Limits::budget`, `used` the bytes admission
@@ -80,8 +83,9 @@ After a fatal file failure, repair reports `Recovered { last }` or
     past `budget` (a charge past `u64` makes it `u64::MAX`);
     `Entries { capacity }`, more entries than the map's `capacity`
     holds; `Numbers`, the commit numbers at their end.
-  - `Busy` (the queue or its bytes full) and `Unavailable` (not open, or
-    closing), which carry nothing.
+  - `Busy` (the queue or its bytes full), `Unavailable` (not open, or
+    closing) and `Logs` (a payload log's op the log rule refuses, 6.2),
+    which carry nothing.
 
   The checks keep their order; only what a refusal carries is new.
   `Large`, `Exhausted` and `Refusal` are `Copy`.
@@ -269,30 +273,133 @@ removes them with its own.
   snapshot: recovery skips them and the next snapshot deletes them
   (section 3).
 
-## 6. Payload logs beside the store (planned)
+## 6. Payload logs beside the store
 
-For values that are large, appended to, and read rarely (temper's
-transcripts), and so are not held in memory:
+For records that are appended, never changed, read rarely and large in
+sum, kept on disk and not in the map: jig's task logs, a task's history
+and its turns (jig's `protocol/store/README.md`). Each log's committed
+length, its extent, is a row of the map, so the store's commit is the
+point of truth for what a log holds (temper's `draft/store-shape.md`,
+section 2).
 
-- **One log file per owner key,** frames each with a sequence number and
-  a checksum, in a directory beside the store's.
-- **Data first, then the commit.** The service appends the frames and
-  syncs them, then commits a store record holding the log's committed
-  extent (its length and last sequence), with whatever else that decision
-  changes. The store's commit is the point of truth.
-- **Past the extent is garbage:** bytes of a write that never committed.
-  Readers stop at the extent, and the next append writes at the extent,
-  over them, so nothing is ever truncated.
-- **Removal:** a log whose extent record is erased is removed once that
-  commit is durable; at recovery, a log with no extent record is removed.
-- **Bounds:** a size per log, the open logs, the bytes in flight.
-- **In the vocabulary:** two ops, `Extend { log, length }` and
-  `Drop { log }`, which the store keeps in a key space of its own; and
-  two requests, `Append { log, bytes }`, written at the committed extent
-  and synced, answered with the length to commit, and
-  `ReadLog { log, offset, max }`, never past the extent.
-- **What it needs of io:** opening an existing file to write, in the
-  kernel's records, the ring, the simulator and the conformance suite.
+### 6.1 Logs and their frames
+
+- **A log is named by a `u64`,** its owner's. Its file is
+  `logs/<the number shifted right 12 bits>/<the number>` under the
+  store's root, each as 16 lower-case hex digits, so a directory holds
+  at most 4,096 logs. Directories are made 0o700 and files 0o600, as a
+  log's first append needs them.
+- **A frame per record,** appended in commit order:
+
+| A frame's field | Bytes |
+|---|---|
+| the frame's length, all of it | 4 |
+| kind: 0 the record as given, 1 its raw DEFLATE | 1 |
+| the record's length | 4 |
+| body | the frame's length less 17 |
+| CRC-32C of everything before it | 4 |
+| the frame's length | 4 |
+
+  Big-endian. The length at both ends lets a reader walk the log either
+  way. A record is deflated (`deflate.md`) where that is shorter than
+  the record, and kept as given otherwise; a kind past 1 is a frame the
+  store cannot read. The kind is the frame's format: a later format is a
+  kind of its own.
+- **The extent** is a row of the map under the owner's **log rule**,
+  `Store::logs(LogRule { prefix })`, given before `Open` (or before the
+  first commit of an in-memory store) as the census's rule is: its key
+  the prefix and the log's number, 8 bytes big-endian, its value the
+  log's length, 8 bytes big-endian. The store alone writes these rows;
+  the owner reads them as any row, and they count in the census under
+  the keyspace their prefix falls in (2.2).
+
+### 6.2 Appended before the commit
+
+- **Framed by the owner's step,** `Store::frame(&self, record: &[u8])
+  -> Result<LogFrame, Refusal>`, which deflates the record and frames
+  it; `LogFrame::len()` is its bytes. A record past `Limits::record`
+  is refused `TooLarge(Large::Record)`.
+- **Appended in a commit,** `Op::Append { log, frame }` among its ops,
+  and **placed by its owner:** `Store::log_end(&self, log) -> u64` is the
+  log's extent and the frames of every commit admitted before this one,
+  so a commit's first frame for a log starts at `log_end(log)` and each
+  next one at the end of the one before it. An owner that keeps offsets
+  (where a record starts) reckons them so, before it commits.
+- **Refused at the entrance** as any op is (section 2), and also
+  `Refusal::Logs`: an owner's put or erase under the rule's prefix, an
+  append or a drop with no rule given, or an append and a drop of one log
+  in one commit; and `TooLarge(Large::Log)`, a log whose end would pass
+  `Limits::log`. Queued frames count against `Limits::queued_bytes` as
+  commits' frames do.
+- **Data first, then the commit.** When a batch of commits is written
+  (section 4), its appends go first: for each log the batch appends to,
+  in the order of its first append, its file is opened for writing (made,
+  with its directory, where missing), the batch's frames for it written
+  at its end, and the file synced; a file made has its directory synced,
+  and a directory made its parent. Then the batch's commit frame, whose
+  ops are the commits' own and, for each log appended, a put of its
+  extent row, is written and synced as section 4 says, and each commit
+  answered. So a log's frames are durable before the commit that records
+  them, and an extent never names a byte that was not synced.
+- **A failed or short write or sync of a log** is the batch's: the store
+  answers its commits `Failed` and recovers from the disk, as for its own
+  log (section 4).
+- **Past the extent is garbage:** frames a batch wrote whose commit never
+  became durable. Readers stop at the extent, and the next append writes
+  at the extent, over them. Nothing is truncated.
+
+### 6.3 Read back
+
+- **`ReadLog { owner, log, at, direction, max }`,** `direction`
+  `Forward` or `Backward` (`skein_kv::Direction`): forward, the frames
+  from the one starting at `at`; backward, the frame ending at `at`,
+  then each before it, newest first. `max`, past zero and at most
+  `Limits::page`, bounds the records' bytes the answer holds.
+- **`LogRead { owner, records, next }`,** each `LogRecord { at, end,
+  length, record }`: the frame's start and end, the record's length, and
+  the record inflated. Records go in whole while their lengths fit what
+  is left of `max`; the first that doesn't ends the read, and comes
+  **cut** (`record` none, its `at`, `end` and `length` still given) when
+  it is the read's first, so a read always moves. `next` is, forward,
+  the end of the last frame given, and backward, the start of the last,
+  none at the extent or at 0.
+- **Never past the extent** the map holds as the read is asked, which
+  is durable (section 2). A log with no extent row answers no records
+  and no `next`. A frame that is not whole before the extent, fails its
+  checksum, has a kind past 1, or inflates to another length than it
+  says, answers `LogUnread { owner, at }`, its start.
+- **Through the store's one file driver,** one request at a time with
+  its commits' and snapshots' (section 12); a log's file stays open for
+  its next read or append, at most `Limits::logs` of them, the least
+  recently used closed first.
+
+### 6.4 Dropped
+
+- **`Op::Drop { log }`** erases the log's extent row in its commit. Once
+  that commit is durable, the store removes the file, a missing one
+  being no failure, and syncs its directory; its directory is left.
+- **At recovery,** once the map is replayed, the store lists `logs/` a
+  page at a time and removes each log's file whose extent row the map
+  lacks, syncing each directory it removed from. A crash between a
+  drop's commit and the removal leaves such a file; so does a crash
+  after a log's first frames were synced and before their commit.
+- **A file of two names.** The store writes a log only at or past its
+  own extent, so a log file another store's root also names (jig's
+  generations link them, its `protocol/store/opening.md`, 2) reads
+  alike from either up to that store's extent, and what one appends is
+  garbage to the other. Removing one name leaves the other.
+
+### 6.5 In memory, and bounds
+
+- **`Store::memory`** keeps each log's frames in memory: an append is
+  applied with its commit, a read answered at once, as `Got` is, a drop
+  at once.
+- **`Limits`** gains `record`, a record's largest bytes, at most
+  `page`; `log`, a log's largest extent; and `logs`, the log files held
+  open. `Limits::is_usable` checks them with the rest.
+- **What it costs in memory:** the frames queued with their commits,
+  within `queued_bytes`; one read's records, within its `max`; a
+  record's deflated and inflated bytes while it is framed or read.
 
 ## 7. Memory and bounds
 
@@ -353,9 +460,20 @@ failed syncs.
   model's.
 - **Snapshots under load:** commits racing a snapshot at every chunk,
   crashes at each phase of its replacement.
-- **Payload logs, later:** a crash between the data's sync and the
-  commit leaves the extent as it was, and the next append overwrites the
-  tail.
+- **Payload logs** (section 6), in the store's world on the simulated
+  disk: a crash at each operation of a batch with appends (each log's
+  open, write and sync, a directory's sync, the commit frame's write and
+  sync) recovers a map whose extents each name only whole, synced frames,
+  with every log's records equal to the model's up to its extent; a
+  crash between the data's sync and the commit leaves the extent as it
+  was, and the next append overwrites the tail; a crash between a drop's
+  commit and its removal leaves a file the next recovery removes; reads
+  forward and backward, a cut first record, a frame corrupted past its
+  checksum answered unread, a log with no extent read empty; refusals
+  at the entrance (the rule's prefix, no rule, an append and a drop of
+  one log, a record or a log past its limit). A log's golden bytes,
+  beside the store's: a log of a stored frame and a deflated one, kept
+  and never regenerated by the test that reads it.
 - **The format's golden bytes:** a log segment and a snapshot made from
   one fixed sequence of commits (puts and erases, an empty commit, keys
   and values at their bounds, a segment's roll), kept as files beside
@@ -392,9 +510,10 @@ failed syncs.
   values and keys, the root's commit as one `Commit`, loads by key range
   at restart; secrets in a second store, in a root of their own,
   `0o600`.
-- **Transcripts** as payload logs: a turn's bytes appended and synced,
-  then committed with its spend and the messages it took; the worker's
-  acknowledgement after that commit.
+- **Task logs** as payload logs (jig's `protocol/store/README.md`): a
+  task's history and its turns, each a log, appended and synced, then
+  committed with the decision that made them; the worker's
+  acknowledgement of a turn after that commit.
 - **Retention is temper's:** ended tasks moved out of the map, or into
   payload logs, past a horizon, so the budget holds for years.
 
@@ -474,8 +593,10 @@ around it:
   operation is cancelled; its owner receives one terminal failure after
   the operation settles.
 - One store owns one directory and one file driver.
-- Later, when a user needs them: payload logs (section 6); several
-  stores sharing a sync; reads at one commit across pages, for a
+- Later, when a user needs them: several
+  stores sharing a sync; payload logs' I/O on a driver of its own, so
+  that a log's read never waits behind a snapshot's write (6.3); logs'
+  bytes in the census (2.2); reads at one commit across pages, for a
   consistent view of many; `Load` in reverse order, where reversed keys
   do not serve.
 - A rollover's `Close` answered `Failed` goes as a failed write does
