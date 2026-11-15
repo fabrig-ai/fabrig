@@ -1,7 +1,7 @@
 //! Independent recursive reading. JSON syntax faults are left to skein's oracle;
 //! hearth's own faults and every successful value carry independently counted positions.
 use hearth_protocol_config::{
-    Error, Fault, Position,
+    Decode, Error, Fault, Position,
     json::{Entry, Kind, Value},
     limits::Limits,
 };
@@ -69,20 +69,20 @@ impl Parser<'_> {
                     return Err(self.json());
                 }
                 if root && byte != b'{' {
-                    return Err(self.fault(start, Fault::NotObject));
+                    return Err(self.fault(start, Fault::Decode(Decode::NotObject)));
                 }
                 if note {
-                    return Err(self.fault(start, Fault::Note));
+                    return Err(self.fault(start, Fault::Decode(Decode::Note)));
                 }
                 if byte == b'{' { self.object(depth + 1)? } else { self.array(depth + 1)? }
             }
             b'"' => {
                 let text = self.string()?;
                 if root {
-                    return Err(self.fault(start, Fault::NotObject));
+                    return Err(self.fault(start, Fault::Decode(Decode::NotObject)));
                 }
                 if text.contains(&0) {
-                    return Err(self.fault(start, Fault::Nul));
+                    return Err(self.fault(start, Fault::Decode(Decode::Nul)));
                 }
                 Kind::String(text.into_boxed_slice())
             }
@@ -97,10 +97,10 @@ impl Parser<'_> {
                     self.exact(b)?;
                 }
                 if root {
-                    return Err(self.fault(start, Fault::NotObject));
+                    return Err(self.fault(start, Fault::Decode(Decode::NotObject)));
                 }
                 if note {
-                    return Err(self.fault(start, Fault::Note));
+                    return Err(self.fault(start, Fault::Decode(Decode::Note)));
                 }
                 match byte {
                     b't' => Kind::Bool(true),
@@ -115,15 +115,15 @@ impl Parser<'_> {
                     return Err(self.json());
                 }
                 if root {
-                    return Err(self.fault(start, Fault::NotObject));
+                    return Err(self.fault(start, Fault::Decode(Decode::NotObject)));
                 }
                 if note {
-                    return Err(self.fault(start, Fault::Note));
+                    return Err(self.fault(start, Fault::Decode(Decode::Note)));
                 }
                 if text.contains('.') || text.contains('e') || text.contains('E') {
-                    return Err(self.fault(start, Fault::NotInteger));
+                    return Err(self.fault(start, Fault::Decode(Decode::NotInteger)));
                 }
-                Kind::Int(text.parse::<i64>().map_err(|_| self.fault(start, Fault::Range))?)
+                Kind::Int(text.parse::<i64>().map_err(|_| self.fault(start, Fault::Decode(Decode::Range)))?)
             }
             _ => return Err(self.json()),
         };
@@ -142,13 +142,13 @@ impl Parser<'_> {
             let start = self.pos;
             let key = self.string()?;
             if key.contains(&0) {
-                return Err(self.fault(start, Fault::Nul));
+                return Err(self.fault(start, Fault::Decode(Decode::Nul)));
             }
             if let Some(first) = keys.get(&key) {
                 return Err(self.fault(start, Fault::Duplicate { key: key.into_boxed_slice(), first: *first }));
             }
             if keys.len() >= self.limits.keys as usize {
-                return Err(self.fault(start, Fault::Keys));
+                return Err(self.fault(start, Fault::Decode(Decode::Keys)));
             }
             keys.insert(key.clone(), self.at(start));
             self.ws();

@@ -171,6 +171,8 @@ impl Store {
             // report only later current-generation commits, in their captured order;
             // historical rows before that prefix remain opaque, not transcoded.
             let mut replay = Store {
+                // Later hot-only commits join the cold parts observed before recovery.
+                rows: self.observed_cold.clone(),
                 applied: self.observed_through,
                 lengths: self.observed_lengths.clone(),
                 files: self

@@ -81,7 +81,7 @@ fn a_goals_change_keeps_the_red_landing_it_repairs_across_restart() {
     let engine::CallAnswer::Delegated(made) = &answer else { panic!("repair refused: {:?}", world.call_errors) };
     let number = made[0].task;
     until(&mut world, LANDING_TICKS, "repair row saved", |world| {
-        world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(number)))
+        world.store.rows.contains_key(&Key::Forge(forge_top::Key::ChangeHot(number)))
     });
     assert_eq!(change(&world, number).repairs, Some(commit));
     assert!(

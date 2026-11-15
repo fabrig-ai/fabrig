@@ -1329,6 +1329,14 @@ pub enum Stored {
     History(crate::History),
     /// Current bounded live task state, emitted on mutation and admitted once at startup.
     Live(/** Owned boxed live task row; fit and link checks precede activation. */ Box<TaskRecord>),
+    /// The live task's cold part, put only when its fields change (protocol/store/parts.md, 2).
+    LiveCold {
+        number: u64,
+        spec: Box<Spec>,
+        contract: Contract,
+        authority: Authority,
+        instructions: Option<Box<[u8]>>,
+    },
     /// Ended task state; root loads it for authenticated result reads, never as
     /// live startup state.
     Ended(
@@ -1370,6 +1378,7 @@ impl Stored {
             Stored::Attempt(row) => Key::Attempt { task: row.task, attempt: row.attempt },
             Stored::Hold(row) => Key::Hold { task: row.task, position: row.position },
             Stored::Live(record) => Key::Live(record.number),
+            Stored::LiveCold { number, .. } => Key::LiveCold(*number),
             Stored::Ended(record) => Key::Ended(record.number),
             Stored::Stub(stub) => Key::Stub(stub.task),
             Stored::Ledger(record) => Key::Ledger(record.funder),

@@ -29,13 +29,15 @@ fn repair(why: change::Repair, requested: bool, live: bool) -> (World, skein_for
     (world, head)
 }
 
-fn row(world: &World) -> &top::ChangeRow {
-    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(TASK)) else { panic!("change row") };
+fn row(world: &World) -> &top::ChangeHot {
+    let Some(top::Stored::ChangeHot(row)) = world.stored().get(&top::Key::ChangeHot(TASK)) else {
+        panic!("change row")
+    };
     row
 }
 
 fn released(world: &mut World, why: change::Hold) {
-    let mut saved = row(world).clone();
+    let mut saved = world.change(TASK).clone();
     saved.change.state = change::State::Held { was: Box::new(saved.change.state), why };
     saved.delegate = None;
     saved.delegate_status = change::Status::Failed;

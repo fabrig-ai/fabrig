@@ -39,6 +39,7 @@ pub struct Store {
     pub(crate) levels: Option<codec::component::Levels>,
     observed_through: u64,
     observed_lengths: BTreeMap<u64, u64>,
+    observed_cold: BTreeMap<root::Key, root::Record>,
 }
 #[derive(Debug)]
 pub enum Observed {
@@ -146,6 +147,14 @@ impl Store {
     pub(crate) fn recovering(&mut self) {
         self.observed_through = self.applied;
         self.observed_lengths = self.lengths.clone();
+        self.observed_cold = self
+            .rows
+            .iter()
+            .filter(|(_, row)| {
+                matches!(row, root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::LiveCold { .. })))
+            })
+            .map(|(key, row)| (key.clone(), row.clone()))
+            .collect();
         self.rows.clear();
         self.generations.clear();
         self.active = None;
@@ -302,6 +311,41 @@ impl Store {
         }
         self.applied = commit.number;
     }
+    fn decode(
+        &mut self,
+        key: &core::Key,
+        value: &[u8],
+        ops: &[skein_kv::Op],
+        limits: &codec::View,
+        names: &[core::settings::ModelName],
+    ) -> Option<core::Record> {
+        if let Some(record) = codec::decode(key, value, limits, names) {
+            return Some(record);
+        }
+        let core::Key::Tasks(jig_domain_tasks::Key::Live(task)) = key else { return None };
+        let cold_key = core::Key::Tasks(jig_domain_tasks::Key::LiveCold(*task));
+        let raw = keys::encode(&cold_key, u32::MAX)?;
+        let mut cold = None;
+        for op in ops {
+            match op {
+                skein_kv::Op::Put { key, value } if *key == raw => {
+                    cold = Some(self.layouts.serving(key, value.clone()).ok()?);
+                }
+                skein_kv::Op::Erase { key } if *key == raw => return None,
+                skein_kv::Op::Put { .. } | skein_kv::Op::Erase { .. } => {}
+            }
+        }
+        if cold.is_none() {
+            let key = root::Key::Core(cold_key);
+            let root::Record::Core(record) = self.rows.get(&key).or_else(|| self.observed_cold.get(&key))? else {
+                return None;
+            };
+            cold = codec::encode(record, limits, names);
+        }
+        let cold = cold?;
+        Some(core::Record::Tasks(codec::tasks::decode_live(value, &cold, &limits.tasks, names).ok()?))
+    }
+
     fn commit(
         &mut self,
         number: u64,
@@ -311,15 +355,17 @@ impl Store {
         connector: &temper_protocol_store::Bounds,
     ) -> Result<Commit, String> {
         self.layouts.observe(&ops);
+        let ops = ops.into_vec();
         let mut writes = Vec::new();
         let mut installation = None;
         let mut wires = false;
-        for op in ops {
+        for op in &ops {
             match op {
                 skein_kv::Op::Put { key, value } => {
-                    let value = self.layouts.serving(&key, value)?;
-                    if let Some(key) = keys::decode(&key) {
-                        let row = codec::decode(&key, &value, limits, names)
+                    let value = self.layouts.serving(key, value.clone())?;
+                    if let Some(key) = keys::decode(key) {
+                        let row = self
+                            .decode(&key, &value, &ops, limits, names)
                             .ok_or_else(|| String::from("real stored row decodes"))?;
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                             history: true,
@@ -333,7 +379,7 @@ impl Store {
                         } else {
                             writes.push(root::Write::Save(root::Record::Core(row)));
                         }
-                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
                         let place = codec::component::Transcript::decode(&value)
                             .map_err(|why| format!("real transcript place: {why:?}"))?;
                         let name = format!("transcripts/{:016x}/{task:016x}", task >> 12).into_bytes();
@@ -357,7 +403,7 @@ impl Store {
                             ))));
                             at += len;
                         }
-                    } else if keys::decode_own(&key) == Some(keys::Own::Wires) {
+                    } else if keys::decode_own(key) == Some(keys::Own::Wires) {
                         wires = true;
                     } else if Some(key.as_ref()) == keys::installation(64).as_deref() {
                         installation = Some(
@@ -372,9 +418,9 @@ impl Store {
                     }
                 }
                 skein_kv::Op::Erase { key } => {
-                    if let Some(key) = keys::decode(&key) {
+                    if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
-                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let key = temper_protocol_store::keys::decode(&key[1..], connector.forge())

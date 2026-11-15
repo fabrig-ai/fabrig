@@ -50,6 +50,8 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (41, "temper.landed-drafts"),
         (42, "temper.follows"),
         (43, "temper.devices"),
+        (CHANGE_COLD, "temper.changes-cold"),
+        (CHANGE_HOT, "temper.changes-hot"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
@@ -105,6 +107,9 @@ pub const RED_NUMBER: u8 = 45;
 pub const RED_PASS: u8 = 46;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_PROJECT: u8 = 127;
+/// A change's two parts (temper/docs/design/protocol/store.md, 2).
+pub const CHANGE_COLD: u8 = 47;
+pub const CHANGE_HOT: u8 = 48;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -327,6 +332,12 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Change(task) => {
             writer.tag(12).u64(*task);
         }
+        forge::Key::ChangeCold(task) => {
+            writer.tag(CHANGE_COLD).u64(*task);
+        }
+        forge::Key::ChangeHot(task) => {
+            writer.tag(CHANGE_HOT).u64(*task);
+        }
         forge::Key::Issue(goal) => {
             writer.tag(13).u64(*goal);
         }
@@ -437,6 +448,8 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         11 => forge::Key::Client(read_client(&mut reader, limits)?),
         CLOSER => forge::Key::Closer(reader.u64()?),
         12 => forge::Key::Change(reader.u64()?),
+        CHANGE_COLD => forge::Key::ChangeCold(reader.u64()?),
+        CHANGE_HOT => forge::Key::ChangeHot(reader.u64()?),
         13 => forge::Key::Issue(reader.u64()?),
         14 => forge::Key::Release(reader.u64()?),
         15 => forge::Key::Application(reader.u64()?),

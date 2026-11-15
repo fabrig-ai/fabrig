@@ -169,7 +169,7 @@ fn priority_moving_ahead_marks_the_waiting_panel() {
     driver.settle();
     let saved_priority = driver.store.rows.values().find_map(|record| {
         if let engine::Record::Forge { row } = record
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
             && row.task == 53
         {
             Some(row.priority)
@@ -184,7 +184,7 @@ fn priority_moving_ahead_marks_the_waiting_panel() {
         .values()
         .filter(|record| {
             matches!(record,
-                engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Change(_))
+                engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::ChangeHot(_))
             )
         })
         .count();
@@ -509,7 +509,7 @@ fn own_record_change_refreshes_a_watched_panel() {
     driver.settle();
     let saved_questions = driver.store.rows.values().find_map(|record| {
         if let engine::Record::Forge { row } = record
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
             && row.task == 51
         {
             Some(row.questions.clone())

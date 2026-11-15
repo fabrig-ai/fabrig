@@ -234,8 +234,10 @@ fn an_updating_first_keeps_its_turn_then_wakes_the_next_to_land() {
     assert_eq!(world.writes(), 4, "two updates and two merges; no repeated reviews");
 }
 
-fn queue_change(world: &World, task: u64) -> &top::ChangeRow {
-    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(task)) else { panic!("change {task}") };
+fn queue_change(world: &World, task: u64) -> &top::ChangeHot {
+    let Some(top::Stored::ChangeHot(row)) = world.stored().get(&top::Key::ChangeHot(task)) else {
+        panic!("change {task}")
+    };
     row
 }
 
@@ -359,7 +361,7 @@ fn a_reused_branch_lands_its_own_pull_after_an_earlier_deployment() {
         change::Decision::Effect(change::Effect::Open)
     );
     assert_eq!(change_step(&mut world, 3, change::Status::Passed, Box::new([])), change::Decision::Ready);
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else {
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("opening retained")
     };
     let own = saved.pull.expect("own open recorded");
@@ -400,9 +402,14 @@ fn a_merge_seen_by_the_base_read_before_the_pull_read_is_not_a_retarget() {
 
     let decision = change_step(&mut world, 100, change::Status::Passed, Box::new([]));
     assert!(matches!(decision, change::Decision::Wait { .. }), "await the merged pull: {decision:?}");
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("change retained") };
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
+        panic!("change retained")
+    };
     assert_eq!(saved.change.state, change::State::Landing { head });
-    assert_eq!(saved.base.as_ref(), b"main");
+    let Some(top::Stored::ChangeCold(cold)) = world.stored().get(&top::Key::ChangeCold(51)) else {
+        panic!("cold change")
+    };
+    assert_eq!(cold.base.as_ref(), b"main");
 
     world.restart();
     assert_eq!(change_step(&mut world, 101, change::Status::Passed, Box::new([])), change::Decision::Finish { merge });
@@ -592,7 +599,7 @@ fn a_forge_brief_section_stays_with_its_connector_until_taken() {
     row.pull = Some(pull);
     row.change.last_head = Some(head);
     world.event(top::Event::Change { row });
-    assert!(world.stored().get(&top::Key::Change(51)).is_some(), "change registered: {:?}", world.seen());
+    assert!(world.stored().get(&top::Key::ChangeHot(51)).is_some(), "change registered: {:?}", world.seen());
     world.take_seen();
     let section = Token::new(94);
     world.event(top::Event::GatherBriefHeld {
@@ -843,8 +850,8 @@ fn a_clean_update_with_broken_ci_is_repaired_as_a_semantic_conflict() {
 #[test]
 fn a_pull_closed_by_someone_else_is_held_then_reopened_on_release() {
     let (mut world, head) = reviewed_change(false, change::Freshness::Exact);
-    let pull = match world.stored().get(&top::Key::Change(51)) {
-        Some(top::Stored::Change(row)) => row.pull.expect("fixture pull"),
+    let pull = match world.stored().get(&top::Key::ChangeHot(51)) {
+        Some(top::Stored::ChangeHot(row)) => row.pull.expect("fixture pull"),
         Some(_) | None => panic!("fixture change"),
     };
     let name = top::Name {
@@ -1033,7 +1040,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
     )));
     assert!(world.seen().iter().any(|event| matches!(event, top::Request::WakeProcedure { task: 52 })));
     assert_eq!(world.writes(), 0);
-    let Some(top::Stored::Change(kept)) = world.stored().get(&top::Key::Change(51)) else { panic!("kept row") };
+    let Some(top::Stored::ChangeHot(kept)) = world.stored().get(&top::Key::ChangeHot(51)) else { panic!("kept row") };
     assert!(matches!(kept.change.state, change::State::Gating { .. }));
     assert_eq!(kept.change.ready_since, Some(earliest));
     assert!(!kept.change.owns_turn);
@@ -1043,7 +1050,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
     ));
     assert_eq!(world.writes(), 1);
     assert_eq!(change_step(&mut world, 3, change::Status::Passed, Box::new([])), change::Decision::Ready);
-    let Some(top::Stored::Change(back)) = world.stored().get(&top::Key::Change(51)) else { panic!("ready row") };
+    let Some(top::Stored::ChangeHot(back)) = world.stored().get(&top::Key::ChangeHot(51)) else { panic!("ready row") };
     assert!(matches!(back.change.state, change::State::Queued { ready_since, .. } if ready_since == earliest));
     assert_eq!(
         change_step_task(&mut world, 53, 4, change::Status::Passed, Box::new([]), false, false),
@@ -1278,7 +1285,9 @@ fn failed_ci_repair_world() -> World {
         change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
         change::Decision::Hold(change::Hold::Failed)
     );
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
+        panic!("retained change")
+    };
     assert_eq!(saved.change.repairs, 1);
     assert_eq!(saved.delegate_status, change::Status::Failed);
     world
@@ -1292,7 +1301,9 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         change_step_with_release(&mut world, 3, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
+        panic!("retained change")
+    };
     assert_eq!(saved.change.repairs, 1, "release resets the allowance and counts its replacement");
     world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
     world.run_for(1);
@@ -1308,7 +1319,9 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         words: Box::new([]),
     });
     assert!(matches!(change_step(&mut world, 4, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
+        panic!("retained change")
+    };
     assert_eq!(saved.delegate, Some((53, change::Delegate::Repair(change::Repair::Ci))));
     assert_eq!(saved.delegate_status, change::Status::Unknown);
     assert_eq!(saved.change.repairs, 1);
@@ -1718,7 +1731,7 @@ fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_onc
         outcome: skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Created(1), found: true },
     }));
     assert!(
-        matches!(world.stored().get(&top::Key::Change(51)), Some(top::Stored::Change(row)) if row.effect == change::EffectResult::Made && row.pending.is_none())
+        matches!(world.stored().get(&top::Key::ChangeHot(51)), Some(top::Stored::ChangeHot(row)) if row.effect == change::EffectResult::Made && row.pending.is_none())
     );
     assert!(world.take_calls().contains(&skein_forge::api::Op::Read(skein_forge::api::Read::PullFor {
         head: b"temper/51".as_slice().into(),
@@ -2512,7 +2525,7 @@ fn a_cancelled_change_watching_its_pull_deletes_its_branch_past_its_own_close() 
     world.event(top::Event::Committed { entry: 10 });
     // Past the Close's outcome, the pull's keep reads it Closed.
     world.run_for(60);
-    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(51)) else { panic!("change kept") };
+    let Some(top::Stored::ChangeHot(row)) = world.stored().get(&top::Key::ChangeHot(51)) else { panic!("change kept") };
     assert_eq!(row.pull, Some(pull));
     assert!(!world.seen().iter().any(|request| matches!(request, top::Request::Drift { task: 51, .. })));
     world.event(top::Event::ContinueRelease { task: 51, entry: 11 });
@@ -3124,11 +3137,11 @@ fn a_waiting_procedure_stepped_twice_on_unchanged_facts_keeps_its_decision_and_s
     world.event(top::Event::Change { row: front });
     let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
     let first = change_step(&mut world, 100, change::Status::Passed, gates.clone());
-    let before = world.stored().get(&top::Key::Change(51)).expect("procedure state").clone();
+    let before = world.stored().get(&top::Key::ChangeHot(51)).expect("procedure state").clone();
     let second = change_step(&mut world, 101, change::Status::Passed, gates);
     assert_eq!(first, change::Decision::Wait { until: None });
     assert_eq!(second, first);
-    assert_eq!(world.stored().get(&top::Key::Change(51)), Some(&before));
+    assert_eq!(world.stored().get(&top::Key::ChangeHot(51)), Some(&before));
     assert_eq!(world.writes(), 0);
 }
 
@@ -3363,7 +3376,9 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
         change_step(&mut world, 100, change::Status::Unknown, Box::new([])),
         change::Decision::Hold(change::Hold::Failed)
     );
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
+        panic!("retained change")
+    };
     assert_eq!(saved.producer_failure.as_deref(), Some(REASON));
     assert!(matches!(&saved.change.state, change::State::Held { was, why: change::Hold::Failed }
         if matches!(was.as_ref(), change::State::Producing { .. })));

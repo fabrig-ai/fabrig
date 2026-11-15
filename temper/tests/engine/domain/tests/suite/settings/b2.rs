@@ -345,7 +345,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     for _ in 0..30 {
         for stored in driver.store.rows.values() {
             if let Record::Forge { row } = stored
-                && let forge::Stored::Change(row) = row.as_ref()
+                && let forge::Stored::ChangeHot(row) = row.as_ref()
                 && row.task == change
             {
                 assert_eq!(row.change.repairs, 2);
@@ -362,7 +362,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     }
     panic!(
         "the change lands after two repairs and its review: {:?}; task {:?}",
-        driver.store.rows.get(&Key::Forge(forge::Key::Change(change))),
+        driver.store.rows.get(&Key::Forge(forge::Key::ChangeHot(change))),
         driver.task(change)
     );
 }

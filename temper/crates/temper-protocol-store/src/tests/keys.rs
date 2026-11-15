@@ -539,3 +539,20 @@ fn assert_census_name(key: &Key) {
     }
     assert_eq!(names, 1, "one name for the writer's family {key:?}");
 }
+
+#[test]
+fn change_parts_have_assigned_tagged_keys_and_census_names() {
+    for task in [0, 12, u64::MAX] {
+        for (key, byte, name) in
+            [(Key::ChangeCold(task), 47, "temper.changes-cold"), (Key::ChangeHot(task), 48, "temper.changes-hot")]
+        {
+            let relative = keys::encode(&key, u32::MAX).unwrap();
+            let tagged = jig_protocol_store::keys::application(&relative, u32::MAX).unwrap();
+            let mut expected = skein_kv::KeyWriter::new(u32::MAX);
+            expected.tag(2).tag(byte).u64(task);
+            assert_eq!(tagged, expected.finish().unwrap());
+            assert_eq!(keys::decode(&relative, &fixtures::LIMITS), Some(key));
+            assert!(crate::KEYSPACES.families.contains(&(byte, name)));
+        }
+    }
+}

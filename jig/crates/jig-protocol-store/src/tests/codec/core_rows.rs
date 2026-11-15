@@ -173,3 +173,77 @@ fn outstanding_offers_use_the_run_inbox_bound_on_write_and_read() {
         skein_codec::Reason::Bound
     );
 }
+
+#[test]
+fn projection_parts_join_whole_and_keep_their_deep_byte_totals() {
+    let limits = call_limits();
+    let goal = core::ProjectionGoal {
+        number: 11,
+        project: 2,
+        priority: 7,
+        words: b"goal words".as_slice().into(),
+        phase: super::fixtures::task_phase(),
+    };
+    let task = core::ProjectionTask {
+        number: 12,
+        requester: tasks::Party::Task(11),
+        words: b"task words".as_slice().into(),
+        phase: super::fixtures::task_phase(),
+    };
+    let (hot, words) = goal.clone().split();
+    assert_eq!(hot.clone().join(words.clone()), goal);
+    let rows = [
+        core::ProjectionRecord::GoalHot { goal: hot, pending: Box::new([2, 3]), changed: true, fed_at: Some(19) },
+        core::ProjectionRecord::GoalWords { goal: 11, task: 11, words },
+    ];
+    assert_eq!(
+        core::projection_record_bytes(&rows[0])
+            .unwrap()
+            .checked_add(core::projection_record_bytes(&rows[1]).unwrap())
+            .unwrap(),
+        tasks::phase_bytes(&goal.phase).unwrap() + 4 + u64::try_from(goal.words.len()).unwrap()
+    );
+    assert_eq!(rows[0].key(), core::ProjectionKey::Goal(11));
+    assert_eq!(rows[1].key(), core::ProjectionKey::GoalWords(11));
+    for row in rows {
+        core_round_trip(core::CoreRecord::Projection(row));
+    }
+    let (hot, words) = task.clone().split();
+    assert_eq!(hot.clone().join(words.clone()), task);
+    let rows = [
+        core::ProjectionRecord::TaskHot { goal: 11, task: hot },
+        core::ProjectionRecord::TaskWords { goal: 11, task: 12, words },
+    ];
+    assert_eq!(
+        core::projection_record_bytes(&rows[0])
+            .unwrap()
+            .checked_add(core::projection_record_bytes(&rows[1]).unwrap())
+            .unwrap(),
+        tasks::phase_bytes(&task.phase).unwrap() + u64::try_from(task.words.len()).unwrap()
+    );
+    assert_eq!(rows[0].key(), core::ProjectionKey::Task { goal: 11, task: 12 });
+    assert_eq!(rows[1].key(), core::ProjectionKey::TaskWords { goal: 11, task: 12 });
+    for row in rows {
+        core_round_trip(core::CoreRecord::Projection(row));
+    }
+    for mut row in [
+        core::ProjectionRecord::GoalWords { goal: 11, task: 11, words: Box::new([]) },
+        core::ProjectionRecord::TaskWords { goal: 11, task: 12, words: Box::new([]) },
+    ] {
+        let (core::ProjectionRecord::GoalWords { words, .. } | core::ProjectionRecord::TaskWords { words, .. }) =
+            &mut row
+        else {
+            unreachable!()
+        };
+        let mut full = skein_lib::List::with_capacity(limits.core.projection_words_words);
+        for _ in 0..limits.core.projection_words_words {
+            full.push(b'w').unwrap();
+        }
+        *words = full.into_boxed();
+        let bytes = codec::encode(&core::CoreRecord::Projection(row.clone()), &limits).unwrap();
+        assert_eq!(codec::decode(&bytes, &limits), Ok(core::CoreRecord::Projection(row)));
+        let mut smaller = limits;
+        smaller.core.projection_words_words -= 1;
+        assert_eq!(codec::decode(&bytes, &smaller).unwrap_err().reason, skein_codec::Reason::Bound);
+    }
+}

@@ -12,12 +12,8 @@ const SLOTS: u32 = 8; // The world prices eight worker slots.
 const TASKS: u32 = 12; // Three chats, changes and producers fit the twelve-task world.
 const RESOURCES: u32 = 10; // Eight current watches, a departing read and replacement headroom.
 
-fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("change row")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 pub(super) fn names(world: &World, task: u64) -> Box<[forge_top::Name]> {

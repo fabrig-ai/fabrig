@@ -437,7 +437,7 @@ fn a_change_into_a_goal_branch_from_outside_its_goal_is_refused_naming_it() {
     assert!(
         live_task(&world, goal.task).holdings.contains(&tasks::Holding::Write { resource: resource(&branch), kind: 1 })
     );
-    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
+    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))));
     world.close();
 }
 
@@ -485,10 +485,7 @@ fn a_change_by_the_goal_into_its_own_branch_lands_there_taking_its_writer_slot()
     let change = made[FIRST_RUN].task;
     world.until(Until::SecondAssignment);
     let producer = world.assigned[PRODUCER_RUN].clone();
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("registered change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    let Some(row) = world.store.change(change) else { panic!("durable change") };
     assert_eq!(row.base, branch);
     let change_branch = row.branch.clone();
     let main = branch_tip(&mut world, b"main");

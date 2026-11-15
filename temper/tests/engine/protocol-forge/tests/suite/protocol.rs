@@ -1183,7 +1183,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     let mut wakes = 0;
     while world.wall() <= deadline && !finished {
         if !named_pull
-            && let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(51))
+            && let Some(top::Stored::ChangeHot(row)) = world.stored().get(&top::Key::ChangeHot(51))
             && let Some(number) = row.pull
         {
             world.event(top::Event::Rename {

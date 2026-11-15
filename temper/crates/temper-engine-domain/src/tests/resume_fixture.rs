@@ -617,7 +617,7 @@ pub fn root_with_records(
                 deployment.tasks = deployment.tasks.max(row.number);
             }
             engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
-                jig_domain_core::ProjectionRecord::Goal { goal, .. },
+                jig_domain_core::ProjectionRecord::GoalHot { goal, .. },
             ))) => deployment.tasks = deployment.tasks.max(goal.number),
             engine::Record::Core(_) | engine::Record::Forge { .. } => {}
         }
