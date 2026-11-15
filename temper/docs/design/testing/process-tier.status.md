@@ -98,3 +98,13 @@ the fake's own process story.
   [in flight: change 2876]
   the whole document: `Members::passed` panics on a member's failure.
   [in flight: change 2882]
+- **Not yet:** the whole document: the newer-build box story judges a
+  process whose executable reads ENOENT while it exits but whose pidfd
+  doesn't yet say so. [in flight: change 3579]
+- **Not yet:** the whole document: the turn's restart story's repository
+  has no manual-merge detection (`../domain/landing.md`, 10), so its
+  member's pull never reads merged and the turn never tells it landed.
+  [in flight: change 3581]
+- **Not yet:** the whole document: the batch stories' judge releases the
+  latch's and the fourth producer's holds once, and loses a release that
+  comes before its hold. [in flight: change 3583]
