@@ -959,6 +959,9 @@ mod merge_drill;
 #[path = "landing_wait_drill.rs"]
 mod wait_drill;
 
+#[path = "landing_restarts.rs"]
+mod restarts;
+
 #[path = "landing_go_live.rs"]
 mod go_live;
 

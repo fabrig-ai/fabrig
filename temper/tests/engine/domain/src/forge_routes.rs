@@ -1486,6 +1486,17 @@ impl World {
         self
     }
 
+    /// Start with a smaller batch and member bound, keeping the provider and store's room for a later restart.
+    #[must_use]
+    pub fn with_landing_batch(mut self, batch: u16) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.landing_members = u32::from(batch);
+        self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("initial batch configuration");
+        self
+    }
+
     /// Configure an additional project's verification policy before startup.
     #[must_use]
     pub fn with_project_landing(mut self, project: u32, landing: engine::ProjectLanding) -> Self {
