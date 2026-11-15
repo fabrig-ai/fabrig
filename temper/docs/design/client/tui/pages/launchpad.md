@@ -17,8 +17,9 @@ the recording (`../../../draft/tui.md`, section 5).
 Illustrative, a person in two projects, Hello and shop:
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  127.0.0.1:8367
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  127.0.0.1:8367
 
  4 changes landed across two projects. Two things need you.
  Hello: CSV export is in review. shop: Coupons are two of three in.
