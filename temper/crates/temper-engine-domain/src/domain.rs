@@ -118,7 +118,8 @@ pub struct Domain {
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
-    pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
+    pub(crate) forge_reading:
+        Map<Token, (ReplyTo, CallKey, skein_forge::api::Repository, Option<skein_forge::api::Commit>)>,
     pub(crate) status_reading: Map<Token, forge_route::status_route::Reading>,
     pub(crate) next_status_owner: u32,
     pub(crate) forge_left: Map<(u64, u64), Box<[forge::Pushed]>>,
