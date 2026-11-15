@@ -1657,12 +1657,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_two() {
+fn embedded_client_refusals_keep_their_bytes_at_client_twenty_three() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v23::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 22);
+    assert_eq!(wire::CLIENT_VERSION, 23);
 }
 
 #[test]
@@ -5099,7 +5099,7 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     };
     let encoded = family::forge_read(
         root::ForgeReadAnswer::History(h::Reply::Page {
-            events: Box::new([event]),
+            events: Box::new([event.clone()]),
             after: Some(cursor),
             upper: 40,
             whole_since: Some(Wall::from_nanos(3)),
@@ -5111,6 +5111,53 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     let answer = wire::decode_history_answer(&encoded, &w::CEILINGS).unwrap();
     let w::HistoryReply::Page(page) = answer.result() else { panic!("page") };
     assert_eq!((page.upper(), page.after(), page.whole_since()), (40, &Some(bytes), &Some(3)));
+    let mut outcomes = List::uncapped();
+    for pair in [
+        (h::JobOutcome::Done, w::HistoryJobOutcome::Done),
+        (h::JobOutcome::Conflict, w::HistoryJobOutcome::Conflict),
+        (h::JobOutcome::Timeout, w::HistoryJobOutcome::Timeout),
+        (h::JobOutcome::Cancelled, w::HistoryJobOutcome::Cancelled),
+        (h::JobOutcome::Lost, w::HistoryJobOutcome::Lost),
+    ] {
+        outcomes.push(pair).unwrap();
+    }
+    for (class, expected) in [
+        (h::JobFailure::Unprepared, w::HistoryJobFailure::Unprepared),
+        (h::JobFailure::Run, w::HistoryJobFailure::Run),
+        (h::JobFailure::Result, w::HistoryJobFailure::Result),
+        (h::JobFailure::Unstarted, w::HistoryJobFailure::Unstarted),
+        (h::JobFailure::Undelivered, w::HistoryJobFailure::Undelivered),
+        (h::JobFailure::Unknown, w::HistoryJobFailure::Unknown),
+    ] {
+        outcomes
+            .push((
+                h::JobOutcome::Failed { class },
+                w::HistoryJobOutcome::Failed(
+                    w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: expected }).unwrap(),
+                ),
+            ))
+            .unwrap();
+    }
+    for (outcome, expected) in outcomes.into_boxed() {
+        let bytes = family::forge_read(
+            root::ForgeReadAnswer::History(h::Reply::Page {
+                events: Box::new([h::Event {
+                    what: h::What::JobEnded { job: h::Job::Merge, outcome },
+                    ..event.clone()
+                }]),
+                after: None,
+                upper: 40,
+                whole_since: None,
+            }),
+            b"",
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let reply = wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap();
+        let w::HistoryReply::Page(page) = reply.result() else { panic!("job history page") };
+        let w::HistoryWhat::JobEnded(ended) = page.events().get(0).unwrap().what() else { panic!("job end") };
+        assert_eq!(ended.outcome(), &expected);
+    }
     let event = page.events().get(0).unwrap();
     assert_eq!(
         (

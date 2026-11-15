@@ -49,9 +49,10 @@ fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
         d::JobOutcome::Done => w::HistoryJobOutcome::Done,
         d::JobOutcome::Conflict => w::HistoryJobOutcome::Conflict,
-        d::JobOutcome::Failed { class } => w::HistoryJobOutcome::Failed(w::HistoryJobFailed::new(
-            &w::CEILINGS, w::HistoryJobFailedParts { class: encode_job_failure(class) },
-        ).expect(FITS)),
+        d::JobOutcome::Failed { class } => w::HistoryJobOutcome::Failed(
+            w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: encode_job_failure(class) })
+                .expect(FITS),
+        ),
         d::JobOutcome::Timeout => w::HistoryJobOutcome::Timeout,
         d::JobOutcome::Cancelled => w::HistoryJobOutcome::Cancelled,
         d::JobOutcome::Lost => w::HistoryJobOutcome::Lost,

@@ -13,8 +13,12 @@ pub(crate) struct Answer {
 
 pub(crate) fn answer(domain: &Domain, event: &jig_domain_core::Event) -> Option<Answer> {
     let jig_domain_core::Event::AnswerPayload { run, attempt, payload, .. } = event else { return None };
-    let crate::Payload::Answer { end: jig_domain_hub_link::Ending::Job(host::JobEnding::Failed { failure, .. }), .. } =
-        domain.hub_link.payload(*payload)? else { return None };
+    let crate::Payload::Answer {
+        end: jig_domain_hub_link::Ending::Job(host::JobEnding::Failed { failure, .. }), ..
+    } = domain.hub_link.payload(*payload)?
+    else {
+        return None;
+    };
     let outcome = match failure {
         host::JobFailure::Unprepared(_) => JobOutcome::Failed { class: JobFailure::Unprepared },
         host::JobFailure::Failed => JobOutcome::Failed { class: JobFailure::Run },
@@ -103,7 +107,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record, answe
         tasks::Phase::Ended(tasks::Ending::Cancelled { .. }) => JobOutcome::Cancelled,
         tasks::Phase::Ended(tasks::Ending::Failed { .. } | tasks::Ending::Done(_)) => {
             answered(answer, child.number, child.attempt).unwrap_or(JobOutcome::Failed { class: JobFailure::Unknown })
-        },
+        }
         tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
             return;
         }
@@ -125,7 +129,9 @@ fn attempt_ended(domain: &mut Domain, row: &tasks::AttemptRow, answer: Option<An
     let job = match child.executor {
         tasks::Executor::Job { kind } if kind == forge::PREPARE_KIND => Job::Prepare,
         tasks::Executor::Job { kind } if kind == forge::MERGE_KIND => Job::Merge,
-        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_)
+        tasks::Executor::Agent { .. }
+        | tasks::Executor::Procedure { .. }
+        | tasks::Executor::Person(_)
         | tasks::Executor::Job { .. } => return,
     };
     let outcome = match answered(answer, row.task, row.attempt) {
@@ -140,8 +146,11 @@ fn attempt_ended(domain: &mut Domain, row: &tasks::AttemptRow, answer: Option<An
             None => match child.phase {
                 tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { .. }, .. })
                 | tasks::Phase::Ended(tasks::Ending::Cancelled { .. }) => JobOutcome::Cancelled,
-                tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_)
-                | tasks::Phase::Ended(_) | tasks::Phase::Held { .. } => JobOutcome::Lost,
+                tasks::Phase::Active(_)
+                | tasks::Phase::Waiting
+                | tasks::Phase::Closing(_)
+                | tasks::Phase::Ended(_)
+                | tasks::Phase::Held { .. } => JobOutcome::Failed { class: JobFailure::Unknown },
             },
         },
     };

@@ -563,8 +563,11 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
             out.word(b"outcome", job_outcome(value.outcome()));
             match value.outcome() {
                 w::HistoryJobOutcome::Failed(value) => out.word(b"class", job_failure(value.class())),
-                w::HistoryJobOutcome::Done | w::HistoryJobOutcome::Conflict | w::HistoryJobOutcome::Lost
-                | w::HistoryJobOutcome::Timeout | w::HistoryJobOutcome::Cancelled => {},
+                w::HistoryJobOutcome::Done
+                | w::HistoryJobOutcome::Conflict
+                | w::HistoryJobOutcome::Lost
+                | w::HistoryJobOutcome::Timeout
+                | w::HistoryJobOutcome::Cancelled => {}
             }
         }
         w::HistoryWhat::Conflict(value) => {

@@ -380,11 +380,19 @@ fn a_stored_job_end_survives_restart_before_readback_and_retry_closes_loss() {
     let mut world = batch(3);
     prepare(&mut world);
     job(&mut world, 701, 1);
-    // A new durable claim ends the previous uncertain attempt before starting the next.
+    let failure = h::JobOutcome::Failed { class: h::JobFailure::Run };
+    world.event(top::Event::JobHistory {
+        task: LANDING,
+        job: h::JobStep { task: 701, attempt: 1, job: h::Job::Prepare, outcome: Some(failure), head: None },
+    });
+    world.run_for(1);
+    world.restart();
+    // A later claim preserves the heard end; only an unheard end is lost.
     job(&mut world, 701, 2);
+    job(&mut world, 701, 3);
     world.prepare_landing(LANDING, false);
     let ended =
-        h::JobStep { task: 701, attempt: 2, job: h::Job::Prepare, outcome: Some(h::JobOutcome::Done), head: None };
+        h::JobStep { task: 701, attempt: 3, job: h::Job::Prepare, outcome: Some(h::JobOutcome::Done), head: None };
     world.event(top::Event::JobHistory { task: LANDING, job: ended });
     world.run_for(1);
     assert!(!world.landing(LANDING).job.as_ref().unwrap().written);
@@ -394,14 +402,20 @@ fn a_stored_job_end_survives_restart_before_readback_and_retry_closes_loss() {
         let got = events(&world, change);
         let jobs: Vec<_> =
             got.iter().filter(|e| matches!(e.what, h::What::Job { .. } | h::What::JobEnded { .. })).collect();
-        assert_eq!(jobs.len(), 4);
+        assert_eq!(jobs.len(), 6);
         assert_eq!(
             (jobs[1].what.clone(), jobs[1].attempt),
-            (h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Lost }, 1)
+            (h::What::JobEnded { job: h::Job::Prepare, outcome: failure }, 1)
         );
         assert_eq!((jobs[2].what.clone(), jobs[2].attempt), (h::What::Job { job: h::Job::Prepare, task: 701 }, 2));
         assert_eq!(
-            jobs[3].head,
+            (jobs[3].what.clone(), jobs[3].attempt),
+            (h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Lost }, 2)
+        );
+        assert_eq!((jobs[4].what.clone(), jobs[4].attempt), (h::What::Job { job: h::Job::Prepare, task: 701 }, 3));
+        assert_eq!(jobs[5].what, h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Done });
+        assert_eq!(
+            jobs[5].head,
             world.landing(LANDING).landing.members[usize::try_from(change - 51).unwrap()].candidate
         );
     }

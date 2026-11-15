@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:36339                                     │
+│ Sign in this terminal to 127.0.0.1:42963                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ TKBG-SMXB, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:36339/terminal?code=TKBG-SMXB                  │
+│ KDJV-WDKP, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42963/terminal?code=KDJV-WDKP                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:36339/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:42963/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

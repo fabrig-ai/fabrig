@@ -10,10 +10,10 @@ const RESULT: &[u8] = b"{\"settled\":[\"file\"],\"left\":[]}";
 const GOAL: &[u8] = b"temper/goal";
 const STEPS: u32 = 200;
 
-#[path = "merge_job/producer.rs"]
-mod producer;
 #[path = "merge_job/history.rs"]
 mod history;
+#[path = "merge_job/producer.rs"]
+mod producer;
 
 pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
     World::configured_limits(
