@@ -6433,7 +6433,36 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         // A poll may finish before the procedure's fresh snapshot does.
         accept_released_branch(d, env, &mut saved, head, out);
     }
+    fence_release_reads(d, env, &saved, out);
     fresh_release_reads(d, env, &saved, out);
+}
+
+// The change fences its branch and pull, not its shared base (keeping-up.md, 3).
+fn fence_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: &mut Queue<Request>) {
+    child(
+        d,
+        env,
+        skein_forge_client::Event::Fence {
+            resource: skein_forge_client::Resource {
+                repository: row.repository,
+                what: skein_forge_client::What::Branch(row.branch.clone()),
+            },
+        },
+        out,
+    );
+    if let Some(number) = row.pull {
+        child(
+            d,
+            env,
+            skein_forge_client::Event::Fence {
+                resource: skein_forge_client::Resource {
+                    repository: row.repository,
+                    what: skein_forge_client::What::Pull(number),
+                },
+            },
+            out,
+        );
+    }
 }
 
 // A release cannot join an in-flight observation from before it. Hints fence

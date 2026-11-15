@@ -257,6 +257,8 @@ pub enum Event {
     Writer { resource: Resource, taken: bool },
     /// Record a head pushed by a task’s run.
     Pushed { resource: Resource, commit: Commit },
+    /// Ignore answers of keep reads sent before this fence and reread at hinted (forge/client.md, 4).
+    Fence { resource: Resource },
     /// The parent's outbox decision is durable. Numbers are commit order.
     Make { entry: Entry },
     /// A person chose to make a held entry again: it is looked for first,

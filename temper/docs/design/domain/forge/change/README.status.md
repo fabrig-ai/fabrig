@@ -1,11 +1,14 @@
 # README: status
 
-2026-11-14. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
 
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
+
+- **Not yet:** 2, step 2, *Its own pull request*, and 3, its pull request closed or missing: a closed match at its last head is taken, the number an opening's answer names is not stored, an uncertain opening found closed holds `pull_closed`, a release that finds its numbered pull request not open opens another, and nothing refuses an opening with a number (`temper-engine-domain-forge/src/domain.rs`, `step_read`, `change_outcome`, `change_write`; `temper-engine-domain-forge-change/src/domain.rs`, `released_state`, `opening`) [in flight: change 3485].
+- **Not yet:** 3, *Only its own*, and 4, *Ended, it is frozen*: an ended change's pull request and branch drift its goal and a live change on its branch, and its history gains events after its end (`temper-engine-domain-forge/src/domain.rs`, `pull_changed`, `drift`; `src/change_history.rs`, `pushed`) [in flight: change 3486].
 
 - **Not yet:** 3, *Its own writes are its own*: an update's made head is not recorded as its branch's head, so a goal's landing on its held branch takes it for drift and holds `BranchMoved`; a let-go update is judged against the base's tip read now, not the base it asked for; and a close-out's or catch-up's merge into the goal's branch takes no writer slot the landing sees (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `change_facts`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`).
 

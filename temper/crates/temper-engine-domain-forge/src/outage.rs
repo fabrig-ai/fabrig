@@ -201,6 +201,7 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
         | Event::Hint { .. }
         | Event::Writer { .. }
         | Event::Pushed { .. }
+        | Event::Fence { .. }
         | Event::Make { .. }
         | Event::Remake { .. }
         | Event::Withdraw { .. }

@@ -1,6 +1,6 @@
 # repairs: status
 
-2026-11-14. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-15. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
 
 
@@ -8,7 +8,8 @@
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
 - **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).
-- **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`).
+- **Not yet:** "A release", *In order* and released from a resolution or a merge job that failed or was cancelled: the policy's `released_state` decides afresh, but the connector clears the ended delegate's kind (`decide_step`), so the release goes to a merge job at the saved base; `release_change` keeps the delegate's status, failure words and result, which `delegated` and the route's archived delegate recovery (`temper-engine-domain/src/route/forge_route/delegate_record.rs`) can take again; the forge runs a repeated release again; and the failure's release takes no head into the drift baseline (`temper-engine-domain-forge/src/domain.rs`, `accept_released_branch`) [in flight: change 3483].
+- **Not yet:** "A release", *In order*, step 2: a watch's poll of the change's branch or pull request asked before a release is not fenced, so its answer can raise drift on the released change (skein-forge-client's `keep/answer.rs`) [in flight: change 3484].
 
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`).
 
@@ -74,16 +75,6 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
-  - the whole document: a released resolution or merge job that failed holds again, where the
-    section has a resolution asked afresh: `released_state`
-    (`temper-engine-domain-forge-change/src/domain.rs`) keeps `Resolving {
-    requested: true }`, the row keeps the failed status
-    (`temper-engine-domain-forge/src/domain.rs`, `change_standing`), and
-    `delegated` reads it, so no fresh task is made. A failed producer and a failed
-    repair take `requested: false`. This is from reading: no test or story
-    releases a failed resolution. The `producer-failure` plan, whose request asks
-    after a failure's shape and not its release, pins only its hold
-    (`failed_repairs_and_resolutions_do_not_take_a_pushed_head`).
   - the whole document: a green head ending a repair has no story for a repair waiting for an
     answer to its question (none asks from a repair), a repair finding nothing
     to do (`NoChange`, read as failed), or a task closing or held with its
