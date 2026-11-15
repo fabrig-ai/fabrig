@@ -94,7 +94,9 @@ impl Referee {
         let mut owners: BTreeMap<Commit, u64> = BTreeMap::new();
         for record in world.store.rows.values() {
             if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = record {
-                let Some(change) = world.store.change(task.number) else { panic!("durable change") };
+                let Some(change) = world.store.change(task.number) else {
+                    continue;
+                };
                 let Some(follows) = &change.follows else {
                     continue;
                 };

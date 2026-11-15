@@ -162,7 +162,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),

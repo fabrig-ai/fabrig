@@ -1435,6 +1435,69 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
     }
 }
 #[test]
+fn landing_faults_and_own_holds_are_mutually_exclusive() {
+    use skein_lib::{List, Writer};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for faults in [false, true] {
+        for own in [false, true] {
+            let phase = v25::LandingPhase::new(
+                &v25::CEILINGS,
+                v25::LandingPhaseParts {
+                    place: v25::LandingPlace::Proving,
+                    held: if faults {
+                        Some(
+                            v25::LandingFaults::new(&v25::CEILINGS, v25::LandingFaultsParts { member: 0, gate: 0 })
+                                .expect("fault hold"),
+                        )
+                    } else {
+                        None
+                    },
+                },
+            )
+            .expect("landing phase");
+            let landing = v25::LandingState::new(
+                &v25::CEILINGS,
+                v25::LandingStateParts {
+                    task: 61,
+                    project: 5,
+                    phase,
+                    members: List::with_capacity(0),
+                    preparation: 0,
+                    stale_proofs: 0,
+                    branch: Box::new([]),
+                    round: None,
+                    own_hold: own.then_some(v25::LandingOwnHold::Turn),
+                    last_left: None,
+                },
+            )
+            .expect("landing state");
+            let row = v25::LandingRow::new(
+                &v25::CEILINGS,
+                v25::LandingRowParts {
+                    landing,
+                    asks: List::with_capacity(0),
+                    entries: List::with_capacity(0),
+                    job: None,
+                },
+            )
+            .expect("landing row");
+            let wire =
+                v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(row) }).expect("landing row");
+            let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
+            wire.encode(&mut writer).expect("measured room");
+            let bytes = writer.finish();
+            let decoded = records::decode(&bytes, &bounds);
+            if faults && own {
+                assert_eq!(decoded, Err(crate::Undecodable::Malformed), "two holds cannot wrap one landing phase");
+            } else {
+                let decoded = decoded.expect("a landing with at most one hold decodes");
+                assert_eq!(records::encode(&decoded), bytes, "each admitted hold survives exactly");
+            }
+        }
+    }
+}
+
+#[test]
 fn receipts_preserve_the_check_key_run_and_verdict() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for check in [
