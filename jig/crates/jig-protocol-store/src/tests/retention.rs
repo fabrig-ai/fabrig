@@ -76,6 +76,7 @@ fn page(records: &[Record], end: bool) -> JobPage {
             .collect(),
         end,
         layout: None,
+        room: crate::JobRoom { writes: u32::MAX, bytes: u64::MAX },
     }
 }
 fn answer(job: &str, page: &JobPage) -> Vec<t::Stored> {
@@ -124,6 +125,38 @@ fn retention_rows_job_puts_each_summary_and_next_stage_for_the_whole_page() {
     assert_eq!(job.keys[0].to, &[1, 1, 7]);
     assert!(job.converts.is_none());
 }
+#[test]
+fn retention_jobs_cut_only_between_source_rows_within_the_answers_room() {
+    let mut first = fixtures::core_rows::proposal();
+    first.proposer = jig_domain_people::Proposer::Party(9);
+    let mut second = first;
+    second.proposal += 1;
+    let tasks = [fixtures::ended_task(12), fixtures::ended_task(13)];
+    let proposals =
+        [Record::Core(CoreRecord::ProposalDecision(first)), Record::Core(CoreRecord::ProposalDecision(second))];
+    for (job, records) in [("retention-rows", tasks), ("retention-proposals", proposals)] {
+        let mut page = page(&records, false);
+        let whole = jobs::page(job, &page).unwrap();
+        let one = whole.writes.len() / 2;
+        let bytes = whole.writes.iter().take(one).map(JobWrite::bytes).sum::<u64>();
+        let writes = u32::try_from(one).unwrap();
+        for room in [crate::JobRoom { writes, bytes: u64::MAX }, crate::JobRoom { writes: u32::MAX, bytes }] {
+            page.room = room;
+            let cut = jobs::page(job, &page).unwrap();
+            assert_eq!(cut.writes.len(), one, "{job} keeps all writes for one source together");
+            assert_eq!(cut.through.as_deref(), Some(page.rows.first().unwrap().key.as_ref()));
+            assert_eq!(cut.writes.iter().map(JobWrite::bytes).sum::<u64>(), bytes);
+        }
+        for room in [
+            crate::JobRoom { writes: writes - 1, bytes: u64::MAX },
+            crate::JobRoom { writes: u32::MAX, bytes: bytes - 1 },
+        ] {
+            page.room = room;
+            assert!(jobs::page(job, &page).is_err(), "{job} refuses if even one source cannot fit");
+        }
+    }
+}
+
 #[test]
 fn retention_proposals_job_puts_each_decisions_time_for_the_whole_page() {
     use jig_domain_people::{ProposalChoice, Proposer};

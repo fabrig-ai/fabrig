@@ -95,18 +95,25 @@ fn repository(domain: &Domain, document: &BriefDocument) -> Option<Repository> {
     None
 }
 
-pub(crate) fn gather(domain: &mut Domain, section: Token, parts: u32, max_bytes: u32, out: &mut Queue<Request>) {
+/// Return whether the section is waiting for its document read.
+pub(crate) fn gather(
+    domain: &mut Domain,
+    section: Token,
+    parts: u32,
+    max_bytes: u32,
+    out: &mut Queue<Request>,
+) -> bool {
     let Some(document) = domain.brief_documents.remove(&section) else {
         crate::held::ready(domain, section, BriefRead::Failed(bounds()), out);
-        return;
+        return false;
     };
     if domain.document_fetches.len() == domain.document_fetches.capacity() {
         crate::held::ready(domain, section, BriefRead::Failed(room()), out);
-        return;
+        return false;
     }
     if parts == 0 {
         crate::held::ready(domain, section, BriefRead::Failed(bounds()), out);
-        return;
+        return false;
     }
     let Some(repository) = repository(domain, &document) else {
         reason(
@@ -115,7 +122,7 @@ pub(crate) fn gather(domain: &mut Domain, section: Token, parts: u32, max_bytes:
             &[b"Repository ", &document.owner, b"/", &document.name, b" on ", &document.host, b" is not adopted."],
             out,
         );
-        return;
+        return false;
     };
     let read = Read::Branch { branch: document.branch.clone() };
     let fetch = Fetch {
@@ -131,6 +138,7 @@ pub(crate) fn gather(domain: &mut Domain, section: Token, parts: u32, max_bytes:
     let owner = call(section);
     domain.document_fetches.insert(owner, fetch).expect("bounded document read");
     out.push(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository, read } });
+    true
 }
 
 fn reason(domain: &mut Domain, section: Token, parts: &[&[u8]], out: &mut Queue<Request>) {

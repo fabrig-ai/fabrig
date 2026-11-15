@@ -248,6 +248,8 @@ impl Referee {
                                 | tasks::Stored::Stub(_)
                                 | tasks::Stored::Ledger(_)
                                 | tasks::Stored::Milestone(_)
+                                | tasks::Stored::Attempt(_)
+                                | tasks::Stored::Hold(_)
                                 | tasks::Stored::History(_)
                                 | tasks::Stored::PersonProposal(_)
                                 | tasks::Stored::Writer(_)

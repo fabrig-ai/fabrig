@@ -264,7 +264,8 @@ it is live:
 
 What the store keeps beside it, and the engine loads only when wanted:
 its transcript (../engine/executors.md, 2), its history (every change made to it,
-by whom, and why), and the results of its ended delegates. While a task
+by whom, and why), its attempts and holds (`lifecycle.md`, 12), and the
+results of its ended delegates. While a task
 that ended is named by a live one (a dependency's result not yet read,
 an input, a reference), the core keeps a stub of it: its number, its
 phase, and where its result is.

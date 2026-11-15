@@ -139,7 +139,6 @@ fn task_rows(task: u64) -> Box<[Record]> {
         fixtures::escalation_decision(task, 1),
         fixtures::history(task, 1),
         fixtures::history(task, 2),
-        fixtures::hold_milestone(task, 1),
         fixtures::activity_line(task, 1),
         Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
             task,
@@ -147,6 +146,8 @@ fn task_rows(task: u64) -> Box<[Record]> {
             at: Wall::from_nanos(23),
             line: tasks::Line::Turn { reply: 11, attempt: 3, turn: 2, read: Some(9) },
         })),
+        fixtures::attempt_row(task, 1),
+        fixtures::hold_row(task, 1),
         Record::People(people::Stored::EndedRead { task, party: fixtures::ALICE, through: 3 }),
         Record::People(people::Stored::EndedRead { task, party: 12, through: 4 }),
     ])

@@ -28,7 +28,7 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
             // Appended value types have no values at the kept layout.
             let Some(old_root) = old.root(ty.root.as_bytes(), variant) else {
                 assert_eq!(family.name, "jig-store-tasks");
-                assert!(ty.variant == Some("summary") || ty.variant == Some("retention"));
+                assert!([Some("attempt"), Some("hold"), Some("summary"), Some("retention")].contains(&ty.variant));
                 continue;
             };
             let plan = skein_codec::layout::Plan::derive(old, old_root, &old_held, new, new_root, &new_held);

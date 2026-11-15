@@ -67,6 +67,8 @@ impl crate::Stored {
             | crate::Stored::Delegate(_)
             | crate::Stored::Activity(_)
             | crate::Stored::Milestone(_)
+            | crate::Stored::Attempt(_)
+            | crate::Stored::Hold(_)
             | crate::Stored::ClosedLedger(_)
             | crate::Stored::PlacedHold(_)
             | crate::Stored::Stub(_)

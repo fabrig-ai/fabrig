@@ -206,9 +206,11 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
         Scope::Reply { task, activity } => {
             Box::new([point(&core::Key::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *activity }))])
         }
-        Scope::History { task, subtree: false } => {
-            Box::new([numbered_prefix(&[keys::JIG, 1, 9], *task), numbered_prefix(&[keys::JIG, 1, 10], *task)])
-        }
+        Scope::History { task, subtree: false } => Box::new([
+            numbered_prefix(&[keys::JIG, 1, 9], *task),
+            numbered_prefix(&[keys::JIG, 1, 22], *task),
+            numbered_prefix(&[keys::JIG, 1, 23], *task),
+        ]),
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(owner), proposal } => {
             if *owner == party {
                 Box::new([
@@ -299,7 +301,7 @@ fn ended_tasks(query: &core::documents::TaskQuery) -> Box<[Range]> {
 /// The task-numbered families are shared by deletion and retention
 /// (jig/docs/design/protocol/store/retention.md, 6.2).
 fn task_rows(task: u64, broad: bool) -> Box<[Range]> {
-    let mut ranges = List::with_capacity(10);
+    let mut ranges = List::with_capacity(12);
     for range in [
         numbered_prefix(&[keys::JIG, 0, 5], task),
         numbered_prefix(&[keys::JIG, 0, 6, 0], task),
@@ -307,9 +309,11 @@ fn task_rows(task: u64, broad: bool) -> Box<[Range]> {
         numbered_prefix(&[keys::JIG, 1, 9], task),
         numbered_prefix(&[keys::JIG, 1, 10], task),
         numbered_prefix(&[keys::JIG, 1, 11], task),
+        numbered_prefix(&[keys::JIG, 1, 22], task),
+        numbered_prefix(&[keys::JIG, 1, 23], task),
         numbered_prefix(&[keys::JIG, 2, 7], task),
     ] {
-        ranges.push(range).expect("seven own ranges");
+        ranges.push(range).expect("nine own ranges");
     }
     if broad {
         for range in [

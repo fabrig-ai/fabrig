@@ -79,12 +79,23 @@ pub fn escalation_decision(task: u64, revision: u64) -> Record {
     Record::Core(core::CoreRecord::EscalationDecision(row))
 }
 
-pub fn hold_milestone(task: u64, position: u64) -> Record {
-    Record::Tasks(tasks::Stored::Milestone(tasks::Milestone {
+pub fn hold_row(task: u64, position: u64) -> Record {
+    Record::Tasks(tasks::Stored::Hold(tasks::HoldRow {
         task,
         position,
-        phase: super::task_phase(),
+        held: tasks::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Stopped, source: None },
         at: skein_lib::Wall::from_nanos(19),
+    }))
+}
+pub fn attempt_row(task: u64, attempt: u64) -> Record {
+    Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+        task,
+        attempt,
+        claimed: Some(skein_lib::Wall::from_nanos(7)),
+        started: Some(skein_lib::Wall::from_nanos(11)),
+        ended: Some(skein_lib::Wall::from_nanos(13)),
+        end: Some(tasks::EndKind::Parked),
+        phases: Some(2),
     }))
 }
 

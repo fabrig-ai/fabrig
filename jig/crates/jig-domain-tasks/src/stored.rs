@@ -44,7 +44,15 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             let inserted = domain.person_proposals.insert(row.number, *row);
             assert!(inserted == Ok(None), "restored person proposal admitted");
         }
-        Stored::Live(task) => {
+        Stored::Live(mut task) => {
+            if task.open_attempt.is_none() {
+                task.open_attempt = match crate::attempts::names(&task.phase) {
+                    Some(attempt) => {
+                        Some(crate::OpenAttempt { attempt, claimed: None, started: None, from: 0, end: None })
+                    }
+                    None => None,
+                };
+            }
             let number = task.number;
             assert!(!domain.names.contains_key(&number), "restore {key:?}: duplicate live index");
             fit::room(crate::RestoreBound::Tasks, domain.tasks.len(), domain.tasks.capacity())?;
@@ -90,6 +98,8 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         | Stored::ClosedLedger(_)
         | Stored::Ended(_)
         | Stored::Milestone(_)
+        | Stored::Attempt(_)
+        | Stored::Hold(_)
         | Stored::History(_)
         | Stored::Activity(_) => {
             assert!(key.live(), "restore {key:?}: ended row in live load");
@@ -113,6 +123,8 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
         | crate::Key::DecidedProposal(_)
         | crate::Key::History { .. }
         | crate::Key::Milestone { .. }
+        | crate::Key::Attempt { .. }
+        | crate::Key::Hold { .. }
         | crate::Key::Activity { .. }
         | crate::Key::Update { .. }
         | crate::Key::Result { .. }

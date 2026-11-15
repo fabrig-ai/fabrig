@@ -75,7 +75,7 @@ pub enum Scope {
     ProposalRemains { proposal: u64 },
     /// Only ranges keyed by this task (protocol/store/retention.md, 6.2).
     TaskOwnRows { task: u64 },
-    /// History, milestones, activity, terminals, decisions, ended reads and the
+    /// History, attempts, holds, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
     /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).
     TaskRows { task: u64 },
@@ -103,7 +103,7 @@ pub enum Scope {
     Turn { task: u64, attempt: u64, turn: u32 },
     /// Ended direct delegates in task-key order.
     EndedDelegates { task: u64 },
-    /// Semantic changes and lifecycle milestones in owner-key order.
+    /// Semantic changes, attempts and holds in owner-key order.
     History { task: u64, subtree: bool },
     /// Immutable task activity, newest position first.
     Activity { task: u64 },
@@ -356,7 +356,7 @@ pub enum EndedValue {
     Escalation {
         task: Box<documents::Task>,
         decision: crate::EscalationDecisionRecord,
-        hold: Option<documents::MilestoneLine>,
+        hold: Option<documents::HoldLine>,
     },
     /// Original question and any retained answer or task ending.
     Question {
@@ -405,9 +405,13 @@ pub enum PageRow {
     /// A semantic task change.
     History(documents::HistoryLine),
     /// A lifecycle transition.
-    Milestone(documents::MilestoneLine),
+    Attempt(documents::AttemptLine),
+    Hold(documents::HoldLine),
     /// Whole original words, run boundaries and exact archive references.
-    Activity { line: tasks::ActivityLine, turn: Option<PageTurn> },
+    Activity {
+        line: tasks::ActivityLine,
+        turn: Option<PageTurn>,
+    },
     /// One waiting object or unread update.
     Inbox(documents::InboxEntry),
     /// One loaded note.

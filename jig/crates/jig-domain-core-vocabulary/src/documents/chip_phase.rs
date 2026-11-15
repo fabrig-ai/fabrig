@@ -1,7 +1,7 @@
 //! Nonrecursive chip facts (`client/domain/objects.md`, 3 and 5). Durable
 //! lifecycle clocks remain distinct from best-effort engine receipt clocks.
 
-use super::{BudgetLine, HoldLine, Missing, Part, PartKey, PartKind, ResourceLine};
+use super::{BudgetLine, HoldPhaseLine, Missing, Part, PartKey, PartKind, ResourceLine};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -44,7 +44,7 @@ pub struct ChipDetails {
     pub retry: Option<tasks::RetryNotice>,
     pub wake: tasks::WakePolicy,
     pub person_wait: Option<tasks::PersonWait>,
-    pub hold: Option<HoldLine>,
+    pub hold: Option<HoldPhaseLine>,
     pub budget: BudgetLine,
     /// Exact immutable activity tail for retained failure/result explanations.
     pub activity: u64,

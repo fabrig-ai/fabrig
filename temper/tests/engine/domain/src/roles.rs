@@ -246,6 +246,8 @@ impl World {
                         | tasks::Stored::PlacedHold(_)
                         | tasks::Stored::Pool(_)
                         | tasks::Stored::Milestone(_)
+                        | tasks::Stored::Attempt(_)
+                        | tasks::Stored::Hold(_)
                         | tasks::Stored::History(_)
                         | tasks::Stored::PersonProposal(_)
                         | tasks::Stored::Update(_)

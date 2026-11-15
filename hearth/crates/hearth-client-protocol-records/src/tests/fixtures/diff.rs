@@ -1,12 +1,14 @@
 use crate::{
-    diff::*,
     form::{self, Form},
     limits,
     outcome::Outcome,
     records::{Record, Terminal, Type},
 };
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::{diff::*, parts::config::EntryChange};
 use skein_lib::bytes::copy_of;
+
 pub fn diff_change(target: &[u8], change: TargetChange) -> Record {
     Record::Change(Change { target: copy_of(target), change })
 }

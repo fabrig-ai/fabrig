@@ -53,6 +53,7 @@ fn charter_versions_job_puts_both_kept_forms_as_one_root_on_every_page() {
             rows: records.iter().map(|r| JobRow { key: key(r), value: old(r) }).collect(),
             end: false,
             layout: Some(layout()),
+            room: crate::JobRoom { writes: u32::MAX, bytes: u64::MAX },
         };
         // Layout heads are not family versions.
         page.rows[0].value[..2].copy_from_slice(&99_u16.to_be_bytes());
@@ -71,6 +72,27 @@ fn charter_versions_job_puts_both_kept_forms_as_one_root_on_every_page() {
     }
 }
 #[test]
+fn charter_versions_fits_both_page_room_edges_with_through() {
+    let records = [record(false, true), record(true, true)];
+    let mut page = JobPage {
+        rows: records.iter().map(|r| JobRow { key: key(r), value: old(r) }).collect(),
+        end: false,
+        layout: Some(layout()),
+        room: crate::JobRoom { writes: 2, bytes: u64::MAX },
+    };
+    let full = jobs::page("charter-versions", &page).unwrap();
+    let first = full.writes[0].bytes();
+    for room in [crate::JobRoom { writes: 1, bytes: u64::MAX }, crate::JobRoom { writes: 2, bytes: first }] {
+        page.room = room;
+        let answer = jobs::page("charter-versions", &page).unwrap();
+        assert_eq!(answer.through, Some(page.rows[0].key.clone()));
+        assert_eq!(answer.writes.len(), 1);
+        assert_eq!(answer.writes[0].bytes(), first);
+    }
+    page.room = crate::JobRoom { writes: 2, bytes: full.writes.iter().map(JobWrite::bytes).sum() };
+    assert_eq!(jobs::page("charter-versions", &page).unwrap().through, None);
+}
+#[test]
 fn charter_versions_job_refuses_neither_form_naming_the_key() {
     for bytes in [b"".as_slice(), &[0, 3, 2], &[0, 3, 0, 255], &[0, 3, 0, 0, 0]] {
         let key = key(&record(false, false));
@@ -78,6 +100,7 @@ fn charter_versions_job_refuses_neither_form_naming_the_key() {
             rows: Box::new([JobRow { key: key.clone(), value: bytes.into() }]),
             end: false,
             layout: Some(layout()),
+            room: crate::JobRoom { writes: u32::MAX, bytes: u64::MAX },
         };
         let refused = jobs::page("charter-versions", &page).unwrap_err();
         assert_eq!(refused.key, Some(key));
@@ -86,7 +109,12 @@ fn charter_versions_job_refuses_neither_form_naming_the_key() {
 }
 #[test]
 fn charter_versions_end_is_empty_and_unknown_jobs_are_refused() {
-    let page = JobPage { rows: Box::new([]), end: true, layout: None };
+    let page = JobPage {
+        rows: Box::new([]),
+        end: true,
+        layout: None,
+        room: crate::JobRoom { writes: u32::MAX, bytes: u64::MAX },
+    };
     let answer = jobs::page("charter-versions", &page).unwrap();
     assert!(answer.writes.is_empty());
     assert_eq!(answer.through, None);

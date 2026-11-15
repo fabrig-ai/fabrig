@@ -136,14 +136,16 @@ pub fn funder(rng: &mut Rng) -> jig_domain_tasks::Funder {
 }
 pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
     use jig_domain_tasks::{Key, Newest, UpdateObject};
-    match rng.below(24) {
-        22 => Key::Summary(number(rng)),
-        23 => Key::Retention {
+    match rng.below(26) {
+        24 => Key::Summary(number(rng)),
+        25 => Key::Retention {
             stage: retention_stage(rng),
             since: skein_lib::Wall::from_nanos(number(rng)),
             number: number(rng),
         },
         21 => Key::PlacedHold(number(rng)),
+        22 => Key::Attempt { task: number(rng), attempt: number(rng) },
+        23 => Key::Hold { task: number(rng), position: number(rng) },
         0 => Key::Live(number(rng)),
         1 => Key::Stub(number(rng)),
         2 => Key::Ledger(funder(rng)),

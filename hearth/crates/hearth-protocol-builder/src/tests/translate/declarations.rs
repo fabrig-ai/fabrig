@@ -67,62 +67,7 @@ fn each_form_translates_to_render_and_back() {
         assert_eq!(back, input, "row {row}: form");
     }
 }
-fn schema_back(schema: crate::records::errors::Schema) -> render::errors::Schema {
-    match schema {
-        crate::records::errors::Schema::Export { fault } => {
-            render::errors::Schema::Export { fault: super::exports::fault_back(fault) }
-        }
-        crate::records::errors::Schema::Unlisted { reader, root, task, setting } => {
-            render::errors::Schema::Unlisted { reader, root: reference_root_back(root), task, setting }
-        }
-        crate::records::errors::Schema::Source { .. } => unreachable!("file source tested in files"),
-        crate::records::errors::Schema::Dynamic { root } => {
-            render::errors::Schema::Dynamic { root: reference_root_back(root) }
-        }
-        crate::records::errors::Schema::Malformed { format } => {
-            render::errors::Schema::Malformed { format: super::forms::format_back(format) }
-        }
-        crate::records::errors::Schema::Target { name, environment } => {
-            render::errors::Schema::Target { name, environment }
-        }
-        crate::records::errors::Schema::File { path } => render::errors::Schema::File { path },
-        crate::records::errors::Schema::Large { path, max } => render::errors::Schema::Large { path, max },
-        crate::records::errors::Schema::Component { package, component } => {
-            render::errors::Schema::Component { package, component }
-        }
-        crate::records::errors::Schema::Beneath { allowed } => render::errors::Schema::Beneath { allowed },
-        crate::records::errors::Schema::Main => render::errors::Schema::Main,
-        crate::records::errors::Schema::Security => render::errors::Schema::Security,
-        crate::records::errors::Schema::Undeclared { setting, declared } => {
-            render::errors::Schema::Undeclared { setting, declared }
-        }
-        crate::records::errors::Schema::Missing { setting } => render::errors::Schema::Missing { setting },
-        crate::records::errors::Schema::Absent { task } => render::errors::Schema::Absent { task },
-        crate::records::errors::Schema::Wrong { expected } => {
-            render::errors::Schema::Wrong { expected: type_name_back(expected) }
-        }
-        crate::records::errors::Schema::Enum { value, listed } => render::errors::Schema::Enum { value, listed },
-        crate::records::errors::Schema::Below { min } => render::errors::Schema::Below { min },
-        crate::records::errors::Schema::Above { max } => render::errors::Schema::Above { max },
-        crate::records::errors::Schema::Length { max_length } => render::errors::Schema::Length { max_length },
-        crate::records::errors::Schema::Null => render::errors::Schema::Null,
-        crate::records::errors::Schema::UndeclaredField { field, declared } => {
-            render::errors::Schema::UndeclaredField { field, declared }
-        }
-        crate::records::errors::Schema::MissingField { field } => render::errors::Schema::MissingField { field },
-        crate::records::errors::Schema::Task { task } => render::errors::Schema::Task { task },
-        crate::records::errors::Schema::Unread { task, setting, declared } => {
-            render::errors::Schema::Unread { task, setting, declared }
-        }
-    }
-}
-#[test]
-fn each_schema_fault_translates_and_back() {
-    for (row, input) in fixtures::schema_faults().into_iter().enumerate() {
-        let back = schema_back(crate::translate::errors::schema(input.clone()));
-        assert_eq!(back, input, "row {row}: schema fault");
-    }
-}
+
 #[test]
 fn a_declaration_s_types_settings_and_reads_cross_unchanged() {
     let declaration = fixtures::read_declaration(fixtures::PARAMS);
@@ -205,61 +150,12 @@ fn a_declaration_s_reads_keep_their_positions_settings_and_flags() {
     );
 }
 
-fn type_name_back(name: crate::records::errors::TypeName) -> render::errors::TypeName {
-    match name {
-        crate::records::errors::TypeName::Bool => render::errors::TypeName::Bool,
-        crate::records::errors::TypeName::Int => render::errors::TypeName::Int,
-        crate::records::errors::TypeName::String => render::errors::TypeName::String,
-        crate::records::errors::TypeName::Enum => render::errors::TypeName::Enum,
-        crate::records::errors::TypeName::List => render::errors::TypeName::List,
-        crate::records::errors::TypeName::Map => render::errors::TypeName::Map,
-        crate::records::errors::TypeName::Object => render::errors::TypeName::Object,
-        crate::records::errors::TypeName::Path => render::errors::TypeName::Path,
-        crate::records::errors::TypeName::Mode => render::errors::TypeName::Mode,
-        crate::records::errors::TypeName::Duration => render::errors::TypeName::Duration,
-        crate::records::errors::TypeName::Secret => render::errors::TypeName::Secret,
-        crate::records::errors::TypeName::Target => render::errors::TypeName::Target,
-        crate::records::errors::TypeName::File => render::errors::TypeName::File,
-    }
-}
-
-const TYPE_NAMES: &[render::errors::TypeName] = &[
-    render::errors::TypeName::Bool,
-    render::errors::TypeName::Int,
-    render::errors::TypeName::String,
-    render::errors::TypeName::Enum,
-    render::errors::TypeName::List,
-    render::errors::TypeName::Map,
-    render::errors::TypeName::Object,
-    render::errors::TypeName::Path,
-    render::errors::TypeName::Mode,
-    render::errors::TypeName::Duration,
-    render::errors::TypeName::Secret,
-    render::errors::TypeName::Target,
-    render::errors::TypeName::File,
-];
-#[test]
-fn each_schema_type_name_translates_and_back() {
-    for (row, input) in TYPE_NAMES.iter().enumerate() {
-        let back = type_name_back(crate::translate::errors::type_name(input.clone()));
-        assert_eq!(back, *input, "row {row}: type name");
-    }
-}
-
 #[test]
 fn a_declarations_requires_cross_to_render_and_back() {
     for (row, (guard, input)) in fixtures::guard_conditions().into_iter().enumerate() {
         let guard = declarations::guard(guard, &crate::limits::SHIPPED.template).expect("guard compiles");
         let back = super::back::expression(guard.when.expression);
         assert_eq!(back, input, "row {row}: guard condition");
-    }
-}
-
-fn reference_root_back(root: crate::records::errors::Root) -> render::errors::Root {
-    match root {
-        crate::records::errors::Root::Debian => render::errors::Root::Debian,
-        crate::records::errors::Root::Tasks => render::errors::Root::Tasks,
-        crate::records::errors::Root::Exports => render::errors::Root::Exports,
     }
 }
 

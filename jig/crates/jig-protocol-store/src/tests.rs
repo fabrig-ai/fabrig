@@ -25,6 +25,7 @@ mod transcripts;
 mod settings;
 
 pub(crate) mod charter_versions;
+mod milestones;
 mod operations;
 mod phase;
 mod registered_layouts;

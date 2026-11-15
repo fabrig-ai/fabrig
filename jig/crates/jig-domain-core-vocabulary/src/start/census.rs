@@ -57,6 +57,8 @@ impl Census {
                 | tasks::Key::PersonProposal(_)
                 | tasks::Key::History { .. }
                 | tasks::Key::Milestone { .. }
+                | tasks::Key::Attempt { .. }
+                | tasks::Key::Hold { .. }
                 | tasks::Key::Update { .. }
                 | tasks::Key::EndedByParty { .. }
                 | tasks::Key::EndedByProject { .. }

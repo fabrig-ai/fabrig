@@ -92,6 +92,8 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
                 let text = binary.text(family.name, false).ok_or(refusal.clone())?;
                 texts::parse(layouts, text).ok_or(refusal.clone())?;
                 let schema = layouts.texts.get(&text).ok_or(refusal.clone())?.schema.as_ref().ok_or(refusal.clone())?;
+                // A value type introduced after the kept text has no seed layout.
+                // Registration gives it the binary's layout, with no old values to convert.
                 if schema.root(ty.root.as_bytes(), super::variant(ty.variant)).is_none() {
                     if !empty(store, set.owner, ty).ok_or(refusal.clone())? {
                         return Err(refusal);

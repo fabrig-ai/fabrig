@@ -5,6 +5,16 @@ use skein_lib::Wall;
 #[expect(clippy::too_many_lines, reason = "one arm per durable tasks key keeps their tags together")]
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
+        Key::Attempt { task, attempt } => {
+            writer.tag(22);
+            writer.u64(*task);
+            writer.u64(*attempt);
+        }
+        Key::Hold { task, position } => {
+            writer.tag(23);
+            writer.u64(*task);
+            writer.u64(*position);
+        }
         Key::Summary(task) => {
             writer.tag(30);
             writer.u64(*task);
@@ -122,6 +132,8 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
             number: reader.u64()?,
         },
         21 => Key::PlacedHold(reader.u64()?),
+        22 => Key::Attempt { task: reader.u64()?, attempt: reader.u64()? },
+        23 => Key::Hold { task: reader.u64()?, position: reader.u64()? },
         0 => Key::Live(reader.u64()?),
         1 => Key::Stub(reader.u64()?),
         2 => Key::Ledger(read_funder(reader)?),

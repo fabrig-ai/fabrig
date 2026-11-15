@@ -74,6 +74,12 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     let mut last = None;
     while let Some(event) = events.pop_front() {
         match event {
+            Event::Job { owner, of: Owner::Jig, job, page } if job.as_ref() == "milestones" => {
+                assert!(page.end && page.rows.is_empty());
+                events
+                    .extend(disk.request(&mut current, Request::Job { owner, answer: crate::jobs::page(&job, &page) }));
+            }
+            Event::Ran { of: Owner::Jig, job, rows: 0, commits: 1, .. } if job.as_ref() == "milestones" => {}
             Event::Job { owner, of: Owner::Jig, job, page } => {
                 assert_eq!(job.as_ref(), "charter-versions");
                 if pages == 0 {

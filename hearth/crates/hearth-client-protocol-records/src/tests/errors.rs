@@ -1,13 +1,17 @@
 use super::fixtures::{self, print, terminal};
 use crate::{
-    errors::{Place, Position},
     form::{self, Form},
     limits,
     outcome::Outcome,
     records::{Record, Terminal, Type},
     startup::{Misuse, Opened, Startup},
 };
+use hearth_domain_render_vocabulary as render;
+use render::errors::Place;
+use render::revision::Position;
+
 use skein_lib::bytes::copy_of;
+
 const GUARD: &str =
     "\ntasks/boot/task.json:22:7: carbon-lab: boot: requires modules: no initramfs modules for this hardware\n";
 #[test]
@@ -175,18 +179,18 @@ fn a_decode_error_prints_its_json_fields_and_places() {
         Ok(concat!(r#"{"record":"error","kind":"decode","decode":{"key":"motd","kind":"duplicate"},"class":"configuration","at":{"column":14,"line":1,"path":"envs/lab.json"},"also":{"column":2,"line":1,"path":"envs/lab.json"}}"#, "\n").as_bytes()));
 }
 
-const DECODE_LINES: &[(crate::errors::Decode, &str)] = &[
-    (crate::errors::Decode::Unexpected, "envs/lab.json:1:14: not JSON: unexpected byte\n"),
+const DECODE_LINES: &[(render::errors::Decode, &str)] = &[
+    (render::errors::Decode::Unexpected, "envs/lab.json:1:14: not JSON: unexpected byte\n"),
     (
-        crate::errors::Decode::TooLarge { limit: crate::errors::Limit::Document, max: 1_048_576 },
+        render::errors::Decode::TooLarge { limit: render::errors::Limit::Document, max: 1_048_576 },
         "envs/lab.json:1:14: a document past 1048576 bytes\n",
     ),
     (
-        crate::errors::Decode::TooLarge { limit: crate::errors::Limit::Decoded, max: 64 },
+        render::errors::Decode::TooLarge { limit: render::errors::Limit::Decoded, max: 64 },
         "envs/lab.json:1:14: decoded documents past 64 bytes\n",
     ),
     (
-        crate::errors::Decode::TooLarge { limit: crate::errors::Limit::Static, max: 8 },
+        render::errors::Decode::TooLarge { limit: render::errors::Limit::Static, max: 8 },
         "envs/lab.json:1:14: a static file past 8 bytes\n",
     ),
 ];
@@ -194,7 +198,7 @@ const DECODE_LINES: &[(crate::errors::Decode, &str)] = &[
 fn decode_faults_print_their_messages_and_bounds() {
     for (decode, expected) in DECODE_LINES {
         let mut error = fixtures::duplicate();
-        error.kind = crate::errors::Kind::Decode(decode.clone());
+        error.kind = render::errors::Kind::Decode(decode.clone());
         error.also = None;
         assert_eq!(print(&Record::Error(error)).as_deref(), Ok(expected.as_bytes()));
     }
@@ -202,7 +206,7 @@ fn decode_faults_print_their_messages_and_bounds() {
 #[test]
 fn a_decode_key_prints_quotes_and_controls_on_one_line() {
     let mut error = fixtures::duplicate();
-    error.kind = crate::errors::Kind::Decode(crate::errors::Decode::Duplicate { key: copy_of(b"a\n\"\\\x01") });
+    error.kind = render::errors::Kind::Decode(render::errors::Decode::Duplicate { key: copy_of(b"a\n\"\\\x01") });
     error.also = None;
     assert_eq!(
         print(&Record::Error(error)).as_deref(),
@@ -210,28 +214,30 @@ fn a_decode_key_prints_quotes_and_controls_on_one_line() {
     );
 }
 
-const DECLARATION_LINES: &[(crate::errors::Declared, &str)] = &[
+const DECLARATION_LINES: &[(render::errors::Declared, &str)] = &[
     (
-        crate::errors::Declared::Unknown { of: crate::errors::Object::Declaration },
+        render::errors::Declared::Unknown { of: render::errors::Object::Declaration },
         "tasks/motd/task.json:1:2: motd: no such key in a declaration\n",
     ),
     (
-        crate::errors::Declared::Unknown { of: crate::errors::Object::Entry(crate::errors::Map::Files) },
+        render::errors::Declared::Unknown {
+            of: render::errors::Object::Entry(render::revision::declaration::Map::Files),
+        },
         "tasks/motd/task.json:1:2: motd: no such key in a files entry\n",
     ),
     (
-        crate::errors::Declared::Wrong { expected: crate::errors::Expected::String },
+        render::errors::Declared::Wrong { expected: render::errors::Expected::String },
         "tasks/motd/task.json:1:2: motd: not a string\n",
     ),
-    (crate::errors::Declared::Optional, "tasks/motd/task.json:1:2: motd: optional beside a default\n"),
+    (render::errors::Declared::Optional, "tasks/motd/task.json:1:2: motd: optional beside a default\n"),
 ];
 #[test]
 fn a_declaration_fault_prints_its_object_after_its_place() {
     for (row, (declared, line)) in DECLARATION_LINES.iter().enumerate() {
-        let record = Record::Error(crate::errors::Error {
+        let record = Record::Error(render::errors::Error {
             side: None,
-            kind: crate::errors::Kind::Decode(crate::errors::Decode::Declaration(*declared)),
-            class: crate::errors::Class::Configuration,
+            kind: render::errors::Kind::Decode(render::errors::Decode::Declaration(*declared)),
+            class: render::errors::Class::Configuration,
             at: Some(Place { path: copy_of(b"tasks/motd/task.json"), position: Some(Position { line: 1, column: 2 }) }),
             also: None,
             target: None,
@@ -242,12 +248,12 @@ fn a_declaration_fault_prints_its_object_after_its_place() {
 }
 #[test]
 fn a_declaration_fault_prints_its_json_fields() {
-    let record = Record::Error(crate::errors::Error {
+    let record = Record::Error(render::errors::Error {
         side: None,
-        kind: crate::errors::Kind::Decode(crate::errors::Decode::Declaration(crate::errors::Declared::Unknown {
-            of: crate::errors::Object::Declaration,
+        kind: render::errors::Kind::Decode(render::errors::Decode::Declaration(render::errors::Declared::Unknown {
+            of: render::errors::Object::Declaration,
         })),
-        class: crate::errors::Class::Configuration,
+        class: render::errors::Class::Configuration,
         at: None,
         also: None,
         target: None,
@@ -257,19 +263,19 @@ fn a_declaration_fault_prints_its_json_fields() {
 }
 
 const SCHEMA_LINES: &[(fixtures::SchemaInput, &str)] = &[
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Bool), "envs/lab.json:1:14: not a bool\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Int), "envs/lab.json:1:14: not an int\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::String), "envs/lab.json:1:14: not a string\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Enum), "envs/lab.json:1:14: not an enum\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::List), "envs/lab.json:1:14: not a list\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Map), "envs/lab.json:1:14: not a map\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Object), "envs/lab.json:1:14: not an object\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Path), "envs/lab.json:1:14: not a path\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Mode), "envs/lab.json:1:14: not a mode\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Duration), "envs/lab.json:1:14: not a duration\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Secret), "envs/lab.json:1:14: not a secret\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Target), "envs/lab.json:1:14: not a target\n"),
-    (fixtures::SchemaInput::Wrong(&crate::errors::TypeName::File), "envs/lab.json:1:14: not a file\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Bool), "envs/lab.json:1:14: not a bool\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Int), "envs/lab.json:1:14: not an int\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::String), "envs/lab.json:1:14: not a string\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Enum), "envs/lab.json:1:14: not an enum\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::List), "envs/lab.json:1:14: not a list\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Map), "envs/lab.json:1:14: not a map\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Object), "envs/lab.json:1:14: not an object\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Path), "envs/lab.json:1:14: not a path\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Mode), "envs/lab.json:1:14: not a mode\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Duration), "envs/lab.json:1:14: not a duration\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Secret), "envs/lab.json:1:14: not a secret\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::Target), "envs/lab.json:1:14: not a target\n"),
+    (fixtures::SchemaInput::Wrong(&render::errors::TypeName::File), "envs/lab.json:1:14: not a file\n"),
     (
         fixtures::SchemaInput::Enum { value: b"x", listed: &[b"main", b"contrib"] },
         "envs/lab.json:1:14: \"x\" is not one of main, contrib\n",
@@ -300,14 +306,14 @@ const SCHEMA_LINES: &[(fixtures::SchemaInput, &str)] = &[
 fn each_schema_fault_prints_its_message() {
     for (row, &(input, line)) in SCHEMA_LINES.iter().enumerate() {
         let mut error = fixtures::duplicate();
-        error.kind = crate::errors::Kind::Schema(fixtures::schema_fault(input));
+        error.kind = render::errors::Kind::Schema(fixtures::schema_fault(input));
         error.also = None;
         assert_eq!(print(&Record::Error(error)).as_deref(), Ok(line.as_bytes()), "row {row}");
     }
 }
 const SCHEMA_JSON: &[(fixtures::SchemaInput, &str)] = &[
     (
-        fixtures::SchemaInput::Wrong(&crate::errors::TypeName::Int),
+        fixtures::SchemaInput::Wrong(&render::errors::TypeName::Int),
         concat!(
             r#"{"record":"error","kind":"schema","schema":{"expected":"int","kind":"wrong"},"class":"configuration"}"#,
             "\n"
@@ -377,10 +383,10 @@ const SCHEMA_JSON: &[(fixtures::SchemaInput, &str)] = &[
 #[test]
 fn each_schema_fault_prints_its_json_fields() {
     for (row, &(input, line)) in SCHEMA_JSON.iter().enumerate() {
-        let record = Record::Error(crate::errors::Error {
+        let record = Record::Error(render::errors::Error {
             side: None,
-            kind: crate::errors::Kind::Schema(fixtures::schema_fault(input)),
-            class: crate::errors::Class::Configuration,
+            kind: render::errors::Kind::Schema(fixtures::schema_fault(input)),
+            class: render::errors::Class::Configuration,
             at: None,
             also: None,
             target: None,
@@ -394,11 +400,11 @@ fn each_schema_fault_prints_its_json_fields() {
     }
 }
 
-const TOOL_LINES: &[(crate::errors::Command, u8, &[u8], &[u8])] = &[
-    (crate::errors::Command::LsTree, 128,
+const TOOL_LINES: &[(render::errors::Command, u8, &[u8], &[u8])] = &[
+    (render::errors::Command::LsTree, 128,
      b"git ls-tree exited 128\n  fatal: not a tree object\n",
      b"{\"record\":\"error\",\"kind\":\"tool\",\"tool\":{\"command\":\"ls_tree\",\"ended\":{\"code\":128,\"kind\":\"exit\"},\"tail\":[\"fatal: not a tree object\"]},\"class\":\"operational\"}\n"),
-    (crate::errors::Command::Diff, 1,
+    (render::errors::Command::Diff, 1,
      b"git diff exited 1\n  fatal: not a tree object\n",
      b"{\"record\":\"error\",\"kind\":\"tool\",\"tool\":{\"command\":\"diff\",\"ended\":{\"code\":1,\"kind\":\"exit\"},\"tail\":[\"fatal: not a tree object\"]},\"class\":\"operational\"}\n"),
 ];
@@ -455,17 +461,17 @@ fn each_syntax_fault_prints_its_message() {
 #[test]
 fn a_syntax_error_prints_its_path_task_and_message() {
     assert_eq!(
-        print(&Record::Error(fixtures::syntax_error(crate::errors::Syntax::Unclosed))).as_deref(),
+        print(&Record::Error(fixtures::syntax_error(render::errors::Syntax::Unclosed))).as_deref(),
         Ok(b"tasks/motd/tree/etc/issue.j2:2:1: motd: a tag with no end\n".as_slice())
     );
 }
 #[test]
 fn a_syntax_error_prints_its_json_kind_and_fault() {
-    assert_eq!(form::print(Form::JsonLines, &Record::Error(fixtures::syntax_error(crate::errors::Syntax::Unclosed)), Some(Type::Spec), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"decode\",\"decode\":{\"kind\":\"syntax\",\"fault\":\"unclosed\"},\"class\":\"configuration\",\"at\":{\"column\":1,\"line\":2,\"path\":\"tasks/motd/tree/etc/issue.j2\"},\"task\":\"motd\"}\n".as_slice()));
+    assert_eq!(form::print(Form::JsonLines, &Record::Error(fixtures::syntax_error(render::errors::Syntax::Unclosed)), Some(Type::Spec), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"decode\",\"decode\":{\"kind\":\"syntax\",\"fault\":\"unclosed\"},\"class\":\"configuration\",\"at\":{\"column\":1,\"line\":2,\"path\":\"tasks/motd/tree/etc/issue.j2\"},\"task\":\"motd\"}\n".as_slice()));
 }
-const DIFF_ERROR_TEXT: &[(crate::diff::Side, &str)] = &[
-    (crate::diff::Side::From, "from: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
-    (crate::diff::Side::To, "to: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
+const DIFF_ERROR_TEXT: &[(render::diff::Side, &str)] = &[
+    (render::diff::Side::From, "from: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
+    (render::diff::Side::To, "to: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
 ];
 #[test]
 fn a_diff_error_leads_its_line_with_the_revision_side() {
@@ -476,13 +482,13 @@ fn a_diff_error_leads_its_line_with_the_revision_side() {
     }
 }
 
-const COMPOSITION_LINES: &[(crate::errors::Composition, &[u8], &[u8])] = &[
-    (crate::errors::Composition::Duplicate, b"stoa-1-lab: two targets are named stoa-1-lab\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"duplicate\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Composition::Long, b"stoa-1-lab: a target name past 63 bytes\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"long\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Composition::Placement, b"stoa-1-lab: placement in fleet.json, a base or its member\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"placement\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Composition::Members, b"stoa-1-lab: members in fleet.json or an environment\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"members\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Composition::Unplaced, b"stoa-1-lab: no placement once composed\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"unplaced\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Composition::Null, b"stoa-1-lab: null for a task in a default\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"null\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+const COMPOSITION_LINES: &[(render::errors::Composition, &[u8], &[u8])] = &[
+    (render::errors::Composition::Duplicate, b"stoa-1-lab: two targets are named stoa-1-lab\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"duplicate\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Composition::Long, b"stoa-1-lab: a target name past 63 bytes\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"long\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Composition::Placement, b"stoa-1-lab: placement in fleet.json, a base or its member\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"placement\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Composition::Members, b"stoa-1-lab: members in fleet.json or an environment\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"members\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Composition::Unplaced, b"stoa-1-lab: no placement once composed\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"unplaced\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Composition::Null, b"stoa-1-lab: null for a task in a default\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":\"null\",\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
 
 ];
 #[test]
@@ -502,10 +508,10 @@ fn each_composition_error_prints_its_json_fields() {
     }
 }
 mod validation;
-const ON_LINES: &[(crate::errors::Host, &[u8], &[u8])] = &[
-    (crate::errors::Host::Unknown, b"stoa-1-lab: placement's on names east-lab, no discovered target\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unknown\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Host::Container, b"stoa-1-lab: placement's on names east-lab, a container\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"container\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Host::Unplaced, b"stoa-1-lab: placement's on names east-lab, a target with no placement\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unplaced\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+const ON_LINES: &[(render::errors::Host, &[u8], &[u8])] = &[
+    (render::errors::Host::Unknown, b"stoa-1-lab: placement's on names east-lab, no discovered target\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unknown\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Host::Container, b"stoa-1-lab: placement's on names east-lab, a container\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"container\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (render::errors::Host::Unplaced, b"stoa-1-lab: placement's on names east-lab, a target with no placement\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unplaced\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
 ];
 #[test]
 fn an_on_error_prints_its_text() {
@@ -525,7 +531,7 @@ fn an_on_error_prints_its_json_fields() {
 }
 #[test]
 fn an_on_elsewhere_error_prints_its_text() {
-    let error = fixtures::composition_on(crate::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
+    let error = fixtures::composition_on(render::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
     assert_eq!(
         print(&Record::Error(error)).as_deref(),
         Ok(b"stoa-1-lab: placement's on names east-lab, a target of lab\n".as_slice())
@@ -533,7 +539,7 @@ fn an_on_elsewhere_error_prints_its_text() {
 }
 #[test]
 fn an_on_elsewhere_error_prints_its_json_fields() {
-    let error = fixtures::composition_on(crate::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
+    let error = fixtures::composition_on(render::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
     assert_eq!(form::print(Form::JsonLines, &Record::Error(error), Some(Type::Error), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":{\"kind\":\"elsewhere\",\"environment\":\"lab\"}},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n".as_slice()));
 }
 #[test]
@@ -591,14 +597,14 @@ fn each_resolution_message_prints_as_worded() {
 #[test]
 fn mmdebstraps_timeout_prints_as_timed_out() {
     assert_eq!(
-        print(&Record::Error(fixtures::mmdebstrap_error(crate::errors::Ended::Timeout))).as_deref(),
+        print(&Record::Error(fixtures::mmdebstrap_error(render::errors::Ended::Timeout))).as_deref(),
         Ok(b"mmdebstrap timed out\n".as_slice())
     );
 }
 #[test]
 fn mmdebstraps_refused_start_prints_as_could_not_start() {
     assert_eq!(
-        print(&Record::Error(fixtures::mmdebstrap_error(crate::errors::Ended::Start))).as_deref(),
+        print(&Record::Error(fixtures::mmdebstrap_error(render::errors::Ended::Start))).as_deref(),
         Ok(b"mmdebstrap could not start\n".as_slice())
     );
 }
@@ -613,14 +619,14 @@ fn a_resolution_error_names_its_package() {
 
 #[test]
 fn an_ids_error_names_the_owned_entry_and_its_missing_id() {
-    assert_eq!(fixtures::print_error(Form::Text, fixtures::ids_error(crate::errors::Owns::Secret, crate::errors::Why::NoUser)).expect("ids error").as_ref(),
+    assert_eq!(fixtures::print_error(Form::Text, fixtures::ids_error(render::errors::Owns::Secret, render::errors::Why::NoUser)).expect("ids error").as_ref(),
         b"tasks/boot/task.json:22:7: carbon-lab: boot: mail owns mail/tls.key and has no fixed id: no user mail is declared\n");
 }
 #[test]
 fn json_gives_the_ids_errors_typed_fields() {
     let json = fixtures::print_error(
         Form::JsonLines,
-        fixtures::ids_error(crate::errors::Owns::User, crate::errors::Why::OneId),
+        fixtures::ids_error(render::errors::Owns::User, render::errors::Why::OneId),
     )
     .expect("ids json");
     assert!(
@@ -632,4 +638,5 @@ fn json_gives_the_ids_errors_typed_fields() {
     );
 }
 
+mod pins;
 mod reserved;

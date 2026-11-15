@@ -664,6 +664,8 @@ pub(crate) fn proposal_saved(core: &mut Core, record: &jig_domain_tasks::Stored,
         | jig_domain_tasks::Stored::Ended(_)
         | jig_domain_tasks::Stored::Activity(_)
         | jig_domain_tasks::Stored::Milestone(_)
+        | jig_domain_tasks::Stored::Attempt(_)
+        | jig_domain_tasks::Stored::Hold(_)
         | jig_domain_tasks::Stored::PlacedHold(_)
         | jig_domain_tasks::Stored::Summary(_)
         | jig_domain_tasks::Stored::Retention(_)

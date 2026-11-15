@@ -464,6 +464,8 @@ fn person_row_project(row: &Row, project: u32) -> bool {
             | tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
@@ -792,6 +794,8 @@ fn object(
                 | tasks::Stored::Ended(_)
                 | tasks::Stored::Activity(_)
                 | tasks::Stored::Milestone(_)
+                | tasks::Stored::Attempt(_)
+                | tasks::Stored::Hold(_)
                 | tasks::Stored::PlacedHold(_)
                 | tasks::Stored::Summary(_)
                 | tasks::Stored::Retention(_)
@@ -821,8 +825,8 @@ fn object(
             }
             let owner = row_owner(&row).expect("matched owner");
             let hold = match &row.related {
-                Some(record) => match milestone_record(record) {
-                    Some(value) if value.task == *task => Some(documents::milestone_from_row(limits, value)?),
+                Some(record) => match hold_record(record) {
+                    Some(value) if value.task == *task => Some(documents::hold_from_row(limits, value)?),
                     Some(_) | None => None,
                 },
                 None => None,
@@ -1024,12 +1028,17 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                 Record::Tasks(tasks::Stored::History(value)) if value.task == owner.number => {
                     Ok(Some(PageRow::History(documents::history_from_row(limits, value)?)))
                 }
-                Record::Tasks(tasks::Stored::Milestone(value)) if value.task == owner.number => {
-                    Ok(Some(PageRow::Milestone(documents::milestone_from_row(limits, value)?)))
+                Record::Tasks(tasks::Stored::Hold(value)) if value.task == owner.number => {
+                    Ok(Some(PageRow::Hold(documents::hold_from_row(limits, value)?)))
+                }
+                Record::Tasks(tasks::Stored::Attempt(value)) if value.task == owner.number => {
+                    Ok(Some(PageRow::Attempt(documents::attempt_from_row(value))))
                 }
                 Record::Tasks(
                     tasks::Stored::History(_)
                     | tasks::Stored::Milestone(_)
+                    | tasks::Stored::Attempt(_)
+                    | tasks::Stored::Hold(_)
                     | tasks::Stored::Activity(_)
                     | tasks::Stored::PersonProposal(_)
                     | tasks::Stored::Live(_)
@@ -1181,6 +1190,8 @@ fn inbox_selection_row(limits: &Limits, row: &Row) -> Result<Option<documents::I
             tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
@@ -1234,6 +1245,8 @@ fn inbox_row(
             tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
@@ -1514,11 +1527,13 @@ fn proposal_decision(record: &Record) -> Option<&crate::ProposalDecisionRecord> 
     }
 }
 
-fn milestone_record(record: &Record) -> Option<&tasks::Milestone> {
+fn hold_record(record: &Record) -> Option<&tasks::HoldRow> {
     match record {
-        Record::Tasks(tasks::Stored::Milestone(value)) => Some(value),
+        Record::Tasks(tasks::Stored::Hold(value)) => Some(value),
         Record::Tasks(
-            tasks::Stored::Activity(_)
+            tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Activity(_)
             | tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Live(_)
@@ -1553,6 +1568,8 @@ fn activity_record(record: &Record) -> Option<&tasks::ActivityLine> {
             tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
@@ -1637,6 +1654,8 @@ fn ledger(record: &Record) -> Option<&tasks::FundingRecord> {
             | tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
@@ -1724,7 +1743,9 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     kind == KeyKind::Turn { task: *task, attempt: *attempt, turn: *turn }
                 }
                 Scope::History { task, subtree } => match kind {
-                    KeyKind::History(owner) | KeyKind::Milestone(owner) => *subtree || owner == *task,
+                    KeyKind::History(owner) | KeyKind::Attempt(owner) | KeyKind::Hold(owner) => {
+                        *subtree || owner == *task
+                    }
                     KeyKind::Ended(_)
                     | KeyKind::Live(_)
                     | KeyKind::Activity(_)
@@ -1761,7 +1782,8 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     KeyKind::Ended(_)
                     | KeyKind::Live(_)
                     | KeyKind::History(_)
-                    | KeyKind::Milestone(_)
+                    | KeyKind::Attempt(_)
+                    | KeyKind::Hold(_)
                     | KeyKind::Activity(_)
                     | KeyKind::PersonProposal(_)
                     | KeyKind::Escalation(_)
@@ -1780,7 +1802,8 @@ enum KeyKind {
     Ended(u64),
     Live(u64),
     History(u64),
-    Milestone(u64),
+    Attempt(u64),
+    Hold(u64),
     Activity(u64),
     PersonProposal(u64),
     Escalation(u64),
@@ -1795,7 +1818,8 @@ fn key_kind(key: &Key) -> KeyKind {
             tasks::Key::Ended(task) => KeyKind::Ended(*task),
             tasks::Key::Live(task) => KeyKind::Live(*task),
             tasks::Key::History { task, .. } => KeyKind::History(*task),
-            tasks::Key::Milestone { task, .. } => KeyKind::Milestone(*task),
+            tasks::Key::Attempt { task, .. } => KeyKind::Attempt(*task),
+            tasks::Key::Hold { task, .. } => KeyKind::Hold(*task),
             tasks::Key::Activity { task, .. } => KeyKind::Activity(*task),
             tasks::Key::PersonProposal(proposal) | tasks::Key::DecidedProposal(proposal) => {
                 KeyKind::PersonProposal(*proposal)
@@ -1808,6 +1832,7 @@ fn key_kind(key: &Key) -> KeyKind {
             | tasks::Key::ClosedLedger(
                 tasks::Funder::Task(_) | tasks::Funder::Pool { .. } | tasks::Funder::Recurring { .. },
             )
+            | tasks::Key::Milestone { .. }
             | tasks::Key::PlacedHold(_)
             | tasks::Key::Summary(_)
             | tasks::Key::Retention { .. }

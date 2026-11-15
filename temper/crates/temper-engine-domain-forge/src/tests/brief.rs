@@ -303,6 +303,16 @@ fn pending_pull_item_partner(
     head: [u8; 32],
     partner: Option<Token>,
 ) -> (Domain, Token) {
+    pending_pull_item_partner_source(body, state, head, partner, false)
+}
+
+fn pending_pull_item_partner_source(
+    body: &[u8],
+    state: change::State,
+    head: [u8; 32],
+    partner: Option<Token>,
+    reviews: bool,
+) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
@@ -318,9 +328,16 @@ fn pending_pull_item_partner(
             &mut d,
             Event::PlanBrief {
                 section,
-                source: BriefSource::Ci {
-                    item: BriefItem { repository: REPO.repository, number: 1 },
-                    head: BriefCommit(head),
+                source: if reviews {
+                    BriefSource::Reviews {
+                        item: BriefItem { repository: REPO.repository, number: 1 },
+                        head: BriefCommit(head),
+                    }
+                } else {
+                    BriefSource::Ci {
+                        item: BriefItem { repository: REPO.repository, number: 1 },
+                        head: BriefCommit(head),
+                    }
                 },
                 partner: None,
             },
@@ -1086,6 +1103,242 @@ fn a_maximal_task_pull_and_remarks_fit_the_assembled_brief() {
     assert!(task.len() + pull.len() + remarks.len() + 768 <= 14_592);
 }
 
+fn landing_repair(why: change::Repair) -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.change.state = change::State::Repairing { requested: true, why };
+    outputs(&mut d, Event::Change { row });
+    d
+}
+
+fn landing_ci() -> BriefSource {
+    BriefSource::Ci { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(HEAD) }
+}
+
+fn gather_landing_ci(d: &mut Domain, partner: Option<Token>) -> Box<[Request]> {
+    outputs(d, Event::PlanBrief { section: SECTION, source: landing_ci(), partner });
+    outputs(
+        d,
+        Event::GatherPlanned {
+            task: 9,
+            section: SECTION,
+            parts: 2,
+            bytes: SHIPPED_CI,
+            ci_budget: SHIPPED_CI,
+            deadline: env().now.saturating_add(Duration::from_secs(30)),
+        },
+    )
+}
+
+fn kept_landing_failure(d: &mut Domain) {
+    use temper_engine_domain_forge_landing as policy;
+    let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
+    round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
+    let row = LandingRow {
+        job: None,
+        landing: policy::Landing {
+            last_left: None,
+            round,
+            task: 61,
+            project: 5,
+            phase: policy::Phase::Cancelled,
+            preparation: 1,
+            stale_proofs: 0,
+            branch: b"main".as_slice().into(),
+            members: Box::new([policy::Member {
+                round: None,
+                unit: 0,
+                branch: b"temper/1/l61".as_slice().into(),
+                combined: None,
+                recorded: false,
+                told: false,
+                judging: false,
+                leave_told: false,
+                left: Some(policy::Leave::Failed { gate: 0, run: 7 }),
+                change: fixtures::CHANGE,
+                repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+                pull: 1,
+                head: Some(HEAD),
+                base: Some(fixtures::BASE),
+                candidate: Some([7; 32]),
+                gates: Box::new([]),
+                asked: None,
+                landed: None,
+            }]),
+        },
+        asks: Box::new([None]),
+        entries: Box::new([]),
+    };
+    outputs(d, Event::Restore { record: Stored::Landing(row) });
+}
+
+fn kept_candidate_failure(d: &mut Domain) {
+    use temper_engine_domain_forge_landing as policy;
+    assert!(d.project_landing(
+        5,
+        change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            tiers: Box::new([]),
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+            }]),
+        }]),
+        policy::Project::DEFAULT,
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: Duration::from_millis(7_200_000),
+        },
+    ));
+    outputs(
+        d,
+        Event::Restore {
+            record: Stored::Receipt {
+                key: ReceiptKey {
+                    project: 5,
+                    repository: REPO,
+                    check: crate::Check::Gate(b"gate".as_slice().into()),
+                    key: [7; 32],
+                },
+                receipt: Receipt {
+                    logs: b"receipt's failed step and log\n".as_slice().into(),
+                    failures: None,
+                    passed: false,
+                    run: ReceiptRun { id: 7, number: 7, url: b"/actions/runs/7".as_slice().into() },
+                    candidate: [7; 32],
+                    ended: env().wall,
+                },
+            },
+        },
+    );
+}
+
+fn assert_gathered_landing(d: &mut Domain, out: &[Request], words: &[u8]) {
+    assert_eq!(out, &[Request::BriefSized { section: SECTION, size: Ok(u32::try_from(words.len()).unwrap()) }]);
+    assert_eq!(take(d).as_ref(), words);
+    assert!(!d.brief_pending.contains_key(&SECTION));
+    assert!(d.brief_fetches.is_empty());
+    assert!(d.document_fetches.is_empty());
+}
+
+#[test]
+fn a_landing_repair_reads_the_kept_round_failure_at_gather() {
+    let mut d = landing_repair(change::Repair::Landing { gate: 0 });
+    kept_landing_failure(&mut d);
+    let out = gather_landing_ci(&mut d, None);
+    assert_gathered_landing(&mut d, &out, b"kept round's failed step and log\n");
+}
+
+#[test]
+fn a_candidate_repair_reads_its_receipt_after_the_landing_retires() {
+    let mut d = landing_repair(change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None });
+    kept_candidate_failure(&mut d);
+    assert!(d.landing.rows.is_empty());
+    let out = gather_landing_ci(&mut d, None);
+    assert_gathered_landing(&mut d, &out, b"receipt's failed step and log\n");
+}
+
+#[test]
+fn landing_repairs_without_their_failure_answer_at_gather() {
+    const PULL: Token = Token::new(100);
+    const REASON: &[u8] = b"the landing no longer keeps its failure";
+    const MARKER: &[u8] = b"[the failed checks could not be read: the landing no longer keeps its failure]\n";
+    for (why, keep_receipt, remove_repository) in [
+        (change::Repair::Landing { gate: 0 }, false, false),
+        (change::Repair::Landing { gate: 0 }, true, false),
+        (change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None }, false, false),
+        (change::Repair::LandingAt { gate: 1, candidate: [7; 32], below: None }, true, false),
+        (change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None }, true, true),
+    ] {
+        for partner in [None, Some(PULL)] {
+            let mut d = landing_repair(why);
+            kept_candidate_failure(&mut d);
+            if !keep_receipt {
+                d.landing.receipts = skein_lib::Map::with_capacity(LIMITS.receipts_per_gate);
+            }
+            if remove_repository {
+                d.repositories.remove(&REPO).expect("adopted repository");
+            }
+            if partner.is_some() {
+                outputs(
+                    &mut d,
+                    Event::PlanBrief {
+                        section: PULL,
+                        partner: None,
+                        source: BriefSource::Pull {
+                            item: BriefItem { repository: REPO.repository, number: 1 },
+                            head: BriefCommit(HEAD),
+                        },
+                    },
+                );
+            }
+            let out = gather_landing_ci(&mut d, partner);
+            let [
+                Request::BriefReadRefused { section: SECTION, stage: "checks", reason, heads: None, error: None },
+                Request::BriefSized { section: SECTION, size },
+            ] = out.as_ref()
+            else {
+                panic!("one refusal and one immediate answer: {out:?}");
+            };
+            assert_eq!(reason.as_bytes(), REASON);
+            if partner.is_some() {
+                assert_eq!(*size, Ok(u32::try_from(MARKER.len()).unwrap()));
+                assert_eq!(take(&mut d).as_ref(), MARKER);
+            } else {
+                assert_eq!(*size, Err(BriefUnread { fate: BriefFate::Permanent, words: REASON.into() }));
+                assert!(d.take_brief(SECTION).is_none());
+            }
+            assert!(!d.brief_pending.contains_key(&SECTION));
+            assert!(d.brief_fetches.is_empty());
+            assert!(d.document_fetches.is_empty());
+        }
+    }
+}
+
+#[test]
+fn a_deferred_section_requires_its_own_read() {
+    let (mut d, owner) = pending_checks();
+    let mut out = Queue::uncapped();
+    brief::require_read(&mut d, SECTION, landing_ci(), &mut out);
+    assert!(out.is_empty(), "a section with its read stays pending");
+    d.brief_fetches.remove(&owner).expect("section's checks read");
+    outputs(
+        &mut d,
+        Event::GatherBriefHeld {
+            section: Token::new(100),
+            source: landing_ci(),
+            parts: 2,
+            bytes: SHIPPED_CI,
+            max_job_bytes: 512,
+        },
+    );
+    brief::require_read(&mut d, SECTION, landing_ci(), &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "checks",
+            reason: "the change cannot be named in its section",
+            heads: None,
+            error: None,
+        })
+    );
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::unnamed()) }));
+    assert!(out.is_empty());
+    assert!(!d.brief_pending.contains_key(&SECTION));
+    assert_eq!(d.brief_fetches.len(), 1, "another section's read cannot answer this section");
+}
+
 fn pending_checks() -> (Domain, Token) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
@@ -1190,9 +1443,9 @@ fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
 }
 
 #[test]
-fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
+fn a_job_read_busy_until_the_cutoff_keeps_the_marker() {
     let (mut d, owner, read) = pending_job();
-    let deadline = env().now.saturating_add(Duration::from_secs(30));
+    let cutoff = env().now.saturating_add(Duration::from_millis(22_500));
     let mut out = Queue::uncapped();
     for _ in 0_u32..3 {
         assert!(brief::brief_answer(
@@ -1221,18 +1474,18 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
         env().now,
         &mut out
     ));
-    brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
-    assert!(out.is_empty(), "the original deadline stays in force");
-    assert_eq!(brief::next_deadline(&d), Some(deadline));
-    brief::expire(&mut d, deadline, &mut out);
+    brief::expire(&mut d, Time::from_nanos(cutoff.as_nanos().checked_sub(1).unwrap()), &mut out);
+    assert!(out.is_empty(), "the cutoff stays in force");
+    assert_eq!(brief::next_deadline(&d), Some(cutoff));
+    brief::expire(&mut d, cutoff, &mut out);
     assert_eq!(
         out.pop(),
         Some(Request::BriefReadRefused {
             section: SECTION,
             stage: "job",
-            reason: "the forge client is busy",
+            reason: "not read by the section's cutoff",
             heads: None,
-            error: Some(skein_forge::api::Error::Busy)
+            error: None
         })
     );
     let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
@@ -1242,43 +1495,11 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     let bytes = take(&mut d);
     let words = text(&bytes);
     assert!(words.contains("Failed check: / changes (pull_request)"));
-    assert!(words.ends_with("[job log could not be read]\nRepair the failed check.\n"), "{words}");
+    assert!(words.ends_with("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]\nRepair the failed check.\n"), "{words}");
     d.reclaim();
     brief::retry(&mut d, &mut out);
     assert!(out.is_empty());
     assert!(d.briefs_idle());
-}
-
-#[test]
-fn an_inflight_job_at_the_gather_deadline_leaves_the_section_late() {
-    for retried in [false, true] {
-        let (mut d, owner, read) = pending_job();
-        let deadline = env().now.saturating_add(Duration::from_secs(30));
-        let mut out = Queue::uncapped();
-        if retried {
-            assert!(brief::brief_answer(
-                &mut d,
-                owner,
-                Err(skein_forge::api::Error::Busy),
-                LIMITS.client.rows,
-                env().now,
-                &mut out
-            ));
-            assert_eq!(brief::next_deadline(&d), Some(deadline));
-            d.reclaim();
-            brief::retry(&mut d, &mut out);
-            assert_eq!(
-                out.pop(),
-                Some(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository: REPO, read } })
-            );
-        }
-        assert_eq!(brief::next_deadline(&d), None, "the parent owns an in-flight read's deadline");
-        brief::expire(&mut d, deadline, &mut out);
-        assert!(out.is_empty(), "an unanswered read cannot complete the section with a marker");
-        assert!(!d.briefs_idle(), "the section stays unfinished for the parent's late handling");
-        assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
-        assert!(d.briefs_idle());
-    }
 }
 
 #[test]
@@ -1294,6 +1515,8 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
         env().now,
         &mut out
     ));
+    brief::expire(&mut d, env().now.saturating_add(Duration::from_millis(22_500)), &mut out);
+    assert!(out.is_empty(), "an unpaired identity waits on without a refusal");
     assert_eq!(brief::next_deadline(&d), Some(deadline));
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty());
@@ -1622,9 +1845,9 @@ fn busy_files_and_comparison_complete_at_the_cutoff_not_as_busy() {
         assert!(out.is_empty());
         let bytes = take(&mut d);
         let notice = if compare {
-            "[comparison omitted: not read by the section's cutoff]\n"
+            "[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         } else {
-            "[files omitted from page 1: not read by the section's cutoff; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]\n"
+            "[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         };
         assert!(text(&bytes).ends_with(notice), "{}", text(&bytes));
         d.reclaim();
@@ -1662,9 +1885,11 @@ fn item_and_pull_reads_still_wait_to_the_deadline() {
                 ));
             }
             let deadline = env().now.saturating_add(Duration::from_secs(30));
-            assert_eq!(brief::next_deadline(&d), if busy { Some(deadline) } else { None });
-            brief::expire(&mut d, env().now.saturating_add(Duration::from_millis(22_500)), &mut out);
+            let cutoff = env().now.saturating_add(Duration::from_millis(22_500));
+            assert_eq!(brief::next_deadline(&d), Some(cutoff));
+            brief::expire(&mut d, cutoff, &mut out);
             assert!(out.is_empty());
+            assert_eq!(brief::next_deadline(&d), if busy { Some(deadline) } else { None });
             brief::expire(&mut d, deadline, &mut out);
             if busy {
                 assert_eq!(
@@ -1714,6 +1939,388 @@ fn an_answer_at_the_cutoff_starts_no_next_files_page_or_comparison() {
         assert!(out.is_empty(), "no next read");
         let bytes = take(&mut d);
         assert!(!text(&bytes).contains("too late"));
-        assert!(text(&bytes).contains("[files omitted from page 1: not read by the section's cutoff; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"));
+        assert!(text(&bytes).contains("[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"));
+    }
+}
+
+fn cutoff_time() -> Time {
+    env().now.saturating_add(Duration::from_millis(22_500))
+}
+
+fn answer_at(d: &mut Domain, owner: Token, answer: Answer, now: Time) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(d, owner, Ok(answer), LIMITS.client.rows, now, &mut out));
+    drain_requests(out)
+}
+
+fn assert_cut(out: &[Request], section: Token, stage: &'static str) {
+    assert_eq!(out.len(), 2, "one refusal and one size: {out:?}");
+    assert_eq!(
+        out[0],
+        Request::BriefReadRefused {
+            section,
+            stage,
+            reason: "not read by the section's cutoff",
+            heads: None,
+            error: None,
+        }
+    );
+    assert!(matches!(out[1], Request::BriefSized { section: found, size: Ok(_) } if found == section));
+}
+
+#[test]
+fn files_cut_count_every_answered_row_and_keep_the_unanswered_page() {
+    for count in [Some(17), None] {
+        let (mut d, owner) =
+            pending_pull_item(b"Whole body", change::State::Gating { head: HEAD, asked: Box::new([]) }, HEAD);
+        let mut pull = fixtures::open_pull();
+        pull.commit = HEAD;
+        pull.base_commit = Some(fixtures::BASE);
+        pull.size = match count {
+            Some(files) => Some(skein_forge::api::Size { files, additions: 0, deletions: 0 }),
+            None => None,
+        };
+        answer_at(&mut d, owner, Answer::Pull(pull), env().now);
+        let mut files = skein_lib::List::with_capacity(8);
+        for n in 0_u32..8 {
+            files
+                .push(skein_forge::api::File {
+                    path: format!("file-{n}").into_bytes().into_boxed_slice(),
+                    before: None,
+                    after: None,
+                })
+                .expect("eight files");
+        }
+        let files = files.into_boxed();
+        let next = answer_at(&mut d, owner, Answer::PullFiles { head: HEAD, files, more: true, cut: false }, env().now);
+        assert!(matches!(
+            next.as_ref(),
+            [Request::BriefClient {
+                event: skein_forge_client::Event::Read { read: Read::PullFiles { page: 2, .. }, .. }
+            }]
+        ));
+        let mut out = Queue::uncapped();
+        brief::expire(&mut d, cutoff_time(), &mut out);
+        assert_cut(&drain_requests(out), SECTION, "files");
+        assert!(
+            !brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+                LIMITS.client.rows,
+                cutoff_time(),
+                &mut Queue::uncapped()
+            ),
+            "late answer is dropped"
+        );
+        let bytes = take(&mut d);
+        let count = if count.is_some() { "8 of 17" } else { "8" };
+        let notice = format!(
+            "[files cut at the brief's deadline: {count} files read; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read_pull_files lists the pull's files]\n"
+        );
+        assert!(text(&bytes).ends_with(&notice), "{}", text(&bytes));
+    }
+}
+
+#[test]
+fn a_late_pull_identity_completes_with_zero_files_and_the_comparison_it_would_read() {
+    for (state, base, comparison) in [
+        (resolving(), None, Some("read it in your checkout")),
+        (
+            change::State::Repairing { requested: true, why: change::Repair::Semantic },
+            None,
+            Some("read it in your checkout"),
+        ),
+        (
+            change::State::Gating { head: HEAD, asked: Box::new([]) },
+            Some(fixtures::BASE),
+            Some("read_pull_files lists the pull's files"),
+        ),
+        (change::State::Repairing { requested: true, why: change::Repair::Ci }, None, None),
+    ] {
+        let (mut d, owner) = pending_pull_item(b"Whole body", state, HEAD);
+        let mut out = Queue::uncapped();
+        brief::expire(&mut d, cutoff_time(), &mut out);
+        assert!(out.is_empty());
+        assert_eq!(brief::next_deadline(&d), None, "a spent identity cutoff never wakes again");
+        brief::expire(&mut d, cutoff_time(), &mut out);
+        assert!(out.is_empty());
+        let mut pull = fixtures::open_pull();
+        pull.commit = HEAD;
+        pull.base_commit = base;
+        pull.size = Some(skein_forge::api::Size { files: 17, additions: 0, deletions: 0 });
+        let out = answer_at(&mut d, owner, Answer::Pull(pull), cutoff_time().saturating_add(Duration::from_secs(1)));
+        assert_cut(&out, SECTION, "files");
+        let bytes = take(&mut d);
+        let words = text(&bytes);
+        assert!(words.contains("[files cut at the brief's deadline: 0 of 17 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
+        if let Some(how) = comparison {
+            assert!(words.contains(&format!("[comparison cut at the brief's deadline: not read; {how}]")), "{words}");
+        } else {
+            assert!(!words.contains("comparison cut"), "{words}");
+        }
+    }
+}
+
+#[test]
+fn remarks_cut_counts_answered_reviews_and_never_claims_no_remarks() {
+    for request in [false, true] {
+        for read in [0_u32, 1] {
+            let mut d = request_domain();
+            let source = if request {
+                request_source()
+            } else {
+                BriefSource::Reviews {
+                    item: BriefItem { repository: REPO.repository, number: 1 },
+                    head: BriefCommit(HEAD),
+                }
+            };
+            let owner = planned_read(&mut d, source, 4608);
+            let head = if request { REVIEWED } else { HEAD };
+            answer_at(
+                &mut d,
+                owner,
+                Answer::Reviews {
+                    reviews: Box::new([
+                        request_review(11, head, b""),
+                        request_review(12, [1; 32], b"other head"),
+                        request_review(13, head, b""),
+                    ]),
+                    more: false,
+                    cut: false,
+                },
+                env().now,
+            );
+            if read == 1 {
+                answer_at(&mut d, owner, Answer::Remarks { remarks: Box::new([]), more: false, cut: false }, env().now);
+            }
+            let mut out = Queue::uncapped();
+            brief::expire(&mut d, cutoff_time(), &mut out);
+            assert_cut(&drain_requests(out), SECTION, "remarks");
+            assert!(!brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
+                LIMITS.client.rows,
+                cutoff_time(),
+                &mut Queue::uncapped()
+            ));
+            let bytes = take(&mut d);
+            let words = text(&bytes);
+            assert!(words.contains(&format!("[remarks cut at the brief's deadline: {read} of 2 reviews' remarks read; read_remarks reads a review's remarks]")), "{words}");
+            assert!(!words.contains("gave no remarks"), "{words}");
+        }
+    }
+}
+
+#[test]
+fn job_cut_keeps_read_logs_and_marks_every_remaining_failed_check() {
+    for job in [false, true] {
+        let (mut d, owner) = pending_checks();
+        let mut checks = skein_lib::List::with_capacity(3);
+        for n in 0_u64..3 {
+            checks
+                .push(Status {
+                    at: env().now,
+                    context: format!("check-{n}").into_bytes().into_boxed_slice(),
+                    check: Check::Failed,
+                    description: Box::new([]),
+                    url: Box::new([]),
+                    job: Some(JobAttempt { head: HEAD, run: 4, job: n, attempt: 1 }),
+                })
+                .expect("three checks");
+        }
+        answer_at(&mut d, owner, Answer::Checks(checks.into_boxed()), env().now);
+        // Classification may fail; the first log is still read and retained.
+        let mut out = Queue::uncapped();
+        brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Missing),
+            LIMITS.client.rows,
+            env().now,
+            &mut out,
+        );
+        answer_at(
+            &mut d,
+            owner,
+            Answer::Job {
+                attempt: JobAttempt { head: HEAD, run: 4, job: 0, attempt: 1 },
+                step: None,
+                log: b"first log".as_slice().into(),
+                truncated: false,
+            },
+            env().now,
+        );
+        if job {
+            brief::brief_answer(
+                &mut d,
+                owner,
+                Err(skein_forge::api::Error::Missing),
+                LIMITS.client.rows,
+                env().now,
+                &mut out,
+            );
+        }
+        out.clear();
+        brief::expire(&mut d, cutoff_time(), &mut out);
+        assert_cut(&drain_requests(out), SECTION, if job { "job" } else { "run" });
+        assert!(!brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Missing),
+            LIMITS.client.rows,
+            cutoff_time(),
+            &mut Queue::uncapped()
+        ));
+        let bytes = take(&mut d);
+        let words = text(&bytes);
+        assert_eq!(words.matches("Failed check:").count(), 3, "{words}");
+        assert_eq!(
+            words
+                .matches("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]")
+                .count(),
+            2,
+            "{words}"
+        );
+        assert!(words.contains("first log"), "{words}");
+        assert!(!words.contains("could not be read"), "{words}");
+    }
+}
+
+fn drain_requests(mut out: Queue<Request>) -> Box<[Request]> {
+    let mut found = skein_lib::List::with_capacity(out.len());
+    while let Some(request) = out.pop() {
+        found.push(request).expect("sized from queue");
+    }
+    found.into_boxed()
+}
+
+const REASON_SECTION: Token = Token::new(100);
+
+fn gather_reason(d: &mut Domain, deadline: Time) -> Token {
+    let requests = outputs(
+        d,
+        Event::GatherPlanned {
+            task: 9,
+            section: REASON_SECTION,
+            parts: 2,
+            bytes: 2048,
+            ci_budget: SHIPPED_CI,
+            deadline,
+        },
+    );
+    let [Request::BriefClient { event: skein_forge_client::Event::Read { owner, .. } }] = requests.as_ref() else {
+        panic!("one reason identity read: {requests:?}")
+    };
+    *owner
+}
+
+fn take_section(d: &mut Domain, section: Token) -> Box<[u8]> {
+    let out = outputs(d, Event::TakeBrief { section });
+    let [Request::BriefTaken { bytes: Some(bytes), .. }] = out.as_ref() else { panic!("taken: {out:?}") };
+    bytes.clone()
+}
+
+#[test]
+fn both_short_identities_leave_the_pull_as_words_in_either_cutoff_order() {
+    for reviews in [false, true] {
+        for reason_first in [false, true] {
+            let (mut d, pull) = pending_pull_item_partner_source(
+                b"Whole body",
+                change::State::Repairing { requested: true, why: change::Repair::Ci },
+                HEAD,
+                Some(REASON_SECTION),
+                reviews,
+            );
+            let reason_deadline = env().now.saturating_add(Duration::from_secs(if reason_first { 28 } else { 32 }));
+            let reason = gather_reason(&mut d, reason_deadline);
+            let reason_cutoff = env().now.saturating_add(Duration::from_secs(if reason_first { 21 } else { 24 }));
+            let mut out = Queue::uncapped();
+            if reason_first {
+                brief::expire(&mut d, reason_cutoff, &mut out);
+                assert!(out.is_empty(), "a reason cannot stand on a short pull");
+                assert_eq!(brief::next_deadline(&d), Some(cutoff_time()));
+            }
+            brief::expire(&mut d, cutoff_time(), &mut out);
+            assert_cut(&drain_requests(out), SECTION, "pull");
+            let bytes = take(&mut d);
+            let words = text(&bytes);
+            assert!(words.starts_with("Pull request: #1\n"), "{words}");
+            assert!(
+                words.ends_with("[the pull request could not be read: not read by the brief's deadline]\n"),
+                "{words}"
+            );
+            assert!(!brief::brief_answer(
+                &mut d,
+                pull,
+                Err(skein_forge::api::Error::Missing),
+                LIMITS.client.rows,
+                cutoff_time(),
+                &mut Queue::uncapped()
+            ));
+            let mut out = Queue::uncapped();
+            brief::expire(&mut d, reason_cutoff.max(cutoff_time()), &mut out);
+            assert!(out.is_empty(), "the reason waits once the pull is words");
+            assert_eq!(brief::next_deadline(&d), None, "spent cutoffs never wake again");
+            assert!(d.brief_held.is_empty());
+            // A still-refused identity retains the Busy deadline rather than becoming words.
+            brief::brief_answer(
+                &mut d,
+                reason,
+                Err(skein_forge::api::Error::Busy),
+                LIMITS.client.rows,
+                reason_cutoff.max(cutoff_time()),
+                &mut out,
+            );
+            brief::expire(&mut d, reason_deadline, &mut out);
+            let found = drain_requests(out);
+            assert!(matches!(
+                found.as_ref(),
+                [
+                    Request::BriefReadRefused { reason: "the forge client is busy", .. },
+                    Request::BriefSized { section: REASON_SECTION, size: Err(_) }
+                ]
+            ));
+        }
+    }
+}
+
+#[test]
+fn a_short_reason_stands_on_a_pull_only_past_its_identity_or_ready() {
+    for reviews in [false, true] {
+        for ready in [false, true] {
+            let (mut d, pull) = pending_pull_item_partner_source(
+                b"Whole body",
+                change::State::Repairing { requested: true, why: change::Repair::Ci },
+                HEAD,
+                Some(REASON_SECTION),
+                reviews,
+            );
+            let mut identity = fixtures::open_pull();
+            identity.commit = HEAD;
+            identity.base_commit = None;
+            answer_at(&mut d, pull, Answer::Pull(identity), env().now);
+            if ready {
+                answer_at(
+                    &mut d,
+                    pull,
+                    Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false },
+                    env().now,
+                );
+            }
+            // The reason's earlier cutoff must not depend on iteration order with the pull.
+            gather_reason(&mut d, env().now.saturating_add(Duration::from_secs(28)));
+            let mut out = Queue::uncapped();
+            brief::expire(&mut d, env().now.saturating_add(Duration::from_secs(21)), &mut out);
+            assert_cut(&drain_requests(out), REASON_SECTION, if reviews { "reviews" } else { "checks" });
+            let bytes = take_section(&mut d, REASON_SECTION);
+            let expected = if reviews {
+                "[the reviews could not be read: not read by the brief's deadline]\n"
+            } else {
+                "[the failed checks could not be read: not read by the brief's deadline]\n"
+            };
+            assert!(text(&bytes).ends_with(expected), "{}", text(&bytes));
+        }
     }
 }

@@ -38,6 +38,7 @@ pub struct ConnectionHarness {
     pub sent: Box<[u8]>,
     pub user_agent: Box<[u8]>,
     pub body_demands: u32,
+    pub body_reads: List<skein_lib::stream::Read>,
     pub local_pumps: u32,
 }
 impl ConnectionHarness {
@@ -80,6 +81,7 @@ impl ConnectionHarness {
             sent: Box::from([]),
             user_agent: Box::from(USER_AGENT),
             body_demands: 0,
+            body_reads: List::uncapped(),
             local_pumps: 0,
         }
     }
@@ -154,12 +156,29 @@ impl ConnectionHarness {
         fragment: usize,
         eof: bool,
     ) -> List<skein_forge::forgejo::plans::Heard> {
+        self.buffered_answers(response, fragment, eof).0
+    }
+    pub fn buffered_github_answer(
+        &mut self,
+        response: &[u8],
+        fragment: usize,
+        eof: bool,
+    ) -> List<skein_forge::github::plans::Heard> {
+        self.buffered_answers(response, fragment, eof).1
+    }
+    fn buffered_answers(
+        &mut self,
+        response: &[u8],
+        fragment: usize,
+        eof: bool,
+    ) -> (List<skein_forge::forgejo::plans::Heard>, List<skein_forge::github::plans::Heard>) {
         use skein_lib::stream::{Down, Read, Up};
         let mut intake = skein_lib::Intake::with_capacity(shared().io.intake);
         let mut at = 0_usize;
         let mut pending = None;
         let mut ended = false;
         let mut heard = List::with_capacity(16);
+        let mut github_heard = List::with_capacity(16);
         for _ in 0_u32..1024 {
             if self.ready() && self.io.is_empty() {
                 self.local_pumps = self.local_pumps.saturating_add(1);
@@ -179,6 +198,10 @@ impl ConnectionHarness {
                                 Read::Fill(_) | Read::Line { .. } | Read::Arrived { .. } => true,
                             };
                             self.body_demands = self.body_demands.saturating_add(u32::from(body));
+                            if body {
+                                assert_eq!(room, 0, "body reads reserve no send room");
+                                self.body_reads.push(read).expect("uncapped read trace");
+                            }
                             pending = Some((read, room));
                         }
                         Down::Send(bytes) => self.sent = bytes,
@@ -220,14 +243,22 @@ impl ConnectionHarness {
                 self.connection.stream(&self.env, Up::End);
             }
             for _ in 0_u32..16 {
-                let Some(event) = self.forgejo.heard(&mut self.connection) else { break };
-                heard.push(event).expect("fixture events fit");
+                match self.forge.kind {
+                    Kind::Forgejo => {
+                        let Some(event) = self.forgejo.heard(&mut self.connection) else { break };
+                        heard.push(event).expect("fixture events fit");
+                    }
+                    Kind::GitHub => {
+                        let Some(event) = self.github.heard(&mut self.connection) else { break };
+                        github_heard.push(event).expect("fixture events fit");
+                    }
+                }
             }
             if !self.ready() && pending.is_none() && at == response.len() {
                 break;
             }
         }
-        heard
+        (heard, github_heard)
     }
     pub fn github_answer(&mut self, response: &[u8]) -> List<skein_forge::github::plans::Heard> {
         let mut heard = List::with_capacity(16);

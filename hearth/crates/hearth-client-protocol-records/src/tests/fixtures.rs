@@ -1,12 +1,15 @@
-use crate::{
-    parts::{
-        config::{Config, Node, TreeEntry},
-        meta::{Firmware, Meta, Placement, PlacementKind},
-    },
-    records::{Part, PartRecord, Spec},
-};
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::{
+    parts::{
+        Part, PartRecord, Spec,
+        config::{Config, Node, TreeEntry},
+        meta::{Meta, Placement},
+    },
+    revision::{Firmware, Position, Runs as PlacementKind},
+};
 use skein_lib::bytes::copy_of;
+
 pub fn digest(prefix: [u8; 6]) -> [u8; 32] {
     let mut value = [0; 32];
     for (to, from) in value.iter_mut().zip(prefix) {
@@ -29,11 +32,11 @@ pub fn x1_prod() -> Box<Spec> {
             },
         },
         resolution: None,
-        meta_digest: digest([0xc4, 0xd3, 0xa0, 0xb1, 0xe2, 0xf5]),
-        commit: copy_of(b"1a2b3c4d00000000000000000000000000000000"),
-        digest: digest([0x9a, 0x0c, 0x5e, 0x1f, 0x2b, 0x3d]),
+        meta_digest: hearth_lib::encode::Digest(digest([0xc4, 0xd3, 0xa0, 0xb1, 0xe2, 0xf5])),
+        commit: render::revision::Oid(copy_of(b"1a2b3c4d00000000000000000000000000000000")),
+        digest: hearth_lib::encode::Digest(digest([0x9a, 0x0c, 0x5e, 0x1f, 0x2b, 0x3d])),
         parts: Box::new([Part {
-            digest: digest([0xe7, 0xc2, 0xa0, 0xd9, 0x5b, 0x13]),
+            digest: hearth_lib::encode::Digest(digest([0xe7, 0xc2, 0xa0, 0xd9, 0x5b, 0x13])),
             record: PartRecord::Config(Config {
                 presets: Box::new([]),
                 tmpfiles: Box::new([]),
@@ -44,7 +47,7 @@ pub fn x1_prod() -> Box<Spec> {
                 tree: Box::new([TreeEntry {
                     path: copy_of(b"/etc/hostname"),
                     node: Node::File {
-                        content_digest: digest([0x3f, 0x1c, 0x2a, 0xb0, 0x7e, 0x44]),
+                        content_digest: hearth_lib::encode::Digest(digest([0x3f, 0x1c, 0x2a, 0xb0, 0x7e, 0x44])),
                         mode: 0o644,
                         owner: copy_of(b"root"),
                         group: copy_of(b"root"),
@@ -62,23 +65,34 @@ pub const X1_PROD_TEXT: &str = concat!(
     "  /etc/hostname            file 0644 root:root 3f1c2ab07e44\n",
 );
 
-pub fn with_resolution(mut spec: Box<Spec>, resolution: crate::records::Resolution) -> Box<Spec> {
-    spec.resolution = Some(resolution);
+pub fn with_resolution(mut spec: Box<Spec>, resolution: render::keys::Resolution) -> Box<Spec> {
+    spec.resolution = Some(Box::new(resolution));
     spec
 }
-pub fn known() -> crate::records::Resolution {
-    crate::records::Resolution::Known {
-        key: digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2]),
-        keys: crate::records::Keys { packages: [0x11; 32], software: [0x22; 32], config: [0x33; 32] },
+pub fn known() -> render::keys::Resolution {
+    render::keys::Resolution::Known {
+        key: hearth_lib::encode::Digest(digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2])),
+        keys: render::keys::Keys {
+            packages: hearth_lib::encode::Digest([0x11; 32]),
+            software: hearth_lib::encode::Digest([0x22; 32]),
+            config: hearth_lib::encode::Digest([0x33; 32]),
+        },
     }
 }
 
-pub fn wg0_changed() -> crate::diff::Change {
-    use crate::diff::{
-        Change, ConfigChange, EntryChange, HunkLine, Hunks, LineKind, PartChange, Rebuild, Sizes, TargetChange,
-    };
+pub fn wg0_changed() -> render::diff::Change {
+    use render::diff::Change;
+    use render::diff::Hunks;
+    use render::diff::Line as HunkLine;
+    use render::diff::LineKind;
+    use render::diff::PartChange;
+    use render::diff::Rebuild;
+    use render::diff::TargetChange;
+    use render::parts::config::Change as ConfigChange;
+    use render::parts::config::EntryChange;
+    use render::parts::config::Sizes;
     const LINES: [(LineKind, &[u8]); 7] = [
-        (LineKind::Header, b"@@ -9,5 +9,5 @@ ListenPort=51820"),
+        (LineKind::Hunk, b"@@ -9,5 +9,5 @@ ListenPort=51820"),
         (LineKind::Context, b"[WireGuardPeer]"),
         (LineKind::Context, "PublicKey=AAAA…=".as_bytes()),
         (LineKind::Context, b"AllowedIPs=10.0.0.1/32"),
@@ -113,7 +127,12 @@ pub fn wg0_changed() -> crate::diff::Change {
     }
 }
 pub fn file(content_digest: [u8; 32]) -> Node {
-    Node::File { content_digest, mode: 0o644, owner: copy_of(b"root"), group: copy_of(b"root") }
+    Node::File {
+        content_digest: hearth_lib::encode::Digest(content_digest),
+        mode: 0o644,
+        owner: copy_of(b"root"),
+        group: copy_of(b"root"),
+    }
 }
 pub const WG0_TEXT: &str = concat!(
     "carbon-prod                                         rebuild from config\n",
@@ -122,12 +141,18 @@ pub const WG0_TEXT: &str = concat!(
     "                PublicKey=AAAA…=\n                AllowedIPs=10.0.0.1/32\n",
     "               -Endpoint=203.0.113.157:51820\n               +Endpoint=203.0.113.158:51820\n                PersistentKeepalive=25\n",
 );
-pub fn tally(targets: u32, changed: u32, unchanged: u32) -> crate::diff::Tally {
-    crate::diff::Tally { from: copy_of(b"main"), to: copy_of(b"HEAD"), targets, changed, unchanged }
+pub fn tally(targets: u32, changed: u32, unchanged: u32) -> render::diff::Tally {
+    render::diff::Tally {
+        from: render::revision::Oid(copy_of(b"main")),
+        to: render::revision::Oid(copy_of(b"HEAD")),
+        targets,
+        changed,
+        unchanged,
+    }
 }
 
-pub fn modules_guard() -> crate::errors::Error {
-    use crate::errors::{Class, Error, Guard, Kind, Place, Position};
+pub fn modules_guard() -> render::errors::Error {
+    use render::errors::{Class, Error, Guard, Kind, Place};
     Error {
         side: None,
         kind: Kind::Guard(Guard {
@@ -142,8 +167,8 @@ pub fn modules_guard() -> crate::errors::Error {
     }
 }
 
-pub fn duplicate() -> crate::errors::Error {
-    use crate::errors::{Class, Decode, Error, Kind, Place, Position};
+pub fn duplicate() -> render::errors::Error {
+    use render::errors::{Class, Decode, Error, Kind, Place};
     Error {
         side: None,
         kind: Kind::Decode(Decode::Duplicate { key: copy_of(b"motd") }),
@@ -157,9 +182,9 @@ pub fn duplicate() -> crate::errors::Error {
 
 #[derive(Clone, Copy, Debug)]
 pub enum SchemaInput {
-    Unlisted { reader: &'static [u8], root: crate::errors::Root, task: &'static [u8], setting: Option<&'static [u8]> },
-    Dynamic(crate::errors::Root),
-    Malformed(crate::errors::Format),
+    Unlisted { reader: &'static [u8], root: render::errors::Root, task: &'static [u8], setting: Option<&'static [u8]> },
+    Dynamic(render::errors::Root),
+    Malformed(render::errors::Format),
     Target { name: &'static [u8], environment: &'static [u8] },
     File(&'static [u8]),
     Large { path: &'static [u8], max: u64 },
@@ -169,7 +194,7 @@ pub enum SchemaInput {
     Missing(&'static [u8]),
     Absent(&'static [u8]),
     Task(&'static [u8]),
-    Wrong(&'static crate::errors::TypeName),
+    Wrong(&'static render::errors::TypeName),
     Enum { value: &'static [u8], listed: &'static [&'static [u8]] },
     Below(i64),
     Above(i64),
@@ -179,8 +204,8 @@ pub enum SchemaInput {
     MissingField(&'static [u8]),
     Unread { task: &'static [u8], setting: &'static [u8], declared: &'static [&'static [u8]] },
 }
-pub fn schema_fault(input: SchemaInput) -> crate::errors::Schema {
-    use crate::errors::Schema;
+pub fn schema_fault(input: SchemaInput) -> render::errors::Schema {
+    use render::errors::Schema;
     match input {
         SchemaInput::Malformed(format) => Schema::Malformed { format },
         SchemaInput::Target { name, environment } => {
@@ -232,8 +257,8 @@ fn schema_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     copied.into_boxed()
 }
 
-pub fn git_failure(command: crate::errors::Command, code: u8) -> crate::errors::Error {
-    use crate::errors::{Class, Ended, Error, Kind, Tool};
+pub fn git_failure(command: render::errors::Command, code: u8) -> render::errors::Error {
+    use render::errors::{Class, Ended, Error, Kind, Tool};
     Error {
         side: None,
         kind: Kind::Tool(Tool {
@@ -250,8 +275,8 @@ pub fn git_failure(command: crate::errors::Command, code: u8) -> crate::errors::
 }
 
 #[must_use]
-pub fn syntax_faults() -> [crate::errors::Syntax; 19] {
-    use crate::errors::{Syntax as S, syntax::Expected};
+pub fn syntax_faults() -> [render::errors::Syntax; 19] {
+    use render::errors::{Syntax as S, syntax::Expected};
     [
         S::TooLong,
         S::Character,
@@ -271,26 +296,29 @@ pub fn syntax_faults() -> [crate::errors::Syntax; 19] {
         S::Shadows,
         S::Interpolation,
         S::Expected(Expected::Operand),
-        S::Arity { filter: copy_of(b"join"), expected: 1, given: 2 },
+        S::Arity { filter: render::evaluate::Filter::Join, given: 2 },
     ]
 }
-pub fn syntax_error(syntax: crate::errors::Syntax) -> crate::errors::Error {
+pub fn syntax_error(syntax: render::errors::Syntax) -> render::errors::Error {
     let mut error = modules_guard();
-    error.kind = crate::errors::Kind::Decode(crate::errors::Decode::Syntax(syntax));
+    error.kind = render::errors::Kind::Decode(render::errors::Decode::Syntax(syntax));
     error.target = None;
     error.task = Some(copy_of(b"motd"));
-    error.at = Some(crate::errors::Place {
+    error.at = Some(render::errors::Place {
         path: copy_of(b"tasks/motd/tree/etc/issue.j2"),
-        position: Some(crate::errors::Position { line: 2, column: 1 }),
+        position: Some(Position { line: 2, column: 1 }),
     });
     error
 }
 #[must_use]
-pub fn meta_changes() -> [crate::diff::MetaChange; 2] {
-    use crate::{
-        diff::{MemberPair, MetaChange, NamePair, PlacementPair},
-        parts::meta::{Firmware, Placement, PlacementKind},
-    };
+pub fn meta_changes() -> [render::parts::meta::Change; 2] {
+    use render::parts::meta::Change as MetaChange;
+    use render::parts::meta::MemberPair;
+    use render::parts::meta::NamePair;
+    use render::parts::meta::Placement;
+    use render::parts::meta::PlacementPair;
+    use render::revision::Firmware;
+    use render::revision::Runs as PlacementKind;
     [
         MetaChange {
             base: Some(NamePair { before: b"x1".as_slice().into(), after: b"x2".as_slice().into() }),
@@ -320,11 +348,11 @@ pub fn meta_changes() -> [crate::diff::MetaChange; 2] {
     ]
 }
 
-pub fn composition_error(why: crate::errors::Composition) -> crate::errors::Error {
-    crate::errors::Error {
+pub fn composition_error(why: render::errors::Composition) -> render::errors::Error {
+    render::errors::Error {
         side: None,
-        kind: crate::errors::Kind::Composition(why),
-        class: crate::errors::Class::Configuration,
+        kind: render::errors::Kind::Composition(why),
+        class: render::errors::Class::Configuration,
         at: None,
         also: None,
         target: Some(copy_of(b"stoa-1-lab")),
@@ -332,39 +360,39 @@ pub fn composition_error(why: crate::errors::Composition) -> crate::errors::Erro
     }
 }
 
-pub fn composition_on(host: crate::errors::Host) -> crate::errors::Error {
-    composition_error(crate::errors::Composition::On { on: copy_of(b"east-lab"), host })
+pub fn composition_on(host: render::errors::Host) -> render::errors::Error {
+    composition_error(render::errors::Composition::On { on: copy_of(b"east-lab"), host })
 }
-pub fn missing_task() -> crate::errors::Error {
-    let mut error = composition_error(crate::errors::Composition::Task);
+pub fn missing_task() -> render::errors::Error {
+    let mut error = composition_error(render::errors::Composition::Task);
     error.target = None;
     error.task = Some(copy_of(b"motd"));
     error
 }
 
-pub fn key_collision() -> crate::errors::Error {
+pub fn key_collision() -> render::errors::Error {
     let mut error = duplicate();
-    error.kind = crate::errors::Kind::Collision(crate::errors::Collision::Key { key: copy_of(b"ops") });
+    error.kind = render::errors::Kind::Collision(render::errors::Collision::Key { key: copy_of(b"ops") });
     error
 }
 #[must_use]
-pub fn reference_error(input: SchemaInput) -> crate::errors::Error {
+pub fn reference_error(input: SchemaInput) -> render::errors::Error {
     let mut error = duplicate();
-    error.kind = crate::errors::Kind::Schema(schema_fault(input));
+    error.kind = render::errors::Kind::Schema(schema_fault(input));
     error.at = None;
     error.also = None;
     error
 }
 
 #[must_use]
-pub fn evaluation_error(kind: crate::errors::Evaluation) -> crate::errors::Error {
+pub fn evaluation_error(kind: render::evaluate::FaultKind) -> render::errors::Error {
     let mut error = duplicate();
-    error.kind = crate::errors::Kind::Evaluation(kind);
+    error.kind = render::errors::Kind::Evaluation(kind);
     error.at = None;
     error.also = None;
     error
 }
-pub fn print_error(form: crate::form::Form, error: crate::errors::Error) -> Result<Box<[u8]>, crate::form::Refusal> {
+pub fn print_error(form: crate::form::Form, error: render::errors::Error) -> Result<Box<[u8]>, crate::form::Refusal> {
     let after = match form {
         crate::form::Form::Text => None,
         crate::form::Form::JsonLines => Some(crate::records::Type::Error),
@@ -420,9 +448,9 @@ pub fn links_and_directories() -> Box<Spec> {
 mod packages;
 pub use packages::*;
 
-pub fn repository_error(why: crate::errors::Repository) -> crate::errors::Error {
+pub fn repository_error(why: render::errors::Repository) -> render::errors::Error {
     let mut error = duplicate();
-    error.kind = crate::errors::Kind::Repository(why);
+    error.kind = render::errors::Kind::Repository(why);
     error.at = None;
     error.also = None;
     error

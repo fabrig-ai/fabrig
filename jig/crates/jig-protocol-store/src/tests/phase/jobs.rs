@@ -162,6 +162,71 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
     panic!("jobs did not end")
 }
 #[test]
+fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() {
+    assert_eq!(JobWrite::Put { key: Box::new([1, 2, 3]), value: Box::new([4, 5, 6, 7]) }.bytes(), 16);
+    assert_eq!(JobWrite::Erase { key: Box::new([1, 2, 3]) }.bytes(), 8);
+    for of in [Owner::Jig, Owner::Application] {
+        let sets = PatchSets {
+            sets: Box::leak(Box::new([
+                PatchSet { jobs: if of == Owner::Application { &[FOLLOW] } else { &[] }, ..BASE.sets[0] },
+                PatchSet { jobs: if of == Owner::Jig { &[UPSTREAM_JOB] } else { &[] }, ..BASE.sets[1] },
+            ])),
+        };
+        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut store = store(&disk, sets);
+        // Fit three puts, their frame and the done row exactly.
+        let writes: Box<[JobWrite]> = (0..3_u8)
+            .map(|n| JobWrite::Put {
+                key: if of == Owner::Application {
+                    vec![b'l', b'/', b'x' + n].into()
+                } else {
+                    vec![2, b'l', b'/', b'x' + n].into()
+                },
+                value: label(1),
+            })
+            .collect();
+        let declared = if of == Owner::Jig { UPSTREAM_JOB } else { FOLLOW };
+        let done_op = crate::jobs::kept::operation(&store, of, &declared, u64::MAX).unwrap();
+        let skein_kv::Op::Put { key, value } = done_op else { panic!("done put") };
+        let row = skein_kv::put_bytes(u32::try_from(key.len()).unwrap(), u32::try_from(value.len()).unwrap()).unwrap();
+        let bytes = writes.iter().map(JobWrite::bytes).sum::<u64>();
+        let tags = if of == Owner::Application { 3 } else { 0 };
+        let commit = u32::try_from(u64::from(skein_kv::FRAME_BYTES + row) + bytes + tags).unwrap();
+        let mut next = disk.open(&mut store);
+        // Recovery reads the baseline's larger frames before the job's tiny edge.
+        store.limits.store.commit = commit;
+        let (owner, ending) = loop {
+            assert!(
+                match next.first() {
+                    Some(Event::Job { .. }) => true,
+                    _ => false,
+                },
+                "{next:?}"
+            );
+            let (owner, found, name, page) = page(next);
+            assert_eq!((found, name.as_ref()), (of, declared.name));
+            if page.end {
+                break (owner, page);
+            }
+            next = disk.request(
+                &mut store,
+                Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+            );
+        };
+        assert_eq!(ending.room.writes, 3);
+        assert_eq!(ending.room.bytes, bytes);
+        let events = disk.request(&mut store, Request::Job { owner, answer: Ok(JobAnswer { writes, through: None }) });
+        assert!(
+            events.iter().any(|e| match e {
+                Event::Ran { of: found, .. } => *found == of,
+                _ => false,
+            }),
+            "{events:?}"
+        );
+        assert!(done(&mut store, of, declared.name).is_some());
+    }
+}
+#[test]
 fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_more() {
     let mut disk = Disk::new(&fixture_baseline(None));
     let before = snapshot(&mut disk);

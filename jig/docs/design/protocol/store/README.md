@@ -362,7 +362,7 @@ child puts live first.
 | core | turns (in transcripts' files, `transcripts.md`), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
 | tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
-| tasks | ended tasks, past periods, decided proposals, history, milestones, activity | task, then a position or revision; funder, period; proposal | on demand |
+| tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
 | tasks | ended tasks' summaries, and retention's rows, one per ended task or decided person proposal naming its next stage (`retention.md`, 3 and 4) | task; stage, since, number | on demand, by retention's passes |
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../../domain/people/public-reading.md`, 2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../../domain/people/acts.md`, 3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../../domain/people/acts.md`, 2), at most one per project the deployment has room for, erased with the deletion's last step; each deleted project's mark, its number alone, kept past its deletion, at most as many as the projects the deployment has room for, the lowest number's erased to make room (`../../domain/people/acts.md`, 2, *Marked deleted*) | as the people child keys them; a live conversation's position by party, then task; a deletion by its project; a mark by its project | at start |
 | people | ended conversations' read positions (`loads.md`, 4) | task, then party | at start, by the census, every row (`loads.md`, 2); otherwise on demand |
@@ -549,11 +549,11 @@ count up, and nothing of it is stored.
   the map (the active generation's and a patched copy's, never the
   secrets' store) the census rule of its tags (4.2): a key under tag 0
   counts by its first two bytes, the component's family; under tag 1 by
-  three, jig's child and family (`01 01 0a`, the tasks child's
-  milestones); under tag 2 by two, the application's first key tag
+  three, jig's child and family (`01 01 16`, the tasks child's
+  attempts); under tag 2 by two, the application's first key tag
   (`02 0c`); any other first byte by one.
 - **Names,** `OWNER.FAMILY`, ASCII lower-case letters, digits, `.` and
-  `-`, at most 48 bytes: `component.format`, `tasks.milestones`,
+  `-`, at most 48 bytes: `component.format`, `tasks.attempts`,
   `core.terminals`, `temper.changes`. The component's and jig's come
   from a table beside the component's key encoders (`keys`), one name per
   tag they write; the application's from a table it hands the component

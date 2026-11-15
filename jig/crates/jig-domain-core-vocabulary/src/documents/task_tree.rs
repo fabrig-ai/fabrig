@@ -135,7 +135,7 @@ pub enum EscalationState {
 
 /// A hold's reason, revision and prior lifecycle, with its escalation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct HoldLine {
+pub struct HoldPhaseLine {
     pub placed: Option<PlacedLine>,
     /// Connector-supplied account retained with the hold, never reconstructed by a client.
     pub words: Option<Text>,
@@ -272,7 +272,7 @@ pub struct Task {
     pub result: Option<Ending>,
     pub budget: BudgetLine,
     pub authority: AuthorityLine,
-    pub hold: Option<HoldLine>,
+    pub hold: Option<HoldPhaseLine>,
     pub proposals: List<ProposalRef>,
     /// At least one list omitted rows; individual text values state their cuts.
     pub cut: bool,
@@ -524,9 +524,9 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
         | tasks::Hold::Procedure => None,
     }
 }
-pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldLine>, Missing> {
+pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldPhaseLine>, Missing> {
     match &row.phase {
-        tasks::Phase::Held { was, why, source } => Ok(Some(HoldLine {
+        tasks::Phase::Held { was, why, source } => Ok(Some(HoldPhaseLine {
             placed: None,
             words: match source.as_deref() {
                 Some(tasks::HoldSource::Preparation { words }) => Some(super::small::text(words, tasks::REASON_BYTES)),

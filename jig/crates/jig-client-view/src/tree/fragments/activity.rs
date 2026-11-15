@@ -229,7 +229,7 @@ fn failure(b: &mut Builder, value: HoldFailure, words: &Words) {
     };
     caption(b, words, phrase);
 }
-fn end(b: &mut Builder, value: RunEnd, words: &Words) {
+pub(super) fn end(b: &mut Builder, value: RunEnd, words: &Words) {
     match value {
         RunEnd::Parked => caption(b, words, P::Parked),
         RunEnd::Finished => caption(b, words, P::Finished),

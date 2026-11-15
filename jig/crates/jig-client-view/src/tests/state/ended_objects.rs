@@ -182,7 +182,7 @@ fn ended_retained_proposal_uses_bare_whole_fragment_and_keeps_pending_state_with
 #[test]
 fn ended_escalation_keeps_rejection_revision_sender_and_optional_retained_hold_independently() {
     let mut goldens = Goldens::new("state/ended_objects/ended_escalation_keeps");
-    let value = envelope(
+    let mut value = envelope(
         ObjectKey::Escalation(8),
         EndedValue::Escalation {
             task: Box::new(task()),
@@ -198,6 +198,18 @@ fn ended_escalation_keeps_rejection_revision_sender_and_optional_retained_hold_i
             hold: None,
         },
     );
+    let (tree, _) = build(&value, words());
+    goldens.check(&tree);
+    let EndedValue::Escalation { hold, .. } = &mut value.value else { panic!("escalation") };
+    *hold = Some(HoldLine {
+        task: 8,
+        position: 31,
+        at: Wall::from_nanos(37),
+        before: PriorPhase::Waiting,
+        why: HoldCategory::Deadline,
+        source: None,
+        ending: None,
+    });
     let (tree, _) = build(&value, words());
     goldens.check(&tree);
 }

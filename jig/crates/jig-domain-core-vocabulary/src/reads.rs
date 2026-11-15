@@ -37,7 +37,11 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         }
         Scope::Reply { task, activity } => key == &Key::Tasks(TaskKey::Activity { task: *task, position: *activity }),
         Scope::History { task, subtree: false } => match key {
-            Key::Tasks(TaskKey::History { task: owner, .. } | TaskKey::Milestone { task: owner, .. }) => owner == task,
+            Key::Tasks(
+                TaskKey::History { task: owner, .. }
+                | TaskKey::Attempt { task: owner, .. }
+                | TaskKey::Hold { task: owner, .. },
+            ) => owner == task,
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
         Scope::Proposal { proposer: Proposer::Party(owner), proposal } => {

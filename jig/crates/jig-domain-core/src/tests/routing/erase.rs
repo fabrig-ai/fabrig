@@ -121,10 +121,19 @@ fn an_ended_task_is_erased_whole_and_its_record_last() {
             at: Wall::EPOCH,
             amendment: None,
         })),
-        Record::Tasks(tasks::Stored::Milestone(tasks::Milestone {
+        Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            task: 9,
+            attempt: 1,
+            claimed: None,
+            started: None,
+            ended: Some(Wall::EPOCH),
+            end: None,
+            phases: None,
+        })),
+        Record::Tasks(tasks::Stored::Hold(tasks::HoldRow {
             task: 9,
             position: 1,
-            phase: record.phase.clone(),
+            held: tasks::Held { was: tasks::Was::Waiting, why: tasks::Hold::Stopped, source: None },
             at: Wall::EPOCH,
         })),
         Record::Core(CoreRecord::Terminal(TerminalRecord {
@@ -135,7 +144,7 @@ fn an_ended_task_is_erased_whole_and_its_record_last() {
         })),
         Record::People(people::Stored::EndedRead { task: 9, party: 1, through: 2 }),
     ]);
-    let mut keys = List::with_capacity(4);
+    let mut keys = List::with_capacity(5);
     for value in values.as_ref() {
         keys.push(value.key()).unwrap();
     }

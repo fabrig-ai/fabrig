@@ -2,6 +2,7 @@
 pub mod activity;
 pub mod carried;
 pub mod index;
+mod lifecycle;
 mod models;
 pub mod phase;
 mod pieces;
@@ -305,6 +306,8 @@ pub fn encode(
             wire::PoolSlotsParts { number: *number, pool: value::name(pool, limits)?, slots: *slots },
         )?),
         domain::Stored::History(row) => wire::Value::History(Box::new(proposals::history(row, limits, Some(&moved))?)),
+        domain::Stored::Attempt(row) => wire::Value::Attempt(lifecycle::attempt(row, limits)?),
+        domain::Stored::Hold(row) => wire::Value::Hold(lifecycle::hold(row, limits)?),
         domain::Stored::Milestone(row) => wire::Value::Milestone(proposals::milestone(row, limits)?),
         domain::Stored::PersonProposal(row) => {
             wire::Value::PersonProposal(proposals::person_proposal(row, limits, Some(&moved))?)
@@ -356,6 +359,8 @@ pub fn decode(
         wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row)?),
         wire::Value::Ledger(value) => domain::Stored::Ledger(value::read_funding(value)),
         wire::Value::History(value) => domain::Stored::History(proposals::read_history(*value, limits)?),
+        wire::Value::Attempt(row) => domain::Stored::Attempt(lifecycle::read_attempt(row)?),
+        wire::Value::Hold(row) => domain::Stored::Hold(lifecycle::read_hold(row, limits)?),
         wire::Value::Milestone(value) => domain::Stored::Milestone(proposals::read_milestone(value, limits)?),
         wire::Value::PersonProposal(value) => {
             domain::Stored::PersonProposal(Box::new(proposals::read_person_proposal(value, limits)?))

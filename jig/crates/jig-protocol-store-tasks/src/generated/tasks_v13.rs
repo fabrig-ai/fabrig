@@ -1183,6 +1183,16 @@ pub enum Path {
     MilestoneAt,
     /// Bytes after `Milestone`.
     MilestoneTail,
+    /// The `task` field of `HoldRow`.
+    HoldRowTask,
+    /// The `position` field of `HoldRow`.
+    HoldRowPosition,
+    /// The `held` field of `HoldRow`.
+    HoldRowHeld,
+    /// The `at` field of `HoldRow`.
+    HoldRowAt,
+    /// Bytes after `HoldRow`.
+    HoldRowTail,
     /// The `by` field of `Grace`.
     GraceBy,
     /// The `until` field of `Grace`.
@@ -1363,6 +1373,34 @@ pub enum Path {
     FailedEndTail,
     /// The tag of `EndKind`.
     EndKindTag,
+    /// The `task` field of `AttemptRow`.
+    AttemptRowTask,
+    /// The `attempt` field of `AttemptRow`.
+    AttemptRowAttempt,
+    /// The `claimed` field of `AttemptRow`.
+    AttemptRowClaimed,
+    /// The `started` field of `AttemptRow`.
+    AttemptRowStarted,
+    /// The `ended` field of `AttemptRow`.
+    AttemptRowEnded,
+    /// The `end` field of `AttemptRow`.
+    AttemptRowEnd,
+    /// The `phases` field of `AttemptRow`.
+    AttemptRowPhases,
+    /// Bytes after `AttemptRow`.
+    AttemptRowTail,
+    /// The `attempt` field of `OpenAttempt`.
+    OpenAttemptAttempt,
+    /// The `claimed` field of `OpenAttempt`.
+    OpenAttemptClaimed,
+    /// The `started` field of `OpenAttempt`.
+    OpenAttemptStarted,
+    /// The `from` field of `OpenAttempt`.
+    OpenAttemptFrom,
+    /// The `end` field of `OpenAttempt`.
+    OpenAttemptEnd,
+    /// Bytes after `OpenAttempt`.
+    OpenAttemptTail,
     /// The `message` field of `ActivityWords`.
     ActivityWordsMessage,
     /// The `by` field of `ActivityWords`.
@@ -1763,6 +1801,8 @@ pub enum Path {
     TaskRunRunSpent,
     /// The `run_reserved` field of `TaskRun`.
     TaskRunRunReserved,
+    /// The `open_attempt` field of `TaskRun`.
+    TaskRunOpenAttempt,
     /// Bytes after `TaskRun`.
     TaskRunTail,
     /// The `task` field of `Added`.
@@ -8427,6 +8467,63 @@ impl Milestone {
     }
 }
 
+/// Movable fields of `HoldRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldRowParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `position` field.
+    pub position: u64,
+    /// The `held` field.
+    pub held: Held,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `HoldRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldRow {
+    task: u64,
+    position: u64,
+    held: Held,
+    at: u64,
+}
+
+impl HoldRow {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: HoldRowParts) -> Result<Self, Problem> {
+        let HoldRowParts { task, position, held, at } = parts;
+        let value = Self { task, position, held, at };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `position` field.
+    #[must_use]
+    pub fn position(&self) -> u64 { self.position }
+
+    /// Reads the `held` field.
+    #[must_use]
+    pub fn held(&self) -> &Held { &self.held }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HoldRowParts { HoldRowParts { task: self.task, position: self.position, held: self.held, at: self.at } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.held.check(limits)?;
+        Ok(())
+    }
+}
+
 /// Movable fields of `Grace`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GraceParts {
@@ -9705,6 +9802,138 @@ impl EndKind {
     pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
         Ok(value)
     }
+
+}
+
+/// Movable fields of `AttemptRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AttemptRowParts {
+    /// The `task` field.
+    pub task: u64,
+    /// The `attempt` field.
+    pub attempt: u64,
+    /// The `claimed` field.
+    pub claimed: Option<u64>,
+    /// The `started` field.
+    pub started: Option<u64>,
+    /// The `ended` field.
+    pub ended: Option<u64>,
+    /// The `end` field.
+    pub end: Option<EndKind>,
+    /// The `phases` field.
+    pub phases: Option<u32>,
+}
+
+/// `AttemptRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AttemptRow {
+    task: u64,
+    attempt: u64,
+    claimed: Option<u64>,
+    started: Option<u64>,
+    ended: Option<u64>,
+    end: Option<EndKind>,
+    phases: Option<u32>,
+}
+
+impl AttemptRow {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AttemptRowParts) -> Result<Self, Problem> {
+        let AttemptRowParts { task, attempt, claimed, started, ended, end, phases } = parts;
+        let value = Self { task, attempt, claimed, started, ended, end, phases };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `attempt` field.
+    #[must_use]
+    pub fn attempt(&self) -> u64 { self.attempt }
+
+    /// Reads the `claimed` field.
+    #[must_use]
+    pub fn claimed(&self) -> &Option<u64> { &self.claimed }
+
+    /// Reads the `started` field.
+    #[must_use]
+    pub fn started(&self) -> &Option<u64> { &self.started }
+
+    /// Reads the `ended` field.
+    #[must_use]
+    pub fn ended(&self) -> &Option<u64> { &self.ended }
+
+    /// Reads the `end` field.
+    #[must_use]
+    pub fn end(&self) -> &Option<EndKind> { &self.end }
+
+    /// Reads the `phases` field.
+    #[must_use]
+    pub fn phases(&self) -> &Option<u32> { &self.phases }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AttemptRowParts { AttemptRowParts { task: self.task, attempt: self.attempt, claimed: self.claimed, started: self.started, ended: self.ended, end: self.end, phases: self.phases } }
+
+}
+
+/// Movable fields of `OpenAttempt`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OpenAttemptParts {
+    /// The `attempt` field.
+    pub attempt: u64,
+    /// The `claimed` field.
+    pub claimed: Option<u64>,
+    /// The `started` field.
+    pub started: Option<u64>,
+    /// The `from` field.
+    pub from: u64,
+    /// The `end` field.
+    pub end: Option<EndKind>,
+}
+
+/// `OpenAttempt` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OpenAttempt {
+    attempt: u64,
+    claimed: Option<u64>,
+    started: Option<u64>,
+    from: u64,
+    end: Option<EndKind>,
+}
+
+impl OpenAttempt {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: OpenAttemptParts) -> Result<Self, Problem> {
+        let OpenAttemptParts { attempt, claimed, started, from, end } = parts;
+        let value = Self { attempt, claimed, started, from, end };
+        Ok(value)
+    }
+
+    /// Reads the `attempt` field.
+    #[must_use]
+    pub fn attempt(&self) -> u64 { self.attempt }
+
+    /// Reads the `claimed` field.
+    #[must_use]
+    pub fn claimed(&self) -> &Option<u64> { &self.claimed }
+
+    /// Reads the `started` field.
+    #[must_use]
+    pub fn started(&self) -> &Option<u64> { &self.started }
+
+    /// Reads the `from` field.
+    #[must_use]
+    pub fn from(&self) -> u64 { self.from }
+
+    /// Reads the `end` field.
+    #[must_use]
+    pub fn end(&self) -> &Option<EndKind> { &self.end }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> OpenAttemptParts { OpenAttemptParts { attempt: self.attempt, claimed: self.claimed, started: self.started, from: self.from, end: self.end } }
 
 }
 
@@ -12008,6 +12237,8 @@ pub struct TaskRunParts {
     pub run_spent: u64,
     /// The `run_reserved` field.
     pub run_reserved: u64,
+    /// The `open_attempt` field.
+    pub open_attempt: Option<OpenAttempt>,
 }
 
 /// `TaskRun` in this codec family.
@@ -12031,13 +12262,14 @@ pub struct TaskRun {
     requester: Party,
     run_spent: u64,
     run_reserved: u64,
+    open_attempt: Option<OpenAttempt>,
 }
 
 impl TaskRun {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: TaskRunParts) -> Result<Self, Problem> {
-        let TaskRunParts { milestone, activity, due_reason, reasons, offered, narrowing, llm_changed, result_position, last_reply, replies, escalation, proposal, result_proposal, number, project, requester, run_spent, run_reserved } = parts;
-        let value = Self { milestone, activity, due_reason, reasons, offered, narrowing, llm_changed, result_position, last_reply, replies, escalation, proposal, result_proposal, number, project, requester, run_spent, run_reserved };
+        let TaskRunParts { milestone, activity, due_reason, reasons, offered, narrowing, llm_changed, result_position, last_reply, replies, escalation, proposal, result_proposal, number, project, requester, run_spent, run_reserved, open_attempt } = parts;
+        let value = Self { milestone, activity, due_reason, reasons, offered, narrowing, llm_changed, result_position, last_reply, replies, escalation, proposal, result_proposal, number, project, requester, run_spent, run_reserved, open_attempt };
         value.check(limits)?;
         Ok(value)
     }
@@ -12114,9 +12346,13 @@ impl TaskRun {
     #[must_use]
     pub fn run_reserved(&self) -> u64 { self.run_reserved }
 
+    /// Reads the `open_attempt` field.
+    #[must_use]
+    pub fn open_attempt(&self) -> &Option<OpenAttempt> { &self.open_attempt }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> TaskRunParts { TaskRunParts { milestone: self.milestone, activity: self.activity, due_reason: self.due_reason, reasons: self.reasons, offered: self.offered, narrowing: self.narrowing, llm_changed: self.llm_changed, result_position: self.result_position, last_reply: self.last_reply, replies: self.replies, escalation: self.escalation, proposal: self.proposal, result_proposal: self.result_proposal, number: self.number, project: self.project, requester: self.requester, run_spent: self.run_spent, run_reserved: self.run_reserved } }
+    pub fn into_parts(self) -> TaskRunParts { TaskRunParts { milestone: self.milestone, activity: self.activity, due_reason: self.due_reason, reasons: self.reasons, offered: self.offered, narrowing: self.narrowing, llm_changed: self.llm_changed, result_position: self.result_position, last_reply: self.last_reply, replies: self.replies, escalation: self.escalation, proposal: self.proposal, result_proposal: self.result_proposal, number: self.number, project: self.project, requester: self.requester, run_spent: self.run_spent, run_reserved: self.run_reserved, open_attempt: self.open_attempt } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.replies.capacity() > limits.task_run_replies.min(CEILINGS.task_run_replies) { return Err(Problem { path: Path::TaskRunReplies, reason: skein_codec::Reason::Bound }); }
@@ -13790,6 +14026,10 @@ pub enum Value {
     LiveTalk(TaskRecord),
     /// `ended_talk` carrying `TaskRecord`.
     EndedTalk(TaskRecord),
+    /// `attempt` carrying `AttemptRow`.
+    Attempt(AttemptRow),
+    /// `hold` carrying `HoldRow`.
+    Hold(HoldRow),
     /// `summary` carrying `Box<TaskSummary>`.
     Summary(Box<TaskSummary>),
     /// `retention` carrying `RetentionRow`.
@@ -13814,8 +14054,9 @@ impl Value {
             Self::Live(record) | Self::Ended(record) => BeforeTalk::check(record, limits),
             Self::PlacedHold(record) => PlacedHold::check(record, limits),
             Self::LiveTalk(record) | Self::EndedTalk(record) => TaskRecord::check(record, limits),
+            Self::Hold(record) => HoldRow::check(record, limits),
             Self::Summary(record) => TaskSummary::check(record, limits),
-            Self::Ledger(_) | Self::ClosedLedger(_) | Self::Stub(_) | Self::Update(_) | Self::Result(_) | Self::EndedDelegate(_) | Self::Delegate(_) | Self::EndedByParty(_) | Self::EndedByProject(_) | Self::Retention(_) => Ok(()),
+            Self::Ledger(_) | Self::ClosedLedger(_) | Self::Stub(_) | Self::Update(_) | Self::Result(_) | Self::EndedDelegate(_) | Self::Delegate(_) | Self::EndedByParty(_) | Self::EndedByProject(_) | Self::Attempt(_) | Self::Retention(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -21997,6 +22238,48 @@ impl Milestone {
     }
 }
 
+impl HoldRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_held = &self.held;
+        size = size.checked_add(field_held.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_position = &self.position;
+        writer.put(&field_position.to_be_bytes())?;
+        let field_held = &self.held;
+        field_held.encode(writer)?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HoldRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::HoldRowTask, reason: skein_codec::Reason::Short })?;
+        let decoded_position = reader.u64().ok_or(Problem { path: Path::HoldRowPosition, reason: skein_codec::Reason::Short })?;
+        let decoded_held = Held::decode_from(limits, reader)?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::HoldRowAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { task: decoded_task, position: decoded_position, held: decoded_held, at: decoded_at })
+    }
+}
+
 impl Grace {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -23307,6 +23590,184 @@ impl EndKind {
             _ => return Err(Problem { path: Path::EndKindTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
+    }
+}
+
+impl AttemptRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_claimed = &self.claimed;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_claimed.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_started = &self.started;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_started.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_ended = &self.ended;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_ended.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_end = &self.end;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_end {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_phases = &self.phases;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_phases.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_attempt = &self.attempt;
+        writer.put(&field_attempt.to_be_bytes())?;
+        let field_claimed = &self.claimed;
+        match field_claimed {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_started = &self.started;
+        match field_started {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_ended = &self.ended;
+        match field_ended {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_end = &self.end;
+        match field_end {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_phases = &self.phases;
+        match field_phases {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AttemptRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::AttemptRowTask, reason: skein_codec::Reason::Short })?;
+        let decoded_attempt = reader.u64().ok_or(Problem { path: Path::AttemptRowAttempt, reason: skein_codec::Reason::Short })?;
+        let decoded_claimed = match reader.u8().ok_or(Problem { path: Path::AttemptRowClaimed, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::AttemptRowClaimed, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::AttemptRowClaimed, reason: skein_codec::Reason::Tag }) };
+        let decoded_started = match reader.u8().ok_or(Problem { path: Path::AttemptRowStarted, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::AttemptRowStarted, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::AttemptRowStarted, reason: skein_codec::Reason::Tag }) };
+        let decoded_ended = match reader.u8().ok_or(Problem { path: Path::AttemptRowEnded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::AttemptRowEnded, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::AttemptRowEnded, reason: skein_codec::Reason::Tag }) };
+        let decoded_end = match reader.u8().ok_or(Problem { path: Path::AttemptRowEnd, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(EndKind::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::AttemptRowEnd, reason: skein_codec::Reason::Tag }) };
+        let decoded_phases = match reader.u8().ok_or(Problem { path: Path::AttemptRowPhases, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::AttemptRowPhases, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::AttemptRowPhases, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { task: decoded_task, attempt: decoded_attempt, claimed: decoded_claimed, started: decoded_started, ended: decoded_ended, end: decoded_end, phases: decoded_phases })
+    }
+}
+
+impl OpenAttempt {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_claimed = &self.claimed;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_claimed.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_started = &self.started;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_started.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_end = &self.end;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_end {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_attempt = &self.attempt;
+        writer.put(&field_attempt.to_be_bytes())?;
+        let field_claimed = &self.claimed;
+        match field_claimed {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_started = &self.started;
+        match field_started {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_from = &self.from;
+        writer.put(&field_from.to_be_bytes())?;
+        let field_end = &self.end;
+        match field_end {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::OpenAttemptTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_attempt = reader.u64().ok_or(Problem { path: Path::OpenAttemptAttempt, reason: skein_codec::Reason::Short })?;
+        let decoded_claimed = match reader.u8().ok_or(Problem { path: Path::OpenAttemptClaimed, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::OpenAttemptClaimed, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::OpenAttemptClaimed, reason: skein_codec::Reason::Tag }) };
+        let decoded_started = match reader.u8().ok_or(Problem { path: Path::OpenAttemptStarted, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::OpenAttemptStarted, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::OpenAttemptStarted, reason: skein_codec::Reason::Tag }) };
+        let decoded_from = reader.u64().ok_or(Problem { path: Path::OpenAttemptFrom, reason: skein_codec::Reason::Short })?;
+        let decoded_end = match reader.u8().ok_or(Problem { path: Path::OpenAttemptEnd, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(EndKind::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::OpenAttemptEnd, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { attempt: decoded_attempt, claimed: decoded_claimed, started: decoded_started, from: decoded_from, end: decoded_end })
     }
 }
 
@@ -25519,6 +25980,11 @@ impl TaskRun {
         size = size.checked_add(field_requester.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_open_attempt = &self.open_attempt;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_open_attempt {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -25569,6 +26035,14 @@ impl TaskRun {
         writer.put(&field_run_spent.to_be_bytes())?;
         let field_run_reserved = &self.run_reserved;
         writer.put(&field_run_reserved.to_be_bytes())?;
+        let field_open_attempt = &self.open_attempt;
+        match field_open_attempt {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -25598,7 +26072,8 @@ impl TaskRun {
         let decoded_requester = Party::decode_from(limits, reader)?;
         let decoded_run_spent = reader.u64().ok_or(Problem { path: Path::TaskRunRunSpent, reason: skein_codec::Reason::Short })?;
         let decoded_run_reserved = reader.u64().ok_or(Problem { path: Path::TaskRunRunReserved, reason: skein_codec::Reason::Short })?;
-        Ok(Self { milestone: decoded_milestone, activity: decoded_activity, due_reason: decoded_due_reason, reasons: decoded_reasons, offered: decoded_offered, narrowing: decoded_narrowing, llm_changed: decoded_llm_changed, result_position: decoded_result_position, last_reply: decoded_last_reply, replies: decoded_replies, escalation: decoded_escalation, proposal: decoded_proposal, result_proposal: decoded_result_proposal, number: decoded_number, project: decoded_project, requester: decoded_requester, run_spent: decoded_run_spent, run_reserved: decoded_run_reserved })
+        let decoded_open_attempt = match reader.u8().ok_or(Problem { path: Path::TaskRunOpenAttempt, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(OpenAttempt::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TaskRunOpenAttempt, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { milestone: decoded_milestone, activity: decoded_activity, due_reason: decoded_due_reason, reasons: decoded_reasons, offered: decoded_offered, narrowing: decoded_narrowing, llm_changed: decoded_llm_changed, result_position: decoded_result_position, last_reply: decoded_last_reply, replies: decoded_replies, escalation: decoded_escalation, proposal: decoded_proposal, result_proposal: decoded_result_proposal, number: decoded_number, project: decoded_project, requester: decoded_requester, run_spent: decoded_run_spent, run_reserved: decoded_run_reserved, open_attempt: decoded_open_attempt })
     }
 }
 
@@ -27248,6 +27723,8 @@ impl Value {
             Self::EndedByProject(record) => 1_u32.checked_add(EndedByProject::measure(record)).expect("schema ceilings fit u32"),
             Self::PlacedHold(record) => 1_u32.checked_add(PlacedHold::measure(record)).expect("schema ceilings fit u32"),
             Self::LiveTalk(record) | Self::EndedTalk(record) => 1_u32.checked_add(TaskRecord::measure(record)).expect("schema ceilings fit u32"),
+            Self::Attempt(record) => 1_u32.checked_add(AttemptRow::measure(record)).expect("schema ceilings fit u32"),
+            Self::Hold(record) => 1_u32.checked_add(HoldRow::measure(record)).expect("schema ceilings fit u32"),
             Self::Summary(record) => 1_u32.checked_add(TaskSummary::measure(record)).expect("schema ceilings fit u32"),
             Self::Retention(record) => 1_u32.checked_add(RetentionRow::measure(record)).expect("schema ceilings fit u32"),
         }
@@ -27277,8 +27754,10 @@ impl Value {
             Self::PlacedHold(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
             Self::LiveTalk(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
             Self::EndedTalk(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
-            Self::Summary(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
-            Self::Retention(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::Attempt(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
+            Self::Hold(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::Summary(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
+            Self::Retention(record) => { writer.put(&[24_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -27314,8 +27793,10 @@ impl Value {
             18 => Self::PlacedHold(PlacedHold::decode_from(limits, reader)?),
             19 => Self::LiveTalk(TaskRecord::decode_from(limits, reader)?),
             20 => Self::EndedTalk(TaskRecord::decode_from(limits, reader)?),
-            21 => Self::Summary(Box::new(TaskSummary::decode_from(limits, reader)?)),
-            22 => Self::Retention(RetentionRow::decode_from(limits, reader)?),
+            21 => Self::Attempt(AttemptRow::decode_from(limits, reader)?),
+            22 => Self::Hold(HoldRow::decode_from(limits, reader)?),
+            23 => Self::Summary(Box::new(TaskSummary::decode_from(limits, reader)?)),
+            24 => Self::Retention(RetentionRow::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -33744,6 +34225,36 @@ impl Milestone {
     }
 }
 
+impl HoldRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(Held::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Held::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Grace {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -34723,6 +35234,72 @@ impl EndKind {
         let mut biggest = 0_u64;
         biggest = biggest.max(FailedEnd::decoded_bound_within(limits)?);
         biggest.checked_add(0)
+    }
+}
+
+impl AttemptRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(EndKind::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(EndKind::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl OpenAttempt {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(EndKind::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(EndKind::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
     }
 }
 
@@ -36301,6 +36878,7 @@ impl TaskRun {
         size = size.checked_add(1_u64)?.checked_add(8_u64)?;
         size = size.checked_add(4_u64)?.checked_add(Party::encoded_bound_within(limits)?)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(OpenAttempt::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -36322,6 +36900,7 @@ impl TaskRun {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(Party::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(OpenAttempt::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -37248,7 +37827,8 @@ impl Value {
         biggest = biggest.max(Edge::encoded_bound_within(limits)?).max(Edge::encoded_bound_within(limits)?);
         biggest = biggest.max(EndedByParty::encoded_bound_within(limits)?).max(EndedByProject::encoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::encoded_bound_within(limits)?).max(TaskRecord::encoded_bound_within(limits)?);
-        biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?).max(TaskSummary::encoded_bound_within(limits)?);
+        biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?).max(AttemptRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(HoldRow::encoded_bound_within(limits)?).max(TaskSummary::encoded_bound_within(limits)?);
         biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
@@ -37272,7 +37852,8 @@ impl Value {
         biggest = biggest.max(Edge::decoded_bound_within(limits)?).max(Edge::decoded_bound_within(limits)?);
         biggest = biggest.max(EndedByParty::decoded_bound_within(limits)?).max(EndedByProject::decoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::decoded_bound_within(limits)?).max(TaskRecord::decoded_bound_within(limits)?);
-        biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?).max(TaskSummary::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<TaskSummary>()).ok()?)?);
+        biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?).max(AttemptRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(HoldRow::decoded_bound_within(limits)?).max(TaskSummary::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<TaskSummary>()).ok()?)?);
         biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
@@ -39107,6 +39688,7 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonAction::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonProposal::encoded_bound_within(limits)?);
     biggest = biggest.max(Milestone::encoded_bound_within(limits)?);
+    biggest = biggest.max(HoldRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Grace::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRevision::encoded_bound_within(limits)?);
     biggest = biggest.max(Revisions::encoded_bound_within(limits)?);
@@ -39138,13 +39720,15 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(MetMessage::encoded_bound_within(limits)?);
     biggest = biggest.max(MessageKind::encoded_bound_within(limits)?);
     biggest = biggest.max(Word::encoded_bound_within(limits)?);
-    biggest = biggest.max(InvalidResult::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(InvalidResult::encoded_bound_within(limits)?);
     biggest = biggest.max(FailedEnd::encoded_bound_within(limits)?);
     biggest = biggest.max(EndKind::encoded_bound_within(limits)?);
+    biggest = biggest.max(AttemptRow::encoded_bound_within(limits)?);
+    biggest = biggest.max(OpenAttempt::encoded_bound_within(limits)?);
     biggest = biggest.max(ActivityWords::encoded_bound_within(limits)?);
     biggest = biggest.max(HeardMessage::encoded_bound_within(limits)?);
     biggest = biggest.max(NotifiedMessage::encoded_bound_within(limits)?);
@@ -39230,13 +39814,13 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Value::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelName::encoded_bound_within(limits)?);
-    biggest = biggest.max(Row::encoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionBatch::encoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionProposal::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Row::encoded_bound_within(limits)?);
+    biggest = biggest.max(CapacityActionBatch::encoded_bound_within(limits)?);
+    biggest = biggest.max(CapacityActionProposal::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionPersonProposal::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionMessage::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionSource::encoded_bound_within(limits)?);
@@ -39459,6 +40043,7 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonAction::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonProposal::decoded_bound_within(limits)?);
     biggest = biggest.max(Milestone::decoded_bound_within(limits)?);
+    biggest = biggest.max(HoldRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Grace::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRevision::decoded_bound_within(limits)?);
     biggest = biggest.max(Revisions::decoded_bound_within(limits)?);
@@ -39490,13 +40075,15 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(MetMessage::decoded_bound_within(limits)?);
     biggest = biggest.max(MessageKind::decoded_bound_within(limits)?);
     biggest = biggest.max(Word::decoded_bound_within(limits)?);
-    biggest = biggest.max(InvalidResult::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(InvalidResult::decoded_bound_within(limits)?);
     biggest = biggest.max(FailedEnd::decoded_bound_within(limits)?);
     biggest = biggest.max(EndKind::decoded_bound_within(limits)?);
+    biggest = biggest.max(AttemptRow::decoded_bound_within(limits)?);
+    biggest = biggest.max(OpenAttempt::decoded_bound_within(limits)?);
     biggest = biggest.max(ActivityWords::decoded_bound_within(limits)?);
     biggest = biggest.max(HeardMessage::decoded_bound_within(limits)?);
     biggest = biggest.max(NotifiedMessage::decoded_bound_within(limits)?);
@@ -39582,13 +40169,13 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Value::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelName::decoded_bound_within(limits)?);
-    biggest = biggest.max(Row::decoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionBatch::decoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionProposal::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Row::decoded_bound_within(limits)?);
+    biggest = biggest.max(CapacityActionBatch::decoded_bound_within(limits)?);
+    biggest = biggest.max(CapacityActionProposal::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionPersonProposal::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionMessage::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionSource::decoded_bound_within(limits)?);

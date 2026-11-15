@@ -24,6 +24,35 @@ fn an_opening_key_is_the_escaped_worker_name_after_wires() {
     }
 }
 
+#[test]
+fn attempt_and_hold_keys_keep_their_tags_and_big_endian_order() {
+    use jig_domain_tasks::Key as T;
+    let keys = [
+        T::Attempt { task: 1, attempt: 255 },
+        T::Attempt { task: 1, attempt: 256 },
+        T::Hold { task: 1, position: 2 },
+        T::Hold { task: 2, position: 1 },
+    ];
+    let expected: [&[u8]; 4] = [
+        &[1, 1, 22, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 255],
+        &[1, 1, 22, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+        &[1, 1, 23, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2],
+        &[1, 1, 23, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+    ];
+    let mut previous = None;
+    for (key, expected) in keys.into_iter().zip(expected) {
+        let key = Key::Tasks(key);
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
+        assert_eq!(&*bytes, expected);
+        assert_eq!(keys::decode(expected), Some(key.clone()));
+        if let Some((old, old_bytes)) = previous {
+            assert!(old < key);
+            assert!(old_bytes < bytes);
+        }
+        previous = Some((key, bytes));
+    }
+}
+
 fn samples() -> core::ops::Range<u32> {
     0..500
 }

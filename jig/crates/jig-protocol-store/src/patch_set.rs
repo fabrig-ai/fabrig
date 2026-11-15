@@ -16,6 +16,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
                 ],
             }),
         },
+        Job { name: "milestones", keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }], converts: None },
         Job { name: "retention-rows", keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }], converts: None },
         Job {
             name: "retention-proposals",
@@ -237,16 +238,28 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 number: 18,
                 root: "Row",
                 variant: Some("placed_hold"),
-                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 1, 30] }],
+                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 1, 22] }],
             },
             ValueType {
                 number: 19,
+                root: "Row",
+                variant: Some("attempt"),
+                keys: &[KeyRange { from: &[1, 1, 22], to: &[1, 1, 23] }],
+            },
+            ValueType {
+                number: 20,
+                root: "Row",
+                variant: Some("hold"),
+                keys: &[KeyRange { from: &[1, 1, 23], to: &[1, 1, 30] }],
+            },
+            ValueType {
+                number: 21,
                 root: "Row",
                 variant: Some("summary"),
                 keys: &[KeyRange { from: &[1, 1, 30], to: &[1, 1, 31] }],
             },
             ValueType {
-                number: 20,
+                number: 22,
                 root: "Row",
                 variant: Some("retention"),
                 keys: &[KeyRange { from: &[1, 1, 31], to: &[1, 2] }],

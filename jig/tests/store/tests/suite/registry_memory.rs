@@ -1,5 +1,5 @@
 //! Real registered sets at open (protocol/store/layouts.md, 7).
-use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, Write};
+use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, ValueType, Write};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 use skein_heap::Meter;
@@ -20,6 +20,25 @@ const SETS: PatchSets = PatchSets {
     ],
 };
 
+fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
+    let text = family.texts.last().copied().unwrap_or(family.current);
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
+    let mut kept: Vec<ValueType> = Vec::new();
+    for ty in family.types {
+        if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some() {
+            kept.push(*ty);
+        } else {
+            let previous = kept.last_mut().expect("new types append after kept types");
+            let mut ranges = previous.keys.to_vec();
+            let last = ranges.last_mut().expect("kept type's range");
+            assert_eq!(last.to, ty.keys.first().expect("new type's first range").from);
+            last.to = ty.keys.last().expect("new type's last range").to;
+            previous.keys = Box::leak(ranges.into_boxed_slice());
+        }
+    }
+    Box::leak(kept.into_boxed_slice())
+}
+
 fn sets(kept: bool, registered: bool) -> PatchSets {
     let sets = SETS
         .sets
@@ -28,31 +47,16 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
             let families = set
                 .families
                 .iter()
-                .map(|family| {
-                    let current =
-                        if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current };
-                    let types = if !registered {
-                        &[][..]
+                .map(|family| KeptFamily {
+                    current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
+                    types: if !registered {
+                        &[]
                     } else if kept {
-                        // A kept binary declares only the value types its text held.
-                        let schema = skein_codec::schema::parse(current.as_bytes()).expect("kept schema");
-                        let mut types: Vec<jig_protocol_store::ValueType> = Vec::new();
-                        for ty in family.types {
-                            if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some() {
-                                types.push(*ty);
-                            } else {
-                                let previous = types.last_mut().expect("new types follow kept types");
-                                let mut ranges = previous.keys.to_vec();
-                                ranges.last_mut().expect("kept type's last range").to =
-                                    ty.keys.last().expect("added type's last range").to;
-                                previous.keys = Box::leak(ranges.into_boxed_slice());
-                            }
-                        }
-                        Box::leak(types.into_boxed_slice())
+                        kept_types(family)
                     } else {
                         family.types
-                    };
-                    KeptFamily { current, types, ..*family }
+                    },
+                    ..*family
                 })
                 .collect::<Vec<_>>();
             PatchSet {
