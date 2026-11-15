@@ -13,6 +13,7 @@ mod agent_reads;
 mod applications;
 mod budget;
 mod configuring;
+mod deleted_project;
 mod document_limits;
 mod drafts;
 mod escalation;

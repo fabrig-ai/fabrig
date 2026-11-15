@@ -326,3 +326,59 @@ pub(crate) fn stand_on_partner(domain: &mut Domain, section: Token, at_cutoff: b
     }
     readable
 }
+
+fn source_repository(d: &Domain, source: BriefSource, repository: skein_forge::api::Repository) -> bool {
+    match source {
+        BriefSource::Document => false,
+        BriefSource::Home { repository: owner, .. } => owner == repository,
+        BriefSource::Ci { item, .. }
+        | BriefSource::Reviews { item, .. }
+        | BriefSource::Request { item, .. }
+        | BriefSource::Pull { item, .. } => match d.change_for_brief(item.repository, item.number) {
+            Some(row) => row.repository == repository,
+            None => false,
+        },
+    }
+}
+pub(crate) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
+    let mut documents = skein_lib::List::with_capacity(d.brief_documents.len());
+    for (section, document) in &d.brief_documents {
+        let owned = match d.repositories.get(&repository) {
+            Some(row) => row.host == document.host && row.owner == document.owner && row.name == document.name,
+            None => false,
+        };
+        if owned {
+            documents.push(*section).expect("bounded documents");
+        }
+    }
+    let mut keys = skein_lib::List::with_capacity(d.brief_planned.len());
+    for (key, row) in &d.brief_planned {
+        if documents.as_slice().contains(key) || source_repository(d, row.source, repository) {
+            keys.push(*key).expect("bounded brief sections");
+        }
+    }
+    for key in keys.into_boxed() {
+        d.brief_planned.remove(&key);
+    }
+    let mut keys = skein_lib::List::with_capacity(d.brief_pending.len());
+    for (key, row) in &d.brief_pending {
+        if documents.as_slice().contains(key) || source_repository(d, row.source, repository) {
+            keys.push(*key).expect("bounded brief sections");
+        }
+    }
+    for key in keys.into_boxed() {
+        d.brief_pending.remove(&key);
+    }
+    let mut keys = skein_lib::List::with_capacity(d.brief_held.len());
+    for (key, row) in &d.brief_held {
+        if documents.as_slice().contains(key) || source_repository(d, row.source, repository) {
+            keys.push(*key).expect("bounded brief sections");
+        }
+    }
+    for key in keys.into_boxed() {
+        d.brief_held.remove(&key);
+    }
+    for section in documents.into_boxed() {
+        d.brief_documents.remove(&section);
+    }
+}

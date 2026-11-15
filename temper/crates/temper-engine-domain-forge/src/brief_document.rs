@@ -402,3 +402,19 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         crate::held::ready(domain, fetch.section, BriefRead::Failed(busy()), out);
     }
 }
+
+pub(crate) fn release_repository(d: &mut Domain, repository: Repository) {
+    let mut keys = skein_lib::List::with_capacity(d.document_fetches.len());
+    for (key, row) in &d.document_fetches {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded document_fetches");
+        }
+    }
+    for key in keys.into_boxed() {
+        let fetch = d.document_fetches.remove(&key).expect("collected document_fetches");
+        d.brief_pending.remove(&fetch.section);
+        d.brief_held.remove(&fetch.section);
+        d.brief_planned.remove(&fetch.section);
+        d.brief_documents.remove(&fetch.section);
+    }
+}

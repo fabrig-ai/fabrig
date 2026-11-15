@@ -422,6 +422,9 @@ fn tree_answer(
     answer: Result<api::Answer, api::Error>,
     out: &mut Queue<Request>,
 ) {
+    if !d.repositories.contains_key(&key.0) {
+        return;
+    }
     let mut walk = d.tier_ops.walks.remove(&key).expect("tree walk");
     if d.stopping {
         return;
@@ -1191,6 +1194,9 @@ pub(crate) fn answered(
 ) {
     let Some(read) = d.tier_ops.reads.remove(&owner) else { return };
     let key = read.tier;
+    if !d.repositories.contains_key(&key.0) {
+        return;
+    }
     if read.baseline {
         let Some(row) = d.tiers.get_mut(&key) else { return };
         if !d.stopping
@@ -1995,4 +2001,79 @@ pub(crate) fn closing(
     save(&row, out);
     d.tiers.insert(key.clone(), row).expect("replaces closing tier");
     start_due(d, env, key.0, out);
+}
+
+pub(crate) fn release_repository(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    repository: Repository,
+    groups: &mut Queue<Box<[crate::Key]>>,
+) {
+    let mut keys = List::with_capacity(d.tiers.len());
+    for (key, _row) in &d.tiers {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded tiers");
+        }
+    }
+    for key in keys.into_boxed() {
+        let row = d.tiers.remove(&key).expect("collected tiers");
+        let mut row = row;
+        drop_run(d, &mut row, &env.limits);
+        groups.push(Box::new([crate::Key::Tier { repository, tier: key.1 }]));
+    }
+    let mut keys = List::with_capacity(d.tier_ops.tip_keys.len());
+    for (key, _row) in &d.tier_ops.tip_keys {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded tier_ops.tip_keys");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.tier_ops.tip_keys.remove(&key).expect("collected tier_ops.tip_keys");
+    }
+    let mut keys = List::with_capacity(d.tier_ops.walks.len());
+    for (key, _row) in &d.tier_ops.walks {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded tier_ops.walks");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.tier_ops.walks.remove(&key).expect("collected tier_ops.walks");
+    }
+    let mut keys = List::with_capacity(d.tier_ops.follows.len());
+    for (key, _row) in &d.tier_ops.follows {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded tier_ops.follows");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.tier_ops.follows.remove(&key).expect("collected tier_ops.follows");
+    }
+    let mut keys = List::with_capacity(d.tier_ops.reds.len());
+    for (key, _row) in &d.tier_ops.reds {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded tier_ops.reds");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.tier_ops.reds.remove(&key).expect("collected tier_ops.reds");
+    }
+    let mut keys = List::with_capacity(d.tier_ops.reads.len());
+    for (key, row) in &d.tier_ops.reads {
+        if row.tier.0 == repository {
+            keys.push(*key).expect("bounded tier_ops.reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.tier_ops.reads.remove(&key).expect("collected tier_ops.reads");
+    }
+    // Tier tasks no longer have rows from which a due could be satisfied.
+    let mut due = List::with_capacity(d.tier_ops.due.len());
+    for (task, _) in &d.tier_ops.due {
+        if task_key(d, *task).is_none() {
+            due.push(*task).expect("bounded tier deadlines");
+        }
+    }
+    for task in due.into_boxed() {
+        d.tier_ops.due.remove(&task);
+    }
 }

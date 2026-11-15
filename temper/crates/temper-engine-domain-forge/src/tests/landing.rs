@@ -436,9 +436,16 @@ fn landing_gather_reads_each_branch_and_pull_once() {
         landing_shared_gather_row,
     );
 }
+#[expect(clippy::too_many_lines, reason = "one gather follows two members through their shared and separate resources")]
 fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
     use skein_forge::api::{Answer, Op, Read};
     let mut d = landing_fixture();
+    if other_repository {
+        let mut repository = adopted();
+        repository.provider.repository = 3;
+        repository.home = false;
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);

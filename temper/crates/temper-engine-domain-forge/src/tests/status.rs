@@ -295,10 +295,10 @@ fn erased_with_its_project() {
     assert_eq!(
         out.as_ref(),
         [
+            marked(),
             Request::Erase { key: Key::ProjectFacts { project: PROJECT } },
             Request::Erase { key: Key::Looked { party: PARTY, project: PROJECT } },
             Request::Erase { key: Key::Looked { party: OTHER_PARTY, project: PROJECT } },
-            marked(),
             Request::ProjectReleased { request: REQUEST },
         ]
     );

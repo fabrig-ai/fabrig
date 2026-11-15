@@ -320,6 +320,13 @@ program-login` on the welcome's "Sign in to Claude Code", and the page
 follows the login to its end (`client/tui/box.status.md`,
 `client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
 
+A deleted project's repositories are released whole: each, through the
+one helper every path erasing a repository takes, goes with every
+record that names it, its reads, watches and pending work retired and
+its writes paged so that a restart part-way starts and resumes, while a
+context another project adopts stays (`domain/forge/adoption.md`, 1;
+`protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -527,6 +534,7 @@ Drafts:
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
+- [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)

@@ -2,7 +2,7 @@
 use super::*;
 use crate::settings as setting;
 
-pub(super) fn record(number: u16) -> ForgeRecord {
+pub(crate) fn record(number: u16) -> ForgeRecord {
     ForgeRecord {
         person: None,
         git_program: None,

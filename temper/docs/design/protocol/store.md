@@ -279,6 +279,21 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   `Write::Erase(Key::Forge(key))`, which the routing encodes into jig's
   application writes, `Put { key, value }` and `Remove { key }`, in the
   same commit as jig's (jig's `protocol/store/README.md`, sections 3 and 5).
+- **A repository's release** (`../domain/forge/adoption.md`, 1, *A
+  repository released* and *A release in pages*) erases its family 2
+  row last, after every row that names it: families 1 and 3; 4, the
+  repository taken out of a row and a row left with none erased; 5 to
+  11, 9 being the merges its changes recorded; 13, 14, 15 (an adopted
+  outcome naming it), 21, 23 and 24 (under any project); 28, 29, 30 and
+  41; and 46 to 48, a change's red passes and two parts in one page. A
+  project's deletion erases the project's own rows of families 20, 24,
+  31, 34, 36 to 39, 41 and 42 with it, and its families 127 to 131 by
+  its history's sweep. Kept on purpose: families 16, 18, 25 to 27, 35,
+  43 and 45; a shared context's rows; and a kept project's history,
+  follows and settings.
+  Its writes go in pages of at most 512, the first holding every save,
+  and each leaves every row's links whole for the restart's check
+  (`../domain/root.md`, 8.1).
 - **A new variant** of `Stored` is a new family at the next byte, with
   `STORE_VERSION` as section 4 has it: from the baseline, a stored
   layout change moves its version and brings its patch (`baseline.md`, 7).

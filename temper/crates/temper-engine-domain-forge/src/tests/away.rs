@@ -530,10 +530,10 @@ fn both_are_erased_with_the_project() {
     assert_eq!(
         outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST }).as_ref(),
         [
-            Request::Erase { key: Key::Away { party: PARTY, project: PROJECT } },
             mark(AWAY_SUBJECT),
-            Request::Erase { key: Key::Decided { project: PROJECT, number: 1 } },
             mark(decided_subject(PROJECT)),
+            Request::Erase { key: Key::Away { party: PARTY, project: PROJECT } },
+            Request::Erase { key: Key::Decided { project: PROJECT, number: 1 } },
             Request::ProjectReleased { request: REQUEST }
         ]
     );
