@@ -53,22 +53,13 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         Some(pending) => pending.released,
         None => false,
     };
-    let heard = change::RelayHeard {
-        asked: asked.as_slice(),
-        answer,
-        ended: ended.as_slice(),
-        kept: !row.waiting_on.is_empty(),
-        released,
-    };
-    let deferred = answer.is_some() && messages.room() == 0 && !heard.kept;
-    let heard = change::RelayHeard { kept: heard.kept || deferred, ..heard };
-    let mut relayed = change::relay(
+    let heard = change::RelayHeard { asked: asked.as_slice(), answer, ended: ended.as_slice(), released };
+    let relayed = change::relay(
         &questions,
         &heard,
         &env.limits.forge.change_policy,
         usize::try_from(messages.room()).expect("bounded batch"),
     );
-    relayed.more |= deferred;
     for act in &relayed.acts {
         match act {
             change::RelayAct::Answer { asker, number, words } => {

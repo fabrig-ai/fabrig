@@ -15,7 +15,7 @@ const STEPS: u32 = 1000; // The goal-change world's bound for landing and hold r
 const QUESTION: &[u8] = b"Which behavior?\nKeep the design or widen it? I recommend the design.";
 const SECOND: &[u8] = b"May I widen the scope?\nKeep it small or add a file? I recommend keeping it small.";
 const ANSWER: &[u8] = b"Keep the design.";
-const DEPENDENCY_ANSWER: &[u8] = b"Wait for C, then use its design.";
+const DEPENDENCY_ANSWER: &[u8] = b"Continue now; C orders the merge.";
 const A_REPORT: &[u8] = b"Done: added A.\n## Left\n- none";
 const B_REPORT: &[u8] = b"Done: added B.\n## Left\n- none";
 const C_REPORT: &[u8] = b"Done: clarified the design.\n## Left\n- none";
@@ -490,8 +490,9 @@ fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
     finish_story(&mut story);
 }
 
+// questions.md, 1, Relayed at once, kept or not: adding a dependency orders only the merge.
 #[test]
-fn an_answer_that_adds_a_dependency_waits_for_it() {
+fn an_answer_that_adds_a_dependency_goes_down_before_its_landing() {
     let mut story = start(None);
     let base = settle_a(&mut story);
     let (producer, question, up) = escalate_b(&mut story);
@@ -506,7 +507,7 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
     let c = made[0].task;
     let upstream = next_producer(&mut story.world, c);
     assert_eq!(row(&story.world, c).base, story.branch);
-    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for C's design");
+    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Land after C's design");
     amendment.dependencies = Some(Box::new([story.a, c]));
     let revision = live_task(&story.world, story.b).revisions.spec;
     let answer = story.world.scripted_call(
@@ -516,25 +517,12 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
     );
     assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "dependency added: {answer:?}");
     story.world.goal_answer(&story.goal, 112, story.b, up, DEPENDENCY_ANSWER);
-    for _ in 0..STEPS {
-        story.world.tick();
-        if row(&story.world, story.b)
-            .questions
-            .open
-            .first()
-            .is_some_and(|open| matches!(open.stands, Stands::Held { .. }))
-            && story.world.store.pending.is_empty()
-        {
-            break;
-        }
-    }
-    assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Held);
-    assert_eq!(replies(&story.world, producer.task, story.b).len(), 0);
-    assert!(!story.world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
+    let producer = resumed(&mut story.world, &producer, story.b, question, DEPENDENCY_ANSWER);
+    assert!(ended(&story.world, c).is_none(), "the answer precedes C's landing");
+    assert!(live_task(&story.world, story.b).waiting_on.contains(&c));
+    assert_eq!(story.world.merges, 1, "only A has landed");
     assert_eq!(branch_tip(&mut story.world, &story.branch), base);
     let c_merge = land(&mut story.world, story.goal.task, c, &upstream, base, b"C", C_REPORT);
-    let producer = resumed(&mut story.world, &producer, story.b, question, DEPENDENCY_ANSWER);
-    assert!(ended(&story.world, c).is_some(), "the answer waits for C's landing");
     land(&mut story.world, story.goal.task, story.b, &producer, c_merge, b"B", B_REPORT);
     assert_eq!(story.world.merges, 3);
     assert_eq!(branch_tip(&mut story.world, b"main"), story.main);
