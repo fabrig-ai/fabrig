@@ -66,6 +66,8 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
         number: 42,
         value: SecretValue::Application(skein_lib::Secret::new(Box::from(b"secret-map-only".as_slice()))),
     });
+    let core::Record::Tasks(jig_domain_tasks::Stored::Live(task)) = &source else { panic!("live fixture") };
+    let cold = root::cold_task(task);
     let before = world.contents();
     let found = inventory(&mut world, 1, PAGE_BYTES);
     let expected = BTreeMap::from([
@@ -83,6 +85,7 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
         ),
         raw(&root::header(2)),
         raw(&source),
+        raw(&cold),
         raw(&root::run_proof(root::LIVE)),
         (keys::encode_own(&keys::Own::Wires, root::limits().store.key).expect("wires key"), empty_wires()),
         (keys::application(b"retained", root::limits().store.key).expect("application key"), value),

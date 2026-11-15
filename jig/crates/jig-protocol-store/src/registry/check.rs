@@ -81,7 +81,7 @@ fn absent(store: &Store, id: u16) -> Option<u64> {
     }
     Some(0)
 }
-fn prefix_end(prefix: &[u8]) -> Option<Box<[u8]>> {
+pub(super) fn prefix_end(prefix: &[u8]) -> Option<Box<[u8]>> {
     for index in (0..prefix.len()).rev() {
         let byte = *prefix.get(index)?;
         if let Some(next) = byte.checked_add(1) {

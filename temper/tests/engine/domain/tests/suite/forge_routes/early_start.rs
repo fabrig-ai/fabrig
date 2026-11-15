@@ -63,12 +63,8 @@ fn world_with(across: bool) -> World {
     world
 }
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("registered change {task}")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn ended(world: &World, task: u64) -> bool {

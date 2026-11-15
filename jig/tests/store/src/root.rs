@@ -117,6 +117,11 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
 };
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    retention: core::RetentionLimits {
+        turns: skein_lib::Duration::from_secs(14 * 86_400),
+        records: skein_lib::Duration::from_secs(30 * 86_400),
+        summaries: skein_lib::Duration::from_secs(365 * 86_400),
+    },
     public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
@@ -502,5 +507,22 @@ pub fn linked_commit(number: u64, person_commit: bool) -> Box<[Write]> {
         task.spec.words = format!("request {number}").into_bytes().into_boxed_slice();
         core::Record::Tasks(tasks::Stored::Live(task))
     };
-    Box::new([Write::Save(header(number)), Write::Save(row)])
+    let mut writes = vec![Write::Save(header(number))];
+    if let core::Record::Tasks(tasks::Stored::Live(task)) = &row {
+        writes.push(Write::Save(cold_task(task)));
+    }
+    writes.push(Write::Save(row));
+    writes.into_boxed_slice()
+}
+
+/// Whole-record fixtures put the task's cold part beside its hot save.
+#[must_use]
+pub fn cold_task(task: &tasks::TaskRecord) -> core::Record {
+    core::Record::Tasks(tasks::Stored::LiveCold {
+        number: task.number,
+        spec: Box::new(task.spec.clone()),
+        contract: task.contract.clone(),
+        authority: task.authority.clone(),
+        instructions: task.instructions.clone(),
+    })
 }

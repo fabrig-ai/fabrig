@@ -34,7 +34,13 @@ fn project_allowed(core: &Core, party: u64, project: u32) -> bool {
 
 pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
     match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => false,
+        Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
+        | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
         Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
@@ -310,6 +316,11 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
 fn is_page(scope: &Scope) -> bool {
     match scope {
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }
         | Scope::History { .. }
@@ -368,7 +379,13 @@ pub(super) fn from_store(
     wall: skein_lib::Wall,
 ) -> Answer {
     match range.scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("erasure scopes are core-only"),
+        Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
+        | Scope::TaskRows { .. } => unreachable!("erasure scopes are core-only"),
         Scope::SettingsHistory { .. } => super::settings::from_store(core, limits, range, raw, next),
         Scope::Tasks { .. }
         | Scope::TaskText { .. }
@@ -450,6 +467,9 @@ fn person_row_project(row: &Row, project: u32) -> bool {
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Result(_)
@@ -680,6 +700,11 @@ fn object(
                 ),
                 Scope::Result { .. } => Answer::Document(Box::new(Document::Result(Box::new(result)))),
                 Scope::EndedTasks
+                | Scope::TaskSummaries
+                | Scope::Retention { .. }
+                | Scope::ErasureKeys { .. }
+                | Scope::ProposalRemains { .. }
+                | Scope::TaskOwnRows { .. }
                 | Scope::TaskRows { .. }
                 | Scope::Proposal { .. }
                 | Scope::Escalation { .. }
@@ -773,6 +798,9 @@ fn object(
                 | tasks::Stored::Attempt(_)
                 | tasks::Stored::Hold(_)
                 | tasks::Stored::PlacedHold(_)
+                | tasks::Stored::Summary(_)
+                | tasks::Stored::Retention(_)
+                | tasks::Stored::LiveCold { .. }
                 | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)
                 | tasks::Stored::Writer(_)
@@ -969,6 +997,11 @@ fn object(
             )))
         }
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }
         | Scope::History { .. }
@@ -1013,6 +1046,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                     | tasks::Stored::Live(_)
                     | tasks::Stored::Ended(_)
                     | tasks::Stored::PlacedHold(_)
+                    | tasks::Stored::Summary(_)
+                    | tasks::Stored::Retention(_)
+                    | tasks::Stored::LiveCold { .. }
                     | tasks::Stored::Stub(_)
                     | tasks::Stored::Ledger(_)
                     | tasks::Stored::Writer(_)
@@ -1095,6 +1131,11 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         Scope::Tasks { query } => super::ended::line(core, limits, range.party, query, &row),
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::TaskText { .. }
         | Scope::Task { .. }
@@ -1113,6 +1154,11 @@ fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelec
     match &scope {
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::TaskText { .. }
         | Scope::Task { .. }
@@ -1152,6 +1198,9 @@ fn inbox_selection_row(limits: &Limits, row: &Row) -> Result<Option<documents::I
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1205,6 +1254,9 @@ fn inbox_row(
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1492,6 +1544,9 @@ fn hold_record(record: &Record) -> Option<&tasks::HoldRow> {
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1524,6 +1579,9 @@ fn activity_record(record: &Record) -> Option<&tasks::ActivityLine> {
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1608,6 +1666,9 @@ fn ledger(record: &Record) -> Option<&tasks::FundingRecord> {
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Result(_)
@@ -1647,6 +1708,11 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
         Position::Inbox { task, object, key, .. } => match scope {
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
             Scope::EndedTasks
+            | Scope::TaskSummaries
+            | Scope::Retention { .. }
+            | Scope::ErasureKeys { .. }
+            | Scope::ProposalRemains { .. }
+            | Scope::TaskOwnRows { .. }
             | Scope::TaskRows { .. }
             | Scope::TaskText { .. }
             | Scope::Task { .. }
@@ -1711,7 +1777,14 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::People(_)
                     | Key::Accounts(_) => false,
                 },
-                Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
+                Scope::EndedTasks
+                | Scope::TaskSummaries
+                | Scope::Retention { .. }
+                | Scope::ErasureKeys { .. }
+                | Scope::ProposalRemains { .. }
+                | Scope::TaskOwnRows { .. }
+                | Scope::TaskRows { .. }
+                | Scope::SettingsHistory { .. } => false,
                 Scope::Spend { project } => match kind {
                     KeyKind::Ledger(owner) => *project == jig_domain_people::DEPLOYMENT || owner == *project,
                     KeyKind::Ended(_)
@@ -1769,6 +1842,9 @@ fn key_kind(key: &Key) -> KeyKind {
             )
             | tasks::Key::Milestone { .. }
             | tasks::Key::PlacedHold(_)
+            | tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Writer(_)
             | tasks::Key::Pool(_)

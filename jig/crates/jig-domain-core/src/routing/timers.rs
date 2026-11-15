@@ -27,7 +27,7 @@ impl Core {
         self.due_timer(now, wall, false)
     }
 
-    fn deadlines(&self, now: Time, wall: Wall) -> [(Timer, Option<Time>); 5] {
+    fn deadlines(&self, now: Time, wall: Wall) -> [(Timer, Option<Time>); 6] {
         let saved = match self.people.next_wall_expiry() {
             Some(expiry) if self.people.ready() => {
                 Some(now.saturating_add(Duration::from_nanos(expiry.as_nanos().saturating_sub(wall.as_nanos()))))
@@ -40,6 +40,10 @@ impl Core {
             (Timer::Fleet, self.fleet.next_deadline()),
             (Timer::Brief, self.brief.next_deadline()),
             (Timer::Account, self.accounts.next_deadline()),
+            (
+                Timer::Retention,
+                if self.ready() && self.start_opened() && !self.settling { self.erasures.deadline() } else { None },
+            ),
         ]
     }
 

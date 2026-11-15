@@ -47,6 +47,69 @@ fn alias(store: &mut Store, number: u16, from: u16, to: u16) -> skein_kv::Op {
 }
 
 #[test]
+fn new_value_types_register_at_the_seed_and_read_back() {
+    const KEPT_NEW: &str = "family fixture-layouts 2\nenum Value { stable }\nversioned record Row { value: Value }\n";
+    const CURRENT_NEW: &str = "family fixture-layouts 2\nrecord Payload { n: u8 }\nenum Value { stable, added: Payload }\nversioned record Row { value: Value }\nversioned record Added { n: u8 }\n";
+    const NEW_FAMILY: KeptFamily = KeptFamily {
+        texts: &[KEPT_NEW],
+        current: CURRENT_NEW,
+        keys: &[Keys { from: b"a", to: b"c", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
+        // New types occupy census-distinct prefixes so the seed can prove their ranges empty.
+        types: &[
+            ValueType { number: 0, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"a", to: b"b" }] },
+            ValueType { number: 1, root: "Row", variant: Some("added"), keys: &[KeyRange { from: b"b", to: b"c" }] },
+            ValueType { number: 2, root: "Added", variant: None, keys: &[KeyRange { from: b"c", to: b"d" }] },
+        ],
+        ..FAMILY
+    };
+    const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], patches: &[], ..SET };
+    let mut disk = Disk::new(&[]);
+    let mut before = fresh(
+        &mut disk,
+        PatchSet { families: &[KeptFamily { current: KEPT_NEW, types: &[], ..NEW_FAMILY }], ..NEW_SET },
+    );
+    raw(
+        &mut disk,
+        &mut before,
+        vec![skein_kv::Op::Put { key: b"\x02a/2".as_slice().into(), value: Box::from([0, 2, 0]) }],
+    );
+    let mut disk = Disk::new(&disk.items());
+    let current = schema::parse(CURRENT_NEW.as_bytes()).unwrap();
+    let mut store = store(&disk, NEW_SET);
+    let events = disk.open(&mut store);
+    let [Event::Opened { pending: true, .. }, Event::Census { .. }] = events.as_ref() else { panic!("{events:?}") };
+    assert_eq!(*row(&mut store, 0, 2).unwrap().text(), hash(KEPT_NEW));
+    for number in [1, 2] {
+        let ty = NEW_FAMILY.types.iter().find(|ty| ty.number == number).unwrap();
+        let registered = row(&mut store, number, 2).unwrap();
+        assert_eq!(*registered.text(), hash(CURRENT_NEW), "only the binary's row, not a seed row");
+        assert_eq!(registered.root(), ty.root.as_bytes());
+        assert_eq!(registered.variant().as_deref(), ty.variant.map(str::as_bytes));
+        let root = current.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap();
+        assert_eq!(*registered.layout(), current.layout(root, &[]).unwrap().digest());
+        assert!(row(&mut store, number, 3).is_none(), "no seed row consumed the family's version id");
+    }
+    assert_eq!(app(&mut store, b"a/2").unwrap().as_ref(), &[0, 2, 0]);
+    switch(&mut disk, &mut store);
+    let number = store.stores.store.last() + 1;
+    let writes = Box::new([
+        fixtures::header(number),
+        Write::Put { key: b"b/0".as_slice().into(), value: Box::from([0, 2, 1, 42]) },
+        Write::Put { key: b"c/0".as_slice().into(), value: Box::from([0, 2, 43]) },
+    ]);
+    assert_committed(&disk.request(&mut store, fixtures::commit(number, writes)), number);
+    for (key, root, expected) in
+        [(b"b/0", b"Row".as_slice(), [0, 2, 1, 42].as_slice()), (b"c/0", b"Added".as_slice(), [0, 2, 43].as_slice())]
+    {
+        let get = disk
+            .request(&mut store, Request::Get { owner: Token::new(2), key: Get::Application(key.as_slice().into()) });
+        let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = get.as_ref() else { panic!("{get:?}") };
+        assert_eq!(value.as_ref(), expected);
+        Value::with_room(16).decode(&current, current.find(root).unwrap(), value.clone()).unwrap();
+    }
+}
+
+#[test]
 fn loads_gets_and_restore_pages_deliver_the_binary_layout_and_preserve_unknown_heads() {
     let (mut disk, mut store) = opened();
     let stable = alias(&mut store, 1, 2, 8);

@@ -125,6 +125,11 @@ pub use session::{
 mod settings;
 mod settings_moves;
 mod standing;
+mod summary;
+pub use summary::{
+    RetentionRow, RetentionStage, SUMMARY_TEXT, SummaryEnding, SummaryEndings, SummaryResult, SummaryResultKind,
+    TaskSummary,
+};
 mod stored;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
 mod subscriptions;
@@ -183,6 +188,7 @@ pub use value::{
 };
 pub use wake::valid as wake_valid;
 
+pub use run::ends::own_question;
 pub use run::run_attempt;
 
 /// Maximum bytes in a connector's retained hold account.

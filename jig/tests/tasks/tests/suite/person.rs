@@ -23,6 +23,9 @@ fn notified(world: &World, task: u64) -> &tasks::ActivityLine {
             | tasks::Stored::History(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)

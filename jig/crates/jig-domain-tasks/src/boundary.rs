@@ -1304,6 +1304,8 @@ pub use crate::index::Key;
 /// funding, writer slots and pool counts are restored before admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    Summary(Box<crate::TaskSummary>),
+    Retention(crate::RetentionRow),
     /// A standing hold, or a lifted hold still named by live tasks.
     PlacedHold(Box<crate::PlacedHold>),
     /// One party's durable update index.
@@ -1329,6 +1331,14 @@ pub enum Stored {
     History(crate::History),
     /// Current bounded live task state, emitted on mutation and admitted once at startup.
     Live(/** Owned boxed live task row; fit and link checks precede activation. */ Box<TaskRecord>),
+    /// The live task's cold part, put only when its fields change (protocol/store/parts.md, 2).
+    LiveCold {
+        number: u64,
+        spec: Box<Spec>,
+        contract: Contract,
+        authority: Authority,
+        instructions: Option<Box<[u8]>>,
+    },
     /// Ended task state; root loads it for authenticated result reads, never as
     /// live startup state.
     Ended(
@@ -1354,6 +1364,8 @@ impl Stored {
     #[must_use]
     pub const fn key(&self) -> Key {
         match self {
+            Stored::Summary(row) => Key::Summary(row.number),
+            Stored::Retention(row) => row.key(),
             Stored::PlacedHold(row) => Key::PlacedHold(row.number),
             Stored::Update(row) => row.key(),
             Stored::EndedByParty(row) => row.key(),
@@ -1370,6 +1382,7 @@ impl Stored {
             Stored::Attempt(row) => Key::Attempt { task: row.task, attempt: row.attempt },
             Stored::Hold(row) => Key::Hold { task: row.task, position: row.position },
             Stored::Live(record) => Key::Live(record.number),
+            Stored::LiveCold { number, .. } => Key::LiveCold(*number),
             Stored::Ended(record) => Key::Ended(record.number),
             Stored::Stub(stub) => Key::Stub(stub.task),
             Stored::Ledger(record) => Key::Ledger(record.funder),

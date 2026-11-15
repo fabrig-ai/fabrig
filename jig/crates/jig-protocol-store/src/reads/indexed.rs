@@ -19,6 +19,9 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
             tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
+            | tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Ledger(_)
             | tasks::Key::Writer(_)
@@ -61,6 +64,11 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => None,
     }
@@ -87,6 +95,11 @@ fn history_root(scope: &reads::Scope) -> Option<u64> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => None,
     }
@@ -99,6 +112,9 @@ fn update(value: &core::Record) -> Option<tasks::Update> {
             tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -131,6 +147,9 @@ fn delegate(value: &core::Record) -> Option<tasks::Edge> {
             tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -232,6 +251,9 @@ fn joined(
         }
     }
     let Some(owner) = joins::owner(store, number, spent)? else {
+        if selection.is_none() {
+            return joins::ended_row(store, value, number, spent);
+        }
         spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
         return Ok(None);
     };

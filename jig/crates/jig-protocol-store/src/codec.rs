@@ -62,6 +62,9 @@ pub fn decode(
             settings::decode(key, bytes, &limits.settings, names).ok()?,
         ))),
         domain::Key::Core(_) => Some(domain::Record::Core(core::decode(bytes, limits).ok()?)),
+        domain::Key::Tasks(jig_domain_tasks::Key::LiveCold(number)) => {
+            Some(domain::Record::Tasks(tasks::decode_cold(*number, bytes, &limits.tasks, names).ok()?))
+        }
         domain::Key::Tasks(_) => Some(domain::Record::Tasks(tasks::decode(bytes, &limits.tasks, names).ok()?)),
         domain::Key::People(_) => Some(domain::Record::People(people::decode(bytes, &limits.people, names).ok()?)),
         domain::Key::Notes(_) => Some(domain::Record::Notes(notes::decode(bytes, &limits.notes).ok()?)),

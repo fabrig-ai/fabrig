@@ -3,7 +3,7 @@ use hearth_config_world::{
     generate,
     world::{self, Settings},
 };
-use hearth_protocol_config::{Error, Fault};
+use hearth_protocol_config::{Decode, Error, Fault};
 use skein_lib::Rng;
 const FIRST_SEED: u64 = 0x0035_F000;
 const ROUNDS: u64 = 512;
@@ -18,7 +18,7 @@ fn generated_declarations_broken_once_fail_at_the_break() {
         let outcome = world::declare(&broken.bytes, &Settings::calm(&mut rng, limits), seed);
         assert_eq!(
             outcome.err(),
-            Some(Error { at: broken.at, fault: Fault::Declaration(broken.fault) }),
+            Some(Error { at: broken.at, fault: Fault::Decode(Decode::Declaration(broken.fault)) }),
             "seed {seed}"
         );
         tally.record(broken.fault);

@@ -569,13 +569,11 @@ fn the_launchpad_says_each_state() {
     );
     let other_playground = home_read(Some(true), &[], false, Some((Some(OTHER_PROJECT), w::PlaygroundState::Running)));
     let starting_playground = home_read(Some(true), &[], false, Some((Some(PROJECT), w::PlaygroundState::Starting)));
-    let header = "temper · Hello127.0.0.1:8367";
     let rows = [
         (
             "design session",
             &session,
             &ordinary,
-            header,
             &["Where you left off", "Hello   Away mode, a design session · today 00:00 · waiting on you  /chats 1"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
@@ -583,7 +581,6 @@ fn the_launchpad_says_each_state() {
             "the playground running in the project",
             &playground,
             &ordinary,
-            "temper · Helloplayground · 127.0.0.1:8367",
             &[
                 "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
                 "Where you left off",
@@ -598,7 +595,6 @@ fn the_launchpad_says_each_state() {
             "the playground in another project",
             &other_playground,
             &ordinary,
-            header,
             &[
                 "3 changes landed in Hello. Nothing needs you.",
                 "Hello: csv-export is two of three tasks in; one waits on you.",
@@ -610,7 +606,6 @@ fn the_launchpad_says_each_state() {
             "the playground starting",
             &starting_playground,
             &ordinary,
-            header,
             &[
                 "3 changes landed in Hello. Nothing needs you.",
                 "Hello: csv-export is two of three tasks in; one waits on you.",
@@ -622,7 +617,6 @@ fn the_launchpad_says_each_state() {
             "needs read",
             &needs,
             &ordinary,
-            header,
             &[
                 "The last change landed 2 hours ago. Two things need you.",
                 "Needs you",
@@ -631,12 +625,11 @@ fn the_launchpad_says_each_state() {
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
         ),
-        ("Home project takes precedence", &second, &ordinary, "temper · Demo127.0.0.1:8367", &[][..], None),
+        ("Home project takes precedence", &second, &ordinary, &[][..], None),
         (
             "notes follow sections",
             &left,
             &noted,
-            header,
             &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
@@ -644,7 +637,6 @@ fn the_launchpad_says_each_state() {
             "new brief",
             &brief,
             &ordinary,
-            header,
             &[
                 "3 changes landed in Hello. Nothing needs you.",
                 "Hello: csv-export is two of three tasks in; one waits on you.",
@@ -656,16 +648,14 @@ fn the_launchpad_says_each_state() {
             "no brief",
             &headline,
             &ordinary,
-            header,
             &["The last change landed 2 hours ago. Nothing needs you."][..],
             Some(Wall::from_nanos(583 * MINUTE)),
         ),
-        ("unanswered", &unanswered, &ordinary, header, &[][..], None),
+        ("unanswered", &unanswered, &ordinary, &[][..], None),
         (
             "left off skips ended and sorts activity",
             &left,
             &ordinary,
-            header,
             &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
@@ -673,7 +663,6 @@ fn the_launchpad_says_each_state() {
             "left off sorts activity",
             &sorted,
             &ordinary,
-            header,
             &[
                 "Where you left off",
                 "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
@@ -681,25 +670,17 @@ fn the_launchpad_says_each_state() {
             ][..],
             Some(Wall::from_nanos(1440 * MINUTE)),
         ),
-        ("no live chat", &ended, &ordinary, header, &[][..], None),
-        ("start address", &start, &ordinary, header, &[][..], None),
-        ("offline cached project", &offline, &ordinary, header, &[][..], None),
-        ("before me", &before, &ordinary, "temper", &["Connecting to 127.0.0.1:8367"][..], None),
-        ("starting", &starting, &ordinary, "temper", &["Connecting to 127.0.0.1:8367"][..], None),
-        ("signing", &signed_out, &signing, "temper", &["Connecting to 127.0.0.1:8367"][..], None),
-        (
-            "out of date",
-            &stale,
-            &ordinary,
-            "temper",
-            &["This temper is out of date: run the temper the engine runs."][..],
-            None,
-        ),
+        ("no live chat", &ended, &ordinary, &[][..], None),
+        ("start address", &start, &ordinary, &[][..], None),
+        ("offline cached project", &offline, &ordinary, &[][..], None),
+        ("before me", &before, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
+        ("starting", &starting, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
+        ("signing", &signed_out, &signing, &["Connecting to 127.0.0.1:8367"][..], None),
+        ("out of date", &stale, &ordinary, &["This temper is out of date: run the temper the engine runs."][..], None),
         (
             "not kept",
             &start,
             &unkept,
-            header,
             &["This sign-in could not be kept: the next temper asks for a link again."][..],
             None,
         ),
@@ -707,18 +688,16 @@ fn the_launchpad_says_each_state() {
             "no project",
             &none,
             &ordinary,
-            "temper",
             &["No project yet", "Setting temper up makes your first project: open http://127.0.0.1:8367 in a browser."]
                 [..],
             None,
         ),
     ];
     let mut failures = List::with_capacity(FAILURES);
-    for (name, root, tui, heading, lines, tick) in rows {
+    for (name, root, tui, lines, tick) in rows {
         let view = build(root, tui);
         let text = body(view.tree());
         let mut expected = List::with_capacity(LINES);
-        expected.push(heading.as_bytes()).unwrap();
         let part = launchpad::read(root, tui, &f::words(), NOW);
         if name == "start address" {
             assert!(!part.drafts, "drafts off");
@@ -1526,10 +1505,7 @@ fn needs_age_is_a_hint_cut_from_the_end_and_keeps_the_soonest_tick() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the frame assertion locates the header's bottom and the next drawn section"
-)]
+#[expect(clippy::disallowed_methods, reason = "the frame print is validated UTF-8 for its row assertions")]
 fn the_headers_frame_has_one_blank_row_before_a_section_or_note() {
     use skein_ui_screen::{Focus, Frame, Size, render};
     let root = home(None, &[]);
@@ -1546,7 +1522,8 @@ fn the_headers_frame_has_one_blank_row_before_a_section_or_note() {
         let printed = frame.print();
         let printed = core::str::from_utf8(&printed).unwrap();
         let mut lines = printed.lines();
-        assert!(lines.find(|line| line.starts_with('╰')).is_some());
+        assert_eq!(lines.next().unwrap().trim_end(), " ▄█▀▀   temper");
+        assert_eq!(lines.next().unwrap().trim_end(), "▄█▄█▄█  127.0.0.1:8367");
         assert_eq!(lines.next().unwrap().trim(), "");
         assert_eq!(lines.next().unwrap().trim(), if section { "Start" } else { "A note" });
     }

@@ -35,6 +35,7 @@ pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<reads::Loa
                 .push(reads::Row {
                     value,
                     owner: None,
+                    summary: None,
                     ancestors: Box::new([]),
                     related: None,
                     unjoined: None,

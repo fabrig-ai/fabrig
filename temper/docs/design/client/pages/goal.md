@@ -167,8 +167,11 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
     on its delegates, "waiting on N delegates" ("1 delegate"), N its
     chip's `live_delegates`; on a party, "waiting on an answer from
     you" when the person is that party or holds that role, "waiting
-    on an answer from person N" or "from role N" otherwise; on news,
-    "waiting on news". Waiting on nothing, it says what a row would;
+    on an answer from person N" or "from role N" otherwise; on its own
+    question to the task that requested it, "waiting on an answer to
+    its question N", N the question's number (jig's
+    `domain/engine/views.md`, 3); on news, "waiting on news". Waiting
+    on nothing, it says what a row would;
   - on a plan row, which has no `waits_on`, from its chip's owner phase
     (jig's `client/domain/objects.md`, section 3): waiting on its
     dependencies (the phase's `dependencies`, those not yet ended),

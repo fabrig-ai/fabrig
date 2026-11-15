@@ -10,6 +10,8 @@ use skein_lib::{Queue, Token};
 #[cfg(test)]
 mod tests;
 
+const CLEAR: &[u8] = b"\x1b[H\x1b[2J";
+
 pub(super) const LOGIN: Token = Token::new(u64::MAX - 3);
 pub(super) const LINE: Token = Token::new(6 << 60);
 
@@ -171,7 +173,8 @@ impl Run {
             if let Some(kept) = &self.kept {
                 kept.set_kept().expect("set kept terminal modes");
             }
-            let mut line = self.lending.lend.as_ref().expect("loan").line.to_vec();
+            let mut line = CLEAR.to_vec();
+            line.extend_from_slice(&self.lending.lend.as_ref().expect("loan").line);
             line.push(b'\n');
             self.lending.phase = Phase::Writing;
             self.lending.writes.push(Submit {

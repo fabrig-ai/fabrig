@@ -188,7 +188,7 @@ fn a_protected_merge_holds_without_retrying() {
         change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
         change::Decision::Effect(change::Effect::Merge { .. })
     ));
-    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else {
+    let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("refused change");
     };
     assert!(

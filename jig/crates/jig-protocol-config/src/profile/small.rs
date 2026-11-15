@@ -203,6 +203,11 @@ pub(super) const BUDGETS: core::CoreBriefBudgets = core::CoreBriefBudgets {
     now: 4_096,
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    retention: core::RetentionLimits {
+        turns: Duration::from_secs(14 * 86_400),
+        records: Duration::from_secs(30 * 86_400),
+        summaries: Duration::from_secs(365 * 86_400),
+    },
     public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 20_783,
@@ -339,7 +344,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v23::CEILINGS,
+    wire: jig_client_protocol_wire::v24::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 

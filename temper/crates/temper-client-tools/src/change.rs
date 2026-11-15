@@ -1690,7 +1690,7 @@ fn text_questions(questions: &w::Questions, out: &mut Text) {
         match question.stands() {
             w::Stands::Taken => out.put(b"taken"),
             w::Stands::Asked => out.put(b"asked of requester"),
-            w::Stands::Held => out.put(b"answered, held for dependencies"),
+            w::Stands::Held => out.put(b"answered, held for message room"),
         }
         out.put(b" \xc2\xb7 ");
         out.put(question.line());

@@ -89,6 +89,11 @@ fn prepare_record(
             }
             tasks::Stored::Ended(task)
         }
+        tasks::Stored::Summary(mut summary) => {
+            summary.result_position =
+                *core.ending_positions.get(&summary.number).expect("summary follows its ended row");
+            tasks::Stored::Summary(summary)
+        }
         tasks::Stored::History(ref row) => {
             if let Some(proposal) = &row.proposal {
                 let terminal = match proposal.state {
@@ -136,6 +141,8 @@ fn prepare_record(
         | tasks::Stored::DecidedProposal(_)
         | tasks::Stored::Ledger(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_)
         | tasks::Stored::PersonProposal(_) => record,
     }
@@ -175,6 +182,9 @@ fn task_saved(
                 | tasks::Stored::PersonProposal(_)
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)
+                | tasks::Stored::Summary(_)
+                | tasks::Stored::Retention(_)
+                | tasks::Stored::LiveCold { .. }
                 | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)
                 | tasks::Stored::Writer(_)
@@ -252,6 +262,9 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
         | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::Summary(_)
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => {}
     }
 }
@@ -284,6 +297,9 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
         | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::Summary(_)
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => None,
     }
 }
@@ -347,6 +363,9 @@ fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut
         | tasks::Stored::ClosedLedger(_)
         | tasks::Stored::DecidedProposal(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::Summary(_)
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => {}
     }
 }

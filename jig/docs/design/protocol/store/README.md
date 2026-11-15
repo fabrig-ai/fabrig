@@ -46,6 +46,9 @@ section 11.
   anywhere leaves one whole generation active (`README.md`, section 2,
   and `opening.md`, section 2 to 4). Jobs at open walk the map for their
   owners when a binary needs it in another shape (`jobs.md`).
+- **Hot records apart from cold.** Live tasks and goals' projections
+  keep what an act changes rarely in rows of their own, so a write puts
+  what changed (`parts.md`).
 - **One decision, one commit, the same number.** Each of the root's
   commits is one skein-kv commit with the same number. Group commit folds
   bursts into one sync. A failed or refused commit stops the engine
@@ -67,9 +70,10 @@ section 11.
   and LLM accounts' records and keys, each kept before it is used
   (`secrets.md`).
 - **Growth is bounded by retention and fill:** the domain forgets an
-  ended task once read, or shrinks it past a horizon on its timers, by
-  the task's retention class, and refuses new work above a high-water
-  mark of the map (section 6).
+  ended task once read, or drops its turns, shrinks it to its summary
+  and then erases it, each past a horizon, on its timer, by the task's
+  retention class (`retention.md`), and refuses new work above a
+  high-water mark of the map (section 6).
 - **The real store in every world:** the domain worlds run the component
   over skein-kv's in-memory mode, with an in-memory stand-in for
   transcripts' files, and the store's own world crashes it on skein's
@@ -357,11 +361,12 @@ child puts live first.
 | core | the deployment: its id, its numbers (the next project's among them, past every project seeded or made), the last commit | none: one row | at start |
 | core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
-| core | goals' projections (feed, plan rows, pending milestones), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
+| core | goals' projections (feed, plan rows, pending milestones, their words apart: `parts.md`, 3), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
 | core | turns (in transcripts' files, `transcripts.md`), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
-| tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
+| tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), each in a hot and a cold part (`parts.md`, 2), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
 | tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
+| tasks | ended tasks' summaries, and retention's rows, one per ended task or decided person proposal naming its next stage (`retention.md`, 3 and 4) | task; stage, since, number | on demand, by retention's passes |
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../../domain/people/public-reading.md`, 2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../../domain/people/acts.md`, 3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../../domain/people/acts.md`, 2), at most one per project the deployment has room for, erased with the deletion's last step; each deleted project's mark, its number alone, kept past its deletion, at most as many as the projects the deployment has room for, the lowest number's erased to make room (`../../domain/people/acts.md`, 2, *Marked deleted*) | as the people child keys them; a live conversation's position by party, then task; a deletion by its project; a mark by its project | at start |
 | people | ended conversations' read positions (`loads.md`, 4) | task, then party | at start, by the census, every row (`loads.md`, 2); otherwise on demand |
 | accounts | issued program names, including retired ones, with their source number and original holder and desired sign-out (key tag 4, after the installation's reserved tag); the next number the accounts child gives, below which it gives none again; LLM accounts: each one's holder, LLM provider, subject and display name, its uses, and what its last list reads gave, where it has any: the catalogue's numbers as a bit each, when its last good read was, when its last attempt ended, why that failed, and how many names took no number (`../../domain/accounts.md`, 3.7); their sources, each at its place in its holder's order, with its kind, its name for a program's, and its hold: limited, with its reset as a wall time where it has one, refused, or moving (a signed-in source whose record is out with a move, or back and not yet refreshed: `../../domain/accounts.md`, section 6). The rest of a source's state is heard again at each start, and none is kept per host (`../../domain/accounts.md`, 3.5); what each account's LLM provider says of it, a record per account of at most 24 facts (key tag 5, after the issued names; `../../domain/accounts.md`, 3.7) | source for an issued name; none: one row; account; account, source; account for its facts | at start, issued names before live account/source records, an account's facts after them |
@@ -488,37 +493,40 @@ secrets' store (`secrets.md`).
 
 ### 6.1 Retention
 
-Retention is the domain's: mechanisms on its timers, tested in its
-worlds, with horizons the deployment's configuration gives. What becomes
-of an ended task is its retention class, set from its template when it
-was made (`../../domain/tasks/README.md`, section 3):
+Retention is the domain's: passes on the core's timer, tested in its
+worlds, with horizons the deployment's limits give, each keyspace's
+declared by its owner (`retention.md`). What becomes of an ended task
+is its retention class, set from its template when it was made
+(`../../domain/tasks/README.md`, section 3):
 
-- **A task kept** stays to the deployment's retention horizon, and whole
-  while none is set.
-- **Ended tasks shrink** past a horizon: one commit erases a task's full
-  records (its record, history, activity, terminals, its ended read
-  position) and saves a summary, so what parties read of old work comes
-  from summaries. Its rows in the ended indexes stay, and a task query
-  joins its summary (`loads.md`, 3).
-- **Transcripts go** past a longer horizon, whole, by their task (`transcripts.md`, 5).
-  A live task keeps its transcript, whatever its age.
+- **A task kept** loses its turns, then its full record, then its
+  summary, each past its horizon (`retention.md`, 2 and 6). Its summary
+  is written when it ends, so what parties read of old work comes from
+  summaries once its record has gone: its rows in the ended indexes
+  stay with the summary, and a task query joins it (`loads.md`, 3;
+  `retention.md`, 7). A live task keeps its transcript, whatever its
+  age.
 - **Answered keys expire** past the people child's retention.
 - **A task forgotten once read** (`../../domain/people/README.md`, section 5) goes
   in one decision: its record, its rows in the ended indexes, its
   result's update and its ended read position (`loads.md`, 4).
 - **A forgotten task's remains go** at retention's next pass, whatever
-  their age: its activity, history, terminals and transcript, and its
-  replies' rows in its requester's updates (`loads.md`, 4). Nothing reads them,
-  and the requester's pages of updates skip those rows until then.
+  their age: its activity, history, terminals, transcript and summary,
+  and its replies' rows in its requester's updates (`loads.md`, 4;
+  `retention.md`, 6.4). Nothing reads them, and the requester's pages
+  of updates skip those rows until then.
 - **A deleted project's tasks go whole** (`../../domain/people/acts.md`, 2),
   whatever their retention class and age, once every task of the
   project has ended: each task in decisions of its own, one task at a
   time, its rows first, a page at a time (its history, activity and
   terminals, with its replies' rows in its requester's updates), then
   its transcript dropped (`transcripts.md`, 5) with its rows in the ended indexes and
-  its ended read position, and its record last, so that a deletion a
-  restart cut finds the task's record and erases what is left of it.
-  No summary is saved.
+  its ended read position, and its record and its summary last, so that
+  a deletion a restart cut finds the task's record and erases what is
+  left of it. A task of the project that retention already shrank is
+  found by its summary, and its summary goes with its rows in the ended
+  indexes. Its retention row is left, and erased alone when it comes due
+  (`retention.md`, 4).
 
 ### 6.2 Fill
 
@@ -824,8 +832,8 @@ mark (6.2);
 
 By each task's retention class, summaries of ended tasks kept,
 transcripts dropped, answered keys expired, and the remains of tasks
-forgotten once read collected, each on the domain's timer (6.1); a task
-forgotten once read erased in one decision (6.1; `../../domain/people/README.md`,
+forgotten once read collected, each on the domain's timer (6.1;
+`retention.md`); a task forgotten once read erased in one decision (6.1; `../../domain/people/README.md`,
 section 5);
 
 ### 10.7 Keys for single reads

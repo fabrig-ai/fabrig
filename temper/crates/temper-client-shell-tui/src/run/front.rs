@@ -87,6 +87,12 @@ impl Child {
             reports: Queue::uncapped(),
         }
     }
+    pub(super) fn set_up(&self) -> bool {
+        self.settings.set_up
+    }
+    pub(super) fn box_log(&self) -> Box<[u8]> {
+        self.settings.log.clone()
+    }
     fn spawn(&self, kind: Kind) -> Spawn {
         let (program, args, pipes) = match kind {
             Kind::Fetch => (

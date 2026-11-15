@@ -54,7 +54,7 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
         skein_shell::effective_user(),
         false,
     )?;
-    let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(binary, &named.machine)?;
+    let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(&named.machine)?;
     let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);
     let accounts = crate::serve::accounts(&engine)?;
     let seeds = crate::serve::seeds(None, None)?;

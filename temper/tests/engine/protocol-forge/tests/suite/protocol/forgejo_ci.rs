@@ -172,8 +172,8 @@ fn pace(hearing: bool) {
             due = false;
             // The opening overlaps its first keep when its settlement records
             // the number. Measure checking gathers, not that bootstrap.
-            let checking = matches!(world.stored().get(&top::Key::Change(51)),
-                Some(top::Stored::Change(row)) if matches!(row.change.state, change::State::Checking { .. }));
+            let checking = matches!(world.stored().get(&top::Key::ChangeHot(51)),
+                Some(top::Stored::ChangeHot(row)) if matches!(row.change.state, change::State::Checking { .. }));
             if hearing && checking {
                 gather = Some((entry, head_status_reads(&world, &status)));
             }
@@ -219,7 +219,7 @@ fn pace(hearing: bool) {
     assert!(
         named,
         "opened pull; state={:?}; all={:?}",
-        world.stored().get(&top::Key::Change(51)),
+        world.stored().get(&top::Key::ChangeHot(51)),
         request_routes(&world, pushed, deadline)
     );
     assert_eq!(world.tally().routes.get(&Route::Merge), Some(&1), "lands within poll_max of verdict");

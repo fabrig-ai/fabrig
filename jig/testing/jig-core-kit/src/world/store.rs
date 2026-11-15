@@ -86,7 +86,22 @@ impl World {
 
     /// Save fixture rows through a durable, externally observed numbered commit.
     pub fn seed(&mut self, rows: Box<[root::Record]>) {
-        self.fixture_writes(rows.into_vec().into_iter().map(root::Write::Save).collect());
+        let mut writes = Vec::new();
+        for row in rows {
+            if let root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &row {
+                writes.push(root::Write::Save(root::Record::Core(core::Record::Tasks(
+                    jig_domain_tasks::Stored::LiveCold {
+                        number: task.number,
+                        spec: Box::new(task.spec.clone()),
+                        contract: task.contract.clone(),
+                        authority: task.authority.clone(),
+                        instructions: task.instructions.clone(),
+                    },
+                ))));
+            }
+            writes.push(root::Write::Save(row));
+        }
+        self.fixture_writes(writes);
     }
     /// Erase a fixture through the same durable transaction path.
     pub fn erase(&mut self, key: root::Key) -> Option<root::Record> {

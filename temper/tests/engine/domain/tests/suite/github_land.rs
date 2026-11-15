@@ -15,22 +15,20 @@ const READ_DELAY: Duration = Duration::from_secs(31);
 const TICK: Duration = Duration::from_millis(100);
 const CHANNEL: Token = Token::new(7);
 
-fn change_row(world: &World) -> &forge::ChangeRow {
-    world
+fn change_row(world: &World) -> forge::ChangeRow {
+    let change_task = world
         .store
         .rows
         .values()
-        .find_map(|row| match row {
-            engine::Record::Forge { row } => {
-                if let forge::Stored::Change(row) = row.as_ref() {
-                    Some(row)
-                } else {
-                    None
-                }
-            }
+        .find_map(|record| match record {
+            engine::Record::Forge { row } => match row.as_ref() {
+                forge::Stored::ChangeHot(row) => Some(row.task),
+                _ => None,
+            },
             engine::Record::Core(_) => None,
         })
-        .expect("requester-backed change")
+        .expect("requester-backed change");
+    world.store.change(change_task).expect("durable change")
 }
 
 fn task(world: &World, number: u64) -> &tasks::TaskRecord {

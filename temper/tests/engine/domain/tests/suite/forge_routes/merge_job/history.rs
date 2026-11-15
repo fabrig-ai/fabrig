@@ -165,7 +165,7 @@ fn a_merge_attempt_end_restarts_before_readback_and_is_written_once() {
             break;
         }
     }
-    let kept = change_row(&world, task).job.as_ref().unwrap();
+    let kept = change_row(&world, task).job.unwrap();
     assert_eq!(
         kept.step.outcome,
         Some(h::JobOutcome::Failed { class: h::JobFailure::Undelivered }),

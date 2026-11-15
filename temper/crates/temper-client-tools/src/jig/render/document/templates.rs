@@ -98,6 +98,15 @@ pub(super) fn encode_waits_on(value: &jig_client::contract::WaitsOn, out: &mut E
             out.object_end();
         }
         jig_client::contract::WaitsOn::Delegates => out.string(b"delegates"),
+        jig_client::contract::WaitsOn::Question { number } => {
+            out.object_start();
+            out.key(b"question");
+            out.object_start();
+            out.key(b"number");
+            out.unsigned(*number);
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::WaitsOn::News => out.string(b"news"),
         jig_client::contract::WaitsOn::Nothing => out.string(b"nothing"),
     }

@@ -24,6 +24,7 @@ fn range(store: &mut Store, tag: u8) -> Vec<Stored> {
         .collect()
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one open observes the milestone fold alongside every other upgrade job")]
 fn milestones_open_folds_ended_and_live_tasks_in_pages_marks_done_and_never_reruns() {
     let mut disk = Disk::new(&[]);
     let mut before = store(&disk, PatchSet { jobs: &[], ..crate::JIG_STORE_PATCH_SET });
@@ -65,8 +66,20 @@ fn milestones_open_folds_ended_and_live_tasks_in_pages_marks_done_and_never_reru
                         assert!(answer.writes.is_empty());
                     }
                 } else {
-                    assert_eq!(job.as_ref(), "charter-versions");
+                    assert!(
+                        [
+                            "charter-versions",
+                            "live-task-parts",
+                            "projection-parts",
+                            "retention-rows",
+                            "retention-proposals"
+                        ]
+                        .contains(&job.as_ref())
+                    );
                     assert!(page.end);
+                    if job.as_ref() != "retention-rows" {
+                        assert!(page.rows.is_empty());
+                    }
                 }
                 events.extend(disk.request(&mut current, Request::Job { owner, answer: Ok(answer) }));
             }

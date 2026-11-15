@@ -174,12 +174,15 @@ fn a_jobs_interval_open_at_the_changes_end_closes_once_but_no_new_claim_starts()
     world.event(top::Event::ChangeEnding { task: TASK, ending: top::Ending::Cancelled });
     let before = world.history(TASK);
     world.restart();
-    let ended = h::JobStep { outcome: Some(h::JobOutcome::Failed), ..job };
+    let ended = h::JobStep { outcome: Some(h::JobOutcome::Failed { class: h::JobFailure::Unknown }), ..job };
     world.event(top::Event::JobHistory { task: TASK, job: ended });
     let after = world.history(TASK);
     assert_eq!(after.len(), before.len() + 1);
     let end = after.last().expect("job's end");
-    assert_eq!(end.what, h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Failed });
+    assert_eq!(
+        end.what,
+        h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Failed { class: h::JobFailure::Unknown } }
+    );
     assert_eq!((end.operation, end.attempt), (CHILD, 1));
     world.restart();
     world.event(top::Event::JobHistory { task: TASK, job: ended });

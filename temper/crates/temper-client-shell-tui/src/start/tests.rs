@@ -139,6 +139,42 @@ fn on_a_box_requires_a_link_for_the_selected_engine() {
 }
 
 #[test]
+fn the_box_configuration_is_read_once_before_fetching() {
+    use std::{cell::Cell, io::ErrorKind, path::Path};
+    for (name, has_entry, error, expected) in [
+        ("absent", false, Some(ErrorKind::NotFound), false),
+        ("empty", false, None, false),
+        ("an entry", true, None, true),
+        ("unreadable", false, Some(ErrorKind::PermissionDenied), true),
+        ("not a directory", false, Some(ErrorKind::NotADirectory), true),
+    ] {
+        let reads = Cell::new(0_u32);
+        let read = |directory: &Path| {
+            assert_eq!(directory, Path::new("/resolved/config"));
+            reads.set(reads.get().checked_add(1).expect("one read"));
+            error.map_or(Ok(has_entry), |kind| Err(std::io::Error::from(kind)))
+        };
+        assert_eq!(tui::box_set_up(b"/resolved/config", &read), expected, "{name}");
+        assert_eq!(reads.get(), 1, "{name}");
+    }
+}
+
+#[test]
+fn the_box_log_uses_the_deployment_directories_resolved_for_a_lend() {
+    for (arguments, entries, data) in [
+        (vec![], vec![("HOME", "/home/person")], "/home/person/.local/share/temper"),
+        (vec![], vec![("HOME", "/home/person"), ("TEMPER_DATA", "deployment")], "/working/deployment"),
+        (vec!["--data", "chosen"], vec![("HOME", "/home/person"), ("TEMPER_DATA", "/ignored")], "/working/chosen"),
+    ] {
+        let arguments: Vec<Box<[u8]>> = arguments.iter().map(|arg| arg.as_bytes().into()).collect();
+        let (directories, _) = temper_shell::directories::resolve(&arguments, &environment(&entries), b"/working")
+            .expect("box directories");
+        assert_eq!(directories.data.as_ref(), data.as_bytes());
+        assert_eq!(tui::box_log(&directories.data).as_ref(), format!("{data}/box/logs/box.log").as_bytes());
+    }
+}
+
+#[test]
 fn the_link_path_is_the_same_deployments_as_the_box() {
     let expected = temper_shell::link_file::path(b"/working/deployment", Some(b"/runtime"), cfg!(target_os = "linux"));
     for (state, extra) in [
@@ -276,5 +312,19 @@ fn the_lines_name_the_binary() {
         for (given, expected) in [(true, terminal), (false, bare)] {
             assert_eq!(super::terminal_refusal(name, given), expected, "{name}: given {given}");
         }
+    }
+}
+
+#[test]
+fn only_apple_terminal_leaves_the_mark_out() {
+    for (value, plain) in [
+        (Some("Apple_Terminal"), true),
+        (Some("iTerm.app"), false),
+        (Some("apple_terminal"), false),
+        (Some(""), false),
+        (None, false),
+    ] {
+        let entries = value.map(|value| ("TERM_PROGRAM", value)).into_iter().collect::<Vec<_>>();
+        assert_eq!(tui::plain(&environment(&entries)), plain, "{value:?}");
     }
 }

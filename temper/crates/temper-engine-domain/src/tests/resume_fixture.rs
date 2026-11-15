@@ -1,5 +1,6 @@
 //! Unit configuration uses the existing engine world's tiny limits and charter,
-//! with no templates. No store, worker or connector driver is added.
+//! with no templates. The empty startup retention pass is settled before runtime measurements;
+//! no worker or connector driver is added.
 use crate as engine;
 use crate::{JournalLimits, loads};
 use jig_domain_accounts as accounts;
@@ -168,6 +169,11 @@ pub fn limits() -> engine::Limits {
         public_watermark: engine::default_watermark(&journal).checked_div(2).expect("half the watermark"),
         public_reads: 0,
         public: jig_domain_core::PublicIndexLimits::OFF,
+        retention: jig_domain_core::RetentionLimits {
+            turns: Duration::from_secs(14 * 86_400),
+            records: Duration::from_secs(30 * 86_400),
+            summaries: Duration::from_secs(365 * 86_400),
+        },
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -571,7 +577,28 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
     let mut out = skein_lib::Queue::uncapped();
     fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), true, &mut out);
     assert!(out.is_empty(), "the fixture restores no claims or workers");
+    settle_retention(&mut root, &env);
     (root, env)
+}
+
+fn settle_retention(root: &mut engine::Domain, env: &Env<engine::Limits>) {
+    use jig_domain_core as core;
+    let env = crate::limits::environment_core(env);
+    let mut requests = core::fire(&mut root.core, &env, core::Timer::Retention);
+    for _ in 0..RESTORE_PASSES {
+        let Some(request) = requests.pop() else { break };
+        let core::Request::Held(held) = request else { panic!("an empty retention pass writes nothing") };
+        let core::Held::ReadLoad { load, range } = *held else { panic!("retention loads its due range") };
+        let core::reads::Scope::Retention { .. } = range.scope else { panic!("the fixture has no retention owner") };
+        assert!(requests.is_empty(), "one internal read at a time");
+        requests = core::step(
+            &mut root.core,
+            &env,
+            core::Event::ReadLoaded { load, result: core::reads::Loaded::Page { rows: Box::new([]), next: None } },
+        );
+        root.core.reclaim();
+    }
+    assert!(requests.is_empty(), "empty-store retention completed without a write");
 }
 pub fn root_with_config(config: engine::Config) -> (engine::Domain, Env<engine::Limits>) {
     root_with_config_and_limits(config, &limits())
@@ -617,7 +644,7 @@ pub fn root_with_records(
                 deployment.tasks = deployment.tasks.max(row.number);
             }
             engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
-                jig_domain_core::ProjectionRecord::Goal { goal, .. },
+                jig_domain_core::ProjectionRecord::GoalHot { goal, .. },
             ))) => deployment.tasks = deployment.tasks.max(goal.number),
             engine::Record::Core(_) | engine::Record::Forge { .. } => {}
         }

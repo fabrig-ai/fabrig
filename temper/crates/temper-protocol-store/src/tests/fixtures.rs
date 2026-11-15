@@ -178,9 +178,10 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
     skein_forge_client::Key::Live(skein_forge_client::Resource { repository, what })
 }
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
+#[expect(clippy::too_many_lines, reason = "one draw covers the durable key families")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(42) {
+    match random.below(44) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -199,6 +200,8 @@ pub fn key(random: &mut Rng) -> top::Key {
         10 => top::Key::Entry(number),
         11 => top::Key::Client(client_key(random)),
         12 => top::Key::Change(number),
+        42 => top::Key::ChangeCold(number),
+        43 => top::Key::ChangeHot(number),
         13 => top::Key::Issue(number),
         14 => top::Key::Release(number),
         15 => top::Key::Application(number),

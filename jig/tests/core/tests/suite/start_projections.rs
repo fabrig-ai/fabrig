@@ -44,28 +44,17 @@ fn closing() -> tasks::Phase {
     })
 }
 fn goal(pending: Box<[u16]>) -> core::ProjectionRecord {
-    core::ProjectionRecord::Goal {
-        goal: core::ProjectionGoal {
-            number: 17,
-            project: people::DEPLOYMENT,
-            priority: 3,
-            words: b"goal".as_slice().into(),
-            phase: closing(),
-        },
+    core::ProjectionRecord::GoalHot {
+        goal: core::ProjectionGoalHot { number: 17, project: people::DEPLOYMENT, priority: 3, phase: closing() },
         pending,
         changed: true,
         fed_at: None,
     }
 }
 fn piece() -> core::ProjectionRecord {
-    core::ProjectionRecord::Task {
+    core::ProjectionRecord::TaskHot {
         goal: 17,
-        task: core::ProjectionTask {
-            number: 18,
-            requester: tasks::Party::Task(17),
-            words: b"child".as_slice().into(),
-            phase: closing(),
-        },
+        task: core::ProjectionTaskHot { number: 18, requester: tasks::Party::Task(17), phase: closing() },
     }
 }
 
@@ -80,10 +69,12 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
         words: b"stored milestone".as_slice().into(),
     };
     h.row(task.clone());
+    h.row(core::ProjectionRecord::TaskWords { goal: 17, task: 18, words: b"child".as_slice().into() });
     h.row(core::ProjectionRecord::Milestone { goal: 17, milestone: milestone.clone() });
     let pending = h.core.connectors.clone();
     let header = goal(pending.clone());
     h.row(header.clone());
+    h.row(core::ProjectionRecord::GoalWords { goal: 17, task: 17, words: b"goal".as_slice().into() });
     assert_eq!(h.core.start_failure(), None);
     phase(&link(&mut h.core, &h.env, &mut h.out), Phase::Sweep);
     assert!(h.out.is_empty());
@@ -98,10 +89,10 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
     while let Some(request) = output.pop() {
         if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } = request {
             assert!(pending.contains(&connector));
-            let core::ProjectionRecord::Goal { goal, .. } = &header else { unreachable!() };
-            let core::ProjectionRecord::Task { task, .. } = &task else { unreachable!() };
-            assert_eq!(feed.goal, *goal);
-            assert_eq!(feed.plan.as_ref(), std::slice::from_ref(task));
+            let core::ProjectionRecord::GoalHot { goal, .. } = &header else { unreachable!() };
+            let core::ProjectionRecord::TaskHot { task, .. } = &task else { unreachable!() };
+            assert_eq!(feed.goal, goal.clone().join(b"goal".as_slice().into()));
+            assert_eq!(feed.plan.as_ref(), &[task.clone().join(b"child".as_slice().into())]);
             assert_eq!(feed.milestones.as_ref(), std::slice::from_ref(&milestone));
             feeds += 1;
         }
@@ -127,10 +118,12 @@ fn an_orphan_stays_loaded_until_the_link_step() {
 #[test]
 fn a_fit_refusal_names_the_stored_projection_key() {
     let mut h = Harness::new();
-    let mut row = goal(Box::new([]));
-    let core::ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     let limit = h.env.limits.tasks.spec_bytes;
-    goal.words = vec![b'x'; skein_lib::length::usize_of(limit + 1)].into_boxed_slice();
+    let row = core::ProjectionRecord::GoalWords {
+        goal: 17,
+        task: 17,
+        words: vec![b'x'; skein_lib::length::usize_of(limit + 1)].into_boxed_slice(),
+    };
     let key = core::Key::Core(core::CoreKey::Projection(row.key()));
     assert_eq!(h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Projection(row))), core::Restore::Refused);
     let expected = core::start::Failure::LiveSet {

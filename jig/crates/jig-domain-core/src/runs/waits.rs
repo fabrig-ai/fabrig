@@ -85,8 +85,14 @@ pub(crate) fn from_row(core: &Core, limits: &Limits, row: &tasks::TaskRecord) ->
         | tasks::Phase::Ended(_) => false,
     };
     if working {
-        WaitsOn::Nothing
-    } else if match row.phase {
+        return WaitsOn::Nothing;
+    }
+    if let tasks::Phase::Active(_) = row.phase
+        && let Some(number) = tasks::own_question(row)
+    {
+        return WaitsOn::Question { number };
+    }
+    if match row.phase {
         tasks::Phase::Active(_) => true,
         tasks::Phase::Waiting | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     } && !row.waiting_on.is_empty()

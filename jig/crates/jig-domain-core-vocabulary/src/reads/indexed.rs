@@ -113,9 +113,12 @@ pub fn is_update(key: &Key) -> bool {
     match key {
         Key::Tasks(tasks::Key::Update { .. }) => true,
         Key::Tasks(
-            tasks::Key::Live(_)
+            tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Ledger(_)
             | tasks::Key::ClosedLedger(_)
@@ -150,7 +153,9 @@ pub fn ended_delegate_row(
     let edge = match &row.value {
         crate::Record::Tasks(tasks::Stored::EndedDelegate(edge)) => edge,
         crate::Record::Tasks(
-            tasks::Stored::EndedByParty(_)
+            tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)
             | tasks::Stored::Delegate(_)
             | tasks::Stored::Update(_)
@@ -166,6 +171,7 @@ pub fn ended_delegate_row(
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -176,7 +182,21 @@ pub fn ended_delegate_row(
         | crate::Record::Notes(_)
         | crate::Record::Accounts(_) => return Ok(None),
     };
-    let Some(owner) = &row.owner else { return Ok(None) };
+    let Some(owner) = &row.owner else {
+        // Ended delegates remain listable after shrinking (protocol/store/retention.md, 7).
+        let Some(summary) = &row.summary else { return Ok(None) };
+        if edge.requester != requester
+            || edge.task != summary.number
+            || summary.requester != tasks::Party::Task(requester)
+        {
+            return Ok(None);
+        }
+        return Ok(Some(super::PageRow::EndedDelegate(documents::EndedDelegate {
+            chip: documents::chip_from_summary(limits, summary),
+            ended: documents::task_tree::ending_from_summary(limits, summary),
+            at: Some(summary.ended_at),
+        })));
+    };
     if edge.requester != requester || edge.task != owner.number || owner.requester != tasks::Party::Task(requester) {
         return Ok(None);
     }

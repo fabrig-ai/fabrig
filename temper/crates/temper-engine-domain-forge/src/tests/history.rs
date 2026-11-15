@@ -116,7 +116,7 @@ fn events_save_all_indexes_and_move_last_in_the_callers_decision() {
             saved(Stored::HistoryChange(ChangeIndex { project: 5, change, number: 1, landing: None })),
             saved(Stored::HistoryLast(Last { project: 5, number: 1, change, at: wall })),
             saved(Stored::HistoryProject(project.clone())),
-            saved(Stored::Change(Box::new(row.clone()))),
+            saved(Stored::ChangeHot(Box::new(row.clone().split().1))),
         ]
     );
     assert_eq!(d.changes.get(&change), Some(&row));
@@ -197,11 +197,14 @@ fn restored_history_keeps_intervals_numbers_and_only_the_newest_hour_marks() {
     assert_eq!(d.write_event(wall, change, input(), &mut out), Some(41));
     let output = rows(out);
     let mut after = domain();
+    let cold = d.change_cold.get(&change).unwrap().clone();
+    assert!(outputs(&mut after, Event::Restore { record: Stored::ChangeCold(Box::new(cold)) }).is_empty());
     for request in &output {
         if let Request::Save { record, .. } = request {
             assert!(outputs(&mut after, Event::Restore { record: record.clone() }).is_empty());
         }
     }
+    after.fit_restored(&LIMITS).unwrap();
     let saved_project = d.history_projects.get(&5).unwrap();
     assert_eq!(saved_project.next, 42);
     assert_eq!(saved_project.kept, 13);
@@ -222,7 +225,7 @@ fn restored_history_keeps_intervals_numbers_and_only_the_newest_hour_marks() {
     assert_eq!(after.history_projects.len(), 1, "event and index restores are dropped");
 }
 fn saved_row(d: &Domain, change: u64) -> Request {
-    saved(Stored::Change(Box::new(d.changes.get(&change).unwrap().clone())))
+    saved(Stored::ChangeHot(Box::new(d.changes.get(&change).unwrap().clone().split().1)))
 }
 
 #[test]

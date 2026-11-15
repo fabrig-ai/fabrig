@@ -234,20 +234,24 @@ fn a_store_that_fails_a_link_refuses_the_start_naming_both() {
         (
             "connector",
             |world| {
-                world.store.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
-                    core::ProjectionRecord::Goal {
-                        goal: core::ProjectionGoal {
-                            number: 1,
-                            project: 1,
-                            priority: 0,
-                            words: Box::new([]),
-                            phase: tasks::Phase::Waiting,
+                world.store.seed(Box::new([
+                    root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+                        core::ProjectionRecord::GoalWords { goal: 1, task: 1, words: Box::new([]) },
+                    ))),
+                    root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+                        core::ProjectionRecord::GoalHot {
+                            goal: core::ProjectionGoalHot {
+                                number: 1,
+                                project: 1,
+                                priority: 0,
+                                phase: tasks::Phase::Waiting,
+                            },
+                            pending: Box::new([99]),
+                            changed: true,
+                            fed_at: None,
                         },
-                        pending: Box::new([99]),
-                        changed: true,
-                        fed_at: None,
-                    },
-                )))]));
+                    ))),
+                ]));
             },
             core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(1))),
             Linked::Connector(99),

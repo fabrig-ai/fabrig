@@ -25,6 +25,8 @@ pub struct Settings {
     pub directory: Box<[u8]>,
     pub address: Box<[u8]>,
     pub scheme: Option<Scheme>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub boxed: bool,
     pub link_file: Option<Box<[u8]>>,
     pub note: Option<Note>,
@@ -42,6 +44,8 @@ pub struct Settings {
 pub struct Front {
     pub executable: Box<[u8]>,
     pub directories: temper_shell::directories::Directories,
+    /// The configuration directory had an entry or could not be read, before the fetch.
+    pub set_up: bool,
     pub arguments: Box<[Box<[u8]>]>,
     pub environment: Box<[Box<[u8]>]>,
     /// An owned descriptor of the captured working directory.
@@ -77,6 +81,8 @@ pub struct Run {
     operations: u32,
     start: Option<(Option<Scheme>, Box<[u8]>)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
+    plain: bool,
+    version: Box<[u8]>,
     boxed: bool,
     front: bool,
     box_child: Option<front::Child>,
@@ -156,6 +162,8 @@ impl Run {
             operations.checked_add(if recording.is_some() { 2 } else { 0 }).expect("file and cancel operations");
         let capacity = operations.checked_mul(2).expect("completion and submission room");
         Ok(Self {
+            plain: settings.plain,
+            version: settings.version,
             host,
             shell,
             terminal,
@@ -475,6 +483,8 @@ impl Run {
             size,
             scheme,
             background,
+            plain: self.plain,
+            version: std::mem::take(&mut self.version),
             boxed: self.boxed,
             address,
             local: self.front || self.link_file.is_some(),
@@ -482,6 +492,8 @@ impl Run {
             credential,
             note: self.note,
             front: self.front,
+            set_up: self.box_child.as_ref().is_some_and(front::Child::set_up),
+            box_log: self.box_child.as_ref().map_or_else(Box::default, front::Child::box_log),
         };
         if let Some(recording) = &mut self.recording {
             let mut recorder = journey::Recorder::new(&journey::Facts {
@@ -491,10 +503,14 @@ impl Run {
                 size: start.size,
                 scheme: start.scheme,
                 background: start.background,
+                plain: start.plain,
+                version: start.version.clone(),
                 boxed: start.boxed,
                 address: start.address.clone(),
                 local: start.local,
                 front: start.front,
+                set_up: start.set_up,
+                box_log: start.box_log.clone(),
                 note: start.note,
                 kept: start.kept.clone(),
                 credential: start.credential.clone(),
@@ -1150,6 +1166,8 @@ mod tests {
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
             scheme: Some(Scheme::Dark),
+            plain: false,
+            version: Box::default(),
             boxed: false,
             link_file: None,
             note: None,
@@ -1164,6 +1182,24 @@ mod tests {
     }
 
     #[test]
+    fn the_run_hands_the_terminal_and_build_to_start() {
+        let mut settings = settings();
+        settings.plain = true;
+        settings.version = b"0.0.0 (b948f40d6df1)".as_slice().into();
+        settings.link_file = Some(b"link".as_slice().into());
+        settings.record = Some(Fd::new(8));
+        let mut run =
+            Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
+        run.started(None, Vec::new());
+        let frame = String::from_utf8(run.host.frame().print().into_vec()).unwrap();
+        assert_eq!(frame.lines().next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
+        let recorder = run.recording.as_ref().unwrap().recorder.as_ref().unwrap();
+        let lines = journey::lines(&recorder.save(&mut run.host)).expect("recorded Start");
+        assert!(lines.contains(&journey::Line::Plain));
+        assert!(lines.contains(&journey::Line::Version(b"0.0.0 (b948f40d6df1)".as_slice().into())));
+    }
+
+    #[test]
     fn recording_keys_pass_to_the_host_without_a_root() {
         let mut run = Run::new(settings(), Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
@@ -1173,9 +1209,48 @@ mod tests {
     }
 
     #[test]
+    fn the_runs_start_carries_the_captured_box_facts_only_in_front() {
+        for setup in [None, Some(false), Some(true)] {
+            let mut settings = settings();
+            settings.front = setup.map(|set_up| Front {
+                executable: b"/bin/temper".as_slice().into(),
+                directories: temper_shell::directories::Directories {
+                    config: b"/config".as_slice().into(),
+                    data: b"/data".as_slice().into(),
+                    cache: b"/cache".as_slice().into(),
+                    origins: [skein_shell::Origin::Flag; 3],
+                },
+                set_up,
+                arguments: Box::new([]),
+                environment: Box::new([]),
+                directory: Fd::new(5),
+                log: b"/data/box/logs/box.log".as_slice().into(),
+            });
+            settings.record = Some(Fd::new(8));
+            let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
+                .expect("synthetic descriptors");
+            run.started(None, Vec::new());
+            let log = if setup.is_some() { b"/data/box/logs/box.log".as_slice() } else { b"" };
+            let saved = run
+                .recording
+                .as_ref()
+                .expect("recording")
+                .recorder
+                .as_ref()
+                .expect("started recorder")
+                .save(&mut run.host);
+            let records = journey::lines(&saved).expect("start records");
+            assert_eq!(records.contains(&journey::Line::SetUp), setup == Some(true));
+            assert_eq!(records.contains(&journey::Line::BoxLog(log.into())), setup.is_some());
+            assert!(run.box_child.as_ref().is_none_or(|child| child.requests.is_empty()), "facts precede fetching");
+        }
+    }
+
+    #[test]
     fn a_signal_drops_a_link_already_waiting_to_be_reported() {
         let mut settings = settings();
         settings.front = Some(Front {
+            set_up: false,
             executable: b"/bin/temper".as_slice().into(),
             directories: temper_shell::directories::Directories {
                 config: b"/config".as_slice().into(),

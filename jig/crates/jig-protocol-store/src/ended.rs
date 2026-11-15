@@ -138,6 +138,9 @@ fn ended(row: Option<Record>) -> Option<Box<tasks::TaskRecord>> {
         Record::Tasks(
             tasks::Stored::Live(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)

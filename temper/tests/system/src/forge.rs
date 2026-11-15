@@ -377,6 +377,10 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
+                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                    let result = self.store.read(range);
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {

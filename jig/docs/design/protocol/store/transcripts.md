@@ -97,6 +97,11 @@ the committed length. The next open cuts the file to its committed length
 - **Never past what is committed.**
 - **Current bytes only:** each kind hands on a frame at the binary's
   versions, one behind patched as it is read (6).
+- **A dropped transcript,** a task with no row of places: a party's
+  page of its activity carries each turn line without its turn, as
+  unread, and goes on past it, since none of its frames can be read
+  (`retention.md`, 7). A transcript read of it answers unread, and a
+  party's read of one turn finds none.
 - **A frame that fails its checksum** fails the read as unread, and so
   does one its machines refuse (6). The core
   treats the transcript as one the agent cannot use: the run fails as
@@ -119,8 +124,9 @@ task's file was cut while its task lived, and is not touched again.
 
 ## 5. Dropped
 
-Retention drops a task's transcript whole (`README.md`, 6.1): the commit erases the
-task's row of places, and the component removes its file and syncs the
+Retention drops a task's transcript whole, at its turns' horizon after
+the task ended (`retention.md`, 6.1), or with the task when it is
+erased (`README.md`, 6.1): the commit erases the task's row of places, and the component removes its file and syncs the
 directory before it submits the commit. The task's attempts' places,
 as many as its attempts, are orphans from that commit on, read by
 nothing, and go in the commits that follow, a bounded number each

@@ -86,8 +86,19 @@ pub struct Limits {
     pub task_interests_inbox: u32,
     pub task_interests_saved: u32,
     pub before_talk_started_from: u32,
+    pub hot_history_question_lines: u32,
+    pub hot_history_proposal_rows: u32,
+    pub hot_history_refused: u32,
+    pub hot_definition_dependencies: u32,
+    pub hot_definition_waiting_on: u32,
+    pub hot_definition_added: u32,
+    pub live_hot_started_from: u32,
+    pub live_cold_instructions_some: u32,
     pub placed_hold_reason: u32,
     pub placed_hold_exempt: u32,
+    pub summary_result_words: u32,
+    pub task_summary_title: u32,
+    pub task_summary_reason: u32,
     pub model_name_value: u32,
     pub row_models: u32,
     pub task_problem_blocked_by_some: u32,
@@ -178,8 +189,19 @@ pub const CEILINGS: Limits = Limits {
     task_interests_inbox: 130,
     task_interests_saved: 64,
     before_talk_started_from: 64,
+    hot_history_question_lines: 128,
+    hot_history_proposal_rows: 128,
+    hot_history_refused: 128,
+    hot_definition_dependencies: 64,
+    hot_definition_waiting_on: 64,
+    hot_definition_added: 64,
+    live_hot_started_from: 64,
+    live_cold_instructions_some: 524_288,
     placed_hold_reason: 524_288,
     placed_hold_exempt: 4_096,
+    summary_result_words: 256,
+    task_summary_title: 256,
+    task_summary_reason: 256,
     model_name_value: 4_096,
     row_models: 64,
     task_problem_blocked_by_some: 8_192,
@@ -189,7 +211,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 88] = [
+pub const LIMIT_NAMES: [&str; 99] = [
     "bytes_parameter_value",
     "job_spec_bytes",
     "job_result_bytes",
@@ -270,8 +292,19 @@ pub const LIMIT_NAMES: [&str; 88] = [
     "task_interests_inbox",
     "task_interests_saved",
     "before_talk_started_from",
+    "hot_history_question_lines",
+    "hot_history_proposal_rows",
+    "hot_history_refused",
+    "hot_definition_dependencies",
+    "hot_definition_waiting_on",
+    "hot_definition_added",
+    "live_hot_started_from",
+    "live_cold_instructions_some",
     "placed_hold_reason",
     "placed_hold_exempt",
+    "summary_result_words",
+    "task_summary_title",
+    "task_summary_reason",
     "model_name_value",
     "row_models",
     "task_problem_blocked_by_some",
@@ -283,7 +316,7 @@ pub const LIMIT_NAMES: [&str; 88] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 88] {
+    pub fn values(&self) -> [u32; 99] {
         [
             self.bytes_parameter_value, self.job_spec_bytes, self.job_result_bytes, self.spec_words, self.spec_parameters, self.spec_inputs, self.part_segment_bytes, self.part_path_segments,
             self.field_rule_name, self.verdict_fields, self.approval_state, self.choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.authority_segment_bytes, self.pattern_segments,
@@ -295,7 +328,9 @@ impl Limits {
             self.word_words, self.activity_words_words, self.kept_line_pending, self.now_written_line_line, self.stood_line_words, self.rejected_escalation_reason, self.recurring_state_last_batch, self.saved_resource_path,
             self.task_history_question_lines, self.task_history_proposal_rows, self.task_history_instructions_some, self.task_history_refused, self.task_run_replies, self.task_definition_dependencies, self.task_definition_waiting_on, self.task_definition_added,
             self.task_interests_holdings, self.task_interests_delegates, self.task_interests_result_followups, self.task_interests_references, self.task_interests_subscriptions, self.task_interests_inbox, self.task_interests_saved, self.before_talk_started_from,
-            self.placed_hold_reason, self.placed_hold_exempt, self.model_name_value, self.row_models, self.task_problem_blocked_by_some, self.result_followups_delegates_value, self.end_failed_with_reason_reason, self.end_refused_with_reason_reason,
+            self.hot_history_question_lines, self.hot_history_proposal_rows, self.hot_history_refused, self.hot_definition_dependencies, self.hot_definition_waiting_on, self.hot_definition_added, self.live_hot_started_from, self.live_cold_instructions_some,
+            self.placed_hold_reason, self.placed_hold_exempt, self.summary_result_words, self.task_summary_title, self.task_summary_reason, self.model_name_value, self.row_models, self.task_problem_blocked_by_some,
+            self.result_followups_delegates_value, self.end_failed_with_reason_reason, self.end_refused_with_reason_reason,
         ]
     }
 }
@@ -1953,6 +1988,116 @@ pub enum Path {
     TaskRecordTalk,
     /// Bytes after `TaskRecord`.
     TaskRecordTail,
+    /// The `last_activity` field of `HotHistory`.
+    HotHistoryLastActivity,
+    /// The `ended_below` field of `HotHistory`.
+    HotHistoryEndedBelow,
+    /// The `ended_delegates` field of `HotHistory`.
+    HotHistoryEndedDelegates,
+    /// The `question_lines` field of `HotHistory`.
+    HotHistoryQuestionLines,
+    /// The `hold` field of `HotHistory`.
+    HotHistoryHold,
+    /// The `placed` field of `HotHistory`.
+    HotHistoryPlaced,
+    /// The `proposal_rows` field of `HotHistory`.
+    HotHistoryProposalRows,
+    /// The `refused` field of `HotHistory`.
+    HotHistoryRefused,
+    /// The `grace` field of `HotHistory`.
+    HotHistoryGrace,
+    /// The `settings` field of `HotHistory`.
+    HotHistorySettings,
+    /// The `revisions` field of `HotHistory`.
+    HotHistoryRevisions,
+    /// The `created_at` field of `HotHistory`.
+    HotHistoryCreatedAt,
+    /// The `changed` field of `HotHistory`.
+    HotHistoryChanged,
+    /// The `phase_since` field of `HotHistory`.
+    HotHistoryPhaseSince,
+    /// The `run_since` field of `HotHistory`.
+    HotHistoryRunSince,
+    /// The `retry_notice` field of `HotHistory`.
+    HotHistoryRetryNotice,
+    /// The `ended_at` field of `HotHistory`.
+    HotHistoryEndedAt,
+    /// The `revision` field of `HotHistory`.
+    HotHistoryRevision,
+    /// Bytes after `HotHistory`.
+    HotHistoryTail,
+    /// The `label` field of `HotDefinition`.
+    HotDefinitionLabel,
+    /// The `flags` field of `HotDefinition`.
+    HotDefinitionFlags,
+    /// The `root` field of `HotDefinition`.
+    HotDefinitionRoot,
+    /// The `depth` field of `HotDefinition`.
+    HotDefinitionDepth,
+    /// The `executor` field of `HotDefinition`.
+    HotDefinitionExecutor,
+    /// The `llm` field of `HotDefinition`.
+    HotDefinitionLlm,
+    /// The `kept_account` field of `HotDefinition`.
+    HotDefinitionKeptAccount,
+    /// The `taken_by` field of `HotDefinition`.
+    HotDefinitionTakenBy,
+    /// The `person_answer` field of `HotDefinition`.
+    HotDefinitionPersonAnswer,
+    /// The `person_wait` field of `HotDefinition`.
+    HotDefinitionPersonWait,
+    /// The `recurring` field of `HotDefinition`.
+    HotDefinitionRecurring,
+    /// The `tracked` field of `HotDefinition`.
+    HotDefinitionTracked,
+    /// The `numbers` field of `HotDefinition`.
+    HotDefinitionNumbers,
+    /// The `funder` field of `HotDefinition`.
+    HotDefinitionFunder,
+    /// The `dependencies` field of `HotDefinition`.
+    HotDefinitionDependencies,
+    /// The `waiting_on` field of `HotDefinition`.
+    HotDefinitionWaitingOn,
+    /// The `added` field of `HotDefinition`.
+    HotDefinitionAdded,
+    /// Bytes after `HotDefinition`.
+    HotDefinitionTail,
+    /// The `activation_open` field of `LiveHot`.
+    LiveHotActivationOpen,
+    /// The `session` field of `LiveHot`.
+    LiveHotSession,
+    /// The `closer` field of `LiveHot`.
+    LiveHotCloser,
+    /// The `history` field of `LiveHot`.
+    LiveHotHistory,
+    /// The `run` field of `LiveHot`.
+    LiveHotRun,
+    /// The `definition` field of `LiveHot`.
+    LiveHotDefinition,
+    /// The `started_from` field of `LiveHot`.
+    LiveHotStartedFrom,
+    /// The `interests` field of `LiveHot`.
+    LiveHotInterests,
+    /// The `outcome` field of `LiveHot`.
+    LiveHotOutcome,
+    /// The `asked_requester` field of `LiveHot`.
+    LiveHotAskedRequester,
+    /// The `question_woken` field of `LiveHot`.
+    LiveHotQuestionWoken,
+    /// The `talk` field of `LiveHot`.
+    LiveHotTalk,
+    /// Bytes after `LiveHot`.
+    LiveHotTail,
+    /// The `spec` field of `LiveCold`.
+    LiveColdSpec,
+    /// The `contract` field of `LiveCold`.
+    LiveColdContract,
+    /// The `authority` field of `LiveCold`.
+    LiveColdAuthority,
+    /// The `instructions` field of `LiveCold`.
+    LiveColdInstructions,
+    /// Bytes after `LiveCold`.
+    LiveColdTail,
     /// The `party` field of `EndedByParty`.
     EndedByPartyParty,
     /// The `label` field of `EndedByParty`.
@@ -2005,6 +2150,104 @@ pub enum Path {
     PlacedHoldLifted,
     /// Bytes after `PlacedHold`.
     PlacedHoldTail,
+    /// The `by` field of `SummaryCancelled`.
+    SummaryCancelledBy,
+    /// The `at` field of `SummaryCancelled`.
+    SummaryCancelledAt,
+    /// Bytes after `SummaryCancelled`.
+    SummaryCancelledTail,
+    /// The tag of `SummaryEnding`.
+    SummaryEndingTag,
+    /// The `code` field of `SummaryVerdict`.
+    SummaryVerdictCode,
+    /// Bytes after `SummaryVerdict`.
+    SummaryVerdictTail,
+    /// The `connector` field of `SummaryChange`.
+    SummaryChangeConnector,
+    /// The `kind` field of `SummaryChange`.
+    SummaryChangeKind,
+    /// The `resource` field of `SummaryChange`.
+    SummaryChangeResource,
+    /// Bytes after `SummaryChange`.
+    SummaryChangeTail,
+    /// The tag of `SummaryResultKind`.
+    SummaryResultKindTag,
+    /// The `kind` field of `SummaryResult`.
+    SummaryResultKind,
+    /// The `words` field of `SummaryResult`.
+    SummaryResultWords,
+    /// Bytes after `SummaryResult`.
+    SummaryResultTail,
+    /// The `done` field of `SummaryEndings`.
+    SummaryEndingsDone,
+    /// The `failed` field of `SummaryEndings`.
+    SummaryEndingsFailed,
+    /// Bytes after `SummaryEndings`.
+    SummaryEndingsTail,
+    /// The `number` field of `TaskSummary`.
+    TaskSummaryNumber,
+    /// The `root` field of `TaskSummary`.
+    TaskSummaryRoot,
+    /// The `depth` field of `TaskSummary`.
+    TaskSummaryDepth,
+    /// The `requester` field of `TaskSummary`.
+    TaskSummaryRequester,
+    /// The `project` field of `TaskSummary`.
+    TaskSummaryProject,
+    /// The `label` field of `TaskSummary`.
+    TaskSummaryLabel,
+    /// The `flags` field of `TaskSummary`.
+    TaskSummaryFlags,
+    /// The `tracked` field of `TaskSummary`.
+    TaskSummaryTracked,
+    /// The `executor` field of `TaskSummary`.
+    TaskSummaryExecutor,
+    /// The `title` field of `TaskSummary`.
+    TaskSummaryTitle,
+    /// The `ending` field of `TaskSummary`.
+    TaskSummaryEnding,
+    /// The `reason` field of `TaskSummary`.
+    TaskSummaryReason,
+    /// The `result` field of `TaskSummary`.
+    TaskSummaryResult,
+    /// The `cuts` field of `TaskSummary`.
+    TaskSummaryCuts,
+    /// The `created_at` field of `TaskSummary`.
+    TaskSummaryCreatedAt,
+    /// The `changed` field of `TaskSummary`.
+    TaskSummaryChanged,
+    /// The `last_activity` field of `TaskSummary`.
+    TaskSummaryLastActivity,
+    /// The `ended_at` field of `TaskSummary`.
+    TaskSummaryEndedAt,
+    /// The `numbers` field of `TaskSummary`.
+    TaskSummaryNumbers,
+    /// The `deadline` field of `TaskSummary`.
+    TaskSummaryDeadline,
+    /// The `funder` field of `TaskSummary`.
+    TaskSummaryFunder,
+    /// The `ended_delegates` field of `TaskSummary`.
+    TaskSummaryEndedDelegates,
+    /// The `attempt` field of `TaskSummary`.
+    TaskSummaryAttempt,
+    /// The `activity` field of `TaskSummary`.
+    TaskSummaryActivity,
+    /// The `result_position` field of `TaskSummary`.
+    TaskSummaryResultPosition,
+    /// The `last_reply` field of `TaskSummary`.
+    TaskSummaryLastReply,
+    /// Bytes after `TaskSummary`.
+    TaskSummaryTail,
+    /// The tag of `RetentionStage`.
+    RetentionStageTag,
+    /// The `stage` field of `RetentionRow`.
+    RetentionRowStage,
+    /// The `since` field of `RetentionRow`.
+    RetentionRowSince,
+    /// The `number` field of `RetentionRow`.
+    RetentionRowNumber,
+    /// Bytes after `RetentionRow`.
+    RetentionRowTail,
     /// The tag of `Value`.
     ValueTag,
     /// The `value` field of `ModelName`.
@@ -2281,6 +2524,7 @@ pub struct Problem {
 /// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     check_limits_0(limits)?;
+    check_limits_1(limits)?;
     Ok(())
 }
 
@@ -2365,8 +2609,23 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.task_interests_inbox > CEILINGS.task_interests_inbox { return Err(Problem { path: Path::TaskInterestsInbox, reason: skein_codec::Reason::Bound }); }
     if limits.task_interests_saved > CEILINGS.task_interests_saved { return Err(Problem { path: Path::TaskInterestsSaved, reason: skein_codec::Reason::Bound }); }
     if limits.before_talk_started_from > CEILINGS.before_talk_started_from { return Err(Problem { path: Path::BeforeTalkStartedFrom, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_history_question_lines > CEILINGS.hot_history_question_lines { return Err(Problem { path: Path::HotHistoryQuestionLines, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_history_proposal_rows > CEILINGS.hot_history_proposal_rows { return Err(Problem { path: Path::HotHistoryProposalRows, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_history_refused > CEILINGS.hot_history_refused { return Err(Problem { path: Path::HotHistoryRefused, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_definition_dependencies > CEILINGS.hot_definition_dependencies { return Err(Problem { path: Path::HotDefinitionDependencies, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_definition_waiting_on > CEILINGS.hot_definition_waiting_on { return Err(Problem { path: Path::HotDefinitionWaitingOn, reason: skein_codec::Reason::Bound }); }
+    if limits.hot_definition_added > CEILINGS.hot_definition_added { return Err(Problem { path: Path::HotDefinitionAdded, reason: skein_codec::Reason::Bound }); }
+    if limits.live_hot_started_from > CEILINGS.live_hot_started_from { return Err(Problem { path: Path::LiveHotStartedFrom, reason: skein_codec::Reason::Bound }); }
+    if limits.live_cold_instructions_some > CEILINGS.live_cold_instructions_some { return Err(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Bound }); }
     if limits.placed_hold_reason > CEILINGS.placed_hold_reason { return Err(Problem { path: Path::PlacedHoldReason, reason: skein_codec::Reason::Bound }); }
     if limits.placed_hold_exempt > CEILINGS.placed_hold_exempt { return Err(Problem { path: Path::PlacedHoldExempt, reason: skein_codec::Reason::Bound }); }
+    Ok(())
+}
+
+fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.summary_result_words > CEILINGS.summary_result_words { return Err(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Bound }); }
+    if limits.task_summary_title > CEILINGS.task_summary_title { return Err(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Bound }); }
+    if limits.task_summary_reason > CEILINGS.task_summary_reason { return Err(Problem { path: Path::TaskSummaryReason, reason: skein_codec::Reason::Bound }); }
     if limits.model_name_value > CEILINGS.model_name_value { return Err(Problem { path: Path::ModelNameValue, reason: skein_codec::Reason::Bound }); }
     if limits.row_models > CEILINGS.row_models { return Err(Problem { path: Path::RowModels, reason: skein_codec::Reason::Bound }); }
     if limits.task_problem_blocked_by_some > CEILINGS.task_problem_blocked_by_some { return Err(Problem { path: Path::TaskProblemBlockedBy, reason: skein_codec::Reason::Bound }); }
@@ -13055,6 +13314,503 @@ impl TaskRecord {
     }
 }
 
+/// Movable fields of `HotHistory`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HotHistoryParts {
+    /// The `last_activity` field.
+    pub last_activity: u64,
+    /// The `ended_below` field.
+    pub ended_below: Endings,
+    /// The `ended_delegates` field.
+    pub ended_delegates: Endings,
+    /// The `question_lines` field.
+    pub question_lines: List<QuestionLine>,
+    /// The `hold` field.
+    pub hold: u64,
+    /// The `placed` field.
+    pub placed: Option<u64>,
+    /// The `proposal_rows` field.
+    pub proposal_rows: List<ProposalRow>,
+    /// The `refused` field.
+    pub refused: List<Number>,
+    /// The `grace` field.
+    pub grace: Option<Grace>,
+    /// The `settings` field.
+    pub settings: SettingsRevision,
+    /// The `revisions` field.
+    pub revisions: Revisions,
+    /// The `created_at` field.
+    pub created_at: u64,
+    /// The `changed` field.
+    pub changed: u64,
+    /// The `phase_since` field.
+    pub phase_since: u64,
+    /// The `run_since` field.
+    pub run_since: Option<u64>,
+    /// The `retry_notice` field.
+    pub retry_notice: Option<RetryNotice>,
+    /// The `ended_at` field.
+    pub ended_at: Option<u64>,
+    /// The `revision` field.
+    pub revision: u64,
+}
+
+/// `HotHistory` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HotHistory {
+    last_activity: u64,
+    ended_below: Endings,
+    ended_delegates: Endings,
+    question_lines: List<QuestionLine>,
+    hold: u64,
+    placed: Option<u64>,
+    proposal_rows: List<ProposalRow>,
+    refused: List<Number>,
+    grace: Option<Grace>,
+    settings: SettingsRevision,
+    revisions: Revisions,
+    created_at: u64,
+    changed: u64,
+    phase_since: u64,
+    run_since: Option<u64>,
+    retry_notice: Option<RetryNotice>,
+    ended_at: Option<u64>,
+    revision: u64,
+}
+
+impl HotHistory {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: HotHistoryParts) -> Result<Self, Problem> {
+        let HotHistoryParts { last_activity, ended_below, ended_delegates, question_lines, hold, placed, proposal_rows, refused, grace, settings, revisions, created_at, changed, phase_since, run_since, retry_notice, ended_at, revision } = parts;
+        let value = Self { last_activity, ended_below, ended_delegates, question_lines, hold, placed, proposal_rows, refused, grace, settings, revisions, created_at, changed, phase_since, run_since, retry_notice, ended_at, revision };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `last_activity` field.
+    #[must_use]
+    pub fn last_activity(&self) -> u64 { self.last_activity }
+
+    /// Reads the `ended_below` field.
+    #[must_use]
+    pub fn ended_below(&self) -> &Endings { &self.ended_below }
+
+    /// Reads the `ended_delegates` field.
+    #[must_use]
+    pub fn ended_delegates(&self) -> &Endings { &self.ended_delegates }
+
+    /// Reads the `question_lines` field.
+    #[must_use]
+    pub fn question_lines(&self) -> &List<QuestionLine> { &self.question_lines }
+
+    /// Reads the `hold` field.
+    #[must_use]
+    pub fn hold(&self) -> u64 { self.hold }
+
+    /// Reads the `placed` field.
+    #[must_use]
+    pub fn placed(&self) -> &Option<u64> { &self.placed }
+
+    /// Reads the `proposal_rows` field.
+    #[must_use]
+    pub fn proposal_rows(&self) -> &List<ProposalRow> { &self.proposal_rows }
+
+    /// Reads the `refused` field.
+    #[must_use]
+    pub fn refused(&self) -> &List<Number> { &self.refused }
+
+    /// Reads the `grace` field.
+    #[must_use]
+    pub fn grace(&self) -> &Option<Grace> { &self.grace }
+
+    /// Reads the `settings` field.
+    #[must_use]
+    pub fn settings(&self) -> &SettingsRevision { &self.settings }
+
+    /// Reads the `revisions` field.
+    #[must_use]
+    pub fn revisions(&self) -> &Revisions { &self.revisions }
+
+    /// Reads the `created_at` field.
+    #[must_use]
+    pub fn created_at(&self) -> u64 { self.created_at }
+
+    /// Reads the `changed` field.
+    #[must_use]
+    pub fn changed(&self) -> u64 { self.changed }
+
+    /// Reads the `phase_since` field.
+    #[must_use]
+    pub fn phase_since(&self) -> u64 { self.phase_since }
+
+    /// Reads the `run_since` field.
+    #[must_use]
+    pub fn run_since(&self) -> &Option<u64> { &self.run_since }
+
+    /// Reads the `retry_notice` field.
+    #[must_use]
+    pub fn retry_notice(&self) -> &Option<RetryNotice> { &self.retry_notice }
+
+    /// Reads the `ended_at` field.
+    #[must_use]
+    pub fn ended_at(&self) -> &Option<u64> { &self.ended_at }
+
+    /// Reads the `revision` field.
+    #[must_use]
+    pub fn revision(&self) -> u64 { self.revision }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HotHistoryParts { HotHistoryParts { last_activity: self.last_activity, ended_below: self.ended_below, ended_delegates: self.ended_delegates, question_lines: self.question_lines, hold: self.hold, placed: self.placed, proposal_rows: self.proposal_rows, refused: self.refused, grace: self.grace, settings: self.settings, revisions: self.revisions, created_at: self.created_at, changed: self.changed, phase_since: self.phase_since, run_since: self.run_since, retry_notice: self.retry_notice, ended_at: self.ended_at, revision: self.revision } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.question_lines.capacity() > limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines) { return Err(Problem { path: Path::HotHistoryQuestionLines, reason: skein_codec::Reason::Bound }); }
+        if self.proposal_rows.capacity() > limits.hot_history_proposal_rows.min(CEILINGS.hot_history_proposal_rows) { return Err(Problem { path: Path::HotHistoryProposalRows, reason: skein_codec::Reason::Bound }); }
+        if self.refused.capacity() > limits.hot_history_refused.min(CEILINGS.hot_history_refused) { return Err(Problem { path: Path::HotHistoryRefused, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.grace.as_ref() {
+        some_0.check(limits)?;
+        }
+        if let Some(some_0) = self.retry_notice.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+/// Movable fields of `HotDefinition`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HotDefinitionParts {
+    /// The `label` field.
+    pub label: u32,
+    /// The `flags` field.
+    pub flags: Flags,
+    /// The `root` field.
+    pub root: u64,
+    /// The `depth` field.
+    pub depth: u32,
+    /// The `executor` field.
+    pub executor: Executor,
+    /// The `llm` field.
+    pub llm: Option<LlmChoice>,
+    /// The `kept_account` field.
+    pub kept_account: Option<u32>,
+    /// The `taken_by` field.
+    pub taken_by: Option<u64>,
+    /// The `person_answer` field.
+    pub person_answer: Option<PersonAnswer>,
+    /// The `person_wait` field.
+    pub person_wait: Option<PersonWait>,
+    /// The `recurring` field.
+    pub recurring: Option<RecurringState>,
+    /// The `tracked` field.
+    pub tracked: Option<u32>,
+    /// The `numbers` field.
+    pub numbers: Numbers,
+    /// The `funder` field.
+    pub funder: Funder,
+    /// The `dependencies` field.
+    pub dependencies: List<Number>,
+    /// The `waiting_on` field.
+    pub waiting_on: List<Number>,
+    /// The `added` field.
+    pub added: List<Added>,
+}
+
+/// `HotDefinition` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HotDefinition {
+    label: u32,
+    flags: Flags,
+    root: u64,
+    depth: u32,
+    executor: Executor,
+    llm: Option<LlmChoice>,
+    kept_account: Option<u32>,
+    taken_by: Option<u64>,
+    person_answer: Option<PersonAnswer>,
+    person_wait: Option<PersonWait>,
+    recurring: Option<RecurringState>,
+    tracked: Option<u32>,
+    numbers: Numbers,
+    funder: Funder,
+    dependencies: List<Number>,
+    waiting_on: List<Number>,
+    added: List<Added>,
+}
+
+impl HotDefinition {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: HotDefinitionParts) -> Result<Self, Problem> {
+        let HotDefinitionParts { label, flags, root, depth, executor, llm, kept_account, taken_by, person_answer, person_wait, recurring, tracked, numbers, funder, dependencies, waiting_on, added } = parts;
+        let value = Self { label, flags, root, depth, executor, llm, kept_account, taken_by, person_answer, person_wait, recurring, tracked, numbers, funder, dependencies, waiting_on, added };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `label` field.
+    #[must_use]
+    pub fn label(&self) -> u32 { self.label }
+
+    /// Reads the `flags` field.
+    #[must_use]
+    pub fn flags(&self) -> &Flags { &self.flags }
+
+    /// Reads the `root` field.
+    #[must_use]
+    pub fn root(&self) -> u64 { self.root }
+
+    /// Reads the `depth` field.
+    #[must_use]
+    pub fn depth(&self) -> u32 { self.depth }
+
+    /// Reads the `executor` field.
+    #[must_use]
+    pub fn executor(&self) -> &Executor { &self.executor }
+
+    /// Reads the `llm` field.
+    #[must_use]
+    pub fn llm(&self) -> &Option<LlmChoice> { &self.llm }
+
+    /// Reads the `kept_account` field.
+    #[must_use]
+    pub fn kept_account(&self) -> &Option<u32> { &self.kept_account }
+
+    /// Reads the `taken_by` field.
+    #[must_use]
+    pub fn taken_by(&self) -> &Option<u64> { &self.taken_by }
+
+    /// Reads the `person_answer` field.
+    #[must_use]
+    pub fn person_answer(&self) -> &Option<PersonAnswer> { &self.person_answer }
+
+    /// Reads the `person_wait` field.
+    #[must_use]
+    pub fn person_wait(&self) -> &Option<PersonWait> { &self.person_wait }
+
+    /// Reads the `recurring` field.
+    #[must_use]
+    pub fn recurring(&self) -> &Option<RecurringState> { &self.recurring }
+
+    /// Reads the `tracked` field.
+    #[must_use]
+    pub fn tracked(&self) -> &Option<u32> { &self.tracked }
+
+    /// Reads the `numbers` field.
+    #[must_use]
+    pub fn numbers(&self) -> &Numbers { &self.numbers }
+
+    /// Reads the `funder` field.
+    #[must_use]
+    pub fn funder(&self) -> &Funder { &self.funder }
+
+    /// Reads the `dependencies` field.
+    #[must_use]
+    pub fn dependencies(&self) -> &List<Number> { &self.dependencies }
+
+    /// Reads the `waiting_on` field.
+    #[must_use]
+    pub fn waiting_on(&self) -> &List<Number> { &self.waiting_on }
+
+    /// Reads the `added` field.
+    #[must_use]
+    pub fn added(&self) -> &List<Added> { &self.added }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HotDefinitionParts { HotDefinitionParts { label: self.label, flags: self.flags, root: self.root, depth: self.depth, executor: self.executor, llm: self.llm, kept_account: self.kept_account, taken_by: self.taken_by, person_answer: self.person_answer, person_wait: self.person_wait, recurring: self.recurring, tracked: self.tracked, numbers: self.numbers, funder: self.funder, dependencies: self.dependencies, waiting_on: self.waiting_on, added: self.added } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.llm.as_ref() {
+        some_0.check(limits)?;
+        }
+        if let Some(some_0) = self.recurring.as_ref() {
+        some_0.check(limits)?;
+        }
+        if self.dependencies.capacity() > limits.hot_definition_dependencies.min(CEILINGS.hot_definition_dependencies) { return Err(Problem { path: Path::HotDefinitionDependencies, reason: skein_codec::Reason::Bound }); }
+        if self.waiting_on.capacity() > limits.hot_definition_waiting_on.min(CEILINGS.hot_definition_waiting_on) { return Err(Problem { path: Path::HotDefinitionWaitingOn, reason: skein_codec::Reason::Bound }); }
+        if self.added.capacity() > limits.hot_definition_added.min(CEILINGS.hot_definition_added) { return Err(Problem { path: Path::HotDefinitionAdded, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `LiveHot`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LiveHotParts {
+    /// The `activation_open` field.
+    pub activation_open: bool,
+    /// The `session` field.
+    pub session: Option<Session>,
+    /// The `closer` field.
+    pub closer: Option<u64>,
+    /// The `history` field.
+    pub history: HotHistory,
+    /// The `run` field.
+    pub run: TaskRun,
+    /// The `definition` field.
+    pub definition: HotDefinition,
+    /// The `started_from` field.
+    pub started_from: List<Number>,
+    /// The `interests` field.
+    pub interests: TaskInterests,
+    /// The `outcome` field.
+    pub outcome: TaskOutcome,
+    /// The `asked_requester` field.
+    pub asked_requester: bool,
+    /// The `question_woken` field.
+    pub question_woken: u64,
+    /// The `talk` field.
+    pub talk: Option<Talk>,
+}
+
+/// `LiveHot` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LiveHot {
+    activation_open: bool,
+    session: Option<Session>,
+    closer: Option<u64>,
+    history: HotHistory,
+    run: TaskRun,
+    definition: HotDefinition,
+    started_from: List<Number>,
+    interests: TaskInterests,
+    outcome: TaskOutcome,
+    asked_requester: bool,
+    question_woken: u64,
+    talk: Option<Talk>,
+}
+
+impl LiveHot {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LiveHotParts) -> Result<Self, Problem> {
+        let LiveHotParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk } = parts;
+        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `activation_open` field.
+    #[must_use]
+    pub fn activation_open(&self) -> bool { self.activation_open }
+
+    /// Reads the `session` field.
+    #[must_use]
+    pub fn session(&self) -> &Option<Session> { &self.session }
+
+    /// Reads the `closer` field.
+    #[must_use]
+    pub fn closer(&self) -> &Option<u64> { &self.closer }
+
+    /// Reads the `history` field.
+    #[must_use]
+    pub fn history(&self) -> &HotHistory { &self.history }
+
+    /// Reads the `run` field.
+    #[must_use]
+    pub fn run(&self) -> &TaskRun { &self.run }
+
+    /// Reads the `definition` field.
+    #[must_use]
+    pub fn definition(&self) -> &HotDefinition { &self.definition }
+
+    /// Reads the `started_from` field.
+    #[must_use]
+    pub fn started_from(&self) -> &List<Number> { &self.started_from }
+
+    /// Reads the `interests` field.
+    #[must_use]
+    pub fn interests(&self) -> &TaskInterests { &self.interests }
+
+    /// Reads the `outcome` field.
+    #[must_use]
+    pub fn outcome(&self) -> &TaskOutcome { &self.outcome }
+
+    /// Reads the `asked_requester` field.
+    #[must_use]
+    pub fn asked_requester(&self) -> bool { self.asked_requester }
+
+    /// Reads the `question_woken` field.
+    #[must_use]
+    pub fn question_woken(&self) -> u64 { self.question_woken }
+
+    /// Reads the `talk` field.
+    #[must_use]
+    pub fn talk(&self) -> &Option<Talk> { &self.talk }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LiveHotParts { LiveHotParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, talk: self.talk } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.history.check(limits)?;
+        self.run.check(limits)?;
+        self.definition.check(limits)?;
+        if self.started_from.capacity() > limits.live_hot_started_from.min(CEILINGS.live_hot_started_from) { return Err(Problem { path: Path::LiveHotStartedFrom, reason: skein_codec::Reason::Bound }); }
+        self.interests.check(limits)?;
+        self.outcome.check(limits)?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `LiveCold`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LiveColdParts {
+    /// The `spec` field.
+    pub spec: Spec,
+    /// The `contract` field.
+    pub contract: Contract,
+    /// The `authority` field.
+    pub authority: Authority,
+    /// The `instructions` field.
+    pub instructions: Option<Box<[u8]>>,
+}
+
+/// `LiveCold` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LiveCold {
+    spec: Spec,
+    contract: Contract,
+    authority: Authority,
+    instructions: Option<Box<[u8]>>,
+}
+
+impl LiveCold {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LiveColdParts) -> Result<Self, Problem> {
+        let LiveColdParts { spec, contract, authority, instructions } = parts;
+        let value = Self { spec, contract, authority, instructions };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `spec` field.
+    #[must_use]
+    pub fn spec(&self) -> &Spec { &self.spec }
+
+    /// Reads the `contract` field.
+    #[must_use]
+    pub fn contract(&self) -> &Contract { &self.contract }
+
+    /// Reads the `authority` field.
+    #[must_use]
+    pub fn authority(&self) -> &Authority { &self.authority }
+
+    /// Reads the `instructions` field.
+    #[must_use]
+    pub fn instructions(&self) -> &Option<Box<[u8]>> { &self.instructions }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LiveColdParts { LiveColdParts { spec: self.spec, contract: self.contract, authority: self.authority, instructions: self.instructions } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.spec.check(limits)?;
+        self.contract.check(limits)?;
+        self.authority.check(limits)?;
+        if let Some(some_0) = self.instructions.as_ref() && some_0.len() > usize::try_from(limits.live_cold_instructions_some.min(CEILINGS.live_cold_instructions_some)).expect("u32 fits usize") { return Err(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `EndedByParty`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EndedByPartyParts {
@@ -13341,6 +14097,530 @@ impl PlacedHold {
     }
 }
 
+/// Movable fields of `SummaryCancelled`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryCancelledParts {
+    /// The `by` field.
+    pub by: Party,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `SummaryCancelled` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryCancelled {
+    by: Party,
+    at: u64,
+}
+
+impl SummaryCancelled {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SummaryCancelledParts) -> Result<Self, Problem> {
+        let SummaryCancelledParts { by, at } = parts;
+        let value = Self { by, at };
+        Ok(value)
+    }
+
+    /// Reads the `by` field.
+    #[must_use]
+    pub fn by(&self) -> &Party { &self.by }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryCancelledParts { SummaryCancelledParts { by: self.by, at: self.at } }
+
+}
+
+/// `SummaryEnding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SummaryEnding {
+    /// `done` without a payload.
+    Done,
+    /// `failed` without a payload.
+    Failed,
+    /// `cancelled` carrying `SummaryCancelled`.
+    Cancelled(SummaryCancelled),
+}
+
+impl SummaryEnding {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `SummaryVerdict`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryVerdictParts {
+    /// The `code` field.
+    pub code: u32,
+}
+
+/// `SummaryVerdict` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryVerdict {
+    code: u32,
+}
+
+impl SummaryVerdict {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SummaryVerdictParts) -> Result<Self, Problem> {
+        let SummaryVerdictParts { code } = parts;
+        let value = Self { code };
+        Ok(value)
+    }
+
+    /// Reads the `code` field.
+    #[must_use]
+    pub fn code(&self) -> u32 { self.code }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryVerdictParts { SummaryVerdictParts { code: self.code } }
+
+}
+
+/// Movable fields of `SummaryChange`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryChangeParts {
+    /// The `connector` field.
+    pub connector: u16,
+    /// The `kind` field.
+    pub kind: u16,
+    /// The `resource` field.
+    pub resource: u64,
+}
+
+/// `SummaryChange` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryChange {
+    connector: u16,
+    kind: u16,
+    resource: u64,
+}
+
+impl SummaryChange {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SummaryChangeParts) -> Result<Self, Problem> {
+        let SummaryChangeParts { connector, kind, resource } = parts;
+        let value = Self { connector, kind, resource };
+        Ok(value)
+    }
+
+    /// Reads the `connector` field.
+    #[must_use]
+    pub fn connector(&self) -> u16 { self.connector }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u16 { self.kind }
+
+    /// Reads the `resource` field.
+    #[must_use]
+    pub fn resource(&self) -> u64 { self.resource }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryChangeParts { SummaryChangeParts { connector: self.connector, kind: self.kind, resource: self.resource } }
+
+}
+
+/// `SummaryResultKind` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SummaryResultKind {
+    /// `job` without a payload.
+    Job,
+    /// `approved` without a payload.
+    Approved,
+    /// `report` without a payload.
+    Report,
+    /// `verdict` carrying `SummaryVerdict`.
+    Verdict(SummaryVerdict),
+    /// `change` carrying `SummaryChange`.
+    Change(SummaryChange),
+    /// `no_change` without a payload.
+    NoChange,
+    /// `failed` without a payload.
+    Failed,
+}
+
+impl SummaryResultKind {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `SummaryResult`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryResultParts {
+    /// The `kind` field.
+    pub kind: SummaryResultKind,
+    /// The `words` field.
+    pub words: Box<[u8]>,
+}
+
+/// `SummaryResult` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryResult {
+    kind: SummaryResultKind,
+    words: Box<[u8]>,
+}
+
+impl SummaryResult {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: SummaryResultParts) -> Result<Self, Problem> {
+        let SummaryResultParts { kind, words } = parts;
+        let value = Self { kind, words };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> &SummaryResultKind { &self.kind }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryResultParts { SummaryResultParts { kind: self.kind, words: self.words } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.words.len() > usize::try_from(limits.summary_result_words.min(CEILINGS.summary_result_words)).expect("u32 fits usize") { return Err(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `SummaryEndings`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryEndingsParts {
+    /// The `done` field.
+    pub done: u32,
+    /// The `failed` field.
+    pub failed: u32,
+}
+
+/// `SummaryEndings` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryEndings {
+    done: u32,
+    failed: u32,
+}
+
+impl SummaryEndings {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SummaryEndingsParts) -> Result<Self, Problem> {
+        let SummaryEndingsParts { done, failed } = parts;
+        let value = Self { done, failed };
+        Ok(value)
+    }
+
+    /// Reads the `done` field.
+    #[must_use]
+    pub fn done(&self) -> u32 { self.done }
+
+    /// Reads the `failed` field.
+    #[must_use]
+    pub fn failed(&self) -> u32 { self.failed }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryEndingsParts { SummaryEndingsParts { done: self.done, failed: self.failed } }
+
+}
+
+/// Movable fields of `TaskSummary`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TaskSummaryParts {
+    /// The `number` field.
+    pub number: u64,
+    /// The `root` field.
+    pub root: u64,
+    /// The `depth` field.
+    pub depth: u32,
+    /// The `requester` field.
+    pub requester: Party,
+    /// The `project` field.
+    pub project: u32,
+    /// The `label` field.
+    pub label: u32,
+    /// The `flags` field.
+    pub flags: Flags,
+    /// The `tracked` field.
+    pub tracked: Option<u32>,
+    /// The `executor` field.
+    pub executor: Executor,
+    /// The `title` field.
+    pub title: Box<[u8]>,
+    /// The `ending` field.
+    pub ending: SummaryEnding,
+    /// The `reason` field.
+    pub reason: Box<[u8]>,
+    /// The `result` field.
+    pub result: Option<SummaryResult>,
+    /// The `cuts` field.
+    pub cuts: u8,
+    /// The `created_at` field.
+    pub created_at: u64,
+    /// The `changed` field.
+    pub changed: u64,
+    /// The `last_activity` field.
+    pub last_activity: u64,
+    /// The `ended_at` field.
+    pub ended_at: u64,
+    /// The `numbers` field.
+    pub numbers: Numbers,
+    /// The `deadline` field.
+    pub deadline: Option<u64>,
+    /// The `funder` field.
+    pub funder: Funder,
+    /// The `ended_delegates` field.
+    pub ended_delegates: SummaryEndings,
+    /// The `attempt` field.
+    pub attempt: u64,
+    /// The `activity` field.
+    pub activity: u64,
+    /// The `result_position` field.
+    pub result_position: u64,
+    /// The `last_reply` field.
+    pub last_reply: u64,
+}
+
+/// `TaskSummary` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TaskSummary {
+    number: u64,
+    root: u64,
+    depth: u32,
+    requester: Party,
+    project: u32,
+    label: u32,
+    flags: Flags,
+    tracked: Option<u32>,
+    executor: Executor,
+    title: Box<[u8]>,
+    ending: SummaryEnding,
+    reason: Box<[u8]>,
+    result: Option<SummaryResult>,
+    cuts: u8,
+    created_at: u64,
+    changed: u64,
+    last_activity: u64,
+    ended_at: u64,
+    numbers: Numbers,
+    deadline: Option<u64>,
+    funder: Funder,
+    ended_delegates: SummaryEndings,
+    attempt: u64,
+    activity: u64,
+    result_position: u64,
+    last_reply: u64,
+}
+
+impl TaskSummary {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: TaskSummaryParts) -> Result<Self, Problem> {
+        let TaskSummaryParts { number, root, depth, requester, project, label, flags, tracked, executor, title, ending, reason, result, cuts, created_at, changed, last_activity, ended_at, numbers, deadline, funder, ended_delegates, attempt, activity, result_position, last_reply } = parts;
+        let value = Self { number, root, depth, requester, project, label, flags, tracked, executor, title, ending, reason, result, cuts, created_at, changed, last_activity, ended_at, numbers, deadline, funder, ended_delegates, attempt, activity, result_position, last_reply };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Reads the `root` field.
+    #[must_use]
+    pub fn root(&self) -> u64 { self.root }
+
+    /// Reads the `depth` field.
+    #[must_use]
+    pub fn depth(&self) -> u32 { self.depth }
+
+    /// Reads the `requester` field.
+    #[must_use]
+    pub fn requester(&self) -> &Party { &self.requester }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `label` field.
+    #[must_use]
+    pub fn label(&self) -> u32 { self.label }
+
+    /// Reads the `flags` field.
+    #[must_use]
+    pub fn flags(&self) -> &Flags { &self.flags }
+
+    /// Reads the `tracked` field.
+    #[must_use]
+    pub fn tracked(&self) -> &Option<u32> { &self.tracked }
+
+    /// Reads the `executor` field.
+    #[must_use]
+    pub fn executor(&self) -> &Executor { &self.executor }
+
+    /// Reads the `title` field.
+    #[must_use]
+    pub fn title(&self) -> &[u8] { &self.title }
+
+    /// Reads the `ending` field.
+    #[must_use]
+    pub fn ending(&self) -> &SummaryEnding { &self.ending }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &[u8] { &self.reason }
+
+    /// Reads the `result` field.
+    #[must_use]
+    pub fn result(&self) -> &Option<SummaryResult> { &self.result }
+
+    /// Reads the `cuts` field.
+    #[must_use]
+    pub fn cuts(&self) -> u8 { self.cuts }
+
+    /// Reads the `created_at` field.
+    #[must_use]
+    pub fn created_at(&self) -> u64 { self.created_at }
+
+    /// Reads the `changed` field.
+    #[must_use]
+    pub fn changed(&self) -> u64 { self.changed }
+
+    /// Reads the `last_activity` field.
+    #[must_use]
+    pub fn last_activity(&self) -> u64 { self.last_activity }
+
+    /// Reads the `ended_at` field.
+    #[must_use]
+    pub fn ended_at(&self) -> u64 { self.ended_at }
+
+    /// Reads the `numbers` field.
+    #[must_use]
+    pub fn numbers(&self) -> &Numbers { &self.numbers }
+
+    /// Reads the `deadline` field.
+    #[must_use]
+    pub fn deadline(&self) -> &Option<u64> { &self.deadline }
+
+    /// Reads the `funder` field.
+    #[must_use]
+    pub fn funder(&self) -> &Funder { &self.funder }
+
+    /// Reads the `ended_delegates` field.
+    #[must_use]
+    pub fn ended_delegates(&self) -> &SummaryEndings { &self.ended_delegates }
+
+    /// Reads the `attempt` field.
+    #[must_use]
+    pub fn attempt(&self) -> u64 { self.attempt }
+
+    /// Reads the `activity` field.
+    #[must_use]
+    pub fn activity(&self) -> u64 { self.activity }
+
+    /// Reads the `result_position` field.
+    #[must_use]
+    pub fn result_position(&self) -> u64 { self.result_position }
+
+    /// Reads the `last_reply` field.
+    #[must_use]
+    pub fn last_reply(&self) -> u64 { self.last_reply }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> TaskSummaryParts { TaskSummaryParts { number: self.number, root: self.root, depth: self.depth, requester: self.requester, project: self.project, label: self.label, flags: self.flags, tracked: self.tracked, executor: self.executor, title: self.title, ending: self.ending, reason: self.reason, result: self.result, cuts: self.cuts, created_at: self.created_at, changed: self.changed, last_activity: self.last_activity, ended_at: self.ended_at, numbers: self.numbers, deadline: self.deadline, funder: self.funder, ended_delegates: self.ended_delegates, attempt: self.attempt, activity: self.activity, result_position: self.result_position, last_reply: self.last_reply } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.title.len() > usize::try_from(limits.task_summary_title.min(CEILINGS.task_summary_title)).expect("u32 fits usize") { return Err(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Bound }); }
+        if self.reason.len() > usize::try_from(limits.task_summary_reason.min(CEILINGS.task_summary_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::TaskSummaryReason, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.result.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+/// `RetentionStage` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RetentionStage {
+    /// `turns` without a payload.
+    Turns,
+    /// `record` without a payload.
+    Record,
+    /// `summary` without a payload.
+    Summary,
+    /// `forgotten` without a payload.
+    Forgotten,
+    /// `proposal` without a payload.
+    Proposal,
+}
+
+impl RetentionStage {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `RetentionRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RetentionRowParts {
+    /// The `stage` field.
+    pub stage: RetentionStage,
+    /// The `since` field.
+    pub since: u64,
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `RetentionRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RetentionRow {
+    stage: RetentionStage,
+    since: u64,
+    number: u64,
+}
+
+impl RetentionRow {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RetentionRowParts) -> Result<Self, Problem> {
+        let RetentionRowParts { stage, since, number } = parts;
+        let value = Self { stage, since, number };
+        Ok(value)
+    }
+
+    /// Reads the `stage` field.
+    #[must_use]
+    pub fn stage(&self) -> &RetentionStage { &self.stage }
+
+    /// Reads the `since` field.
+    #[must_use]
+    pub fn since(&self) -> u64 { self.since }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RetentionRowParts { RetentionRowParts { stage: self.stage, since: self.since, number: self.number } }
+
+}
+
 /// `Value` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
@@ -13390,6 +14670,14 @@ pub enum Value {
     Attempt(AttemptRow),
     /// `hold` carrying `HoldRow`.
     Hold(HoldRow),
+    /// `live_hot` carrying `LiveHot`.
+    LiveHot(LiveHot),
+    /// `live_cold` carrying `LiveCold`.
+    LiveCold(LiveCold),
+    /// `summary` carrying `Box<TaskSummary>`.
+    Summary(Box<TaskSummary>),
+    /// `retention` carrying `RetentionRow`.
+    Retention(RetentionRow),
 }
 
 impl Value {
@@ -13411,7 +14699,10 @@ impl Value {
             Self::PlacedHold(record) => PlacedHold::check(record, limits),
             Self::LiveTalk(record) | Self::EndedTalk(record) => TaskRecord::check(record, limits),
             Self::Hold(record) => HoldRow::check(record, limits),
-            Self::Ledger(_) | Self::ClosedLedger(_) | Self::Stub(_) | Self::Update(_) | Self::Result(_) | Self::EndedDelegate(_) | Self::Delegate(_) | Self::EndedByParty(_) | Self::EndedByProject(_) | Self::Attempt(_) => Ok(()),
+            Self::LiveHot(record) => LiveHot::check(record, limits),
+            Self::LiveCold(record) => LiveCold::check(record, limits),
+            Self::Summary(record) => TaskSummary::check(record, limits),
+            Self::Ledger(_) | Self::ClosedLedger(_) | Self::Stub(_) | Self::Update(_) | Self::Result(_) | Self::EndedDelegate(_) | Self::Delegate(_) | Self::EndedByParty(_) | Self::EndedByProject(_) | Self::Attempt(_) | Self::Retention(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -26255,6 +27546,523 @@ impl TaskRecord {
     }
 }
 
+impl HotHistory {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(12).expect("schema ceilings fit u32");
+        size = size.checked_add(12).expect("schema ceilings fit u32");
+        let field_question_lines = &self.question_lines;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_question_lines.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_placed = &self.placed;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_placed.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_proposal_rows = &self.proposal_rows;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_proposal_rows.len().checked_mul(16).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_refused = &self.refused;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_refused.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_grace = &self.grace;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_grace {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_settings = &self.settings;
+        size = size.checked_add(field_settings.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(24).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_run_since = &self.run_since;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_run_since.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_retry_notice = &self.retry_notice;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_retry_notice {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_ended_at = &self.ended_at;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_ended_at.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_last_activity = &self.last_activity;
+        writer.put(&field_last_activity.to_be_bytes())?;
+        let field_ended_below = &self.ended_below;
+        field_ended_below.encode(writer)?;
+        let field_ended_delegates = &self.ended_delegates;
+        field_ended_delegates.encode(writer)?;
+        let field_question_lines = &self.question_lines;
+        writer.put(&field_question_lines.len().to_be_bytes())?;
+        for item_0 in field_question_lines.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_hold = &self.hold;
+        writer.put(&field_hold.to_be_bytes())?;
+        let field_placed = &self.placed;
+        match field_placed {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_proposal_rows = &self.proposal_rows;
+        writer.put(&field_proposal_rows.len().to_be_bytes())?;
+        for item_0 in field_proposal_rows.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_refused = &self.refused;
+        writer.put(&field_refused.len().to_be_bytes())?;
+        for item_0 in field_refused.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_grace = &self.grace;
+        match field_grace {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_settings = &self.settings;
+        field_settings.encode(writer)?;
+        let field_revisions = &self.revisions;
+        field_revisions.encode(writer)?;
+        let field_created_at = &self.created_at;
+        writer.put(&field_created_at.to_be_bytes())?;
+        let field_changed = &self.changed;
+        writer.put(&field_changed.to_be_bytes())?;
+        let field_phase_since = &self.phase_since;
+        writer.put(&field_phase_since.to_be_bytes())?;
+        let field_run_since = &self.run_since;
+        match field_run_since {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_retry_notice = &self.retry_notice;
+        match field_retry_notice {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_ended_at = &self.ended_at;
+        match field_ended_at {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_revision = &self.revision;
+        writer.put(&field_revision.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HotHistoryTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_last_activity = reader.u64().ok_or(Problem { path: Path::HotHistoryLastActivity, reason: skein_codec::Reason::Short })?;
+        let decoded_ended_below = Endings::decode_from(limits, reader)?;
+        let decoded_ended_delegates = Endings::decode_from(limits, reader)?;
+        let decoded_question_lines = { let count = match skein_codec::read_count(reader, limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotHistoryQuestionLines, reason }), }; if count > reader.remaining() / 17 { return Err(Problem { path: Path::HotHistoryQuestionLines, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = QuestionLine::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_hold = reader.u64().ok_or(Problem { path: Path::HotHistoryHold, reason: skein_codec::Reason::Short })?;
+        let decoded_placed = match reader.u8().ok_or(Problem { path: Path::HotHistoryPlaced, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HotHistoryPlaced, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotHistoryPlaced, reason: skein_codec::Reason::Tag }) };
+        let decoded_proposal_rows = { let count = match skein_codec::read_count(reader, limits.hot_history_proposal_rows.min(CEILINGS.hot_history_proposal_rows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotHistoryProposalRows, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::HotHistoryProposalRows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ProposalRow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_refused = { let count = match skein_codec::read_count(reader, limits.hot_history_refused.min(CEILINGS.hot_history_refused)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotHistoryRefused, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::HotHistoryRefused, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_grace = match reader.u8().ok_or(Problem { path: Path::HotHistoryGrace, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Grace::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotHistoryGrace, reason: skein_codec::Reason::Tag }) };
+        let decoded_settings = SettingsRevision::decode_from(limits, reader)?;
+        let decoded_revisions = Revisions::decode_from(limits, reader)?;
+        let decoded_created_at = reader.u64().ok_or(Problem { path: Path::HotHistoryCreatedAt, reason: skein_codec::Reason::Short })?;
+        let decoded_changed = reader.u64().ok_or(Problem { path: Path::HotHistoryChanged, reason: skein_codec::Reason::Short })?;
+        let decoded_phase_since = reader.u64().ok_or(Problem { path: Path::HotHistoryPhaseSince, reason: skein_codec::Reason::Short })?;
+        let decoded_run_since = match reader.u8().ok_or(Problem { path: Path::HotHistoryRunSince, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HotHistoryRunSince, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotHistoryRunSince, reason: skein_codec::Reason::Tag }) };
+        let decoded_retry_notice = match reader.u8().ok_or(Problem { path: Path::HotHistoryRetryNotice, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(RetryNotice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotHistoryRetryNotice, reason: skein_codec::Reason::Tag }) };
+        let decoded_ended_at = match reader.u8().ok_or(Problem { path: Path::HotHistoryEndedAt, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HotHistoryEndedAt, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotHistoryEndedAt, reason: skein_codec::Reason::Tag }) };
+        let decoded_revision = reader.u64().ok_or(Problem { path: Path::HotHistoryRevision, reason: skein_codec::Reason::Short })?;
+        Ok(Self { last_activity: decoded_last_activity, ended_below: decoded_ended_below, ended_delegates: decoded_ended_delegates, question_lines: decoded_question_lines, hold: decoded_hold, placed: decoded_placed, proposal_rows: decoded_proposal_rows, refused: decoded_refused, grace: decoded_grace, settings: decoded_settings, revisions: decoded_revisions, created_at: decoded_created_at, changed: decoded_changed, phase_since: decoded_phase_since, run_since: decoded_run_since, retry_notice: decoded_retry_notice, ended_at: decoded_ended_at, revision: decoded_revision })
+    }
+}
+
+impl HotDefinition {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_flags = &self.flags;
+        size = size.checked_add(field_flags.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_executor = &self.executor;
+        size = size.checked_add(field_executor.measure()).expect("schema ceilings fit u32");
+        let field_llm = &self.llm;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_llm {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_kept_account = &self.kept_account;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_kept_account.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        let field_taken_by = &self.taken_by;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_taken_by.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_person_answer = &self.person_answer;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_person_answer.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        }
+        let field_person_wait = &self.person_wait;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_person_wait {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_recurring = &self.recurring;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_recurring {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_tracked = &self.tracked;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_tracked.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_funder = &self.funder;
+        size = size.checked_add(field_funder.measure()).expect("schema ceilings fit u32");
+        let field_dependencies = &self.dependencies;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_dependencies.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_waiting_on = &self.waiting_on;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_waiting_on.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_added = &self.added;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_added.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_label = &self.label;
+        writer.put(&field_label.to_be_bytes())?;
+        let field_flags = &self.flags;
+        field_flags.encode(writer)?;
+        let field_root = &self.root;
+        writer.put(&field_root.to_be_bytes())?;
+        let field_depth = &self.depth;
+        writer.put(&field_depth.to_be_bytes())?;
+        let field_executor = &self.executor;
+        field_executor.encode(writer)?;
+        let field_llm = &self.llm;
+        match field_llm {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_kept_account = &self.kept_account;
+        match field_kept_account {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_taken_by = &self.taken_by;
+        match field_taken_by {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_person_answer = &self.person_answer;
+        match field_person_answer {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_person_wait = &self.person_wait;
+        match field_person_wait {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_recurring = &self.recurring;
+        match field_recurring {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_tracked = &self.tracked;
+        match field_tracked {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_numbers = &self.numbers;
+        field_numbers.encode(writer)?;
+        let field_funder = &self.funder;
+        field_funder.encode(writer)?;
+        let field_dependencies = &self.dependencies;
+        writer.put(&field_dependencies.len().to_be_bytes())?;
+        for item_0 in field_dependencies.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_waiting_on = &self.waiting_on;
+        writer.put(&field_waiting_on.len().to_be_bytes())?;
+        for item_0 in field_waiting_on.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_added = &self.added;
+        writer.put(&field_added.len().to_be_bytes())?;
+        for item_0 in field_added.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HotDefinitionTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_label = reader.u32().ok_or(Problem { path: Path::HotDefinitionLabel, reason: skein_codec::Reason::Short })?;
+        let decoded_flags = Flags::decode_from(limits, reader)?;
+        let decoded_root = reader.u64().ok_or(Problem { path: Path::HotDefinitionRoot, reason: skein_codec::Reason::Short })?;
+        let decoded_depth = reader.u32().ok_or(Problem { path: Path::HotDefinitionDepth, reason: skein_codec::Reason::Short })?;
+        let decoded_executor = Executor::decode_from(limits, reader)?;
+        let decoded_llm = match reader.u8().ok_or(Problem { path: Path::HotDefinitionLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotDefinitionLlm, reason: skein_codec::Reason::Tag }) };
+        let decoded_kept_account = match reader.u8().ok_or(Problem { path: Path::HotDefinitionKeptAccount, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::HotDefinitionKeptAccount, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotDefinitionKeptAccount, reason: skein_codec::Reason::Tag }) };
+        let decoded_taken_by = match reader.u8().ok_or(Problem { path: Path::HotDefinitionTakenBy, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HotDefinitionTakenBy, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotDefinitionTakenBy, reason: skein_codec::Reason::Tag }) };
+        let decoded_person_answer = match reader.u8().ok_or(Problem { path: Path::HotDefinitionPersonAnswer, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(PersonAnswer::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotDefinitionPersonAnswer, reason: skein_codec::Reason::Tag }) };
+        let decoded_person_wait = match reader.u8().ok_or(Problem { path: Path::HotDefinitionPersonWait, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(PersonWait::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotDefinitionPersonWait, reason: skein_codec::Reason::Tag }) };
+        let decoded_recurring = match reader.u8().ok_or(Problem { path: Path::HotDefinitionRecurring, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(RecurringState::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HotDefinitionRecurring, reason: skein_codec::Reason::Tag }) };
+        let decoded_tracked = match reader.u8().ok_or(Problem { path: Path::HotDefinitionTracked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::HotDefinitionTracked, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HotDefinitionTracked, reason: skein_codec::Reason::Tag }) };
+        let decoded_numbers = Numbers::decode_from(limits, reader)?;
+        let decoded_funder = Funder::decode_from(limits, reader)?;
+        let decoded_dependencies = { let count = match skein_codec::read_count(reader, limits.hot_definition_dependencies.min(CEILINGS.hot_definition_dependencies)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotDefinitionDependencies, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::HotDefinitionDependencies, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_waiting_on = { let count = match skein_codec::read_count(reader, limits.hot_definition_waiting_on.min(CEILINGS.hot_definition_waiting_on)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotDefinitionWaitingOn, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::HotDefinitionWaitingOn, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_added = { let count = match skein_codec::read_count(reader, limits.hot_definition_added.min(CEILINGS.hot_definition_added)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HotDefinitionAdded, reason }), }; if count > reader.remaining() / 21 { return Err(Problem { path: Path::HotDefinitionAdded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Added::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { label: decoded_label, flags: decoded_flags, root: decoded_root, depth: decoded_depth, executor: decoded_executor, llm: decoded_llm, kept_account: decoded_kept_account, taken_by: decoded_taken_by, person_answer: decoded_person_answer, person_wait: decoded_person_wait, recurring: decoded_recurring, tracked: decoded_tracked, numbers: decoded_numbers, funder: decoded_funder, dependencies: decoded_dependencies, waiting_on: decoded_waiting_on, added: decoded_added })
+    }
+}
+
+impl LiveHot {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_session = &self.session;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_session.is_some() {
+        size = size.checked_add(20).expect("schema ceilings fit u32");
+        }
+        let field_closer = &self.closer;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_closer.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_history = &self.history;
+        size = size.checked_add(field_history.measure()).expect("schema ceilings fit u32");
+        let field_run = &self.run;
+        size = size.checked_add(field_run.measure()).expect("schema ceilings fit u32");
+        let field_definition = &self.definition;
+        size = size.checked_add(field_definition.measure()).expect("schema ceilings fit u32");
+        let field_started_from = &self.started_from;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_started_from.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_interests = &self.interests;
+        size = size.checked_add(field_interests.measure()).expect("schema ceilings fit u32");
+        let field_outcome = &self.outcome;
+        size = size.checked_add(field_outcome.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_talk = &self.talk;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_talk.is_some() {
+        size = size.checked_add(24).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_activation_open = &self.activation_open;
+        writer.put(&[u8::from(*field_activation_open)])?;
+        let field_session = &self.session;
+        match field_session {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_closer = &self.closer;
+        match field_closer {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_history = &self.history;
+        field_history.encode(writer)?;
+        let field_run = &self.run;
+        field_run.encode(writer)?;
+        let field_definition = &self.definition;
+        field_definition.encode(writer)?;
+        let field_started_from = &self.started_from;
+        writer.put(&field_started_from.len().to_be_bytes())?;
+        for item_0 in field_started_from.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_interests = &self.interests;
+        field_interests.encode(writer)?;
+        let field_outcome = &self.outcome;
+        field_outcome.encode(writer)?;
+        let field_asked_requester = &self.asked_requester;
+        writer.put(&[u8::from(*field_asked_requester)])?;
+        let field_question_woken = &self.question_woken;
+        writer.put(&field_question_woken.to_be_bytes())?;
+        let field_talk = &self.talk;
+        match field_talk {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LiveHotTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_activation_open = match reader.u8().ok_or(Problem { path: Path::LiveHotActivationOpen, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LiveHotActivationOpen, reason: skein_codec::Reason::Bool }) };
+        let decoded_session = match reader.u8().ok_or(Problem { path: Path::LiveHotSession, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Session::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotSession, reason: skein_codec::Reason::Tag }) };
+        let decoded_closer = match reader.u8().ok_or(Problem { path: Path::LiveHotCloser, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LiveHotCloser, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LiveHotCloser, reason: skein_codec::Reason::Tag }) };
+        let decoded_history = HotHistory::decode_from(limits, reader)?;
+        let decoded_run = TaskRun::decode_from(limits, reader)?;
+        let decoded_definition = HotDefinition::decode_from(limits, reader)?;
+        let decoded_started_from = { let count = match skein_codec::read_count(reader, limits.live_hot_started_from.min(CEILINGS.live_hot_started_from)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveHotStartedFrom, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::LiveHotStartedFrom, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_interests = TaskInterests::decode_from(limits, reader)?;
+        let decoded_outcome = TaskOutcome::decode_from(limits, reader)?;
+        let decoded_asked_requester = match reader.u8().ok_or(Problem { path: Path::LiveHotAskedRequester, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LiveHotAskedRequester, reason: skein_codec::Reason::Bool }) };
+        let decoded_question_woken = reader.u64().ok_or(Problem { path: Path::LiveHotQuestionWoken, reason: skein_codec::Reason::Short })?;
+        let decoded_talk = match reader.u8().ok_or(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Talk::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, talk: decoded_talk })
+    }
+}
+
+impl LiveCold {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_spec = &self.spec;
+        size = size.checked_add(field_spec.measure()).expect("schema ceilings fit u32");
+        let field_contract = &self.contract;
+        size = size.checked_add(field_contract.measure()).expect("schema ceilings fit u32");
+        let field_authority = &self.authority;
+        size = size.checked_add(field_authority.measure()).expect("schema ceilings fit u32");
+        let field_instructions = &self.instructions;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_instructions {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_spec = &self.spec;
+        field_spec.encode(writer)?;
+        let field_contract = &self.contract;
+        field_contract.encode(writer)?;
+        let field_authority = &self.authority;
+        field_authority.encode(writer)?;
+        let field_instructions = &self.instructions;
+        match field_instructions {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LiveColdTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_spec = Spec::decode_from(limits, reader)?;
+        let decoded_contract = Contract::decode_from(limits, reader)?;
+        let decoded_authority = Authority::decode_from(limits, reader)?;
+        let decoded_instructions = match reader.u8().ok_or(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.live_cold_instructions_some.min(CEILINGS.live_cold_instructions_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LiveColdInstructions, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { spec: decoded_spec, contract: decoded_contract, authority: decoded_authority, instructions: decoded_instructions })
+    }
+}
+
 impl EndedByParty {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -26551,6 +28359,512 @@ impl PlacedHold {
     }
 }
 
+impl SummaryCancelled {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_by = &self.by;
+        size = size.checked_add(field_by.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_by = &self.by;
+        field_by.encode(writer)?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryCancelledTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_by = Party::decode_from(limits, reader)?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::SummaryCancelledAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { by: decoded_by, at: decoded_at })
+    }
+}
+
+impl SummaryEnding {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Cancelled(record) => 1_u32.checked_add(SummaryCancelled::measure(record)).expect("schema ceilings fit u32"),
+            Self::Done | Self::Failed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Done => writer.put(&[0_u8])?,
+            Self::Failed => writer.put(&[1_u8])?,
+            Self::Cancelled(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryEndingTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SummaryEndingTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Done,
+            1 => Self::Failed,
+            2 => Self::Cancelled(SummaryCancelled::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::SummaryEndingTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SummaryVerdict {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_code = &self.code;
+        writer.put(&field_code.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryVerdictTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_code = reader.u32().ok_or(Problem { path: Path::SummaryVerdictCode, reason: skein_codec::Reason::Short })?;
+        Ok(Self { code: decoded_code })
+    }
+}
+
+impl SummaryChange {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_connector = &self.connector;
+        writer.put(&field_connector.to_be_bytes())?;
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        let field_resource = &self.resource;
+        writer.put(&field_resource.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryChangeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_connector = reader.u16().ok_or(Problem { path: Path::SummaryChangeConnector, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = reader.u16().ok_or(Problem { path: Path::SummaryChangeKind, reason: skein_codec::Reason::Short })?;
+        let decoded_resource = reader.u64().ok_or(Problem { path: Path::SummaryChangeResource, reason: skein_codec::Reason::Short })?;
+        Ok(Self { connector: decoded_connector, kind: decoded_kind, resource: decoded_resource })
+    }
+}
+
+impl SummaryResultKind {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Verdict(record) => 1_u32.checked_add(SummaryVerdict::measure(record)).expect("schema ceilings fit u32"),
+            Self::Change(record) => 1_u32.checked_add(SummaryChange::measure(record)).expect("schema ceilings fit u32"),
+            Self::Job | Self::Approved | Self::Report | Self::NoChange | Self::Failed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Job => writer.put(&[0_u8])?,
+            Self::Approved => writer.put(&[1_u8])?,
+            Self::Report => writer.put(&[2_u8])?,
+            Self::Verdict(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+            Self::Change(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
+            Self::NoChange => writer.put(&[5_u8])?,
+            Self::Failed => writer.put(&[6_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryResultKindTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SummaryResultKindTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Job,
+            1 => Self::Approved,
+            2 => Self::Report,
+            3 => Self::Verdict(SummaryVerdict::decode_from(limits, reader)?),
+            4 => Self::Change(SummaryChange::decode_from(limits, reader)?),
+            5 => Self::NoChange,
+            6 => Self::Failed,
+            _ => return Err(Problem { path: Path::SummaryResultKindTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SummaryResult {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_kind = &self.kind;
+        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_kind = &self.kind;
+        field_kind.encode(writer)?;
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryResultTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_kind = SummaryResultKind::decode_from(limits, reader)?;
+        let decoded_words = { let length = match skein_codec::read_len(reader, limits.summary_result_words.min(CEILINGS.summary_result_words)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SummaryResultWords, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { kind: decoded_kind, words: decoded_words })
+    }
+}
+
+impl SummaryEndings {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_done = &self.done;
+        writer.put(&field_done.to_be_bytes())?;
+        let field_failed = &self.failed;
+        writer.put(&field_failed.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryEndingsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_done = reader.u32().ok_or(Problem { path: Path::SummaryEndingsDone, reason: skein_codec::Reason::Short })?;
+        let decoded_failed = reader.u32().ok_or(Problem { path: Path::SummaryEndingsFailed, reason: skein_codec::Reason::Short })?;
+        Ok(Self { done: decoded_done, failed: decoded_failed })
+    }
+}
+
+impl TaskSummary {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_requester = &self.requester;
+        size = size.checked_add(field_requester.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_flags = &self.flags;
+        size = size.checked_add(field_flags.measure()).expect("schema ceilings fit u32");
+        let field_tracked = &self.tracked;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_tracked.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        let field_executor = &self.executor;
+        size = size.checked_add(field_executor.measure()).expect("schema ceilings fit u32");
+        let field_title = &self.title;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_ending = &self.ending;
+        size = size.checked_add(field_ending.measure()).expect("schema ceilings fit u32");
+        let field_reason = &self.reason;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_result = &self.result;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_result {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_deadline = &self.deadline;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_deadline.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_funder = &self.funder;
+        size = size.checked_add(field_funder.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_root = &self.root;
+        writer.put(&field_root.to_be_bytes())?;
+        let field_depth = &self.depth;
+        writer.put(&field_depth.to_be_bytes())?;
+        let field_requester = &self.requester;
+        field_requester.encode(writer)?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_label = &self.label;
+        writer.put(&field_label.to_be_bytes())?;
+        let field_flags = &self.flags;
+        field_flags.encode(writer)?;
+        let field_tracked = &self.tracked;
+        match field_tracked {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_executor = &self.executor;
+        field_executor.encode(writer)?;
+        let field_title = &self.title;
+        writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_title.as_ref())?;
+        let field_ending = &self.ending;
+        field_ending.encode(writer)?;
+        let field_reason = &self.reason;
+        writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_reason.as_ref())?;
+        let field_result = &self.result;
+        match field_result {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_cuts = &self.cuts;
+        writer.put(&[*field_cuts])?;
+        let field_created_at = &self.created_at;
+        writer.put(&field_created_at.to_be_bytes())?;
+        let field_changed = &self.changed;
+        writer.put(&field_changed.to_be_bytes())?;
+        let field_last_activity = &self.last_activity;
+        writer.put(&field_last_activity.to_be_bytes())?;
+        let field_ended_at = &self.ended_at;
+        writer.put(&field_ended_at.to_be_bytes())?;
+        let field_numbers = &self.numbers;
+        field_numbers.encode(writer)?;
+        let field_deadline = &self.deadline;
+        match field_deadline {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_funder = &self.funder;
+        field_funder.encode(writer)?;
+        let field_ended_delegates = &self.ended_delegates;
+        field_ended_delegates.encode(writer)?;
+        let field_attempt = &self.attempt;
+        writer.put(&field_attempt.to_be_bytes())?;
+        let field_activity = &self.activity;
+        writer.put(&field_activity.to_be_bytes())?;
+        let field_result_position = &self.result_position;
+        writer.put(&field_result_position.to_be_bytes())?;
+        let field_last_reply = &self.last_reply;
+        writer.put(&field_last_reply.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::TaskSummaryTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::TaskSummaryNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_root = reader.u64().ok_or(Problem { path: Path::TaskSummaryRoot, reason: skein_codec::Reason::Short })?;
+        let decoded_depth = reader.u32().ok_or(Problem { path: Path::TaskSummaryDepth, reason: skein_codec::Reason::Short })?;
+        let decoded_requester = Party::decode_from(limits, reader)?;
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::TaskSummaryProject, reason: skein_codec::Reason::Short })?;
+        let decoded_label = reader.u32().ok_or(Problem { path: Path::TaskSummaryLabel, reason: skein_codec::Reason::Short })?;
+        let decoded_flags = Flags::decode_from(limits, reader)?;
+        let decoded_tracked = match reader.u8().ok_or(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Tag }) };
+        let decoded_executor = Executor::decode_from(limits, reader)?;
+        let decoded_title = { let length = match skein_codec::read_len(reader, limits.task_summary_title.min(CEILINGS.task_summary_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TaskSummaryTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Short })?) };
+        let decoded_ending = SummaryEnding::decode_from(limits, reader)?;
+        let decoded_reason = { let length = match skein_codec::read_len(reader, limits.task_summary_reason.min(CEILINGS.task_summary_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TaskSummaryReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TaskSummaryReason, reason: skein_codec::Reason::Short })?) };
+        let decoded_result = match reader.u8().ok_or(Problem { path: Path::TaskSummaryResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SummaryResult::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TaskSummaryResult, reason: skein_codec::Reason::Tag }) };
+        let decoded_cuts = reader.u8().ok_or(Problem { path: Path::TaskSummaryCuts, reason: skein_codec::Reason::Short })?;
+        let decoded_created_at = reader.u64().ok_or(Problem { path: Path::TaskSummaryCreatedAt, reason: skein_codec::Reason::Short })?;
+        let decoded_changed = reader.u64().ok_or(Problem { path: Path::TaskSummaryChanged, reason: skein_codec::Reason::Short })?;
+        let decoded_last_activity = reader.u64().ok_or(Problem { path: Path::TaskSummaryLastActivity, reason: skein_codec::Reason::Short })?;
+        let decoded_ended_at = reader.u64().ok_or(Problem { path: Path::TaskSummaryEndedAt, reason: skein_codec::Reason::Short })?;
+        let decoded_numbers = Numbers::decode_from(limits, reader)?;
+        let decoded_deadline = match reader.u8().ok_or(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Tag }) };
+        let decoded_funder = Funder::decode_from(limits, reader)?;
+        let decoded_ended_delegates = SummaryEndings::decode_from(limits, reader)?;
+        let decoded_attempt = reader.u64().ok_or(Problem { path: Path::TaskSummaryAttempt, reason: skein_codec::Reason::Short })?;
+        let decoded_activity = reader.u64().ok_or(Problem { path: Path::TaskSummaryActivity, reason: skein_codec::Reason::Short })?;
+        let decoded_result_position = reader.u64().ok_or(Problem { path: Path::TaskSummaryResultPosition, reason: skein_codec::Reason::Short })?;
+        let decoded_last_reply = reader.u64().ok_or(Problem { path: Path::TaskSummaryLastReply, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number, root: decoded_root, depth: decoded_depth, requester: decoded_requester, project: decoded_project, label: decoded_label, flags: decoded_flags, tracked: decoded_tracked, executor: decoded_executor, title: decoded_title, ending: decoded_ending, reason: decoded_reason, result: decoded_result, cuts: decoded_cuts, created_at: decoded_created_at, changed: decoded_changed, last_activity: decoded_last_activity, ended_at: decoded_ended_at, numbers: decoded_numbers, deadline: decoded_deadline, funder: decoded_funder, ended_delegates: decoded_ended_delegates, attempt: decoded_attempt, activity: decoded_activity, result_position: decoded_result_position, last_reply: decoded_last_reply })
+    }
+}
+
+impl RetentionStage {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Turns | Self::Record | Self::Summary | Self::Forgotten | Self::Proposal => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Turns => writer.put(&[0_u8])?,
+            Self::Record => writer.put(&[1_u8])?,
+            Self::Summary => writer.put(&[2_u8])?,
+            Self::Forgotten => writer.put(&[3_u8])?,
+            Self::Proposal => writer.put(&[4_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RetentionStageTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::RetentionStageTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Turns,
+            1 => Self::Record,
+            2 => Self::Summary,
+            3 => Self::Forgotten,
+            4 => Self::Proposal,
+            _ => return Err(Problem { path: Path::RetentionStageTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl RetentionRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_stage = &self.stage;
+        field_stage.encode(writer)?;
+        let field_since = &self.since;
+        writer.put(&field_since.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RetentionRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_stage = RetentionStage::decode_from(limits, reader)?;
+        let decoded_since = reader.u64().ok_or(Problem { path: Path::RetentionRowSince, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::RetentionRowNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { stage: decoded_stage, since: decoded_since, number: decoded_number })
+    }
+}
+
 impl Value {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -26574,6 +28888,10 @@ impl Value {
             Self::LiveTalk(record) | Self::EndedTalk(record) => 1_u32.checked_add(TaskRecord::measure(record)).expect("schema ceilings fit u32"),
             Self::Attempt(record) => 1_u32.checked_add(AttemptRow::measure(record)).expect("schema ceilings fit u32"),
             Self::Hold(record) => 1_u32.checked_add(HoldRow::measure(record)).expect("schema ceilings fit u32"),
+            Self::LiveHot(record) => 1_u32.checked_add(LiveHot::measure(record)).expect("schema ceilings fit u32"),
+            Self::LiveCold(record) => 1_u32.checked_add(LiveCold::measure(record)).expect("schema ceilings fit u32"),
+            Self::Summary(record) => 1_u32.checked_add(TaskSummary::measure(record)).expect("schema ceilings fit u32"),
+            Self::Retention(record) => 1_u32.checked_add(RetentionRow::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -26603,6 +28921,10 @@ impl Value {
             Self::EndedTalk(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
             Self::Attempt(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
             Self::Hold(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::LiveHot(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
+            Self::LiveCold(record) => { writer.put(&[24_u8])?; record.encode(writer)?; }
+            Self::Summary(record) => { writer.put(&[25_u8])?; record.encode(writer)?; }
+            Self::Retention(record) => { writer.put(&[26_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -26640,6 +28962,10 @@ impl Value {
             20 => Self::EndedTalk(TaskRecord::decode_from(limits, reader)?),
             21 => Self::Attempt(AttemptRow::decode_from(limits, reader)?),
             22 => Self::Hold(HoldRow::decode_from(limits, reader)?),
+            23 => Self::LiveHot(LiveHot::decode_from(limits, reader)?),
+            24 => Self::LiveCold(LiveCold::decode_from(limits, reader)?),
+            25 => Self::Summary(Box::new(TaskSummary::decode_from(limits, reader)?)),
+            26 => Self::Retention(RetentionRow::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -36138,6 +38464,162 @@ impl TaskRecord {
     }
 }
 
+impl HotHistory {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(Endings::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Endings::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.hot_history_question_lines).checked_mul(QuestionLine::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.hot_history_proposal_rows).checked_mul(ProposalRow::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.hot_history_refused).checked_mul(Number::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Grace::encoded_bound_within(limits)?)?)?.checked_add(SettingsRevision::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Revisions::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(RetryNotice::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(Endings::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Endings::decoded_bound_within(limits)?)?.checked_add(List::<QuestionLine>::price(limits.hot_history_question_lines)?.checked_add(u64::from(limits.hot_history_question_lines).checked_mul(QuestionLine::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<ProposalRow>::price(limits.hot_history_proposal_rows)?.checked_add(u64::from(limits.hot_history_proposal_rows).checked_mul(ProposalRow::decoded_bound_within(limits)?)?)?)?.checked_add(List::<Number>::price(limits.hot_history_refused)?.checked_add(u64::from(limits.hot_history_refused).checked_mul(Number::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(Grace::decoded_bound_within(limits)?)?.checked_add(SettingsRevision::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Revisions::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(RetryNotice::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl HotDefinition {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(Flags::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(Executor::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(PersonAnswer::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(PersonWait::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(RecurringState::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(Numbers::encoded_bound_within(limits)?)?.checked_add(Funder::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.hot_definition_dependencies).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.hot_definition_waiting_on).checked_mul(Number::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.hot_definition_added).checked_mul(Added::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(Flags::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Executor::decoded_bound_within(limits)?)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(PersonAnswer::decoded_bound_within(limits)?)?.checked_add(PersonWait::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(RecurringState::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Numbers::decoded_bound_within(limits)?)?.checked_add(Funder::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<Number>::price(limits.hot_definition_dependencies)?.checked_add(u64::from(limits.hot_definition_dependencies).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(List::<Number>::price(limits.hot_definition_waiting_on)?.checked_add(u64::from(limits.hot_definition_waiting_on).checked_mul(Number::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(List::<Added>::price(limits.hot_definition_added)?.checked_add(u64::from(limits.hot_definition_added).checked_mul(Added::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl LiveHot {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(Session::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(HotHistory::encoded_bound_within(limits)?)?;
+        size = size.checked_add(TaskRun::encoded_bound_within(limits)?)?.checked_add(HotDefinition::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::encoded_bound_within(limits)?)?;
+        size = size.checked_add(TaskOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(Talk::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(Session::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(HotHistory::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TaskRun::decoded_bound_within(limits)?)?.checked_add(HotDefinition::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<Number>::price(limits.live_hot_started_from)?.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TaskOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Talk::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl LiveCold {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Spec::encoded_bound_within(limits)?)?.checked_add(Contract::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Authority::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.live_cold_instructions_some))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Spec::decoded_bound_within(limits)?)?.checked_add(Contract::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Authority::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.live_cold_instructions_some))?;
+        heap.checked_add(0)
+    }
+}
+
 impl EndedByParty {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -36344,6 +38826,312 @@ impl PlacedHold {
     }
 }
 
+impl SummaryCancelled {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Party::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Party::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl SummaryEnding {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SummaryCancelled::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SummaryCancelled::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl SummaryVerdict {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl SummaryChange {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(2_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl SummaryResultKind {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SummaryVerdict::encoded_bound_within(limits)?).max(SummaryChange::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(SummaryVerdict::decoded_bound_within(limits)?).max(SummaryChange::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl SummaryResult {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(SummaryResultKind::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.summary_result_words))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(SummaryResultKind::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.summary_result_words))?;
+        heap.checked_add(0)
+    }
+}
+
+impl SummaryEndings {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl TaskSummary {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(Party::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(Flags::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(Executor::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.task_summary_title))?)?;
+        size = size.checked_add(SummaryEnding::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.task_summary_reason))?)?;
+        size = size.checked_add(1_u64.checked_add(SummaryResult::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(Numbers::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(Funder::encoded_bound_within(limits)?)?.checked_add(SummaryEndings::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Party::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Flags::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Executor::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.task_summary_title))?;
+        heap = heap.checked_add(SummaryEnding::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.task_summary_reason))?;
+        heap = heap.checked_add(SummaryResult::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Numbers::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Funder::decoded_bound_within(limits)?)?.checked_add(SummaryEndings::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl RetentionStage {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl RetentionRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(RetentionStage::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(RetentionStage::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Value {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -36365,7 +39153,9 @@ impl Value {
         biggest = biggest.max(EndedByParty::encoded_bound_within(limits)?).max(EndedByProject::encoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::encoded_bound_within(limits)?).max(TaskRecord::encoded_bound_within(limits)?);
         biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?).max(AttemptRow::encoded_bound_within(limits)?);
-        biggest = biggest.max(HoldRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(HoldRow::encoded_bound_within(limits)?).max(LiveHot::encoded_bound_within(limits)?);
+        biggest = biggest.max(LiveCold::encoded_bound_within(limits)?).max(TaskSummary::encoded_bound_within(limits)?);
+        biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -36389,7 +39179,9 @@ impl Value {
         biggest = biggest.max(EndedByParty::decoded_bound_within(limits)?).max(EndedByProject::decoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::decoded_bound_within(limits)?).max(TaskRecord::decoded_bound_within(limits)?);
         biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?).max(AttemptRow::decoded_bound_within(limits)?);
-        biggest = biggest.max(HoldRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(HoldRow::decoded_bound_within(limits)?).max(LiveHot::decoded_bound_within(limits)?);
+        biggest = biggest.max(LiveCold::decoded_bound_within(limits)?).max(TaskSummary::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<TaskSummary>()).ok()?)?);
+        biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -38330,6 +41122,10 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Session::encoded_bound_within(limits)?);
     biggest = biggest.max(BeforeTalk::encoded_bound_within(limits)?);
     biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?);
+    biggest = biggest.max(HotHistory::encoded_bound_within(limits)?);
+    biggest = biggest.max(HotDefinition::encoded_bound_within(limits)?);
+    biggest = biggest.max(LiveHot::encoded_bound_within(limits)?);
+    biggest = biggest.max(LiveCold::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedByParty::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedByProject::encoded_bound_within(limits)?);
     biggest = biggest.max(HoldOwner::encoded_bound_within(limits)?);
@@ -38337,6 +41133,20 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SubtreeScope::encoded_bound_within(limits)?);
     biggest = biggest.max(HoldScope::encoded_bound_within(limits)?);
     biggest = biggest.max(PlacedHold::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryCancelled::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEnding::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryVerdict::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryChange::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryResultKind::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryResult::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEndings::encoded_bound_within(limits)?);
+    biggest = biggest.max(TaskSummary::encoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(RetentionStage::encoded_bound_within(limits)?);
+    biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Value::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelName::encoded_bound_within(limits)?);
     biggest = biggest.max(Row::encoded_bound_within(limits)?);
@@ -38349,10 +41159,6 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CapacityActionSubscription::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionEffect::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionClaim::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CapacityActionPlace::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityAction::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityCauseTasks::encoded_bound_within(limits)?);
@@ -38675,6 +41481,10 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Session::decoded_bound_within(limits)?);
     biggest = biggest.max(BeforeTalk::decoded_bound_within(limits)?);
     biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?);
+    biggest = biggest.max(HotHistory::decoded_bound_within(limits)?);
+    biggest = biggest.max(HotDefinition::decoded_bound_within(limits)?);
+    biggest = biggest.max(LiveHot::decoded_bound_within(limits)?);
+    biggest = biggest.max(LiveCold::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedByParty::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedByProject::decoded_bound_within(limits)?);
     biggest = biggest.max(HoldOwner::decoded_bound_within(limits)?);
@@ -38682,6 +41492,20 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SubtreeScope::decoded_bound_within(limits)?);
     biggest = biggest.max(HoldScope::decoded_bound_within(limits)?);
     biggest = biggest.max(PlacedHold::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryCancelled::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEnding::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryVerdict::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryChange::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryResultKind::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryResult::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEndings::decoded_bound_within(limits)?);
+    biggest = biggest.max(TaskSummary::decoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(RetentionStage::decoded_bound_within(limits)?);
+    biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Value::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelName::decoded_bound_within(limits)?);
     biggest = biggest.max(Row::decoded_bound_within(limits)?);
@@ -38694,10 +41518,6 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CapacityActionSubscription::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionEffect::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionClaim::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CapacityActionPlace::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityAction::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityCauseTasks::decoded_bound_within(limits)?);

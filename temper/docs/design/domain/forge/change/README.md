@@ -663,8 +663,16 @@ changes live at once, never every change made.
   settled, unpinned change with the lowest task number; task numbers
   are jig's, deployment-wide and never reused, so the lowest was made
   first. Its record leaves memory and its `Change` row is erased. While
-  the table has room nothing is dropped, so a quiet deployment keeps as
-  many panels as the table holds.
+  the table has room nothing is dropped for room, so a quiet deployment
+  keeps each panel until its task's record goes (below).
+- **Dropped with its task's record:** when jig erases the full record
+  of the change's task (`Unname`, jig's `domain/connectors.md`, 3.4),
+  30 days after it ended by jig's retention
+  (jig's `protocol/store/retention.md`, 6.2), the root drops the change
+  in that decision, full table or not, if it is settled or dropped
+  last and unpinned, by the rules above, with what goes with it (below).
+  A change pinned then stays, and goes when room is needed, as before.
+  So a quiet deployment's table holds no change past its task.
 - **The root chooses:** only the root knows which goals live, so it
   picks the change to drop, a settled one first and one dropped last
   only when no settled one can go, as `start_change` makes the registration,

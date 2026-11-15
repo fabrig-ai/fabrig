@@ -25,26 +25,29 @@ fn an_opening_key_is_the_escaped_worker_name_after_wires() {
 }
 
 #[test]
-fn attempt_and_hold_keys_keep_their_tags_and_big_endian_order() {
+fn attempt_hold_and_live_cold_keys_keep_their_tags_census_names_and_big_endian_order() {
     use jig_domain_tasks::Key as T;
     let keys = [
-        T::Attempt { task: 1, attempt: 255 },
-        T::Attempt { task: 1, attempt: 256 },
-        T::Hold { task: 1, position: 2 },
-        T::Hold { task: 2, position: 1 },
+        (T::Attempt { task: 1, attempt: 255 }, "tasks.attempts"),
+        (T::Attempt { task: 1, attempt: 256 }, "tasks.attempts"),
+        (T::Hold { task: 1, position: 2 }, "tasks.holds"),
+        (T::Hold { task: 2, position: 1 }, "tasks.holds"),
+        (T::LiveCold(1), "tasks.live-cold"),
     ];
-    let expected: [&[u8]; 4] = [
+    let expected: [&[u8]; 5] = [
         &[1, 1, 22, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 255],
         &[1, 1, 22, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
         &[1, 1, 23, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2],
         &[1, 1, 23, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+        &[1, 1, 24, 0, 0, 0, 0, 0, 0, 0, 1],
     ];
     let mut previous = None;
-    for (key, expected) in keys.into_iter().zip(expected) {
+    for ((key, name), expected) in keys.into_iter().zip(expected) {
         let key = Key::Tasks(key);
         let bytes = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
         assert_eq!(&*bytes, expected);
         assert_eq!(keys::decode(expected), Some(key.clone()));
+        assert!(keys::KEYSPACES.contains(&(&expected[..3], name)));
         if let Some((old, old_bytes)) = previous {
             assert!(old < key);
             assert!(old_bytes < bytes);
@@ -151,6 +154,31 @@ fn an_unknown_or_short_key_does_not_decode() {
 fn an_application_key_must_have_its_owners_tag() {
     assert_eq!(keys::of_application(&[]), None);
     assert_eq!(keys::of_application(&[1, 0]), None);
+}
+
+#[test]
+fn retention_keys_sort_by_stage_then_wall_time_then_number() {
+    use jig_domain_tasks::{Key as TaskKey, RetentionStage as Stage};
+    use skein_lib::Wall;
+    let mut previous = Key::Tasks(TaskKey::Summary(u64::MAX));
+    for (stage, since, number) in [
+        (Stage::Turns, 5, 9),
+        (Stage::Turns, 6, 1),
+        (Stage::Turns, 6, 2),
+        (Stage::Record, 0, 0),
+        (Stage::Summary, 0, 0),
+        (Stage::Forgotten, 0, 0),
+        (Stage::Proposal, 0, 0),
+    ] {
+        let key = Key::Tasks(TaskKey::Retention { stage, since: Wall::from_nanos(since), number });
+        assert!(previous < key);
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
+        assert!(keys::encode(&previous, fixtures::KEY_LIMIT).unwrap() < bytes);
+        assert_eq!(keys::decode(&bytes), Some(key.clone()));
+        previous = key;
+    }
+    assert_eq!(crate::census::name(&[1, 1, 30], crate::Keyspaces::NONE), "tasks.summaries");
+    assert_eq!(crate::census::name(&[1, 1, 31], crate::Keyspaces::NONE), "tasks.retention");
 }
 
 #[test]

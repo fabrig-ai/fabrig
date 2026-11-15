@@ -285,12 +285,12 @@ fn a_released_goal_landing_uses_fresh_facts_once_including_after_restart() {
         assert_eq!(row(&world, task).change.last_head, Some(translate::commit(fresh)));
         assert!(!matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
         // Deliver the same release to the connector again, as after replay.
-        let before = row(&world, task).clone();
+        let before = row(&world, task);
         world.send(engine::Event::Forge(Box::new(forge_top::Event::ReleaseChange {
             task,
             release: before.task_release.clone(),
         })));
-        assert_eq!(row(&world, task), &before);
+        assert_eq!(row(&world, task), before);
         if conflict {
             fresh_resolution(&mut world, task, old, fresh, base, resolutions);
         } else {

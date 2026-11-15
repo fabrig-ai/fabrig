@@ -56,7 +56,8 @@ fn only_settled_rows_with_finished_releases_can_be_dropped() {
         assert!(!d.droppable_last(fixtures::CHANGE));
         let out = dropped(&mut d, &env);
         assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
-        assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
+        assert_eq!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }), allowed);
+        assert_eq!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }), allowed);
     }
     let d = domain();
     assert!(!d.droppable(fixtures::CHANGE), "an unknown row is not droppable");
@@ -93,7 +94,8 @@ fn ended_verifying_rows_give_room_only_after_release() {
             );
             let out = dropped(&mut d, &env);
             assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
-            assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
+            assert_eq!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }), allowed);
+            assert_eq!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }), allowed);
         }
     }
     assert!(!domain().droppable_last(fixtures::CHANGE), "an unknown row cannot give room last");
@@ -150,7 +152,8 @@ fn a_root_selected_verifying_row_gives_room_beside_goal_pinned_settled_rows() {
         assert!(d.droppable_last(fixtures::CHANGE));
         assert!(d.droppable(52));
         let out = dropped(&mut d, &env);
-        assert!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }));
+        assert!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }));
+        assert!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }));
         assert!(d.change(fixtures::CHANGE).is_none());
         assert_eq!(d.change(52).unwrap().goal, Some(70), "the live goal's settled row stays");
         let (opening, _) = fixtures::opening();
@@ -298,6 +301,105 @@ fn dropping_erases_task_accounts_and_late_reads_cannot_recreate_them() {
     assert!(d.goal_files.get(&task).is_none());
     assert!(d.change(task).is_none());
     assert!(d.settling.get(&task).is_none());
+}
+
+#[test]
+fn erased_change_drops_its_passes_and_accounts_with_free_room() {
+    let (mut d, mut env) = full();
+    env.limits.changes = 128;
+    let task = fixtures::CHANGE;
+    let mut other = settled();
+    other.task = 9;
+    other.change.task = 9;
+    d.changes.insert(9, other.clone()).unwrap();
+    d.panel_ci.insert(task, change::Ci { head: fixtures::HEAD, status: change::Status::Passed }).unwrap();
+    d.settling.insert(task, crate::settle::Settle::NEW).unwrap();
+    d.start_conflicts.insert(task, fixtures::BASE).unwrap();
+    d.procedure_wakes.insert(task, true).unwrap();
+    d.change_due.insert(task, env.wall).unwrap();
+    d.goal_files.insert(task, topics::Files { head: fixtures::HEAD, paths: Some(Box::new([])) }).unwrap();
+    d.landed.insert(fixtures::HEAD, task).unwrap();
+    let pass = crate::RedPass { change: task, key: b"check".as_slice().into(), generation: 1 };
+    d.red_passes.insert((task, pass.key.clone()), pass.clone()).unwrap();
+    let mut out = Queue::uncapped();
+    super::super::step(&mut d, &env, Event::DropErased { task }, &mut out);
+    assert!(d.change(task).is_none());
+    assert_eq!(d.change(9), Some(&other));
+    assert!(!d.panel_ci.contains_key(&task));
+    assert!(!d.settling.contains_key(&task));
+    assert!(!d.start_conflicts.contains_key(&task));
+    assert!(!d.procedure_wakes.contains_key(&task));
+    assert!(!d.change_due.contains_key(&task));
+    assert!(!d.goal_files.contains_key(&task));
+    assert!(!d.landed.contains_key(&fixtures::HEAD));
+    assert!(d.red_passes.is_empty());
+    let mut erased = List::uncapped();
+    while let Some(request) = out.pop() {
+        if let Request::Erase { key } = request {
+            erased.push(key).unwrap();
+        }
+    }
+    for key in [
+        Key::ChangeHot(task),
+        Key::ChangeCold(task),
+        Key::Landed(fixtures::HEAD),
+        Key::RedPass { change: task, key: pass.key },
+    ] {
+        assert!(erased.as_slice().contains(&key), "{key:?}");
+    }
+}
+
+#[test]
+fn erased_change_stays_while_a_landing_names_it() {
+    use temper_engine_domain_forge_landing as landing;
+    let (mut d, mut env) = full();
+    env.limits.changes = 128;
+    let row = d.change(fixtures::CHANGE).unwrap().clone();
+    d.landing
+        .rows
+        .insert(
+            60,
+            crate::LandingRow {
+                job: None,
+                landing: landing::Landing {
+                    last_left: None,
+                    round: landing::Round::new(Box::new([])),
+                    task: 60,
+                    project: 5,
+                    phase: landing::Phase::Landed,
+                    members: Box::new([landing::Member {
+                        round: None,
+                        unit: 0,
+                        branch: b"temper/1/l60".as_slice().into(),
+                        combined: None,
+                        recorded: false,
+                        told: false,
+                        judging: false,
+                        leave_told: false,
+                        left: None,
+                        change: fixtures::CHANGE,
+                        repository: landing::Repository { forge: 1, repository: 2 },
+                        pull: 1,
+                        head: None,
+                        base: None,
+                        candidate: None,
+                        gates: Box::new([]),
+                        asked: None,
+                        landed: None,
+                    }]),
+                    preparation: 0,
+                    stale_proofs: 0,
+                    branch: b"main".as_slice().into(),
+                },
+                asks: Box::new([None]),
+                entries: Box::new([]),
+            },
+        )
+        .unwrap();
+    let mut out = Queue::uncapped();
+    super::super::step(&mut d, &env, Event::DropErased { task: fixtures::CHANGE }, &mut out);
+    assert_eq!(d.change(fixtures::CHANGE), Some(&row));
+    assert!(out.is_empty());
 }
 
 #[test]

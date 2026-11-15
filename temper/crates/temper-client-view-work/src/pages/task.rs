@@ -402,6 +402,9 @@ pub(crate) fn state(b: &mut Builder, state: State, words: &Words) {
             };
             (words.say(word, &[Hole::Number(number)]), look::STATUS_WAITING)
         }
+        State::WaitingForQuestion(number) => {
+            (words.say(Word::WaitingForQuestion, &[Hole::Number(number)]), look::STATUS_WAITING)
+        }
         State::WaitingForNews => (words.say(Word::WaitingForNews, &[]), look::STATUS_WAITING),
         State::Running => (words.say(Word::Running, &[]), look::STATUS_ACTIVE),
         State::Writing => (words.say(Word::Writing, &[]), look::STATUS_ACTIVE),

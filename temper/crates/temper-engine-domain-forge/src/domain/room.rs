@@ -85,12 +85,19 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     if d.changes.len() != env.limits.changes {
         return;
     }
+    drop_erased(d, task, out);
+}
+
+// Task erasure needs no full table (domain/forge/change/README.md, 7).
+pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     if !d.droppable(task) && !d.droppable_last(task) {
         return;
     }
     let row = d.changes.remove(&task).expect("droppable row exists");
     super::reds::erase_passes(d, task, out);
-    emit(out, Request::Erase { key: Key::Change(task) });
+    d.change_cold.remove(&task);
+    emit(out, Request::Erase { key: Key::ChangeCold(task) });
+    emit(out, Request::Erase { key: Key::ChangeHot(task) });
     d.stall_words.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);

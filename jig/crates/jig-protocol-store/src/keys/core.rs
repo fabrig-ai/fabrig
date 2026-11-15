@@ -78,6 +78,15 @@ fn projection(writer: &mut KeyWriter, key: &ProjectionKey) {
             writer.u64(*task);
             writer.u64(*revision);
         }
+        ProjectionKey::GoalWords(goal) => {
+            writer.tag(4);
+            writer.u64(*goal);
+        }
+        ProjectionKey::TaskWords { goal, task } => {
+            writer.tag(5);
+            writer.u64(*goal);
+            writer.u64(*task);
+        }
     }
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<CoreKey> {
@@ -113,6 +122,8 @@ fn read_projection(reader: &mut KeyReader<'_>) -> Option<ProjectionKey> {
         1 => ProjectionKey::Task { goal: reader.u64()?, task: reader.u64()? },
         2 => ProjectionKey::Lifecycle { goal: reader.u64()?, task: reader.u64()?, position: reader.u64()? },
         3 => ProjectionKey::Revision { goal: reader.u64()?, task: reader.u64()?, revision: reader.u64()? },
+        4 => ProjectionKey::GoalWords(reader.u64()?),
+        5 => ProjectionKey::TaskWords { goal: reader.u64()?, task: reader.u64()? },
         _ => return None,
     })
 }

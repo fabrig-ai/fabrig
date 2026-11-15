@@ -514,7 +514,7 @@ fn circle_and_added_records_refuse_one_past_their_bounds() {
     }
     record.added = added.into_boxed();
     let row = live_record(record);
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::TaskDefinitionAdded)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::HotDefinitionAdded)));
     let mut record = current_record();
     record.phase = domain::Phase::Held {
         was: domain::Was::Waiting,

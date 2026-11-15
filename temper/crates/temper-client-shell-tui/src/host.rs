@@ -40,10 +40,16 @@ enum Opening {
     Page { address: Box<[u8]> },
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "terminal capability, local link, box placement, front and prior setup are independent start facts"
+)]
 pub struct Start {
     pub size: Size,
     pub scheme: Option<tui::Scheme>,
     pub background: Option<Rgb>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub address: Box<[u8]>,
     pub local: bool,
     pub boxed: bool,
@@ -52,6 +58,8 @@ pub struct Start {
     pub note: Option<tui::Note>,
     /// Whether the TUI is in front of a box.
     pub front: bool,
+    pub set_up: bool,
+    pub box_log: Box<[u8]>,
 }
 
 pub enum Report {
@@ -219,7 +227,12 @@ impl Host {
         match report {
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
-            Report::Front(line) => self.tell(Told::BoxLine { line }),
+            Report::Front(line) => {
+                if let tui::BoxLine::Started { name } = &line {
+                    self.notice(tui::Notice::Started { name: name.clone() });
+                }
+                self.tell(Told::BoxLine { line });
+            }
             Report::Stage(stage) => self.stage(stage, &mut duties),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
@@ -277,6 +290,9 @@ impl Host {
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
         self.route(&mut duties);
+        if self.state().front() && self.root.pages().me(self.root.client()).is_some() {
+            self.tell(Told::MeRead);
+        }
         self.launchpad(project);
         self.route(&mut duties);
         if self.state().start_chat().is_some() && self.root.pages().start().is_none() {
@@ -351,9 +367,11 @@ impl Host {
 
     fn start(&mut self, start: Start, duties: &mut Duties) {
         assert!(self.state.is_none(), "the TUI starts once");
-        self.state = Some(tui::Tui::new(&start.address));
+        let mut state = tui::Tui::new(&start.address);
+        state.header(start.plain, start.version);
+        self.state = Some(state);
         if start.front {
-            self.tell(Told::Front);
+            self.tell(Told::Front { set_up: start.set_up, box_log: start.box_log });
             self.tell(Told::Stage { stage: tui::BoxStage::Finding });
             self.handed = true;
         }

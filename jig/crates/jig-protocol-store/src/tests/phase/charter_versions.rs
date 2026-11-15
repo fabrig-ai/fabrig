@@ -6,6 +6,18 @@ use crate::{Owner, PatchSet, PatchSets};
 use alloc::collections::VecDeque;
 
 fn store(disk: &Disk, set: PatchSet) -> Store {
+    // This scene runs the charter job; the other jig jobs have their own page fixtures.
+    let set = PatchSet {
+        jobs: Box::leak(
+            set.jobs
+                .iter()
+                .copied()
+                .filter(|job| job.name == "charter-versions")
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+        ..set
+    };
     let mut limits = fixtures::store_limits();
     // The real family's schema texts and registered roots live in this map.
     limits.store.budget = 2_097_152;
@@ -62,34 +74,39 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     let mut last = None;
     while let Some(event) = events.pop_front() {
         match event {
-            Event::Job { owner, of: Owner::Jig, job, page } if job.as_ref() == "milestones" => {
-                assert!(page.end && page.rows.is_empty());
+            Event::Job { owner, of: Owner::Jig, job, page } if job.as_ref() != "charter-versions" => {
+                assert!(page.rows.is_empty(), "other jobs have no fixture rows");
                 events
                     .extend(disk.request(&mut current, Request::Job { owner, answer: crate::jobs::page(&job, &page) }));
             }
-            Event::Ran { of: Owner::Jig, job, rows: 0, commits: 1, .. } if job.as_ref() == "milestones" => {}
+            Event::Ran { of: Owner::Jig, job, rows, .. } if job.as_ref() != "charter-versions" => {
+                assert_eq!(rows, 0, "other jobs have no fixture rows");
+            }
             Event::Job { owner, of: Owner::Jig, job, page } => {
-                assert_eq!(job.as_ref(), "charter-versions");
-                if pages == 0 {
-                    let layout = page.layout.as_ref().unwrap();
-                    assert_eq!(layout.text.as_ref(), crate::tests::charter_versions::KEPT.as_bytes());
-                    assert_eq!(layout.root.as_ref(), "CharterVersion");
-                    assert_eq!(page.rows.len(), 2);
-                    // The seed exists before any page reaches its owner.
-                    let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
-                    let seed = crate::keys::encode_own(&seed, current.limits.store.key).unwrap();
-                    assert!(fixtures::get_kv(&mut current, &seed).is_some());
-                } else {
-                    assert!(page.layout.is_none());
-                    assert!(page.end);
+                if job.as_ref() == "charter-versions" {
+                    if pages == 0 {
+                        let layout = page.layout.as_ref().unwrap();
+                        assert_eq!(layout.text.as_ref(), crate::tests::charter_versions::KEPT.as_bytes());
+                        assert_eq!(layout.root.as_ref(), "CharterVersion");
+                        assert_eq!(page.rows.len(), 2);
+                        // The seed exists before any page reaches its owner.
+                        let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
+                        let seed = crate::keys::encode_own(&seed, current.limits.store.key).unwrap();
+                        assert!(fixtures::get_kv(&mut current, &seed).is_some());
+                    } else {
+                        assert!(page.layout.is_none());
+                        assert!(page.end);
+                    }
+                    pages += 1;
                 }
-                pages += 1;
                 let answer = crate::jobs::page(&job, &page);
                 events.extend(disk.request(&mut current, Request::Job { owner, answer }));
             }
-            Event::Ran { of: Owner::Jig, job, rows: 2, commits: 2, .. } => {
-                assert_eq!(job.as_ref(), "charter-versions");
-                ran += 1;
+            Event::Ran { of: Owner::Jig, job, rows, commits, .. } => {
+                if job.as_ref() == "charter-versions" {
+                    assert_eq!((rows, commits), (2, 2));
+                    ran += 1;
+                }
             }
             Event::Opened { last: number, pending: true, .. } => last = Some(number),
             Event::Census { .. } => {}

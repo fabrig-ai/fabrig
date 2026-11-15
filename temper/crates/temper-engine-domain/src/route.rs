@@ -538,6 +538,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
+                if let Some(key) = domain.forge.unjoined_change() {
+                    domain.stop_start(crate::StartStop::ForgeRow(key));
+                    return;
+                }
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {

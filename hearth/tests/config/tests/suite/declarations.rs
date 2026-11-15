@@ -146,7 +146,9 @@ fn the_m5_and_m6_examples_are_refused_at_their_keys() {
                 world::declare(examples::task(name).bytes, &settings, seed),
                 Err(hearth_protocol_config::Error {
                     at,
-                    fault: hearth_protocol_config::Fault::Declaration(hearth_protocol_config::Declared::Later)
+                    fault: hearth_protocol_config::Fault::Decode(hearth_protocol_config::Decode::Declaration(
+                        hearth_protocol_config::Declared::Later
+                    ))
                 }),
                 "{name}, seed {seed}"
             );

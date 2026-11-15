@@ -619,7 +619,7 @@ pub enum Stands {
     Taken,
     /// Asked of the change's requester, the change kept by its own question.
     Asked,
-    /// Answered by the requester and held while the change is kept by a pending dependency.
+    /// Answered by the requester and held until a step has message room.
     Held { answer: Box<[u8]> },
 }
 

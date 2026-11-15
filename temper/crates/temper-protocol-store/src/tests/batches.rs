@@ -49,7 +49,10 @@ fn v17_landing(schema: &Schema) -> Box<[u8]> {
         let round = value.some(value.field(state, kept::landing_state::ROUND).unwrap()).unwrap().unwrap();
         bytes = replaced(&value, value.field(round, field).unwrap(), replacement);
     }
-    bytes
+    // The full golden fills both hold options; a landing has just one cause.
+    let (value, row) = kept_value(schema, b"LandingRow", bytes);
+    let state = value.field(row, kept::landing_row::LANDING).unwrap();
+    replaced(&value, value.field(state, kept::landing_state::OWN_HOLD).unwrap(), &[0])
 }
 fn upgraded(before: &[u8]) -> v25::LandingRow {
     let bytes =

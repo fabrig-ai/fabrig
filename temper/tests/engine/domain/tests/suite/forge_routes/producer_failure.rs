@@ -105,10 +105,7 @@ fn assert_no_change(world: &World, change: u64) {
     assert!(!world.store.rows.values().any(|row| matches!(row,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
         if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
+    let Some(row) = world.store.change(change) else { panic!("durable change") };
     assert!(row.pull.is_none());
     assert_eq!(world.merges, 0);
 }
@@ -261,10 +258,7 @@ fn account(world: &World, change: u64) -> &[u8] {
 fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
+    let Some(row) = world.store.change(change) else { panic!("durable change") };
     assert!(matches!(&row.change.state, State::Held { was, why: Hold::Failed }
         if matches!(was.as_ref(), State::Producing { .. })));
     assert!(row.pull.is_none());

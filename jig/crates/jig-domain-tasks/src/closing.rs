@@ -343,6 +343,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     domain.alarms.cancel(number);
     domain.grace_alarms.cancel(number);
     out.push(Request::Erase { key: Key::Live(number) });
+    out.push(Request::Erase { key: Key::LiveCold(number) });
     if let Party::Person(party) = requester {
         out.push(Request::Save {
             record: Stored::EndedByParty(crate::EndedByParty {
@@ -364,7 +365,11 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
         });
     }
     let ended_project = ended.project;
+    let summary = crate::TaskSummary::of(&ended);
+    let retention = crate::RetentionRow::of(&ended);
     out.push(Request::Save { record: Stored::Ended(Box::new(ended)) });
+    out.push(Request::Save { record: Stored::Summary(Box::new(summary)) });
+    out.push(Request::Save { record: Stored::Retention(retention) });
     let dependents = snapshot(domain, env.limits.tasks);
     for dependent in dependents.into_boxed() {
         let task = record(domain, dependent).expect("dependent snapshot is live");
