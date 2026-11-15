@@ -1810,6 +1810,97 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "quiet-line rows inspect their two children")]
+fn the_box_start_stands_first_on_the_welcomes_quiet_line() {
+    use crate::{BoxEnd, BoxLine, BoxStage, Local};
+    let root = f::signed_out();
+    let words = f::words();
+    for (stage, log, want) in [
+        (BoxStage::Finding, None, "Finding temper-box…"),
+        (
+            BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
+            None,
+            "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
+        ),
+        (
+            BoxStage::Fetching { done: 12_300_000, total: None },
+            None,
+            "Downloading temper-box, once for this build: 12.3 MB",
+        ),
+        (BoxStage::Starting, Some("23:32:06Z Starting serve"), "Starting the box…"),
+        (BoxStage::Running, None, ""),
+        (BoxStage::Running, Some("23:32:06Z Starting serve"), "Starting serve"),
+        (BoxStage::Running, Some("Starting serve"), "Starting serve"),
+        (BoxStage::Running, Some("23:32:06 Starting serve"), "23:32:06 Starting serve"),
+        (BoxStage::Running, Some("3:32:06Z Starting serve"), "3:32:06Z Starting serve"),
+        (BoxStage::Running, Some("23:32:06ZStarting serve"), "23:32:06ZStarting serve"),
+        (BoxStage::Running, Some("2x:32:06Z Starting serve"), "2x:32:06Z Starting serve"),
+        (BoxStage::Running, Some("23-32:06Z Starting serve"), "23-32:06Z Starting serve"),
+        (BoxStage::Running, Some("99:99:99Z Not a clock check"), "Not a clock check"),
+        (BoxStage::Failed { why: b"WHY".as_slice().into() }, Some("old log"), ""),
+        (BoxStage::Stopping, Some("old log"), ""),
+        (BoxStage::Ended { end: BoxEnd::Exited { code: 0 } }, Some("old log"), ""),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
+        tui.step(Told::Local { local: Local::Signing });
+        tui.step(Told::Size { columns: 110 });
+        tui.step(Told::Stage { stage: stage.clone() });
+        if let Some(line) = log {
+            tui.step(Told::BoxLine { line: BoxLine::Log { line: b"previous line".as_slice().into() } });
+            tui.step(Told::BoxLine { line: BoxLine::Log { line: line.as_bytes().into() } });
+        }
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        assert_eq!(part.box_start.as_deref().unwrap_or(b""), want.as_bytes(), "{stage:?}: {log:?}");
+        // The state's words and precedence are independent of the start's part.
+        for notice in [None, Some(crate::Notice::SigningIn), None] {
+            let mut part = foot::read(&root, &tui, &words, f::NOW);
+            part.box_state = Some((b"STATE".as_slice().into(), look::SIGNAL));
+            part.notice = notice.as_ref().map(|notice| words.notice(notice));
+            let view = draw(part);
+            let tree = view.tree();
+            let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+            let left = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+            let right =
+                &tree.nodes()[f::index(tree, left.id).checked_add(usize::try_from(left.size).unwrap()).unwrap()];
+            assert_eq!(f::text(tree, left).as_ref(), "● Connecting".as_bytes());
+            let expected = if notice.is_some() {
+                b"Still signing in".as_slice().into()
+            } else if want.is_empty() {
+                b"STATE".as_slice().into()
+            } else {
+                skein_lib::bytes::concat(&[want.as_bytes(), " · STATE".as_bytes()])
+            };
+            assert_eq!(f::text(tree, right), expected, "{stage:?}: {log:?}, {notice:?}");
+            if !want.is_empty() && notice.is_none() {
+                assert!(has(tree, look::HINT, want.as_bytes()));
+                assert!(has(tree, look::FAINT, " · ".as_bytes()));
+            }
+        }
+    }
+    let (starting, _) = f::starting();
+    let (live, _) = f::live(Some(f::me(&[])));
+    let (project, _) = f::live(Some(f::me(&[b"Demo"])));
+    for (name, root, front, local, shown) in [
+        ("local link signing", &root, true, Local::Signing, true),
+        ("sign-in landing", &starting, true, Local::Ended, true),
+        ("sign-in landed", &live, true, Local::Idle, false),
+        ("not in front", &starting, false, Local::Signing, false),
+        ("launchpad", &project, true, Local::Idle, false),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        if front {
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
+        }
+        tui.step(Told::Local { local });
+        tui.step(Told::Stage { stage: BoxStage::Running });
+        tui.step(Told::BoxLine { line: BoxLine::Log { line: b"23:32:06Z Starting serve\xff".as_slice().into() } });
+        let part = foot::read(root, &tui, &words, f::NOW);
+        assert_eq!(part.box_start.as_deref(), if shown { Some("Starting serve�".as_bytes()) } else { None }, "{name}");
+    }
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "the group rows inspect the quiet line's right child")]
 fn a_starting_group_occupies_the_box_states_place_on_the_quiet_right() {
     type NameCase = (Box<[u8]>, Box<[u8]>);

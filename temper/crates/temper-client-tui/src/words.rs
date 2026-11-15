@@ -195,10 +195,11 @@ pub enum Word {
     LeftAfter,
     LeftNow,
     NoRole,
+    LinkPending,
     StartingGroup,
     StartedGroup,
 }
-pub(crate) const ALL: [Word; 187] = [
+pub(crate) const ALL: [Word; 188] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -386,6 +387,7 @@ pub(crate) const ALL: [Word; 187] = [
     Word::LeftAfter,
     Word::LeftNow,
     Word::NoRole,
+    Word::LinkPending,
 ];
 
 #[derive(Clone, Copy)]
@@ -634,6 +636,7 @@ impl Word {
             Self::LeftAfter => 180,
             Self::LeftNow => 181,
             Self::NoRole => 182,
+            Self::LinkPending => 190,
             Self::StartingGroup => 188,
             Self::StartedGroup => 189,
         }
@@ -731,6 +734,7 @@ impl Word {
             Self::BoxPurpose => (&[b"a whole deployment on this machine"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
+            Self::LinkPending => (&[b"The link comes here once the box has started."], &[]),
             Self::InTheBrowser => (&[b"In the browser"], &[]),
             Self::Step => (&[b"", b" ", b""], &[Slot::Number, Slot::Label]),
             Self::Following => (&[b"Setting temper up in your browser"], &[]),
