@@ -2,13 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
-- **Not yet:** the whole document: landing by turn on the fake forge,
-  its two stories on the cluster's processes. [in flight: change 3809]
-- **Not yet:** the whole document: the placement table's fourteen
-  former stories are still in `bin/temper-box/tests/process.rs`, the
-  two kept on a real Forgejo are neither trimmed nor ignored by choice,
-  and the table's new modules are named without their tests.
-  [in flight: change 3810]
 
 
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in
