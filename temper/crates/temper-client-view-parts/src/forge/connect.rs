@@ -1137,16 +1137,7 @@ fn progress(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row, in_row
             | Connection::Stopped { .. } => None,
         }
     };
-    let fetch = if let Some(owned) = &row.owned
-        && let Some(runner) = &owned.runner
-    {
-        w.say(
-            if current > Some(0) { Word::ForgeFetchedVersions } else { Word::ForgeFetchVersions },
-            &[Hole::Name(copy_of(&owned.forgejo)), Hole::Name(copy_of(runner))],
-        )
-    } else {
-        w.say(if current > Some(0) { Word::ForgeFetched } else { Word::ForgeFetch }, &[])
-    };
+    let fetch = w.say(if current > Some(0) { Word::ForgeFetched } else { Word::ForgeFetch }, &[]);
     let fetch = if let Some(fetched) = row.fetched {
         crate::accounts::words::join(&[&fetch, b" \xc2\xb7 ", &forge::words::fetched_figure(fetched)])
     } else {

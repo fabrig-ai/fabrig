@@ -680,9 +680,9 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
         let progress = &nodes[progress..progress + usize::try_from(nodes[progress].size).expect("tree size")];
         let items = progress.iter().enumerate().filter(|(_, node)| node.role == Role::Item).collect::<Vec<_>>();
         let labels = [
-            if current > Some(0) { "Fetched Forgejo and its runner" } else { "Fetching Forgejo and its runner" },
-            "Preparing: its database, temper’s admin, your account",
-            "Starting Forgejo and its runner",
+            if current > Some(0) { "Fetched Forgejo" } else { "Fetching Forgejo" },
+            "Preparing Forgejo",
+            "Starting Forgejo",
             "Connecting as temper",
             "Making the first repository",
         ];

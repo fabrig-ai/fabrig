@@ -937,7 +937,24 @@ walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
 temper/ui walks it anew after landing, as section 9's table has it
 (section 10).
 
+The `forge-steps` request's hand-made `forge-steps/fetching-before.html`,
+`fetching-after.html`, `preparing-before.html` and `preparing-after.html`
+are not journeys to reprint or land (section 7). They draw Model's
+"Each step" while Forgejo fetches or prepares: its steps name Forgejo
+alone, with no version (`../forge/deployment.md`, *Setting up, in the row*).
+The gallery's fetching, fetching-bytes and preparing states draw those
+words in the welcome and Forges. No overlay rule changes.
+
 ## 10. Open questions
+
+- **Forgejo's shorter steps** (9): temper/ui compares `forge-steps`' two
+  after pages with main after landing at 1440, 1000 and 420 px, with
+  "Each step" open (`look-requests.md`, 4), including the figure in
+  megabytes, a failed fetch, the Forge row's live list and a phone.
+  Default: the gallery's welcome and Forges setup states and reprinted
+  journeys; compilation and print checks establish no rendered equality.
+  The source step's likely wrapping remains the user's look question
+  (`../forge/deployment.md`, 1). Findings are filed back under the request.
 
 - **The requests of 2026-11-12** (9): temper/ui compares each request's
   pages, from its own commit with its overlay, with main after landing at

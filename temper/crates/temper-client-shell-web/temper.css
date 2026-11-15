@@ -1285,8 +1285,16 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-rail > .temper-rail-nav > a { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a:hover { background: var(--gf-rail-hover); }
 #app > .temper-rail > .temper-rail-nav > a[aria-current] { background: var(--gf-hover); font-weight: 500; }
-/* The link's state shows only when it is not live. */
-#app > .temper-rail > .temper-rail-foot > [data-region=temper-link]:has(> .temper-live) { display: none; }
+/* Over a phone's width, one link-state word at the right of temper's row, out of the foot's flow. */
+@media (min-width: 761px) {
+  #app > .temper-rail > .temper-rail-foot > :is([data-region=temper-link], .temper-behind) { position: absolute; top: 28px; right: 20px; display: flex; align-items: center; min-height: 24px; padding: 0; font-size: 12.5px; }
+  #app > .temper-rail > .temper-rail-foot > [data-region=temper-link] > * { gap: 6px; }
+  #app > .temper-rail > .temper-rail-foot > [data-region=temper-link]:has(> .temper-live) { display: flex; }
+  #app > .temper-rail > .temper-rail-foot:has(> .temper-behind) > [data-region=temper-link]:has(> .temper-live) { display: none; }
+  #app > .temper-rail > .temper-rail-foot:has(> [data-region=temper-link] > :not(.temper-live)) > .temper-behind { display: none; }
+  #app > .temper-rail > .temper-rail-foot > .temper-behind { gap: 6px; }
+  #app > .temper-rail > .temper-rail-foot > .temper-behind::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--temper-amber); }
+}
 /* A moon by day and a sun by night, at the rail’s foot. */
 #app > .temper-rail > .temper-night-switch { position: absolute; right: var(--temper-night-switch-right, 16px); bottom: 24px; width: 30px; height: 30px; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
 #app > .temper-rail > .temper-night-switch::before { content: ''; position: absolute; inset: 7px; background: currentColor;
