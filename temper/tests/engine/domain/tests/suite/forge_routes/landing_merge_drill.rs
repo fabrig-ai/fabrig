@@ -80,6 +80,10 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
     )
     .with_merge_job(b".temper/merge")
     .with_forge_holds(12);
+    // Four change gathers share the client with their branch and numbered pull watches.
+    let mut client = world.env.limits.forge.client;
+    client.pending = 8;
+    world = world.with_forge_client(client);
     world.adopt();
     world.send(hello());
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
