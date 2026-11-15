@@ -1217,5 +1217,7 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
     }
 }
 
+#[path = "landing_delivery_restart.rs"]
+mod delivery_restart;
 #[path = "landing_stale_round.rs"]
 mod stale_round;

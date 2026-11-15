@@ -228,6 +228,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// Saved and delivered producer branches may coexist with landing branches.
+    pub forge_branches: Option<u32>,
     /// CI contexts whose real fake-forge jobs run at every pushed head.
     pub ci_contexts: Option<&'static [&'static [u8]]>,
     pub kinds: bool,
@@ -451,6 +453,7 @@ impl World {
             forge_charter,
             applications,
             forge_commits: _,
+            forge_branches: _,
             ci_contexts: _,
             kinds,
             standing_roles,
@@ -1155,6 +1158,9 @@ impl World {
         fake_config.limits.repositories = 2;
         if let Some(commits) = timing.forge_commits {
             fake_config.limits.commits = commits;
+        }
+        if let Some(branches) = timing.forge_branches {
+            fake_config.limits.branches = branches;
         }
         if stock.is_some() {
             // The peer accepts the same whole issue bodies and retained comments.
