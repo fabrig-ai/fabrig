@@ -2330,6 +2330,22 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     None => policy::Status::Unknown,
                 };
                 fact.flight = flight_fact(&d.landing, &key, (p.task, position, number));
+                if fact.flight == policy::Flight::None
+                    && runs::busy(
+                        d,
+                        repository(member),
+                        &gate.workflow,
+                        candidate,
+                        &inputs(
+                            candidate,
+                            key.key,
+                            if gate.base { member.base } else { None },
+                            policy::probe(&row.landing) == Some(position),
+                        ),
+                    )
+                {
+                    fact.flight = policy::Flight::Other;
+                }
                 if let Some(receipt) = d.landing.receipts.get(&key) {
                     fact.run = receipt.run.number;
                 }

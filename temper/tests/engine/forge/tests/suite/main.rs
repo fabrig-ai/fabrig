@@ -33,6 +33,7 @@ mod tiers;
 mod train_drills;
 mod trains;
 mod update_lost;
+mod workflow_flights;
 mod writer;
 
 mod fuzzy {

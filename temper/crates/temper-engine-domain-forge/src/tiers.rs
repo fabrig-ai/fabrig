@@ -683,6 +683,17 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
     }
     follow
 }
+pub(crate) fn in_flight(d: &Domain, row: &TierRow) -> Option<crate::runs::Follow> {
+    // A waiting, unsent part reserves no workflow. A retry keeps its entry even
+    // when its dispatch window is reset for dispatching afresh.
+    if row.flight.as_ref()?.entry == 0 || row.result.is_some() || row.held.is_some() {
+        return None;
+    }
+    configured(d, row)?;
+    row.record.run.as_ref()?;
+    row.task?;
+    Some(following(d, row))
+}
 fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
     let next = match &row.flight {
         Some(flight) => flight.next,
@@ -1133,7 +1144,13 @@ pub(crate) fn step(
                     Some(follow) => follow,
                     None => following(d, &row),
                 };
-                if !follow.waiting && !follow.writes.is_empty() && room(d, env, entry) {
+                let busy = crate::runs::busy(d, follow.repository, &follow.workflow, follow.commit, &follow.inputs);
+                if busy && !follow.waiting && !follow.writes.is_empty() {
+                    remember(&mut row, &follow);
+                    row.flight.as_mut().expect("waiting part").next = Some(d.poll_at(env, row.repository));
+                    save(&row, out);
+                    wait(task, out);
+                } else if !follow.waiting && !follow.writes.is_empty() && room(d, env, entry) {
                     let write = follow.write(entry).expect("pending write");
                     let run = row.record.run.as_ref().expect("run");
                     let operation = if let Write::Rerun { .. } = write { 2 } else { dispatch_operation(&run.part) };
