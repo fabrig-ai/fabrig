@@ -562,6 +562,13 @@ The default, for a project with no prepare command:
   `temper_key` (the key in hexadecimal), and, for a gate that reads the
   base, `temper_base` (the round's base). A gate that does not read the
   base is given no `temper_base`.
+- **At a search's probe** each dispatch also carries `temper_probe`,
+  `yes`, and the round's top none (`landing-search.md`, 3). A probe
+  needs only red or green, so a gate's workflow may stop at its first
+  red when given it, and run on past a red at a top, where one red
+  reports as much as it can. A probe's red run is still a failed
+  receipt under its key (6.2), reused as any, its output what the run
+  reached.
 - **The run is found and followed:** among the runs of that workflow
   at the candidate (skein's `Read::Runs`), one made by a dispatch,
   triggered by temper's own user on that forge, after the dispatch's
