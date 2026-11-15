@@ -441,13 +441,12 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
         let answer =
             Answer::Done(Outcome::Document(DocumentOutcome::Created { first: u64::MAX, last: u64::MAX, given: None }));
         let output = drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
-        let shown: Vec<_> = output
-            .iter()
-            .filter_map(|request| match request {
-                Request::Show { place, how } => Some((*place, *how)),
-                _ => None,
-            })
-            .collect();
+        let mut shown = List::with_capacity(1);
+        for request in &output {
+            if let Request::Show { place, how } = request {
+                shown.push((*place, *how)).unwrap();
+            }
+        }
         assert!(domain.chats().starting.is_none());
         assert_eq!((domain.fields().get(Purpose::NewChat).unwrap().text.bytes()).len(), 0);
         if let Some(place) = went {
@@ -462,13 +461,14 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
             match place {
                 Place::Elsewhere => assert_eq!(domain.page(), &Page::Elsewhere),
                 Place::Jig(address) => {
-                    assert!(matches!(domain.page(), Page::Work { address: current, .. } if *current == address));
+                    let Page::Work { address: current, .. } = domain.page() else { panic!("still on Conversations") };
+                    assert_eq!(*current, address);
                 }
                 Place::Missing => unreachable!("the test leaves for a known place"),
             }
         } else {
             let activity = Address::Task { task: u64::MAX, section: TaskSection::Activity };
-            assert_eq!(shown, [(Place::Jig(activity), crate::How::Push)]);
+            assert_eq!(shown.as_slice(), &[(Place::Jig(activity), crate::How::Push)]);
             let Page::Work { address, .. } = domain.page() else { panic!("actual chat task") };
             assert_eq!(*address, activity);
         }
