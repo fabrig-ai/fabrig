@@ -10,9 +10,6 @@ only at signing stops the forge before any request goes out on it.
   close) is read a byte per demand, `Read::Fill(1)`
   (`skein-forge-connection/src/connection.rs`, `raw_demand`) [in flight:
   change 3339].
-- **Not yet:** 2.1, 3.1, 4.5: `Request` has no `LogOrigin`, so a forge's
-  log origins come with its `Add` alone
-  (`skein-forge-connection/src/boundary.rs`) [in flight: change 3451].
 - **Not yet:** 4.6, 7.2, by plan `forge-polls-quiet`: no read but the
   delivery log's first page sends a validator, nothing is kept for a
   `304`, and the limits have no `kept_bytes`.
