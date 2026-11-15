@@ -258,6 +258,7 @@ pub(crate) fn protocol_files(client: &mut world::Client, env: &Env<accounts::Lim
                     | file::Request::HardLink { .. }
                     | file::Request::Rename { .. }
                     | file::Request::Remove { .. }
+                    | file::Request::RemoveIn { .. }
                     | file::Request::List { .. }
                     | file::Request::ListPage { .. } => panic!("load and close only"),
                 }

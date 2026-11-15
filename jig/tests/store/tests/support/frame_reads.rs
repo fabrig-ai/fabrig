@@ -129,6 +129,10 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
 pub(crate) use jig_store_world::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive file-request table names token-rooted removal beside descriptor-rooted removal"
+)]
 pub(crate) fn decode(
     component: &mut store::Store,
     env: &Env<store::Limits>,
@@ -230,6 +234,7 @@ pub(crate) fn decode(
             | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
+            | file::Request::RemoveIn { .. }
             | file::Request::List { .. }
             | file::Request::ListPage { .. }) => panic!("read operation {other:?}"),
         };

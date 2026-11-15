@@ -982,7 +982,11 @@ pub(crate) fn events_up(
             }
             skein_kv::Event::OpenFailed { .. } => refuse(store, above),
             skein_kv::Event::Recovered { .. } | skein_kv::Event::RecoveryFailed { .. } => stopped(store),
-            skein_kv::Event::Got { .. } | skein_kv::Event::Loaded { .. } | skein_kv::Event::Closed { .. } => {
+            skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
+            | skein_kv::Event::Got { .. }
+            | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Closed { .. } => {
                 stopped(store);
             }
         }

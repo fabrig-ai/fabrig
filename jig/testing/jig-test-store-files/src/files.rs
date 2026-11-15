@@ -97,6 +97,10 @@ impl Files {
                 self.machine.close(handle);
                 file::Event::Closed { owner }
             }
+            file::Request::RemoveIn { owner, root, name, directory } => {
+                let result = self.machine.remove(self.handle(root), &name, directory);
+                terminal(owner, result, file::Event::Removed { owner })
+            }
             file::Request::Remove { owner, root, name, directory } => {
                 let result = self.machine.remove(opened(root), &name, directory);
                 terminal(owner, result, file::Event::Removed { owner })

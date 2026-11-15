@@ -448,6 +448,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
         | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. }
+        | file::Request::RemoveIn { .. }
         | file::Request::ListPage { .. }
         | file::Request::Lock { .. }
         | file::Request::List { .. } => panic!("expected transcript read"),

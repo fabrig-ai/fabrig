@@ -730,6 +730,7 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                     | file::Request::HardLink { .. }
                     | file::Request::Rename { .. }
                     | file::Request::Remove { .. }
+                    | file::Request::RemoveIn { .. }
                     | file::Request::List { .. }
                     | file::Request::Lock { .. }
                     | file::Request::ListPage { .. }

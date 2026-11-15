@@ -102,7 +102,7 @@ impl Capture {
                     skein_kv::Op::Put { key, .. } => {
                         matches!(keys::decode_own(key), Some(keys::Own::Transcript { .. }))
                     }
-                    skein_kv::Op::Erase { .. } => false,
+                    skein_kv::Op::Erase { .. } | skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => false,
                 })
             });
             self.events.push(Observed::Pending(bytes.to_vec()));
@@ -286,7 +286,10 @@ impl Store {
             match op {
                 skein_kv::Op::Put { key, value } if *key == raw => cold = Some(value.clone()),
                 skein_kv::Op::Erase { key } if *key == raw => return None,
-                skein_kv::Op::Put { .. } | skein_kv::Op::Erase { .. } => {}
+                skein_kv::Op::Put { .. }
+                | skein_kv::Op::Erase { .. }
+                | skein_kv::Op::Append { .. }
+                | skein_kv::Op::Drop { .. } => {}
             }
         }
         if cold.is_none() {
@@ -309,6 +312,9 @@ impl Store {
         let mut writes = Vec::new();
         for op in ops {
             match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, value } => {
                     if let Some(key) = keys::decode(key) {
                         let row = self

@@ -16,16 +16,20 @@ mod crc;
 mod frame;
 mod key;
 mod limits;
+mod logs;
 mod map;
 mod snapshot;
 mod store;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{Event, Exhausted, Failure, Large, Op, Page, Range, Refusal, Request, Row};
+pub use boundary::{
+    Direction, Event, Exhausted, Failure, Large, LogRecord, LogRule, Op, Page, Range, Refusal, Request, Row,
+};
 pub use census::{CENSUS_HEADS, CENSUS_KEYSPACES, CENSUS_PREFIX, Census, CensusRule, Head, Keyspace};
 pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};
 pub use key::{KeyReader, KeyWriter};
 pub use limits::{CHUNK_TARGET, Limits, SNAPSHOT_FLOOR, SNAPSHOT_MULTIPLE};
+pub use logs::LogFrame;
 pub use snapshot::chunk_bytes;
 pub use store::{Store, down, fire, is_ready, up};

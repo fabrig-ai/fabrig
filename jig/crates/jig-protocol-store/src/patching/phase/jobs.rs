@@ -269,6 +269,7 @@ fn consumed(owner: Owner, rows: &[pages::WalkRow], through: Option<Box<[u8]>>) -
 fn size(op: &skein_kv::Op, key: &[u8]) -> Option<u64> {
     let key = u32::try_from(key.len()).ok()?;
     Some(u64::from(match op {
+        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => return None,
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))
