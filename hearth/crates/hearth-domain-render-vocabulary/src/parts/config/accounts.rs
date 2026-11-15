@@ -25,23 +25,3 @@ pub struct Member {
     pub user: Box<[u8]>,
     pub group: Box<[u8]>,
 }
-impl GroupKind {
-    pub fn encode(&self, record: &mut hearth_lib::encode::Encoder) {
-        match self {
-            Self::Package => {
-                record.map(1);
-                record.key(b"kind");
-                record.bytes(b"package");
-            }
-            Self::Sysusers { gid } => {
-                record.map(if gid.is_some() { 2 } else { 1 });
-                if let Some(gid) = gid {
-                    record.key(b"gid");
-                    record.uint(u64::from(*gid));
-                }
-                record.key(b"kind");
-                record.bytes(b"sysusers");
-            }
-        }
-    }
-}
