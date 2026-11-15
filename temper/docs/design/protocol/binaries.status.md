@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 2: a job's counts on the `ran` line of a start and of `upgrade --check` [in flight: change 3709].
 
 - **Not yet:** 2: `upgrade --check` prints no patch's time and no time of the whole: each patch's line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`), since the store's `Event::Patched` carries no time
 

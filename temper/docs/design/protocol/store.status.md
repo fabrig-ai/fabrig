@@ -2,7 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [store.md](store.md).
 
-- **Not yet:** 4: the job `deleted-repository-forge-rows`, its facts read through `Store::patch_page` and its counts [in flight: change 3711].
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
