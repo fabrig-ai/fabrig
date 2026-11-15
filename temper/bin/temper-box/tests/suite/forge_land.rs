@@ -110,7 +110,7 @@ fn a_readme_keeps_its_last_nonempty_line_exactly() {
 }
 
 // The facts read by discovery, in task show --json's owner shape. The encoders live
-// in temper-client-tools/src/jig/render/document/{chips,owner_chips,
+// in temper-client-tools-jig/src/jig/render/document/{chips,owner_chips,
 // owner_authority,tasks,parts,llm}.rs.
 fn empty_park() -> Value {
     json!({

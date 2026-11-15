@@ -5912,11 +5912,24 @@ dependencies = [
  "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
+ "temper-client-tools-jig",
  "temper-docs",
  "temper-fixtures",
  "temper-protocol-reaches",
  "temper-settings-form",
  "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-tools-jig"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "skein-json",
+ "skein-lib",
+ "skein-ui",
+ "temper-settings-form",
 ]
 
 [[package]]

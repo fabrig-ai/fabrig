@@ -345,6 +345,7 @@ members = [
     "temper/crates/temper-client-domain-forge",
     "temper/crates/temper-client-domain-pages",
     "temper/crates/temper-client-tools",
+    "temper/crates/temper-client-tools-jig",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
     "temper/crates/temper-engine-service",
@@ -741,6 +742,7 @@ temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
+temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
 temper-worker-service = { path = "temper/crates/temper-worker-service" }
