@@ -129,6 +129,8 @@ pub enum Key {
     },
     /// One durable placed hold, after the existing key families.
     PlacedHold(u64),
+    /// The live task's spec, contract, authority and instructions.
+    LiveCold(u64),
 }
 
 impl Key {
@@ -143,7 +145,8 @@ impl Key {
             | Self::Writer(_)
             | Self::Pool(_)
             | Self::PersonProposal(_) => true,
-            Self::Ended(_)
+            Self::LiveCold(_)
+            | Self::Ended(_)
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)
             | Self::History { .. }

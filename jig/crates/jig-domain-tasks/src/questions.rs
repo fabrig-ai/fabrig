@@ -430,8 +430,8 @@ fn coalesce(output_start: u32, out: &mut Queue<Request>) {
     for (position, request) in out.iter().enumerate() {
         let position = u32::try_from(position).expect("queue position fits");
         if position >= output_start {
-            let Request::Save { record: crate::Stored::Live(row) } = request else { continue };
-            let _old = last.insert(row.number, position).expect("uncapped publication index");
+            let Some(key) = live_save(request) else { continue };
+            let _old = last.insert(key, position).expect("uncapped publication index");
         }
     }
     let count = out.len();
@@ -441,13 +441,40 @@ fn coalesce(output_start: u32, out: &mut Queue<Request>) {
             out.push(request);
             continue;
         }
-        let Request::Save { record: crate::Stored::Live(row) } = &request else {
+        let key = live_save(&request);
+        let Some(key) = key else {
             out.push(request);
             continue;
         };
-        if last.get(&row.number) == Some(&position) {
+        if last.get(&key) == Some(&position) {
             out.push(request);
         }
+    }
+}
+
+fn live_save(request: &Request) -> Option<crate::Key> {
+    let Request::Save { record } = request else { return None };
+    match record {
+        crate::Stored::Live(row) => Some(crate::Key::Live(row.number)),
+        crate::Stored::LiveCold { number, .. } => Some(crate::Key::LiveCold(*number)),
+        crate::Stored::PlacedHold(_)
+        | crate::Stored::Update(_)
+        | crate::Stored::Result(_)
+        | crate::Stored::EndedByParty(_)
+        | crate::Stored::EndedByProject(_)
+        | crate::Stored::EndedDelegate(_)
+        | crate::Stored::Delegate(_)
+        | crate::Stored::Activity(_)
+        | crate::Stored::Milestone(_)
+        | crate::Stored::PersonProposal(_)
+        | crate::Stored::DecidedProposal(_)
+        | crate::Stored::ClosedLedger(_)
+        | crate::Stored::History(_)
+        | crate::Stored::Ended(_)
+        | crate::Stored::Stub(_)
+        | crate::Stored::Ledger(_)
+        | crate::Stored::Writer(_)
+        | crate::Stored::Pool(_) => None,
     }
 }
 

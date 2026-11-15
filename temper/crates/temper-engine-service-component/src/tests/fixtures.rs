@@ -560,12 +560,29 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
         commits: number,
     });
     header.commits = number;
-    let mut all = skein_lib::List::with_capacity(u32::try_from(writes.len().checked_add(1).unwrap()).unwrap());
+    let mut all = skein_lib::List::with_capacity(
+        u32::try_from(writes.len().checked_mul(2).unwrap().checked_add(1).unwrap()).unwrap(),
+    );
     all.push(temper_engine_domain::Write::Save(temper_engine_domain::Record::Core(jig_domain_core::Record::Core(
         jig_domain_core::CoreRecord::Deployment(header),
     ))))
     .unwrap();
     for write in writes {
+        if let temper_engine_domain::Write::Save(temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(
+            jig_domain_tasks::Stored::Live(row),
+        ))) = &write
+        {
+            all.push(temper_engine_domain::Write::Save(temper_engine_domain::Record::Core(
+                jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::LiveCold {
+                    number: row.number,
+                    spec: Box::new(row.spec.clone()),
+                    contract: row.contract.clone(),
+                    authority: row.authority.clone(),
+                    instructions: row.instructions.clone(),
+                }),
+            )))
+            .unwrap();
+        }
         all.push(write).unwrap();
     }
     assert!(store.down(temper_engine_domain::StoreRequest::Commit { number, writes: all.into_boxed() }));

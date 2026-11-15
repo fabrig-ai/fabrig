@@ -188,7 +188,13 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     disk.restart();
 
     let mut map = disk.map(2);
-    for (family, number, id, key) in [("temper-store", 48, 25, tagged_hot), ("jig-store-tasks", 0, 13, task_key)] {
+    let cold_key =
+        store::keys::encode(&jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::LiveCold(0)), 64).unwrap();
+    for (family, number, id, key) in [
+        ("temper-store", 48, 25, tagged_hot),
+        ("jig-store-tasks", 0, 14, task_key),
+        ("jig-store-tasks", 19, 13, cold_key),
+    ] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();

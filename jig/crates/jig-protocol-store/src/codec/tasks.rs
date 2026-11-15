@@ -84,13 +84,20 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     recurring_state_last_batch: 0,
     saved_resource_path: 0,
     task_history_question_lines: 0,
+    hot_history_question_lines: 0,
     task_history_proposal_rows: 0,
+    hot_history_proposal_rows: 0,
     task_history_instructions_some: 0,
+    live_cold_instructions_some: 0,
     task_history_refused: 0,
+    hot_history_refused: 0,
     task_run_replies: 0,
     task_definition_dependencies: 0,
+    hot_definition_dependencies: 0,
     task_definition_waiting_on: 0,
+    hot_definition_waiting_on: 0,
     task_definition_added: 0,
+    hot_definition_added: 0,
     task_interests_holdings: 0,
     task_interests_delegates: 0,
     task_interests_result_followups: 0,
@@ -99,6 +106,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     task_interests_inbox: 0,
     task_interests_saved: 0,
     before_talk_started_from: 0,
+    live_hot_started_from: 0,
     placed_hold_reason: 0,
     placed_hold_exempt: 0,
     model_name_value: 0,
@@ -239,14 +247,22 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         )
         .ok()?,
         task_history_question_lines: domain.inbox_messages,
+        hot_history_question_lines: domain.inbox_messages,
         task_history_proposal_rows: domain.inbox_messages,
+        hot_history_proposal_rows: domain.inbox_messages,
         task_history_instructions_some: domain.message_bytes,
+        live_cold_instructions_some: domain.message_bytes,
         task_history_refused: domain.inbox_messages,
+        hot_history_refused: domain.inbox_messages,
         task_run_replies: domain.inbox_messages,
         task_definition_dependencies: domain.dependencies,
+        hot_definition_dependencies: domain.dependencies,
         before_talk_started_from: domain.dependencies,
+        live_hot_started_from: domain.dependencies,
         task_definition_waiting_on: domain.dependencies,
+        hot_definition_waiting_on: domain.dependencies,
         task_definition_added: domain.dependencies,
+        hot_definition_added: domain.dependencies,
         circle_tasks: domain.circle,
         kept_line_pending: domain.dependencies,
         stood_line_words: jig_domain_tasks::STOOD_WORDS,
@@ -312,7 +328,10 @@ pub fn encode(
         domain::Stored::EndedByProject(row) => wire::Value::EndedByProject(index::ended_by_project(row, limits)?),
         domain::Stored::Delegate(row) => wire::Value::Delegate(index::edge(row, limits)?),
         domain::Stored::Activity(row) => wire::Value::Activity(activity::activity_line(row, limits)?),
-        domain::Stored::Live(row) => wire::Value::LiveTalk(record::task_record(row, limits, Some(&moved))?),
+        domain::Stored::Live(row) => wire::Value::LiveHot(record::live_hot(row, limits, Some(&moved))?),
+        domain::Stored::LiveCold { spec, contract, authority, instructions, .. } => {
+            wire::Value::LiveCold(record::live_cold(spec, contract, authority, instructions, limits, Some(&moved))?)
+        }
         domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
     };
@@ -330,6 +349,9 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {
+        wire::Value::LiveHot(_) | wire::Value::LiveCold(_) => {
+            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+        }
         wire::Value::LiveTalk(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
@@ -375,5 +397,145 @@ pub fn decode(
         }
     };
     row.remap_models(&models::moves(&kept, names));
+    Ok(row)
+}
+
+/// Decode a cold part with the identity carried by its key.
+pub fn decode_cold(
+    number: u64,
+    bytes: &[u8],
+    limits: &wire::Limits,
+    names: &[jig_domain_core_vocabulary::settings::ModelName],
+) -> Result<domain::Stored, wire::Problem> {
+    let wire::RowParts { value: part, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let cold = match part {
+        wire::Value::LiveCold(cold) => cold,
+        wire::Value::Ledger(_)
+        | wire::Value::ClosedLedger(_)
+        | wire::Value::Writer(_)
+        | wire::Value::Pool(_)
+        | wire::Value::History(_)
+        | wire::Value::Milestone(_)
+        | wire::Value::PersonProposal(_)
+        | wire::Value::DecidedProposal(_)
+        | wire::Value::Activity(_)
+        | wire::Value::Live(_)
+        | wire::Value::Ended(_)
+        | wire::Value::Stub(_)
+        | wire::Value::Update(_)
+        | wire::Value::Result(_)
+        | wire::Value::EndedDelegate(_)
+        | wire::Value::Delegate(_)
+        | wire::Value::EndedByParty(_)
+        | wire::Value::EndedByProject(_)
+        | wire::Value::PlacedHold(_)
+        | wire::Value::LiveTalk(_)
+        | wire::Value::EndedTalk(_)
+        | wire::Value::LiveHot(_) => {
+            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+        }
+    };
+    let wire::LiveColdParts { spec, contract, authority, instructions } = cold.into_parts();
+    let mut row = domain::Stored::LiveCold {
+        number,
+        spec: Box::new(value::read_spec(spec, limits)?),
+        contract: value::read_contract(contract, limits)?,
+        authority: value::read_authority(authority, limits)?,
+        instructions,
+    };
+    row.remap_models(&models::moves(&kept, names));
+    Ok(row)
+}
+/// A live read joins both parts, each with its own model-name vocabulary.
+pub fn decode_live(
+    hot: &[u8],
+    cold: &[u8],
+    limits: &wire::Limits,
+    names: &[jig_domain_core_vocabulary::settings::ModelName],
+) -> Result<domain::Stored, wire::Problem> {
+    let wire::RowParts { value: part, models: hot_names } =
+        wire::Row::decode(limits, &mut Reader::new(hot))?.into_parts();
+    let hot = match part {
+        wire::Value::LiveHot(hot) => hot,
+        wire::Value::Ledger(_)
+        | wire::Value::ClosedLedger(_)
+        | wire::Value::Writer(_)
+        | wire::Value::Pool(_)
+        | wire::Value::History(_)
+        | wire::Value::Milestone(_)
+        | wire::Value::PersonProposal(_)
+        | wire::Value::DecidedProposal(_)
+        | wire::Value::Activity(_)
+        | wire::Value::Live(_)
+        | wire::Value::Ended(_)
+        | wire::Value::Stub(_)
+        | wire::Value::Update(_)
+        | wire::Value::Result(_)
+        | wire::Value::EndedDelegate(_)
+        | wire::Value::Delegate(_)
+        | wire::Value::EndedByParty(_)
+        | wire::Value::EndedByProject(_)
+        | wire::Value::PlacedHold(_)
+        | wire::Value::LiveTalk(_)
+        | wire::Value::EndedTalk(_)
+        | wire::Value::LiveCold(_) => {
+            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+        }
+    };
+    let wire::RowParts { value: part, models: cold_names } =
+        wire::Row::decode(limits, &mut Reader::new(cold))?.into_parts();
+    let cold = match part {
+        wire::Value::LiveCold(cold) => cold,
+        wire::Value::Ledger(_)
+        | wire::Value::ClosedLedger(_)
+        | wire::Value::Writer(_)
+        | wire::Value::Pool(_)
+        | wire::Value::History(_)
+        | wire::Value::Milestone(_)
+        | wire::Value::PersonProposal(_)
+        | wire::Value::DecidedProposal(_)
+        | wire::Value::Activity(_)
+        | wire::Value::Live(_)
+        | wire::Value::Ended(_)
+        | wire::Value::Stub(_)
+        | wire::Value::Update(_)
+        | wire::Value::Result(_)
+        | wire::Value::EndedDelegate(_)
+        | wire::Value::Delegate(_)
+        | wire::Value::EndedByParty(_)
+        | wire::Value::EndedByProject(_)
+        | wire::Value::PlacedHold(_)
+        | wire::Value::LiveTalk(_)
+        | wire::Value::EndedTalk(_)
+        | wire::Value::LiveHot(_) => {
+            return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
+        }
+    };
+    let record = record::read_task_record(record::join(hot, cold, limits)?, limits)?;
+    let models = record.authority.models.remap(&models::moves(&cold_names, names));
+    let mut row = domain::Stored::Live(Box::new(record));
+    row.remap_models(&models::moves(&hot_names, names));
+    match &mut row {
+        domain::Stored::Live(row) => row.authority.models = models,
+        domain::Stored::PlacedHold(_)
+        | domain::Stored::Update(_)
+        | domain::Stored::Result(_)
+        | domain::Stored::EndedByParty(_)
+        | domain::Stored::EndedByProject(_)
+        | domain::Stored::EndedDelegate(_)
+        | domain::Stored::Delegate(_)
+        | domain::Stored::Activity(_)
+        | domain::Stored::Milestone(_)
+        | domain::Stored::PersonProposal(_)
+        | domain::Stored::DecidedProposal(_)
+        | domain::Stored::ClosedLedger(_)
+        | domain::Stored::History(_)
+        | domain::Stored::Ended(_)
+        | domain::Stored::Stub(_)
+        | domain::Stored::Ledger(_)
+        | domain::Stored::Writer(_)
+        | domain::Stored::Pool(_)
+        | domain::Stored::LiveCold { .. } => unreachable!("joined live task"),
+    }
     Ok(row)
 }

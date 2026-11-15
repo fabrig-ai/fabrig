@@ -122,7 +122,7 @@ fn family_records(
     for (range, root) in ranges.into_boxed() {
         let mut cursor = None;
         for _ in 0..=rows(store, family) {
-            let page = match pages::reader::walk_map(
+            let page = match pages::reader::walk_stored_map(
                 store,
                 family.map,
                 core::slice::from_ref(&range),

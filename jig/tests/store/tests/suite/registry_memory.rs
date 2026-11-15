@@ -30,7 +30,30 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .iter()
                 .map(|family| KeptFamily {
                     current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
-                    types: if registered { family.types } else { &[] },
+                    types: if !registered {
+                        &[]
+                    } else if kept && family.name == "jig-store-tasks" {
+                        Box::leak(
+                            family
+                                .types
+                                .iter()
+                                .filter(|ty| ty.number != 19)
+                                .map(|ty| {
+                                    if ty.number == 18 {
+                                        jig_protocol_store::ValueType {
+                                            keys: &[jig_protocol_store::KeyRange { from: &[1, 1, 21], to: &[1, 2] }],
+                                            ..*ty
+                                        }
+                                    } else {
+                                        *ty
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .into_boxed_slice(),
+                        )
+                    } else {
+                        family.types
+                    },
                     ..*family
                 })
                 .collect::<Vec<_>>();

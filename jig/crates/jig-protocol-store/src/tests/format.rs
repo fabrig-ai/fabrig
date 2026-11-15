@@ -152,7 +152,7 @@ fn every_childs_record_dispatches_to_its_own_codec() {
     let limits = codec_limits();
     for row in [
         core::Record::Core(core::CoreRecord::Deployment(fixtures::core_rows::deployment())),
-        core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(fixtures::task_record()))),
+        core::Record::Tasks(jig_domain_tasks::Stored::Ended(Box::new(fixtures::task_record()))),
         core::Record::People(jig_domain_people::Stored::ReadResults { party: 7, through: 3 }),
         core::Record::Notes(jig_domain_notes::Record::Entry(fixtures::note_entry())),
     ] {

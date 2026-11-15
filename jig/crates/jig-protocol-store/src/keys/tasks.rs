@@ -3,6 +3,10 @@ use jig_domain_tasks::{Funder, Key, Newest, UpdateObject};
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
+        Key::LiveCold(task) => {
+            writer.tag(22);
+            writer.u64(*task);
+        }
         Key::PlacedHold(hold) => {
             writer.tag(21);
             writer.u64(*hold);
@@ -90,6 +94,7 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
     Some(match reader.tag()? {
+        22 => Key::LiveCold(reader.u64()?),
         21 => Key::PlacedHold(reader.u64()?),
         0 => Key::Live(reader.u64()?),
         1 => Key::Stub(reader.u64()?),

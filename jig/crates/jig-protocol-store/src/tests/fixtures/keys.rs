@@ -138,7 +138,8 @@ pub fn funder(rng: &mut Rng) -> jig_domain_tasks::Funder {
 }
 pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
     use jig_domain_tasks::{Key, Newest, UpdateObject};
-    match rng.below(22) {
+    match rng.below(23) {
+        22 => Key::LiveCold(number(rng)),
         21 => Key::PlacedHold(number(rng)),
         0 => Key::Live(number(rng)),
         1 => Key::Stub(number(rng)),

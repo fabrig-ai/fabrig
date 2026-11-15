@@ -41,6 +41,7 @@ fn registered_value_type_numbers_are_pinned() {
                 (16, "Row", Some("ended_by_party"), &[1, 1, 19]),
                 (17, "Row", Some("ended_by_project"), &[1, 1, 20]),
                 (18, "Row", Some("placed_hold"), &[1, 1, 21]),
+                (19, "Row", Some("live_cold"), &[1, 1, 22]),
             ],
         ),
         (
