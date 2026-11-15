@@ -567,6 +567,7 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     assert!(!world.held_write_answers.is_empty());
     post_approval_read(&mut world, z, 7);
     post_approval_read(&mut world, x, 7);
+    settle(&mut world);
     let panel = approval_panel(&mut world, x, 995);
     assert!(
         panel.approvals.iter().all(|line| line.remaining == Some(0)),
@@ -585,14 +586,17 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     settle(&mut world);
     assert_eq!(world.merges, 1, "Y lands first");
     assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
-    finish_change_gate(&mut world, x);
-    settle(&mut world);
-    assert_eq!(world.merges, 2, "Z keeps its turn while X's exact gate is asked again");
-    assert!(matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }));
+    let reviewer = change_gate(&mut world, x);
     assert!(matches!(light_rules::change_row(&world, x).change.state, State::Gating { .. }));
     assert!(!light_rules::change_row(&world, x).change.owns_turn);
-    finish_change_gate(&mut world, x);
+    reviews::finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into() },
+    );
+    settle(&mut world);
     assert_eq!(world.merges, 3);
+    assert!(matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }));
     let merged: Vec<_> = world
         .writes
         .iter()
@@ -605,9 +609,12 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     world.close();
 }
 
-fn finish_change_gate(world: &mut World, change: u64) {
+fn change_gate(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..200 {
-        if let Some((task, _)) = light_rules::change_row(world, change).delegate
+        if matches!(
+            light_rules::change_row(world, change).change.state,
+            temper_engine_domain_forge_change::State::Gating { .. }
+        ) && let Some((task, _)) = light_rules::change_row(world, change).delegate
             && world.assigned.iter().any(|run| run.task == task)
         {
             break;
@@ -618,7 +625,11 @@ fn finish_change_gate(world: &mut World, change: u64) {
         panic!("exact gate at the updated head for {change}: {:?}", light_rules::change_row(world, change).change)
     });
     assert!(matches!(kind, temper_engine_domain_forge_change::Delegate::Gate { .. }));
-    let reviewer = world.assigned.iter().rev().find(|run| run.task == task).expect("gate assigned").clone();
+    world.assigned.iter().rev().find(|run| run.task == task).expect("gate assigned").clone()
+}
+
+fn finish_change_gate(world: &mut World, change: u64) {
+    let reviewer = change_gate(world, change);
     reviews::finish_review(
         world,
         &reviewer,

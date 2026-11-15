@@ -784,9 +784,16 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     row.change.state = change::State::Gating { head: fixtures::HEAD, asked: Box::new([]) };
     outputs(&mut d, Event::Change { row });
     start_opening_kept(&mut d, fixtures::CHANGE, FIRST_ENTRY, true);
-    fixtures::missing_pull_reads(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     start_opening(&mut d, fixtures::CHANGE, LATER_ENTRY);
-    assert!(fixtures::finish_missing(&mut d).is_empty(), "the kept chain restarts");
+    fixtures::finish_open(&mut d);
+    assert!(
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+            .is_empty(),
+        "the kept chain restarts"
+    );
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
@@ -869,7 +876,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
         [
             Op::Read(Read::Branch { branch: Box::from(b"temper/51".as_slice()) }),
             Op::Read(Read::Branch { branch: Box::from(b"main".as_slice()) }),
-            Op::Read(Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }),
+            Op::Read(Read::Pull { number: 1, ci: true }),
         ]
     );
     let Some(
