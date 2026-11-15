@@ -19,11 +19,18 @@ use temper_client_view_parts::shared::{self, NeedMark};
 use temper_client_view_words::words::{TimeForm, Word as Shared};
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "header placement, terminal capability and offered acts are independent facts"
+)]
 pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub drafts: bool,
     pub talk: bool,
     pub address: Box<[u8]>,
+    pub front: bool,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub playground: bool,
     pub lines: List<Line>,
     pub left_off: List<LeftOff>,
@@ -318,7 +325,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => super::talk::available(root, project),
             None => false,
         },
-        address: crate::place(tui.address(), tui.front()),
+        address: copy_of(tui.address()),
+        front: tui.front(),
+        plain: tui.plain(),
+        version: copy_of(tui.version()),
         playground: front::playground(root, number),
         lines: List::with_capacity(4),
         left_off: List::with_capacity(3),
@@ -487,7 +497,8 @@ fn draw_team(b: &mut Builder, part: &Launchpad, words: &Words) {
 fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     b.open(Role::Region);
     b.region(look::SECTIONS);
-    if !part.left_off.is_empty()
+    if !part.lines.is_empty()
+        || !part.left_off.is_empty()
         || !part.needs.is_empty()
         || part.project.is_some()
         || !part.notes.lines.is_empty()
@@ -499,6 +510,13 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     }
     b.open(Role::Group);
     b.style(look::SPACED);
+    if !part.lines.is_empty() {
+        b.open(Role::Region);
+        for line in &part.lines {
+            text(b, line.role, &line.words, line.style);
+        }
+        b.close();
+    }
     if !part.left_off.is_empty() {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::LeftOff, &[]), Some(look::HEAD));
@@ -609,24 +627,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
 }
 pub(crate) fn draw(b: &mut Builder, part: &Launchpad, words: &Words, _binds: &mut Binds) {
     b.open(Role::Main);
-    b.open(Role::Region);
-    b.region(look::TOP);
-    b.open(Role::Heading { level: 1 });
-    text(b, Role::Text, &words.say(Word::Title, &[]), Some(look::TITLE));
-    if let Some(project) = &part.project {
-        text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::FAINT));
-        text(b, Role::Text, project, Some(look::NAME));
-        if part.playground {
-            text(b, Role::Text, &words.say(Word::Playground, &[]), Some(look::PLAYGROUND));
-            text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::END_FAINT));
-        }
-        text(b, Role::Text, &part.address, Some(look::ADDRESS));
-    }
-    b.close();
-    for line in &part.lines {
-        text(b, line.role, &line.words, line.style);
-    }
-    b.close();
+    super::header::draw(b, part.front, part.plain, &part.version, &part.address, words);
     sections(b, part, words);
     b.close();
 }

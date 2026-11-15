@@ -20,6 +20,15 @@ fn each_line_is_its_word_its_field_and_a_line_feed() {
         (Line::Restarting { step: bytes::copy_of(b"forgejo-3") }, bytes::copy_of(b"restarting forgejo-3\n")),
         (Line::Running { step: bytes::copy_of(b"forgejo-3") }, bytes::copy_of(b"running forgejo-3\n")),
         (Line::GaveUp { step: bytes::copy_of(b"forgejo-3") }, bytes::copy_of(b"gave-up forgejo-3\n")),
+        (
+            Line::Starting { name: bytes::copy_of(front::name(temper_forge_setup::machine::BoxKind::Owned)) },
+            bytes::copy_of(b"starting Forgejo\n"),
+        ),
+        (
+            Line::Started { name: bytes::copy_of(front::name(temper_forge_setup::machine::BoxKind::Fake)) },
+            bytes::copy_of(b"started Playground\n"),
+        ),
+        (Line::Dormant { name: bytes::copy_of(b"Forgejo") }, bytes::copy_of(b"dormant Forgejo\n")),
         (Line::Log { text: bytes::copy_of(b" a  b ") }, bytes::copy_of(b"log  a  b \n")),
         (Line::Log { text: bytes::copy_of(&full) }, crate::lines::joined(&[b"log ", &full, b"\n"])),
         (Line::Log { text: Box::new([b'x'; 8188]) }, crate::lines::joined(&[b"log ", &full, b"\n"])),

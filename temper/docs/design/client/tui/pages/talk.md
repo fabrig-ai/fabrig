@@ -43,8 +43,9 @@ choices under the box):
   opens with the person's first words (jig's `domain/tasks/standing.md`,
   5.6); one of theirs still open, from a terminal closed without leaving,
   goes on.
-- **The head,** the region `tui-top`, framed as the launchpad's header
-  (`launchpad.md`, 3): in its border "temper" (`tui-title`), " · "
+- **The head,** the region `tui-top`, framed (`../theme.md`, *Its
+  regions*), where the launchpad has its header (`README.md`, 3): in
+  its border "temper" (`tui-title`), " · "
   (`tui-faint`), the project's name (`tui-name`), " · " and "talking with
   NAME" (`tui-hint`, NAME `tui-name`), NAME the role's (`Talking::name`),
   or "role TN" before its task is read; and at the border's end

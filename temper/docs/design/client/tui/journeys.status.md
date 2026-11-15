@@ -1,7 +1,11 @@
 # journeys: status
 
-2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-15. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
+  change 3431].
+- **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
+  change 3434].
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a

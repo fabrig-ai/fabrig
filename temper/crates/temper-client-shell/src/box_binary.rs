@@ -214,6 +214,7 @@ pub(crate) fn run(arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8
             arguments,
             &captured.environment,
             working.as_os_str().as_bytes(),
+            format!("{} ({})", captured.version, captured.commit).as_bytes(),
             &skein_shell::Clock::new(),
         ));
     }
