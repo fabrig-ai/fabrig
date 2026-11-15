@@ -1068,7 +1068,32 @@ impl Referee<Process> for Judge<'_> {
         {
             self.peer_stop = PeerStop::Due(now);
         }
-        self.chat.watch(now, procs)
+        self.chat.watch(now, procs).map_err(|why| {
+            let mut nonempty = Vec::new();
+            let mut holds = Vec::new();
+            for proc in procs {
+                let name = match proc {
+                    Process::Binary(_) => "serve",
+                    Process::Person(_) => "person",
+                    Process::Calls(_) => "ctl",
+                    Process::Peer(peer) => {
+                        for name in ["batch-ready", "batch-fourth", "batch-reviews", "batch-owner", "batch-repair"] {
+                            if peer.is_held(name.as_bytes()) {
+                                holds.push(name);
+                            }
+                        }
+                        "model"
+                    }
+                    Process::Stdout(_) => "stdout",
+                    Process::Issuer(_) => "issuer",
+                    Process::Visitor(_) => "visitor",
+                };
+                if !proc.is_empty() {
+                    nonempty.push(name);
+                }
+            }
+            format!("{why}; batch {:?}: nonempty hosts {nonempty:?}, open holds {holds:?}", self.phase)
+        })
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
