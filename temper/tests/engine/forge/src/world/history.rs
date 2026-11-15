@@ -59,6 +59,10 @@ impl World {
         number
     }
     pub fn evict_history_change(&mut self, task: u64, held: u32) {
+        let mut row = self.change(task).clone();
+        row.change.state = temper_engine_domain_forge_change::State::Ended;
+        row.ending = Some(top::Ending::NoChange);
+        self.event(top::Event::Restore { record: top::Stored::Change(Box::new(row)) });
         self.env.limits.changes = held;
         self.event(top::Event::DropChange { task });
     }

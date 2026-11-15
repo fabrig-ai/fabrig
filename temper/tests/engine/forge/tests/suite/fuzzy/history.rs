@@ -40,32 +40,24 @@ fn probe_head(event: &Event) -> Option<skein_forge::api::Commit> {
     matches!(event.what, What::Probe | What::ProbeEnded { .. }).then_some(event.head).flatten()
 }
 fn own(event: &Event) -> bool {
-    if matches!(event.what, What::Recorded { .. } | What::After { .. }) {
-        return false;
-    }
-    // A landing can still finish its round after a member lands or leaves (3.3).
-    event.landing.is_none()
-        || !matches!(
-            event.what,
-            What::Formed { .. }
-                | What::RoundEnded { .. }
-                | What::Gate { .. }
-                | What::GateEnded { .. }
-                | What::Proved { .. }
-                | What::Search
-                | What::Searched { .. }
-                | What::Probe
-                | What::ProbeEnded { .. }
-                | What::LandingEnded { .. }
-                | What::Held { on: temper_engine_domain_forge::history::On::Landing, .. }
-                | What::Released { on: temper_engine_domain_forge::history::On::Landing, .. }
-        )
+    // Only verification and ends of intervals open at its end survive (2.2).
+    !matches!(
+        event.what,
+        What::Recorded { .. }
+            | What::After { .. }
+            | What::JobEnded { .. }
+            | What::Answered { .. }
+            | What::Released { .. }
+            | What::RoundEnded { .. }
+            | What::LandingEnded { .. }
+    )
 }
 
 pub(super) fn check(seed: u64, change: u64, events: &[Event]) {
     let mut identities = Vec::new();
     let mut closed = Vec::new();
     let mut terminal = false;
+    let mut landed = false;
     let mut previous = 0;
     for (index, event) in events.iter().enumerate() {
         let context = || format!("seed {seed}, change {change}, event {event:?}\nhistory: {events:#?}");
@@ -76,7 +68,11 @@ pub(super) fn check(seed: u64, change: u64, events: &[Event]) {
         assert!(!identities.contains(&identity), "unique kind and identity: {}", context());
         identities.push(identity);
         assert!(!terminal || !own(event), "no own step after terminal: {}", context());
+        if terminal && matches!(event.what, What::Recorded { .. } | What::After { .. }) {
+            assert!(landed, "verification belongs to a landed change: {}", context());
+        }
         if matches!(event.what, What::Landed | What::Ended { .. }) {
+            landed = matches!(event.what, What::Landed);
             terminal = true;
         }
         if !end(&event.what) {
