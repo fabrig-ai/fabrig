@@ -132,6 +132,7 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
             } else {
                 store.registry.settle();
                 crate::patching::switch::opened(store);
+                store.directory.checked = None;
                 above.push(Event::Opened {
                     owner: store.directory.owner,
                     last: store.stores.store.last(),
