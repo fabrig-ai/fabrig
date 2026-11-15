@@ -26,7 +26,8 @@
   ended panel on a later read. Completion on the first task read and
   arriving during a wait both name the result and the direct report
   command; `task show` keeps the empty-search explanation (`tools.md`, 4).
-- **The boundary:** `src/jig/` names no temper item (`README.md`, section 4).
+- **The boundary:** `temper-client-tools-jig`'s `src/jig/` names no temper item, in its own step
+  tests (`README.md`, section 4; `tools-crates.md`, 4.1).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (`README.md`, section 9
   ): a result's text within one document's bytes, a page within a

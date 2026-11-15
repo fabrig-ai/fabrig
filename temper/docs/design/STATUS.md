@@ -323,6 +323,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/ctl/tools-crates.md`](client/ctl/tools-crates.status.md)
 - [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
