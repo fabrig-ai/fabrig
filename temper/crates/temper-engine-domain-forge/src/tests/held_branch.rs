@@ -128,9 +128,12 @@ fn drift_only_reaches_live_changes_of_the_held_branch_in_the_same_repository() {
     other_repository.repository.repository = 3;
     let mut other_branch = landing_row();
     other_branch.branch = b"temper/7/c51".as_slice().into();
-    let mut ended = landing_row();
-    ended.change.state = change::State::Ended;
-    for row in [other_forge, other_repository, other_branch, ended] {
+    let mut rows = vec![other_forge, other_repository, other_branch];
+    for mut row in fixtures::frozen_rows() {
+        row.branch = GOAL_BRANCH.into();
+        rows.push(row);
+    }
+    for row in rows {
         let mut d = watched_goal();
         d.changes.insert(row.task, row).expect("fixture change capacity");
         let requests = moved(&mut d, Some(fixtures::BASE));

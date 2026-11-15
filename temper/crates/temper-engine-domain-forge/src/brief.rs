@@ -1168,7 +1168,7 @@ fn decimal(number: u64) -> Box<[u8]> {
 
 fn completed_item(domain: &Domain, item: BriefItem) -> bool {
     match domain.change_for_brief(item.repository, item.number) {
-        Some(row) => row.terminal(),
+        Some(row) => row.frozen(),
         None => false,
     }
 }

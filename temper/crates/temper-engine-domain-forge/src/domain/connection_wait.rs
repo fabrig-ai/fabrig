@@ -85,7 +85,7 @@ pub(super) fn connected(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut
     for task in waiting.into_boxed() {
         let start = take(d, task).expect("collected wait");
         let row = d.changes.get_mut(&task).expect("waiting change");
-        if row.terminal() {
+        if row.frozen() {
             continue;
         }
         // As with an outage, exclude only the time after this stall began.

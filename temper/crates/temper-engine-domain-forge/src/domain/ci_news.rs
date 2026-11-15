@@ -82,7 +82,7 @@ fn observed(d: &mut Domain, env: &Env<Limits>, task: u64, head: Commit, count: O
     let mut old = List::with_capacity(d.ci_news.len());
     for ((owner, commit), _) in &d.ci_news {
         let stale = match d.changes.get(owner) {
-            Some(row) => row.terminal() || (*owner == task && !hints::known_commit(d, row, *commit)),
+            Some(row) => row.frozen() || (*owner == task && !hints::known_commit(d, row, *commit)),
             None => true,
         };
         if stale {
@@ -177,7 +177,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             d.ci_news.remove(&(*task, *head));
             continue;
         };
-        if row.terminal() || !hints::known_commit(d, row, *head) {
+        if row.frozen() || !hints::known_commit(d, row, *head) {
             d.ci_news.remove(&(*task, *head));
             continue;
         }
@@ -231,7 +231,7 @@ pub(super) fn read(
             continue;
         }
         let Some(row) = d.changes.get(task) else { continue };
-        if row.repository != repository {
+        if row.frozen() || row.repository != repository {
             continue;
         }
         watch.reading = false;

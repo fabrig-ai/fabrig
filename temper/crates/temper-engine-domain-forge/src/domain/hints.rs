@@ -6,6 +6,9 @@ use alloc::boxed::Box;
 use skein_forge::api::{Change, Commit, Hint};
 
 pub(super) fn concerns(d: &Domain, row: &ChangeRow, hint: &Hint) -> bool {
+    if row.frozen() {
+        return false;
+    }
     let has_head = has_head(d, row);
     let own = match &hint.change {
         Change::Branch(branch) | Change::BranchMoved { branch, .. } => {

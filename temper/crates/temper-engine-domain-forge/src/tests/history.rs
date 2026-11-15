@@ -35,6 +35,34 @@ fn setup() -> (Domain, u64) {
     (d, change)
 }
 #[test]
+fn frozen_history_rejects_observations_claims_and_landing_steps_without_moving_its_cursor() {
+    for mut frozen in fixtures::frozen_rows() {
+        let (mut d, change) = setup();
+        let mut out = Queue::uncapped();
+        d.write_event(env().wall, change, input(), &mut out).unwrap();
+        frozen.history = d.change(change).unwrap().history;
+        d.changes.insert(change, frozen.clone()).unwrap();
+        let before = d.history_projects.get(&5).unwrap().clone();
+        let mut out = Queue::uncapped();
+        for what in [
+            HistoryWhat::Pushed,
+            HistoryWhat::Conflict { with: crate::history::With::Branch, files: 0 },
+            HistoryWhat::Job { job: crate::history::Job::Merge, task: 71 },
+            HistoryWhat::Held { on: crate::history::On::Landing, reason: Box::new([]), by: None },
+            HistoryWhat::GateEnded { gate: 0, key: [0; 32], verdict: crate::history::GateVerdict::Passed },
+        ] {
+            let mut step = input();
+            step.what = what;
+            step.landing = Some(InLanding { task: 99, round: 1, unit: 1 });
+            assert_eq!(d.write_event(env().wall, change, step, &mut out), None);
+            assert!(out.is_empty());
+            assert_eq!(d.change(change).unwrap().history, frozen.history);
+            assert_eq!(d.history_projects.get(&5), Some(&before));
+        }
+    }
+}
+
+#[test]
 fn events_save_all_indexes_and_move_last_in_the_callers_decision() {
     let (mut d, change) = setup();
     let wall = Wall::from_nanos(HOUR_NS + 25);
