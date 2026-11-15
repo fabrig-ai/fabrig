@@ -93,6 +93,9 @@ start and stop are this section's own.
   | `restarting STEP` | the box restarts STEP (*The box's state*) |
   | `running STEP` | STEP runs again |
   | `gave-up STEP` | the box gave up, for good |
+  | `starting NAME` | the box's group NAME starts, `Forgejo` or `Playground` (*The box's state*) |
+  | `started NAME` | NAME is started: the notice "NAME started" |
+  | `dormant NAME` | NAME runs nothing again, started or not |
 
   The run reads them on its own io, beside its signals, as they come,
   since the box holds at most 256 the TUI has not taken, and reports
@@ -322,10 +325,16 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   1. the terminal lent (skein's `ui/screen.md`, section 8, *Lent to a
      child*), and once `lent`, the kept modes set back (`Kept::set_kept`,
      skein's `runtime/shell.md`, 6.3);
-  2. the line written to standard output, then a line feed: "temper:
+  2. the screen cleared and the cursor homed, `\x1b[H\x1b[2J`
+     (`lending::CLEAR`), so that nothing of the shell's screen, which
+     `LEAVE`'s `\x1b[?1049l` gives back, shows around the line or
+     Claude Code's own (the user's request `tui-12`, 2026-11-15); then
+     the line written to standard output, then a line feed: "temper:
      Claude Code signs in here. Approve it on Anthropic's page, in the
      tab it opens; if that page shows a code, paste it here. temper comes
-     back when it's done, or when you press Cancel in the browser.";
+     back when it's done, or when you press Cancel in the browser.". The
+     clear, the line and its line feed are one write, completed before
+     the spawn; taking the terminal back is unchanged (*Back*);
   3. NAME checked against a source's name's bounds, 1 to 32 of `a` to
      `z`, `0` to `9` and `-`, then the child spawned: the box's own
      `temper-box`, the path its fetch found (`found PATH`, *The box's
@@ -643,7 +652,8 @@ header's border end with no project, as the frames show.
   or for a number taken, `unlend` once, and `Lent` giving `LoginEnded`
   and each notice; of the recording's codec for `lent` and the duties;
   of the run, with fakes for the child and the terminal, for `lend`'s
-  order (the terminal lent, the modes set back, the line, the spawn's
+  order (the terminal lent, the modes set back, the clear and the line
+  right after `LEAVE`'s bytes, the spawn's
   program, arguments, environment and inherited descriptors), the end
   `NotStarted` for a NAME refused, `SIGTERM` to the child's group at
   `unlend` and at a termination signal while lent, and the terminal
