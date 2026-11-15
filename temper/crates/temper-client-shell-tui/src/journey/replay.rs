@@ -111,6 +111,8 @@ impl Replay {
                 | Line::Background(_)
                 | Line::Box
                 | Line::Front
+                | Line::SetUp
+                | Line::BoxLog(_)
                 | Line::Local
                 | Line::Noted(_)
                 | Line::Address(_)
@@ -221,6 +223,8 @@ impl Replay {
             | Line::Background(_)
             | Line::Box
             | Line::Front
+            | Line::SetUp
+            | Line::BoxLog(_)
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)
@@ -302,14 +306,29 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     if local {
         at += 1;
     }
+    let mut boxed = lines.get(at) == Some(&Line::Box);
+    if boxed {
+        at += 1;
+    }
     let front = lines.get(at) == Some(&Line::Front);
     if front {
         at += 1;
     }
-    let boxed = lines.get(at) == Some(&Line::Box);
-    if boxed {
+    // The reader also accepts recordings with front before box.
+    if front && !boxed && lines.get(at) == Some(&Line::Box) {
+        boxed = true;
         at += 1;
     }
+    let set_up = lines.get(at) == Some(&Line::SetUp);
+    if set_up {
+        at += 1;
+    }
+    let box_log = if let Some(Line::BoxLog(path)) = lines.get(at) {
+        at += 1;
+        path.clone()
+    } else {
+        Box::default()
+    };
     let mut kept = Vec::new();
     while let Some(Line::Stored { key, bytes }) = lines.get(at) {
         kept.push(jig_client::Record { key: key.clone(), bytes: bytes.clone() });
@@ -339,6 +358,8 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             address: address.clone(),
             local,
             front,
+            set_up,
+            box_log,
             note,
             kept,
             credential,
@@ -457,6 +478,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Background(_)
             | Line::Box
             | Line::Front
+            | Line::SetUp
+            | Line::BoxLog(_)
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)

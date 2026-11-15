@@ -195,8 +195,10 @@ pub enum Word {
     LeftAfter,
     LeftNow,
     NoRole,
+    StartingGroup,
+    StartedGroup,
 }
-pub(crate) const ALL: [Word; 185] = [
+pub(crate) const ALL: [Word; 187] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -276,6 +278,8 @@ pub(crate) const ALL: [Word; 185] = [
     Word::QuitNone,
     Word::StopBox,
     Word::DontQuit,
+    Word::StartingGroup,
+    Word::StartedGroup,
     Word::Restarting,
     Word::GaveUp,
     Word::GaveUpNote,
@@ -630,6 +634,8 @@ impl Word {
             Self::LeftAfter => 180,
             Self::LeftNow => 181,
             Self::NoRole => 182,
+            Self::StartingGroup => 188,
+            Self::StartedGroup => 189,
         }
     }
     const fn id(self) -> PhraseId {
@@ -743,6 +749,8 @@ impl Word {
             Self::QuitNone => (&[b"Stop the box?"], &[]),
             Self::StopBox => (&[b"Stop the box"], &[]),
             Self::DontQuit => (&[b"Don't quit"], &[]),
+            Self::StartingGroup => (&[b"", b" starting\xe2\x80\xa6"], &[Slot::Step]),
+            Self::StartedGroup => (&[b"", b" started"], &[Slot::Step]),
             Self::Restarting => (&[b"", b" restarting"], &[Slot::Step]),
             Self::GaveUp => (&[b"", b" gave up"], &[Slot::Step]),
             Self::GaveUpNote => (&[b"The box gave up: ", b". /log shows why; Ctrl+C closes."], &[Slot::Step]),
@@ -939,6 +947,14 @@ impl Words {
     }
     pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
         match notice {
+            crate::Notice::Started { name } => {
+                let name = temper_client_domain::forge::words::lossy(name);
+                let name = skein_lib::bytes::utf8_prefix(
+                    &name,
+                    usize::try_from(crate::limits::STEP).expect("step fits memory"),
+                );
+                self.say(Word::StartedGroup, &[Hole::Name(copy_of(name))])
+            }
             crate::Notice::Unknown { words } => {
                 let bounded = skein_lib::bytes::utf8_prefix(
                     words,

@@ -201,6 +201,9 @@ impl BoxStart {
             .map_err(|number| Refused::Directory(format!("cannot open working directory: errno {number}")))?;
         Ok(Front {
             executable: self.executable,
+            set_up: box_set_up(&self.directories.config, &|directory| {
+                std::fs::read_dir(directory).map(|mut entries| entries.next().is_some())
+            }),
             directories: self.directories,
             arguments: self.arguments,
             directory,
@@ -216,6 +219,18 @@ impl BoxStart {
                 .collect(),
         })
     }
+}
+
+/// The one directory read beside the captured environment, before the fetch.
+fn box_set_up(config: &[u8], read: &dyn Fn(&Path) -> std::io::Result<bool>) -> bool {
+    match read(path(config)) {
+        Ok(has_entry) => has_entry,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
+fn box_log(data: &[u8]) -> Box<[u8]> {
+    path(data).join("box/logs/box.log").as_os_str().as_bytes().into()
 }
 
 /// `temper box`'s terminal case; its arguments remain the box's to read.
@@ -237,7 +252,7 @@ pub fn run_box(
             temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
             cfg!(target_os = "linux"),
         ),
-        log: path(&directories.data).join("box/logs/box.log").as_os_str().as_bytes().into(),
+        log: box_log(&directories.data),
     };
     match start(None, environment, working, clock, Some(front)) {
         Ok(code) => code,

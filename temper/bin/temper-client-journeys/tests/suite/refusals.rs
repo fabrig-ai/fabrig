@@ -249,6 +249,8 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
     use temper_client_shell_tui::{host::Report, journey as tj};
     let address = if frame { "pri\u{200b}vate-frame-marker&".as_bytes() } else { b"127.0.0.1:8367" };
     let facts = tj::Facts {
+        set_up: false,
+        box_log: Box::default(),
         seed: 7,
         now: Time::ZERO,
         wall: Wall::EPOCH,

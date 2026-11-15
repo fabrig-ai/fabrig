@@ -23,7 +23,7 @@ const READY: [Style; 4] = [look::STEP_DONE, look::STEP_DONE, look::STEP_DONE, lo
 
 fn front(link: Option<&[u8]>) -> Tui {
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     tui.step(Told::Stage { stage: crate::BoxStage::Running });
     if let Some(link) = link {
         tui.step(Told::BoxLine { line: BoxLine::Link { url: Secret::new(link.into()) } });
