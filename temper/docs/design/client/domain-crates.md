@@ -326,11 +326,14 @@ readers at `a0ed35aa3c`:
 
 - **`temper-client-tools`** reads the forge's side, `amend`, `key`, `owner` with `Fact` (3.1),
   `words`, `Limits` and `pages::delegation::merge_commit` (3.1): it depends on the forge's side, so
-  that a change to the pages or the root rebuilds none of it.
+  that a change to the pages or the root rebuilds none of it. Its tests still reach the root, through
+  their dev-dependency `temper-client-shell-terminal` (its native limits, in `src/tests/limits.rs`),
+  so its test build does; that edge stays.
 - **`temper-engine-service-component` and `temper-engine-service-vocabulary`,** in their tests,
   read the forge's side's `forges`, `changes::panel` and `Limits`: the forge's side.
 - **`temper-service`'s** dev-dependency names nothing of the crate: it goes.
-- **`temper-client-browser-world`,** in its tests, reads `address::print`: the forge's side.
+- **`temper-client-browser-world`,** in its tests, reads `address::print`, but its dev-dependency
+  `temper-playground-world` reaches the root: it keeps `temper-client-domain`.
 - **`temper-client-shell-cli`** reads the forge's side's `forges` and `sign_in`: the forge's side,
   once the tools no longer reach the root, where none of its other normal dependencies do.
 - **The others** build or read a `Domain` (the view and its pieces, the view's kit, the TUI, the
