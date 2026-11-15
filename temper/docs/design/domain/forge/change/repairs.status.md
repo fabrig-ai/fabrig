@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "A resolution": its full and compact words, and the stock implementer charter's line, say nothing of a file one side deleted or renamed, nor ask the result to say what was kept or restored and why (`resolution_words`; `temper/docs/charters/stock/implementer.md`) [in flight: change 3704].
 
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).

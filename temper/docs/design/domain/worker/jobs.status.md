@@ -51,4 +51,3 @@ deployment's lines, which no record shows.
   close kinds (`temper-worker-service/src/worker_settings.rs`,
   `job_kinds`), its prepare temper's own alone, and with neither the
   `Rewrite` delivery (`../../protocol/git.md`, 4.10).
-- **Not yet:** the whole document: the merge kind's result, as the reference's merge command writes it, names the files left by path alone, with no record of each one's kind, side or commit (`tools/merge/merge.py`) [in flight: change 3703].
