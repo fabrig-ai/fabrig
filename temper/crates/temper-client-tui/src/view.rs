@@ -17,6 +17,7 @@ pub(crate) mod pane;
 pub(crate) mod talk;
 pub use pane::HALVES;
 pub(crate) mod front;
+pub(crate) mod header;
 pub(crate) mod launchpad;
 pub(crate) mod printed;
 pub(crate) mod welcome;

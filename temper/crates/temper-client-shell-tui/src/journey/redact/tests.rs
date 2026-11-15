@@ -270,6 +270,8 @@ impl World {
             size: Size { rows: 16, columns: 100 },
             scheme: Some(Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: address.into(),
             front,

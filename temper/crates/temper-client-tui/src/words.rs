@@ -722,7 +722,7 @@ impl Word {
             Self::BoxExited => (&[b"exited ", b""], &[Slot::Number]),
             Self::BoxKilled => (&[b"killed by signal ", b""], &[Slot::Number]),
             Self::BoxEndNote => (&[b"The box stopped: ", b". /log shows why; Ctrl+C closes."], &[Slot::End]),
-            Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
+            Self::BoxPurpose => (&[b"a whole deployment on this machine"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
             Self::InTheBrowser => (&[b"In the browser"], &[]),

@@ -21,6 +21,8 @@ use temper_client_view_words::words::Word as Shared;
 #[derive(Debug)]
 pub(crate) struct Welcome {
     pub address: Box<[u8]>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub out_of_date: Option<Box<[u8]>>,
     pub unkept: Option<Box<[u8]>>,
     pub signed_in: bool,
@@ -185,7 +187,9 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
             .expect("four steps");
     }
     Welcome {
-        address: crate::place(tui.address(), true),
+        address: copy_of(tui.address()),
+        plain: tui.plain(),
+        version: copy_of(tui.version()),
         out_of_date: if root.client().link().state == Link::OutOfDate {
             Some(words.view().say(Shared::OutOfDateMain, &[]))
         } else {
@@ -313,29 +317,18 @@ fn after(b: &mut Builder, part: &Welcome, words: &Words) {
 }
 pub(crate) fn draw(b: &mut Builder, part: &Welcome, words: &Words) {
     b.open(Role::Main);
+    super::header::draw(b, true, part.plain, &part.version, &part.address, words);
     b.open(Role::Region);
-    b.region(look::TOP);
-    b.open(Role::Heading { level: 1 });
-    text(b, Role::Text, &words.say(Word::Title, &[]), Some(look::TITLE));
-    text(b, Role::Text, &part.address, Some(look::ADDRESS));
-    b.close();
+    b.region(look::SECTIONS);
+    text(b, Role::Paragraph, b"", None);
+    b.open(Role::Group);
+    b.style(look::SPACED);
     if let Some(line) = &part.out_of_date {
         text(b, Role::Paragraph, line, None);
-    } else {
-        b.open(Role::Paragraph);
-        text(b, Role::Text, &words.view().say(Shared::WelcomeBoxName, &[]), Some(look::NAME));
-        text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::FAINT));
-        text(b, Role::Text, &words.say(Word::BoxPurpose, &[]), Some(look::HINT));
-        b.close();
     }
     if let Some(line) = &part.unkept {
         text(b, Role::Alert, line, Some(look::REFUSED));
     }
-    b.close();
-    b.open(Role::Region);
-    b.region(look::SECTIONS);
-    b.open(Role::Group);
-    b.style(look::SPACED);
     if part.signed_in {
         after(b, part, words);
     } else {

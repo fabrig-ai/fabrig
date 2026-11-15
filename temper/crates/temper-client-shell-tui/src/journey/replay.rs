@@ -109,6 +109,8 @@ impl Replay {
                 | Line::Clocks { .. }
                 | Line::Screen { .. }
                 | Line::Background(_)
+                | Line::Plain
+                | Line::Version(_)
                 | Line::Box
                 | Line::Front
                 | Line::Local
@@ -219,6 +221,8 @@ impl Replay {
             | Line::Clocks { .. }
             | Line::Screen { .. }
             | Line::Background(_)
+            | Line::Plain
+            | Line::Version(_)
             | Line::Box
             | Line::Front
             | Line::Local
@@ -294,6 +298,16 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     } else {
         None
     };
+    let plain = lines.get(at) == Some(&Line::Plain);
+    if plain {
+        at += 1;
+    }
+    let version = if let Some(Line::Version(bytes)) = lines.get(at) {
+        at += 1;
+        bytes.clone()
+    } else {
+        Box::default()
+    };
     let Some(Line::Address(address)) = lines.get(at) else {
         return Err(error(at));
     };
@@ -335,6 +349,8 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             size: *size,
             scheme: *scheme,
             background,
+            plain,
+            version,
             boxed,
             address: address.clone(),
             local,
@@ -455,6 +471,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Clocks { .. }
             | Line::Screen { .. }
             | Line::Background(_)
+            | Line::Plain
+            | Line::Version(_)
             | Line::Box
             | Line::Front
             | Line::Local

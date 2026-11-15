@@ -13,6 +13,8 @@ pub enum Line {
     Clocks { now: Time, wall: Wall },
     Screen { size: Size, scheme: Option<Scheme> },
     Background(Rgb),
+    Plain,
+    Version(Box<[u8]>),
     Address(Box<[u8]>),
     Local,
     Front,
@@ -165,6 +167,7 @@ impl Line {
             }
             Self::BoxLine(bytes)
             | Self::BoxStage(bytes)
+            | Self::Version(bytes)
             | Self::Address(bytes)
             | Self::Credential(bytes)
             | Self::Erase(bytes)
@@ -174,7 +177,8 @@ impl Line {
                 w.bytes(key);
                 w.bytes(bytes);
             }
-            Self::Front
+            Self::Plain
+            | Self::Front
             | Self::Unlend
             | Self::Local
             | Self::Box
@@ -257,6 +261,8 @@ impl Line {
             Self::StopBoxAgain => "stop-box-again",
             Self::Box => "box",
             Self::Background(_) => "background",
+            Self::Plain => "plain",
+            Self::Version(_) => "version",
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
             Self::Note(_) => "note",
@@ -620,6 +626,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
                 _ => return Err("unknown scheme"),
             },
         },
+        b"plain" => Line::Plain,
+        b"version" => Line::Version(r.bytes()?),
         b"background" => Line::Background(Rgb {
             red: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
             green: u8::try_from(r.number()?).map_err(|_| "number overflow")?,

@@ -1,33 +1,35 @@
-╭─ temper · Hello ──── 127.0.0.1:8367 ─╮
-│ 4 changes landed across two          │
-│ projects. One thing needs you.       │
-│ shop: Coupons are two of three in.   │
-│ Hello: csv-export is two of three    │
-│ tasks in; one waits on you.          │
-│  written by the status agent 08:00 · │
-│                               /brief │
+ ▄█▀▀   temper
+▄█▄█▄█  127.0.0.1:8367
+
+ 4 changes landed across two projects.
+ One thing needs you.
+ shop: Coupons are two of three in.
+ Hello: csv-export is two of three
+ tasks in; one waits on you.
 ────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / fo
 ────────────────────────────────────────
  Hello · ● Live             1 needs you
 --
-aaabbbbbbaaacccccaaaaaaddddddddddddddaaa
-a......................................a
-a......................................a
-a......................................a
-a......................................a
-a......................................a
-a..ddddddddddddddddddddddddddddddddddd.a
-a...............................dddddd.a
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.dddddaaaffffff.............eeeeeeeeeee.
+.abbb...cccccc..........................
+aadddd..eeeeeeeeeeeeee..................
+........................................
+........................................
+........................................
+........................................
+........................................
+........................................
+ffffffffffffffffffffffffffffffffffffffff
+ggffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffff
+.eeeeefffhhhhhh.............ggggggggggg.
 --
-a: fore #6A655C
-b: fore #E08A68 bold
+a: fore #1B76FD
+b: fore #00C4FE
 c: bold
-d: fore #9A9388
-e: fore #E08A68
-f: fore #8FC28F
+d: fore #8E2CF8
+e: fore #9A9388
+f: fore #6A655C
+g: fore #E08A68
+h: fore #8FC28F
 cursor 9 2

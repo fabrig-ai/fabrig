@@ -63,7 +63,7 @@ impl Tui {
         let mut tui = Self::start(world, who, None);
         tui.press(world, vec![Key::Paste(crate::front::printed_link()), Key::Enter]);
         tui.run(world, crate::fixtures::WITHIN);
-        assert!(tui.text().contains("temper · Hello"), "{}", tui.text());
+        assert!(tui.text().contains("Hello ·"), "{}", tui.text());
         tui
     }
 
@@ -156,6 +156,8 @@ impl Tui {
                 size: Size { columns: 80, rows: 24 },
                 scheme: Some(Scheme::Dark),
                 background: None,
+                plain: false,
+                version: Box::default(),
                 boxed: false,
                 address: ADDRESS.into(),
                 kept: Vec::new(),

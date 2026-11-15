@@ -10,6 +10,7 @@ pub const WORKING: Region = Region { owner: OWNER, number: 3 };
 pub const BOX: Region = Region { owner: OWNER, number: 4 };
 pub const LIST: Region = Region { owner: OWNER, number: 5 };
 pub const PANE: Region = Region { owner: OWNER, number: 6 };
+pub const HEADER: Region = Region { owner: OWNER, number: 7 };
 pub const TITLE: Style = Style { owner: OWNER, token: 0 };
 pub const HINT: Style = Style { owner: OWNER, token: 1 };
 pub const LIVE: Style = Style { owner: OWNER, token: 2 };
@@ -43,9 +44,10 @@ pub const RULE_TITLE: Style = Style { owner: OWNER, token: 28 };
 pub const STEP_DONE: Style = Style { owner: OWNER, token: 29 };
 pub const STEP_NOW: Style = Style { owner: OWNER, token: 30 };
 pub const STEP_AHEAD: Style = Style { owner: OWNER, token: 31 };
-pub const PLAYGROUND: Style = Style { owner: OWNER, token: 32 };
-pub const END_FAINT: Style = Style { owner: OWNER, token: 33 };
+pub const MARK_CYAN: Style = Style { owner: OWNER, token: 32 };
+pub const MARK_BLUE: Style = Style { owner: OWNER, token: 33 };
 pub const WHY: Style = Style { owner: OWNER, token: 34 };
+pub const MARK_VIOLET: Style = Style { owner: OWNER, token: 35 };
 pub const NAMES: Names<'static> = Names {
     owner: OWNER,
     prefix: b"tui",
@@ -82,11 +84,21 @@ pub const NAMES: Names<'static> = Names {
         b"tui-step-done",
         b"tui-step-now",
         b"tui-step-ahead",
-        b"tui-playground",
-        b"tui-end-faint",
+        b"tui-mark-cyan",
+        b"tui-mark-blue",
         b"tui-why",
+        b"tui-mark-violet",
     ],
-    regions: &[b"tui-top", b"tui-bottom", b"tui-sections", b"tui-working", b"tui-box", b"tui-list", b"tui-pane"],
+    regions: &[
+        b"tui-top",
+        b"tui-bottom",
+        b"tui-sections",
+        b"tui-working",
+        b"tui-box",
+        b"tui-list",
+        b"tui-pane",
+        b"tui-header",
+    ],
 };
 /// The link field's binding token under OWNER.
 pub const LINK: Token = Token::new(1);

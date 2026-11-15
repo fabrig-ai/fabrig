@@ -11,6 +11,10 @@ use skein_ui_screen_terminal::Key;
 use temper_client_tui::{Note, Scheme};
 
 /// The start's facts, in the file's order.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent terminal capability, local link and box placement facts of Start"
+)]
 pub struct Facts {
     pub seed: u64,
     pub now: Time,
@@ -18,6 +22,8 @@ pub struct Facts {
     pub size: Size,
     pub scheme: Option<Scheme>,
     pub background: Option<Rgb>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub address: Box<[u8]>,
     pub local: bool,
     pub front: bool,
@@ -35,6 +41,8 @@ impl Facts {
             size: self.size,
             scheme: self.scheme,
             background: self.background,
+            plain: self.plain,
+            version: self.version.clone(),
             boxed: self.boxed,
             address: self.address.clone(),
             local: self.local,
@@ -72,6 +80,12 @@ impl Recorder {
         }
         if let Some(background) = facts.background {
             this.keep(&Line::Background(background));
+        }
+        if facts.plain {
+            this.keep(&Line::Plain);
+        }
+        if !facts.version.is_empty() {
+            this.keep(&Line::Version(facts.version.clone()));
         }
         this.keep(&Line::Address(facts.address.clone()));
         if facts.local {
@@ -277,6 +291,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Clocks { .. }
         | Line::Screen { .. }
         | Line::Background(_)
+        | Line::Plain
+        | Line::Version(_)
         | Line::Box
         | Line::Address(_)
         | Line::Front

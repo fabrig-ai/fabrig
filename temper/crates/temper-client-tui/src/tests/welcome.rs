@@ -49,7 +49,10 @@ fn body(tree: &skein_ui::Tree) -> List<Box<[u8]>> {
                 || node.role == Role::Alert
                 || node.role == Role::Item
             {
-                result.push(f::text(tree, node)).unwrap();
+                let text = f::text(tree, node);
+                if !text.is_empty() {
+                    result.push(text).unwrap();
+                }
             }
         }
     }
@@ -285,7 +288,7 @@ fn the_welcome_says_each_state() {
         ),
         ("model remains", &model, front(None), Expect::After { marks: MODEL, forge: None }),
         ("Ready remains", &ready, front(None), Expect::After { marks: READY, forge: None }),
-        ("project launchpad", &project, front(None), Expect::Elsewhere { words: "temper · Hellobox" }),
+        ("project launchpad", &project, front(None), Expect::Elsewhere { words: "Start" }),
         ("out of date", &stale, front(None), Expect::Before),
         ("chat in front", &chat, front(None), Expect::Elsewhere { words: "" }),
         ("long printed link", &empty, front(Some(&long)), Expect::Before),
@@ -323,12 +326,9 @@ fn the_welcome_says_each_state() {
         let mut want = List::with_capacity(16);
         match expected {
             Expect::Before | Expect::After { .. } => {
-                want.push(Box::from(b"temperbox".as_slice())).unwrap();
                 if root.client().link().state == jig_client::Link::OutOfDate {
                     want.push(f::words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
                         .unwrap();
-                } else {
-                    want.push(Box::from("temper box · on this machine, to try it".as_bytes())).unwrap();
                 }
                 if tui.unkept() {
                     want.push(f::words().say(crate::words::Word::NotKept, &[])).unwrap();
@@ -402,16 +402,6 @@ fn the_welcome_says_each_state() {
             assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
         }
         super::limits::fits(tree, &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
-        for (words, style) in [(b"temper".as_slice(), look::TITLE), (b"box".as_slice(), look::ADDRESS)] {
-            assert!(f::find(tree, Role::Text, words).styles.as_slice().contains(&style), "{name}: header token");
-        }
-        if root.client().link().state != jig_client::Link::OutOfDate {
-            for (words, style) in
-                [(b"temper box".as_slice(), look::NAME), (b"on this machine, to try it".as_slice(), look::HINT)]
-            {
-                assert!(f::find(tree, Role::Text, words).styles.as_slice().contains(&style), "{name}: box line token");
-            }
-        }
         // Equality without dumping the printed link in a failed assertion.
         assert!(lines == want, "{name}: the welcome's complete text, including the printed link");
         assert_eq!(view.tick(), None, "{name}: no welcome tick");
@@ -451,7 +441,28 @@ fn the_welcomes_are_their_goldens() {
     typed.step(Told::Local { local: Local::Signing });
     typed.step(Told::CommandWords { value: Box::from(*b"fa") });
     let third = build(&signing, &typed);
+    let mut request = front(Some(PRINTED));
+    request.header(false, b"0.0.0 (b948f40d6df1)".as_slice().into());
+    let request = build(&before, &request);
     let rows = [
+        goldens::Golden {
+            name: "welcome-150x39-dark",
+            tree: request.tree(),
+            scheme: Scheme::Dark,
+            background: None,
+            size: skein_ui_screen::Size { columns: 150, rows: 39 },
+            focus: skein_ui_screen::Focus::default(),
+            want: include_bytes!("golden/welcome-150x39-dark.txt"),
+        },
+        goldens::Golden {
+            name: "welcome-80x24-light",
+            tree: first.tree(),
+            scheme: Scheme::Light,
+            background: Some(crate::theme::palette(Scheme::Light)[0].1),
+            size: FULL,
+            focus: skein_ui_screen::Focus::default(),
+            want: include_bytes!("golden/welcome-80x24-light.txt"),
+        },
         goldens::Golden {
             name: "welcome-80x24-dark",
             tree: first.tree(),

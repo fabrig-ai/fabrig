@@ -278,3 +278,17 @@ fn the_lines_name_the_binary() {
         }
     }
 }
+
+#[test]
+fn only_apple_terminal_leaves_the_mark_out() {
+    for (value, plain) in [
+        (Some("Apple_Terminal"), true),
+        (Some("iTerm.app"), false),
+        (Some("apple_terminal"), false),
+        (Some(""), false),
+        (None, false),
+    ] {
+        let entries = value.map(|value| ("TERM_PROGRAM", value)).into_iter().collect::<Vec<_>>();
+        assert_eq!(tui::plain(&environment(&entries)), plain, "{value:?}");
+    }
+}
