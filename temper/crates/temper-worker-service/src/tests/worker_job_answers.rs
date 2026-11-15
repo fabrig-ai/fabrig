@@ -326,12 +326,166 @@ fn fail_merge(worker: &mut Worker, case: FailureCase) {
     merge_event(worker, owner, Event::Gone { owner });
 }
 
+/// A preparation failure is named and logged once, also for a run rather than a job.
+#[test]
+fn failed_run_preparations_name_the_worker_once_across_reconnect() {
+    let (mut worker, mut peer) = merge_worker();
+    worker.link(fixtures::NOW, fixtures::repository_assignment());
+    let assignment = worker.engine.pop().expect("decoded run assignment");
+    worker.notes().clear();
+    assert!(merge_step_script(&mut worker, assignment, GitFault::CloneRefused).is_empty());
+    let (answer, parts) = peer.answer(&mut worker);
+    let hub::LinkUp::Answer {
+        run,
+        attempt,
+        answer: hub::RunAnswer { ending: hub::Ending::Failed { failure, detail, .. }, .. },
+    } = &answer
+    else {
+        panic!("the run's preparation failed: {answer:?}");
+    };
+    assert!(detail.starts_with(b"host worker-a: "));
+    assert_eq!(
+        worker.notes().pop(),
+        Some(crate::worker_alone::Note::Unprepared {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure: *failure,
+            detail: detail.clone(),
+        })
+    );
+    assert!(worker.notes().is_empty(), "one note for a failed run preparation");
+    worker.up(fixtures::NOW, io::Event::Closed { owner: peer.owner });
+    worker.iterate(fixtures::NOW, Wall::EPOCH);
+    worker.iterate(worker.next_deadline().expect("redial"), Wall::EPOCH);
+    worker.io().clear();
+    let mut peer = fixtures::worker_peers::LinkPeer::new();
+    peer.open(&mut worker);
+    assert_eq!(peer.answer(&mut worker), (answer, parts), "the same hosted answer is resent");
+    assert!(worker.notes().is_empty(), "a kept answer logs no second note");
+}
+
+#[test]
+fn failed_job_preparations_log_once_across_reconnect() {
+    let (mut worker, mut peer) = merge_worker();
+    worker.notes().clear();
+    fail_merge(&mut worker, FailureCase::BaseFetch);
+    let (answer, parts) = merge_answer(&mut peer, &mut worker);
+    let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Failed { detail, .. }, .. } = &answer else {
+        panic!("failed job preparation");
+    };
+    assert!(detail.starts_with(b"host worker-a: "));
+    assert_eq!(
+        worker.notes().pop(),
+        Some(crate::worker_alone::Note::Unprepared {
+            run: JOB.raw(),
+            attempt: 2,
+            failure: hub::Failure::Unprepared(hub::Preparation::Transient),
+            detail: detail.clone(),
+        })
+    );
+    let Some(crate::worker_alone::Note::WorkerJob { .. }) = worker.notes().pop() else {
+        panic!("the job keeps its own note");
+    };
+    assert!(worker.notes().is_empty(), "the job keeps its own line beside the preparation's");
+    worker.up(fixtures::NOW, io::Event::Closed { owner: peer.owner });
+    worker.iterate(fixtures::NOW, Wall::EPOCH);
+    worker.iterate(worker.next_deadline().expect("redial"), Wall::EPOCH);
+    worker.io().clear();
+    let mut peer = fixtures::worker_peers::LinkPeer::new();
+    peer.open(&mut worker);
+    assert_eq!(merge_answer(&mut peer, &mut worker), (answer, parts));
+    assert!(worker.notes().is_empty(), "neither job nor preparation logs again on replay");
+}
+
+/// Both answer kinds use the wire's detail bound, keeping the host and stage.
+#[test]
+fn hosted_preparation_answers_keep_the_head_at_the_wire_bound() {
+    let raw = b"check out: TimedOut (workspace 3, repository 0 app, command checkout)";
+    for job in [false, true] {
+        for length in [48, 49, 64] {
+            let (mut worker, mut peer) = merge_worker();
+            worker.notes().clear();
+            let detail = raw.get(..length).expect("detail within the hub's 64-byte bound");
+            worker.route(root::Request::Unprepared {
+                run: JOB,
+                attempt: Token::new(2),
+                failure: hub::Preparation::Transient,
+                detail: detail.into(),
+            });
+            let work = root::wire::Work { landed: Box::new([]), saved: None };
+            if job {
+                worker.route(root::Request::JobAnswer {
+                    run: JOB,
+                    attempt: Token::new(2),
+                    work,
+                    preparation: None,
+                    answer: hub::JobEnding::Failed {
+                        failure: hub::JobFailure::Unprepared(hub::Preparation::Transient),
+                        detail: detail.into(),
+                        work: hub::Work { left: None, saved: None },
+                    },
+                });
+            } else {
+                worker.route(root::Request::Answer {
+                    run: JOB,
+                    attempt: Token::new(2),
+                    work,
+                    preparation: None,
+                    answer: hub::RunAnswer {
+                        read: None,
+                        refused: Box::new([]),
+                        turns: 0,
+                        spent: 0,
+                        ending: hub::Ending::Failed {
+                            failure: hub::Failure::Unprepared(hub::Preparation::Transient),
+                            detail: detail.into(),
+                            work: hub::Work { left: None, saved: None },
+                            model: None,
+                        },
+                    },
+                });
+            }
+            let (answer, _) = if job { merge_answer(&mut peer, &mut worker) } else { peer.answer(&mut worker) };
+            let detail = if job {
+                let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Failed { detail, .. }, .. } = answer else {
+                    panic!("failed job answer");
+                };
+                detail
+            } else {
+                let hub::LinkUp::Answer {
+                    answer: hub::RunAnswer { ending: hub::Ending::Failed { detail, .. }, .. },
+                    ..
+                } = answer
+                else {
+                    panic!("failed run answer");
+                };
+                detail
+            };
+            let expected = skein_lib::bytes::concat(&[b"host worker-a: ", raw.get(..length).unwrap()]);
+            assert_eq!(detail.as_ref(), expected.get(..expected.len().min(64)).unwrap());
+            assert_eq!(detail.len(), if length == 48 { 63 } else { 64 });
+            assert!(detail.starts_with(b"host worker-a: check out: TimedOut"));
+            assert_eq!(
+                worker.notes().pop(),
+                Some(crate::worker_alone::Note::Unprepared {
+                    run: JOB.raw(),
+                    attempt: 2,
+                    failure: hub::Failure::Unprepared(hub::Preparation::Transient),
+                    detail,
+                })
+            );
+            assert!(worker.notes().is_empty());
+        }
+    }
+}
+
 #[test]
 fn failed_jobs_name_the_workers_why_once() {
     use hub::{DeliveryOutcome, JobFailure, Preparation};
     let fetch = b"fetch base: Broken: fatal: base fetch failed".as_slice();
+    let hosted_fetch = b"host worker-a: fetch base: Broken: fatal: base fetch failed".as_slice();
     for (case, expected_failure, expected_detail, expected_why) in [
-        (FailureCase::BaseFetch, JobFailure::Unprepared(Preparation::Transient), fetch, fetch),
+        (FailureCase::BaseFetch, JobFailure::Unprepared(Preparation::Transient), hosted_fetch, fetch),
         (FailureCase::Command(Exit::Code(1)), JobFailure::Failed, b"exit 1: stderr", b"exit 1: stderr"),
         (FailureCase::Command(Exit::Signal), JobFailure::Failed, b"signal: stderr", b"signal: stderr"),
         (FailureCase::Command(Exit::Deadline), JobFailure::Deadline, b"deadline passed", b"deadline passed"),
