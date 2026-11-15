@@ -75,11 +75,11 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
-        (b"core.policy_bytes", 6423, Setting::Policy(1), "the stock's policy 1 needs 6423 bytes"),
+        (b"core.policy_bytes", 6455, Setting::Policy(1), "the stock's policy 1 needs 6455 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 15, Setting::Rules, "the stock's rules need 15 grants"),
-        // The standing charters, closer procedure and close job are delegation targets.
-        (b"authority.executors", 20, Setting::Rules, "the stock's rules need 20 executors"),
+        // The standing charters, procedures, jobs and roles are delegation targets.
+        (b"authority.executors", 21, Setting::Rules, "the stock's rules need 21 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
@@ -173,10 +173,10 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // named only parses the document and lists its files. No file read or
     // listener opening can occur before this refusal.
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
-    // Two executor places in four authorities add 64 bytes to the policy.
+    // The ceiling and standing roles include the prepare job.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6423 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n"
     );
 }
 
@@ -447,8 +447,8 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
     let policy = defaults.policies.get(&1).unwrap();
     let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
     let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
-    assert_eq!(bytes, 6423);
-    assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 20);
+    assert_eq!(bytes, 6455);
+    assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 21);
     assert!(bytes <= engine.limits.core.policy_bytes, "snapshot {bytes}, limit {}", engine.limits.core.policy_bytes);
     assert_eq!(
         jig_domain_authority::policy_refusal(&defaults.rules, &engine.limits.core.authority, &policy.policy),
@@ -478,7 +478,15 @@ fn a_seeded_stock_document_names_the_executor_limit() {
     document["engine"]["limits"]["overrides"]["authority.executors"] = 18_i32.into();
     let document = serde_json::to_vec(&document).unwrap();
     let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.projects[0].policy.ceiling.delegation.kinds: policy has 20 executor kinds; authority.executors limit is 18.\n");
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        concat!(
+            "engine.projects[0].policy.ceiling.delegation.kinds: policy has 21 executor kinds; authority.executors limit is 18.\n",
+            "engine.projects[0].policy.roles[0].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
+            "engine.projects[0].policy.roles[1].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
+            "engine.projects[0].policy.roles[2].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
+        ).as_bytes()
+    );
 }
 
 #[test]
