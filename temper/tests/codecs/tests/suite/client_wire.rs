@@ -20,7 +20,7 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
 }
 
 #[test]
-fn version_seven_request_answer_and_forges_goldens_round_trip() {
+fn current_request_answer_and_forges_goldens_round_trip() {
     use temper_client_protocol_wire as wire;
     for bytes in [
         include_bytes!("../../../../crates/temper-client-protocol-wire/golden/record_requesting_smallest.bin")
@@ -60,9 +60,9 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
     .expect("record within schema ceilings")
 }
 #[test]
-fn setup_and_every_first_repository_state_round_trip_at_version_twenty_one() {
+fn setup_and_every_first_repository_state_round_trip_at_version_twenty_two() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 21);
+    assert_eq!(wire::CLIENT_VERSION, 22);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [

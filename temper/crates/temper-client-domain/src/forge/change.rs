@@ -32,7 +32,7 @@ pub fn slot(step: &w::Step) -> Slots {
         w::Step::Repairing(repair) => match repair.reason() {
             w::Reason::Ci => 2,
             w::Reason::Gate(_) | w::Reason::Review => 3,
-            w::Reason::Semantic => 4,
+            w::Reason::Semantic | w::Reason::Landing(_) => 4,
         },
         w::Step::Landing => 5,
         w::Step::Ended => return Slots { current: None, done: 0 },
@@ -137,6 +137,7 @@ pub fn line(panel: &w::ChangePanel) -> Said {
             w::Reason::Gate(gate) => return (W::RepairGate, Box::new([Hole::Number(gate.gate())])),
             w::Reason::Semantic => W::RepairSemantic,
             w::Reason::Review => W::RepairReview,
+            w::Reason::Landing(gate) => return (W::RepairLanding, Box::new([Hole::Number(gate.gate())])),
         },
         w::Step::Landing => W::LandingLine,
         w::Step::Landed(landed) => return merged_line(W::LandedLine, landed.merge()),
