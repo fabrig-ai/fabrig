@@ -41,6 +41,7 @@ pub fn component_limits() -> jig_protocol_store::Limits {
         queue: 8,
         files: 8,
         reads: 4,
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }

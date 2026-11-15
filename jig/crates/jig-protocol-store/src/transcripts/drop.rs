@@ -100,7 +100,10 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<
                 }
             }
             Some(
-                keys::Own::Format
+                keys::Own::History { .. }
+                | keys::Own::TurnLog { .. }
+                | keys::Own::LogAttempt { .. }
+                | keys::Own::Format
                 | keys::Own::Layouts
                 | keys::Own::Wires
                 | keys::Own::Opening(_)
@@ -127,7 +130,10 @@ pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
         let key = keys::decode_own(&row.key).ok_or(())?;
         let task = match key {
             keys::Own::Attempt { task, .. } => task,
-            keys::Own::Format
+            keys::Own::History { .. }
+            | keys::Own::TurnLog { .. }
+            | keys::Own::LogAttempt { .. }
+            | keys::Own::Format
             | keys::Own::Layouts
             | keys::Own::Wires
             | keys::Own::Opening(_)

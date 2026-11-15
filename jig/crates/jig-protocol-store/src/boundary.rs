@@ -72,7 +72,7 @@ pub enum Write {
 }
 
 /// What a restart step restores.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Restore {
     /// jig's ranges, in order: `RestoreRange::LIVE` for `LoadCore`, the
     /// census for `LoadInbox`. Rows are handed up typed; the census's are
@@ -83,7 +83,7 @@ pub enum Restore {
 }
 
 /// A child's range to load.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Load {
     /// The notes child's entry or a scope's lines.
     Notes(notes::Range),
@@ -92,7 +92,7 @@ pub enum Load {
 }
 
 /// A record to get.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Get {
     Jig(core::Key),
     /// The application's key, relative to its tag.

@@ -28,7 +28,7 @@ pub(crate) fn restore(
     let people = people_interval(&range);
     match self::page(store, range, after.as_ref(), rows, bytes) {
         Ok(walked) => {
-            if finish(store, env, people, walked.next.as_ref(), above, below) {
+            if crate::view::missing(store) || finish(store, env, people, walked.next.as_ref(), above, below) {
                 above.push(Event::Page { owner, items: walked.items, next: walked.next });
             }
         }

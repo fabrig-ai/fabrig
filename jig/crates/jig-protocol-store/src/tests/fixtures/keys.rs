@@ -23,7 +23,10 @@ pub fn narrow(rng: &mut Rng) -> u32 {
     }
 }
 pub fn own(rng: &mut Rng) -> Own {
-    match rng.below(4) {
+    match rng.below(7) {
+        4 => Own::History { task: number(rng) },
+        5 => Own::TurnLog { task: number(rng) },
+        6 => Own::LogAttempt { task: number(rng), attempt: number(rng) },
         0 => Own::Format,
         3 => Own::Layouts,
         1 => Own::Transcript { task: number(rng) },

@@ -118,6 +118,11 @@ fn an_activity_page_joins_each_turn_in_one_walk() {
     let (mut store, disk) = transcript_page_with_last(WORDS[2]);
     store.limits.joins = 5; // Two owner lookups, then one join per turn.
     let (rows, next, frames) = joined_page(&mut store, full_range(None), &disk);
+    let before = super::super::history_logs::page_signature(&rows, next.as_ref());
+    super::super::history_logs::move_history(&mut store, CHILD);
+    let (rows, next, frames_after) = joined_page(&mut store, full_range(None), &disk);
+    assert_eq!(before, super::super::history_logs::page_signature(&rows, next.as_ref()));
+    assert_eq!(frames, frames_after);
     assert_eq!(frames.as_ref(), [134, 67, 0]);
     assert_eq!(next, None);
     assert_eq!(
@@ -377,7 +382,11 @@ fn a_later_page_joins_turns_in_ascending_order() {
     let (mut store, disk) = transcript_page_with_last(WORDS[2]);
     let mut range = later_range(0);
     range.rows = 5;
+    let (rows, next, _) = joined_page(&mut store, range.clone(), &disk);
+    let before = super::super::history_logs::page_signature(&rows, next.as_ref());
+    super::super::history_logs::move_history(&mut store, CHILD);
     let (rows, next, _) = joined_page(&mut store, range, &disk);
+    assert_eq!(before, super::super::history_logs::page_signature(&rows, next.as_ref()));
     assert_eq!(
         values(&rows).as_ref(),
         [

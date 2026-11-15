@@ -38,7 +38,10 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                     layouts.texts.insert(digest, Text { bytes, schema: None, stored: true }).expect("uncapped texts");
                 }
                 Some(
-                    keys::Own::Format
+                    keys::Own::History { .. }
+                    | keys::Own::TurnLog { .. }
+                    | keys::Own::LogAttempt { .. }
+                    | keys::Own::Format
                     | keys::Own::Layouts
                     | keys::Own::Wires
                     | keys::Own::Opening(_)

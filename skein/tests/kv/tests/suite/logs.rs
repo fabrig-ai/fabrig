@@ -310,3 +310,28 @@ fn payload_golden_bytes_and_recovery() {
     open(&mut world, 1);
     assert_eq!(records(&mut world, 7), vec![b"a".to_vec(), BODY.to_vec()]);
 }
+
+#[test]
+fn recovering_without_payload_directories_matches_an_empty_payload_directory() {
+    use skein_fake_machine::Item;
+    for items in [Vec::new(), vec![Item::directory(b"logs").mode(0o700)]] {
+        let mut world = World::with_items(limits(), &items);
+        world.logs(b"e/");
+        open(&mut world, 0);
+        commit(
+            &mut world,
+            vec![Op::Put { key: Box::from(b"plain".as_slice()), value: Box::from(b"kept".as_slice()) }],
+            1,
+        );
+        world.crash(53);
+        open(&mut world, 1);
+        world.request(Request::Get { owner: OWNER, key: Box::from(b"plain".as_slice()) });
+        assert_eq!(world.pop(), Event::Got { owner: OWNER, value: Some(Box::from(b"kept".as_slice())) });
+        let (records, next) = read(&mut world, 7, 0, Direction::Forward, 10);
+        assert!(records.is_empty());
+        assert_eq!(next, None);
+        world.request(Request::Close { owner: OWNER });
+        assert_eq!(world.pop(), Event::Closed { owner: OWNER });
+        assert_eq!(world.io.open_files(), 0);
+    }
+}
