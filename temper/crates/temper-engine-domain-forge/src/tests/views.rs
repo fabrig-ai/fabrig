@@ -254,6 +254,8 @@ fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     d.landing.faults.insert((61, 0, 0), flight).unwrap();
     assert_eq!(view(&d, 61).members[0].gates[0].proof, GateProof::Dispatched { attempt: 2, run: Some(7) });
     let receipt = Receipt {
+        base: None,
+        jobs: Box::new([]),
         logs: Box::new([]),
         failures: None,
         passed: true,

@@ -154,6 +154,8 @@ fn dropped_rows(repository: Repository) -> Vec<Stored> {
         Stored::Receipt {
             key: d::ReceiptKey { project: 1, repository, check: d::Check::Gate(b"ci".as_slice().into()), key: [1; 32] },
             receipt: d::Receipt {
+                base: None,
+                jobs: Box::new([]),
                 logs: Box::new([]),
                 failures: None,
                 passed: true,

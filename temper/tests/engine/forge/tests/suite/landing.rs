@@ -56,6 +56,8 @@ fn a_landing_of_one_is_prepared_on_its_branch_proved_and_fast_forwarded() {
     let (key, receipt) = receipt(&world);
     assert_eq!(key.repository, REPO);
     assert!(receipt.passed);
+    assert_eq!(receipt.base, None);
+    assert!(receipt.jobs.is_empty());
     assert_eq!(receipt.candidate, candidate);
     let runs = runs(&world);
     assert_eq!(runs.len(), 1);

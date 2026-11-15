@@ -1,8 +1,8 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
 use crate::domain::{child, emit, keep_entry};
 use crate::{
-    Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptKey, ReceiptRun,
-    RepositoryGates, Request, Stored, runs,
+    Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
+    ReceiptRun, RepositoryGates, Request, Stored, runs,
 };
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -1471,6 +1471,8 @@ fn advance(
                             return;
                         }
                         let receipt = Receipt {
+                            base: None,
+                            jobs: Box::new([]),
                             logs: Box::new([]),
                             failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
@@ -4068,15 +4070,57 @@ impl Domain {
     /// The candidate pins its failure snapshot even after the landing's live row retires.
     #[must_use]
     pub fn candidate_failure_words(&self, change: u64, gate: u16, candidate: api::Commit) -> Option<Box<[u8]>> {
-        let mut blamed_run = None;
+        let (_, receipt) = self.failure_receipt(change, gate, Some(candidate))?;
+        Some(receipt.logs.clone())
+    }
+    /// The receipt pins the gate run and its jobs for a repair's required words.
+    #[must_use]
+    pub fn landing_failure(&self, change: u64, why: change::Repair) -> Option<crate::LandingFailure> {
+        let (gate, candidate) = match why {
+            change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
+            change::Repair::Landing { gate } => (gate, None),
+            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+                return None;
+            }
+        };
+        let (gate, receipt) = self.failure_receipt(change, gate, candidate)?;
+        Some(crate::LandingFailure {
+            gate: gate.into(),
+            run: receipt.run.clone(),
+            prefix: receipt.candidate,
+            base: receipt.base,
+            jobs: receipt.jobs.clone(),
+        })
+    }
+    fn failure_receipt(&self, change: u64, gate: u16, candidate: Option<api::Commit>) -> Option<(&[u8], &Receipt)> {
+        let mut kept_run = None;
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {
-                if member.change == change
-                    && let Some(policy::Leave::Blamed { gate: failed, run, red, .. }) = member.left
-                    && failed == gate
-                    && red == candidate
-                {
-                    blamed_run = Some(run);
+                if member.change != change {
+                    continue;
+                }
+                match member.left {
+                    Some(policy::Leave::Blamed { gate: failed, run, red, .. }) => {
+                        if failed == gate && (candidate.is_none() || candidate == Some(red)) {
+                            kept_run = Some(run);
+                        }
+                    }
+                    Some(policy::Leave::Failed { gate: failed, run }) => {
+                        if failed == gate && candidate.is_none() {
+                            kept_run = Some(run);
+                        }
+                    }
+                    None
+                    | Some(
+                        policy::Leave::Conflict
+                        | policy::Leave::EarlierConflict
+                        | policy::Leave::Unit { .. }
+                        | policy::Leave::Dependency { .. }
+                        | policy::Leave::HeadMoved { .. }
+                        | policy::Leave::Cancelled
+                        | policy::Leave::Held
+                        | policy::Leave::Refused { .. },
+                    ) => {}
                 }
             }
         }
@@ -4087,10 +4131,10 @@ impl Domain {
             if key.project == project
                 && key.repository == change.repository
                 && key.check == Check::Gate(name.clone())
-                && (receipt.candidate == candidate || blamed_run == Some(receipt.run.number))
+                && (candidate == Some(receipt.candidate) || kept_run == Some(receipt.run.number))
                 && !receipt.passed
             {
-                return Some(receipt.logs.clone());
+                return Some((name, receipt));
             }
         }
         None
@@ -4461,27 +4505,8 @@ fn failed_jobs(
     let mut log = List::with_capacity(8192);
     append_words(&mut log, &words);
     let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
+    let base = failed_run_base(d, &row, &key, &run).expect("run base");
     if next == 0 {
-        let mut base = None;
-        if let Some(flight) = d.landing.flights.get(&key) {
-            base = input_commit(&flight.inputs, b"temper_base");
-            for entry in &row.entries {
-                if entry.entry == flight.entry {
-                    base = entry.base.or(base);
-                }
-            }
-        }
-        if base.is_none() {
-            for member in &row.landing.members {
-                if member.candidate == Some(run.commit) {
-                    base = member.base;
-                }
-            }
-        }
-        if base.is_none() {
-            base = row.landing.members.first().expect("round member").base;
-        }
-        let base = base.expect("run base");
         let name = match &key.check {
             Check::Gate(name) | Check::Tier(name) => name,
         };
@@ -4529,6 +4554,8 @@ fn failed_jobs(
         crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
     save(d, row, out);
     let receipt = Receipt {
+        base: Some(base),
+        jobs: receipt_jobs(&run.jobs),
         logs: row_logs,
         failures: None,
         passed: false,
@@ -4539,6 +4566,42 @@ fn failed_jobs(
     put_receipt(d, env, key.clone(), receipt, out);
     finish_flight(d, &key, out);
     collect(d, env, owner, p, out);
+}
+
+pub(super) fn receipt_jobs(run_jobs: &[api::RunJob]) -> Box<[ReceiptJob]> {
+    let mut jobs = List::with_capacity(16);
+    for job in run_jobs {
+        if job.conclusion == Some(api::Conclusion::Failure) {
+            let name = job.name.get(..job.name.len().min(256)).expect("bounded name").into();
+            if jobs.push(ReceiptJob { job: job.id, attempt: job.attempt, name }).is_err() {
+                break;
+            }
+        }
+    }
+    jobs.into_boxed()
+}
+
+fn failed_run_base(d: &Domain, row: &LandingRow, key: &ReceiptKey, run: &api::Run) -> Option<api::Commit> {
+    let mut base = None;
+    if let Some(flight) = d.landing.flights.get(key) {
+        base = input_commit(&flight.inputs, b"temper_base");
+        for entry in &row.entries {
+            if entry.entry == flight.entry {
+                base = entry.base.or(base);
+            }
+        }
+    }
+    if base.is_none() {
+        for member in &row.landing.members {
+            if member.candidate == Some(run.commit) {
+                base = member.base;
+            }
+        }
+    }
+    if base.is_none() {
+        base = row.landing.members.first().expect("round member").base;
+    }
+    base
 }
 
 fn failed_candidate(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> api::Commit {

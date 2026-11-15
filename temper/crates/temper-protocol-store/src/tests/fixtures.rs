@@ -1134,6 +1134,8 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
+            base: None,
+            jobs: Box::new([]),
             logs: Box::new([b'l'; 8192]),
             passed: false,
             failures: Some(failures.clone()),

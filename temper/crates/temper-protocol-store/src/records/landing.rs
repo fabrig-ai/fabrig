@@ -537,9 +537,20 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
         w::ReceiptRunParts { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() },
     )
     .expect(FITS);
+    let mut jobs = List::with_capacity(16);
+    for job in &receipt.jobs {
+        let job = w::ReceiptJob::new(
+            &w::CEILINGS,
+            w::ReceiptJobParts { job: job.job, attempt: job.attempt, name: job.name.clone() },
+        )
+        .expect(FITS);
+        jobs.push(job).expect(FITS);
+    }
     w::Receipt::new(
         &w::CEILINGS,
         w::ReceiptParts {
+            base: receipt.base,
+            jobs,
             failures: match &receipt.failures {
                 Some(f) => Some(super::verification::encode_failures(f)),
                 None => None,
@@ -567,9 +578,16 @@ pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::U
     })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
-    let w::ReceiptParts { failures, passed, run, candidate, ended, logs } = receipt.into_parts();
+    let w::ReceiptParts { base, jobs, failures, passed, run, candidate, ended, logs } = receipt.into_parts();
     let w::ReceiptRunParts { id, number, url } = run.into_parts();
+    let mut kept = List::with_capacity(16);
+    for job in jobs.into_boxed() {
+        let w::ReceiptJobParts { job, attempt, name } = job.into_parts();
+        kept.push(top::ReceiptJob { job, attempt, name }).expect(FITS);
+    }
     Ok(top::Receipt {
+        base,
+        jobs: kept.into_boxed(),
         logs,
         failures: match failures {
             Some(f) => Some(super::verification::decode_failures(f)?),

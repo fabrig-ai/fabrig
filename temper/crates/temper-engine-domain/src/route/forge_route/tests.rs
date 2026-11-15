@@ -2184,10 +2184,20 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let reason = b"Repair the failed landing gate. The landing's gates passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
     let list = b" Changes landing below it: 2341 (#7), 2342 (#8).";
     let ci = b" The CI section gives its run, base and failed jobs.";
-    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION]);
-    assert_eq!(super::repair_words(&row, why, &[], 1024).unwrap(), expected);
+    let failure = repair_failure(red, Some(green));
+    let lines = concat(&[
+        b"\nGate run: 4211 at ",
+        &commit_text(&red),
+        b", base ",
+        &commit_text(&green),
+        b": https://forge.example/o/r/actions/runs/998\nFailed job: gate: read_job head=",
+        &commit_text(&red),
+        b" run=4211 job=9001 attempt=1",
+    ]);
+    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION, &lines]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), expected);
     let bound = u32::try_from(expected.len() - 6).unwrap();
-    let cut = super::repair_words(&row, why, &[], bound).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
     assert!(cut.starts_with(opening));
     assert!(cut.starts_with(&concat(&[opening.as_slice(), reason, b" Changes landing below it: 2341 (#7)"])));
     let mut last_kept = false;
@@ -2195,15 +2205,74 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
         last_kept |= part == b"2342 (#8)";
     }
     assert!(!last_kept);
-    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION])));
+    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION, &lines])));
     assert!(cut.len() <= usize::try_from(bound).unwrap());
     let base = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes: [None; 4] }) };
     assert_eq!(
-        super::repair_words(&row, base, &[], 1024).unwrap(),
-        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION])
+        super::repair_words(&row, base, Some(&failure), &[], 4096).unwrap(),
+        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION, &lines])
     );
     let candidate = Repair::LandingAt { gate: 1, candidate: red, below: None };
-    assert_eq!(super::repair_words(&row, candidate, &[], 1024).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION]));
+    assert_eq!(super::repair_words(&row, candidate, Some(&failure), &[], 4096).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION, &lines]));
+}
+
+fn repair_failure(prefix: [u8; 32], base: Option<[u8; 32]>) -> super::forge::LandingFailure {
+    super::forge::LandingFailure {
+        gate: b"gate".as_slice().into(),
+        run: super::forge::ReceiptRun {
+            id: 4211,
+            number: 998,
+            url: b"https://forge.example/o/r/actions/runs/998".as_slice().into(),
+        },
+        prefix,
+        base,
+        jobs: Box::new([super::forge::ReceiptJob { job: 9001, attempt: 1, name: b"gate".as_slice().into() }]),
+    }
+}
+
+#[test]
+fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
+    use super::forge_change::Repair;
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.jobs = Box::new([
+        failure.jobs[0].clone(),
+        super::forge::ReceiptJob { job: 9002, attempt: 3, name: b"lint".as_slice().into() },
+    ]);
+    let prefix = commit_text(&SHA1);
+    let gate = skein_lib::bytes::concat(&[
+        b"\nGate run: 4211 at ",
+        &prefix,
+        b", base unknown: https://forge.example/o/r/actions/runs/998",
+    ]);
+    let job =
+        skein_lib::bytes::concat(&[b"\nFailed job: gate: read_job head=", &prefix, b" run=4211 job=9001 attempt=1"]);
+    let lint =
+        skein_lib::bytes::concat(&[b"\nFailed job: lint: read_job head=", &prefix, b" run=4211 job=9002 attempt=3"]);
+    let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
+    let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
+    let full = skein_lib::bytes::concat(&[&required, &gate, &job, &lint]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
+    for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
+        let expected = skein_lib::bytes::concat(&[
+            &required,
+            &gate,
+            kept,
+            b"\n[",
+            skein_lib::Decimal::of(omitted).as_bytes(),
+            b" more failed tests and jobs: read_checks names them]",
+        ]);
+        let bound = u32::try_from(expected.len()).unwrap();
+        assert_eq!(super::repair_words(&row, why, Some(&failure), &[], bound).unwrap(), expected);
+    }
+    for why in [why, Repair::Landing { gate: 1 }] {
+        assert_eq!(
+            super::repair_words(&row, why, None, &[], 4096).unwrap(),
+            skein_lib::bytes::concat(&[&required, b"\nGate run: the landing no longer keeps its failure"])
+        );
+    }
 }
 
 fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
@@ -2217,15 +2286,15 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = Box::from(b"/ check (pull_request), / changes (pull_request)".as_slice());
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert_repair_instruction(&words, b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
     // A client cuts contexts, keeping the complete opening and pinned head.
     row.result.failed.bytes = Box::from([b'x'; 200]);
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));
     for why in [super::forge_change::Repair::Ci, super::forge_change::Repair::Semantic] {
-        assert!(super::repair_words(&row, why, &[], 64).is_none());
+        assert!(super::repair_words(&row, why, None, &[], 64).is_none());
     }
 }
 
@@ -2239,10 +2308,10 @@ fn a_ci_repair_with_no_failed_check_known_says_so() {
             row.change.last_head = Some(SHA1);
             row.result.head = observed;
             row.result.failed.bytes = failed.into();
-            let words = super::repair_words(&row, why, &[], 512).unwrap();
+            let words = super::repair_words(&row, why, None, &[], 512).unwrap();
             assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
             for bound in 0..512 {
-                if let Some(words) = super::repair_words(&row, why, &[], bound) {
+                if let Some(words) = super::repair_words(&row, why, None, &[], bound) {
                     assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
                 }
             }
@@ -2307,7 +2376,7 @@ fn a_clean_updates_red_opens_with_its_head_and_failed_check() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = b"build".as_slice().into();
-    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, None, &[], 512).unwrap();
     assert_repair_instruction(
         &words,
         b"Repair CI at abcdef012345: build\nCI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
@@ -2326,9 +2395,9 @@ fn a_persons_request_repair_words_open_with_its_head() {
     );
     let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
     let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len()).unwrap();
-    let words = super::repair_words(&row, why, &parameters, bound).unwrap();
+    let words = super::repair_words(&row, why, None, &parameters, bound).unwrap();
     assert_eq!(words.as_ref(), skein_lib::bytes::concat(&[expected.as_bytes(), super::REPAIR_PRESERVATION]).as_ref());
-    assert!(super::repair_words(&row, why, &parameters, 64).is_none());
+    assert!(super::repair_words(&row, why, None, &parameters, 64).is_none());
 }
 
 #[test]
@@ -2354,10 +2423,13 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
             Box::new([Gate { number: 7, kind, blocking: true, freshness: Freshness::Exact, eager: false }]);
         let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
         let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len() + 1).unwrap();
-        assert_repair_instruction(&super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap(), expected);
-        assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
+        assert_repair_instruction(
+            &super::repair_words(&row, Repair::Gate(7), None, &parameters, bound).unwrap(),
+            expected,
+        );
+        assert!(super::repair_words(&row, Repair::Gate(7), None, &parameters, 64).is_none());
     }
-    assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
+    assert!(super::repair_words(&row, Repair::Gate(8), None, &[], 512).is_none(), "an unknown gate cannot be named");
 }
 
 fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {

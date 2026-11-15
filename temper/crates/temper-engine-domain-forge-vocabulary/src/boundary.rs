@@ -1460,6 +1460,8 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    pub base: Option<skein_forge::api::Commit>,
+    pub jobs: Box<[ReceiptJob]>,
     /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
     pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
@@ -1467,6 +1469,22 @@ pub struct Receipt {
     pub run: ReceiptRun,
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
+}
+/// A failed gate job, retained for `read_job` (domain/landing.md, 6.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ReceiptJob {
+    pub job: u64,
+    pub attempt: u32,
+    pub name: Box<[u8]>,
+}
+/// The pinned failure used by a landing repair (domain/forge/change/repairs.md).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingFailure {
+    pub gate: Box<[u8]>,
+    pub run: ReceiptRun,
+    pub prefix: skein_forge::api::Commit,
+    pub base: Option<skein_forge::api::Commit>,
+    pub jobs: Box<[ReceiptJob]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptRun {

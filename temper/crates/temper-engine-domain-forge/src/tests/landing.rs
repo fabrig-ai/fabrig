@@ -2233,3 +2233,35 @@ fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
     assert_eq!((receipt.candidate, receipt.run.id), (fixtures::HEAD, run.id));
     assert!(!d.landing.flights.contains_key(&key));
 }
+
+#[test]
+fn failed_receipt_jobs_keep_ids_attempts_and_bounded_names_in_run_order() {
+    use skein_forge::api::{Conclusion, RunJob, RunState};
+    let mut jobs = vec![RunJob {
+        id: 1,
+        attempt: 1,
+        name: b"passed".as_slice().into(),
+        state: RunState::Completed,
+        conclusion: Some(Conclusion::Success),
+        steps: 1,
+        step: None,
+    }];
+    for id in 2..20 {
+        jobs.push(RunJob {
+            id,
+            attempt: u32::try_from(id + 1).unwrap(),
+            name: vec![b'x'; 257].into_boxed_slice(),
+            state: RunState::Completed,
+            conclusion: Some(Conclusion::Failure),
+            steps: 1,
+            step: None,
+        });
+    }
+    let kept = landing::receipt_jobs(&jobs);
+    assert_eq!(kept.len(), 16);
+    for (index, job) in kept.iter().enumerate() {
+        assert_eq!(job.job, u64::try_from(index).unwrap() + 2);
+        assert_eq!(job.attempt, u32::try_from(index).unwrap() + 3);
+        assert_eq!(job.name.as_ref(), &[b'x'; 256]);
+    }
+}

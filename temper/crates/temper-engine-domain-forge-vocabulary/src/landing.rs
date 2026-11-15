@@ -69,8 +69,18 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
     let mut held = skein_lib::len_u64(name.len())
         .checked_add(skein_lib::len_u64(receipt.run.url.len()))?
         .checked_add(skein_lib::len_u64(receipt.logs.len()))?;
+    held = held.checked_add(receipt_job_bytes(receipt)?)?;
     if let Some(failures) = &receipt.failures {
         held = held.checked_add(crate::tiers::failures_bytes(failures)?)?;
     }
     Some(held)
+}
+
+pub(crate) fn receipt_job_bytes(receipt: &Receipt) -> Option<u64> {
+    let mut bytes =
+        skein_lib::len_u64(receipt.jobs.len()).checked_mul(u64::try_from(size_of::<crate::ReceiptJob>()).ok()?)?;
+    for job in &receipt.jobs {
+        bytes = bytes.checked_add(skein_lib::len_u64(job.name.len()))?;
+    }
+    Some(bytes)
 }

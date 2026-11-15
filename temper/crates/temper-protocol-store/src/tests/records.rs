@@ -1509,6 +1509,12 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
         forge::Check::Tier(Box::from([0; 32])),
     ] {
         for passed in [false, true] {
+            let mut jobs = skein_lib::List::with_capacity(16);
+            if !passed {
+                for job in 0..16 {
+                    jobs.push(forge::ReceiptJob { job, attempt: u32::MAX, name: Box::new([b'n'; 256]) }).unwrap();
+                }
+            }
             let row = forge::Stored::Receipt {
                 key: forge::ReceiptKey {
                     project: 5,
@@ -1517,6 +1523,8 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
+                    base: if passed { None } else { Some([0xbb; 32]) },
+                    jobs: jobs.into_boxed(),
                     logs: Box::new([]),
                     failures: None,
                     passed,
@@ -2514,6 +2522,8 @@ fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
             key: [3; 32],
         },
         receipt: forge::Receipt {
+            base: None,
+            jobs: Box::new([]),
             failures: None,
             passed: false,
             candidate: [4; 32],

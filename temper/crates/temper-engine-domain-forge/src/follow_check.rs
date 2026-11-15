@@ -417,6 +417,8 @@ fn finish(
 ) {
     let run = follow.run.as_ref().expect("terminal dispatched run");
     let receipt = Receipt {
+        base: None,
+        jobs: Box::new([]),
         passed: failures.is_none(),
         failures,
         run: ReceiptRun { id: run.id, number: run.number, url: run.url.clone() },

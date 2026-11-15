@@ -330,7 +330,8 @@ enum TierBranch { absent, pending: TierBranchEntry, made }
 enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
-record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 logs: bytes 8192 }
+record ReceiptJob { job: u64 attempt: u32 name: bytes 256 }
+record Receipt { base: option fixed 32 = none jobs: list 16 ReceiptJob = [] failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 logs: bytes 8192 }
 record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
 record TierHold { party: u64 at: u64 reason: bytes 1024 }
 record TierPostedTests { tests: list 1024 u16 }

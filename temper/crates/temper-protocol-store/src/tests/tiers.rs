@@ -77,7 +77,7 @@ fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
 
 #[test]
 fn v24_rows_start_with_no_posting() {
-    use super::catch_up::patched;
+    use super::catch_up::{current_layout, patched};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for run in [false, true] {
         let mut row = fixtures::tier_row();
@@ -92,7 +92,7 @@ fn v24_rows_start_with_no_posting() {
             row.record.run = None;
             row.probe = None;
         }
-        let bytes = patched(24, 13, b"Row", before_controls(&row, 24));
+        let bytes = current_layout(b"Row", patched(24, 13, b"Row", before_controls(&row, 24)));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.posting.is_none());
         assert_eq!(decoded, row);
@@ -163,6 +163,28 @@ fn before_controls(row: &d::TierRow, version: u8) -> Box<[u8]> {
     use crate::patches::kept::temper_store::p0014::new as fields;
     let schema = kept_schema(25);
     let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let mut text = None;
+    for family in crate::PATCH_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let current = skein_codec::schema::parse(text.expect("application family").as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &current,
+        current.root(b"TierRow", None).unwrap(),
+        &[],
+        &schema,
+        schema.root(b"TierRow", None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut kept = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    // Row's version and Value's tier tag precede its held TierRow.
+    plan.convert(&bytes[3..], &mut kept, &mut work).unwrap();
+    let bytes = skein_lib::bytes::concat(&[&bytes[..3], kept.as_slice()]);
     let (value, root) = kept_value(&schema, b"Row", bytes);
     let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
     let mut omitted = skein_lib::List::with_capacity(5);
@@ -195,7 +217,7 @@ fn before_controls(row: &d::TierRow, version: u8) -> Box<[u8]> {
 
 #[test]
 fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
-    use super::catch_up::patched;
+    use super::catch_up::{current_layout, patched};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for part in 0_u8..6 {
         let mut row = fixtures::tier_row();
@@ -224,7 +246,7 @@ fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
         // An old row cannot carry a person's hold, even when all its other fields are present.
         row.hold = None;
         let before = before_controls(&row, 23);
-        let bytes = patched(24, 13, b"Row", patched(23, 12, b"Row", before));
+        let bytes = current_layout(b"Row", patched(24, 13, b"Row", patched(23, 12, b"Row", before)));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.hold.is_none(), "v23 has no person's hold");
         if part >= 3 {
@@ -308,6 +330,8 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
                         key: [3; 32],
                     },
                     receipt: d::Receipt {
+                        base: None,
+                        jobs: Box::new([]),
                         logs: Box::new([]),
                         failures: value,
                         passed: false,
@@ -393,7 +417,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_221);
+    assert_eq!(empty_goals.len(), 120_226);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
@@ -401,13 +425,20 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
         at: skein_lib::Wall::from_nanos(u64::MAX),
         reason: Box::new([b'r'; 1024]),
     });
+    let result = full.result.as_mut().unwrap();
+    result.base = Some([0xbb; 32]);
+    let mut jobs = skein_lib::List::with_capacity(16);
+    for job in 0..16 {
+        jobs.push(d::ReceiptJob { job, attempt: u32::MAX, name: Box::new([b'n'; 256]) }).unwrap();
+    }
+    result.jobs = jobs.into_boxed();
     full.posting = Some(Box::new(fixtures::tier_posting(&full.record.failing)));
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 193_655);
+    assert_eq!(row.len(), 198_044);
 }
 
 #[test]
