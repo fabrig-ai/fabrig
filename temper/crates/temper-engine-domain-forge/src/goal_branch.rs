@@ -230,6 +230,12 @@ fn read_result(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
+    if !d
+        .repositories
+        .contains_key(&skein_forge::api::Repository { forge: pending.name.forge, repository: pending.name.repository })
+    {
+        return;
+    }
     match result {
         Ok(Answer::Commit(commit)) if pending.default => make(d, env, owner, pending, commit, out),
         Ok(Answer::Commit(commit)) => {
@@ -693,4 +699,16 @@ pub(super) fn read_waiting(d: &Domain) -> bool {
         }
     }
     false
+}
+
+pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
+    let mut keys = List::with_capacity(d.makings.len());
+    for (key, row) in &d.makings {
+        if super::release::owns(&row.name, repository) {
+            keys.push(*key).expect("bounded makings");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.makings.remove(&key).expect("collected makings");
+    }
 }

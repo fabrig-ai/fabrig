@@ -250,7 +250,7 @@ fn taking_a_missing_goal_branch_makes_it_at_the_default_branchs_tip() {
 fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
     for (case, count, number, access, branch, reason) in [
         ("full", LIMITS.entries, 5, Some(Role::Owned), true, None),
-        ("not adopted", LIMITS.entries, TAKING, None, true, Some(b"the repository is not adopted".as_slice())),
+        ("released before answer", LIMITS.entries, TAKING, None, true, None),
         (
             "read only",
             LIMITS.entries,
@@ -295,6 +295,11 @@ fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
             }
         }
         let requests = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+        if access.is_none() {
+            assert!(requests.is_empty(), "a released repository's answer makes no new work");
+            assert_eq!(d.entries.len(), count);
+            continue;
+        }
         match reason {
             Some(reason) => assert_eq!(
                 requests.as_ref(),

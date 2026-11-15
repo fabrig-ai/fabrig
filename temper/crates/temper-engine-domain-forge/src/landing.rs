@@ -1161,6 +1161,9 @@ fn advance(
     let Some(mut p) = d.landing.pending.remove(&owner) else {
         return;
     };
+    if !d.repositories.contains_key(&p.repository) {
+        return;
+    }
     p.cached = false;
     if d.stopping {
         return;
@@ -4549,4 +4552,121 @@ fn matches_stall(stage: &Stage) -> bool {
         return true;
     }
     false
+}
+
+pub(crate) fn release_repository(
+    d: &mut Domain,
+    repository: api::Repository,
+    out: &mut Queue<Request>,
+    groups: &mut Queue<Box<[Key]>>,
+) {
+    let mut tasks = List::with_capacity(d.landing.rows.len());
+    for (task, row) in &d.landing.rows {
+        for member in &row.landing.members {
+            if member.repository.forge == repository.forge && member.repository.repository == repository.repository {
+                tasks.push(*task).expect("bounded landings");
+                break;
+            }
+        }
+    }
+    for task in &tasks {
+        d.landing.rows.remove(task);
+        d.landing.due.remove(task);
+        groups.push(Box::new([Key::Landing(*task)]));
+        out.push(Request::Marked { tasks: Box::new([*task]) });
+    }
+    let mut keys = List::with_capacity(d.landing.pending.len());
+    for (key, row) in &d.landing.pending {
+        if row.repository == repository || tasks.as_slice().contains(&row.task) {
+            keys.push(*key).expect("bounded landing.pending");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.pending.remove(&key).expect("collected landing.pending");
+    }
+    let mut keys = List::with_capacity(d.landing.keys.len());
+    for (key, _row) in &d.landing.keys {
+        if tasks.as_slice().contains(&key.0) {
+            keys.push(*key).expect("bounded landing.keys");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.keys.remove(&key).expect("collected landing.keys");
+    }
+    let mut keys = List::with_capacity(d.landing.results.len());
+    for (key, _row) in &d.landing.results {
+        if tasks.as_slice().contains(&key.0) {
+            keys.push(*key).expect("bounded landing.results");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.results.remove(&key).expect("collected landing.results");
+    }
+    let mut keys = List::with_capacity(d.landing.faults.len());
+    for (key, _row) in &d.landing.faults {
+        if tasks.as_slice().contains(&key.0) {
+            keys.push(*key).expect("bounded landing.faults");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.faults.remove(&key).expect("collected landing.faults");
+    }
+    let mut keys = List::with_capacity(d.landing.main_keys.len());
+    for (key, _row) in &d.landing.main_keys {
+        if key.0 == repository {
+            keys.push(key.clone()).expect("bounded landing.main_keys");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.main_keys.remove(&key).expect("collected landing.main_keys");
+    }
+    let mut keys = List::with_capacity(d.landing.flights.len());
+    for (key, _row) in &d.landing.flights {
+        if key.repository == repository {
+            keys.push(key.clone()).expect("bounded landing.flights");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.flights.remove(&key).expect("collected landing.flights");
+    }
+    let mut projects = List::with_capacity(d.landing.projects.len());
+    for (project, (_, repositories, _, _, _, _, _)) in &d.landing.projects {
+        let mut kept = List::with_capacity(u32::try_from(repositories.len()).expect("bounded gate repositories"));
+        for row in repositories {
+            if row.repository != repository {
+                kept.push(row.clone()).expect("fewer gate repositories");
+            }
+        }
+        projects.push((*project, kept.into_boxed())).expect("bounded landing projects");
+    }
+    for (project, repositories) in projects.into_boxed() {
+        d.landing.projects.get_mut(&project).expect("retained project").1 = repositories;
+    }
+}
+
+pub(crate) fn erase_project_receipts(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut keys = List::with_capacity(d.landing.receipts.len());
+    for (key, _) in &d.landing.receipts {
+        if key.project == project {
+            keys.push(key.clone()).expect("bounded receipts");
+        }
+    }
+    for key in keys.into_boxed() {
+        d.landing.receipts.remove(&key);
+        d.landing.flights.remove(&key);
+        out.push(Request::Erase { key: Key::Receipt(key) });
+    }
+}
+
+pub(crate) fn erase_repository_receipts(d: &mut Domain, repository: api::Repository, groups: &mut Queue<Box<[Key]>>) {
+    let mut keys = List::with_capacity(d.landing.receipts.len());
+    for (key, _row) in &d.landing.receipts {
+        if key.repository == repository {
+            keys.push(key.clone()).expect("bounded landing.receipts");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.landing.receipts.remove(&key).expect("collected landing.receipts");
+        groups.push(Box::new([Key::Receipt(key)]));
+    }
 }

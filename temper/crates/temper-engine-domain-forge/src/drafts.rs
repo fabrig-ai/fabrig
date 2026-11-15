@@ -254,6 +254,7 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
     }
 }
 pub(crate) fn erase_repository(d: &mut Domain, repository: api::Repository, out: &mut Queue<Request>) {
+    retire_reads(d, repository);
     let Some(tables) = &d.drafts else { return };
     let mut rows = List::with_capacity(tables.rows.len());
     for (_, row) in &tables.rows {
@@ -286,5 +287,18 @@ impl Domain {
             rows.push(row.clone()).expect("project draft bound");
         }
         DraftsView { project, rows: rows.into_boxed() }
+    }
+}
+
+fn retire_reads(d: &mut Domain, repository: api::Repository) {
+    let Some(tables) = &mut d.drafts else { return };
+    let mut keys = List::with_capacity(tables.reads.len());
+    for (key, row) in &tables.reads {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = tables.reads.remove(&key).expect("collected reads");
     }
 }

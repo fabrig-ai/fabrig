@@ -156,6 +156,10 @@ pub(super) fn answered(
         }
     }
     let Some(task) = task else { return };
+    let Some(row) = d.changes.get(&task) else { return };
+    if !d.repositories.contains_key(&row.repository) {
+        return;
+    }
     if let Some(row) = d.changes.get(&task)
         && row.frozen()
     {
@@ -239,5 +243,29 @@ pub(super) fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
         if !observe(d, env, &resource, &movement, out) {
             drift(d, env, resource, movement, out);
         }
+    }
+}
+
+pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
+    let mut keys = List::with_capacity(d.rebases.len());
+    for (key, row) in &d.rebases {
+        if row.resource.repository == repository {
+            keys.push(*key).expect("bounded rebases");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.rebases.remove(&key).expect("collected rebases");
+    }
+    let mut keys = List::with_capacity(d.rebase_hints.len());
+    for (key, _row) in &d.rebase_hints {
+        if match d.changes.get(key) {
+            Some(change) => change.repository == repository,
+            None => false,
+        } {
+            keys.push(*key).expect("bounded rebase_hints");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.rebase_hints.remove(&key).expect("collected rebase_hints");
     }
 }
