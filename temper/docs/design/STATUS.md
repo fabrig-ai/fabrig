@@ -113,7 +113,8 @@ merge train with a branch per member, proved once at the top, and
 landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
-next round (`domain/landing-search.md`). Its process stories and
+next round, each probe's gates given `temper_probe` so that they may
+stop at their first red (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
 
 The landing history's milestone H1, goal 2474, keeps each change's and
