@@ -292,6 +292,19 @@ impl Trains {
                 for (number, index) in selection.take.iter().enumerate() {
                     for change in &units[*index as usize].changes {
                         let mut member = landing_row(world.change(*change)).landing.members[0].clone();
+                        if world.change(*change).base.as_ref() == b"main" {
+                            let count =
+                                world.top.repository_gates(PROJECT, repository).expect("train gates").gates.len();
+                            member.gates = vec![
+                                landing::GateProof {
+                                    proof: landing::Proof::Unkeyed,
+                                    posted: landing::Posted::Nothing,
+                                    faults: 0
+                                };
+                                count
+                            ]
+                            .into();
+                        }
                         member.unit = u16::try_from(number).expect("unit count");
                         member.branch = if members.is_empty() {
                             row.landing.round.branch.clone()

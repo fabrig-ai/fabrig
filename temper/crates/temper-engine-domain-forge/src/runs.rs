@@ -42,6 +42,20 @@ pub(crate) fn busy(
     false
 }
 
+/// The shared LF-terminated selection encoding (domain/landing-search-by-test.md, 3).
+pub(crate) fn tests_input(tests: &[Box<[u8]>]) -> api::Input {
+    let mut length = 0_usize;
+    for test in tests {
+        length = length.checked_add(test.len()).expect("bounded ids").checked_add(1).expect("newline");
+    }
+    let mut value = skein_lib::Writer::new(length);
+    for test in tests {
+        value.put(test).expect("measured ids");
+        value.put(b"\n").expect("newline per id");
+    }
+    api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() }
+}
+
 /// One caller-owned dispatch and its current run. The caller persists its outbox entry.
 #[derive(Clone, Hash, Debug)]
 pub struct Follow {
