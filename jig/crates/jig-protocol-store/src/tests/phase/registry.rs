@@ -577,6 +577,7 @@ fn a_log_held_layout_without_map_values_survives_a_writing_open() {
         events.iter().any(|event| if let Event::Opened { pending: true, .. } = event { true } else { false }),
         "{events:?}"
     );
+    store.registry.assert_settled();
     assert!(fixtures::get_kv(&mut store, &history_layout_key()).is_some());
     assert!(text(&mut store, hash(KEPT)).is_some());
 }

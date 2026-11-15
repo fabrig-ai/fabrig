@@ -39,7 +39,12 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
                     ));
                 }
             }
-            Request::Write(Write::Erase(_) | Write::CopySettingsRevision(_) | Write::DropTranscript { .. })
+            Request::Write(
+                Write::Erase(_)
+                | Write::CopySettingsRevision(_)
+                | Write::DropHistory { .. }
+                | Write::DropTranscript { .. },
+            )
             | Request::Ask { .. }
             | Request::Held(_)
             | Request::ProjectMade { .. } => {}

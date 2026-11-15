@@ -374,7 +374,8 @@ impl Decision {
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
             }
-            Write::DropTranscript { .. }
+            Write::DropHistory { .. }
+            | Write::DropTranscript { .. }
             | Write::Wires
             | Write::Opening(_)
             | Write::Erase(

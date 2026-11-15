@@ -312,7 +312,7 @@ impl Store {
                     self.lengths.remove(task);
                     super::restart::apply(&mut self.rows, write);
                 }
-                root::Write::Opening(_) | root::Write::Wires => {}
+                root::Write::DropHistory { .. } | root::Write::Opening(_) | root::Write::Wires => {}
                 root::Write::CopySettingsRevision(_) => super::restart::apply(&mut self.rows, write),
                 root::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());
@@ -445,6 +445,8 @@ impl Store {
                 skein_kv::Op::Erase { key } => {
                     if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
+                    } else if let Some(keys::Own::History { task }) = keys::decode_own(key) {
+                        writes.push(root::Write::DropHistory { task });
                     } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
