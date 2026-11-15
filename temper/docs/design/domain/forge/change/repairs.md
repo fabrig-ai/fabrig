@@ -85,8 +85,13 @@
   (`test <binary_id> <name>`) and PROFILE `focused` or `fuzzy`, or
   `Failed tests: more than N` past the report's bound; then `Failed job:
   NAME: read_job head=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
-  failed job the receipt keeps (`../../landing.md`, 6.2). A gate that
-  reports no tests gives the jobs alone. Where the landing keeps no
+  failed job the receipt keeps (`../../landing.md`, 6.2). KEY is `test
+  CLASS NAME` for a JUnit case, or a `lines` report's line as written;
+  PROFILE `fuzzy` where the name (the case's, or the line's last word)
+  starts with the report's `fuzzy` prefix, else `focused`. A gate that
+  names no report, or whose run's report could not be read, gives
+  `Failed tests: not known (the gate names no report)`, or `(its report
+  could not be read)`, and the jobs alone. Where the landing keeps no
   failure, one line: `Gate run: the landing no longer keeps its failure`.
   These lines are required: their room is taken before an optional
   part's, the changes below a blamed unit, which is cut first; where the

@@ -614,7 +614,10 @@ The default, for a project with no prepare command:
 
 - **A run whose workflow's own step failed** makes a failed receipt,
   read with each failed job's failed step and the end of its log
-  (skein's `Read::Job`) as the landing makes it.
+  (skein's `Read::Job`) as the landing makes it, and, where its gate
+  names a report (13.1), its failed tests, read as a tier's
+  (`after-landing.md`, 4): a report not read leaves them unknown, never
+  a fault.
 - **A round of one unit:** its changes are repaired
   (`forge/change/repairs.md`), each one's words naming the run, the
   candidate, its base and its failed tests and jobs, its brief those
@@ -888,7 +891,7 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | the members below |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), each proving the trains into its main (7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), and its `report`, if any: an artifact, its format and its fuzzy tests' name prefix (7.3), each proving the trains into its main (7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
 
 Kind 4's members, each with its default and the section it serves:
 
