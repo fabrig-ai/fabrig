@@ -160,6 +160,11 @@ pub fn scheme(environment: &[EnvironmentEntry]) -> Option<Scheme> {
 }
 
 #[must_use]
+pub fn plain(environment: &[EnvironmentEntry]) -> bool {
+    temper_shell::environment::TERM_PROGRAM.value(environment) == Some(b"Apple_Terminal".as_slice())
+}
+
+#[must_use]
 pub fn depth(environment: &[EnvironmentEntry]) -> Depth {
     match temper_shell::environment::COLORTERM.value(environment) {
         Some(b"truecolor" | b"24bit") => Depth::True,
@@ -173,12 +178,19 @@ pub fn terminal_refusal(name: &str, given: bool) -> String {
 }
 
 #[must_use]
-pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry], working: &[u8], clock: &Clock) -> u8 {
+pub fn run(
+    name: &str,
+    argument: Option<&[u8]>,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    version: &[u8],
+    clock: &Clock,
+) -> u8 {
     if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
         eprint!("{}", terminal_refusal(name, argument.is_some()));
         return 1;
     }
-    match start(argument, environment, working, clock, None) {
+    match start(argument, environment, working, version, clock, None) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line(name));
@@ -201,6 +213,9 @@ impl BoxStart {
             .map_err(|number| Refused::Directory(format!("cannot open working directory: errno {number}")))?;
         Ok(Front {
             executable: self.executable,
+            set_up: box_set_up(&self.directories.config, &|directory| {
+                std::fs::read_dir(directory).map(|mut entries| entries.next().is_some())
+            }),
             directories: self.directories,
             arguments: self.arguments,
             directory,
@@ -218,6 +233,18 @@ impl BoxStart {
     }
 }
 
+/// The one directory read beside the captured environment, before the fetch.
+fn box_set_up(config: &[u8], read: &dyn Fn(&Path) -> std::io::Result<bool>) -> bool {
+    match read(path(config)) {
+        Ok(has_entry) => has_entry,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
+fn box_log(data: &[u8]) -> Box<[u8]> {
+    path(data).join("box/logs/box.log").as_os_str().as_bytes().into()
+}
+
 /// `temper box`'s terminal case; its arguments remain the box's to read.
 #[must_use]
 pub fn run_box(
@@ -226,6 +253,7 @@ pub fn run_box(
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
+    version: &[u8],
     clock: &Clock,
 ) -> u8 {
     let front = BoxStart {
@@ -237,9 +265,9 @@ pub fn run_box(
             temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
             cfg!(target_os = "linux"),
         ),
-        log: path(&directories.data).join("box/logs/box.log").as_os_str().as_bytes().into(),
+        log: box_log(&directories.data),
     };
-    match start(None, environment, working, clock, Some(front)) {
+    match start(None, environment, working, version, clock, Some(front)) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line("temper"));
@@ -253,6 +281,7 @@ fn start(
     argument: Option<&[u8]>,
     environment: &[EnvironmentEntry],
     working: &[u8],
+    version: &[u8],
     clock: &Clock,
     front: Option<BoxStart>,
 ) -> Result<u8, Refused> {
@@ -313,6 +342,8 @@ fn start(
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
             scheme,
+            plain: plain(environment),
+            version: version.into(),
             boxed,
             link_file: link_file.map(|path| path.as_os_str().as_bytes().into()),
             note,

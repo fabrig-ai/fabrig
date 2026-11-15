@@ -6,6 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
+use temper_forge_setup::machine::BoxKind;
 
 /// A line's most bytes, its line feed among them (protocol/setup/box.md, 6).
 pub const LINE_BYTES: usize = 8192;
@@ -20,9 +21,12 @@ pub enum Line {
     Restarting { step: Box<[u8]> },
     Running { step: Box<[u8]> },
     GaveUp { step: Box<[u8]> },
+    Starting { name: Box<[u8]> },
+    Started { name: Box<[u8]> },
+    Dormant { name: Box<[u8]> },
 }
 impl Line {
-    /// `link`, `log`, `restarting`, `running` or `gave-up`.
+    /// The line's protocol word.
     #[must_use]
     pub fn word(&self) -> &'static [u8] {
         match self {
@@ -31,6 +35,9 @@ impl Line {
             Self::Restarting { .. } => b"restarting",
             Self::Running { .. } => b"running",
             Self::GaveUp { .. } => b"gave-up",
+            Self::Starting { .. } => b"starting",
+            Self::Started { .. } => b"started",
+            Self::Dormant { .. } => b"dormant",
         }
     }
     /// The word, a space, the field cut to fit at a UTF-8 boundary, and a line feed.
@@ -40,6 +47,7 @@ impl Line {
             Self::Link { url } => url,
             Self::Log { text } => text,
             Self::Restarting { step } | Self::Running { step } | Self::GaveUp { step } => step,
+            Self::Starting { name } | Self::Started { name } | Self::Dormant { name } => name,
         };
         let word = self.word();
         let room = LINE_BYTES.checked_sub(word.len()).expect("word fits").checked_sub(2).expect("space and LF fit");
@@ -62,8 +70,31 @@ impl core::fmt::Debug for Line {
             Self::Restarting { step } => formatter.debug_struct("Restarting").field("step", step).finish(),
             Self::Running { step } => formatter.debug_struct("Running").field("step", step).finish(),
             Self::GaveUp { step } => formatter.debug_struct("GaveUp").field("step", step).finish(),
+            Self::Starting { name } => formatter.debug_struct("Starting").field("name", name).finish(),
+            Self::Started { name } => formatter.debug_struct("Started").field("name", name).finish(),
+            Self::Dormant { name } => formatter.debug_struct("Dormant").field("name", name).finish(),
         }
     }
+}
+
+/// The group's kind's name, never its label (protocol/setup/box.md, 6).
+#[must_use]
+pub fn name(kind: BoxKind) -> &'static [u8] {
+    match kind {
+        BoxKind::Owned => b"Forgejo",
+        BoxKind::Fake => b"Playground",
+    }
+}
+
+fn group_name(steps: &[Placed], forge: u16) -> Option<Box<[u8]>> {
+    for placed in steps {
+        if let Some(asked) = placed.asked
+            && asked.forge == forge
+        {
+            return Some(bytes::copy_of(name(asked.kind?)));
+        }
+    }
+    None
 }
 
 /// Each nonempty line of whole timed lines, as `Formatter::notice` and
@@ -96,13 +127,12 @@ pub fn state(fact: Fact, steps: &[Placed]) -> Option<Line> {
         Fact::GivingUp { step, .. } => {
             Some(Line::GaveUp { step: bytes::copy_of(steps.get(step).expect("step fact").step.name()) })
         }
-        Fact::Starting { .. }
-        | Fact::GroupStarting { .. }
-        | Fact::GroupStarted { .. }
-        | Fact::GroupFailed { .. }
-        | Fact::GroupStopped { .. }
-        | Fact::Stopping
-        | Fact::Stopped => None,
+        Fact::GroupStarting { forge } => Some(Line::Starting { name: group_name(steps, forge)? }),
+        Fact::GroupStarted { forge } => Some(Line::Started { name: group_name(steps, forge)? }),
+        Fact::GroupFailed { forge, .. } | Fact::GroupStopped { forge } => {
+            Some(Line::Dormant { name: group_name(steps, forge)? })
+        }
+        Fact::Starting { .. } | Fact::Stopping | Fact::Stopped => None,
     }
 }
 /// The first block's lines but its link and its blank lines, for box.log.

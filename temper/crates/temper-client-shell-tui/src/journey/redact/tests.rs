@@ -74,6 +74,24 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
 }
 
 #[test]
+fn the_box_log_path_is_a_redacted_text_field() {
+    let secret = b"private-root".as_slice();
+    let path = b"/private-root/box/logs/box.log".as_slice();
+    let mut line = Line::BoxLog(path.into());
+    let fields = fields_mut(&mut line);
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields.first().expect("path field").0.as_ref(), path);
+    assert_eq!(fields.first().expect("path field").1, Framing::Text);
+    let recording = written(&[Line::Front, Line::SetUp, line]);
+    let redacted = redact(&recording, &[secret.into()]).expect("redact path");
+    assert!(
+        lines(&redacted.recording).expect("redacted lines")
+            == vec![Line::Front, Line::SetUp, Line::BoxLog(b"/xxxxxxxxxxxx/box/logs/box.log".as_slice().into())]
+    );
+    assert!(redacted.places > 0);
+}
+
+#[test]
 fn each_original_is_replaced_and_scanned_in_each_field() {
     let approval = [7; 32];
     let credential = credential();
@@ -264,12 +282,16 @@ impl World {
     }
     fn with_front(address: &[u8], front: bool) -> Self {
         let facts = Facts {
+            set_up: false,
+            box_log: Box::default(),
             seed: 7,
             now: Time::ZERO,
             wall: Wall::EPOCH,
             size: Size { rows: 16, columns: 100 },
             scheme: Some(Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: address.into(),
             front,

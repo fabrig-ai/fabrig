@@ -61,6 +61,14 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 - **Absent:** Use the terminal's indexed colours.
 - Terminal true-colour capability.
 
+### `TERM_PROGRAM`
+
+- **Set:** public
+- **Reads**
+- **Form:** NAME
+- **Absent:** Draw the TUI header's mark.
+- Terminal application; Apple_Terminal draws the TUI header without its mark.
+
 ## Internal
 
 ### `TEMPER_INTERNAL_SITE`

@@ -1,6 +1,6 @@
 # forge-connection: status
 
-2026-11-11. Where skein's code lags or departs from [connection.md](connection.md).
+2026-11-15. Where skein's code lags or departs from [connection.md](connection.md).
 
 Unlisted sections have no known gap. Sections 3.5 and 5.2's key checks
 are present: access admission parses without signing, and a key refused

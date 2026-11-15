@@ -314,6 +314,11 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
+    /// A default results host skipped once for this run (protocol/forge/README.md, 2.6).
+    GitHubLogOriginUnresolved {
+        host: Box<[u8]>,
+    },
+    GitHubLogOriginsUnresolved,
     /// An entry newly unable to serve a forge sign-in meta (protocol/openid-provider.md, 7).
     ForgeSignIn {
         number: u16,

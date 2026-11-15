@@ -39,10 +39,14 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
     host.report(Report::Start(Start {
+        set_up: false,
+        box_log: Box::default(),
         front: false,
         size: Size { columns: 80, rows: 24 },
         scheme: Some(Scheme::Dark),
         background,
+        plain: false,
+        version: Box::default(),
         boxed,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: false,
@@ -89,7 +93,60 @@ fn a_box_line_report_is_told_to_the_tui() {
 
     let state = host.state.as_ref().expect("started TUI");
     assert_eq!(state.box_state(), BoxState::Restarting { step });
-    assert_eq!(state.box_log().collect::<Vec<_>>(), vec![line]);
+    assert_eq!(state.box_lines().collect::<Vec<_>>(), vec![line]);
+}
+
+#[test]
+fn a_started_group_is_noticed_for_six_seconds_but_a_dormant_group_is_not() {
+    use temper_client_tui::{BoxLine, BoxState, Notice};
+    for started in [false, true] {
+        let mut host = host();
+        start_local(&mut host, true, true, None, None);
+        host.clocks(Time::from_nanos(10), Wall::EPOCH);
+        host.report(Report::Front(BoxLine::Starting { name: b"Forgejo".as_slice().into() }));
+        host.report(Report::Front(if started {
+            BoxLine::Started { name: b"Forgejo".as_slice().into() }
+        } else {
+            BoxLine::Dormant { name: b"Forgejo".as_slice().into() }
+        }));
+        assert_eq!(host.state().box_state(), BoxState::Running);
+        assert_eq!(host.state().notice(), started.then_some(&Notice::Started { name: b"Forgejo".as_slice().into() }));
+        assert_eq!(host.notice_end, started.then_some(Time::from_nanos(6_000_000_010)));
+        if started {
+            assert_eq!(host.deadline(), host.notice_end);
+            host.clocks(Time::from_nanos(6_000_000_009), Wall::EPOCH);
+            host.report(Report::Due);
+            assert!(host.state().notice().is_some());
+            host.clocks(Time::from_nanos(6_000_000_010), Wall::EPOCH);
+            host.report(Report::Due);
+            assert!(host.state().notice().is_none());
+        }
+    }
+}
+
+#[test]
+fn the_fronts_setup_and_log_path_reach_the_tui() {
+    for front in [false, true] {
+        let mut host = host();
+        host.report(Report::Start(Start {
+            set_up: true,
+            box_log: b"/data/box/logs/box.log".as_slice().into(),
+            plain: false,
+            version: Box::default(),
+            front,
+            size: Size { columns: 80, rows: 24 },
+            scheme: Some(Scheme::Dark),
+            background: None,
+            boxed: front,
+            address: b"127.0.0.1:8367".as_slice().into(),
+            local: front,
+            note: None,
+            kept: Vec::new(),
+            credential: None,
+        }));
+        assert_eq!(host.state().set_up(), front);
+        assert_eq!(host.state().box_log(), if front { b"/data/box/logs/box.log".as_slice() } else { b"" });
+    }
 }
 
 #[test]
@@ -293,10 +350,14 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
     ] {
         let mut host = host();
         let duties = host.report(Report::Start(Start {
+            set_up: false,
+            box_log: Box::default(),
             front: false,
             size: Size { columns: 80, rows: 24 },
             scheme: Some(Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: address.as_bytes().into(),
             local: false,
@@ -820,10 +881,14 @@ fn the_engines_link_signs_in_and_falls_back() {
 
 fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Secret>, note: Option<Note>) -> Duties {
     host.report(Report::Start(Start {
+        set_up: false,
+        box_log: Box::default(),
         front,
         size: Size { columns: 80, rows: 24 },
         scheme: Some(Scheme::Dark),
         background: None,
+        plain: false,
+        version: Box::default(),
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         local,
@@ -1421,10 +1486,14 @@ fn a_kept_theme_starts_the_next_host_in_it() {
         }
         host.start(
             Start {
+                set_up: false,
+                box_log: Box::default(),
                 front: false,
                 size: Size { columns: 80, rows: 24 },
                 scheme,
                 background: None,
+                plain: false,
+                version: Box::default(),
                 boxed: false,
                 address: b"127.0.0.1:8367".as_slice().into(),
                 local: false,
@@ -1626,10 +1695,14 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
 
     let mut restarted = self::host();
     restarted.report(Report::Start(Start {
+        set_up: false,
+        box_log: Box::default(),
         front: true,
         size: Size { columns: 80, rows: 24 },
         scheme: None,
         background: None,
+        plain: false,
+        version: Box::default(),
         boxed: true,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: false,
@@ -1989,6 +2062,67 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
     }
 }
 
+#[test]
+fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
+    for projects in [false, true] {
+        let mut host = host();
+        let start = host.report(Report::Start(Start {
+            set_up: true,
+            box_log: b"/srv/temper/box/logs/box.log".as_slice().into(),
+            front: true,
+            size: Size { columns: 80, rows: 24 },
+            scheme: Some(Scheme::Dark),
+            background: None,
+            plain: false,
+            version: Box::default(),
+            boxed: true,
+            address: b"127.0.0.1:8367".as_slice().into(),
+            local: true,
+            kept: Vec::new(),
+            credential: None,
+            note: None,
+        }));
+        assert!(start.local);
+        assert!(text(&mut host).contains("Starting temper"));
+        empty(&give(&mut host, Event::Log));
+        assert!(text(&mut host).contains("Nothing yet."));
+        empty(&host.report(Report::Key(Key::Char('a'))));
+        assert!(text(&mut host).contains("❯ a"));
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a");
+        assert!(text(&mut host).contains("Still signing in"));
+        let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+        host.report(Report::Stage(BoxStage::Running));
+        assert!(text(&mut host).contains("temper starting…"));
+        let duties = reply(&mut host, local_exchange(&signing), sign_in_bytes(&signed_in_answer()));
+        admit(&mut host, duties);
+        assert!(text(&mut host).contains("✓ temper started"));
+        assert!(text(&mut host).contains("▸ Signing in…"));
+        let hello = hello_for(&host);
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+        let duties = admit(&mut host, duties);
+        let me = watch(&duties, &w::Subject::Me);
+        assert!(text(&mut host).contains("Starting temper"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
+        admit(&mut host, duties);
+        let drawn = text(&mut host);
+        assert!(!drawn.contains("Starting temper"), "{drawn}");
+        assert_eq!(host.words(), b"a");
+        if projects {
+            assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+            assert!(!drawn.contains("Welcome. Set temper up"));
+        } else {
+            assert!(drawn.contains("Welcome. Set temper up"), "{drawn}");
+        }
+        host.report(Report::Heard(jig_client::Event::StreamGone));
+        host.report(Report::Heard(jig_client::Event::Unwatch { handle: root::pages::me_handle() }));
+        host.report(Report::Resize(Size { columns: 79, rows: 24 }));
+        assert!(host.root.pages().me(host.root.client()).is_none());
+        assert!(!text(&mut host).contains("Starting temper"), "never returns after losing me");
+    }
+}
+
 fn no_project_keys(words: &str) {
     let (mut host, _, _) = signed_host(false);
     key_words(&mut host, words);
@@ -2169,10 +2303,14 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 let mut host = self::host();
                 let light = row == "light look";
                 host.report(Report::Start(Start {
+                    set_up: false,
+                    box_log: Box::default(),
                     front: false,
                     size: Size { columns: 80, rows: 24 },
                     scheme: Some(if light { Scheme::Light } else { Scheme::Dark }),
                     background: None,
+                    plain: false,
+                    version: Box::default(),
                     boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
                     local: false,
@@ -2675,7 +2813,7 @@ fn each_event_becomes_its_acts() {
             "front log" | "bare log" => {
                 let front = row == "front log";
                 if front {
-                    host.tell(temper_client_tui::Told::Front);
+                    host.tell(temper_client_tui::Told::Front { set_up: false, box_log: Box::default() });
                 }
                 typed(&mut host, b"/log");
                 let before = host.state().box_written();
@@ -3337,7 +3475,7 @@ fn in_front_quitting_asks_while_work_runs() {
     for (name, front, running, steps) in rows {
         let mut host = if running { home_host(true) } else { signed_host(true).0 };
         if front {
-            host.tell(Told::Front);
+            host.tell(Told::Front { set_up: false, box_log: Box::default() });
             host.report(Report::Stage(BoxStage::Running));
         }
         // Running must clear a known restart, rather than leave an already running box alone.
@@ -3374,11 +3512,18 @@ fn in_front_quitting_asks_while_work_runs() {
                     !duties.close
                         && match line {
                             BoxLine::Link { url } => host.state().printed() == Some(&url),
-                            BoxLine::Log { line } => host.state().box_log().collect::<Vec<_>>() == vec![line.as_ref()],
+                            BoxLine::Log { line } => {
+                                host.state().box_lines().collect::<Vec<_>>() == vec![line.as_ref()]
+                            }
                             BoxLine::Restarting { step } => {
                                 host.state().box_state() == BoxState::Restarting { step: &step }
                             }
-                            BoxLine::Running { .. } => host.state().box_state() == BoxState::Running,
+                            BoxLine::Starting { name } => {
+                                host.state().box_state() == BoxState::Starting { name: &name }
+                            }
+                            BoxLine::Started { .. } | BoxLine::Dormant { .. } | BoxLine::Running { .. } => {
+                                host.state().box_state() == BoxState::Running
+                            }
                             BoxLine::GaveUp { step } => host.state().box_state() == BoxState::GaveUp { step: &step },
                         }
                 }
@@ -3409,10 +3554,14 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
         for command in [false, true] {
             let mut host = host();
             let duties = host.report(Report::Start(Start {
+                set_up: true,
+                box_log: Box::default(),
                 front: true,
                 size: Size { columns: 80, rows: 24 },
                 scheme: Some(Scheme::Dark),
                 background: None,
+                plain: false,
+                version: Box::default(),
                 address: b"127.0.0.1:8367".as_slice().into(),
                 local: true,
                 boxed: false,

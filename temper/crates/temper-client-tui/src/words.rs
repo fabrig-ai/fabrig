@@ -195,8 +195,22 @@ pub enum Word {
     LeftAfter,
     LeftNow,
     NoRole,
+    LinkPending,
+    StartingGroup,
+    StartedGroup,
+    StartingTemper,
+    BoxStarted,
+    BoxLog,
+    TemperAhead,
+    TemperStarting,
+    TemperStarted,
+    SignInAhead,
+    SignedIn,
+    ProjectsAhead,
+    ProjectsReading,
+    StartingFollowed,
 }
-pub(crate) const ALL: [Word; 185] = [
+pub(crate) const ALL: [Word; 199] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -276,6 +290,8 @@ pub(crate) const ALL: [Word; 185] = [
     Word::QuitNone,
     Word::StopBox,
     Word::DontQuit,
+    Word::StartingGroup,
+    Word::StartedGroup,
     Word::Restarting,
     Word::GaveUp,
     Word::GaveUpNote,
@@ -382,6 +398,18 @@ pub(crate) const ALL: [Word; 185] = [
     Word::LeftAfter,
     Word::LeftNow,
     Word::NoRole,
+    Word::StartingTemper,
+    Word::BoxStarted,
+    Word::BoxLog,
+    Word::TemperAhead,
+    Word::TemperStarting,
+    Word::TemperStarted,
+    Word::SignInAhead,
+    Word::SignedIn,
+    Word::ProjectsAhead,
+    Word::ProjectsReading,
+    Word::StartingFollowed,
+    Word::LinkPending,
 ];
 
 #[derive(Clone, Copy)]
@@ -630,6 +658,20 @@ impl Word {
             Self::LeftAfter => 180,
             Self::LeftNow => 181,
             Self::NoRole => 182,
+            Self::LinkPending => 190,
+            Self::StartingGroup => 188,
+            Self::StartedGroup => 189,
+            Self::StartingTemper => 191,
+            Self::BoxStarted => 192,
+            Self::BoxLog => 193,
+            Self::TemperAhead => 194,
+            Self::TemperStarting => 195,
+            Self::TemperStarted => 196,
+            Self::SignInAhead => 197,
+            Self::SignedIn => 198,
+            Self::ProjectsAhead => 199,
+            Self::ProjectsReading => 200,
+            Self::StartingFollowed => 201,
         }
     }
     const fn id(self) -> PhraseId {
@@ -722,9 +764,10 @@ impl Word {
             Self::BoxExited => (&[b"exited ", b""], &[Slot::Number]),
             Self::BoxKilled => (&[b"killed by signal ", b""], &[Slot::Number]),
             Self::BoxEndNote => (&[b"The box stopped: ", b". /log shows why; Ctrl+C closes."], &[Slot::End]),
-            Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
+            Self::BoxPurpose => (&[b"a whole deployment on this machine"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
+            Self::LinkPending => (&[b"The link comes here once the box has started."], &[]),
             Self::InTheBrowser => (&[b"In the browser"], &[]),
             Self::Step => (&[b"", b" ", b""], &[Slot::Number, Slot::Label]),
             Self::Following => (&[b"Setting temper up in your browser"], &[]),
@@ -743,6 +786,19 @@ impl Word {
             Self::QuitNone => (&[b"Stop the box?"], &[]),
             Self::StopBox => (&[b"Stop the box"], &[]),
             Self::DontQuit => (&[b"Don't quit"], &[]),
+            Self::StartingGroup => (&[b"", b" starting\xe2\x80\xa6"], &[Slot::Step]),
+            Self::StartedGroup => (&[b"", b" started"], &[Slot::Step]),
+            Self::StartingTemper => (&[b"Starting temper"], &[]),
+            Self::BoxStarted => (&[b"The box started"], &[]),
+            Self::BoxLog => (&[b" \xc2\xb7 its log in "], &[]),
+            Self::TemperAhead => (&[b"temper starting"], &[]),
+            Self::TemperStarting => (&[b"temper starting\xe2\x80\xa6"], &[]),
+            Self::TemperStarted => (&[b"temper started"], &[]),
+            Self::SignInAhead => (&[b"Signing in"], &[]),
+            Self::SignedIn => (&[b"Signed in"], &[]),
+            Self::ProjectsAhead => (&[b"Your projects"], &[]),
+            Self::ProjectsReading => (&[b"Your projects\xe2\x80\xa6"], &[]),
+            Self::StartingFollowed => (&[b"This screen follows the box as it starts. /log shows its log."], &[]),
             Self::Restarting => (&[b"", b" restarting"], &[Slot::Step]),
             Self::GaveUp => (&[b"", b" gave up"], &[Slot::Step]),
             Self::GaveUpNote => (&[b"The box gave up: ", b". /log shows why; Ctrl+C closes."], &[Slot::Step]),
@@ -939,6 +995,14 @@ impl Words {
     }
     pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
         match notice {
+            crate::Notice::Started { name } => {
+                let name = temper_client_domain::forge::words::lossy(name);
+                let name = skein_lib::bytes::utf8_prefix(
+                    &name,
+                    usize::try_from(crate::limits::STEP).expect("step fits memory"),
+                );
+                self.say(Word::StartedGroup, &[Hole::Name(copy_of(name))])
+            }
             crate::Notice::Unknown { words } => {
                 let bounded = skein_lib::bytes::utf8_prefix(
                     words,

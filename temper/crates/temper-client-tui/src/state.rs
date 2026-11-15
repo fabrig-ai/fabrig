@@ -37,6 +37,12 @@ pub struct Tui {
     left_off: Option<u64>,
     boxed: bool,
     front: bool,
+    plain: bool,
+    version: Box<[u8]>,
+    set_up: bool,
+    me_read: bool,
+    box_log_path: Box<[u8]>,
+    starting: Queue<Box<[u8]>>,
     box_stage: BoxStage,
     stop_asked: bool,
     printed: Option<Secret>,
@@ -65,6 +71,7 @@ pub struct Lending {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxState<'a> {
     Running,
+    Starting { name: &'a [u8] },
     Restarting { step: &'a [u8] },
     Stopping,
     Stopped { end: BoxEnd },
@@ -98,6 +105,7 @@ pub enum Refusal {
 /// A one-line notice on the quiet line (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
+    Started { name: Box<[u8]> },
     Unknown { words: Box<[u8]> },
     SigningIn,
     LoginSignedIn,
@@ -181,7 +189,12 @@ pub enum Told {
     Kept {
         written: bool,
     },
-    Front,
+    Front {
+        set_up: bool,
+        box_log: Box<[u8]>,
+    },
+    /// The root has read `me` in front at least once in this run.
+    MeRead,
     /// The authority of the first local link handed by the box.
     Address {
         address: Box<[u8]>,
@@ -238,6 +251,12 @@ impl Tui {
             focus: 1,
             box_written: 0,
             front: false,
+            plain: false,
+            version: Box::default(),
+            set_up: false,
+            me_read: false,
+            box_log_path: Box::default(),
+            starting: Queue::with_capacity(limits::STARTING),
             box_stage: BoxStage::Finding,
             stop_asked: false,
             printed: None,
@@ -351,16 +370,41 @@ impl Tui {
     pub const fn box_written(&self) -> u64 {
         self.box_written
     }
+    /// The terminal and build facts of the two-line header (client/tui/pages/README.md, 3).
+    pub fn header(&mut self, plain: bool, version: Box<[u8]>) {
+        self.plain = plain;
+        self.version = version;
+    }
+    #[must_use]
+    pub const fn plain(&self) -> bool {
+        self.plain
+    }
+    #[must_use]
+    pub fn version(&self) -> &[u8] {
+        &self.version
+    }
     #[must_use]
     pub const fn front(&self) -> bool {
         self.front
+    }
+    #[must_use]
+    pub const fn set_up(&self) -> bool {
+        self.set_up
+    }
+    #[must_use]
+    pub const fn me_read(&self) -> bool {
+        self.me_read
+    }
+    #[must_use]
+    pub fn box_log(&self) -> &[u8] {
+        &self.box_log_path
     }
     #[must_use]
     pub const fn printed(&self) -> Option<&Secret> {
         self.printed.as_ref()
     }
     #[expect(clippy::disallowed_methods, reason = "the borrowed log iterator maps each owned line through Box::as_ref")]
-    pub fn box_log(&self) -> impl Iterator<Item = &[u8]> {
+    pub fn box_lines(&self) -> impl Iterator<Item = &[u8]> {
         self.box_log.iter().map(Box::as_ref)
     }
     #[must_use]
@@ -384,7 +428,10 @@ impl Tui {
             | BoxStage::Running
             | BoxStage::Failed { .. } => match &self.restarting {
                 Some(step) => BoxState::Restarting { step },
-                None => BoxState::Running,
+                None => match self.starting.iter().next() {
+                    Some(name) => BoxState::Starting { name },
+                    None => BoxState::Running,
+                },
             },
         }
     }
@@ -472,6 +519,30 @@ impl Tui {
     }
     fn box_line(&mut self, line: BoxLine) -> bool {
         match line {
+            BoxLine::Starting { name } => {
+                if self.starting.room() == 0 {
+                    return false;
+                }
+                for kept in &self.starting {
+                    if kept == &name {
+                        return false;
+                    }
+                }
+                self.starting.push(name);
+                true
+            }
+            BoxLine::Started { name } | BoxLine::Dormant { name } => {
+                let mut changed = false;
+                for _ in 0..self.starting.len() {
+                    let kept = self.starting.pop().expect("one name per counted entry");
+                    if kept == name {
+                        changed = true;
+                    } else {
+                        self.starting.push(kept);
+                    }
+                }
+                changed
+            }
             BoxLine::Link { url } => {
                 let changed = self.printed.as_ref() != Some(&url);
                 self.printed = Some(url);
@@ -651,9 +722,16 @@ impl Tui {
                 self.not_opened = address;
                 changed
             }
-            Told::Front => {
-                let changed = !self.front;
+            Told::MeRead => {
+                let changed = self.front && !self.me_read;
+                self.me_read |= self.front;
+                changed
+            }
+            Told::Front { set_up, box_log } => {
+                let changed = !self.front || self.set_up != set_up || self.box_log_path != box_log;
                 self.front = true;
+                self.set_up = set_up;
+                self.box_log_path = box_log;
                 changed
             }
             Told::Address { address } => {

@@ -17,8 +17,10 @@ pub(crate) mod pane;
 pub(crate) mod talk;
 pub use pane::HALVES;
 pub(crate) mod front;
+pub(crate) mod header;
 pub(crate) mod launchpad;
 pub(crate) mod printed;
+pub(crate) mod starting;
 pub(crate) mod welcome;
 pub(crate) mod work;
 pub use work::work_runs;
@@ -38,6 +40,7 @@ impl Binds {
 }
 #[derive(Debug)]
 pub(crate) enum Body {
+    Starting(starting::Starting),
     Welcome(welcome::Welcome),
     Launchpad(launchpad::Launchpad),
     Chat(chat::Chat),
@@ -319,7 +322,9 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.close();
         view.render.finish(b, view.shown, out);
     } else {
-        let body = if welcome::shown(root, tui) {
+        let body = if starting::shown(root, tui) {
+            Body::Starting(starting::read(root, tui, &view.words))
+        } else if welcome::shown(root, tui) {
             Body::Welcome(welcome::read(root, tui, &view.words, wall))
         } else {
             match root.pages().address() {
@@ -366,7 +371,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.tick = signed.foot.tick;
     let body_tick = match &signed.body {
         Body::Launchpad(part) => part.tick,
-        Body::Chat(_) | Body::Welcome(_) => None,
+        Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => None,
     };
     if let Some(tick) = body_tick {
         view.tick = Some(view.tick.unwrap_or(tick).min(tick));
@@ -376,7 +381,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
             Some(pane) => Some((pane.mode, pane.next)),
             None => None,
         },
-        Body::Welcome(_) | Body::Launchpad(_) => None,
+        Body::Welcome(_) | Body::Launchpad(_) | Body::Starting(_) => None,
     };
     view.left_off.clear();
     view.selected = None;
@@ -403,7 +408,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
                 }
             }
         }
-        Body::Chat(_) | Body::Welcome(_) => {}
+        Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => {}
     }
     view.reply.clone_from(&signed.foot.reply);
     view.box_empty = match &signed.foot.composer {
@@ -414,12 +419,13 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.walkable &= view.left_off_arrows
         && match &signed.body {
             Body::Launchpad(part) => part.project.is_some(),
-            Body::Chat(_) | Body::Welcome(_) => false,
+            Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => false,
         };
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
     match &signed.body {
+        Body::Starting(part) => starting::draw(&mut b, part, &view.words),
         Body::Welcome(part) => welcome::draw(&mut b, part, &view.words),
         Body::Launchpad(part) => launchpad::draw(&mut b, part, &view.words, &mut view.binds),
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),

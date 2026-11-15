@@ -478,28 +478,37 @@ fn check_origins(l: &Limits, s: &Shared, user_agent: &[u8], forge: &Forge, tls: 
         });
     }
     for configured in &forge.log_origins {
-        let origin = &configured.origin;
-        let address_ok = match configured.address {
-            skein_io::Addr::Ip(ip) => origin.tls || ip.ip().is_loopback(),
-            skein_io::Addr::InProcess(_) => false,
-        };
-        if forge.kind != Kind::GitHub
-            || crate::settings::log_name(origin).is_none()
-            || !address_ok
-            || (origin.tls && !tls)
-        {
-            return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
-        }
-        let head = u64::from(l.target_bytes)
-            .checked_add(len_u64(crate::settings::log_host(configured).len()))
-            .ok_or(Unusable::Zero)?
-            .checked_add(len_u64(user_agent.len()))
-            .ok_or(Unusable::Zero)?
-            .checked_add(conditional_fields().ok_or(Unusable::Zero)?)
-            .ok_or(Unusable::Zero)?;
-        if head > u64::from(http(l, origin.tls, &s.io).request) {
-            return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
-        }
+        check_origin(l, s, user_agent, forge, tls, configured)?;
+    }
+    Ok(())
+}
+/// Checks one resolved origin by the same rules at Add and at runtime (3.1, 7.4).
+pub(crate) fn check_origin(
+    l: &Limits,
+    s: &Shared,
+    user_agent: &[u8],
+    forge: &Forge,
+    tls: bool,
+    configured: &crate::settings::LogOrigin,
+) -> Result<(), Unusable> {
+    let origin = &configured.origin;
+    let address_ok = match configured.address {
+        skein_io::Addr::Ip(ip) => origin.tls || ip.ip().is_loopback(),
+        skein_io::Addr::InProcess(_) => false,
+    };
+    if forge.kind != Kind::GitHub || crate::settings::log_name(origin).is_none() || !address_ok || (origin.tls && !tls)
+    {
+        return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
+    }
+    let head = u64::from(l.target_bytes)
+        .checked_add(len_u64(crate::settings::log_host(configured).len()))
+        .ok_or(Unusable::Zero)?
+        .checked_add(len_u64(user_agent.len()))
+        .ok_or(Unusable::Zero)?
+        .checked_add(conditional_fields().ok_or(Unusable::Zero)?)
+        .ok_or(Unusable::Zero)?;
+    if head > u64::from(http(l, origin.tls, &s.io).request) {
+        return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
     }
     Ok(())
 }

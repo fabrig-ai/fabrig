@@ -1,8 +1,9 @@
-╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 3 changes landed in Hello. One thing needs you.                              │
-│ Hello: csv-export is two of three tasks in; one waits on you.                │
-│                                   written by the status agent 07:42 · /brief │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper
+▄█▄█▄█  127.0.0.1:8367
+
+ 3 changes landed in Hello. One thing needs you.
+ Hello: csv-export is two of three tasks in; one waits on you.
+                                     written by the status agent 07:42 · /brief
 
  Where you left off
    Hello   Away mode, a chat · today 08:12 · waiting on you            /chats 1
@@ -11,7 +12,6 @@
  Needs you
    ? Hello   csv-export: comma or semicolon? · asked 20 min ago    n walks them
 
- Start
 ────────────────────────────────────────────────────────────────────────────────
 ❯
 ────────────────────────────────────────────────────────────────────────────────
@@ -23,36 +23,38 @@ away.
   3. Tell it something else
   4. Next
 --
-aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
-a..............................................................................a
-a..............................................................................a
-a...................................dddddddddddddddddddddddddddddddddddddddddd.a
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.abbb...cccccc..................................................................
+aadddd..eeeeeeeeeeeeee..........................................................
+................................................................................
+................................................................................
+................................................................................
+.....................................eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.
 ................................................................................
 .cccccccccccccccccc.............................................................
-...cccccccc.........ddddddddddddddddddddddddddddddddddddddd............dddddddd.
-...cccccccc..........dddddddddddddddddddddddddddddddd...........................
+...cccccccc.........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee............eeeeeeee.
+...cccccccc..........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee...........................
 ................................................................................
 .ccccccccc......................................................................
-...e.cccccccc...............................ddddddddddddddddddd....dddddddddddd.
+...f.cccccccc...............................eeeeeeeeeeeeeeeeeee....eeeeeeeeeeee.
 ................................................................................
-.ccccc..........................................................................
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-ee..............................................................................
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+ff..............................................................................
+gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 ccccccccccccccccccccccccccccccc.................................................
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-eeeee...........................................................................
-ffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggg
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffff...........................................................................
+hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 cccccccccccccccccccccccccccccc..................................................
 cccccccccccccccccccccccccccccc..................................................
 cccccccccccccccccccccccccccccc..................................................
 --
-a: fore #6A655C
-b: fore #E08A68 bold
+a: fore #1B76FD
+b: fore #00C4FE
 c: bold
-d: fore #9A9388
-e: fore #E08A68
-f: fore #E08A68 back #2D2C2A bold
-g: back #2D2C2A bold
+d: fore #8E2CF8
+e: fore #9A9388
+f: fore #E08A68
+g: fore #6A655C
+h: fore #E08A68 back #2D2C2A bold
+i: back #2D2C2A bold
 cursor 15 2

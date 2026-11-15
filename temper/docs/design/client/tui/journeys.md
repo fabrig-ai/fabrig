@@ -116,10 +116,14 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`theme.md`) |
 | `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
+| `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
+| `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
 | `address` | `HOST:PORT` as bytes | the start's address |
 | `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
 | `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
+| `set-up` | none | when the TUI in front is on a box set up before (`box.md`, `Start.set_up`) |
+| `box-log` | the path as bytes | in front, the box's log's path, when the start has one (`box.md`, `Start.box_log`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
 | `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`README.md`, 2) |
@@ -172,11 +176,14 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
   it.
 - **The start's facts** are in the table's order, `background` after
-  `screen`, `local` after `address`, `box` after `local`, `front` after
-  `box` and `noted` after `credential`. A recording with none of them
-  reads as a start with no background answered, no engine's link file,
-  not on a box, out of front and with no note, so one made before them
-  replays as it stands; the version stays `2`.
+  `screen`, `plain` after `background`, `version` after `plain`,
+  `local` after `address`, `box` after `local`, `front` after `box`,
+  `set-up` after `front`, `box-log` after `set-up` and `noted` after
+  `credential`. A recording with none of them reads as a start with no
+  background answered, a terminal that draws the mark, an empty version,
+  no engine's link file, not on a box, out of front, a box not set up
+  before and with no log's path, and with no note, so one made before
+  them replays as it stands; the version stays `2`.
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
