@@ -101,6 +101,12 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
+- **Prepare under `turn`:** a document that selects `by: turn` needs job
+  kind 1 declared: `engine.limits`' `tasks.spec_bytes` at least 16,384 and
+  `tasks.result_bytes` at least 4,096. A start below either bound is
+  refused, naming the limit, its configured bytes and what the prepare
+  job needs. The engine and worker profiles must also hold their carriers
+  (`../../domain/worker/jobs.md`).
 - **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
   `forge.landing_members`, 1 when absent: the most changes a landing
   into a repository's main forms with (`../../domain/landing.md`,

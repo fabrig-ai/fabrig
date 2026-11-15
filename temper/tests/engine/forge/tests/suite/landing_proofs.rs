@@ -418,3 +418,61 @@ fn restarts_in_proving_probing_and_turn_keep_every_identity_once() {
         );
     }
 }
+
+/// A key's follower survives its dispatcher's departure (domain/landing.md, 6 and 7).
+#[test]
+fn a_departed_landings_run_proves_a_successor_with_the_same_key() {
+    for restart in [false, true] {
+        let mut world = start(300);
+        until_dispatch(&mut world);
+        until_gate(&mut world);
+        let candidate = world.landing(LANDING).landing.members[0].candidate;
+        world.push_file(b"temper/51", b"docs/guide.md", b"second delivery, ignored by the gate");
+        landings::drive_landing(&mut world, LANDING);
+        assert!(world.landing(LANDING).landing.members[0].left.is_some());
+
+        if restart {
+            world.restart();
+            world.run_for(1);
+        }
+        world.run_for(400);
+        world.external(
+            raw::Op::Git(raw::Git::Create {
+                branch: b"temper/52".as_slice().into(),
+                commit: world.branch(b"temper/51"),
+            }),
+            2,
+        );
+        landings::ready_change(&mut world, 52, b"temper/52");
+        let mut row = landings::landing_row(world.change(52));
+        row.landing.task = 62;
+        row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+        row.landing.members[0].branch.clone_from(&row.landing.round.branch);
+        landings::register(&mut world, row);
+        landings::drive_landing(&mut world, 62);
+        assert_ne!(world.landing(62).landing.members[0].candidate, candidate);
+        assert!(world.landing(62).landing.members[0].landed.is_some());
+        assert_eq!(runs(&world).len(), 1, "a single dispatch proves both equal filtered trees");
+    }
+}
+
+#[test]
+fn a_second_edit_to_the_same_visible_file_changes_the_gate_key() {
+    let mut keys = Vec::new();
+    for content in [
+        b"line 1\nline 2\nline 3\nline 4: first delivery\nline 5\nline 6\n".as_slice(),
+        b"line 1\nline 2\nline 3\nline 4: first delivery\nline 5\nline 6: second delivery\n".as_slice(),
+    ] {
+        let mut world = landings::turn_world();
+        world.produce_file(b"temper/51", b"walk/lines.txt", content);
+        landings::ready_change(&mut world, CHANGE, b"temper/51");
+        let row = landings::landing_row(world.change(CHANGE));
+        landings::register(&mut world, row);
+        until_dispatch(&mut world);
+        let landing::Proof::Dispatched { key, .. } = world.landing(LANDING).landing.members[0].gates[0].proof else {
+            panic!("dispatched gate")
+        };
+        keys.push(key);
+    }
+    assert_ne!(keys[0], keys[1], "walk is included while docs is ignored");
+}

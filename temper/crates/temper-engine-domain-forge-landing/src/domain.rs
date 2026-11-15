@@ -483,7 +483,10 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
                 return done(landing, Decision::Hold(why));
             }
             crate::Preparation::Conflict => return leaving(landing, facts, position(index), crate::Leave::Conflict),
-            crate::Preparation::Idle | crate::Preparation::Failed => {}
+            crate::Preparation::Idle if member.asked == Some(landing.preparation) && !found => {
+                return wait(landing, None);
+            }
+            crate::Preparation::Absent | crate::Preparation::Idle | crate::Preparation::Failed => {}
         }
         for member in &mut landing.members {
             if active(member) && member.candidate.is_none() {
@@ -492,6 +495,17 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
         }
         return done(landing, Decision::Prepare { member: position(index), head, main });
     }
+    for (member, fresh) in landing.members.iter().zip(&facts.members) {
+        if active(member) && member.base != Some(fresh.main) {
+            landing.round.ending = Some(crate::RoundEnd::Stale);
+            landing.round.changed = Some(0);
+            return done(landing, Decision::None);
+        }
+    }
+    prepared(landing, facts)
+}
+
+fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {
     if top(&landing).is_none() {
         landing.phase = Phase::Landed;
         return done(landing, Decision::Finish);
@@ -513,6 +527,20 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
 }
 
 fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Stepped {
+    // A released prepare can finish before its prefixes enter the round.
+    // Its pushes settle before cleanup (domain/landing.md, 5.1–5.2).
+    if facts.preparation == crate::Preparation::Running {
+        return wait(landing, None);
+    }
+    for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
+        if active(member)
+            && member.candidate.is_none()
+            && let Some((candidate, combined)) = fresh.candidate
+        {
+            member.candidate = Some(candidate);
+            member.combined = Some(combined);
+        }
+    }
     if landing.round.pull.is_some() && facts.closed != Status::Passed {
         return if facts.closed == Status::Pending { wait(landing, None) } else { done(landing, Decision::Close) };
     }
@@ -520,8 +548,13 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
         crate::RoundEnd::Stale => 0,
         crate::RoundEnd::Leave | crate::RoundEnd::Conflict | crate::RoundEnd::Cut => landing.round.changed.unwrap_or(0),
     };
+    let mut remaining = false;
+    for member in &landing.members {
+        remaining |= active(member);
+    }
+    // With no next round, task closure releases the held branches (domain/landing.md, 5.1).
     for (index, (member, fresh)) in landing.members.iter().zip(&facts.members).enumerate() {
-        if index < usize::from(first) || member.candidate.is_none() {
+        if !remaining || index < usize::from(first) || member.candidate.is_none() {
             continue;
         }
         if fresh.deleted != Status::Passed {
@@ -557,11 +590,9 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
             done(landing, Decision::Stale)
         }
         crate::RoundEnd::Leave | crate::RoundEnd::Conflict | crate::RoundEnd::Cut => {
-            let mut remaining = false;
             let mut missing = false;
             for member in &landing.members {
                 if active(member) {
-                    remaining = true;
                     missing |= member.base.is_none();
                 }
             }
@@ -835,6 +866,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
         let fresh = facts.members.get(usize::from(top)).expect("top facts");
         let candidate = member.candidate.expect("proved candidate");
         if fresh.main == candidate {
+            landing.phase = Phase::Turn { at: now };
             for (index, member) in landing.members.iter_mut().enumerate() {
                 if active(member) && position(index) <= top {
                     member.landed = member.candidate;
@@ -870,12 +902,25 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
                     }
                 }
             }
-            // Keep the change's branch until the forge detects its manual
-            // merge; telling the change lets it delete that branch (landing.md, 8).
-            if !member.told && member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
-                return wait(landing, Some(Wall::from_nanos(now.as_nanos().saturating_add(limits.poll.as_nanos()))));
-            }
             if !member.told {
+                // Give manual-merge detection one poll from merge readback;
+                // the branch readback remains authoritative (landing.md, 8).
+                if member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
+                    let at = match &landing.phase {
+                        Phase::Turn { at } => *at,
+                        Phase::Waiting
+                        | Phase::Preparing
+                        | Phase::Proving
+                        | Phase::Proved { .. }
+                        | Phase::Landed
+                        | Phase::Cancelled
+                        | Phase::Held { .. } => unreachable!("the turn owns landed notifications"),
+                    };
+                    let until = Wall::from_nanos(at.as_nanos().saturating_add(limits.poll.as_nanos()));
+                    if now < until {
+                        return wait(landing, Some(until));
+                    }
+                }
                 member.told = true;
                 return done(landing, Decision::Landed { member: position(index), prefix });
             }

@@ -53,13 +53,13 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries twelve charters, fourteen grants and twenty-one executor kinds.
+    // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 22.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 22.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
     // A chat copies stock policy 1's fourteen grants into its task authority.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
@@ -86,7 +86,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "machine":{"github":null},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     (serde_json::to_vec(&agent).expect("agent JSON"), serde_json::to_vec(&value).expect("deployment JSON"))
@@ -103,9 +103,9 @@ pub fn use_stock(value: &mut serde_json::Value) {
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 22.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 22.into();
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
 }
 

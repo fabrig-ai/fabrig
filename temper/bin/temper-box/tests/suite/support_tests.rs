@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn four_reviews_and_the_latch_can_wait_on_the_model_together() {
+    support::turn_drills::tests::four_reviews_and_the_latch_can_wait_on_the_model_together();
+}
+
+#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.

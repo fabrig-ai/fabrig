@@ -289,11 +289,11 @@ fn stock_limits() -> engine::Limits {
     // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
     // The standing charters, closer procedure and close job are delegation targets.
-    limits.authority.executors = 21;
+    limits.authority.executors = 22;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
     // The standing charters, closer procedure and close job are delegation targets.
-    limits.documents.executors = 21;
+    limits.documents.executors = 22;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
     limits.tasks.charters = 17;

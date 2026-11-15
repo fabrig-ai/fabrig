@@ -312,9 +312,9 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   `core.policy_bytes` is below policy 1's encoding, or whose
   `authority.grants` is below the rules' grants, is refused at the
   start, naming the limit and the stock setting. Policy 1's complete
-  snapshot is 6,078 bytes, below `standard`'s 16,384-byte
-  `core.policy_bytes`; its ceiling and the rules name 20 executor kinds.
-  `standard` holds 21 executor kinds in both `authority.executors` and
+  snapshot is 6,455 bytes, below `standard`'s 16,384-byte
+  `core.policy_bytes`; its ceiling and the rules name 21 executor kinds, including prepare job 1.
+  `standard` holds 22 executor kinds in both `authority.executors` and
   `tasks.executor_kinds`, and charter numbers through 16 in
   `tasks.charters`, as init's document does. A seeded project uses those
   same bounds; it needs no policy-byte override or wider store codec.

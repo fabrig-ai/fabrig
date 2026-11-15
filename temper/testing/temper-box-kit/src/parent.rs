@@ -7,6 +7,9 @@ use std::process::{Child, Command};
 #[cfg(target_os = "linux")]
 use std::time::Duration;
 
+#[cfg(target_os = "linux")]
+mod executable_read;
+
 /// Without Linux's retained identities, the test's ending stops its child.
 #[cfg(not(target_os = "linux"))]
 #[derive(Debug)]
@@ -38,6 +41,18 @@ struct Kept {
 }
 #[cfg(target_os = "linux")]
 impl Kept {
+    /// A proc read may lose the task's memory map before its pidfd reports exit.
+    /// Unlike cleanup's wait, this leaves a still-live process as the read's error.
+    fn wait_after_read(&self) {
+        let mut deadline = Deadline::arm("the unreadable process's exit", super::WITHIN);
+        deadline.watch_process(self.pid);
+        while !skein_shell::keeper::pidfd_exited(self.fd).expect("retained process exit") && !deadline.passed() {
+            if skein_shell::keeper::wait_readable(self.fd, deadline.remaining()).is_err() {
+                break;
+            }
+        }
+    }
+
     fn wait(&self, owned: bool, what: &'static str) -> Option<Starved> {
         let mut deadline = Deadline::arm(what, super::WITHIN);
         deadline.watch_process(self.pid);
@@ -123,8 +138,8 @@ impl Guard {
         self.kept.iter().filter(|kept| kept.parent == parent).map(|kept| kept.pid).collect()
     }
 
-    /// Read a retained process's executable, or `None` if it exited during the read.
-    /// An unreadable executable of a live process remains an error.
+    /// Read a retained process's executable, reporting a process exiting during the read as exited.
+    /// A failed read waits up to the world's patience for exit; a still-live process remains an error.
     pub fn executable(&self, pid: u32) -> std::io::Result<Option<Executable>> {
         let kept = self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process");
         let exited = || skein_shell::keeper::pidfd_exited(kept.fd).expect("retained process exit");
@@ -139,8 +154,18 @@ impl Guard {
                 arguments: std::fs::read(format!("/proc/{pid}/cmdline"))?,
             })
         };
-        let result = read();
-        if exited() { Ok(None) } else { result.map(Some) }
+        let mut result = read();
+        let mut waited = false;
+        loop {
+            match executable_read::observe(result, exited(), waited) {
+                executable_read::Read::Complete(result) => return result,
+                executable_read::Read::Wait(error) => {
+                    kept.wait_after_read();
+                    result = Err(error);
+                    waited = true;
+                }
+            }
+        }
     }
 
     /// The caller keeps this parent alive or unreaped throughout discovery.

@@ -329,7 +329,7 @@ fn run(
         Step::CheckOut => {
             Op::CheckOut { at, commit: head, clean: true, identity: spec.identity, account: spec.account }
         }
-        Step::Paths => Op::DiffPaths { at, before: delivery.tip.expect("fetched tip"), after: head },
+        Step::Paths => Op::DiffPaths { at, before: delivery.tip.expect("fetched tip"), after: head, markdown: false },
         Step::Push => Op::Push {
             at,
             remote: spec.remote.clone(),

@@ -218,7 +218,13 @@ fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
         change_step::State::Held { why: change_step::Hold::Resolutions, .. }
     ));
     let tasks::Phase::Held { source, .. } = &live_task(&world, task).phase else { panic!("resolution hold") };
-    assert!(source.is_none(), "the usual resolutions hold carries no landing-rule exception");
+    let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("resolution bound account").as_ref() else {
+        panic!("resolution hold account")
+    };
+    assert!(contains(words, b"its conflict resolution allowance is spent"));
+    assert!(contains(words, b"0 of 0 taken"));
+    assert!(contains(words, format!("task release {task} --hold").as_bytes()));
+    assert!(!contains(words, b"landing rule"), "no landing-rule exception");
     assert_no_update_or_delegate(&world, task);
     assert_eq!(world.merges, 0);
     let pull = assert_pending_and_stale(&mut world, head, base);

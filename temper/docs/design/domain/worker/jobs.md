@@ -130,10 +130,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   with exit 3's, `{"conflicts": [...]}`, where none combined, pushing
   nothing. The files are as the merge names them, each list cut so that
   the result fits its bound and marked `"cut": true` when cut. A push
-  that finds its branch there fails the job as undelivered, the pushes
-  before it made. Its repository's item is writable by a form of its
+  that finds its branch already at the reused prefix verifies it by
+  fetching and counts it as delivered. An existing branch that fails the
+  whole-tree and ancestry checks of `../landing.md`, 5.2 is undelivered,
+  with any earlier pushes kept. Its repository's item is writable by a form of its
   own, at the end of the worker wire's `Access`: `Prefixes`, the
-  branches it may create, one per member of the request in its order,
+  branches it may create or reuse from an earlier delivery of the same
+  round (`../landing.md`, 5.2), one per member of the request in its order,
   and no other; each member's `prefix` in the request must be its
   branch there, and a request whose branches differ in number or name
   is refused as invalid. The engine's workspace for the job grants a

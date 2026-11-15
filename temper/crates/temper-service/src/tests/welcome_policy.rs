@@ -437,7 +437,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "the next welcome selection exceeds the profile's project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    // The ceiling and standing roles include the prepare job.
+    // Each standing charter and the prepare job occupy one place in all four policy authorities.
     assert_eq!(bytes, 6455);
     std::eprintln!(
         "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",

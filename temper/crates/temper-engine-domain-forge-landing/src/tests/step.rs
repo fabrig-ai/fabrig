@@ -115,6 +115,9 @@ fn close_round(landing: &Landing, f: &Facts) -> Stepped {
     let mut f = f.clone();
     f.closed = Status::Passed;
     let delete = decide(&close.landing, &f);
+    if delete.decision == Decision::Finish {
+        return delete;
+    }
     assert_eq!(delete.decision, Decision::Delete { member: 0 });
     f.members[0].deleted = Status::Passed;
     decide(&delete.landing, &f)
@@ -1040,4 +1043,136 @@ fn a_new_round_blames_its_own_boundary_not_a_previous_rounds_unit() {
     );
     assert!(landing.members[1].left.is_none());
     assert!(landing.members[3].left.is_none());
+}
+
+#[test]
+fn a_merged_member_waits_for_its_pull_before_its_change_is_told() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(10) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = decide(&landing, &f);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
+    assert!(!waiting.landing.members[0].told);
+    f.members[0].merged = Some(prefix(0));
+    let told = decide(&waiting.landing, &f);
+    assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
+    assert_eq!(decide(&told.landing, &f).decision, Decision::Wait { until: Some(at(15)) });
+}
+
+#[test]
+fn a_forges_missing_merge_mark_cannot_keep_the_turn_past_its_poll() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(10) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = decide(&landing, &f);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    let told = step(&waiting.landing, &f, &PROJECT, &LIMITS, at(15));
+    assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
+    let restored = told.landing.clone();
+    let told = step(&restored, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(told.decision, Decision::Landed { member: 1, prefix: prefix(1) });
+    let told = step(&told.landing, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(told.decision, Decision::Landed { member: 2, prefix: prefix(2) });
+    let finished = step(&told.landing, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(finished.decision, Decision::Finish);
+    assert_eq!(finished.landing.phase, Phase::Landed);
+}
+
+#[test]
+fn a_late_merge_readback_gives_manual_detection_a_whole_poll() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(10) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = step(&landing, &f, &PROJECT, &LIMITS, at(100));
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
+    let restored = waiting.landing.clone();
+    assert_eq!(step(&restored, &f, &PROJECT, &LIMITS, at(104)).decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(
+        step(&restored, &f, &PROJECT, &LIMITS, at(105)).decision,
+        Decision::Landed { member: 0, prefix: prefix(0) }
+    );
+}
+
+#[test]
+fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
+    let mut f = stack_facts(3);
+    f.preparation = crate::Preparation::Absent;
+    let asked = decide(&stack(3), &f);
+    let reoffered = decide(&asked.landing, &f);
+    assert_eq!(reoffered.decision, asked.decision);
+    assert_eq!(reoffered.landing.preparation, asked.landing.preparation);
+    f.preparation = crate::Preparation::Running;
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    f.preparation = crate::Preparation::Idle;
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    found(&mut f);
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Open);
+}
+
+#[test]
+fn a_released_prepares_prefix_is_deleted_before_the_stale_round_restarts() {
+    let mut f = facts();
+    f.members[0].candidate = None;
+    let asked = decide(&preparing(), &f);
+    let mut held = asked.landing;
+    held.phase = Phase::Held { was: Box::new(Phase::Preparing), why: Hold::Prepare };
+    f.released = true;
+    f.members[0].main = NEW;
+    f.members[0].candidate = Some((HEAD, crate::Combine::Merge));
+    let released = decide(&held, &f);
+    assert_eq!(released.landing.round.ending, Some(crate::RoundEnd::Stale));
+    f.released = false;
+    let cleanup = decide(&released.landing, &f);
+    assert_eq!(cleanup.decision, Decision::Delete { member: 0 });
+    assert_eq!(cleanup.landing.members[0].candidate, Some(HEAD));
+    f.members[0].deleted = Status::Passed;
+    let stale = decide(&cleanup.landing, &f);
+    assert_eq!(stale.decision, Decision::Stale);
+    f.members[0].candidate = None;
+    let fresh = decide(&stale.landing, &f);
+    assert_eq!(fresh.decision, Decision::Prepare { member: 0, head: HEAD, main: NEW });
+    assert_eq!(fresh.landing.preparation, 2);
+    assert_eq!(decide(&fresh.landing, &f).decision, Decision::Wait { until: None });
+}
+
+#[test]
+fn a_prepare_finishing_on_a_stale_base_closes_before_proof() {
+    let mut f = facts();
+    f.members[0].candidate = None;
+    let asked = decide(&preparing(), &f);
+    f.members[0].candidate = Some((HEAD, crate::Combine::Merge));
+    f.members[0].main = NEW;
+    let finished = decide(&asked.landing, &f);
+    assert_eq!(finished.landing.phase, Phase::Preparing);
+    assert_eq!(finished.landing.round.ending, Some(crate::RoundEnd::Stale));
+    assert_eq!(finished.landing.preparation, 1);
+    assert_eq!(finished.landing.members[0].candidate, Some(HEAD));
+    assert_eq!(finished.decision, Decision::None);
+    f.preparation = crate::Preparation::Running;
+    assert_eq!(decide(&finished.landing, &f).decision, Decision::Wait { until: None });
+}
+
+#[test]
+fn cleanup_does_not_restore_a_departed_members_unrecorded_prefix() {
+    let (mut landing, mut f) = stacked(3);
+    landing.members[1].candidate = None;
+    landing.members[1].combined = None;
+    landing.members[1].left = Some(crate::Leave::Cancelled);
+    landing.members[1].leave_told = true;
+    landing.round.ending = Some(crate::RoundEnd::Leave);
+    landing.round.changed = Some(2);
+    f.closed = Status::Passed;
+    f.members[2].deleted = Status::Passed;
+    let closed = decide(&landing, &f);
+    assert!(closed.landing.round.ending.is_none());
+    assert_eq!(closed.landing.members[1].candidate, None);
+    assert_eq!(closed.landing.members[1].combined, None);
 }

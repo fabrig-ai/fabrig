@@ -21,6 +21,8 @@ pub(crate) struct Task {
     pub alarm: Option<Alarm>,
     pub grace_alarm: Option<Alarm>,
     pub procedure_offered: Option<u64>,
+    // Connector facts changed after the current step context was offered.
+    pub procedure_woken: bool,
     pub observed_hold: Option<crate::Hold>,
     pub observed_phase: Option<Phase>,
 }
@@ -34,6 +36,7 @@ impl Task {
             alarm: None,
             grace_alarm: None,
             procedure_offered: None,
+            procedure_woken: false,
             observed_hold: None,
             observed_phase: None,
         }
@@ -977,15 +980,17 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::settings::released(domain, held, out);
 }
 
-/// A changed writer or connector fact makes an idle procedure due.
+/// Changed connector facts wake an idle procedure or survive its pending step.
 pub(crate) fn wake_procedure(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
-    let wake = match record(domain, task) {
-        Some(row) => match row.executor {
-            crate::Executor::Procedure { .. } => row.phase == Phase::Active(Active::Idle),
-            crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
-        },
-        None => false,
-    };
+    let Some(row) = record(domain, task) else { return };
+    match row.executor {
+        crate::Executor::Procedure { .. } => {}
+        crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => return,
+    }
+    let wake = row.phase == Phase::Active(Active::Idle);
+    if row.phase == Phase::Active(Active::Due) {
+        task_mut(domain, task).expect("live procedure").procedure_woken = true;
+    }
     if wake {
         let row = &mut task_mut(domain, task).expect("live procedure").record;
         row.due_reason = crate::Why::Changed;
@@ -1039,7 +1044,9 @@ pub(crate) fn activate(domain: &mut Domain, number: u64, out: &mut Queue<Request
     };
     match record(domain, number).expect("activation names live task").executor {
         crate::Executor::Procedure { .. } => {
-            task_mut(domain, number).expect("live procedure").procedure_offered = offered;
+            let task = task_mut(domain, number).expect("live procedure");
+            task.procedure_offered = offered;
+            task.procedure_woken = false;
         }
         crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {}
     }

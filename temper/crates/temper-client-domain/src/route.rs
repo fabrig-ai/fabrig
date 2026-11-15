@@ -41,9 +41,10 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
             }
             told(root, env, jig_client::Told::Link { link: root.client.link().state }, out);
             pages(root, env, crate::pages::Event::Started, out);
-            went(root, env, Place::Address(address), out);
+            went(root, env, Place::Address(address), false, out);
         }
-        Event::Went { place } => went(root, env, place, out),
+        Event::Went { place } => went(root, env, place, false, out),
+        Event::Returned { place } => went(root, env, place, true, out),
         Event::Act { action } => match action {
             Action::LoginEnded { number, exit } => {
                 crate::pages::accounts::terminal_login::ended(&mut Routed { root, out }, env, number, exit);
@@ -85,12 +86,17 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
     // Findings subscriptions follow the event's foreground reads and acts.
     crate::pages::findings::reconcile(&mut Routed { root, out }, env);
 }
-fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
+fn went(root: &mut Domain, env: &Env<Limits>, place: Place, returned: bool, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
     crate::approve::went(root, &place);
     match place {
         Place::Address(address) => {
-            pages(root, env, crate::pages::Event::Went { address: address.clone() }, out);
+            let event = if returned {
+                crate::pages::Event::Returned { address: address.clone() }
+            } else {
+                crate::pages::Event::Went { address: address.clone() }
+            };
+            pages(root, env, event, out);
             if let Address::Adopt { project } = address {
                 forge(root, env, forge::Event::Went { address: forge::Address::Adopt { project } }, out);
             } else {
@@ -128,6 +134,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         | crate::pages::Event::SignInAddress { .. }
         | crate::pages::Event::AccountKey { .. }
         | crate::pages::Event::Went { .. }
+        | crate::pages::Event::Returned { .. }
         | crate::pages::Event::Act { .. }
         | crate::pages::Event::Told { .. }
         | crate::pages::Event::Link { .. } => false,

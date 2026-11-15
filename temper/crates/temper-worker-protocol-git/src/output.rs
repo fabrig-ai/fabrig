@@ -94,18 +94,19 @@ pub fn paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]
     listed_paths(stdout, checkout, false)
 }
 
-/// Streaming admission of a design's changed paths. Retains only the first
-/// non-Markdown name; the conflict count does not bound a delivery's files.
+/// Streaming admission of changed paths. Retains only the first admitted
+/// name, excluding Markdown for design delivery; the conflict count does not bound the stream.
 #[derive(Debug)]
 pub(crate) struct DesignPaths {
     path: crate::capped::Capped,
     first: Option<Box<[u8]>>,
     invalid: bool,
+    markdown: bool,
 }
 
 impl DesignPaths {
-    pub fn new() -> Self {
-        Self { path: crate::capped::Capped::new(0), first: None, invalid: false }
+    pub fn new(markdown: bool) -> Self {
+        Self { path: crate::capped::Capped::new(0), first: None, invalid: false, markdown }
     }
 
     pub fn feed(&mut self, bytes: &[u8], path_bytes: u32) {
@@ -114,7 +115,7 @@ impl DesignPaths {
                 let path = core::mem::replace(&mut self.path, crate::capped::Capped::new(path_bytes)).finish();
                 if path.is_empty() {
                     self.invalid = true;
-                } else if !path.ends_with(b".md") && self.first.is_none() {
+                } else if (self.markdown || !path.ends_with(b".md")) && self.first.is_none() {
                     self.first = Some(path);
                 }
             } else {
@@ -139,9 +140,9 @@ impl DesignPaths {
     }
 }
 
-/// The complete changed-path stream, retaining only the first code path.
-pub(crate) fn design_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
-    let mut paths = DesignPaths::new();
+/// The complete changed-path stream, retaining only the first admitted path.
+pub(crate) fn design_paths(stdout: &[u8], checkout: &checkout::Limits, markdown: bool) -> Option<Box<[Box<[u8]>]>> {
+    let mut paths = DesignPaths::new(markdown);
     paths.feed(stdout, checkout.path_bytes);
     paths.finish()
 }
