@@ -76,6 +76,8 @@ pub(crate) struct Layer {
     #[cfg(test)]
     pub(crate) accepted: List<(u16, Box<[u64]>)>,
     #[cfg(test)]
+    pub(crate) log_origins: List<(u16, skein_forge_connection::settings::LogOrigin)>,
+    #[cfg(test)]
     pub(crate) returned: u32,
 }
 struct Endpoints {
@@ -148,6 +150,8 @@ impl Layer {
             #[cfg(test)]
             accepted: List::with_capacity(limits.forges),
             #[cfg(test)]
+            log_origins: List::uncapped(),
+            #[cfg(test)]
             returned: 0,
         })
     }
@@ -180,6 +184,10 @@ impl Layer {
         #[cfg(test)]
         if let skein_forge_connection::Request::Installations { forge, accepted } = &request {
             self.accepted.push((*forge, accepted.clone())).expect("test accepted");
+        }
+        #[cfg(test)]
+        if let skein_forge_connection::Request::LogOrigin { forge, origin } = &request {
+            self.log_origins.push((*forge, origin.clone())).expect("test log origins");
         }
         self.component.down(&self.env, request, &mut self.above, &mut self.io);
     }
