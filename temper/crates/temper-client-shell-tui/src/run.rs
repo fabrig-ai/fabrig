@@ -1192,7 +1192,9 @@ mod tests {
             Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
         run.started(None, Vec::new());
         let frame = String::from_utf8(run.host.frame().print().into_vec()).unwrap();
-        assert_eq!(frame.lines().next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
+        let mut rows = frame.lines();
+        assert_eq!(rows.next().unwrap().trim_end(), "");
+        assert_eq!(rows.next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
         let recorder = run.recording.as_ref().unwrap().recorder.as_ref().unwrap();
         let lines = journey::lines(&recorder.save(&mut run.host)).expect("recorded Start");
         assert!(lines.contains(&journey::Line::Plain));
