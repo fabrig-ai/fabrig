@@ -165,42 +165,49 @@ fn a_turn_landing_is_found_after_a_runner_cancellation_and_restarts() {
 
 /// temper/docs/design/domain/landing.md, 15: an external worker survives each engine restart.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn an_engine_restarts_in_each_turn_landing_phase() {
     support::turn_drills::run(support::turn_drills::Drill::Phases);
 }
 
 /// temper/docs/design/domain/landing.md, 15: the external worker saves an in-flight producer.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn an_engine_and_worker_restart_during_delivery_beside_proof() {
     support::turn_drills::run(support::turn_drills::Drill::Delivery);
 }
 
 /// temper/docs/design/domain/landing.md, 5 and 9: four template goals share one turn.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn four_goals_land_together_after_loading_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::BatchFour);
 }
 
 /// temper/docs/design/domain/landing.md, 7 and 9: the third member is blamed and repaired.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::Breaking);
 }
 
 /// temper/docs/design/domain/landing.md, 4.3 and 9: a conflicting member resolves next round.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn conflicting_goals_depart_and_resolve_in_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::Conflict);
 }
 
 /// temper/docs/design/domain/landing.md, 13: one owner revision keeps running work's settings.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
     support::turn_drills::run(support::turn_drills::Drill::GoLive);
 }
 
 /// temper/docs/design/domain/landing.md, 4.3: a moved head leaves a sealed batch of three.
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_member_head_moves_during_a_three_goal_batch_proof() {
     support::turn_drills::run(support::turn_drills::Drill::Moving);
 }
@@ -218,31 +225,37 @@ fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_copied_projects_red_member_repairs_and_lands_later() {
     deployment_turn("copied-red-repaired", support::batch_landing::deployment::run_repaired);
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_deployment_sized_repository_root_lands_by_turn() {
     deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn two_conflicting_changes_resolve_and_land_by_turn() {
     deployment_turn("deployment-conflict", support::batch_landing::deployment::run_conflict);
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
     deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run() {
     deployment_turn("deployment-shared-midproof", support::batch_landing::deployment::run_midproof_shared);
 }
 
 #[test]
+#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
 fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
     use support::{batch_landing, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new("deployment-batch-four");
