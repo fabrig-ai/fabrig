@@ -1,6 +1,7 @@
 use super::*;
 use crate::seam::Access;
 use crate::tests::fixtures;
+mod log_origins;
 
 #[test]
 fn call_sizes_distinguish_real_rows_single_recovery_and_github() {
