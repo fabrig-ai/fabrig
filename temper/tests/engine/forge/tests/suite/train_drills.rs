@@ -234,6 +234,91 @@ fn drill_18_three_units_with_the_first_breaking_land_nothing_in_round_one() {
     search_example(3, 1, &[1]);
 }
 
+fn workflow_runs(world: &World) -> Box<[raw::Run]> {
+    let mut all = Vec::new();
+    // Four retained runs fit two pages in the small fake.
+    for page in 1..=2 {
+        let raw::Answer::Runs(runs) = world.inspect(&raw::Read::Runs {
+            workflow: Some(b"gate.yml".as_slice().into()), commit: None, number: None, page, limit: 8,
+        }) else { panic!("workflow runs") };
+        all.extend(runs);
+    }
+    all.into_boxed_slice()
+}
+
+fn report(world: &World, run: u64) -> Box<[u8]> {
+    let raw::Answer::Artifact { artifact, .. } =
+        world.inspect(&raw::Read::Artifact { run, name: b"report".as_slice().into() })
+    else {
+        panic!("run report")
+    };
+    artifact.bytes
+}
+
+#[test]
+fn drill_19_named_flake_and_inherited_reports_are_still_a_failed_landing_gate() {
+    let mut workflow = super::landing_batches::workflow(false);
+    workflow.fails = Box::new([b"case.inherited".as_slice().into()]);
+    workflow.flaky = Box::new([b"case.flake".as_slice().into()]);
+    workflow.select = Some(b"temper_tests".as_slice().into());
+    workflow.report =
+        Some(raw::Report { artifact: b"report".as_slice().into(), format: raw::ReportFormat::Lines, deflate: false });
+    let mut world = landings::turn_in(World::search_turn(19, workflow));
+    world.external(
+        raw::Op::Write(raw::Write::Dispatch {
+            workflow: b"gate.yml".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            inputs: Box::new([(b"temper_tests".as_slice().into(), b"case.inherited".as_slice().into())]),
+        }),
+        1,
+    );
+    world.run_for(10);
+    let base_run = workflow_runs(&world)[0].id;
+    assert_eq!(report(&world, base_run).as_ref(), b"case.inherited\n");
+    ready(&mut world, 51, b"main");
+    Trains::default().judge(&mut world);
+    let landing = task(&world, 51);
+    let main = world.branch(b"main");
+    landings::drive_landing(&mut world, landing);
+    let member = &world.landing(landing).landing.members[0];
+    let Some(landing::Leave::Failed { run, .. }) = member.left else { panic!("failed gate") };
+    let candidate = translate::commit(workflow_runs(&world).iter().find(|known| known.id == run).expect("candidate run").commit);
+    assert_eq!(report(&world, run).as_ref(), b"case.flake\ncase.inherited\n");
+    assert_eq!(member.landed, None);
+    assert_eq!(world.branch(b"main"), main);
+    assert!(matches!(world.change(51).change.state, change::State::Repairing { .. }));
+    let calls = world.take_calls();
+    assert!(!calls.iter().any(|op| matches!(op, api::Op::Read(api::Read::Artifact { .. }))));
+    // The runner can prove the named flake passes alone at the same candidate;
+    // landing gates classify workflow outcomes, without reading report artifacts
+    // (temper/docs/design/domain/landing.md, 7.3).
+    world.external(
+        raw::Op::Git(raw::Git::Create {
+            branch: b"temper/alone".as_slice().into(),
+            commit: skein_fake_forge_domain::commit_count(&candidate).expect("candidate"),
+        }),
+        1,
+    );
+    world.external(
+        raw::Op::Write(raw::Write::Dispatch {
+            workflow: b"gate.yml".as_slice().into(),
+            branch: b"temper/alone".as_slice().into(),
+            inputs: Box::new([(b"temper_tests".as_slice().into(), b"case.flake".as_slice().into())]),
+        }),
+        1,
+    );
+    world.run_for(10);
+    let runs = workflow_runs(&world);
+    assert_eq!(runs.len(), 3);
+    let alone = runs
+        .iter()
+        .find(|run| run.inputs.iter().any(|(_, tests)| tests.as_ref() == b"case.flake"))
+        .expect("selected flake");
+    assert_eq!(alone.commit, skein_fake_forge_domain::commit_count(&candidate).expect("candidate"));
+    assert_eq!(alone.conclusion, Some(raw::Conclusion::Success));
+    assert!(report(&world, alone.id).is_empty());
+}
+
 #[test]
 fn drill_13_two_goal_trains_and_main_progress_independently() {
     let mut world = landings::turn_in(World::parallel_trains());
@@ -279,7 +364,7 @@ fn drill_13_two_goal_trains_and_main_progress_independently() {
     for change in 51..=55 {
         assert!(matches!(world.change(change).change.state, change::State::Landed { .. }));
     }
-    assert!(trains.held.is_empty());
+    assert!(trains.held.is_empty(), "no train held: {:?}", trains.held);
     let calls = world.take_calls();
     assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(), 1);
     assert_eq!(
