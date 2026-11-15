@@ -49,6 +49,7 @@ fn landing(by: engine::Way) -> engine::ProjectLanding {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([]),
         }]),

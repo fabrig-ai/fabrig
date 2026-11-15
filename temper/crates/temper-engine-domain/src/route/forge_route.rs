@@ -3697,7 +3697,13 @@ fn change_delegate(
         ),
         forge_change::Delegate::Repair(why) => (
             tasks::Executor::Agent { charter: row.producing_charter },
-            repair_words(row, why, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
+            repair_words(
+                row,
+                why,
+                domain.forge.landing_failure(task, why).as_ref(),
+                parameters.as_slice(),
+                env.limits.tasks.spec_bytes,
+            )?,
             change_contract,
             row.producing_llm.clone(),
         ),
@@ -4015,11 +4021,12 @@ const REPAIR_PRESERVATION: &[u8] = concat!(
 fn repair_words(
     row: &forge::ChangeRow,
     why: forge_change::Repair,
+    failure: Option<&forge::LandingFailure>,
     parameters: &[tasks::Parameter],
     bound: u32,
 ) -> Option<Box<[u8]>> {
     if let forge_change::Repair::LandingAt { candidate, below: Some(below), .. } = why {
-        return blamed_repair_words(row, why, candidate, below, parameters, bound);
+        return blamed_repair_words(row, why, candidate, below, failure, parameters, bound);
     }
     let previous: &[u8] = match why {
         forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
@@ -4076,6 +4083,8 @@ fn repair_words(
     append(&mut words, b"\n");
     append(&mut words, previous);
     append(&mut words, REPAIR_PRESERVATION);
+    let lines = repair_failure_lines(why, failure, words.room())?;
+    append(&mut words, &lines);
     Some(words.into_boxed())
 }
 
@@ -4085,6 +4094,7 @@ fn blamed_repair_words(
     why: forge_change::Repair,
     red: skein_forge::api::Commit,
     below: forge_change::Below,
+    failure: Option<&forge::LandingFailure>,
     parameters: &[tasks::Parameter],
     bound: u32,
 ) -> Option<Box<[u8]>> {
@@ -4114,7 +4124,9 @@ fn blamed_repair_words(
         required = required.checked_add(part.len())?;
     }
     let room = parameter_word_room(parameters, bound);
-    let list_room = usize::try_from(room).ok()?.checked_sub(required)?;
+    let lines_room = room.checked_sub(u32::try_from(required).ok()?)?;
+    let lines = repair_failure_lines(why, failure, lines_room)?;
+    let list_room = usize::try_from(lines_room).ok()?.checked_sub(lines.len())?;
     // Four u64 pairs and their punctuation fit here even at their greatest values.
     let mut list = List::with_capacity(256);
     let mut separator = b" Changes landing below it: ".as_slice();
@@ -4137,7 +4149,127 @@ fn blamed_repair_words(
     append(&mut words, &list);
     append(&mut words, ci);
     append(&mut words, REPAIR_PRESERVATION);
+    append(&mut words, &lines);
     Some(words.into_boxed())
+}
+
+/// Required failure lines take room before the optional changes below a blamed unit.
+fn repair_failure_lines(
+    why: forge_change::Repair,
+    failure: Option<&forge::LandingFailure>,
+    room: u32,
+) -> Option<Box<[u8]>> {
+    match why {
+        forge_change::Repair::Landing { .. } | forge_change::Repair::LandingAt { .. } => {}
+        forge_change::Repair::Ci
+        | forge_change::Repair::Semantic
+        | forge_change::Repair::Gate(_)
+        | forge_change::Repair::Review { .. } => return Some(Box::new([])),
+    }
+    let mut words = List::with_capacity(room);
+    let Some(failure) = failure else {
+        let line = b"\nGate run: the landing no longer keeps its failure";
+        if skein_lib::len_u64(line.len()) > u64::from(room) {
+            return None;
+        }
+        append(&mut words, line);
+        return Some(words.into_boxed());
+    };
+    let prefix = commit_text(&failure.prefix);
+    let base = match failure.base {
+        Some(base) => commit_text(&base),
+        None => Box::from(b"unknown".as_slice()),
+    };
+    let run = skein_lib::Decimal::of(failure.run.id);
+    let gate = skein_lib::bytes::concat(&[
+        b"\nGate run: ",
+        run.as_bytes(),
+        b" at ",
+        &prefix,
+        b", base ",
+        &base,
+        b": ",
+        &failure.run.url,
+    ]);
+    if skein_lib::len_u64(gate.len()) > u64::from(room) {
+        return None;
+    }
+    append(&mut words, &gate);
+    let mut lines = report_lines(&failure.report);
+    for job in &failure.jobs {
+        let line = skein_lib::bytes::concat(&[
+            b"\nFailed job: ",
+            &job.name,
+            b": read_job head=",
+            &prefix,
+            b" run=",
+            run.as_bytes(),
+            b" job=",
+            skein_lib::Decimal::of(job.job).as_bytes(),
+            b" attempt=",
+            skein_lib::Decimal::of(u64::from(job.attempt)).as_bytes(),
+        ]);
+        lines.push(line).expect("receipt tests and jobs bounded");
+    }
+    let mut total = 0_u32;
+    for line in &lines {
+        total = total.checked_add(u32::try_from(line.len()).ok()?)?;
+    }
+    let mut left = lines.len();
+    for line in lines.into_boxed() {
+        if total > words.room() {
+            let after = left.checked_sub(1)?;
+            let marker = failed_jobs_overflow(after);
+            let needed = u32::try_from(line.len().checked_add(marker.len())?).ok()?;
+            if after == 0 || needed > words.room() {
+                let marker = failed_jobs_overflow(left);
+                if skein_lib::len_u64(marker.len()) > u64::from(words.room()) {
+                    return None;
+                }
+                append(&mut words, &marker);
+                return Some(words.into_boxed());
+            }
+        }
+        append(&mut words, &line);
+        total = total.checked_sub(u32::try_from(line.len()).ok()?)?;
+        left = left.checked_sub(1)?;
+    }
+    Some(words.into_boxed())
+}
+
+fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
+    let mut lines = List::with_capacity(1040);
+    match report {
+        forge::ReceiptReport::Unset => lines
+            .push(Box::from(b"\nFailed tests: not known (the gate names no report)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Unread => lines
+            .push(Box::from(b"\nFailed tests: not known (its report could not be read)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Many { bound } => lines
+            .push(skein_lib::bytes::concat(&[
+                b"\nFailed tests: more than ",
+                skein_lib::Decimal::of(u64::from(*bound)).as_bytes(),
+            ]))
+            .expect("one report line"),
+        forge::ReceiptReport::Tests(tests) => {
+            for test in tests {
+                let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
+                lines
+                    .push(skein_lib::bytes::concat(&[b"\nFailed test: ", &test.key, b" (", profile, b")"]))
+                    .expect("receipt tests bounded");
+            }
+        }
+    }
+    lines
+}
+
+fn failed_jobs_overflow(left: u32) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[
+        b"\n[",
+        skein_lib::Decimal::of(u64::from(left)).as_bytes(),
+        b" more failed tests and jobs: read_checks names them]",
+    ])
 }
 
 fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::ChangeRow) -> Option<Box<[u8]>> {

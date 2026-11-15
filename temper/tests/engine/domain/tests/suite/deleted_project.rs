@@ -210,6 +210,9 @@ fn observations(repository: Repository, project: u32) -> Vec<Record> {
                 key: [4; 32],
             },
             receipt: forge::Receipt {
+                report: forge::ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 passed: true,
                 logs: Box::new([]),
                 failures: None,

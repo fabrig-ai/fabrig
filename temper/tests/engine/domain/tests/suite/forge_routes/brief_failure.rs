@@ -4,7 +4,7 @@ use jig_domain_core::{documents, reads};
 use skein_forge::api::Error;
 
 const STEPS: u32 = 200;
-const REASON: &[u8] = b"ci: the forge's answer did not match its read";
+const REASON: &[u8] = b"pull: the forge's answer did not match its read";
 
 fn world() -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     // The shipped brief has room for both the pull identity and its unread marker.

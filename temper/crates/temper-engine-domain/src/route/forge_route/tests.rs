@@ -1503,13 +1503,28 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
 }
 
 #[test]
-fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
+fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
     use super::forge_change::{Delegate, Repair};
     use crate::boundary::Work;
     use jig_domain_brief::{GatherEvent, Planned};
     use skein_lib::{List, Queue};
 
-    for (why, kinds) in [(Repair::Ci, [3, 1]), (Repair::Semantic, [1, 3]), (Repair::Review { head: [7; 32] }, [3, 2])] {
+    for (why, kinds) in [
+        (Repair::Ci, [1, 3]),
+        (Repair::Semantic, [1, 3]),
+        (Repair::Landing { gate: 1 }, [1, 3]),
+        (Repair::LandingAt { gate: 1, candidate: SHA1, below: None }, [1, 3]),
+        (
+            Repair::LandingAt {
+                gate: 1,
+                candidate: SHA1,
+                below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+            },
+            [1, 3],
+        ),
+        (Repair::Gate(1), [2, 3]),
+        (Repair::Review { head: [7; 32] }, [2, 3]),
+    ] {
         let (mut domain, env) = two_forges();
         let mut row = change_row(Some(7));
         row.change.last_head = Some(SHA1);
@@ -1571,6 +1586,12 @@ fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
 
 #[test]
 fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context() {
+    let brief = planned_ci_repair(super::forge_change::Repair::Ci);
+    assert_eq!(brief.sections[6].title.as_ref(), b"CI");
+    assert_eq!(brief.sections[7].title.as_ref(), b"Pull request");
+}
+
+fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brief {
     use crate::boundary::Work;
     use jig_domain_brief::{Core, GatherEvent, Planned};
     use skein_lib::{List, Queue, Writer};
@@ -1582,7 +1603,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     env.limits.brief = domain.limits.brief;
     let mut row = change_row(Some(7));
     row.change.last_head = Some(SHA1);
-    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(why)));
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
@@ -1623,7 +1644,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     let failure = b"Failed check: / changes (pull_request)\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\nFailed step: 1 changes\nEnd of its log:\n";
     let end = b"\nMissing changes/2.md\nRepair the failed check.\n";
     ci.put(failure).unwrap();
-    for _ in failure.len()..4096 - end.len() {
+    for _ in failure.len()..4096_usize.checked_sub(end.len()).unwrap() {
         ci.put(b"l").unwrap();
     }
     ci.put(end).unwrap();
@@ -1633,9 +1654,8 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
         }
     }
-    let Planned::Connector { kind: 3, .. } = sections[6] else { panic!("pull precedes its reason") };
-    let Planned::Connector { kind: 1, .. } = sections[7] else { panic!("CI follows the pull") };
     let plan = jig_domain_brief::plan(&sections, budget).expect("bounded repair");
+    let mut rendered = List::with_capacity(8);
     for placed in &plan.order {
         let section = &sections[usize::try_from(placed.index).unwrap()];
         match section {
@@ -1649,8 +1669,101 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
             Planned::Connector { .. } => panic!("two repair sections"),
         }
+        let (title, text): (&[u8], &[u8]) = match section {
+            Planned::Connector { kind: 1, .. } => (b"CI", &ci),
+            Planned::Connector { kind: 3, .. } => (b"Pull request", &pull),
+            Planned::Core { text, .. } => (b"Task", text),
+            Planned::Connector { .. } => panic!("two repair sections"),
+        };
+        rendered
+            .push(smith_domain_run::Section {
+                title: title.into(),
+                text: text[..usize::try_from(placed.size).unwrap()].into(),
+            })
+            .unwrap();
     }
     assert_eq!(plan.size, budget);
+    smith_domain_run::Brief { sections: rendered.into_boxed() }
+}
+
+#[test]
+fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
+    use skein_lib::Duration;
+    use smith_domain_run as run;
+
+    let brief = planned_ci_repair(super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None });
+    let mut ci = None;
+    let mut pull = None;
+    for section in &brief.sections {
+        match section.title.as_ref() {
+            b"CI" => ci = Some(section.text.clone()),
+            b"Pull request" => pull = Some(section.text.clone()),
+            _ => {}
+        }
+    }
+    let ci = ci.expect("CI section");
+    let pull = pull.expect("pull section");
+    let why = super::forge_change::Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+    };
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let instructions = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    let mut charter = run::Charter {
+        mode: run::Mode::Finite,
+        resume: false,
+        waiting: Duration::ZERO,
+        instructions: instructions.clone(),
+        brief,
+        conventions: None,
+        grants: run::charter::Grants {
+            contract: 1,
+            wait: false,
+            deliver: None,
+            save: false,
+            tools: run::charter::Tools { inspect: true, modify: true, shell: true },
+            agents: false,
+            host_tools: Box::new([]),
+        },
+        outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
+        budget: run::Budget { turns: 1, spend: 100, time: Duration::from_secs(60) },
+        reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },
+        llm: run::charter::Llm {
+            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+            dialect: 1,
+            account: None,
+            endpoint: run::charter::Endpoint(0),
+            model: b"model".as_slice().into(),
+            effort: None,
+            window: 65_536,
+            output: 256,
+        },
+        models: Box::new([]),
+        check_timeout: None,
+    };
+    let bound = charter.owned_bytes().unwrap().checked_sub(1024).unwrap();
+    temper_protocol_brief::fit_brief_bytes(&mut charter, bound);
+    assert!(charter.owned_bytes().unwrap() <= bound);
+    assert_eq!(charter.brief.sections.len(), 8, "no section is omitted");
+    assert_eq!(charter.instructions, instructions);
+    assert!(
+        skein_lib::bytes::find(&charter.instructions, b"Failed test: test skein-lib::suite fuzzy::a (fuzzy)").is_some()
+    );
+    for section in &charter.brief.sections {
+        match section.title.as_ref() {
+            b"CI" => assert!(section.text == ci, "the failed step and log end survive charter fitting whole"),
+            b"Pull request" => {
+                assert!(section.text.len() < pull.len(), "pull contents yield to the charter bound");
+                assert!(section.text.starts_with(b"Pull request: #7\n"));
+                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+            }
+            _ => {}
+        }
+    }
 }
 
 #[test]
@@ -2157,10 +2270,20 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let reason = b"Repair the failed landing gate. The landing's gates passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
     let list = b" Changes landing below it: 2341 (#7), 2342 (#8).";
     let ci = b" The CI section gives its run, base and failed jobs.";
-    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION]);
-    assert_eq!(super::repair_words(&row, why, &[], 1024).unwrap(), expected);
+    let failure = repair_failure(red, Some(green));
+    let lines = concat(&[
+        b"\nGate run: 4211 at ",
+        &commit_text(&red),
+        b", base ",
+        &commit_text(&green),
+        b": https://forge.example/o/r/actions/runs/998\nFailed tests: not known (the gate names no report)\nFailed job: gate: read_job head=",
+        &commit_text(&red),
+        b" run=4211 job=9001 attempt=1",
+    ]);
+    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION, &lines]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), expected);
     let bound = u32::try_from(expected.len() - 6).unwrap();
-    let cut = super::repair_words(&row, why, &[], bound).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
     assert!(cut.starts_with(opening));
     assert!(cut.starts_with(&concat(&[opening.as_slice(), reason, b" Changes landing below it: 2341 (#7)"])));
     let mut last_kept = false;
@@ -2168,15 +2291,77 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
         last_kept |= part == b"2342 (#8)";
     }
     assert!(!last_kept);
-    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION])));
+    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION, &lines])));
     assert!(cut.len() <= usize::try_from(bound).unwrap());
     let base = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes: [None; 4] }) };
     assert_eq!(
-        super::repair_words(&row, base, &[], 1024).unwrap(),
-        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION])
+        super::repair_words(&row, base, Some(&failure), &[], 4096).unwrap(),
+        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION, &lines])
     );
     let candidate = Repair::LandingAt { gate: 1, candidate: red, below: None };
-    assert_eq!(super::repair_words(&row, candidate, &[], 1024).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION]));
+    assert_eq!(super::repair_words(&row, candidate, Some(&failure), &[], 4096).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION, &lines]));
+}
+
+fn repair_failure(prefix: [u8; 32], base: Option<[u8; 32]>) -> super::forge::LandingFailure {
+    super::forge::LandingFailure {
+        report: super::forge::ReceiptReport::Unset,
+        gate: b"gate".as_slice().into(),
+        run: super::forge::ReceiptRun {
+            id: 4211,
+            number: 998,
+            url: b"https://forge.example/o/r/actions/runs/998".as_slice().into(),
+        },
+        prefix,
+        base,
+        jobs: Box::new([super::forge::ReceiptJob { job: 9001, attempt: 1, name: b"gate".as_slice().into() }]),
+    }
+}
+
+#[test]
+fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
+    use super::forge_change::Repair;
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.jobs = Box::new([
+        failure.jobs[0].clone(),
+        super::forge::ReceiptJob { job: 9002, attempt: 3, name: b"lint".as_slice().into() },
+    ]);
+    let prefix = commit_text(&SHA1);
+    let gate = skein_lib::bytes::concat(&[
+        b"\nGate run: 4211 at ",
+        &prefix,
+        b", base unknown: https://forge.example/o/r/actions/runs/998",
+    ]);
+    let job =
+        skein_lib::bytes::concat(&[b"\nFailed job: gate: read_job head=", &prefix, b" run=4211 job=9001 attempt=1"]);
+    let lint =
+        skein_lib::bytes::concat(&[b"\nFailed job: lint: read_job head=", &prefix, b" run=4211 job=9002 attempt=3"]);
+    let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
+    let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
+    let report = b"\nFailed tests: not known (the gate names no report)";
+    let full = skein_lib::bytes::concat(&[&required, &gate, report, &job, &lint]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
+    for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
+        let expected = skein_lib::bytes::concat(&[
+            &required,
+            &gate,
+            report,
+            kept,
+            b"\n[",
+            skein_lib::Decimal::of(omitted).as_bytes(),
+            b" more failed tests and jobs: read_checks names them]",
+        ]);
+        let bound = u32::try_from(expected.len()).unwrap();
+        assert_eq!(super::repair_words(&row, why, Some(&failure), &[], bound).unwrap(), expected);
+    }
+    for why in [why, Repair::Landing { gate: 1 }] {
+        assert_eq!(
+            super::repair_words(&row, why, None, &[], 4096).unwrap(),
+            skein_lib::bytes::concat(&[&required, b"\nGate run: the landing no longer keeps its failure"])
+        );
+    }
 }
 
 fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
@@ -2190,15 +2375,15 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = Box::from(b"/ check (pull_request), / changes (pull_request)".as_slice());
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert_repair_instruction(&words, b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
     // A client cuts contexts, keeping the complete opening and pinned head.
     row.result.failed.bytes = Box::from([b'x'; 200]);
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));
     for why in [super::forge_change::Repair::Ci, super::forge_change::Repair::Semantic] {
-        assert!(super::repair_words(&row, why, &[], 64).is_none());
+        assert!(super::repair_words(&row, why, None, &[], 64).is_none());
     }
 }
 
@@ -2212,10 +2397,10 @@ fn a_ci_repair_with_no_failed_check_known_says_so() {
             row.change.last_head = Some(SHA1);
             row.result.head = observed;
             row.result.failed.bytes = failed.into();
-            let words = super::repair_words(&row, why, &[], 512).unwrap();
+            let words = super::repair_words(&row, why, None, &[], 512).unwrap();
             assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
             for bound in 0..512 {
-                if let Some(words) = super::repair_words(&row, why, &[], bound) {
+                if let Some(words) = super::repair_words(&row, why, None, &[], bound) {
                     assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
                 }
             }
@@ -2280,7 +2465,7 @@ fn a_clean_updates_red_opens_with_its_head_and_failed_check() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = b"build".as_slice().into();
-    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, None, &[], 512).unwrap();
     assert_repair_instruction(
         &words,
         b"Repair CI at abcdef012345: build\nCI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
@@ -2299,9 +2484,9 @@ fn a_persons_request_repair_words_open_with_its_head() {
     );
     let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
     let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len()).unwrap();
-    let words = super::repair_words(&row, why, &parameters, bound).unwrap();
+    let words = super::repair_words(&row, why, None, &parameters, bound).unwrap();
     assert_eq!(words.as_ref(), skein_lib::bytes::concat(&[expected.as_bytes(), super::REPAIR_PRESERVATION]).as_ref());
-    assert!(super::repair_words(&row, why, &parameters, 64).is_none());
+    assert!(super::repair_words(&row, why, None, &parameters, 64).is_none());
 }
 
 #[test]
@@ -2327,10 +2512,13 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
             Box::new([Gate { number: 7, kind, blocking: true, freshness: Freshness::Exact, eager: false }]);
         let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
         let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len() + 1).unwrap();
-        assert_repair_instruction(&super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap(), expected);
-        assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
+        assert_repair_instruction(
+            &super::repair_words(&row, Repair::Gate(7), None, &parameters, bound).unwrap(),
+            expected,
+        );
+        assert!(super::repair_words(&row, Repair::Gate(7), None, &parameters, 64).is_none());
     }
-    assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
+    assert!(super::repair_words(&row, Repair::Gate(8), None, &[], 512).is_none(), "an unknown gate cannot be named");
 }
 
 fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
@@ -3418,9 +3606,15 @@ fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_boun
                 Delegate::Gate { .. } => {
                     assert!(delegate.spec.words.starts_with(b"Review this change at the named head\n"));
                 }
-                Delegate::Repair(_) => {
+                Delegate::Repair(repair) => {
                     let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
-                    assert!(before.ends_with(super::REPAIR_PRESERVATION));
+                    let preservation = match repair {
+                        Repair::Landing { .. } | Repair::LandingAt { .. } => before
+                            .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
+                            .expect("a landing repair names its missing failure before the current request"),
+                        Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
+                    };
+                    assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
                 }
                 Delegate::Resolve { .. } => {
                     let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
@@ -5617,4 +5811,59 @@ fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
     check(&mut domain, &row, Preparation::Idle);
     row.landing.preparation = 2;
     check(&mut domain, &row, Preparation::Absent);
+}
+
+fn report_tests() -> super::forge::ReceiptReport {
+    super::forge::ReceiptReport::Tests(Box::new([
+        super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
+        super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
+    ]))
+}
+
+#[test]
+fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
+    use super::forge_change::{Below, Landed, Repair};
+    use skein_lib::bytes::{concat, find};
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(Below {
+            green: SHA256,
+            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
+        }),
+    };
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    let tests =
+        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
+    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
+    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
+    let job_at = find(&whole, b"\nFailed job: gate: read_job head=").unwrap();
+    assert!(run_at < tests_at && tests_at < job_at);
+    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
+    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
+    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
+    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
+    let marker = b"\n[2 more failed tests and jobs: read_checks names them]";
+    let bound = u32::try_from(
+        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
+    )
+    .unwrap();
+    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
+    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
+    for (report, line) in [
+        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
+        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
+        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
+    ] {
+        failure.report = report;
+        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+        let at = find(&words, line).unwrap();
+        assert!(find(&words[..at], b"\nGate run:").is_some());
+        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
+    }
 }

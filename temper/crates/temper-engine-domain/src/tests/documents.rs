@@ -407,8 +407,8 @@ fn a_repair_replaces_optional_core_sections_and_keeps_both_documents() {
     let brief::Planned::Core { kind: brief::Core::Plan, .. } = sections[5] else {
         panic!("first optional core section preserved")
     };
-    let brief::Planned::Connector { kind: 3, required: true, .. } = sections[6] else { panic!("required Pull") };
-    let brief::Planned::Connector { kind: 1, required: true, .. } = sections[7] else { panic!("required reason") };
+    let brief::Planned::Connector { kind: 1, required: true, .. } = sections[6] else { panic!("required reason") };
+    let brief::Planned::Connector { kind: 3, required: true, .. } = sections[7] else { panic!("required Pull") };
 }
 
 #[test]

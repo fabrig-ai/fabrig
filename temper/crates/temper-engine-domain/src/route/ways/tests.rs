@@ -144,6 +144,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([forge::Tier {
                 name: b"fuzzy".as_slice().into(),

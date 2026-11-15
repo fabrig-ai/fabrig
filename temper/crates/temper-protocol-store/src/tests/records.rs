@@ -1521,6 +1521,12 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
         forge::Check::Tier(Box::from([0; 32])),
     ] {
         for passed in [false, true] {
+            let mut jobs = skein_lib::List::with_capacity(16);
+            if !passed {
+                for job in 0..16 {
+                    jobs.push(forge::ReceiptJob { job, attempt: u32::MAX, name: Box::new([b'n'; 256]) }).unwrap();
+                }
+            }
             let row = forge::Stored::Receipt {
                 key: forge::ReceiptKey {
                     project: 5,
@@ -1529,6 +1535,9 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
+                    report: temper_engine_domain_forge::ReceiptReport::Unset,
+                    base: if passed { None } else { Some([0xbb; 32]) },
+                    jobs: jobs.into_boxed(),
                     logs: Box::new([]),
                     failures: None,
                     passed,
@@ -2590,6 +2599,9 @@ fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
             key: [3; 32],
         },
         receipt: forge::Receipt {
+            report: temper_engine_domain_forge::ReceiptReport::Unset,
+            base: None,
+            jobs: Box::new([]),
             failures: None,
             passed: false,
             candidate: [4; 32],
@@ -2975,5 +2987,107 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
             let held = meter.end().held();
             assert_eq!(forge::stored_bytes(&cloned), Some(held));
         }
+    }
+}
+
+#[test]
+fn receipt_reports_round_trip_their_states_and_owned_bytes() {
+    for report in [
+        forge::ReceiptReport::Unset,
+        forge::ReceiptReport::Unread,
+        forge::ReceiptReport::Many { bound: 16 },
+        forge::ReceiptReport::Tests(Box::new([
+            forge::ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
+            forge::ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
+        ])),
+    ] {
+        let row = forge::Stored::Receipt {
+            key: forge::ReceiptKey {
+                project: 5,
+                repository: fixtures::REPO,
+                check: forge::Check::Gate(b"gate".as_slice().into()),
+                key: [7; 32],
+            },
+            receipt: forge::Receipt {
+                report,
+                base: Some([1; 32]),
+                jobs: Box::new([]),
+                logs: Box::new([]),
+                failures: None,
+                passed: false,
+                run: forge::ReceiptRun { id: 7, number: 8, url: b"run/7".as_slice().into() },
+                candidate: [3; 32],
+                ended: skein_lib::Wall::EPOCH,
+            },
+        };
+        new_family_round_trip(&row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+    }
+}
+
+#[test]
+fn receipt_row_report_defaults_without_changing_tier_rows() {
+    let mut text = None;
+    for family in crate::PATCH_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.expect("registered application family");
+    let old = text.replace("report: ReceiptReport = unset ", "").replace("report: ReceiptReport ", "");
+    assert_ne!(text, old);
+    let old = skein_codec::schema::parse(old.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let receipt = fixtures::tier_row().result.unwrap();
+    assert_eq!(receipt.report, forge::ReceiptReport::Unset);
+    let receipt = forge::Stored::Receipt {
+        key: forge::ReceiptKey {
+            project: 5,
+            repository: fixtures::REPO,
+            check: forge::Check::Gate(b"gate".as_slice().into()),
+            key: [7; 32],
+        },
+        receipt,
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (root, row) in
+        [(b"ReceiptRow".as_slice(), receipt), (b"TierRow".as_slice(), forge::Stored::Tier(fixtures::tier_row()))]
+    {
+        let bytes = records::encode(&row);
+        let to_old = skein_codec::layout::Plan::derive(
+            &new,
+            new.root(root, None).unwrap(),
+            &[],
+            &old,
+            old.root(root, None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let to_new = skein_codec::layout::Plan::derive(
+            &old,
+            old.root(root, None).unwrap(),
+            &[],
+            &new,
+            new.root(root, None).unwrap(),
+            &[],
+        )
+        .expect("a receipt row report defaults and tier layouts stay identical");
+        let mut workspace = skein_codec::layout::Workspace::new();
+        assert!(workspace.fit(&to_old));
+        let mut before = skein_lib::Buffer::with_capacity(131_072);
+        to_old.convert(&bytes[3..], &mut before, &mut workspace).unwrap();
+        if root == b"TierRow" {
+            assert_eq!(before.as_slice(), &bytes[3..], "tier bytes are unchanged");
+        }
+        assert!(workspace.fit(&to_new));
+        let mut after = skein_lib::Buffer::with_capacity(131_072);
+        to_new.convert(before.as_slice(), &mut after, &mut workspace).unwrap();
+        let restored = skein_lib::bytes::concat(&[&bytes[..3], after.as_slice()]);
+        assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
     }
 }

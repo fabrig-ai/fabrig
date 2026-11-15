@@ -12,6 +12,7 @@ fn gate() -> Gate {
         ignored: Box::new([copy_of(b"docs")]),
         blocking: true,
         base: false,
+        report: None,
     }
 }
 fn tree(object: u8, pairs: &[(&[u8], u8)]) -> Tree {

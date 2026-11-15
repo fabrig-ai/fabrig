@@ -331,7 +331,12 @@ enum TierBranch { absent, pending: TierBranchEntry, made }
 enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
-record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 logs: bytes 8192 }
+record ReceiptJob { job: u64 attempt: u32 name: bytes 256 }
+record ReceiptTest { key: bytes 4096 fuzzy: bool }
+record ReceiptTests { tests: list 1024 ReceiptTest }
+record ReceiptMany { bound: u32 }
+enum ReceiptReport { unset, unread, many: ReceiptMany, tests: ReceiptTests }
+record Receipt { base: option fixed 32 = none jobs: list 16 ReceiptJob = [] failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 logs: bytes 8192 }
 record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
 record TierHold { party: u64 at: u64 reason: bytes 1024 }
 record TierPostedTests { tests: list 1024 u16 }
@@ -343,7 +348,7 @@ enum TierCommentKind { verdict: TierCommentVerdict, repaired: TierCommentRepair 
 record TierComment { pull: u64 landing: fixed 32 kind: TierCommentKind }
 record TierPosting { number: u64 tip: fixed 32 link: bytes 2048 status: Check description: bytes 140 landings: list 759 TierPostedLanding comments: list 8192 TierComment next: u32 entry: option u64 part: u16 op_bytes: u32 }
 record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 759 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault hold: option TierHold result: option Receipt posting: option TierPosting received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
-record ReceiptRow { key: ReceiptKey receipt: Receipt }
+record ReceiptRow { report: ReceiptReport = unset key: ReceiptKey receipt: Receipt }
 # 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }
 enum ForgeMode { connected, managed, owned, fake }

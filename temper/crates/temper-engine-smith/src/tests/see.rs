@@ -345,6 +345,7 @@ fn landing_and_gates_read_the_configured_values() {
             ignored: Box::new([b"docs".as_slice().into(), b"notes".as_slice().into()]),
             blocking: false,
             base: true,
+            report: None,
         }]),
         tiers: [Follows::Landing, Follows::Branch(b"stable".as_slice().into()), Follows::Goals]
             .map(|follows| Tier {
