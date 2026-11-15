@@ -6,6 +6,9 @@
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
+- **Not yet:** 2, step 1: an early start merges its dependencies' branch
+  heads as last read, not their last checked heads [in flight: change
+  4064].
 
 
 

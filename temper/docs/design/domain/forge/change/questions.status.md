@@ -12,6 +12,12 @@
   and the requester idle with it [in flight: change 838].
 - **Not yet:** 1, *Passed up*: the question's label names no answer form
   [in flight: change 839].
+- **Not yet:** 1, *Early starts*, *When*, *A checked head* and *From
+  what*: a change keeps no last checked head, and an early start counts
+  and merges a dependency's branch head as the forge last read it, an
+  unchecked save included [in flight: change 4064].
+- **Not yet:** 1, *Early starts*, *It is told*: an early producer's
+  words carry no `[Started from …]` line [in flight: change 4066].
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
