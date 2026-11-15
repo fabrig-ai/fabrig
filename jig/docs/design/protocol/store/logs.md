@@ -116,8 +116,10 @@ key's first field after the family's tag:
   start of that frame; one that erases it puts `HistoryLog { record:
   none }`. A task's first record with neither puts `HistoryLog { record:
   none }`, so that each task with a history log has its row.
-- **An erase of a log-held key** is an erase row in the task's record:
-  the rows before it in the log no longer hold the key. A forgotten
+- **An erase of a log-held key** erases the map's row where the map
+  holds it, and is an erase row in the task's record where the task has
+  a history log: the rows before it in the log no longer hold the key.
+  An erase of a key neither holds writes nothing. A forgotten
   task's record is erased so (`retention.md`, 6.4, below 9), and so are
   the rows the walks that end a task's history erase before its drop
   (9).
@@ -127,6 +129,14 @@ key's first field after the family's tag:
 - **Bounds:** a commit's operations grow by an append, an extent and a
   place per task it writes history of; its bounds count them
   (`Check(Capacity)`).
+- **Only once `task-logs` runs:** the commits of an open's jobs before
+  `task-logs` (6), on a store behind it, write log-held keys to the map
+  as they did when their jobs were designed (S5's `milestones` puts
+  attempts and holds there), so that their pages' commits stay within
+  the room each job counted; `task-logs` then moves them with the rest.
+  From its first page on, and in every commit once it is done, the
+  commits route as this section says. The root never commits before
+  every job is done (`jobs.md`, 2).
 
 ## 4. Read through a view
 
