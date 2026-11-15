@@ -138,7 +138,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         && matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))));
 }
 
-fn hello_prepare(slots: u32) -> engine::Event {
+pub(super) fn hello_prepare(slots: u32) -> engine::Event {
     let mut event = protocol::hello_slots(Token::new(7), slots, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
@@ -150,15 +150,11 @@ fn hello_prepare(slots: u32) -> engine::Event {
     event
 }
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        false,
-        1000,
-        Gate::default(),
-        None,
-        StoryLimits { turn: true, landing_members, ..StoryLimits::default() },
-    );
+    produced_turn_change_with(&StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
+}
+
+fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
     world.adopt();
     world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
@@ -954,6 +950,15 @@ mod messages;
 #[path = "landing_news.rs"]
 mod news;
 
+#[path = "landing_trains.rs"]
+mod trains;
+
+#[path = "landing_merge_drill.rs"]
+mod merge_drill;
+
+#[path = "landing_wait_drill.rs"]
+mod wait_drill;
+
 #[test]
 fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
     use forge_top::history as h;
@@ -990,3 +995,224 @@ fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set
     assert_eq!((events[1].operation, events[1].attempt), (events[0].operation, events[0].attempt));
     assert!(events[1].head.is_some());
 }
+
+#[test]
+fn a_first_turn_prepare_is_delegated_under_stocks_executor_ceiling() {
+    let (mut world, _) = produced_turn_change(None);
+    world.manual_prepare_jobs();
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(world.jobs.len(), 1, "first prepare needs no person's decision");
+    assert_eq!(world.jobs[0].kind, jig_domain_link::JobKind(1));
+}
+
+fn assert_prepare_hold(limits: &StoryLimits, reason: &str) {
+    let (mut world, _) = produced_turn_change_with(limits);
+    for _ in 0..600 {
+        world.tick();
+        if landing_rows(&world).iter().any(|row| {
+            task_row(&world, row.landing.task).is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }))
+        }) {
+            break;
+        }
+    }
+    let row = landing_rows(&world).into_iter().next().expect("landing formed");
+    let task = task_row(&world, row.landing.task).expect("landing task");
+    let tasks::Phase::Held { source: Some(source), .. } = &task.phase else {
+        panic!("landing must hold with words: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    assert!(words.contains(reason), "{words}");
+}
+
+#[test]
+fn an_undeclared_prepare_holds_the_landing_with_its_reason() {
+    assert_prepare_hold(
+        &StoryLimits { turn: true, omit_prepare: true, ..StoryLimits::default() },
+        "prepare job kind 1 is not declared",
+    );
+}
+
+#[test]
+fn a_refused_prepare_holds_the_landing_with_authority_findings() {
+    assert_prepare_hold(
+        &StoryLimits { turn: true, refuse_prepare: true, ..StoryLimits::default() },
+        "executor outside its delegation authority",
+    );
+}
+
+#[test]
+fn a_train_forms_after_its_due_readiness_steps_settle() {
+    // World ticks advance 100 ms: two seconds keep the latch inside opening's stall.
+    const LATCH_TICKS: u32 = 20;
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { turn: true, batch: Some(2), slots: Some(4), ..StoryLimits::default() },
+    );
+    world.adopt();
+    let mut event = hello_prepare(4);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("hello")
+    };
+    hello.bounds.message_bytes = 256;
+    world.send(event);
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let (a, producer_a) = make_change(&mut world, &chat, 95, b"org/repo");
+    let (b, producer_b) = make_change(&mut world, &chat, 96, b"org/repo");
+    push_change(&mut world, &producer_a, b"org/repo");
+    push_change(&mut world, &producer_b, b"org/repo");
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Release together", Box::new([]));
+    delegate.authority = live_task(&world, chat.task).authority.clone();
+    delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    delegate.authority.budget.spend = 10;
+    let answer = world.scripted_call(&chat, 98, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("latch delegated: {answer:?}") };
+    let latch = made[0].task;
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if world.assigned.iter().any(|run| run.task == latch) {
+            break;
+        }
+    }
+    let latch_run = world.assigned.iter().find(|run| run.task == latch).expect("latch run").clone();
+    for task in [a, b] {
+        let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Ready together");
+        amendment.dependencies = Some(Box::new([latch]));
+        let revision = live_task(&world, task).revisions.spec;
+        let answer = world.scripted_call(
+            &chat,
+            100 + task,
+            engine::Tool::Amend { keep_parameters: false, target: task, revision, amendment },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
+        assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
+    }
+    // One slow read orders readiness without exhausting opening's 30-second stall.
+    world.slow_branch = producer_b.workspace.repositories[0].push.clone();
+    world.slow_branch_latency = skein_lib::Duration::from_secs(1);
+    finish_producer(&mut world, &producer_a, forge_world::REPO);
+    finish_producer(&mut world, &producer_b, forge_world::REPO);
+    for _ in 0..LATCH_TICKS {
+        world.tick();
+    }
+    assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
+    goal_landing::finish_run(
+        &mut world,
+        &latch_run,
+        tasks::TaskResult::Report { words: b"Ready together".as_slice().into() },
+    );
+    world.manual_prepare_jobs();
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    let rows = landing_rows(&world);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
+}
+
+fn red_round_without_grant(kind: u16) -> (World, u64) {
+    let (mut world, _) = produced_turn_change_with(&StoryLimits {
+        turn: true,
+        dispatch_passes: Some(0),
+        omit_landing_grant: Some(kind),
+        ..StoryLimits::default()
+    });
+    let mut landing = None;
+    for _ in 0..1200 {
+        world.prepare_tick();
+        if let Some(row) = landing_rows(&world).into_iter().next() {
+            landing = Some(row.landing.task);
+            if task_row(&world, row.landing.task)
+                .is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. } | tasks::Phase::Ended(_)))
+            {
+                break;
+            }
+        }
+    }
+    (world, landing.expect("red round formed"))
+}
+
+#[test]
+fn a_red_only_member_frees_its_round_branch_without_a_delete_grant() {
+    let (world, landing) = red_round_without_grant(15);
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round");
+    assert!(matches!(row.landing.members[0].left, Some(forge_top::LandingLeave::Failed { .. })));
+    let task = task_row(&world, landing).expect("landing task");
+    assert!(matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_))), "{:?}", task.phase);
+    assert_eq!(world.fake.branch(b"org/repo", &row.landing.round.branch), None);
+    for holding in &task.holdings {
+        let tasks::Holding::Write { resource, .. } = holding else { panic!("round branch holding") };
+        assert_eq!(world.root.tasks().holder(resource), None, "round branch freed");
+    }
+    assert_eq!(
+        world
+            .writes
+            .iter()
+            .filter(|write| matches!(write, api::Write::DeleteBranch { branch } if *branch == row.landing.round.branch))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn a_refused_round_effect_holds_the_landing_with_its_operation_and_cause() {
+    let (world, landing) = red_round_without_grant(12);
+    let task = task_row(&world, landing).expect("landing task");
+    let tasks::Phase::Held { why: tasks::Hold::Effects, source: Some(source), .. } = &task.phase else {
+        panic!("landing must retain its effect refusal: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { entry: Some(_), words, .. } = source.as_ref() else { panic!("effect account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    for expected in ["close or reopen pull request", "authority", "operation has no authority grant", "task release"] {
+        assert!(words.contains(expected), "{words}");
+    }
+}
+
+#[test]
+fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
+    let (mut world, _) = produced_turn_change(None);
+    for _ in 0..600 {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    assert!(!landing_rows(&world).is_empty(), "landing formed before refusing its pull request");
+    world.fail_open_writes = true;
+    for _ in 0..600 {
+        world.prepare_tick();
+        if landing_rows(&world).iter().any(|row| {
+            task_row(&world, row.landing.task).is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }))
+        }) {
+            break;
+        }
+    }
+    let row = landing_rows(&world).into_iter().next().expect("round");
+    let task = task_row(&world, row.landing.task).expect("landing task");
+    let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &task.phase else {
+        panic!("landing retains its failed write: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { entry: Some(_), words, .. } = source.as_ref() else { panic!("effect account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    for expected in ["open pull request", "permission", "org/repo", "task release"] {
+        assert!(words.contains(expected), "{words}");
+    }
+}
+
+#[path = "landing_stale_round.rs"]
+mod stale_round;

@@ -627,6 +627,7 @@ fn release_llm(
         .find_map(|proc| match proc {
             Process::Peer(peer) => Some(peer),
             Process::Calls(_)
+            | Process::Member(_)
             | Process::Binary(_)
             | Process::Stdout(_)
             | Process::Person(_)
@@ -828,7 +829,8 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     match proc {
                         Process::Peer(peer) => peer.shutdown(),
                         Process::Issuer(issuer) => issuer.shutdown(),
-                        Process::Binary(_)
+                        Process::Member(_)
+                        | Process::Binary(_)
                         | Process::Calls(_)
                         | Process::Person(_)
                         | Process::Stdout(_)

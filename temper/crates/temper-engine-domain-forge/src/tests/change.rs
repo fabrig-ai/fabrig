@@ -4,6 +4,65 @@ mod empty_repair;
 mod fence;
 mod released_resolution;
 
+/// Landing mode is selected at readiness, including work restored across a configuration change
+/// (temper/docs/design/domain/landing.md, 1).
+#[test]
+fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
+    use skein_forge::api::Answer;
+    use temper_engine_domain_forge_change as c;
+    for (state, since, way) in [
+        (c::State::Opening { requested: true }, None, c::Way::Turn),
+        (c::State::Checking { head: fixtures::HEAD }, None, c::Way::Turn),
+        (c::State::Gating { head: fixtures::HEAD, asked: Box::new([]) }, None, c::Way::Turn),
+        (c::State::Checking { head: fixtures::HEAD }, Some(env().wall), c::Way::Queue),
+        (c::State::Queued { head: fixtures::HEAD, ready_since: env().wall }, Some(env().wall), c::Way::Queue),
+    ] {
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = c::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = state;
+        row.change.ready_since = since;
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        assert!(d.project_landing(
+            5,
+            c::Way::Turn,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                },
+                bound: Duration::from_secs(7200),
+            },
+        ));
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        fixtures::step_change(&mut d);
+        let mut pull = fixtures::open_pull();
+        pull.ci = skein_forge::api::Ci::Pending;
+        for answer in [
+            Answer::Commit(fixtures::HEAD),
+            Answer::Commit(fixtures::BASE),
+            Answer::Pull(pull),
+            fixtures::checks(skein_forge::api::Check::Pending),
+            Answer::Commits { commits: Box::new([]), more: false },
+            Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+        ] {
+            fixtures::answer_next(&mut d, Ok(answer));
+        }
+        let row = d.change(fixtures::CHANGE).expect("ready change");
+        assert_eq!(row.change.way, way);
+        if way == c::Way::Turn {
+            assert_eq!(row.change.state, c::State::Ready { head: fixtures::HEAD, ready_since: env().wall });
+        }
+    }
+}
+
 #[test]
 fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
     use temper_engine_domain_forge_change::{State, Waiting};
@@ -2752,6 +2811,24 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
     }
 }
 
+#[test]
+fn a_met_dependency_wakes_an_idle_gating_change() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Gating { head: fixtures::HEAD, asked: Box::new([]) },
+        change::Delegate::Produce,
+    );
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("gating change");
+    row.delegate = None;
+    row.delegate_status = change::Status::Passed;
+    row.change.way = change::Way::Turn;
+    let out = outputs(&mut d, Event::DependenciesMet { task: fixtures::CHANGE });
+    assert!(
+        out.contains(&Request::WakeProcedure { task: fixtures::CHANGE }),
+        "last dependency must refresh readiness before forming: {out:?}"
+    );
+}
+
 fn restarted_producing() -> Domain {
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::connected_domain();
@@ -2971,6 +3048,63 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
     }
 }
 
+#[test]
+fn a_repair_claiming_during_a_change_read_keeps_its_own_delivery() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as c;
+    let state = c::State::Repairing { requested: true, why: c::Repair::Ci };
+    let mut d = delegate_waiting(state.clone(), c::Delegate::Repair(c::Repair::Ci));
+    let mut row = d.change(fixtures::CHANGE).expect("repairing change").clone();
+    row.title = b"Small fix".as_slice().into();
+    row.pull = Some(1);
+    row.delegate_status = c::Status::Unknown;
+    outputs(&mut d, Event::Change { row });
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+    };
+    outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
+    outputs(&mut d, waiting_step(true, false));
+    // The branch read predates the repair's run and its push.
+    let (call, _) = fixtures::next_call(&mut d);
+    outputs(
+        &mut d,
+        Event::Claim {
+            task: 52,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            designs: Box::new([]),
+            holders: Box::new([fixtures::CHANGE]),
+        },
+    );
+    let pushed = [9; 32];
+    outputs(&mut d, Event::Answered { task: 52, attempt: 1, pushed: Box::new([(name, pushed, true)]) });
+    fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::HEAD)));
+    for _ in 0_u32..16 {
+        if d.steps.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { .. }) => Answer::Commit(fixtures::BASE),
+            Op::Read(Read::Pull { .. } | Read::PullFor { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, ahead: 0, behind: 1, files: Box::new([]), changed: 0 }
+            }
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(_) | Op::Write(_) => panic!("change read: {op:?}"),
+        };
+        fixtures::answer(&mut d, call, Ok(answer));
+    }
+    assert!(d.steps.is_empty(), "the old read completed");
+    let row = d.change(fixtures::CHANGE).expect("repairing change");
+    assert_eq!(row.change.state, state, "an old read cannot cancel the repair's own delivery");
+    assert_eq!(row.change.last_head, Some(pushed));
+}
+
 fn drain_parts(out: &mut Queue<Request>) -> (usize, usize) {
     let mut requests = skein_lib::List::uncapped();
     while let Some(request) = out.pop() {
@@ -3087,6 +3221,76 @@ fn change_parts_restore_in_either_order_without_saves_and_orphans_name_the_prese
                 outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).is_empty()
             );
             assert!(d.change(row.task).is_none());
+        }
+    }
+}
+
+#[test]
+fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() {
+    use temper_engine_domain_forge_change as c;
+    let judging = c::State::Judging {
+        head: fixtures::HEAD,
+        ready_since: Wall::EPOCH,
+        asked: Box::new([1]),
+        target: c::Judgement {
+            landing: 60,
+            round: 1,
+            pull: 2,
+            branch: b"candidate".as_slice().into(),
+            base: b"main".as_slice().into(),
+            prefix: fixtures::HEAD,
+        },
+    };
+    for (state, kind, name) in [
+        (
+            c::State::Repairing { requested: true, why: c::Repair::Gate(1) },
+            c::Delegate::Repair(c::Repair::Gate(1)),
+            "repair",
+        ),
+        (
+            c::State::Resolving { requested: true, base: fixtures::BASE },
+            c::Delegate::Resolve { base: fixtures::BASE },
+            "resolution",
+        ),
+        (
+            c::State::Resolving { requested: true, base: fixtures::BASE },
+            c::Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) },
+            "merge job",
+        ),
+        (
+            c::State::Gating { head: fixtures::HEAD, asked: Box::new([1]) },
+            c::Delegate::Gate { number: 1, head: fixtures::HEAD },
+            "review",
+        ),
+        (judging, c::Delegate::Gate { number: 1, head: fixtures::HEAD }, "judgement"),
+    ] {
+        for reason in [b"the delegate cannot finish".as_slice(), b"".as_slice(), &[b'x'; 8192]] {
+            let mut d = delegate_waiting(state.clone(), kind);
+            outputs(
+                &mut d,
+                Event::DelegateResult {
+                    ended_at: None,
+                    task: fixtures::CHANGE,
+                    child: 52,
+                    status: c::Status::Failed,
+                    no_change: false,
+                    failed: true,
+                    cancelled: false,
+                    words: reason.into(),
+                },
+            );
+            let row = d.change(fixtures::CHANGE).expect("change");
+            let words = row.producer_failure.as_deref().expect("retained failed delegate");
+            assert!(words.len() <= usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).unwrap());
+            assert!(words.starts_with(format!("its {name}, task 52, failed for good:").as_bytes()));
+            assert!(skein_lib::bytes::find(words, b"release this change").is_some());
+            let expected =
+                if reason.is_empty() { b"gave no account".as_slice() } else { &reason[..reason.len().min(24)] };
+            assert!(skein_lib::bytes::find(words, expected).is_some());
+            let saved = row.clone();
+            let mut restored = fixtures::connected_domain();
+            outputs(&mut restored, Event::Restore { record: Stored::Change(Box::new(saved)) });
+            assert_eq!(restored.change(fixtures::CHANGE).unwrap().producer_failure.as_deref(), Some(words));
         }
     }
 }

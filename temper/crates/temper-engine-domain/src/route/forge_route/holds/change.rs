@@ -60,6 +60,58 @@ pub(in super::super) fn account(
     Some(forge::text::fit(words.as_slice(), skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"..."))
 }
 
+/// Every change hold has an account even when the deciding neighbour gave none.
+pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, why: change::Hold) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(
+        &mut words,
+        match why {
+            change::Hold::Stalled => b"its forge wait exceeded the stall bound",
+            change::Hold::Repairs => b"its repair allowance is spent; amend the allowance before releasing",
+            change::Hold::Resolutions => {
+                b"its conflict resolution allowance is spent; resolve the conflict or amend the allowance"
+            }
+            change::Hold::Updates => b"its branch update allowance is spent; update the branch or amend the allowance",
+            change::Hold::BranchMoved => b"its branch moved outside its writer; release to accept the current head",
+            change::Hold::BranchMissing => b"its branch is missing; release to recreate it",
+            change::Hold::PullClosed => b"its pull request closed without merging; release to reopen it",
+            change::Hold::Retargeted => b"its pull request targets another base; release to restore its target",
+            change::Hold::Failed => b"its delegate or forge effect failed without an account",
+            change::Hold::Rejected => b"a person rejected its required gate; resolve the rejection before releasing",
+            change::Hold::Authority(_) => {
+                b"its next delegate exceeds its authority; amend the authority before releasing"
+            }
+            change::Hold::Questions => {
+                b"its question allowance is spent; answer the pending question or amend the allowance"
+            }
+        },
+    );
+    if let Some(row) = domain.forge.change(task) {
+        if let change::State::Held { was, .. } = &row.change.state {
+            append(&mut words, b"; change was ");
+            append(&mut words, step_name(was));
+        }
+        if why == change::Hold::Resolutions || why == change::Hold::Updates {
+            let (taken, bound) = if why == change::Hold::Resolutions {
+                (row.change.resolutions, env.limits.forge.change_policy.resolutions)
+            } else {
+                (row.change.updates, env.limits.forge.change_policy.updates)
+            };
+            append(&mut words, b"; ");
+            append(&mut words, skein_lib::Decimal::of(u64::from(taken)).as_bytes());
+            append(&mut words, b" of ");
+            append(&mut words, skein_lib::Decimal::of(u64::from(bound)).as_bytes());
+            append(&mut words, b" taken");
+        }
+    }
+    let revision = match domain.core.tasks.task(task) {
+        Some(row) => row.revisions.hold.saturating_add(1),
+        None => 1,
+    };
+    super::append_recovery(task, revision, &mut words);
+    words.into_boxed()
+}
+
 fn expected_head(state: &change::State) -> Option<[u8; 32]> {
     match state {
         change::State::Checking { head }

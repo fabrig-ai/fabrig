@@ -1,6 +1,7 @@
 //! A queue that lands green and a red narrowed on real git and the owned runner
 //! (temper/docs/design/testing/process-tier.md; domain/landing.md, 5, 8–10 and 14;
 //! domain/landing-search.md, 3–5 and 8).
+pub mod deployment;
 mod narrowed;
 use super::{
     ChatJudge, ChatPhase, Ending, LANDING, Process, ctl,
@@ -8,12 +9,12 @@ use super::{
     landing_scripts, person, turn_restart,
 };
 use serde_json::{Value, json};
-use skein_fake_llm_domain::api::{Finish, Line, Piece, Script, Turn};
+use skein_fake_llm_domain::api::{Finish, Line, Piece, Rule, Rules, Script, Turn};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
-use std::{fs, path::Path};
+use std::{cell::RefCell, collections::BTreeMap, fs, path::Path};
 
 // Hello is task 1, the landing chat 2. Its one delegate batch makes these
 // siblings before any producer starts. The latch is a report, not a change.
@@ -23,12 +24,28 @@ const FOURTH: u64 = 6;
 enum Story {
     Green,
     Narrowed,
+    Repaired,
+    DeploymentGreen,
+    Conflict,
+    MidProof,
+    NarrowedFour,
 }
 impl Story {
     fn changes(self) -> u64 {
         match self {
-            Self::Green => 4,
+            Self::Green | Self::NarrowedFour => 4,
             Self::Narrowed => 3,
+            Self::Repaired | Self::DeploymentGreen | Self::MidProof => 1,
+            Self::Conflict => 2,
+        }
+    }
+    fn ready(self) -> &'static [u64] {
+        match self {
+            Self::Green | Self::Narrowed => &CHANGES,
+            Self::Repaired | Self::DeploymentGreen => &[3],
+            Self::Conflict => &[3, 4],
+            Self::MidProof => &[4],
+            Self::NarrowedFour => &[3, 4, 5, 6],
         }
     }
     fn latch(self) -> u64 {
@@ -36,7 +53,7 @@ impl Story {
     }
 }
 
-fn call(name: &[u8], value: &Value) -> Turn {
+pub(super) fn call(name: &[u8], value: &Value) -> Turn {
     Turn {
         lines: Box::new([Line::Call {
             name: name.into(),
@@ -47,11 +64,14 @@ fn call(name: &[u8], value: &Value) -> Turn {
     }
 }
 
-fn hold(name: &[u8]) -> Line {
+pub(super) fn hold(name: &[u8]) -> Line {
     Line::Pieces { pieces: Box::new([Piece { text: b"Waiting.".as_slice().into(), hold: Some(name.into()) }]) }
 }
 
 fn scripts(root: &Path, forge: &Throwaway, story: Story) -> Box<[Script]> {
+    if let Story::MidProof = story {
+        return deployment::goal_scripts(forge);
+    }
     let value: Value =
         serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration")).expect("JSON");
     let engine = temper_real_loop_world::settings::configuration(&value);
@@ -73,13 +93,13 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         change["tracked"] = json!({"priority":number});
         change["authority"]["budget"]["spend"] = (4 * run).into();
         batch.push(change);
-        let path = format!("batch-{number}.txt");
+        let path = if let Story::Conflict = story { "shared.txt".into() } else { format!("batch-{number}.txt") };
         let mut turns = vec![
             call(b"read", &json!({"path":path})),
             call(
                 b"write",
                 &json!({"path":path,"content":match (story, number) {
-                    (Story::Narrowed, 2) => "red\n".to_owned(),
+                    (Story::Narrowed | Story::NarrowedFour, 2) | (Story::Repaired, 1) => "red\n".to_owned(),
                     _ => format!("Change {number}\n"),
                 }}),
             ),
@@ -89,7 +109,10 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
                 "title":format!("Batch change {number}"),"body":format!("Add {path}.")}}),
             ),
         ];
-        if number == 4 {
+        if matches!(story, Story::NarrowedFour) {
+            turns[0].lines = Box::new([hold(b"batch-coders"), turns[0].lines[0].clone()]);
+        }
+        if number == 4 && !matches!(story, Story::NarrowedFour) {
             turns[0].lines = Box::new([hold(b"batch-fourth"), turns[0].lines[0].clone()]);
         }
         scripts.push(Script {
@@ -105,10 +128,18 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
             "budget":{"spend":run},"notes":0}
     }));
     owner.turns[0] = call(b"delegate", &json!({"batch":batch}));
-    // A latch's result wakes the owner before the changes end. Keep its finish
-    // from cancelling those children; only the green story releases its finish.
-    let finish = &mut owner.turns[2];
-    finish.lines = [vec![hold(b"batch-owner")], finish.lines.to_vec()].concat().into_boxed_slice();
+    owner.turns = [
+        owner.turns.as_ref(),
+        &[Turn {
+            lines: Box::new([Line::Text { text: b"Read the arrived results before waiting again.".as_slice().into() }]),
+            finish: Finish::Stop,
+            tokens: 20,
+        }],
+    ]
+    .concat()
+    .into_boxed_slice();
+    // The latch and partial change results wake the owner before the batch ends.
+    // Its fresh-input rules wait again until the task has no delegates left.
     scripts.push(owner);
     scripts.push(Script {
         cue: b"## Task\n\n@batch-latch".as_slice().into(),
@@ -128,12 +159,18 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         .iter_mut()
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("shared review");
-    review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+    if !matches!(story, Story::NarrowedFour) {
+        review.turns[0].lines =
+            [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+    }
     // The shared coder is replaced by disjoint files, so every head merges cleanly.
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     scripts.extend(shared);
-    if let Story::Narrowed = story {
-        narrowed::hold_repair(&mut scripts);
+    match story {
+        Story::Narrowed | Story::NarrowedFour => narrowed::hold_repair(&mut scripts),
+        Story::Repaired => deployment::repair_script(&mut scripts),
+        Story::Conflict => deployment::resolution_script(&mut scripts),
+        Story::Green | Story::DeploymentGreen | Story::MidProof => {}
     }
     scripts.into_boxed_slice()
 }
@@ -144,74 +181,76 @@ pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    let engine = temper_real_loop_world::settings::configuration(&value);
-    // Each direct child reserves the prepare-sized result carrier in its
-    // requester's inbox (jig's domain/tasks/messages.md, 2).
-    let inbox_bytes = engine
-        .limits
-        .core
-        .tasks
-        .inbox_messages
-        .checked_mul(engine.limits.core.tasks.result_bytes)
-        .expect("batch result credits");
-    for name in ["tasks.tasks", "tasks.project_tasks", "tasks.tree_tasks", "tasks.exemptions"] {
-        value["engine"]["limits"]["overrides"][name] = 64.into();
-    }
-    value["engine"]["limits"]["overrides"]["tasks.project_goals"] = Story::Green.changes().into();
-    for name in ["tasks.batch", "authority.batch", "tasks.delegates", "people.pending"] {
-        value["engine"]["limits"]["overrides"][name] = 8.into();
-    }
-    value["engine"]["limits"]["overrides"]["people.operations"] = 9.into();
-    value["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 128.into();
-    value["engine"]["limits"]["overrides"]["fleet.attempts"] = 8.into();
-    value["engine"]["limits"]["overrides"]["brief.briefs"] = 8.into();
-    // The engine must accept the worker's advertised slots (temper/docs/design/domain/worker/README.md, 5).
-    value["engine"]["limits"]["overrides"]["fleet.slots"] = 8.into();
     value["workers"][0]["slots"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = 8.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();
     }
-    // The one model call carries four independent change authorities and a latch.
-    let agent_path = root.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
-    agent["profile"]["declared"]["tool_payload"] = 8192.into();
-    // A message reserves two bytes inside the call's tool payload
-    // (temper/docs/design/protocol/configuration/limits.md, limits checked at start).
-    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8190.into();
-    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = inbox_bytes.into();
-    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
-    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
-    let limits = &mut value["workers"][0]["limits"]["overrides"];
-    limits["tasks.message_bytes"] = 8190.into();
-    limits["tasks.inbox_bytes"] = inbox_bytes.into();
-    limits["core.call_answer_bytes"] = 8192.into();
-    limits["hub.event_bytes"] = 8190.into();
-    limits["hub.outcome_bytes"] = 8192.into();
-    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
-    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    // Three readiness gathers run beside repository polls and the held fourth producer.
+    let limits = &mut value["application"]["limits"]["overrides"];
+    limits["forge.client.pending"] = 16.into();
+    limits["forge.client.calls"] = 8.into();
+    limits["forge_component.connections"] = 8.into();
+    message_room(root, &mut value);
+    turn_restart::staging_limits(&mut value);
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
-fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
-    Ok({
-        let ended = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
-        if ended.exit != Some(Exit::Code(0)) {
-            return Err(format!("ctl {arguments:?}: {}", String::from_utf8_lossy(&ended.stderr)));
-        }
-        super::check_ctl_json(&ended)?
-    })
+/// Hold the prepare job and the batch call under the standard engine profile.
+pub fn message_room(root: &Path, value: &mut Value) {
+    // The one model call carries four independent change authorities and a latch.
+    let agent_path = root.join("agent.json");
+    let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
+    agent["profile"]["declared"]["tool_payload"] = 63_740.into();
+    for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
+        endpoint["limits"]["output"] = 48_000.into();
+    }
+    // The standard store holds the prepare job; keep only the story's engine bounds.
+    let prepare = temper_service::limits::prepare_bound();
+    value["engine"]["limits"] = json!({"profile":"standard", "overrides":{
+        "core.run_bytes":32768,
+        "core.call_records":8,
+        "authority.projects":3,
+        "tasks.spec_bytes":prepare.spec,
+        "tasks.result_bytes":prepare.result,
+        "tasks.message_bytes":8190,
+        "people.words":4096,
+        "tasks.inbox_bytes":65536,
+        "tasks.run_inbox":8,
+        "core.call_answer_bytes":8192,
+        "fleet.slots":value["workers"][0]["slots"],
+        "hub.inbox":8,
+        "hub.outcome_bytes":8192
+    }});
+    // Both ends declare the same assignment and job carriers at opening.
+    value["workers"][0]["limits"] = value["engine"]["limits"].clone();
+    let slots = value["workers"][0]["slots"].clone();
+    let limits = &mut value["workers"][0]["limits"]["overrides"];
+    limits["hub.accounts"] = 4.into();
+    limits["hub.slots"] = slots;
+    limits["hub.event_bytes"] = 8190.into();
+    limits["hub.outcome_bytes"] = 8192.into();
+    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
+    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
+    // Turn read-back observes Forgejo's asynchronous manual-merge mark.
+    // Use the shipped paces, within this story's wall bound.
+    let overrides = value["application"]["limits"]["overrides"].as_object_mut().expect("application overrides");
+    for name in ["forge.client.poll_ms", "forge.client.poll_max_ms", "forge.client.slow_ms"] {
+        overrides.remove(name);
+    }
+    // A heard delivery's fallback also bounds prepare retries and merge read-back.
+    overrides.insert("forge.client.fallback_ms".into(), 5000.into());
+    turn_restart::staging_limits(value);
+    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
+    // A task's retained inbox also crosses the record load edge.
+    for name in ["root.loads.bytes", "root.loads.reply_bytes"] {
+        let current = value["application"]["limits"]["overrides"][name].as_u64().expect("load bound");
+        value["application"]["limits"]["overrides"][name] = current.max(8_388_608).into();
+    }
+    value["application"]["limits"]["overrides"]["root.loads.read_bytes"] = 16_777_216.into();
+    value["application"]["limits"]["overrides"]["root.journal.transcript_bytes"] = 8_388_608.into();
+    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
-fn change(root: &Path, task: u64) -> Result<Value, String> {
-    Ok({ read(root, &["change", "show", &task.to_string()])? })
-}
-fn landings(root: &Path) -> Result<Value, String> {
-    Ok({ read(root, &["landing", "list", "--project", "1", "--ended"])? })
-}
-fn landing(root: &Path, task: u64) -> Result<Value, String> {
-    Ok({ read(root, &["landing", "show", &task.to_string()])? })
-}
+
 fn get(forge: &Throwaway, route: &str) -> Value {
     forge.repository_observation("acme", "widget", route)
 }
@@ -245,69 +284,8 @@ fn gate_runs(forge: &Throwaway) -> Result<Vec<Value>, String> {
     })
 }
 
-/// Harness contracts checked without starting the owned forge or a process story.
+/// Fixture admission is checked without starting the owned forge or a process story.
 pub mod tests {
-    pub fn held_turn_releases_repeat_until_the_observed_phase_changes() {
-        use super::Phase;
-        // The first two polls can precede the latch's held turn. With no
-        // proving landing read, the third poll must still release the latch.
-        for _ in 0..3 {
-            assert_eq!(Phase::Batch.releases(), &[b"batch-ready".as_slice()]);
-        }
-        // Reading the proving landing moves the green story to Fourth.
-        assert_eq!(Phase::Fourth.releases(), &[b"batch-fourth".as_slice(), b"batch-reviews".as_slice()]);
-        assert_eq!(Phase::Fourth.releases(), &[b"batch-fourth".as_slice(), b"batch-reviews".as_slice()]);
-        // Reading the fourth change ready moves to Next; neither held turn
-        // needs another release. The narrowed story leaves Batch for Search.
-        let none: &[&[u8]] = &[];
-        assert_eq!(Phase::Next.releases(), none);
-        assert_eq!(Phase::Search(super::narrowed::Step::One).releases(), none);
-    }
-
-    pub fn repeated_releases_name_no_later_scripted_hold() {
-        use super::{Line, Story};
-        let api = "127.0.0.1:3000".parse().expect("fixture forge");
-        for story in [Story::Green, Story::Narrowed] {
-            let scripts = super::scripted_batch(
-                super::super::forgejo::native_scripts(b"hello", api, 1, b"README").into_vec(),
-                1,
-                story,
-            );
-            for name in [b"batch-ready".as_slice(), b"batch-fourth", b"batch-owner", b"batch-reviews", b"batch-repair"]
-            {
-                let count = scripts
-                    .iter()
-                    .flat_map(|script| &script.turns)
-                    .flat_map(|turn| &turn.lines)
-                    .filter_map(|line| if let Line::Pieces { pieces } = line { Some(pieces) } else { None })
-                    .flatten()
-                    .filter(|piece| piece.hold.as_deref() == Some(name))
-                    .count();
-                let expected = match (story, name) {
-                    (Story::Green, b"batch-repair") | (Story::Narrowed, b"batch-fourth") => 0,
-                    _ => 1,
-                };
-                assert_eq!(count, expected, "one scripted hold for {}", String::from_utf8_lossy(name));
-            }
-        }
-    }
-
-    pub fn the_poll_period_starts_when_the_sample_ends() {
-        use super::{Duration, Time};
-        let time = std::cell::Cell::new(Time::from_nanos(1_000_000_000));
-        let poll = super::poll_after_sample(
-            || {
-                // A probe can take longer than the period while the world
-                // drives neither the fake model nor serve's pipes.
-                time.set(time.get().saturating_add(Duration::from_secs(2)));
-                Ok(())
-            },
-            || time.get(),
-        )
-        .expect("sample");
-        assert_eq!(poll, Time::from_nanos(3_250_000_000));
-    }
-
     pub fn gate_receipt_waits_for_an_unpublished_status_context() {
         use serde_json::json;
         assert_eq!(super::narrowed::gate_status(&json!({"statuses":null}), "failure"), Ok(false));
@@ -391,8 +369,6 @@ struct Proof {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
-    Changes,
-    Panels,
     Reviews,
     Keeping,
     Gates,
@@ -402,33 +378,28 @@ enum Phase {
     Landed,
     Ending,
     Search(narrowed::Step),
+    Repair,
+    Repaired,
+    SingleLanded,
+    Conflict,
+    Resolved,
+    StartGoal,
+    GoalGates,
+    Moved,
 }
-impl Phase {
-    // These names occur at one turn each; reviews share a name only across
-    // independent review calls. No later turn reuses a released hold.
-    fn releases(self) -> &'static [&'static [u8]] {
-        match self {
-            Self::Gates => &[b"batch-reviews"],
-            Self::Batch => &[b"batch-ready"],
-            Self::Fourth => &[b"batch-fourth", b"batch-reviews"],
-            Self::Ending => &[b"batch-owner"],
-            Self::Changes
-            | Self::Panels
-            | Self::Reviews
-            | Self::Keeping
-            | Self::Next
-            | Self::Landed
-            | Self::Search(_) => &[],
-        }
-    }
+// One sample reads each panel through the world's Calls actor. A missing panel
+// yields the sample until its response arrives, keeping the fake peer runnable.
+const READ_PENDING: &str = "batch observation pending";
+#[derive(Default)]
+struct Reads {
+    cycle: BTreeMap<Vec<String>, Result<Value, String>>,
+    last: BTreeMap<Vec<String>, Result<Value, String>>,
+    pending: Option<Read>,
 }
-
-// A synchronous probe must leave the hosts a full poll period to progress.
-fn poll_after_sample(sample: impl FnOnce() -> Result<(), String>, now: impl FnOnce() -> Time) -> Result<Time, String> {
-    sample()?;
-    Ok(now().saturating_add(Duration::from_millis(250)))
+struct Read {
+    arguments: Vec<String>,
+    index: Option<usize>,
 }
-
 #[derive(Clone, Copy)]
 enum PeerStop {
     Waiting,
@@ -448,8 +419,10 @@ struct Judge<'a> {
     second: Option<Proof>,
     story: Story,
     probes: Vec<u64>,
+    reads: RefCell<Reads>,
+    amends: usize,
+    observations: std::cell::RefCell<std::collections::BTreeMap<u64, Value>>,
     peer_stop: PeerStop,
-    manual_merges: Value,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
@@ -469,48 +442,133 @@ fn calls(procs: &mut [Process]) -> Result<&mut ctl::Calls, String> {
 }
 
 impl Judge<'_> {
-    fn changes_made(&self) -> Result<bool, String> {
-        let mut tasks = read(self.root, &["task", "list", "--project", "1", "--parent", "2"])?;
-        let mut found = Vec::new();
-        loop {
-            let rows = tasks.get("tasks").map_or(&tasks["live"], |tasks| &tasks["rows"]);
-            let rows = rows.as_array().ok_or_else(|| format!("change task rows: {tasks}"))?;
-            for row in rows {
-                if let Some(task) = row["chip"]["task"].as_u64()
-                    && CHANGES.contains(&task)
-                    && !found.contains(&task)
-                {
-                    found.push(task);
-                }
-            }
-            if found.len() == CHANGES.len() {
-                return Ok(true);
-            }
-            let Some(next) = tasks["read_on"].as_str() else { return Ok(false) };
-            tasks = read(self.root, &next.split_ascii_whitespace().collect::<Vec<_>>())?;
+    fn observe(&self, number: u64, value: Value) {
+        let mut observations = self.observations.borrow_mut();
+        if observations.get(&number) != Some(&value) {
+            eprintln!("batch observation {number}: {value}");
+            observations.insert(number, value);
         }
     }
+    fn report(&self, procs: &[Process]) {
+        if let Some(Process::Binary(binary)) = procs.first() {
+            eprintln!("batch service exit: {:?}", binary.exit_status());
+            eprintln!("batch service: {}", super::without_secrets(binary.stderr()));
+        }
+        eprintln!(
+            "batch phase: {:?}; empty hosts: {:?}",
+            self.phase,
+            procs.iter().map(Host::is_empty).collect::<Vec<_>>()
+        );
+        for (arguments, value) in &self.reads.borrow().last {
+            eprintln!("batch ctl {arguments:?}: {value:?}");
+        }
+        for proc in procs {
+            if let Process::Peer(peer) = proc {
+                for event in peer.observations() {
+                    if let skein_fake_peers::llm::Observation::Query { query, .. } = event {
+                        let tools: Vec<_> = query
+                            .messages
+                            .iter()
+                            .flat_map(|message| message.parts.iter())
+                            .filter_map(|part| {
+                                if let skein_fake_llm_domain::api::Part::ToolCall { name, .. } = part {
+                                    Some(String::from_utf8_lossy(name))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        eprintln!("batch model query: tools {tools:?}");
+                    }
+                }
+            }
+        }
+        for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
+            eprintln!("batch retained landing: {}", proof.panel);
+        }
+    }
+    fn read(&self, arguments: &[&str]) -> Result<Value, String> {
+        let key: Vec<String> = arguments.iter().map(|word| (*word).to_owned()).collect();
+        let mut reads = self.reads.borrow_mut();
+        if let Some(value) = reads.cycle.get(&key) {
+            return value.clone();
+        }
+        if reads.pending.is_none() {
+            reads.pending = Some(Read { arguments: key, index: None });
+        }
+        Err(READ_PENDING.into())
+    }
+    fn change(&self, task: u64) -> Result<Value, String> {
+        self.read(&["change", "show", &task.to_string()])
+    }
+    fn landing(&self, task: u64) -> Result<Value, String> {
+        self.read(&["landing", "show", &task.to_string()])
+    }
+    fn landings(&self) -> Result<Value, String> {
+        let mut list = self.read(&["landing", "list", "--project", "1", "--ended"])?;
+        if matches!(self.story, Story::MidProof) {
+            list["landings"].as_array_mut().ok_or("landings")?.retain(|row| row["train"]["branch"] == "main");
+        }
+        Ok(list)
+    }
+    fn drive_reads(&self, procs: &mut [Process]) -> Result<bool, String> {
+        let mut reads = self.reads.borrow_mut();
+        let Some(pending) = &mut reads.pending else { return Ok(true) };
+        let calls = calls(procs)?;
+        if let Some(index) = pending.index {
+            let Some(ended) = calls.ends().get(index) else { return Ok(false) };
+            let value = if ended.exit == Some(Exit::Code(0)) {
+                super::check_ctl_json(ended)
+            } else {
+                Err(format!("ctl {:?}: {}", pending.arguments, String::from_utf8_lossy(&ended.stderr)))
+            };
+            let key = pending.arguments.clone();
+            reads.last.insert(key.clone(), value.clone());
+            reads.cycle.insert(key, value);
+            reads.pending = None;
+            return Ok(true);
+        }
+        if calls.foreground_idle() {
+            let arguments: Vec<&str> = pending.arguments.iter().map(String::as_str).collect();
+            pending.index = Some(calls.ends().len());
+            calls.push(ctl::Step::Run(ctl::Call::new(&arguments).in_directory("private").json()));
+        }
+        Ok(false)
+    }
     fn reviews_pending(&self) -> Result<bool, String> {
+        let owner = self.read(&["task", "show", "2"])?;
+        if !owner["hold"].is_null() {
+            return Err(format!("batch owner held: {}", owner["hold"]));
+        }
         Ok({
-            CHANGES.into_iter().try_fold(true, |all, task| {
+            self.story.ready().iter().copied().try_fold(true, |all, task| {
                 if !all {
                     return Ok(false);
                 }
-                let change = change(self.root, task)?;
-                Ok::<_, String>(change["step"] == "gating" && change["gates"][0]["verdict"] == "pending")
+                // A producer may not have made its change yet.
+                let change = match self.change(task) {
+                    Ok(change) => change,
+                    Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(false),
+                    Err(why) => return Err(why),
+                };
+                Ok::<_, String>(
+                    matches!(self.story, Story::NarrowedFour)
+                        || (change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"),
+                )
             })?
         })
     }
     fn keep_together(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        if !landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
+        if !self.landings()?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
             return Err(String::from(
-                "assertion failed: landings(self.root)?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
+                "assertion failed: self.landings()?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
             ));
         }
         // The same dependency is lifted in one durable completion. This makes
         // three independent units eligible at quiescence, not a joined unit or
         // a race between three separately released reviews (landing.md, 9).
-        for task in CHANGES {
+        self.amends = calls(procs)?.ends().len();
+        for task in self.story.ready() {
             calls(procs)?.push(ctl::Step::Run(
                 ctl::Call::new(&[
                     "task",
@@ -531,24 +589,76 @@ impl Judge<'_> {
 
         Ok(())
     }
+    fn proof_changes(&self, expected: &[u64]) -> Result<Vec<u64>, String> {
+        if !matches!(self.story, Story::MidProof) {
+            return Ok(expected.to_vec());
+        }
+        let list = self.landings()?;
+        let Some(row) = list["landings"].as_array().ok_or("landings")?.last() else { return Ok(Vec::new()) };
+        let changes = row["changes"]
+            .as_array()
+            .ok_or("changes")?
+            .iter()
+            .map(|task| task.as_u64().ok_or("change"))
+            .collect::<Result<Vec<_>, _>>()?;
+        if changes.len() != 1 {
+            return Err("one goal landing change".into());
+        }
+        Ok(changes)
+    }
     fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Result<Option<Proof>, String> {
         Ok({
+            let main_changes = self.proof_changes(expected)?;
+            if main_changes.is_empty() {
+                return Ok(None);
+            }
+            let expected = main_changes.as_slice();
+            let count = if previous.is_none() {
+                1
+            } else if matches!(self.story, Story::Conflict) {
+                3
+            } else {
+                2
+            };
+            let formed = self.landings()?;
+            for row in formed["landings"].as_array().ok_or("landing list")? {
+                let task = row["task"].as_u64().ok_or("landing task")?;
+                let owner = self.read(&["task", "show", &task.to_string()])?;
+                if !owner["hold"].is_null() {
+                    return Err(format!("landing {task} held: {}", owner["hold"]));
+                }
+            }
+            if let Some(rows) = formed["landings"].as_array()
+                && let Some(row) = rows.iter().find(|row| row["phase"] == "proving")
+                && rows.len() == count
+                && row["changes"] != json!(expected)
+            {
+                return Err(format!("sealed in queue order: {}", row["changes"]));
+            }
             let Some(run) = self.barrier.waiting(previous) else {
                 return Ok(None);
             };
-            let list = landings(self.root)?;
+            let list = self.landings()?;
             let rows = list["landings"].as_array().ok_or(String::from("landing list"))?;
-            if rows.len() != if previous.is_some() { 2 } else { 1 } {
+            if rows.len() != count {
                 return Err(String::from("one landing per batch"));
+            }
+            if let Some(row) = rows.iter().find(|row| row["phase"] == "held") {
+                let task = row["task"].as_u64().ok_or("held landing")?;
+                return Err(format!(
+                    "landing held: {}; task: {}",
+                    self.landing(task)?,
+                    self.read(&["task", "show", &task.to_string()])?
+                ));
             }
             let Some(row) = rows.iter().find(|row| row["phase"] == "proving") else {
                 return Ok(None);
             };
             let task = row["task"].as_u64().ok_or(String::from("landing task"))?;
             if row["changes"] != json!(expected) {
-                return Err(format!("sealed in queue order: expected {expected:?}, got {}", row["changes"]));
+                return Err(format!("sealed in queue order: {}", row["changes"]));
             }
-            let panel = landing(self.root, task)?;
+            let panel = self.landing(task)?;
             if members(&panel)?.iter().any(|member| member["candidate"].is_null()) {
                 return Ok(None);
             }
@@ -653,7 +763,7 @@ impl Judge<'_> {
                     return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
                 }
             }
-            let change = change(self.root, member["change"].as_u64().ok_or(String::from("change"))?)?;
+            let change = self.change(member["change"].as_u64().ok_or(String::from("change"))?)?;
             if sha(&change["head"])? != sha(&member["head"])? {
                 return Err(String::from("no member head rewritten"));
             }
@@ -674,13 +784,10 @@ impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
         eprintln!("batch checking history at {:?}", Clock::new().now().now);
         let mut checked = Vec::new();
-        for proof in [
-            self.first.as_ref().ok_or(String::from("first landing"))?,
-            self.second.as_ref().ok_or(String::from("last landing"))?,
-        ] {
+        for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
             let task = proof.panel["task"].as_u64().ok_or(String::from("landing task"))?;
             if !checked.contains(&task) {
-                super::landing_by_turn::check_history(self.root, 1, &landing(self.root, task)?, Some("private"))?;
+                super::landing_by_turn::check_history(self.root, 1, &self.landing(task)?, Some("private"))?;
                 checked.push(task);
             }
         }
@@ -693,39 +800,9 @@ impl Judge<'_> {
 
         Ok(())
     }
-    fn next_failure_state(&self) -> Result<Value, String> {
-        let first = self.first.as_ref().ok_or(String::from("first proof"))?;
-        let task = first.panel["task"].as_u64().ok_or(String::from("landing task"))?;
-        let panel = landing(self.root, task)?;
-        let mut member_states = Vec::new();
-        for member in members(&panel)? {
-            let task = member["change"].as_u64().ok_or(String::from("member change"))?;
-            let change = change(self.root, task)?;
-            let number = member["pull"]["number"].as_u64().ok_or(String::from("member pull"))?;
-            let pull = get(self.forge, &format!("pulls/{number}"));
-            member_states.push(json!({"change":task,"step":change["step"],
-                "landed":member["landed"],"prefix":member["candidate"],"head":member["head"],
-                "pull":{"merged":pull["merged"],"merge_commit_sha":pull["merge_commit_sha"],"head":pull["head"]["sha"]}}));
-        }
-        let number = panel["round"]["pull"]["number"].as_u64().ok_or(String::from("round pull"))?;
-        let pull = get(self.forge, &format!("pulls/{number}"));
-        let runs: Vec<_> = gate_runs(self.forge)?
-            .iter()
-            .map(|run| json!({"id":run["id"],"sha":run["commit_sha"],"status":run["status"]}))
-            .collect();
-        let fourth_proof = self.proof(Some(first.run), &[FOURTH]).map(|proof| proof.map(|proof| proof.run));
-        Ok(json!({"first_landed":format!("{:?}",self.landed(first)),
-            "fourth_proof":format!("{fourth_proof:?}"),
-            "first":{"phase":panel["phase"],"round":panel["round"],"members":member_states,
-                "pull":{"merged":pull["merged"],"head":pull["head"]["sha"]},
-                "main":main(self.forge)?,"candidate":candidate(&first.panel)?},
-            "fourth":{"waiting":self.barrier.waiting(Some(first.run)),"runs":runs,
-                "landings":landings(self.root)?["landings"],"step":change(self.root,FOURTH)?["step"]}}))
-    }
-
     fn landed(&self, proof: &Proof) -> Result<bool, String> {
         Ok({
-            let panel = landing(self.root, proof.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
+            let panel = self.landing(proof.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
             if panel["phase"] != "landed" {
                 return Ok(false);
             }
@@ -778,12 +855,16 @@ impl Judge<'_> {
                 }
             }
             if member["landed"].is_null() {
+                self.observe(
+                    200 + member["change"].as_u64().ok_or(String::from("change"))?,
+                    serde_json::json!({"member":member,"prepared":prepared}),
+                );
                 return Ok(false);
             }
             if member["landed"] != prepared["candidate"] {
                 return Err(String::from("each member lands at its own prefix"));
             }
-            let change = change(self.root, member["change"].as_u64().ok_or(String::from("change"))?)?;
+            let change = self.change(member["change"].as_u64().ok_or(String::from("change"))?)?;
             if change["merge"].is_null() {
                 return Ok(false);
             }
@@ -796,6 +877,10 @@ impl Judge<'_> {
             let number = member["pull"]["number"].as_u64().ok_or(String::from("member pull"))?;
             let pull = get(self.forge, &format!("pulls/{number}"));
             if pull["merged"] != true {
+                self.observe(
+                    number + 100,
+                    serde_json::json!({"pull":number,"state":pull["state"],"merged":pull["merged"],"head":pull["head"]["sha"],"merge":pull["merge_commit_sha"]}),
+                );
                 return Ok(false);
             }
             {
@@ -810,30 +895,6 @@ impl Judge<'_> {
     #[expect(clippy::too_many_lines, reason = "the batch phases return their findings in causal order")]
     fn sample(&mut self, procs: &mut [Process]) -> Result<(), String> {
         match self.phase {
-            Phase::Changes => {
-                if self.changes_made()? {
-                    // A chat can reply before delegating. Once the batch exists,
-                    // native change waits follow each panel's registration.
-                    for task in CHANGES {
-                        calls(procs)?.push(ctl::Step::Run(
-                            ctl::Call::new(&["change", "show", &task.to_string(), "--until", "pull", "--json"])
-                                .in_directory("private"),
-                        ));
-                    }
-                    self.phase = Phase::Panels;
-                }
-            }
-            Phase::Panels => {
-                let calls = calls(procs)?;
-                if calls.foreground_idle() {
-                    for call in calls.ends() {
-                        if call.exit != Some(Exit::Code(0)) {
-                            return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
-                        }
-                    }
-                    self.phase = Phase::Reviews;
-                }
-            }
             Phase::Reviews => {
                 if self.reviews_pending()? {
                     self.keep_together(procs)?;
@@ -843,14 +904,14 @@ impl Judge<'_> {
                 let calls = calls(procs)?;
                 if calls.foreground_idle() {
                     {
-                        let (left, right) = (&(calls.ends().len()), &(turn_restart::SETUP_CALLS + CHANGES.len() + 3));
+                        let (left, right) = (&(calls.ends().len()), &(self.amends + self.story.ready().len()));
                         if left != right {
                             return Err(format!(
                                 "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
                             ));
                         }
                     }
-                    for call in calls.ends() {
+                    for call in &calls.ends()[self.amends..] {
                         if call.exit != Some(Exit::Code(0)) {
                             return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
                         }
@@ -859,32 +920,59 @@ impl Judge<'_> {
                 }
             }
             Phase::Gates => {
-                if CHANGES.into_iter().try_fold(true, |all, task| {
+                release(procs, b"batch-coders")?;
+                release(procs, b"batch-reviews")?;
+                if self.story.ready().iter().copied().try_fold(true, |all, task| {
                     if !all {
                         return Ok(false);
                     }
-                    let panel = change(self.root, task)?;
-                    Ok::<_, String>(panel["gates"][0]["verdict"] == "approved")
+                    let row = self.read(&["task", "show", &task.to_string()])?;
+                    Ok::<_, String>(
+                        self.change(task)?["gates"][0]["verdict"] == "approved"
+                            && row["chip"]["phase"] == "idle"
+                            && row["delegates"].as_array().is_some_and(Vec::is_empty),
+                    )
                 })? {
-                    if !landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
+                    if !self.landings()?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
                         return Err(String::from(
-                            "assertion failed: landings(self.root)?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
+                            "assertion failed: self.landings()?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
                         ));
                     }
+                    release(procs, b"batch-ready")?;
                     self.phase = Phase::Batch;
                 }
             }
             Phase::Batch => {
-                if let Some(proof) = self.proof(None, &CHANGES)? {
+                release(procs, b"batch-ready")?;
+                if matches!(self.story, Story::MidProof) {
+                    release(procs, b"batch-reviews")?;
+                }
+                if let Some(proof) =
+                    self.proof(None, if let Story::Conflict = self.story { &[3] } else { self.story.ready() })?
+                {
                     if main(self.forge)? != self.base {
                         return Err(String::from("main stays at the base throughout proof"));
                     }
                     self.first = Some(proof);
                     match self.story {
                         Story::Green => {
+                            release(procs, b"batch-fourth")?;
                             self.phase = Phase::Fourth;
                         }
-                        Story::Narrowed => {
+                        Story::MidProof => {
+                            release(procs, b"goal-midproof")?;
+                            self.phase = Phase::Moved;
+                        }
+                        Story::Conflict => {
+                            self.barrier.release(self.first.as_ref().ok_or("top proof")?.run);
+                            self.phase = Phase::Conflict;
+                        }
+                        Story::Repaired | Story::DeploymentGreen => {
+                            self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
+                            self.phase =
+                                if let Story::Repaired = self.story { Phase::Repair } else { Phase::SingleLanded };
+                        }
+                        Story::Narrowed | Story::NarrowedFour => {
                             self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
                             self.phase = Phase::Search(narrowed::Step::One);
                         }
@@ -892,10 +980,12 @@ impl Judge<'_> {
                 }
             }
             Phase::Fourth => {
-                let fourth = change(self.root, FOURTH)?;
+                release(procs, b"batch-fourth")?;
+                release(procs, b"batch-reviews")?;
+                let fourth = self.change(FOURTH)?;
                 if fourth["step"] == "ready" {
                     let first = self.first.as_ref().ok_or(String::from("first proof"))?;
-                    let list = landings(self.root)?;
+                    let list = self.landings()?;
                     {
                         let (left, right) =
                             (&(list["landings"].as_array().ok_or(String::from("landings"))?.len()), &(1));
@@ -905,7 +995,7 @@ impl Judge<'_> {
                             ));
                         }
                     }
-                    let panel = landing(self.root, first.panel["task"].as_u64().ok_or(String::from("landing"))?)?;
+                    let panel = self.landing(first.panel["task"].as_u64().ok_or(String::from("landing"))?)?;
                     if panel["phase"] != "proving" {
                         return Err(String::from("fourth ready while the batch proves"));
                     }
@@ -1023,18 +1113,28 @@ impl Judge<'_> {
                     self.phase = Phase::Ending;
                 }
             }
-            Phase::Search(step) => self.search(step, procs)?,
+            Phase::Search(step) => {
+                release(procs, b"batch-reviews")?;
+                self.search(step, procs)?;
+            }
+            Phase::Repair
+            | Phase::Repaired
+            | Phase::SingleLanded
+            | Phase::Conflict
+            | Phase::Resolved
+            | Phase::StartGoal
+            | Phase::GoalGates
+            | Phase::Moved => self.deployment_step(procs)?,
             Phase::Ending => {
+                let owner = self.read(&["task", "show", "2"])?;
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
-                if person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
+                if person.finished
+                    && person.client.as_ref().is_some_and(Host::is_empty)
+                    && owner["chip"]["phase"] == "ended"
+                {
                     self.stop(procs)?;
                 }
             }
-        }
-        // A release sent before its stream reaches the hold is forgotten.
-        // Repeat for the phase whose durable read still awaits its effect.
-        for name in self.phase.releases() {
-            release(procs, name)?;
         }
 
         Ok(())
@@ -1047,12 +1147,10 @@ impl Referee<Process> for Judge<'_> {
         }
         let result = (|| -> Result<(), String> {
             if let PeerStop::Due(_) = self.peer_stop {
-                // The terminal proof observes no repair result. Only once the
-                // engine and its clients have ended may the scripted replies
-                // finish, with no live client left to receive them.
-                if let Story::Narrowed = self.story {
-                    release(procs, b"batch-owner")?;
-                    release(procs, b"batch-repair")?;
+                // Only after the binary and its clients end can held replies
+                // finish without delivering a repair result to a live delegate.
+                for name in [b"batch-owner".as_slice(), b"batch-repair".as_slice(), b"goal-finish".as_slice()] {
+                    release(procs, name)?;
                 }
                 for proc in procs.iter_mut() {
                     if let Process::Peer(peer) = proc {
@@ -1062,7 +1160,7 @@ impl Referee<Process> for Judge<'_> {
                 self.peer_stop = PeerStop::Stopped;
             }
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
-                if calls(procs)?.ends().len() < turn_restart::SETUP_CALLS {
+                if calls(procs)?.ends().len() < deployment::setup_count(self.root) {
                     return Ok(());
                 }
                 self.chat.act(now, procs);
@@ -1071,20 +1169,22 @@ impl Referee<Process> for Judge<'_> {
                 }
             }
             if !self.chat.stopping() && now >= self.poll {
-                self.poll = poll_after_sample(
-                    || {
-                        let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
-                        if person.finished {
-                            let before = self.phase;
-                            self.sample(procs)?;
-                            if before != self.phase {
-                                eprintln!("batch phase {:?} at {now:?}", self.phase);
-                            }
+                self.poll = now.saturating_add(Duration::from_secs(1));
+                let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
+                if person.finished {
+                    if !self.drive_reads(procs)? {
+                        self.poll = now.saturating_add(Duration::from_millis(10));
+                        return Ok(());
+                    }
+                    match self.sample(procs) {
+                        Ok(()) => self.reads.borrow_mut().cycle.clear(),
+                        Err(why) if why == READ_PENDING => {
+                            self.drive_reads(procs)?;
+                            self.poll = now.saturating_add(Duration::from_millis(10));
                         }
-                        Ok(())
-                    },
-                    || Clock::new().now().now,
-                )?;
+                        Err(why) => return Err(why),
+                    }
+                }
             }
 
             Ok(())
@@ -1098,8 +1198,12 @@ impl Referee<Process> for Judge<'_> {
         }
     }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
-        if let Some(why) = self.failed.take() {
-            return Err(why);
+        let result = match self.failed.take() {
+            Some(why) => Err(why),
+            None => self.chat.watch(now, procs),
+        };
+        if result.is_err() {
+            self.report(procs);
         }
         if self.chat.stopping()
             && matches!(self.peer_stop, PeerStop::Waiting)
@@ -1108,40 +1212,7 @@ impl Referee<Process> for Judge<'_> {
         {
             self.peer_stop = PeerStop::Due(now);
         }
-        self.chat.watch(now, procs).map_err(|why| {
-            let mut nonempty = Vec::new();
-            let mut holds = Vec::new();
-            for proc in procs {
-                let name = match proc {
-                    Process::Binary(_) => "serve",
-                    Process::Person(_) => "person",
-                    Process::Calls(_) => "ctl",
-                    Process::Peer(peer) => {
-                        for name in ["batch-ready", "batch-fourth", "batch-reviews", "batch-owner", "batch-repair"] {
-                            if peer.is_held(name.as_bytes()) {
-                                holds.push(name);
-                            }
-                        }
-                        "model"
-                    }
-                    Process::Stdout(_) => "stdout",
-                    Process::Issuer(_) => "issuer",
-                    Process::Visitor(_) => "visitor",
-                };
-                if !proc.is_empty() {
-                    nonempty.push(name);
-                }
-            }
-            let next = if self.phase == Phase::Next {
-                format!("; Next reads: {:?}", self.next_failure_state())
-            } else {
-                String::new()
-            };
-            format!(
-                "{why}; batch {:?}: nonempty hosts {nonempty:?}, open holds {holds:?}; manual merge setting {}{next}",
-                self.phase, self.manual_merges
-            )
-        })
+        result
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
@@ -1171,11 +1242,37 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
     recipe.limits.connections = 8;
     recipe.limits.io.sockets = 16;
     recipe.domain_limits.calls = 8;
-    recipe.domain = skein_fake_llm_domain::Domain::played(
+    // The single-agent observation room scales with the independent producers.
+    let producers = u32::try_from(story.changes()).expect("scripted producers");
+    recipe.limits.observations = recipe.limits.observations.checked_mul(producers).expect("batch observations");
+    recipe.limits.observation_bytes =
+        recipe.limits.observation_bytes.checked_mul(producers).expect("batch observation bytes");
+    let scripts = temper_real_loop_world::llm::cued(scripts(root, forge, story));
+    let rules = Rules {
+        cued: scripts
+            .cued
+            .iter()
+            .map(|script| -> Box<[Rule]> {
+                if script.cue.as_ref() == b"@forge_chat" && script.turns.len() > 3 {
+                    Box::new([
+                        Rule { cue: b"Messages arrived. Read them before continuing.".as_slice().into(), turn: 3 },
+                        Rule { cue: b"Nothing more will come:".as_slice().into(), turn: 2 },
+                        Rule { cue: b"Begin the work your brief describes.".as_slice().into(), turn: 0 },
+                        Rule { cue: Box::new([]), turn: 1 },
+                    ])
+                } else {
+                    Box::new([])
+                }
+            })
+            .collect(),
+        asked: Box::new([]),
+    };
+    recipe.domain = skein_fake_llm_domain::Domain::played_by_input(
         &recipe.domain_limits,
         17,
-        temper_real_loop_world::llm::cued(scripts(root, forge, story)),
+        scripts,
         skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        rules,
     )
     .expect("concurrent batch scripts");
     super::llm_recipe(recipe).without_records()
@@ -1194,10 +1291,6 @@ pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
 
 fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
     forge.detect_manual_merges();
-    let repository = get(forge, "");
-    let manual_merges = json!({"autodetect_manual_merge":repository["autodetect_manual_merge"],
-        "allow_manual_merge":repository["allow_manual_merge"]});
-    eprintln!("batch manual merge setting {manual_merges}");
     let peer = peer(root, forge, story);
     peer.configure(root);
     let clock = Clock::new();
@@ -1220,15 +1313,17 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         root,
         forge,
         barrier,
-        phase: Phase::Changes,
+        phase: if let Story::MidProof = story { Phase::StartGoal } else { Phase::Reviews },
         poll: clock.now().now,
         base: main(forge).expect("main tip"),
         first: None,
         second: None,
         story,
         probes: Vec::new(),
+        reads: RefCell::new(Reads::default()),
+        amends: 0,
+        observations: std::cell::RefCell::new(std::collections::BTreeMap::new()),
         peer_stop: PeerStop::Waiting,
-        manual_merges,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {
@@ -1240,7 +1335,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     let ctl_root = skein_shell::open_root(root).expect("ctl root");
     fds.push(ctl_root);
     world.spawn_with_fds(fds, || {
-        let mut calls = ctl::Calls::new(ctl_root, turn_restart::setup(root), Some(&streams), None);
+        let mut calls = ctl::Calls::new(ctl_root, deployment::setup(root), Some(&streams), None);
         calls.hold();
         Process::Calls(Box::new(calls))
     });
@@ -1249,4 +1344,9 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     assert!(outcome.procs.iter().all(Host::is_empty), "nothing of the tree remains after Terminate");
     let Process::Binary(binary) = &outcome.procs[0] else { panic!("serve") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(binary.stderr()));
+}
+
+/// A four-member search with the shipped worker slots and current stock policy.
+pub fn run_narrowed_four(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    run_story(root, forge, barrier, Story::NarrowedFour);
 }

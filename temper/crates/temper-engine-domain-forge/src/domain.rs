@@ -166,7 +166,7 @@ struct StepInput {
 #[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,
-    held: bool,
+    pub(crate) held: bool,
     handoff: Handoff,
 }
 
@@ -2449,7 +2449,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
-            skein_forge_client::Request::OutboxDone => emit(out, Request::RestartDone { stage: RestartStage::Settled }),
+            skein_forge_client::Request::OutboxDone => {
+                crate::landing::restore_waits(d, env);
+                emit(out, Request::RestartDone { stage: RestartStage::Settled });
+            }
         }
     }
     read_afresh_complete(d, out);
@@ -2987,6 +2990,18 @@ fn claim(
         save_hold(out, saved);
         if let Some(resource) = to_client(name, &env.limits) {
             child(d, env, skein_forge_client::Event::Writer { resource, taken: true }, out);
+        }
+    }
+    // A read begun while the delegate was idle must see a run that claims
+    // before it finishes (temper/docs/design/domain/forge/change/repairs.md, A resolution's moved head).
+    for (_, row) in &d.changes {
+        if let Some((delegate, _)) = row.delegate
+            && delegate == task
+            && let Some(owner) = step_owner(d, row.task)
+            && let Some(pending) = d.steps.get_mut(&owner)
+        {
+            pending.heard.delegate_running = true;
+            break;
         }
     }
 }
@@ -3859,9 +3874,9 @@ fn delegate_result(
             read.branch.due = true;
         }
     }
-    // A CI repair's terminal needs a branch read sent after its end, even
-    // when a step already gathering CI observes the result first.
-    if ci_repair {
+    // A pushing delegate's terminal needs a branch read sent after its end,
+    // even when a step already gathering facts observes the result first.
+    if agent {
         let mut gathering = None;
         for (token, pending) in &d.steps {
             if pending.task == task {
@@ -3910,6 +3925,10 @@ fn delegate_result(
     }
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
+    } else if (failed || (no_change && !ci_repair))
+        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
+    {
+        row.producer_failure = Some(account);
     }
     let mut saved = row.clone();
     if agent {
@@ -3944,10 +3963,27 @@ fn delegate_result(
     }
 }
 
-/// The last done dependency refreshes producing before jig's Met steps it (change/repairs.md).
+/// The last done dependency refreshes readiness before forming (domain/landing.md, 9).
 fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     read_session::ended(d, env, task, env.wall);
-    let Some(row) = d.changes.get_mut(&task) else { return };
+    let Some(row) = d.changes.get(&task) else { return };
+    if row.terminal() {
+        return;
+    }
+    let mut reading = None;
+    for (token, pending) in &d.steps {
+        if pending.task == task {
+            reading = Some(*token);
+        }
+    }
+    if let Some(owner) = reading {
+        let pending = d.steps.get_mut(&owner).expect("dependent gather");
+        pending.kept = false;
+        pending.pending = Box::new([]);
+    }
+    d.change_due.remove(&task);
+    emit(out, Request::WakeProcedure { task });
+    let row = d.changes.get_mut(&task).expect("live dependent change");
     let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
@@ -3972,6 +4008,55 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
             );
         }
     }
+}
+
+/// Keep a failed delegate's identity and ending after its live slot is cleared
+/// (temper/docs/design/domain/forge/change/repairs.md).
+fn failed_delegate_words(
+    row: &ChangeRow,
+    kind: change::Delegate,
+    child: u64,
+    no_change: bool,
+    words: &[u8],
+) -> Option<Box<[u8]>> {
+    let (name, recovery): (&[u8], &[u8]) = match kind {
+        // A producer's whole result already occupies the hold account's bound.
+        change::Delegate::Produce | change::Delegate::Close => return None,
+        change::Delegate::Repair(_) => (b"repair", b"ask for a fresh repair"),
+        change::Delegate::Resolve { .. } => (b"resolution", b"read the branch and base afresh"),
+        change::Delegate::Merge { .. } => (b"merge job", b"read the branch and base afresh"),
+        change::Delegate::Gate { .. } => {
+            let state =
+                if let change::State::Held { was, .. } = &row.change.state { was.as_ref() } else { &row.change.state };
+            let name: &[u8] = if let change::State::Judging { .. } = state { b"judgement" } else { b"review" };
+            (name, b"ask for a fresh review")
+        }
+    };
+    let number = skein_lib::Decimal::of(child);
+    let ending: &[u8] = if no_change { b"ended without making the required change" } else { b"failed for good" };
+    let reason: &[u8] = if words.is_empty() { b"gave no account" } else { words };
+    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), b", ", ending, b": ", reason];
+    let tail = [b"; resolve this failure, then release this change to ".as_slice(), recovery, b"; or cancel it"];
+    let mut tail_bytes = 0_usize;
+    for part in tail {
+        tail_bytes = tail_bytes.checked_add(part.len()).expect("bounded recovery words");
+    }
+    let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded delegate account");
+    }
+    let mut reason = skein_lib::Writer::new(length);
+    for part in parts {
+        reason.put(part).expect("measured delegate account");
+    }
+    let reason = crate::text::fit(&reason.finish(), bound.checked_sub(tail_bytes).expect("recovery fits hold"), b"...");
+    let mut account = skein_lib::Writer::new(reason.len().checked_add(tail_bytes).expect("bounded hold account"));
+    account.put(&reason).expect("bounded reason");
+    for part in tail {
+        account.put(part).expect("measured recovery words");
+    }
+    Some(account.finish())
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -5367,6 +5452,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
+    crate::readiness::way(d, &mut row);
     // Producing without a head uses no base facts except early starts and catch-ups.
     let base_tip = pending.base_tip.unwrap_or([0; 32]);
     row.pull = match &pending.pull {
@@ -5525,7 +5611,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
             | change::Decision::CancelRepair { .. }
-            | change::Decision::CancelResolution { .. }
+            | change::Decision::CancelMovedDelegate { .. }
             | change::Decision::EndHold
             | change::Decision::Ready
             | change::Decision::QueueRepair

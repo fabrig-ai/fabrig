@@ -70,3 +70,17 @@ fn prefix_names_counts_and_access_must_match_the_ordered_members() {
         assert_eq!(run(14, case).pushes, 0);
     }
 }
+
+#[test]
+fn a_repeated_prepare_delivers_on_its_own_round_branch() {
+    for case in [Case::Replay, Case::ReplaySquash] {
+        assert_eq!(run(15, case).pushes, 2);
+    }
+}
+
+#[test]
+fn a_repeated_prepare_preserves_the_delivered_stack_and_each_parent() {
+    for case in [Case::ReplayStackMerge, Case::ReplayStackSquash] {
+        assert_eq!(run(16, case).pushes, 6);
+    }
+}

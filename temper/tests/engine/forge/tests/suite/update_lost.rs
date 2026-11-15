@@ -123,9 +123,9 @@ fn lost_prepare(found: bool) {
     world.run_for(1);
     let next = landings::step_landing_raw(&mut world, LANDING, 102);
     assert_eq!(
-        matches!(next, landing::Decision::Prepare { .. }),
-        !found,
-        "read the landing branch before making another job"
+        next,
+        if found { landing::Decision::Open } else { landing::Decision::Wait { until: None } },
+        "an unfinished prepare is retried by its job, without another delegation"
     );
     if !found {
         world.prepare_landing(LANDING, false);
@@ -140,7 +140,7 @@ fn a_lost_prepare_is_found_and_the_landing_goes_on() {
     lost_prepare(true);
 }
 #[test]
-fn a_lost_prepare_is_made_again_and_the_landing_goes_on() {
+fn a_lost_prepare_waits_for_its_jobs_retry_and_the_landing_goes_on() {
     lost_prepare(false);
 }
 #[test]

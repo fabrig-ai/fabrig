@@ -420,7 +420,10 @@ impl Operation {
                     closing: false,
                     stdout: Capped::new(limits.stdout_bytes),
                     design_paths: if let Command::DiffPaths { .. } = self.command {
-                        Some(Box::new(output::DesignPaths::new()))
+                        let Some(git::Op::DiffPaths { markdown, .. }) = &self.op else {
+                            unreachable!("path comparison")
+                        };
+                        Some(Box::new(output::DesignPaths::new(*markdown)))
                     } else {
                         None
                     },

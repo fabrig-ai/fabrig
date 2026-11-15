@@ -22,8 +22,12 @@ pub enum Case {
     ConflictMerge,
     ConflictSquash,
     Existing,
+    Replay,
+    ReplaySquash,
     StackMerge,
     StackSquash,
+    ReplayStackMerge,
+    ReplayStackSquash,
     KeptPrefix,
     KeptUpstream,
     BranchConflict,
@@ -53,6 +57,8 @@ pub fn run(seed: u64, case: Case) -> Report {
             | Case::ConflictMerge
             | Case::ConflictSquash
             | Case::Existing
+            | Case::Replay
+            | Case::ReplaySquash
     ) {
         return run_stack(seed, case);
     }
@@ -87,7 +93,8 @@ pub fn run(seed: u64, case: Case) -> Report {
     if matches!(case, Case::EmptySquash | Case::ContainedMerge) {
         head = original;
     }
-    let squash = !matches!(case, Case::Merge | Case::ContainedMerge | Case::ConflictMerge | Case::Existing);
+    let squash =
+        !matches!(case, Case::Merge | Case::ContainedMerge | Case::ConflictMerge | Case::Existing | Case::Replay);
     let by_squash = squash && case != Case::Upstream;
     let merge_message = [MERGE, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
     let squash_message = [SQUASH, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
@@ -112,7 +119,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     );
     world.event(Event::Ready);
     assert_eq!(world.report.kinds.as_ref(), [kind.bound]);
-    world.event(Event::AssignJob {
+    let assignment = || Event::AssignJob {
         job: host::JobAssignment {
             run: Token::new(81),
             attempt: Token::new(13),
@@ -135,8 +142,21 @@ pub fn run(seed: u64, case: Case) -> Report {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.into_bytes().into() }),
-    });
+        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into() }),
+    };
+    world.event(assignment());
+    if matches!(case, Case::Replay | Case::ReplaySquash) {
+        let prior = world.forge.branch(REMOTE, BRANCH).expect("first prepare delivered");
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+        world.report.answer = None;
+        world.event(assignment());
+        assert!(
+            matches!(world.report.answer, Some(host::JobEnding::Finished { .. })),
+            "retry: {:?}",
+            world.report.answer
+        );
+        assert_eq!(world.forge.branch(REMOTE, BRANCH), Some(prior), "reuse the first delivery's commit");
+    }
     assert!(world.operations.is_empty(), "temper's prepare runs no file/process tooling operation");
     let answer = world.report.answer.as_ref().expect("prepare answer");
     if case == Case::Existing {
@@ -179,7 +199,7 @@ pub fn run(seed: u64, case: Case) -> Report {
                 expected.insert(b"upstream".to_vec(), b"upstream\n".to_vec());
             }
             assert_eq!(world.forge.tree(candidate), expected, "merge and squash have the merged tree");
-            assert_eq!(world.report.pushes, 1);
+            assert_eq!(world.report.pushes, if matches!(case, Case::Replay | Case::ReplaySquash) { 2 } else { 1 });
             assert!(work.left.is_some());
             world.report.tree = expected;
         }
@@ -260,7 +280,7 @@ fn run_stack(seed: u64, case: Case) -> Report {
         from = world.forge.store(base, second, true, tree, b"kept prefix").expect("kept prefix");
         world.forge.push(REMOTE, b"kept", from, None).expect("fetched kept prefix");
     }
-    let squash = matches!(case, Case::StackSquash | Case::KeptPrefix | Case::KeptUpstream);
+    let squash = matches!(case, Case::StackSquash | Case::ReplayStackSquash | Case::KeptPrefix | Case::KeptUpstream);
     let branches = [BRANCH, b"temper/7/l81-2", b"temper/7/l81-3"];
     if case == Case::ExistingPrefix {
         world.forge.create_branch(REMOTE, branches[1], base).expect("existing b2");
@@ -318,14 +338,16 @@ fn run_stack(seed: u64, case: Case) -> Report {
     if case == Case::MorePrefixes {
         granted.push(b"extra".as_slice().into());
     }
-    let access = if case == Case::MultipleWritable {
-        wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None }
-    } else {
-        wire::Access::Prefixes { branches: granted.into_boxed_slice() }
+    let access = || {
+        if case == Case::MultipleWritable {
+            wire::Access::Writable { push: BRANCH.into(), expected: None, landing: None }
+        } else {
+            wire::Access::Prefixes { branches: granted.clone().into_boxed_slice() }
+        }
     };
     world.event(Event::Ready);
     assert_eq!(world.report.kinds.as_ref(), [kind.bound]);
-    world.event(Event::AssignJob {
+    let assignment = || Event::AssignJob {
         job: host::JobAssignment {
             run: Token::new(81),
             attempt: Token::new(13),
@@ -343,13 +365,25 @@ fn run_stack(seed: u64, case: Case) -> Report {
                 save: None,
                 git: None,
                 start: wire::Start::Commit { commit: translate::commit(from).raw() },
-                access,
+                access: access(),
                 identity: 7,
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.into_bytes().into() }),
-    });
+        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into() }),
+    };
+    world.event(assignment());
+    if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) {
+        let prior: Vec<_> = branches.iter().map(|branch| world.forge.branch(REMOTE, branch)).collect();
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
+        world.report.answer = None;
+        world.event(assignment());
+        assert_eq!(
+            branches.iter().map(|branch| world.forge.branch(REMOTE, branch)).collect::<Vec<_>>(),
+            prior,
+            "a retry preserves every previously delivered prefix and its parent chain"
+        );
+    }
     assert!(world.operations.is_empty(), "own prepare runs no tooling process");
     let answer = world.report.answer.as_ref().expect("prepare answer");
     let invalid = matches!(
@@ -427,7 +461,10 @@ fn run_stack(seed: u64, case: Case) -> Report {
                 fields.push(format!("\"conflicts\":[{}]", conflicts.join(",")));
             }
             assert_eq!(core::str::from_utf8(result).expect("JSON"), format!("{{{}}}", fields.join(",")));
-            assert_eq!(world.report.pushes as usize, combined.len());
+            assert_eq!(
+                world.report.pushes as usize,
+                combined.len() * if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) { 2 } else { 1 }
+            );
             assert_eq!(work.left.is_some(), !combined.is_empty());
         }
         if case == Case::FirstConflict || case == Case::AllConflict {

@@ -12,6 +12,8 @@ pub(super) struct Stack {
     outcomes: List<Combination>,
     parent: Commit,
     conflict: Option<Combination>,
+    pending: Option<Combination>,
+    existing: Option<Commit>,
 }
 
 pub(super) fn new(repositories: &[Repository]) -> Option<Stack> {
@@ -21,6 +23,8 @@ pub(super) fn new(repositories: &[Repository]) -> Option<Stack> {
             outcomes: List::with_capacity(super::count(request.members.len())),
             parent: request.from,
             conflict: None,
+            pending: None,
+            existing: None,
         }),
         Start::Base { .. }
         | Start::Branch { .. }
@@ -53,6 +57,10 @@ pub(super) enum Step {
     Merge,
     Brings,
     Commit { squash: bool },
+    Existing,
+    SameTree,
+    Parent,
+    Member,
     Advance,
     MainCheckout,
     MainMerge,
@@ -72,12 +80,32 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
     let stack = stack(holding);
     let at = place(holding.workspace.token(), spec);
     match step {
+        Step::Existing => existing_op(holding, repository),
+        Step::SameTree => {
+            let Combination::Combined { commit, .. } = stack.pending.as_ref().expect("pending prefix") else {
+                unreachable!("only combined prefixes are compared")
+            };
+            Op::DiffPaths { at, before: *commit, after: stack.existing.expect("existing prefix"), markdown: true }
+        }
+        Step::Parent | Step::Member => Op::IsAncestor {
+            at,
+            ancestor: if step == Step::Parent {
+                stack.parent
+            } else {
+                request.members.get(skein_lib::usize_of(stack.outcomes.len())).expect("current member").head
+            },
+            commit: stack.existing.expect("existing prefix"),
+        },
         Step::Head | Step::Upstream | Step::Base => {
             let commit = match step {
                 Step::Head => request.members.get(skein_lib::usize_of(stack.outcomes.len())).expect("next member").head,
                 Step::Upstream => request.upstream.expect("upstream step"),
                 Step::Base => request.base,
-                Step::Checkout
+                Step::Existing
+                | Step::SameTree
+                | Step::Parent
+                | Step::Member
+                | Step::Checkout
                 | Step::Merge
                 | Step::Brings
                 | Step::Commit { .. }
@@ -128,7 +156,11 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
                         snapshot: None,
                     }
                 }
-                Step::Head
+                Step::Existing
+                | Step::SameTree
+                | Step::Parent
+                | Step::Member
+                | Step::Head
                 | Step::Upstream
                 | Step::Base
                 | Step::Checkout
@@ -140,6 +172,19 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
     }
 }
 
+fn existing_op(holding: &Holding, repository: u32) -> Op {
+    let spec = nth(holding, repository);
+    Op::Fetch {
+        at: place(holding.workspace.token(), spec),
+        store: borrowed(holding, repository).token,
+        remote: spec.remote.clone(),
+        want: Want::Branch { branch: branch(holding, repository, stack(holding).outcomes.len()) },
+        into: Into::Fetched,
+        identity: spec.identity,
+        account: spec.account,
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one transition table for a member's merge, conflict probe and prefix checkout"
@@ -148,6 +193,53 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
     let request = request(holding, repository);
     let (base, from, upstream, squash, count) =
         (request.base, request.from, request.upstream, request.squash, request.members.len());
+    if step == Step::Existing {
+        return match done {
+            Done::Fetched { commit } => {
+                stack_mut(holding).existing = Some(commit);
+                next(repository, Step::SameTree)
+            }
+            Done::Failed { fault: crate::git::Fault::Missing { .. } }
+            | Done::FailedWithOutput { fault: crate::git::Fault::Missing { .. }, .. } => {
+                finish_member(holding, repository, false)
+            }
+            Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
+            Done::Succeeded
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Results { .. }
+            | Done::Paths { .. }
+            | Done::Looked { .. }
+            | Done::Brings { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. } => unreachable!("existing prefix fetch"),
+        };
+    }
+    if step == Step::SameTree
+        && let Done::Paths { files } = &done
+    {
+        return if files.is_empty() {
+            next(repository, Step::Parent)
+        } else {
+            finish_member(holding, repository, false)
+        };
+    }
+    if let Done::IsAncestor { contains } = done {
+        if !contains {
+            return finish_member(holding, repository, false);
+        }
+        let Combination::Combined { squash, .. } = stack(holding).pending.as_ref().expect("pending prefix") else {
+            unreachable!("only combined prefixes are compared")
+        };
+        return if step == Step::Parent && !squash {
+            next(repository, Step::Member)
+        } else {
+            finish_member(holding, repository, true)
+        };
+    }
     match done {
         Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
         Done::Fetched { .. } => match step {
@@ -155,7 +247,11 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             Step::Head if !stack(holding).outcomes.is_empty() => next(repository, Step::Merge),
             Step::Head | Step::Upstream if from != base => next(repository, Step::Base),
             Step::Head | Step::Upstream | Step::Base => next(repository, Step::Checkout),
-            Step::Checkout
+            Step::Existing
+            | Step::SameTree
+            | Step::Parent
+            | Step::Member
+            | Step::Checkout
             | Step::Merge
             | Step::Brings
             | Step::Commit { .. }
@@ -190,7 +286,11 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                     next(repository, Step::Head)
                 }
             }
-            Step::Head
+            Step::Existing
+            | Step::SameTree
+            | Step::Parent
+            | Step::Member
+            | Step::Head
             | Step::Upstream
             | Step::Base
             | Step::Merge
@@ -207,7 +307,11 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                 stack_mut(holding).outcomes.push(conflict).expect("one outcome per member");
                 next(repository, Step::Restore)
             }
-            Step::Head
+            Step::Existing
+            | Step::SameTree
+            | Step::Parent
+            | Step::Member
+            | Step::Head
             | Step::Upstream
             | Step::Base
             | Step::Checkout
@@ -225,11 +329,8 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             let Step::Commit { squash } = step else { unreachable!("commit terminal") };
             let member =
                 request.members.get(skein_lib::usize_of(stack(holding).outcomes.len())).expect("current member").number;
-            let stack = stack_mut(holding);
-            stack.outcomes.push(Combination::Combined { member, commit, squash }).expect("one outcome per member");
-            stack.parent = commit;
-            tips_mut(holding, repository).head = commit;
-            next(repository, Step::Advance)
+            stack_mut(holding).pending = Some(Combination::Combined { member, commit, squash });
+            next(repository, Step::Existing)
         }
         Done::Conflicted { files, cut } => {
             let member =
@@ -248,7 +349,11 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                         .expect("one outcome per member");
                     next(repository, Step::Restore)
                 }
-                Step::Head
+                Step::Existing
+                | Step::SameTree
+                | Step::Parent
+                | Step::Member
+                | Step::Head
                 | Step::Upstream
                 | Step::Base
                 | Step::Checkout
@@ -267,6 +372,21 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
         | Done::Exists
         | Done::Rejected => unreachable!("candidate terminal"),
     }
+}
+
+fn finish_member(holding: &mut Holding, repository: u32, reuse: bool) -> Next {
+    let stack = stack_mut(holding);
+    let Combination::Combined { member, mut commit, squash } = stack.pending.take().expect("pending prefix") else {
+        unreachable!("only combined prefixes are pending")
+    };
+    if reuse {
+        commit = stack.existing.expect("verified existing prefix");
+    }
+    stack.existing = None;
+    stack.outcomes.push(Combination::Combined { member, commit, squash }).expect("one outcome per member");
+    stack.parent = commit;
+    tips_mut(holding, repository).head = commit;
+    next(repository, Step::Advance)
 }
 
 pub(super) fn fits(repository: &Repository, request: &CandidateSpec, limits: &crate::Limits) -> bool {
@@ -372,7 +492,11 @@ pub(super) fn pushed(
         match done {
             Done::Fetched { commit } if commit == combined(holding, member) => crate::Landing::Landed { commit },
             Done::Fetched { .. } | Done::Failed { .. } | Done::FailedWithOutput { .. } => {
-                super::failed_landing(failure)
+                if let Done::Exists | Done::Rejected = failure {
+                    crate::Landing::Moved
+                } else {
+                    super::failed_landing(failure)
+                }
             }
             Done::Succeeded
             | Done::Committed { .. }
@@ -390,8 +514,9 @@ pub(super) fn pushed(
     } else {
         match done {
             Done::Succeeded => crate::Landing::Landed { commit: combined(holding, member) },
-            Done::Exists | Done::Rejected => crate::Landing::Moved,
-            failure @ (Done::Failed {
+            failure @ (Done::Exists
+            | Done::Rejected
+            | Done::Failed {
                 fault:
                     crate::git::Fault::TimedOut
                     | crate::git::Fault::Broken

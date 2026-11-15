@@ -15,7 +15,7 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has twelve charters, fourteen grants and twenty-one executor kinds. The
+// Stock has twelve charters, fourteen grants and twenty-two executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
 const CHARTERS: u32 = 17; // Stock lines run up to 16; the settings agent has its own charter.
 const TASKS: u32 = 4;

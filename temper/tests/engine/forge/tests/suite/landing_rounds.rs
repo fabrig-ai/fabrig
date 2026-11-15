@@ -28,7 +28,7 @@ fn start(goal: bool) -> World {
 }
 fn register(world: &mut World) {
     let row = landings::landing_row(world.change(CHANGE));
-    world.event(top::Event::Landing { row });
+    landings::register(world, row);
     assert_eq!(landings::step_landing_raw(world, LANDING, 100), landing::Decision::None);
     assert!(matches!(landings::step_landing_raw(world, LANDING, 101), landing::Decision::Prepare { .. }));
 }
@@ -289,6 +289,7 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
+    landings::close_landing(&mut world, LANDING);
     assert_eq!(world.branch(b"main"), base);
     assert!(
         matches!(world.change(CHANGE).change.state, change::State::Ready { head: latest, .. } if latest == head),
@@ -372,4 +373,209 @@ fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_s
         top::Request::LandingNews { task: LANDING, member: 0, step: top::LandingNews::Landed }
     )));
     assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Write(_))));
+}
+
+#[test]
+fn a_successful_prepare_report_takes_its_branch_without_repeating_the_round() {
+    for squash in [false, true] {
+        let mut world = start(false);
+        let prefix = translate::commit(world.prepare_landing(LANDING, squash));
+        // A refused range is not evidence that this job's delivered branch is absent.
+        world.script_ancestry(Some(Err(api::Error::TooLarge(api::Excess::unnamed()))));
+        let report = if squash {
+            br#"{"combined":[{"member":1,"by":"squash"}]}"#.as_slice()
+        } else {
+            br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice()
+        };
+        let decision = landings::step_landing_heard(
+            &mut world,
+            LANDING,
+            102,
+            top::LandingHeard {
+                job: None,
+                outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                preparation: landing::Preparation::Idle,
+                failure: report.into(),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        );
+        assert_eq!(decision, landing::Decision::Open);
+        assert_eq!(world.landing(LANDING).landing.preparation, 1);
+        assert_eq!(world.landing(LANDING).landing.members[0].candidate, Some(prefix));
+        assert_eq!(
+            world.landing(LANDING).landing.members[0].combined,
+            Some(if squash { landing::Combine::Squash } else { landing::Combine::Merge })
+        );
+        world.script_ancestry(None);
+        world.restart();
+        landings::drive_landing(&mut world, LANDING);
+        assert_eq!(world.landing(LANDING).landing.members[0].landed, Some(prefix));
+    }
+}
+
+#[test]
+fn a_successful_prepare_report_is_forgotten_when_the_round_changes() {
+    let mut world = start(false);
+    world.prepare_landing(LANDING, false);
+    let report = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice();
+    assert_eq!(
+        landings::step_landing_heard(
+            &mut world,
+            LANDING,
+            102,
+            top::LandingHeard {
+                job: None,
+                outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                preparation: landing::Preparation::Idle,
+                failure: report.into(),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            }
+        ),
+        landing::Decision::Open
+    );
+    world.push_file(b"main", b"next-base", b"new base");
+    world.restart();
+    let mut prepared = false;
+    for entry in 103..130 {
+        if matches!(landings::step_landing_raw(&mut world, LANDING, entry), landing::Decision::Prepare { .. }) {
+            prepared = true;
+            break;
+        }
+    }
+    assert!(prepared, "a changed round needs its own prepare");
+    assert_eq!(world.landing(LANDING).landing.preparation, 2);
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrepareCut {
+    None,
+    Released,
+    Delete,
+    Stale,
+    Asked,
+    Pushed,
+    BeforeRelease,
+    RepeatedReport,
+    RetainedReport,
+}
+
+#[test]
+fn a_prepare_ending_after_its_base_moves_starts_one_fresh_round() {
+    for cut in [
+        PrepareCut::None,
+        PrepareCut::Released,
+        PrepareCut::Delete,
+        PrepareCut::Stale,
+        PrepareCut::Asked,
+        PrepareCut::Pushed,
+        PrepareCut::BeforeRelease,
+        PrepareCut::RepeatedReport,
+        PrepareCut::RetainedReport,
+    ] {
+        stale_prepare_round(cut);
+    }
+}
+
+fn successful_prepare(released: bool) -> top::LandingHeard {
+    let report = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice();
+    top::LandingHeard {
+        job: None,
+        outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
+        dependencies: Box::new([]),
+        held: Box::new([]),
+        preparation: landing::Preparation::Idle,
+        failure: report.into(),
+        released,
+        cancelled: false,
+        kept: Box::new([]),
+    }
+}
+
+fn stale_prepare_round(cut: PrepareCut) {
+    let mut world = start(false);
+    let mut row = world.landing(LANDING).clone();
+    row.landing.phase = landing::Phase::Held { was: Box::new(landing::Phase::Preparing), why: landing::Hold::Prepare };
+    world.event(top::Event::Restore { record: top::Stored::Landing(row) });
+    world.prepare_landing(LANDING, false);
+    world.push_file(b"main", b"new-base", b"outside push");
+    let base = translate::commit(world.branch(b"main"));
+    if cut == PrepareCut::BeforeRelease {
+        world.restart();
+    }
+    landings::step_landing_heard(&mut world, LANDING, 102, successful_prepare(true));
+    if cut == PrepareCut::Released {
+        world.restart();
+    }
+    let mut prepares = 0;
+    let mut restarted = false;
+    for entry in 103..145 {
+        let mut decision = landings::step_landing_raw(&mut world, LANDING, entry);
+        if !restarted
+            && (cut == PrepareCut::Delete && matches!(decision, landing::Decision::Delete { .. })
+                || cut == PrepareCut::Stale && decision == landing::Decision::Stale)
+        {
+            restarted = true;
+            world.restart();
+        }
+        if cut == PrepareCut::RepeatedReport && decision == landing::Decision::Stale {
+            decision = landings::step_landing_heard(&mut world, LANDING, entry + 200, successful_prepare(false));
+            assert!(
+                matches!(decision, landing::Decision::Prepare { .. }),
+                "{decision:?}: {:?}",
+                world.landing(LANDING)
+            );
+        }
+        if cut == PrepareCut::RetainedReport && decision == landing::Decision::Stale {
+            world.restart();
+            let mut row = world.landing(LANDING).clone();
+            row.landing.round.failure = successful_prepare(false).failure;
+            row.job = Some(top::history::JobRecord {
+                step: top::history::JobStep {
+                    task: 70,
+                    attempt: 1,
+                    job: top::history::Job::Prepare,
+                    outcome: Some(top::history::JobOutcome::Done),
+                    head: None,
+                },
+                round: 1,
+                members: Box::new([0]),
+                head: None,
+                written: true,
+            });
+            // The restore input is the stalled durable boundary: no base, an old job and its report.
+            world.event(top::Event::Restore { record: top::Stored::Landing(row) });
+        }
+        if matches!(decision, landing::Decision::Prepare { .. }) {
+            prepares += 1;
+            assert_eq!(world.landing(LANDING).landing.members[0].base, Some(base));
+            assert_eq!(world.landing(LANDING).landing.preparation, 2);
+            if cut == PrepareCut::Asked {
+                world.restart();
+            }
+            assert_eq!(
+                landings::step_landing_raw(&mut world, LANDING, entry + 100),
+                landing::Decision::Wait { until: None }
+            );
+            world.prepare_landing(LANDING, false);
+            if cut == PrepareCut::Pushed {
+                world.restart();
+            }
+        }
+        if decision == landing::Decision::Finish {
+            break;
+        }
+    }
+    let row = world.landing(LANDING);
+    assert_eq!(row.landing.phase, landing::Phase::Landed, "{row:?}");
+    assert_eq!(row.landing.preparation, 2);
+    assert_eq!(prepares, 1);
+    assert_eq!(row.landing.members[0].base, Some(base));
 }

@@ -9,7 +9,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":21,"tasks.executor_kinds":21,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -1074,4 +1074,34 @@ pub fn unopened_store() -> crate::store::Store {
     let profile = crate::store::limits(&root, &root.forge, &settings.jig.limits.store).unwrap();
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     crate::store::Store::new(&root, &profile, &models, seeds().installation)
+}
+
+/// The prepare job's declared request and result must fit a turn fixture.
+pub fn turn_document() -> Box<[u8]> {
+    let document = document();
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
+    overrides["tasks.spec_bytes"] = 16_384_u32.into();
+    overrides["tasks.result_bytes"] = 4_096_u32.into();
+    overrides["tasks.message_bytes"] = 4_096_u32.into();
+    let document = with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap());
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"application.limits.overrides")).unwrap();
+    overrides["forge.client.op_bytes"] = 4_096_u32.into();
+    with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+}
+
+pub fn turn_jig() -> jig_protocol_config::Engine {
+    let mut jig = engine().jig;
+    jig.limits.core.tasks.spec_bytes = 16_384;
+    jig.limits.core.tasks.result_bytes = 4_096;
+    jig.limits.core.tasks.message_bytes = 4_096;
+    jig
+}
+
+/// A turn fixture receives the prepare job's result as a task message.
+pub fn turn_agent() -> settings::Agent {
+    let mut agent = startup_agent();
+    agent.bounds.message_bytes = 4_096;
+    agent
 }

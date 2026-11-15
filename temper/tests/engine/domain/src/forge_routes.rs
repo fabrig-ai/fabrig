@@ -138,7 +138,7 @@ pub struct World {
     period_budget: u64,
     pub fail_job_reads: bool,
     comparisons_too_large: bool,
-    /// Refuse the named section reads while a CI repair is preparing.
+    /// Refuse the named section reads while a repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
     /// Refuse pull file sides at the client answer bound.
@@ -152,7 +152,7 @@ pub struct World {
     pub review_files_delay: Option<Duration>,
     /// Delay each failed job's log independently of checks and pull reads.
     pub job_read_delay: Option<Duration>,
-    /// Delay checks only while a CI repair is preparing, not while discovering its failure.
+    /// Delay checks only while a repair is preparing, not while discovering its failure.
     pub repair_checks_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
@@ -203,7 +203,12 @@ pub struct StoryLimits {
     pub procedure_batch: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
+    pub omit_prepare: bool,
+    pub omit_landing_grant: Option<u16>,
+    pub refuse_prepare: bool,
     pub dispatch_passes: Option<u32>,
+    /// A dispatch fails the test ids listed in this file at its candidate.
+    pub dispatch_tests: Option<&'static [u8]>,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
@@ -339,6 +344,50 @@ impl World {
         )
     }
 
+    /// Stock templates and policies with a scripted landing train.
+    #[must_use]
+    pub fn configured_stock_turn(
+        defaults: &jig_domain_core::settings::Defaults,
+        model: &engine::Model,
+        limits: &engine::Limits,
+    ) -> Self {
+        Self::configured_settings(
+            true,
+            true,
+            false,
+            1000,
+            paths::Gate { agent: true, ..paths::Gate::default() },
+            None,
+            &StoryLimits { turn: true, ..StoryLimits::default() },
+            Some((defaults, model, Some(limits))),
+            &[],
+        )
+    }
+
+    /// Keep the project's roles distinct from its policy template before bootstrap.
+    #[must_use]
+    pub fn with_project_policy(mut self, policy: jig_domain_core::ConfiguredPolicy) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.core.seed_projects[0].policy = policy;
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("project policy");
+        self
+    }
+
+    /// Branch and pull holds for the world's changes and all four batch prefixes.
+    #[must_use]
+    pub fn with_forge_holds(mut self, holds: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.holds = holds;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("hold room");
+        self
+    }
+
     #[must_use]
     pub fn configured_limits(
         with_read: bool,
@@ -411,7 +460,11 @@ impl World {
             resolutions,
             repairs,
             turn,
+            omit_prepare,
+            omit_landing_grant,
+            refuse_prepare,
             dispatch_passes: _,
+            dispatch_tests: _,
             landing_members,
             batch,
             slots,
@@ -675,17 +728,46 @@ impl World {
                         }
                     }
                     rules.ceiling.grants = grants.into_boxed();
-                    rules.ceiling.delegation.kinds = Box::new([
-                        authority::Executor::Charter(1),
-                        authority::Executor::Charter(2),
-                        authority::Executor::Charter(4),
-                        authority::Executor::Procedure(2),
-                        authority::Executor::Procedure(3),
-                        authority::Executor::Procedure(4),
-                        authority::Executor::Procedure(6),
-                        authority::Executor::Job(4),
-                        authority::Executor::Job(1),
-                    ]);
+                    let stock = temper_engine_service_stock::stock::with_models(
+                        Box::new([jig_domain_core::settings::CatalogueModel {
+                            number: 1,
+                            model: walking::charter().policy.model,
+                            first_read: None,
+                            shown: None,
+                            description: None,
+                            picker: true,
+                            withdrawn: false,
+                            source: jig_domain_core::settings::ModelSource::Stock,
+                            estimated: false,
+                        }]),
+                        limits.tasks.result_bytes,
+                    );
+                    // Keep stock's job and procedure ceiling; this world offers three charters and one role.
+                    rules.ceiling.delegation.kinds = stock
+                        .rules
+                        .ceiling
+                        .delegation
+                        .kinds
+                        .into_vec()
+                        .into_iter()
+                        .filter(|kind| match kind {
+                            authority::Executor::Charter(number) => [1, 2, 4].contains(number),
+                            authority::Executor::Role(number) => *number == 0,
+                            authority::Executor::Procedure(_) | authority::Executor::Job(_) => true,
+                        })
+                        .collect();
+                    if refuse_prepare {
+                        rules.ceiling.delegation.kinds = rules
+                            .ceiling
+                            .delegation
+                            .kinds
+                            .into_vec()
+                            .into_iter()
+                            .filter(|kind| *kind != authority::Executor::Job(1))
+                            .collect();
+                    }
+                    limits.authority.executors = 22;
+                    limits.tasks.executor_kinds = 22;
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
                         sets: Box::new([]),
@@ -700,7 +782,11 @@ impl World {
                         },
                         ci: true,
                         up_to_date: true,
-                        gates: Box::new([]),
+                        gates: if agent_gate || owner_gate {
+                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                        } else {
+                            Box::new([])
+                        },
                         approvals: Box::new([]),
                     };
                     if across {
@@ -786,6 +872,21 @@ impl World {
                     limits.authority.executors = limits.authority.executors.max(10);
                     limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(10);
                 }
+                for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                    authority.grants = authority
+                        .grants
+                        .clone()
+                        .into_vec()
+                        .into_iter()
+                        .filter(|grant| Some(grant.kind) != omit_landing_grant)
+                        .collect();
+                }
+                policy.projections = policy
+                    .projections
+                    .into_vec()
+                    .into_iter()
+                    .filter(|grant| Some(grant.kind) != omit_landing_grant)
+                    .collect();
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
                 let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
@@ -892,7 +993,7 @@ impl World {
                 bound.kind = jig_domain_link::JobKind(1);
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
                 bound.result = bound.result.min(limits.tasks.result_bytes);
-                config.core.jobs = Box::new([bound]);
+                config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
             }
             if merge_kind {
                 let mut bound = protocol::merge_bound();
@@ -1093,7 +1194,7 @@ impl World {
                         latency_max: Duration::from_secs(1),
                         silent: 0,
                         passes: timing.dispatch_passes.unwrap_or(1000),
-                        cue: None,
+                        cue: timing.dispatch_tests.map(|path| raw::Cue::Tests { path: path.into() }),
                     }])
                 } else {
                     Box::new([])
@@ -2187,17 +2288,17 @@ impl World {
                     }
                     // Nonparticipating keep-up reads Item after u64::MAX. The change
                     // finishes its fresh Checks before its repair enters Preparing.
-                    let preparing_ci = (self.fail_brief_reads.is_some()
+                    let preparing_repair = (self.fail_brief_reads.is_some()
                         || self.slow_brief_reads
                         || self.repair_checks_delay.is_some())
                         && self.store.rows.values().any(|row| {
                             matches!(row,
                             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                                if row.spec.words.starts_with(b"Repair CI at ")
+                                if row.spec.words.starts_with(b"Repair ")
                                     && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
                         });
                     if let Some((pull, checks, error)) = self.fail_brief_reads
-                        && preparing_ci
+                        && preparing_repair
                         && ((pull
                             && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
                             || (checks
@@ -2282,7 +2383,7 @@ impl World {
                             None
                         };
                     let slow = (self.slow_brief_reads
-                        && preparing_ci
+                        && preparing_repair
                         && matches!(
                             op,
                             skein_forge::api::Op::Read(
@@ -2304,7 +2405,7 @@ impl World {
                         };
                     let ci_delay = match &op {
                         skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }) => self.job_read_delay,
-                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_ci => {
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_repair => {
                             self.repair_checks_delay
                         }
                         _ => None,
