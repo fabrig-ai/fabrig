@@ -24,16 +24,16 @@ fn drill_20_a_due_change_blocks_formation_without_an_account_in_the_train_view()
     };
     task.phase = tasks::Phase::Active(tasks::Active::Due);
     task.executor = tasks::Executor::Procedure { connector: 0, code: UNAVAILABLE };
-    let Some(Record::Forge { row }) = world.store.rows.get_mut(&Key::Forge(forge_top::Key::Change(due))) else {
-        panic!("change record")
-    };
-    let forge_top::Stored::Change(row) = row.as_mut() else { panic!("change") };
+    // A change's state is kept in its hot part.
+    let hot = Key::Forge(forge_top::Key::ChangeHot(due));
+    let Some(Record::Forge { row }) = world.store.rows.get_mut(&hot) else { panic!("change record") };
+    let forge_top::Stored::ChangeHot(row) = row.as_mut() else { panic!("change") };
     row.change.state = temper_engine_domain_forge_change::State::Gating {
         head: row.change.last_head.expect("delivered head"),
         asked: Box::new([]),
     };
     let task = world.store.rows.get(&key).expect("due task").clone();
-    let change = world.store.rows.get(&Key::Forge(forge_top::Key::Change(due))).expect("change").clone();
+    let change = world.store.rows.get(&hot).expect("change").clone();
     world.store.seed(Box::new([task, change]), Box::new([]));
     world.restart_with_batch(1);
     for _ in 0..PAIR_TICKS {
