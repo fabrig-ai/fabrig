@@ -18,62 +18,55 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
 
 ## 1. In one page
 
-- **A project lands by queue or by turn,** its own setting (section
-  13). `queue` is `forge/README.md`'s change procedure, `forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6, and
-  stays the default until a project's turn has been walked on real
-  backends. `turn` is this document. A change follows the way its
-  project names when it becomes ready.
-- **A train** is a repository and the branch its changes land into
-  (section 9): a repository's main, or a goal's branch. It has at most
-  one landing at a time; the other ready changes wait in the queue's
-  order, and the branch moves only by that landing, so a proof never
-  goes stale on another landing's turn.
-- **A landing** is a batch of units, each a change or changes that
-  land together (section 4): the units waiting on a free train, in
-  order, up to the project's `batch` changes, formed and sealed when
-  its train is free. It is a procedure task of the forge's, made in the
-  decision that forms it, requested by the deployment on the project's
-  behalf. Its members' change tasks wait on it, and their goals hear
-  each step as news.
-- **Prepare** (section 5) is a job on a worker: from the train's tip,
-  each member's head combined onto the one below by the train's
-  `combine` (13.1), a merge with no fast-forward (stock into a
-  repository's main) or a squash, one commit with that merge's tree
-  (stock into any other branch, a goal's). Each such commit is the
-  member's prefix, pushed to a branch of the member's that the landing
-  holds; the last is the candidate. No member's own branch is rewritten.
-  A conflict sends the member to a resolution, or, with an earlier
-  member alone, back to wait; it leaves, and the job stacks the next.
-- **Receipts by key** (section 6). A key is what a gate's result
-  depends on: the candidate's tree without the paths the gate ignores,
-  with the gate's definition, and the base's tree for a gate that reads
-  the base. A receipt is a gate's result under a key, kept per project
-  and reused by every landing and worker. A gate whose key has a
-  receipt never runs again.
-- **Proof by dispatch** (section 7). Gate workflows run only when
-  temper dispatches them, at the candidate, the top, on its branch. A
-  real failure in a round of one unit is a repair under its changes,
-  which leave; in a round of several, a search by prefixes blames a
-  unit, which is repaired, and lands the green prefix below it (7.3). A runner's fault is retried. Judgement gates hold at
-  each member's prefix (section 3).
-- **The turn** (section 8): the train's tip and each member's head read
-  afresh, then the landing's own pull request merged fast-forward only
-  at the round's proved prefix: its candidate, or its search's green
-  prefix. The branch then contains each member's head in it,
-  merged, or its squash commit: each has landed, its landed
-  commit its prefix, the one that brought it. No
-  gate runs inside the turn, and the branch is never gated again: its
-  commit is the gated one.
-- **A member leaves** before the turn on a conflict, a moved head, a
-  cancel, a hold, a refused judgement gate or a red, with its whole
-  unit (4.3); it keeps its place in line. The members below it keep
-  their prefixes; those above it are stacked again in the next round.
-- **The forge shows it** (section 10): the landing's pull request, each
-  gate's receipt as a commit status, `temper/gate/<name>`, on the
-  candidate, which the fast-forward carries onto the branch, and each
-  member's pull request merged: a merged member's by the forge's
-  detection of a manual merge, a squashed member's recorded merged at
-  its squash commit by the landing.
+- **A project lands by queue or by turn,** its setting (section 13).
+  `queue` is the change procedure (`forge/change/README.md`,
+  `forge/queues.md`, `forge/README.md`, section 6), the default until
+  that project's turn has been walked on real backends. `turn` is this
+  document. A change takes its project's way when it becomes ready.
+- **A train** is a repository and its landing branch (section 9): main
+  or a goal's branch. At most one landing holds it; other ready changes
+  wait in queue order. Only that landing moves the branch, so another
+  landing's turn cannot stale its proof.
+- **A landing** batches units, each a change or changes landing
+  together (section 4). Formed and sealed when its train frees, it
+  takes waiting units in order, up to the project's `batch` changes.
+  That decision creates its forge procedure task, requested by the
+  deployment for the project. Member change tasks wait on it; their
+  goals hear each step as news.
+- **Prepare** (section 5) is a worker job stacking members' heads from
+  the train's tip by its `combine` (13.1): a no-fast-forward merge
+  (stock into main) or a squash with that merge's tree (stock into
+  other branches, a goal's). Each commit is its member's prefix, pushed
+  to a member branch held by the landing; the last is the candidate.
+  Members' own branches stay unchanged. A conflict sends its member to
+  resolution, or back to wait if only with an earlier member; it leaves
+  and the job stacks the next.
+- **Receipts by key** (section 6). A key captures a gate's dependencies:
+  its definition, the candidate's tree minus ignored paths, and the
+  base's tree if it reads the base. A receipt keeps its result under
+  that key per project, reused by every landing and worker. A gate
+  never reruns a receipted key.
+- **Proof by dispatch** (section 7). Only temper dispatches gate
+  workflows, at the candidate atop its branch. A real failure in a
+  one-unit round repairs its changes, which leave; with several units,
+  prefix search blames and repairs a unit and lands the green prefix
+  below (7.3). Runner faults retry. Judgement gates hold at each
+  member's prefix (section 3).
+- **The turn** (section 8) rereads the train's tip and members' heads,
+  then merges the landing's pull request fast-forward only at the
+  round's proved prefix: its candidate or search's green prefix.
+  Contained by head or squash commit, each member has landed at its
+  prefix, the commit that brought it. No gate runs inside the turn or
+  again on the branch: its commit is already gated.
+- **A member leaves** before the turn on conflict, moved head, cancel,
+  hold, refused judgement gate or red, with its whole unit (4.3),
+  keeping its place in line. Members below keep their prefixes; those
+  above are restacked next round.
+- **The forge shows it** (section 10): the landing's pull request;
+  receipts as candidate commit statuses, `temper/gate/<name>`, carried
+  onto the branch by fast-forward; and member pull requests merged,
+  detected by the forge as manual merges or recorded by the landing
+  at their squash commits.
 
 ## 2. Structure
 
@@ -362,15 +355,13 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 The default, for a project with no prepare command:
 
 - **A job** (`worker/jobs.md`, kind 1, `prepare`), delegated by the
-  landing, so that its pushes are made under the landing's holds on its
-  branches (jig's `domain/tasks/holds.md`, 1): the train's repository
-  checked out at the commit the round stacks from, its base or the last
-  kept prefix, by its commit; each member above it, in the landing's
-  order, combined onto the prefix below by the train's `combine` (13.1);
-  once every member is combined, each such commit, the member's prefix,
-  pushed to the member's branch, expecting it new, from the lowest up.
-  temper's own prepare runs no command of the project's. The two ways,
-  with the messages `../protocol/tooling.md`, 4 gives:
+  landing, pushes under its branch holds (jig's `domain/tasks/holds.md`,
+  1). It checks out the train's repository by the round's starting
+  commit, its base or last kept prefix, and combines each member above
+  onto the prefix below in landing order by `combine` (13.1). Once all
+  are combined, it pushes each prefix to its member's branch, expecting
+  it new, lowest first. temper's prepare runs no project command. The
+  two ways use `../protocol/tooling.md`, 4's messages:
   - **merge:** the head merged, no fast-forward, the prefix below as
     the first parent and the head as the second, committed with the
     member's merge message: its title, its description's first
@@ -382,16 +373,14 @@ The default, for a project with no prepare command:
     pull request, head and goal as trailers (`../draft/squash-in.md`,
     section 3). A squash whose tree is the one below's is still a
     commit.
-- **A conflict:** a member whose merge onto the prefix below does not
-  apply cleanly is skipped, and the job stacks the next member on the
-  same prefix. The job tells which it meets by the member's head merged
-  onto the round's base in the same job: a conflict there is with the
-  branch, its files that merge's, and the member's change resolves
-  (section 3); a clean merge there leaves a conflict with an earlier
-  member alone, its files the stack's, and the change waits, first in
-  line, since once that member has landed its conflict, if any, is with
-  the branch. A member stacked straight onto the base conflicts with
-  the branch.
+- **A conflict:** a member that cannot merge cleanly onto the prefix
+  below is skipped; the job stacks the next on that prefix. In the
+  same job it merges the conflicting head onto the round's base:
+  a conflict there is with the branch, uses that merge's files, and
+  the change resolves (section 3). Otherwise it conflicts only with an
+  earlier member, uses the stack's files and waits first in line:
+  once that earlier member lands, any conflict is with the branch.
+  A member stacked directly onto the base conflicts with the branch.
 - **Authored and committed** by the repository's git identity
   (`../protocol/credentials.md`, 4), both ways: the identity the
   deployment's agents' commits carry, and temper's own.
@@ -675,16 +664,15 @@ The default, for a project with no prepare command:
   On GitHub, the landing advances the branch with a fast-forward-only
   `Write::UpdateRef`; temper’s App must always bypass a rule requiring
   a pull request (`forge/adoption.md`, 4).
-- **Every member lands** once the branch's tip, read back, is the
-  candidate: in the stack's order, the landing's state records each
-  landed at its prefix, then waits for its pull request's merge mark
-  until one configured poll after that readback, then its change is
-  told it landed, at its prefix. The branch readback is authoritative:
-  a forge whose detection is absent or delayed cannot strand the turn. The merge is the landing
-  task's effect, but each landed commit is its member change's: the
-  change lands, and its goal hears its own change's landing, as under
-  `queue`. With members left in the landing, above a blamed unit, the
-  next round starts (5.1); with none, the landing ends.
+- **Every member lands** when the branch's tip reads back as the
+  candidate. In stack order, the landing records each landed at its
+  prefix, waits for its pull request's merge mark until one configured
+  poll after readback, then tells its change it landed at that prefix.
+  Readback is authoritative: absent or delayed forge detection cannot
+  strand the turn. The merge is the landing task's effect, but each
+  landed commit belongs to its member change; its goal hears that
+  change's landing as under `queue`. Remaining members above a blamed
+  unit start the next round (5.1); otherwise the landing ends.
 - **Its pull request reads merged:** a merged member's by the forge's
   detection (section 10), with nothing written. A squashed member's
   head is in no branch, so the landing records its pull request merged
@@ -710,20 +698,16 @@ The default, for a project with no prepare command:
   (skein's `Write::UpdateRef`), under temper's App's `Always` bypass of
   a rule requiring a pull request (`forge/adoption.md`, 4); GitHub
   marks the pull requests merged once the branch holds their heads.
-- **No turn without a fast-forward:** a repository where temper cannot
-  fast-forward a branch to a candidate cannot land by turn: on GitHub,
-  one whose landing branch's rules require a pull request that temper's
-  App may not always bypass, or that requires the forge's merge queue,
-  which lands by its own method at a commit temper did not prove. Its
-  project's `turn` is refused, naming the repository and the one setting
-  that would let temper land (the App's `Always` bypass; the queue's
-  removal). There is no merge-commit fallback: the user's answer to the
-  process model's open question, 2026-10-27,
-  "for now if GitHub doesn't have the bypass, let's fail". The refusal
-  says what is missing, the App's `Always` bypass on the landing
-  branch's rule, and how a person grants it: in the repository's
-  ruleset for that branch, the App added to the bypass list with
-  "Always allow".
+- **No turn without a fast-forward:** if temper cannot fast-forward
+  to a candidate, the repository cannot land by turn. On GitHub, this
+  includes a landing branch requiring a pull request without the App's
+  `Always` bypass, or the forge's merge queue, which lands by its own
+  method at an unproved commit. Refusing the project's `turn` names the
+  repository and remedy: remove the queue or add the App to that
+  branch's repository ruleset bypass list with "Always allow". There is
+  no merge-commit fallback: the user's answer to the process model's
+  open question, 2026-10-27, "for now if GitHub doesn't have the bypass,
+  let's fail".
 
 ## 9. Trains
 
@@ -997,12 +981,10 @@ documents for another task or project remain errors.
 
 ## 16. The world
 
-Stories in the forge's world (`forge/README.md`, section 10; `../testing/fakes.md`,
-2), the fake forge running dispatched workflows, detecting manual
-merges and recording one at a commit (skein's `testing/fakes/forge.md`,
-2.3), and the engine's domain
-stories, with the prepare job's outcome given as a worker gives it. The
-forge's world holds:
+The forge's world (`forge/README.md`, section 10; `../testing/fakes.md`,
+2) uses the fake forge's dispatched workflows and detected or recorded
+manual merges (skein's `testing/fakes/forge.md`, 2.3); engine domain
+stories supply prepare outcomes as a worker does. The forge's world holds:
 
 - **a landing of one** is prepared by its job onto the landing's
   branch, proved by one dispatched run there, its pull request
