@@ -1,6 +1,6 @@
 # temper's wires
 
-Provisional, 2026-11-12, revised 2026-11-13. The wires between temper's
+Provisional, 2026-11-12, revised 2026-11-15. The wires between temper's
 engine, its workers, their agents and its clients: which they are, how
 each one's version moves with its layout, the floor each build speaks
 from and what bridges them, what the engine and a worker state of them
@@ -200,10 +200,14 @@ them.
 ## 6. temper's payloads across versions
 
 - **temper's `Application`** (jig's `protocol/channel/bridges.md`, 8):
-  its `Spoken` for `temper-worker-wire`, from its floor and kept texts;
-  its bridge, `temper_protocol_worker_wire`'s generated
-  `kept::temper_worker_wire::bridge`, with a capacity from the payload
-  limits; and its roots:
+  its `Spoken` for `temper-worker-wire`, from its floor and kept texts,
+  as `spoken()` makes it; its `Kept`, from
+  `temper_protocol_worker_wire`'s generated patch module
+  (`kept::temper_worker_wire`'s `TEXTS` and `FLOOR`, `PATCHES` and
+  `sites`), with the payload limits as its bounds' limits
+  (`v1::LIMIT_NAMES` and `Limits::values`), from which each component
+  makes the bridge only when an agreed version needs a conversion
+  (jig's `protocol/channel/bridges.md`, 5.1); and its roots:
 
   | `Carried` | Declaration of `temper-worker-wire` |
   |---|---|
@@ -219,6 +223,11 @@ them.
 
   The declaration each part holds is the one temper's own encoder and
   decoder of it name; a focused test holds the table against them.
+- **`application` makes no bridge:** it parses no kept text but those
+  its `Spoken` reads, and refuses limits `v1::check_limits` refuses with
+  `BridgeError::Room` before anything is made. A bridge the `Kept`
+  cannot make is a build's fault, which the focused tests below meet
+  first, since they make the bridge from `application`'s `Kept`.
 - **A git identity's value is translated at each send** (`channel.md`,
   section 6): the engine keeps the two newest generations encoded in its
   current version, as before, and jig's component takes the value down
@@ -227,8 +236,8 @@ them.
 - **Grants go down whole:** a grant's renewal goes to a running attempt,
   so `Identity`'s reverse is total from the floor (skein's
   `data/codec/bridges.md`, 5.3), which a focused test in
-  `temper-protocol-worker-wire` holds; a change that breaks it is
-  breaking.
+  `temper-protocol-worker-wire` holds over the bridge `application`'s
+  `Kept` makes; a change that breaks it is breaking.
 
 ## 7. The host tools' contract
 
@@ -427,7 +436,9 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   test computes from the text with its names changed.
 - **The opening and translation** at jig's components (jig's
   `protocol/channel/bridges.md`, 9); temper's roots against its
-  encoders (6); `Identity` total from the floor.
+  encoders (6); `Identity` total from the floor; the bridge
+  `application`'s `Kept` makes speaking from the floor to the current,
+  each version's layout its `Spoken`'s.
 - **A story across versions,** in the one-process world
   (`../testing/README.md`, 2.5), with the worker made to speak its wires'
   floors alone and the engine its whole ranges: a goal through a
@@ -445,8 +456,8 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   speaks it from 13. The run calls
   the current contract; an older contract's adapters are held by `temper-engine-smith`'s
   focused tests over a contract of two versions made in the test. The world's seam is each side's wires: the worker's link and
-  the engine's component take the `Spoken` lists and bridges the world
-  gives, so a test caps the worker at the floors with no other change.
+  the engine's component take the `Spoken` lists and kept wires the
+  world gives, so a test caps the worker at the floors with no other change.
 - **The host tools' contract and the clients' families:** their gates'
   mutations over a scratch copy: a declaration's input changed with
   the version unmoved, a client family's field added with its version
