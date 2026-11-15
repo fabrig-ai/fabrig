@@ -1067,6 +1067,37 @@ fn rows_keep_their_hint_in_the_room() {
     }
 }
 
+#[test]
+fn a_chat_closed_here_is_skipped_before_the_bound_and_numbers() {
+    let root = home(
+        None,
+        &[
+            line(12, b"Away mode", 5, false),
+            line(8, b"Second", 3, false),
+            line(9, b"Third", 2, false),
+            line(10, b"Fourth", 1, false),
+        ],
+    );
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Closed { task: 12 });
+    tui.step(Told::Went);
+    let part = launchpad::read(&root, &tui, &f::words(), NOW);
+    assert_eq!(part.left_off.len(), 3);
+    for (row, (task, number)) in part.left_off.iter().zip([(8, 1), (9, 2), (10, 3)]) {
+        assert_eq!(row.task, task);
+        assert_eq!(row.kind, launchpad::LeftKind::Chat { number, session: false });
+    }
+    let view = build(&root, &tui);
+    let lines = left_off_lines(&view);
+    assert_eq!(lines.len(), 3);
+    for (line, (title, number)) in
+        lines.iter().zip([(b"Second".as_slice(), b"/chats 1"), (b"Third", b"/chats 2"), (b"Fourth", b"/chats 3")])
+    {
+        assert_eq!(f::text(view.tree(), f::find(view.tree(), Role::Text, title)).as_ref(), title);
+        assert!(line.ends_with(number));
+    }
+}
+
 fn left_off_home() -> Domain {
     home(
         None,

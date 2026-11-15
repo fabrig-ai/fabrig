@@ -293,6 +293,7 @@ impl Host {
         if self.state().front() && self.root.pages().me(self.root.client()).is_some() {
             self.tell(Told::MeRead);
         }
+        self.closed_chat();
         self.launchpad(project);
         self.route(&mut duties);
         if self.state().start_chat().is_some() && self.root.pages().start().is_none() {
@@ -676,6 +677,7 @@ impl Host {
                 }
             }
             tui::Event::Send => self.send(duties),
+            tui::Event::Act { act: Act::Confirm } => self.confirm(),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => {
                 if matches!(object, jig_client::contract::ObjectKey::Proposal(_))
@@ -1010,6 +1012,54 @@ impl Host {
         self.act(Act::Terminal(terminal::Act::Dismiss));
         self.notice(tui::Notice::Unknown { words });
         self.tell(Told::Cleared);
+    }
+
+    fn confirm(&mut self) {
+        let closing = self.root.pages().chat().and_then(|chat| {
+            let open = self.root.pages().confirmation()?;
+            if chat.restarting
+                || chat.closing.is_none()
+                || open.sent.is_some()
+                || open.object != jig_client::contract::ObjectKey::Task(chat.task)
+                || open.act != jig_client::contract::ActKind::Cancel
+            {
+                return None;
+            }
+            let task = chat.task(self.root.client())?;
+            let title = task.chip.title.bytes();
+            Some(tui::Closing {
+                task: chat.task,
+                project: task.project,
+                title: (!title.is_empty()).then(|| title.into()),
+            })
+        });
+        self.act(Act::Confirm);
+        if closing.is_some() && self.root.pages().confirmation().is_some_and(|open| open.sent.is_some()) {
+            self.tell(Told::Closing { chat: closing });
+        }
+    }
+
+    fn closed_chat(&mut self) {
+        let Some(closing) = self.state().closing() else { return };
+        let Some(chat) = self.root.pages().chat().filter(|chat| chat.task == closing.task) else {
+            self.tell(Told::Closing { chat: None });
+            return;
+        };
+        if chat.outcome_kind != Some(root::pages::chat::Sending::Close) {
+            return;
+        }
+        let Some(outcome) = &chat.outcome else { return };
+        let done = matches!(
+            outcome,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(_)))
+        );
+        let closing = closing.clone();
+        self.tell(Told::Closing { chat: None });
+        if done {
+            self.tell(Told::Closed { task: closing.task });
+            self.notice(tui::Notice::Closed { task: closing.task, title: closing.title });
+            self.went(Address::Home { project: closing.project });
+        }
     }
 
     fn leave(&mut self) {

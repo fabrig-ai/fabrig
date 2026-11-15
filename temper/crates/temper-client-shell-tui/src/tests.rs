@@ -1,3 +1,6 @@
+#[path = "tests/close.rs"]
+mod close;
+
 #[path = "tests/talk.rs"]
 mod talk;
 
