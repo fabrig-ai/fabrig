@@ -102,6 +102,8 @@ elif name == 'cargo':
                 'spans': [{'is_primary': True, 'file_name': str(Path.cwd() / error['file']),
                            'line_start': error['line']}], 'rendered': error['rendered']}}))
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
+    if kind == 'build':
+        sys.exit(ledger.get('build_exit', 0))
     assert kind != 'nextest', 'pre-pr must not run cargo nextest'
     raise AssertionError('unexpected cargo command: ' + str(args))
 elif name == 'one-process':
@@ -114,7 +116,9 @@ elif name == 'one-process':
         assert not directory.exists() and directory.parent == original.parent
         binary, *names = args[4:]
         ledger = state.get('head', {})
-        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1])
+        profile = 'default' if original.name == 'tests' else 'fuzzy'
+        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1]
+                      and t.get('profile', 'default') == profile)
         assert names == target.get('before', []) + [target['name']]
         spend(100, ['again', args])
         directory.mkdir(mode=0o700)
@@ -124,13 +128,18 @@ elif name == 'one-process':
         sys.exit(0 if outcome == 'passed' else 100)
     assert args[:1] == ['--out']
     directory = Path(args[1])
-    assert directory.name == 'tests' and not directory.exists()
+    profile = args[2]
+    assert profile in ('default', 'fuzzy')
+    assert directory.name == ('tests' if profile == 'default' else 'fuzzy') and not directory.exists()
     packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
-    assert args[2:] == ['default'] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
+    assert args[2:] == [profile] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
     spend(100, ['one-process', side, packages, args])
     ledger = state.get('head', {})
     directory.mkdir(mode=0o700)
-    tests = [t for t in ledger.get('tests', []) if t['package'] in packages]
+    tests = [t for t in ledger.get('tests', []) if t['package'] in packages
+             and t.get('profile', 'default') == profile]
+    if profile == 'fuzzy':
+        ledger = ledger.get('fuzzy', {})
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -360,14 +369,25 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
     write(root, ".git/temper/reds-wait", "temper-reds-wait 1 1\n");
-    write(root, ".git/temper/rerun", "temper-rerun 1 4\n");
-    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules red\n- test A::rules green\n");
+    write(root, ".git/temper/rerun", "temper-rerun 1 1\n");
+    write(
+        root,
+        ".git/temper/reds",
+        "temper-reds 1\n- test A::rules red\n- test A::rules green\n- test A::rules fuzzy::green\n- test A::rules fuzzy::red\n",
+    );
     let flake = changed_field(test_failure("flake", "first log\n\nunder load"), "before", json!(["setup"]));
+    let fuzzy = changed_field(test_failure("fuzzy::flake", "fuzzy first log"), "profile", json!("fuzzy"));
+    let red = changed_field(test_failure("fuzzy::red", "inherited"), "profile", json!("fuzzy"));
+    let green = changed_field(
+        changed_field(test_failure("fuzzy::green", ""), "profile", json!("fuzzy")),
+        "outcome",
+        json!("passed"),
+    );
     ledger(
         root,
         &json!({"head": {"tests": [flake, test_failure("red", "inherited"),
-            changed_field(test_failure("green", ""), "outcome", json!("passed"))],
-            "again": {"flake": "passed"}}}),
+            changed_field(test_failure("green", ""), "outcome", json!("passed")), fuzzy, red, green],
+            "again": {"flake": "passed", "fuzzy::flake": "passed"}}}),
     );
     let output = deliver(root);
     let log = text(&output);
@@ -379,9 +399,25 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     assert!(log.contains("pre-pr: tests: inherited,"), "{log}");
     let state = budget(root);
     let again: Vec<_> = state["events"].as_array().expect("events").iter().filter(|e| e[0] == "again").collect();
-    assert_eq!(again.len(), 1, "goal reds must not run again: {state}");
-    let args = again.first().expect("one again")[1].as_array().expect("arguments");
+    assert_eq!(again.len(), 2, "each profile replays its flake, not goal reds: {state}");
+    let args = again.first().expect("focused again")[1].as_array().expect("arguments");
     assert_eq!(&args[4..], &[json!("A::rules"), json!("setup"), json!("flake")]);
+    assert!(log.contains("pre-pr: fuzzy tests: inherited,"), "{log}");
+    let calls: Vec<_> = state["events"]
+        .as_array()
+        .expect("events")
+        .iter()
+        .filter(|e| e[0] == "one-process" || e[0] == "again")
+        .collect();
+    assert_eq!(
+        calls.iter().map(|e| e[0].clone()).collect::<Vec<_>>(),
+        vec![json!("one-process"), json!("again"), json!("one-process"), json!("again")]
+    );
+    let fuzzy_args = again.get(1).expect("fuzzy again")[1].as_array().expect("arguments");
+    assert!(args[1].as_str().expect("focused run").ends_with("/tests"));
+    assert!(fuzzy_args[1].as_str().expect("fuzzy run").ends_with("/fuzzy"));
+    assert_ne!(args[3], fuzzy_args[3], "each again has its own directory");
+    assert_eq!(&fuzzy_args[4..], &[json!("A::rules"), json!("fuzzy::flake")]);
     let record = fs::read_to_string(root.join(".git/pre-pr-passed")).expect("passed record");
     let fields: Vec<_> = record.split_whitespace().collect();
     let tree = fields.first().expect("tree");
@@ -390,7 +426,7 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     assert_eq!(
         results,
         format!(
-            "temper-check 1\ncheck {tree} {base} passed\npassed test A::rules green\nfailed test A::rules red\nflake test A::rules flake\n|\n| first log\n|\n| under load\n"
+            "temper-check 1\ncheck {tree} {base} passed\npassed test A::rules fuzzy::green\nfailed test A::rules fuzzy::red\npassed test A::rules green\nfailed test A::rules red\nflake test A::rules flake\n|\n| first log\n|\n| under load\nflake test A::rules fuzzy::flake\n|\n| fuzzy first log\n"
         )
     );
     assert!(!root.join(".git/temper/check-results.tmp").exists());
@@ -444,6 +480,9 @@ fn build_events(root: &Path) -> Vec<Value> {
 fn the_base_is_the_pins_merge_base() {
     let scratch = fixture();
     let root = scratch.path();
+    write(root, ".config/gate/always.txt", "B\n");
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "boundary configuration"]);
     let ancestor = String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
     let other = String::from_utf8(git(root, &["commit-tree", "HEAD^{tree}", "-m", "pin", "-p", &ancestor]))
         .expect("other commit")
@@ -456,7 +495,8 @@ fn the_base_is_the_pins_merge_base() {
     let output = deliver(root);
     let log = text(&output);
     assert!(output.status.success(), "{log}");
-    assert!(build_events(root).is_empty(), "docs build nothing");
+    assert_eq!(build_events(root).iter().map(|e| e[2].clone()).collect::<Vec<_>>(), vec![json!(["B"]); 2]);
+    assert!(log.contains("pre-pr: boundary tests: B"), "{log}");
     assert!(log.contains("docs only: citations"), "{log}");
     let state = budget(root);
     let events = state["events"].as_array().expect("events");
@@ -486,7 +526,9 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
     let lints: Vec<_> = events.iter().filter(|e| e[0] == "clippy").map(|e| e[2].clone()).collect();
     let tests: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[2].clone()).collect();
     assert_eq!(lints, vec![json!(["A"])], "{log}");
-    assert_eq!(tests, vec![json!(["A", "B"])], "{log}");
+    assert_eq!(tests, vec![json!(["A", "B"]); 2], "{log}");
+    let profiles: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[3][2].clone()).collect();
+    assert_eq!(profiles, vec![json!("default"), json!("fuzzy")]);
 }
 
 fn test_failure(name: &str, output: &str) -> Value {
