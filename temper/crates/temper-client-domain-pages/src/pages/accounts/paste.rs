@@ -54,7 +54,7 @@ impl Default for Paste {
     }
 }
 impl Request {
-    pub(crate) fn paste_value(&mut self, value: Secret, bound: u32) {
+    pub fn paste_value(&mut self, value: Secret, bound: u32) {
         if self.paste.out() {
             return;
         }
@@ -78,7 +78,7 @@ impl Request {
         }
         self.paste.pending = None;
     }
-    pub(crate) fn finish(&mut self, client: &Client, name: RequestKey, serial: &mut u64, out: &mut Queue<Output>) {
+    pub fn finish(&mut self, client: &Client, name: RequestKey, serial: &mut u64, out: &mut Queue<Output>) {
         if self.paste.out() {
             return;
         }

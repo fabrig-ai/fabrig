@@ -292,7 +292,7 @@ fn open(root: &mut dyn Routing, give: bool) {
     root.pages_mut().hand_area =
         Some(Open::new(project, project_name, facts.clone(), stop_asking::owner(&*root, project), give));
 }
-pub(crate) fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
+pub fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
     match act {
         Act::Open => open(root, false),
         Act::GiveBack => open(root, true),
@@ -631,7 +631,7 @@ fn started(root: &mut dyn Routing, env: &Env<Limits>, outcome: &Outcome) {
     }
     root.pages_mut().shown = root.pages().shown.checked_add(1).expect("pages shown fits");
 }
-pub(crate) fn told(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) -> bool {
+pub fn told(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) -> bool {
     let Some(open) = &root.pages().hand_area else { return false };
     if let Some((reading, revision)) = open.reading {
         let page = match told {

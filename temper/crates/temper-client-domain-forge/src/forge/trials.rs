@@ -60,14 +60,18 @@ struct Pending {
 }
 /// One person's trial facts, held independently of the current page.
 #[derive(Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the root reconciles seen trials; pending requests stay with the forge side"
+)]
 pub struct Trials {
-    pub(crate) rows: Box<[Row]>,
+    pub rows: Box<[Row]>,
     watch: Watch,
     task: Option<Task>,
     pending: Option<Pending>,
     wait: Option<c::TaskRunWait>,
     last_wait: Option<c::TaskRunWait>,
-    pub(crate) seen: Option<List<u32>>,
+    pub seen: Option<List<u32>>,
 }
 impl Trials {
     pub(crate) fn new() -> Self {
@@ -131,7 +135,7 @@ pub(crate) fn handle() -> Handle {
 pub(crate) fn task_handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::TRIAL_TASK }
 }
-pub(crate) fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     if side.link == Link::SignedOut || side.link == Link::OutOfDate {
         end(side, out);
         side.trials = Trials::new();

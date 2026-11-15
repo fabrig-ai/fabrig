@@ -98,7 +98,7 @@ pub(crate) fn snapshot(name: &[u8], path: &[u8], body: &[u8], chat: Option<u64>)
 }
 
 /// Supply the shared sheet's project facts at its page boundary.
-pub(crate) fn step(root: &mut dyn pages::Routing, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step(root: &mut dyn pages::Routing, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     if let Event::Act { act: Act::Needs(act) } = event {
         let parts = root.parts();
         pages::needs::act(parts.pages, env, parts.client, parts.forge.approvals(), act, out);

@@ -320,7 +320,7 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     out.push(Request::Client { asked: Event::Carry { key, name, request, value: Some(value) } });
     side.changed();
 }
-pub(crate) fn told(
+pub fn told(
     side: &mut Side,
     client: &jig_client::Client,
     told: &Told,

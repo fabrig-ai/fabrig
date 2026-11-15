@@ -1,5 +1,5 @@
 use super::{Making, Refused, ask, copy_target, phrase};
-use crate::{forge, forge_tests::fixtures};
+use crate::{forge, tests::fixtures};
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, source, v1 as w};
 

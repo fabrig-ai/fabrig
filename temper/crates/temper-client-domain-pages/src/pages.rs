@@ -80,7 +80,7 @@ pub mod welcome;
 pub mod work;
 /// The chosen playground waits for its project membership (temper/docs/design/client/forge/family.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PlaygroundChoice {
+pub enum PlaygroundChoice {
     Idle,
     Waiting,
 }
@@ -110,7 +110,7 @@ pub struct Pages {
     project: Option<u32>,
     watching: bool,
     shown: u64,
-    pub(crate) inbox: Option<inbox::Inbox>,
+    pub inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
     all_home: Option<all_home::AllHome>,
     launchpad: bool,
@@ -136,7 +136,7 @@ pub struct Pages {
     remembered: Option<remembered::Remembered>,
     told: told::Told,
     told_open: bool,
-    pub(crate) push: Option<[u8; 65]>,
+    pub push: Option<[u8; 65]>,
     roles: roles::Roles,
     team: team::Team,
     tell: tell::Store,
@@ -146,11 +146,11 @@ pub struct Pages {
     tell_said: u64,
     models: models::Models,
     switcher: switcher::Switcher,
-    pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
-    pub(crate) playground_provider: Option<u32>,
-    pub(crate) playground_choice: PlaygroundChoice,
-    pub(crate) playground_model: bool,
-    pub(crate) choice: choice::Draft,
+    pub connect_model: Option<Box<connect_model::ConnectModel>>,
+    pub playground_provider: Option<u32>,
+    pub playground_choice: PlaygroundChoice,
+    pub playground_model: bool,
+    pub choice: choice::Draft,
     forges_opened: Option<u16>,
     accounts_open: bool,
     builders_open: bool,
@@ -159,12 +159,12 @@ pub struct Pages {
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
-    pub(crate) welcome_first: Option<welcome::First>,
-    pub(crate) welcome_copies: Option<crate::forge::making::Copies>,
-    pub(crate) welcome_ready: bool,
+    pub welcome_first: Option<welcome::First>,
+    pub welcome_copies: Option<crate::forge::making::Copies>,
+    pub welcome_ready: bool,
     party: Option<u64>,
     next: u64,
-    pub(crate) serial: u64,
+    pub serial: u64,
     seen: u64,
     seeing: Option<(u64, jig_client::Key)>,
     pub(crate) confirm: Option<crate::acts::Confirm>,
@@ -398,7 +398,7 @@ impl Default for Pages {
     }
 }
 impl Pages {
-    pub(crate) fn enable_launchpad(&mut self, out: &mut Queue<Request>) {
+    pub fn enable_launchpad(&mut self, out: &mut Queue<Request>) {
         self.launchpad = true;
         if let Some(reads) = &mut self.all_home {
             reads.stop_follows(out);
@@ -557,7 +557,8 @@ impl Pages {
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
         if self.party.is_some() { self.connect_model.as_deref() } else { None }
     }
-    pub(crate) fn sign_in_key(&self) -> Option<jig_client::Key> {
+    #[must_use]
+    pub fn sign_in_key(&self) -> Option<jig_client::Key> {
         let request = if let Some(page) = self.connect_model() { &page.request } else { &self.accounts()?.request };
         Some(request.pending.as_ref()?.key)
     }
@@ -581,7 +582,7 @@ impl Pages {
     pub const fn adopting(&self) -> Option<&welcome::Adopting> {
         self.adopting.as_ref()
     }
-    pub(crate) fn decide_welcome(&mut self) {
+    pub fn decide_welcome(&mut self) {
         if let Some(welcome) = &mut self.welcome {
             welcome.decided = true;
             self.shown = self.shown.checked_add(1).expect("pages shown fits");
@@ -655,7 +656,8 @@ impl Pages {
     pub const fn goals(&self) -> Option<&goals::Goals> {
         self.goals.as_ref()
     }
-    pub(crate) fn has_goals(&self, client: &Client, project: u32) -> bool {
+    #[must_use]
+    pub fn has_goals(&self, client: &Client, project: u32) -> bool {
         self.project == Some(project) && self.has_goals.has(client, project)
     }
     #[must_use]
@@ -666,7 +668,7 @@ impl Pages {
     pub const fn task(&self) -> Option<&task::Task> {
         self.task.as_ref()
     }
-    pub(crate) fn task_mut(&mut self) -> Option<&mut task::Task> {
+    pub fn task_mut(&mut self) -> Option<&mut task::Task> {
         self.task.as_mut()
     }
     #[must_use]
@@ -679,7 +681,7 @@ impl Pages {
         }
         if let Some(chat) = &self.chat { Some(&chat.cards) } else { Some(&self.inbox.as_ref()?.cards) }
     }
-    pub(crate) fn cards_mut(&mut self) -> Option<&mut skein_lib::List<inbox::Card>> {
+    pub fn cards_mut(&mut self) -> Option<&mut skein_lib::List<inbox::Card>> {
         if let Some(task) = &mut self.task {
             if task.shape == task::Shape::Tracked {
                 return Some(&mut self.inbox.as_mut()?.cards);
@@ -688,14 +690,15 @@ impl Pages {
         }
         if let Some(chat) = &mut self.chat { Some(&mut chat.cards) } else { Some(&mut self.inbox.as_mut()?.cards) }
     }
-    pub(crate) fn suggest(&mut self, env: &Env<Limits>, client: &Client, words: &[u8], out: &mut Queue<Request>) {
+    pub fn suggest(&mut self, env: &Env<Limits>, client: &Client, words: &[u8], out: &mut Queue<Request>) {
         let me = self.me(client);
         if let Some(chats) = &mut self.chats {
             chats.suggest(env, me, self.project, words, &self.choice, &mut self.serial, out);
             self.shown = self.shown.checked_add(1).expect("pages shown fits");
         }
     }
-    pub(crate) fn seeded(seed: u64) -> Self {
+    #[must_use]
+    pub fn seeded(seed: u64) -> Self {
         Self { serial: skein_lib::Rng::new(seed).next_u64(), ..Self::new() }
     }
     #[must_use]
@@ -723,7 +726,7 @@ pub fn me_handle() -> Handle {
     Handle { asker: Owner::Pages.asker(), number: 0 }
 }
 /// Any act on the accounts page dismisses its transient confirmation (client/pages/README.md).
-pub(crate) fn acted(pages: &mut Pages) {
+pub fn acted(pages: &mut Pages) {
     if pages.accounts.added.take().is_some() {
         pages.accounts.added_from_connect = false;
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -2104,7 +2107,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
     pages.address = address;
 }
 
-pub(crate) fn seen_answered(outcome: &jig_client::Outcome) -> bool {
+#[must_use]
+pub fn seen_answered(outcome: &jig_client::Outcome) -> bool {
     match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(_))) => true,
         jig_client::Outcome::Answered(
@@ -2654,7 +2658,7 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
 }
 
 /// Select the chosen playground once its record and membership arrive (temper/docs/design/client/forge/family.md, 7).
-pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Option<u32>) {
+pub fn playground_project(pages: &mut Pages, client: &Client, project: Option<u32>) {
     if pages.playground_choice == PlaygroundChoice::Waiting
         && let Some(project) = project
     {
@@ -2737,7 +2741,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     default_chosen(pages, client);
 }
 
-pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
+pub fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
         && !contains(me, pages.project)
     {
@@ -3234,7 +3238,7 @@ fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &T
 }
 
 /// Settings replaces its connection page with the live row; welcome owns its steps.
-pub(crate) fn forge_progress(root: &mut dyn Routing, env: &Env<Limits>) {
+pub fn forge_progress(root: &mut dyn Routing, env: &Env<Limits>) {
     let Address::ConnectForge { forge } = root.pages().address() else { return };
     let Some(number) = crate::forge::connect::following(*forge, root.forge()) else { return };
     root.event(env, Event::Went { address: Address::Forges });

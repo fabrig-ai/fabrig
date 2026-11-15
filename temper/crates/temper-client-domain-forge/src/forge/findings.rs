@@ -29,7 +29,8 @@ pub fn document(record: &Family, limits: &Limits) -> Option<w::Findings> {
     wire::decode_findings(&record.bytes, &wire_limits(limits)?)
 }
 
-pub(crate) fn request(project: u32, request: w::Request, limits: Limits) -> Option<Ask> {
+#[must_use]
+pub fn request(project: u32, request: w::Request, limits: Limits) -> Option<Ask> {
     let bounds = wire_limits(&limits)?;
     let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
     Some(Ask::Family {
@@ -38,7 +39,8 @@ pub(crate) fn request(project: u32, request: w::Request, limits: Limits) -> Opti
     })
 }
 
-pub(crate) fn outcome(outcome: &jig_client::Outcome, limits: Limits) -> Option<w::Outcome> {
+#[must_use]
+pub fn outcome(outcome: &jig_client::Outcome, limits: Limits) -> Option<w::Outcome> {
     let jig_client::Outcome::Answered(jig_client::Answered::Family(record)) = outcome else { return None };
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;

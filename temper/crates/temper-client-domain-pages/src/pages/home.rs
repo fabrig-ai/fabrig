@@ -794,7 +794,7 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
 }
 
 /// Send this entry's look once the facts and dismissals settle and To begin is gone.
-pub(crate) fn look(root: &mut dyn Routing, env: &Env<crate::Limits>) {
+pub fn look(root: &mut dyn Routing, env: &Env<crate::Limits>) {
     super::all_home::look(root, env);
     let project = match root.pages().address() {
         crate::Address::Home { project } => *project,

@@ -197,7 +197,7 @@ fn dispatch(
     out.push(Request::Client { asked: event });
     side.changed();
 }
-pub(crate) fn told(
+pub fn told(
     side: &mut Side,
     client: &jig_client::Client,
     told: &Told,

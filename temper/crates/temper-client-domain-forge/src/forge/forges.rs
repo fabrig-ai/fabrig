@@ -729,10 +729,11 @@ pub struct SetUp {
     pub progress: Option<skein_lib::RequestProgress>,
     pub answer: Option<SetUpAnswer>,
 }
-pub(crate) fn handle() -> jig_client::Handle {
+#[must_use]
+pub fn handle() -> jig_client::Handle {
     jig_client::Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::FORGES }
 }
-pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
+pub fn configure(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
     use jig_client::Link;
     if side.link == Link::SignedOut || side.link == Link::OutOfDate {
         if side.forges_open {
@@ -883,7 +884,7 @@ fn retry_fields(side: &super::Side, forge: u16, limits: super::Limits) -> Option
     }
     None
 }
-pub(crate) fn told(
+pub fn told(
     side: &mut super::Side,
     client: &jig_client::Client,
     value: &jig_client::Told,

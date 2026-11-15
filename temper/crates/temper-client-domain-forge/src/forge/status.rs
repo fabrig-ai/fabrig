@@ -34,13 +34,15 @@ pub fn ask(project: u32, limits: &Limits) -> Option<Ask> {
     })
 }
 
-pub(crate) enum Answer {
+#[derive(Debug)]
+pub enum Answer {
     Looked,
     Unknown,
     Refused,
 }
 
-pub(crate) fn answer(outcome: &jig_client::Outcome, limits: Limits) -> Answer {
+#[must_use]
+pub fn answer(outcome: &jig_client::Outcome, limits: Limits) -> Answer {
     match outcome {
         jig_client::Outcome::Unknown => Answer::Unknown,
         jig_client::Outcome::Answered(jig_client::Answered::Family(record)) => match answered(record, limits) {

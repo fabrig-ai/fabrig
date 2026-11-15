@@ -211,7 +211,7 @@ pub(super) fn command_words(words: &[u8]) -> bool {
     true
 }
 impl super::Pages {
-    pub(crate) fn restore_look(&mut self, look: Look) {
+    pub fn restore_look(&mut self, look: Look) {
         self.look = look;
         self.redraw();
     }

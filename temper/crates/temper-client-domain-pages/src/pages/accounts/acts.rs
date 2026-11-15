@@ -44,7 +44,7 @@ pub enum Broken {
 }
 
 impl Accounts {
-    pub(crate) fn act(&mut self, client: &Client, act: Act, serial: &mut u64, out: &mut Queue<Request>) {
+    pub fn act(&mut self, client: &Client, act: Act, serial: &mut u64, out: &mut Queue<Request>) {
         match act {
             Act::Finish { name } => self.request.finish(client, name, serial, out),
             Act::KeyFor { row, source } => {

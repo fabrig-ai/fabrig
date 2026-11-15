@@ -20,7 +20,7 @@ mod form;
 pub mod github;
 pub mod listed;
 pub mod making;
-pub(crate) mod me;
+pub mod me;
 pub mod model;
 pub mod panel;
 pub mod playground;
@@ -75,6 +75,7 @@ pub enum Request {
 }
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each session watch keeps whether its own handle is open")]
+#[expect(clippy::partial_pub_fields, reason = "the root reconciles trials; the forge side owns its other children")]
 pub struct Side {
     ways: ways::State,
     playground: playground::State,
@@ -84,7 +85,7 @@ pub struct Side {
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
-    pub(crate) trials: trials::Trials,
+    pub trials: trials::Trials,
     approvals: approvals::Approvals,
     approvals_open: bool,
     away: away::State,
@@ -505,7 +506,8 @@ pub fn wire_limits(limits: &Limits) -> Option<temper_client_protocol_wire::v1::L
         refusal_bytes: 65_536,
     })
 }
-pub(crate) fn told(client: &jig_client::Client, limits: &crate::Limits, told: jig_client::Told) -> Option<Event> {
+#[must_use]
+pub fn told(client: &jig_client::Client, limits: &crate::Limits, told: jig_client::Told) -> Option<Event> {
     use jig_client::{Outcome, Told};
     if let Some(event) = approvals::told(client, &told, limits.forge) {
         return Some(Event::Approvals { event });

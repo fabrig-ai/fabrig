@@ -233,7 +233,8 @@ impl Side {
     pub fn classes_refused(&self, project: u32) -> Option<&c::Refusal> {
         self.classes_slot(project)?.refused.as_ref()
     }
-    pub(crate) fn classes_request(&self, project: u32) -> Option<Token> {
+    #[must_use]
+    pub fn classes_request(&self, project: u32) -> Option<Token> {
         let pending = self.classes_slot(project)?.setting.as_ref()?;
         if pending.project == project { Some(pending.request) } else { None }
     }
@@ -251,10 +252,11 @@ impl Side {
         handle()
     }
 }
-pub(crate) fn handle() -> Handle {
+#[must_use]
+pub fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::SETTINGS }
 }
-pub(crate) fn configure(side: &mut Side, out: &mut Queue<Request>) {
+pub fn configure(side: &mut Side, out: &mut Queue<Request>) {
     if side.link == Link::SignedOut || side.link == Link::OutOfDate {
         end(side, out);
         side.ways = State::new();
@@ -272,7 +274,8 @@ pub(crate) fn configure(side: &mut Side, out: &mut Queue<Request>) {
         side.changed();
     }
 }
-pub(crate) fn ended(side: &Side) -> bool {
+#[must_use]
+pub fn ended(side: &Side) -> bool {
     side.ways.watch == Watch::Ended
 }
 fn end(side: &mut Side, out: &mut Queue<Request>) {
@@ -284,7 +287,7 @@ fn end(side: &mut Side, out: &mut Queue<Request>) {
 }
 
 /// Reconcile the open project and the How work runs tab after every step and fire.
-pub(crate) fn progress(
+pub fn progress(
     side: &mut Side,
     now: Time,
     open: Option<u32>,
@@ -392,7 +395,7 @@ fn read_slot(side: &mut Side, now: Time, control: Control, shown: bool, limits: 
     });
 }
 #[expect(clippy::too_many_lines, reason = "settings deliveries reconcile the open and shown project slots together")]
-pub(crate) fn told(
+pub fn told(
     side: &mut Side,
     now: Time,
     client: &jig_client::Client,
@@ -641,7 +644,7 @@ fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
         }
     })
 }
-pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
+pub fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     let Act::Set { project, asked } = act;
     let control = control(&asked);
     let shown =
@@ -659,7 +662,8 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
     send(side, Setting { request: Token::new(0), project, asked, retried: false }, shown, newest, limits, out);
 }
 /// One project's setting, encoded as the set path and a settings proposal both send it.
-pub(crate) fn setting_item(project: u32, asked: &Asked, limits: Limits) -> Option<c::SettingItem> {
+#[must_use]
+pub fn setting_item(project: u32, asked: &Asked, limits: Limits) -> Option<c::SettingItem> {
     Some(c::SettingItem {
         setting: setting(project, control(asked)),
         edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes(asked, limits)?) }),
@@ -749,7 +753,7 @@ pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
 }
 
 /// Reconcile only proposals on the current chat or inbox page (client/pages/settings.md, 2).
-pub(crate) fn proposals(
+pub fn proposals(
     side: &mut Side,
     cards: &mut dyn ExactSizeIterator<Item = Option<&c::ReadValue>>,
     limits: Limits,

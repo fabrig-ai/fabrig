@@ -6,7 +6,7 @@ use skein_lib::Queue;
 mod acts;
 pub mod paste;
 pub mod request;
-pub(crate) mod terminal_login;
+pub mod terminal_login;
 pub use paste::{Paste, PasteState};
 mod ways;
 pub use acts::{Act, Broken, Operation, Pending};
@@ -173,7 +173,8 @@ pub(crate) fn signed_in(request: &request::Request, client: &Client, chosen: Opt
 }
 
 /// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
-pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+#[must_use]
+pub fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
     if accounts.program_hosts.is_empty() {
         return true;
     }

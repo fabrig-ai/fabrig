@@ -18,7 +18,7 @@ pub struct Session {
     pub spent: u64,
 }
 #[derive(Clone, Debug)]
-pub(crate) enum Kind {
+pub enum Kind {
     Began(u64),
     Ended { attempt: u64, spent: u64 },
     Stood { attempt: u64, words: Box<[u8]> },
@@ -27,11 +27,12 @@ pub(crate) enum Kind {
     Other,
 }
 #[derive(Clone, Debug)]
-pub(crate) struct Line {
+pub struct Line {
     pub at: Wall,
     pub kind: Kind,
 }
-pub(crate) fn retain(line: &c::ActivityLine) -> Line {
+#[must_use]
+pub fn retain(line: &c::ActivityLine) -> Line {
     let kind = match &line.line {
         c::Activity::RunBegan { attempt, .. } => Kind::Began(*attempt),
         c::Activity::RunEnded { attempt, spent, .. } => Kind::Ended { attempt: *attempt, spent: *spent },
@@ -55,7 +56,7 @@ fn recent(at: Wall, wall: Wall) -> bool {
 }
 /// Commit order, not wall-time order, determines the boundaries and last words.
 #[must_use]
-pub(crate) fn group(lines: &Map<u64, Line>, start: bool, wall: Wall) -> skein_lib::List<Session> {
+pub fn group(lines: &Map<u64, Line>, start: bool, wall: Wall) -> skein_lib::List<Session> {
     let mut all = skein_lib::List::uncapped();
     let mut bounded = start;
     let mut session: Option<Session> = None;

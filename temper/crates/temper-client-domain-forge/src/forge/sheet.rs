@@ -506,7 +506,7 @@ fn matches_connection(connection: &Connection) -> bool {
     }
 }
 
-pub(crate) fn progress(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+pub fn progress(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     if let State::Rows(_) = &side.forges {
         let mut kept = List::uncapped();
         for dismissal in &side.sheet_dismissals {
@@ -1148,7 +1148,7 @@ pub(crate) fn again(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<R
 }
 
 /// Reads and making answers are decoded here before the adoption family's terminal.
-pub(crate) fn told(
+pub fn told(
     side: &mut Side,
     client: &jig_client::Client,
     told: &jig_client::Told,
@@ -1247,5 +1247,5 @@ fn connect_refused(why: w::ForgeRefusal) -> Refused {
 }
 
 #[cfg(test)]
-#[path = "../forge_tests/sheet.rs"]
+#[path = "../tests/sheet.rs"]
 mod tests;

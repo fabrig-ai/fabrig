@@ -38,7 +38,7 @@ pub struct ConnectModel {
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
-    pub(crate) tab_refused: bool,
+    pub tab_refused: bool,
     program_environment: Option<Box<[u8]>>,
     environment_read: Option<Handle>,
     environment_asked: bool,
@@ -229,7 +229,7 @@ impl ConnectModel {
         self.program_environment.is_some()
     }
 
-    pub(crate) fn read_environment(&mut self, address: &Address, link: Link, next: &mut u64, out: &mut Queue<Output>) {
+    pub fn read_environment(&mut self, address: &Address, link: Link, next: &mut u64, out: &mut Queue<Output>) {
         let program = match chosen_way(address) {
             Some(way) => way.kind == WayKind::Program,
             None => false,
@@ -256,7 +256,7 @@ impl ConnectModel {
             },
         }));
     }
-    pub(crate) fn environment_told(&mut self, told: &Told) -> bool {
+    pub fn environment_told(&mut self, told: &Told) -> bool {
         match told {
             Told::Page { handle, page } if Some(*handle) == self.environment_read => {
                 self.environment_read = None;

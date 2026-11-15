@@ -126,7 +126,8 @@ pub fn unfunded(me: &c::Me, project: u32, way: Option<u32>) -> Option<Unfunded> 
     None
 }
 
-pub(crate) fn preferred_way(me: &c::Me, project: u32, configured: Option<u32>) -> Option<u32> {
+#[must_use]
+pub fn preferred_way(me: &c::Me, project: u32, configured: Option<u32>) -> Option<u32> {
     if let Some(number) = configured
         && let Some(template) = shapes::template(me, project, number)
         && template.tracked.is_some()

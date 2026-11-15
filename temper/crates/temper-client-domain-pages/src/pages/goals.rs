@@ -125,7 +125,8 @@ pub struct Goals {
 }
 
 impl Goals {
-    pub(crate) fn new(first: u64) -> Self {
+    #[must_use]
+    pub fn new(first: u64) -> Self {
         Self {
             filter: GoalsFilter::All,
             live: handle(first),
@@ -144,13 +145,13 @@ impl Goals {
             reading_report: None,
         }
     }
-    pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
+    pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [self.live, self.ended, self.needs, self.report] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
         self.report.number.checked_add(1).expect("page handles fit")
     }
-    pub(crate) fn configure(
+    pub fn configure(
         &mut self,
         me: Option<&c::Me>,
         project: u32,

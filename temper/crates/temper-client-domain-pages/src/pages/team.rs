@@ -19,7 +19,7 @@ pub mod wakes;
 pub use rules::{Rules, asked};
 pub(crate) use standing::now;
 pub use standing::{Card, Now, Role, StartedBy};
-pub(crate) mod sessions;
+pub mod sessions;
 pub use sessions::Session;
 /// A project's areas from its findings document (client/pages/talk.md, 3).
 #[derive(Debug, PartialEq, Eq)]

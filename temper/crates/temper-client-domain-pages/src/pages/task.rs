@@ -327,7 +327,7 @@ pub struct Task {
     long_text: u32,
     asking: Asking,
     /// The document that already permitted an ending-triggered panel reopen (client/forge/served.md, 2).
-    pub(crate) panel_reopened_at: Option<u64>,
+    pub panel_reopened_at: Option<u64>,
     pub tree: Handle,
     pub activity: Handle,
     pub run: Option<Handle>,
@@ -355,7 +355,7 @@ impl Task {
         self.current_call.as_deref()
     }
 
-    pub(crate) fn new(number: u64, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
+    pub fn new(number: u64, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
         let document = handle(first);
         let tree = handle(first.checked_add(1).expect("task handles fit"));
         let activity = handle(first.checked_add(2).expect("task handles fit"));
@@ -427,14 +427,7 @@ impl Task {
         clippy::too_many_lines,
         reason = "composer dispatch lists every page act, including Ask how and role talks"
     )]
-    pub(crate) fn act(
-        &mut self,
-        env: &Env<Limits>,
-        client: &Client,
-        act: Act,
-        serial: &mut u64,
-        out: &mut Queue<Request>,
-    ) {
+    pub fn act(&mut self, env: &Env<Limits>, client: &Client, act: Act, serial: &mut u64, out: &mut Queue<Request>) {
         if self.shape != Shape::Agent && self.shape != Shape::Tracked {
             return;
         }
@@ -845,7 +838,7 @@ impl Task {
         }
         None
     }
-    pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
+    pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [Some(self.document), Some(self.tree), Some(self.activity), self.run].into_iter().flatten() {
             unwatch(handle, out);
         }
@@ -903,7 +896,7 @@ impl Task {
         }
         self.pending = kept;
     }
-    pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         if let Some(goal) = &mut self.goal
             && goal.told(now, client, &told, out)
         {
@@ -1035,7 +1028,7 @@ impl Task {
         };
         self.document_read = DocumentRead::Ended { why, retry_at: None };
     }
-    pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         if let DocumentRead::Ended { retry_at: Some(at), .. } = self.document_read
             && at <= now
         {
@@ -1048,7 +1041,7 @@ impl Task {
         }
     }
     #[must_use]
-    pub(crate) const fn next_deadline(&self) -> Option<Time> {
+    pub const fn next_deadline(&self) -> Option<Time> {
         let document = match self.document_read {
             DocumentRead::Ended { retry_at, .. } => retry_at,
             DocumentRead::Reading | DocumentRead::Ready => None,
@@ -1088,7 +1081,7 @@ impl Task {
         }
     }
     /// Tracked pages read needs through their inbox, without task cards (client/pages/task.md, 4).
-    pub(crate) fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
+    pub fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
         if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
             return;
         }

@@ -62,7 +62,7 @@ impl Pages {
         self.away.is_some() || self.away_all.is_some()
     }
 }
-pub(crate) fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
+pub fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
     let project = match act {
         Act::ToggleAll => {
             super::away_all::act(root, env);

@@ -546,7 +546,7 @@ fn send(card: &mut Card, request: w::Request, serial: &mut u64, env: &Env<Limits
     out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
 }
 
-pub(crate) fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
+pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
     let wanted = super::decided::wanted(&*root);
     let more = match root.pages().me(root.client()) {
         Some(me) => wanted.len() == PROJECTS && me.projects.len() > wanted.len(),

@@ -5634,14 +5634,45 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
- "skein-json",
  "skein-lib",
- "skein-ui",
  "skein-world",
+ "temper-client-domain-forge",
+ "temper-client-domain-pages",
  "temper-client-protocol-wire",
  "temper-fixtures",
  "temper-protocol-reaches",
  "temper-protocol-records",
+]
+
+[[package]]
+name = "temper-client-domain-forge"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-lib",
+ "skein-ui",
+ "temper-client-protocol-wire",
+ "temper-protocol-reaches",
+ "temper-protocol-records",
+]
+
+[[package]]
+name = "temper-client-domain-pages"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-json",
+ "skein-lib",
+ "temper-client-domain-forge",
+ "temper-client-protocol-wire",
+ "temper-fixtures",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

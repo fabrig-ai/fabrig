@@ -22,7 +22,7 @@ impl Request {
     pub const fn key_written(&self) -> u64 {
         self.written
     }
-    pub(crate) fn clear_key(&mut self) {
+    pub fn clear_key(&mut self) {
         self.value = None;
         self.paste.clear();
         self.written = self.written.checked_add(1).expect("account field writes fit");
@@ -81,7 +81,7 @@ impl Request {
         }
         if pending.name.is_some() { SignInState::Started { source } } else { SignInState::Unknown }
     }
-    pub(crate) fn refresh(&mut self, client: &Client) {
+    pub fn refresh(&mut self, client: &Client) {
         let Some((source, _)) = self.started() else {
             return;
         };
@@ -146,7 +146,7 @@ impl Request {
 }
 
 impl Request {
-    pub(crate) fn key(&mut self, value: Secret) {
+    pub fn key(&mut self, value: Secret) {
         self.value = None;
         if let Some(pending) = &self.pending
             && pending.outcome.is_none()
@@ -168,14 +168,7 @@ impl Request {
         }
         Some(skein_lib::sha256::digest(self.value.as_ref()?.expose()))
     }
-    pub(crate) fn send(
-        &mut self,
-        name: RequestKey,
-        ask: c::Ask,
-        carrying: bool,
-        serial: &mut u64,
-        out: &mut Queue<Output>,
-    ) {
+    pub fn send(&mut self, name: RequestKey, ask: c::Ask, carrying: bool, serial: &mut u64, out: &mut Queue<Output>) {
         if let Some(pending) = &self.pending
             && pending.outcome.is_none()
         {
@@ -207,7 +200,7 @@ impl Request {
         };
         out.push(Output::Client(event));
     }
-    pub(crate) fn told(&mut self, client: &Client, told: &Told) -> bool {
+    pub fn told(&mut self, client: &Client, told: &Told) -> bool {
         match told {
             Told::Kept { key, request } => {
                 let jig_client::Ask::Jig(ask) = request else {

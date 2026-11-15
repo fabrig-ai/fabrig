@@ -99,7 +99,7 @@ fn find_card(pages: &mut Pages, object: ObjectKey) -> Option<&mut Card> {
     None
 }
 #[expect(clippy::too_many_lines, reason = "deciding dispatch lists each act and retains the sheet through its ask")]
-pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
+pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::CardWords { object, words } => {
             crate::pages::needs::open_reply(pages, object);
@@ -354,7 +354,7 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
     }));
     Some(key)
 }
-pub(super) fn told(pages: &mut Pages, told: &Told) -> bool {
+pub fn told(pages: &mut Pages, told: &Told) -> bool {
     if let Told::Answered { key, outcome } = told
         && let Some(cards) = pages.cards_mut()
     {

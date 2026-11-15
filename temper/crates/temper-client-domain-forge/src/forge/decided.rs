@@ -54,7 +54,8 @@ pub fn overturn_words(question: &[u8], took: &[u8]) -> Box<[u8]> {
     skein_lib::bytes::concat(&[lead, question, between, took, end])
 }
 
-pub(crate) fn overturned(outcome: &jig_client::Outcome, limits: Limits) -> bool {
+#[must_use]
+pub fn overturned(outcome: &jig_client::Outcome, limits: Limits) -> bool {
     let record = match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Family(record)) => record,
         jig_client::Outcome::Answered(jig_client::Answered::Jig(_))

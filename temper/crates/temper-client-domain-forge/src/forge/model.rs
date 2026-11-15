@@ -2,7 +2,7 @@
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::Queue;
-pub(crate) fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
+pub fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
     watch_deployment(side, client, out);
 }
 /// A usable source of a provider other than the playground's, or any provider without a playground.

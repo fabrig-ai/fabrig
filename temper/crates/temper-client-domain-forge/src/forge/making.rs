@@ -299,5 +299,5 @@ const fn step(step: &w::MakeStep) -> &'static [u8] {
 }
 
 #[cfg(test)]
-#[path = "../forge_tests/making.rs"]
+#[path = "../tests/making.rs"]
 mod tests;

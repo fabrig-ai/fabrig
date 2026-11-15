@@ -1,7 +1,7 @@
 //! Page facts and acts (temper/docs/design/client/pages/told.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary page tests inspect requests and table values")]
 use super::*;
-use crate::pages_tests::fixtures as f;
+use crate::tests::fixtures as f;
 use jig_client::Family;
 const KEY: [u8; 65] = [4; 65];
 const ENDPOINT: &[u8] = b"https://fcm.googleapis.com/subscription/private";

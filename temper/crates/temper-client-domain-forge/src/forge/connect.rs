@@ -412,7 +412,8 @@ pub fn failed_step(row: &Row) -> Option<FailedStep> {
 }
 
 /// The Settings connection follows the record its accepted request made.
-pub(crate) fn following(choice: Option<AddressChoice>, side: &super::Side) -> Option<u16> {
+#[must_use]
+pub fn following(choice: Option<AddressChoice>, side: &super::Side) -> Option<u16> {
     let Some(AddressChoice::Forge(number)) = choice else { return None };
     match step(Some(AddressChoice::Forge(number)), side.forges(), playground(side), true) {
         Shown::SettingUp(_) | Shown::Ready(_) => Some(number),

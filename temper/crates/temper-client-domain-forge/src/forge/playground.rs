@@ -36,7 +36,7 @@ impl State {
         }
     }
 }
-pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue<Request>) -> bool {
+pub fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue<Request>) -> bool {
     match told {
         Told::Link { link } => {
             if *link == Link::Live && !side.playground.live {

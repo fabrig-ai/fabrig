@@ -124,7 +124,7 @@ impl Chat {
         self.current_run.as_ref()?.call.as_ref()
     }
 
-    pub(crate) fn new(task: u64, mode: Mode, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
+    pub fn new(task: u64, mode: Mode, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
         let document = handle(first);
         let activity = handle(first.checked_add(1).expect("chat handles fit"));
         let mut thread = Thread::new(task, &thread_limits(limits));
@@ -187,7 +187,7 @@ impl Chat {
             final_task: None,
         }
     }
-    pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         self.asking.fire(now, self.activity, out);
         self.draft_asking.fire(now, self.draft_read, out);
         self.request.fire(now, out);
@@ -196,7 +196,8 @@ impl Chat {
             read.asking.fire(now, read.handle, out);
         }
     }
-    pub(crate) fn next_deadline(&self) -> Option<Time> {
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
         let mut at = super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline());
         at = super::activity::earliest(at, self.request.next_deadline());
         at = super::activity::earliest(at, self.views.next_deadline());
@@ -205,7 +206,7 @@ impl Chat {
         }
         at
     }
-    pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
+    pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [Some(self.document), Some(self.activity), Some(self.draft_read), self.run].into_iter().flatten()
         {
             unwatch(handle, out);
@@ -248,7 +249,7 @@ impl Chat {
         }
         newest
     }
-    pub(crate) fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
+    pub fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
         // The page refresh runs after every event, including a later arrival of me.
         self.opening_mode(client);
         let next = match self.goal_fact(client, forge) {
@@ -310,7 +311,7 @@ impl Chat {
         }
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch routes the chat's independent read handles")]
-    pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         if let Some(talk) = &mut self.talking
             && talk.told(&told, out)
         {
@@ -1158,7 +1159,7 @@ impl Chat {
         }
     }
 
-    pub(crate) fn prepare_close(&mut self, client: &Client) {
+    pub fn prepare_close(&mut self, client: &Client) {
         self.closing = None;
         let Some(task) = self.task(client) else { return };
         if !allowed(task, c::ActKind::Cancel) || self.sending(Sending::Close) {
@@ -1174,7 +1175,7 @@ impl Chat {
         let reason = c::Text::new(Box::from(*b"Chat closed"), u32::MAX).expect("bounded close reason");
         self.closing = jig_client::shapes::close_chat(me, task.project, self.task, delegates.as_slice(), reason).ok();
     }
-    pub(crate) fn delegate_fate(&mut self, task: u64, fate: jig_client::shapes::Fate) {
+    pub fn delegate_fate(&mut self, task: u64, fate: jig_client::shapes::Fate) {
         if let Some(c::Ask::Compound { project, operations }) = &mut self.closing {
             for index in 0..operations.len() {
                 let operation = operations.get_mut(index).expect("bounded operation");
@@ -1203,7 +1204,7 @@ impl Chat {
             }
         }
     }
-    pub(crate) fn close(&mut self, serial: &mut u64, out: &mut Queue<Request>) -> Option<Key> {
+    pub fn close(&mut self, serial: &mut u64, out: &mut Queue<Request>) -> Option<Key> {
         let ask = self.closing.clone()?;
         if self.sending(Sending::Close) {
             return None;
@@ -1252,14 +1253,7 @@ impl Chat {
         false
     }
     #[expect(clippy::too_many_lines, reason = "the exhaustive conversation act routing stays in one match")]
-    pub(crate) fn act(
-        &mut self,
-        env: &Env<Limits>,
-        client: &Client,
-        act: Act,
-        serial: &mut u64,
-        out: &mut Queue<Request>,
-    ) {
+    pub fn act(&mut self, env: &Env<Limits>, client: &Client, act: Act, serial: &mut u64, out: &mut Queue<Request>) {
         match act {
             Act::ChangeProposal { proposal } => {
                 self.change_asked = Some(proposal);
@@ -1383,7 +1377,7 @@ impl Chat {
             | Act::Go { .. } => unreachable!("only conversation acts routed here"),
         }
     }
-    pub(crate) fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
+    pub fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
         let mut newest = 0;
         for row in &self.thread.lines.rows {
             if let c::Activity::Turn { reply, .. } = row.source.line {
@@ -1508,7 +1502,7 @@ impl Chat {
 /// A screen and a half as a chat's opening reads hold it: the held lines'
 /// weight, a screen and a half of an 80 by 24 terminal
 /// (temper/docs/design/client/pages/chat/conversation.md, 2).
-pub(crate) const OPENING_WEIGHT: u64 = 2_880;
+pub const OPENING_WEIGHT: u64 = 2_880;
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
     let bytes = match limits.window_bytes {

@@ -427,7 +427,7 @@ fn launchpad_projects(root: &dyn Root) -> List<u32> {
     wanted
 }
 /// Keep watches and task reads while their projects and rows remain on the open page.
-pub(crate) fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
+pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
     let wanted = wanted(&*root);
     let more = match root.pages().me(root.client()) {
         Some(me) => me.projects.len() > wanted.len(),

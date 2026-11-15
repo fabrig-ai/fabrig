@@ -12,10 +12,13 @@ pub struct Terminal {
     handle: Option<Handle>,
 }
 impl Terminal {
-    pub(crate) const fn new() -> Self {
+    #[must_use]
+    #[expect(clippy::new_without_default, reason = "terminal state is constructed explicitly by the root")]
+    pub const fn new() -> Self {
         Self { handle: None }
     }
-    pub(crate) fn login<'a>(&self, client: &'a jig_client::Client) -> Option<&'a c::TerminalLogin> {
+    #[must_use]
+    pub fn login<'a>(&self, client: &'a jig_client::Client) -> Option<&'a c::TerminalLogin> {
         let document = client.document(self.handle?)?;
         if document.state != State::Live {
             return None;
@@ -24,7 +27,7 @@ impl Terminal {
         terminal.login.as_ref()
     }
 }
-pub(crate) fn offer(root: &mut dyn Routing, env: &Env<Limits>, terminal: u64) {
+pub fn offer(root: &mut dyn Routing, env: &Env<Limits>, terminal: u64) {
     let login = root.parts().terminal;
     if login.handle.is_some() {
         return;
@@ -40,7 +43,7 @@ pub(crate) fn offer(root: &mut dyn Routing, env: &Env<Limits>, terminal: u64) {
         }),
     );
 }
-pub(crate) fn ended(root: &mut dyn Routing, env: &Env<Limits>, number: u32, exit: c::LoginExit) {
+pub fn ended(root: &mut dyn Routing, env: &Env<Limits>, number: u32, exit: c::LoginExit) {
     root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
     let key = jig_client::Key { asker: Owner::Pages.asker(), number: root.pages().serial };
     root.request(

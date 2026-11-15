@@ -33,7 +33,8 @@ pub enum Watched {
     Ended(Why),
 }
 /// A later document can recover a live change, or its landed result (client/forge/served.md, 2).
-pub(crate) fn refreshable(task: &c::Task, forge: u16) -> bool {
+#[must_use]
+pub fn refreshable(task: &c::Task, forge: u16) -> bool {
     let procedure = match task.chip.executor {
         c::ChipExecutor::Procedure { connector, kind } => connector == forge && kind == 2,
         c::ChipExecutor::Job { .. }

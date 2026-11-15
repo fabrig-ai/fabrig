@@ -13,10 +13,11 @@ pub(super) const AWAY: u64 = 4;
 pub(super) const TRIALS: u64 = 5;
 pub(super) const TRIAL_TASK: u64 = 6;
 pub(super) const APPROVALS: u64 = 7;
-pub(crate) fn handle() -> Handle {
+#[must_use]
+pub fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: 0 }
 }
-pub(crate) fn told(side: &mut Side, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+pub fn told(side: &mut Side, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
     match told {
         Told::Link { link } => {
             side.link = *link;

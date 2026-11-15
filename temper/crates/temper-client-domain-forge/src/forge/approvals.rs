@@ -122,7 +122,7 @@ pub fn watch(limits: &Limits) -> Option<Watchable> {
 pub(crate) fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::APPROVALS }
 }
-pub(crate) fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     if side.link == Link::SignedOut || side.link == Link::OutOfDate {
         end(side, out);
         side.approvals.state = State::Unknown;

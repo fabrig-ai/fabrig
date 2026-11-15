@@ -54,7 +54,8 @@ pub struct Chats {
     documents_known: bool,
 }
 impl Chats {
-    pub(crate) fn new(first: u64) -> Self {
+    #[must_use]
+    pub fn new(first: u64) -> Self {
         Self {
             filter: ChatsFilter::All,
             live: handle(first),
@@ -83,7 +84,7 @@ impl Chats {
             documents_known: false,
         }
     }
-    pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
+    pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [self.live, self.closed] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
@@ -94,13 +95,7 @@ impl Chats {
         }
         self.goals.number.checked_add(1).expect("page handles fit")
     }
-    pub(crate) fn configure(
-        &mut self,
-        me: Option<&Me>,
-        project: Option<u32>,
-        limits: &Limits,
-        out: &mut Queue<Request>,
-    ) {
+    pub fn configure(&mut self, me: Option<&Me>, project: Option<u32>, limits: &Limits, out: &mut Queue<Request>) {
         let (Some(me), Some(project)) = (me, project) else { return };
         let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT) else { return };
         let query = TaskQuery {
@@ -137,7 +132,7 @@ impl Chats {
         }));
         self.read(None, out);
     }
-    pub(crate) fn open_documents(&mut self, project: u32, rows: u32, out: &mut Queue<Request>) {
+    pub fn open_documents(&mut self, project: u32, rows: u32, out: &mut Queue<Request>) {
         if self.notes_project == Some(project) {
             return;
         }
@@ -165,13 +160,14 @@ impl Chats {
         self.note_numbers = Map::with_capacity(0);
         self.goal_tasks = List::with_capacity(0);
     }
-    pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         self.asking.fire(now, self.notes, out);
     }
-    pub(crate) const fn next_deadline(&self) -> Option<Time> {
+    #[must_use]
+    pub const fn next_deadline(&self) -> Option<Time> {
         self.asking.next_deadline()
     }
-    pub(crate) fn notes_told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub fn notes_told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
         let Told::Page { handle, page } = told else { return false };
         if *handle != self.notes {
             return false;
@@ -326,7 +322,7 @@ impl Chats {
             }));
         }
     }
-    pub(crate) fn older(&mut self, out: &mut Queue<Request>) {
+    pub fn older(&mut self, out: &mut Queue<Request>) {
         if let Some(page) = &self.page
             && let EndedGroup::Rows { after: Some(after), .. } = &page.ended
         {
@@ -334,11 +330,11 @@ impl Chats {
             self.read(Some(after.clone()), out);
         }
     }
-    pub(crate) fn write(&mut self, words: Box<[u8]>, limits: &Limits) {
+    pub fn write(&mut self, words: Box<[u8]>, limits: &Limits) {
         (self.words, self.beyond) = super::composer::held(words, limits.client.domain.long_text);
     }
     #[expect(clippy::too_many_arguments, reason = "the route selects the first message and opening mode")]
-    pub(crate) fn start(
+    pub fn start(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
@@ -383,7 +379,7 @@ impl Chats {
         clippy::too_many_arguments,
         reason = "suggested words share the composer's identity, choice and send state"
     )]
-    pub(crate) fn suggest(
+    pub fn suggest(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
@@ -485,7 +481,7 @@ impl Chats {
             Err(why) => self.refusal = Some(why),
         }
     }
-    pub(crate) fn told(&mut self, told: Told, address: &Address, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, told: Told, address: &Address, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.live => {
                 // Live deliveries omit ended tasks. Refresh the first ended page

@@ -157,5 +157,5 @@ pub fn held<'a>(forges: &'a State, playground: Option<&'a Playground>, project: 
 }
 
 #[cfg(test)]
-#[path = "../forge_tests/listed.rs"]
+#[path = "../tests/listed.rs"]
 mod tests;

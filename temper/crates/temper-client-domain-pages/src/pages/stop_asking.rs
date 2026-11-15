@@ -132,7 +132,7 @@ fn open(root: &mut dyn Routing, object: c::ObjectKey, wall: Wall) {
         return;
     }
 }
-pub(crate) fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
+pub fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
     match act {
         Act::Open { object } => open(root, object, env.wall),
         Act::Words { words } => {
@@ -301,7 +301,7 @@ fn proposal_reason(root: &dyn Root, open: &Open, classes: &Classes, bound: u32) 
     .ok()
 }
 /// Called after the single settings sender has reconciled a reply, including a stale retry.
-pub(crate) fn applied(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) {
+pub fn applied(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) {
     let Some(open) = &root.pages().stop_asking else { return };
     let Some(Out::Apply(request)) = open.out else { return };
     let Told::Answered { key, outcome } = told else { return };
@@ -335,7 +335,7 @@ fn refuse(open: &mut Open, outcome: &Outcome) {
         | Outcome::Lost => c::Refusal::NotWaiting,
     });
 }
-pub(crate) fn told(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) -> bool {
+pub fn told(root: &mut dyn Routing, env: &Env<Limits>, told: &Told) -> bool {
     let (key, outcome) = match told {
         Told::Answered { key, outcome } => (*key, outcome),
         Told::Pending { key } => {
