@@ -6,6 +6,9 @@
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
   change 3434].
+- **Not yet:** 3.1 and 8.2: every run saves to `recording`, replacing the
+  last run's, keeps no ten, says nothing at the end, and `again` watches
+  `recording` [in flight: change 3611].
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a

@@ -12,6 +12,15 @@
 - **Not yet:** 2, *`/tell`*: its `about`, the screen, so that a word told
   in a standing role's talk goes to the area the role holds [in flight:
   change 2180].
+- **Not yet:** 1, *The notice*: no chat closed's notice [in flight:
+  change 3609].
+- **Not yet:** 2, *Their name left in the box*: the caret stays before
+  the space, and "/change " sent alone starts an Ask temper chat [in
+  flight: change 3607].
+- **Not yet:** 2, *A command's list*: "Close" taken stays on the chat
+  [in flight: change 3609].
+- **Not yet:** 3: no blank row on top, and the mark starts at the
+  window's first column [in flight: change 3605].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

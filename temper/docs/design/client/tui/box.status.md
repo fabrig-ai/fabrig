@@ -13,3 +13,10 @@
   send or screen; a send that clears the box (`Told::Cleared`) and
   another screen lower it (`temper-client-shell-tui`'s `host.rs`,
   `send`).
+- **Not yet:** *Lending its terminal*, *Stepping aside*, step 2: the
+  write is the clear, the line and one line feed, with no blank row
+  above the line nor between it and Claude Code's [in flight: change
+  3603].
+- **Not yet:** *The welcome*: the link, its pending and failed lines and
+  "It signs you in…" stand two columns in, under "Welcome.", and "In
+  the browser" and its steps are two lines [in flight: change 3605].
