@@ -266,6 +266,16 @@ fn each_step_draws_its_current_done_slots_and_its_sentence() {
 }
 
 #[test]
+fn a_landing_repair_names_its_gate_at_the_queued_step() {
+    let step = repair(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 7 }).unwrap()));
+    let tree = draw(parts(step));
+    let current = styled(&tree, look::STEP_CURRENT);
+    assert_eq!(current.len(), 1);
+    assert_eq!(f::node_text(&tree, current[0]).as_ref(), b"Queued");
+    assert!(contains(&tree, "Repairing: landing gate 7 failed."));
+}
+
+#[test]
 fn queues_keep_the_sentence_and_each_named_tasks_link() {
     for (place, names, sentence) in [
         (1, &[][..], "1st in the queue for main."),

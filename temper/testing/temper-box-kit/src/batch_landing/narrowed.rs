@@ -6,7 +6,7 @@ use super::{
 };
 use skein_fake_llm_domain::api::Finish;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Step {
     One,
     Two,

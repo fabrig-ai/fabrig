@@ -311,7 +311,7 @@ struct Proof {
     panel: Value,
     run: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
     Changes,
     Panels,
@@ -560,6 +560,7 @@ impl Judge<'_> {
 
 impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        eprintln!("batch checking history at {:?}", Clock::new().now().now);
         let mut checked = Vec::new();
         for proof in [
             self.first.as_ref().ok_or(String::from("first landing"))?,
@@ -571,6 +572,7 @@ impl Judge<'_> {
                 checked.push(task);
             }
         }
+        eprintln!("batch history checked at {:?}", Clock::new().now().now);
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
@@ -580,6 +582,7 @@ impl Judge<'_> {
             }
         }
         self.chat.phase = ChatPhase::Stopping;
+        eprintln!("batch stopping at {:?}", Clock::new().now().now);
 
         Ok(())
     }
@@ -920,10 +923,10 @@ impl Referee<Process> for Judge<'_> {
                 self.poll = now.saturating_add(Duration::from_millis(250));
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
                 if person.finished {
-                    let before = core::mem::discriminant(&self.phase);
+                    let before = self.phase;
                     self.sample(procs)?;
-                    if before != core::mem::discriminant(&self.phase) {
-                        eprintln!("batch phase {:?}", self.phase);
+                    if before != self.phase {
+                        eprintln!("batch phase {:?} at {now:?}", self.phase);
                     }
                 }
             }

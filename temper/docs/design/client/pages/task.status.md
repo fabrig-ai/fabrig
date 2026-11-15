@@ -21,7 +21,6 @@ result inside the browser's log. `../README.md`, section 5 keeps the after-landi
 and layout check, opening at the end, and the unqueued PgUp at a pending
 read's head explicit.
 
-- **Not yet:** 3, *Its step's line*: a landing gate's repair, "Repairing: landing gate N failed.": the client wire's `Reason` has no landing arm, so the engine's encoding of a change repairing a landing's gate fails and the change's panel is not served [in flight: change 3217].
 - **Not yet:** 2, *The conversation*, and `chat/conversation.md`, 2: no browser test draws an agent's running line,
   presses its "Latest" or scrolls its log, so that a press reads on to the end, the log following,
   is seen by reading. The gallery's `agent-work` draws the line and the pill, and the domain's and

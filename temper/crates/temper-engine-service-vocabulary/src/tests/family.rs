@@ -729,6 +729,34 @@ fn a_panel_encodes_and_decodes_back_whole() {
     .unwrap();
     assert_eq!(decoded_panel(panel(), &fixtures::forge_table(&[])), expected);
 }
+fn landing_repair_panel(reason: change::Repair, gate: u16) {
+    let mut value = panel();
+    value.way = change::Way::Turn;
+    value.in_landing = Some(13);
+    value.task = 4;
+    value.runs = Some(15);
+    value.step = forge::PanelStep::Repairing(reason);
+    let decoded = decoded_panel(value, &fixtures::forge_table(&[]));
+    assert_eq!(decoded.task(), 4);
+    assert_eq!(*decoded.runs(), Some(15));
+    assert_eq!(*decoded.in_landing(), Some(13));
+    assert_eq!(
+        *decoded.step(),
+        repairing(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::from(gate) }).unwrap()))
+    );
+}
+#[test]
+fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
+    landing_repair_panel(change::Repair::LandingAt {
+        gate: 0,
+        candidate: [7; 32],
+        below: Some(change::Below { green: [8; 32], changes: [Some(change::Landed { change: 3, pull: 5 }), None, None, None] }),
+    }, 0);
+}
+#[test]
+fn a_candidate_landing_repair_panel_keeps_its_gate_and_delegate() {
+    landing_repair_panel(change::Repair::Landing { gate: u16::MAX }, u16::MAX);
+}
 fn repairing(reason: w::Reason) -> w::Step {
     w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
 }
@@ -1656,12 +1684,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_one() {
+fn embedded_client_refusals_keep_their_bytes_at_client_twenty_two() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v22::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 21);
+    assert_eq!(wire::CLIENT_VERSION, 22);
 }
 
 #[test]
