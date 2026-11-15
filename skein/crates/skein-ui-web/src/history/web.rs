@@ -17,11 +17,7 @@ fn save(window: &web_sys::Window) {
 }
 impl History {
     #[must_use]
-    pub fn new<R: 'static>(
-        inbox: Rc<Inbox<R>>,
-        wrap: fn(Box<[u8]>) -> R,
-        returned: fn(Box<[u8]>) -> R,
-    ) -> Self {
+    pub fn new<R: 'static>(inbox: Rc<Inbox<R>>, wrap: fn(Box<[u8]>) -> R, returned: fn(Box<[u8]>) -> R) -> Self {
         let window = web_sys::window().expect("window");
         window
             .history()
@@ -47,7 +43,8 @@ impl History {
             let window = web_sys::window().expect("window");
             let location = window.location();
             let path = location.pathname().expect("path") + &location.search().expect("query");
-            if let Some(path) = target.borrow_mut().shown(path.as_bytes(), event.persisted()) {
+            let path = target.borrow_mut().shown(path.as_bytes(), event.persisted());
+            if let Some(path) = path {
                 inbox.raise(returned(path));
             }
         });

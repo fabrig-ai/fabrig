@@ -1776,7 +1776,12 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(
-    pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address, returned: bool, out: &mut Queue<Request>,
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    address: Address,
+    returned: bool,
+    out: &mut Queue<Request>,
 ) {
     let changing = returned || pages.address != address;
     if changing {
@@ -1830,11 +1835,12 @@ fn went(
     }
     pages.needs.went(&pages.address, &address, returned);
     pages.switcher.went(&address);
-    if !returned && let (
-        Address::Chats { .. } | Address::NewChat { .. },
-        Address::Chats { .. } | Address::NewChat { .. },
-        Some(page),
-    ) = (&pages.address, &address, &mut pages.chats)
+    if !returned
+        && let (
+            Address::Chats { .. } | Address::NewChat { .. },
+            Address::Chats { .. } | Address::NewChat { .. },
+            Some(page),
+        ) = (&pages.address, &address, &mut pages.chats)
     {
         if let Address::Chats { filter } = address {
             page.filter = filter;
@@ -1845,7 +1851,8 @@ fn went(
         pages.address = address;
         return;
     }
-    if !returned && let (Some(current), Some(project)) = (work_project(&pages.address), work_project(&address))
+    if !returned
+        && let (Some(current), Some(project)) = (work_project(&pages.address), work_project(&address))
         && current == project
         && let Some(page) = &mut pages.goals
     {
@@ -1855,7 +1862,9 @@ fn went(
         pages.address = address;
         return;
     }
-    if !returned && let (Address::Task { task: current }, Address::Task { task }, Some(_)) = (&pages.address, &address, &pages.task)
+    if !returned
+        && let (Address::Task { task: current }, Address::Task { task }, Some(_)) =
+            (&pages.address, &address, &pages.task)
         && current == task
     {
         pages.address = address;
@@ -1981,7 +1990,8 @@ fn went(
         }
         let keep_ways = match address_project(&address) {
             Some(project) => {
-                !returned && address_project(&pages.address) == Some(project)
+                !returned
+                    && address_project(&pages.address) == Some(project)
                     && (address == (Address::Ask { project }) || address == (Address::Settings { project }))
             }
             None => false,

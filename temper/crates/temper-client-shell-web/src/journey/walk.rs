@@ -65,7 +65,10 @@ fn moving(lines: &[Line], mark: Time) -> bool {
 }
 // Dues alone do not mean that a page moved.
 fn report(line: &Line) -> bool {
-    matches!(line, Line::Start | Line::Place(_) | Line::Returned(_) | Line::Heard(_) | Line::Carried { .. } | Line::Act { .. })
+    matches!(
+        line,
+        Line::Start | Line::Place(_) | Line::Returned(_) | Line::Heard(_) | Line::Carried { .. } | Line::Act { .. }
+    )
 }
 
 /// Whether the later save holds no new reports but dues, no exchange in flight,

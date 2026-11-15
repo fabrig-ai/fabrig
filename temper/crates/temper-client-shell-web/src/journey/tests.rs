@@ -242,11 +242,7 @@ fn a_kept_pages_return_is_recorded_and_replayed_as_its_own_report() {
     host.draw(&mut page, &mut Vec::new());
     recorder.deadline(host.deadline());
     recorder.turn(facts.now, facts.wall);
-    let duties = recorder.report(
-        &mut host,
-        &page,
-        crate::host::Report::Returned { path: facts.path.clone() },
-    );
+    let duties = recorder.report(&mut host, &page, crate::host::Report::Returned { path: facts.path.clone() });
     assert_eq!(duties.show, None);
     host.draw(&mut page, &mut Vec::new());
     recorder.deadline(host.deadline());
