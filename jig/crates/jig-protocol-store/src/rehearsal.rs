@@ -55,7 +55,9 @@ pub(crate) fn begin(
     let Some(handles) = store.limits.files.checked_add(4) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
-    let Some(handles) = handles.checked_mul(3) else { return open::refuse(store, owner, OpenRefusal::Failed, above) };
+    let Some(handles) = handles.max(generations::COPY_HANDLES).checked_mul(3) else {
+        return open::refuse(store, owner, OpenRefusal::Failed, above);
+    };
     store.rehearsal = Some(State {
         source,
         scratch,

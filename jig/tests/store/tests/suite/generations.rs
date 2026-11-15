@@ -52,11 +52,17 @@ fn strays(world: &mut World) {
         Item::directory(b"generations/2"),
         Item::directory(b"generations/2/store"),
         Item::file(b"generations/2/store/row", b"stray"),
+        Item::directory(b"generations/2/store/logs"),
+        Item::directory(b"generations/2/store/logs/0000000000000000"),
+        Item::file(b"generations/2/store/logs/0000000000000000/0000000000000006", b"stray task log"),
         Item::directory(b"generations/2/secrets").mode(0o700),
         Item::file(b"generations/2/secrets/key", b"private stray"),
         Item::directory(b"generations/dropped"),
         Item::directory(b"generations/dropped/store"),
         Item::file(b"generations/dropped/store/row", b"stray"),
+        Item::directory(b"generations/dropped/store/logs"),
+        Item::directory(b"generations/dropped/store/logs/0000000000000001"),
+        Item::file(b"generations/dropped/store/logs/0000000000000001/0000000000001007", b"dropped task log"),
         Item::file(b"active.skein-0123456789abcdef", b"temporary"),
     ]);
 }
