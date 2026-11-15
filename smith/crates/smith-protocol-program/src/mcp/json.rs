@@ -200,13 +200,7 @@ fn object_schema(document: &Document, bound: u32) -> Option<Box<[u8]>> {
 
 /// The API requires an object root with alternatives nested beneath a property.
 pub(crate) fn outcome_schema(schema: &[u8], bound: u32) -> Option<Box<[u8]>> {
-    let prefix = br#"{"type":"object","properties":{"outcome":"#;
-    let suffix = br#"},"required":["outcome"],"additionalProperties":false}"#;
-    let length = prefix.len().checked_add(schema.len())?.checked_add(suffix.len())?;
-    if length > usize::try_from(bound).ok()? {
-        return None;
-    }
-    Some(skein_lib::bytes::concat(&[prefix, schema, suffix]))
+    smith_protocol_llm::outcome_schema(schema, bound).ok()
 }
 
 /// Find the sole required outcome member before encoding it under the receiving bound.

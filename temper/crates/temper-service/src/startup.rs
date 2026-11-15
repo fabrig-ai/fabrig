@@ -568,7 +568,7 @@ pub(crate) struct CheckedStart {
     warnings: Problems,
     not_set_up: List<u16>,
     pub(crate) engine: settings::Engine,
-    worker: Option<settings::Worker>,
+    worker: Option<(settings::Worker, crate::worker_settings::Prepared)>,
     io: skein_io::Limits,
     forges: skein_forge_connection::Settings,
 }
@@ -738,7 +738,7 @@ pub(crate) fn checked_start_with(
     }
     checked_store(&root, &engine.jig.limits.store, turn)?;
     let io = match &worker {
-        Some(worker) => checks::process_io(&engine.jig.limits.io, Some(&worker.jig.limits.io)),
+        Some((worker, _)) => checks::process_io(&engine.jig.limits.io, Some(&worker.jig.limits.io)),
         None => checks::process_io(&engine.jig.limits.io, None),
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
@@ -915,7 +915,7 @@ fn checked_worker(
     engine: &config::Engine,
     limits: &crate::limits::Limits,
     agent: Option<&settings::Agent>,
-) -> Result<Option<settings::Worker>, Problems> {
+) -> Result<Option<(settings::Worker, crate::worker_settings::Prepared)>, Problems> {
     let mut problems = Problems::empty();
     let limits = &crate::limits::worker(limits);
     if let Some(agent) = agent {
@@ -927,10 +927,11 @@ fn checked_worker(
         if !problems.is_empty() {
             return Err(problems);
         }
-        if let Err(found) = crate::worker_settings::prepare(&worker, agent, limits) {
-            return Err(Problems::jig(found, &Path::root()));
-        }
-        Ok(Some(worker))
+        let prepared = match crate::worker_settings::prepare(&worker, agent, limits) {
+            Ok(prepared) => prepared,
+            Err(found) => return Err(Problems::jig(found, &Path::root())),
+        };
+        Ok(Some((worker, prepared)))
     } else {
         Ok(None)
     }

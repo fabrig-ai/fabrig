@@ -265,7 +265,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         *store.layout_work = ReadWork::new();
         return Ok(false);
     }
-    if let Err(why) = crate::patching::plan::bounds(&store.patch_sets) {
+    if let Err(why) = crate::patching::plan::checked(store) {
         return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch });
     }
     if seeded {

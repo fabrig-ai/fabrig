@@ -2614,7 +2614,7 @@ pub(super) fn start_recovered_change(
                 review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
-                questions: forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) },
+                questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -3687,7 +3687,7 @@ fn change_delegate(
         kind: 2,
         words: env.limits.tasks.result_bytes,
     };
-    let (executor, words, contract, llm) = match kind {
+    let (executor, mut words, contract, llm) = match kind {
         forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
@@ -3749,6 +3749,25 @@ fn change_delegate(
             )
         }
     };
+    match kind {
+        forge_change::Delegate::Gate { .. }
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => {
+            let change = domain.core.tasks.task(task)?;
+            let room = usize::try_from(parameter_word_room(parameters.as_slice(), env.limits.tasks.spec_bytes)).ok()?;
+            let block = asked_now(
+                &change.spec.words,
+                change.revisions.spec,
+                &row.questions.answered,
+                room.saturating_sub(words.len()),
+            );
+            let mut out = List::with_capacity(u32::try_from(room).ok()?);
+            append(&mut out, &words);
+            append(&mut out, &block);
+            words = out.into_boxed();
+        }
+        forge_change::Delegate::Produce | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {}
+    }
     Some(super::Delegate {
         deadline: tasks::Deadline::Named,
         tracked: None,
@@ -3908,7 +3927,7 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
         "A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted ",
         "unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, ",
         "the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. ",
-        "Do not remove content just to make a check pass; keeping an intended deletion removes none. ",
+        "Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. ",
         "In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, ",
         "and why. The worker commits and pushes the resolved merge."
     )
@@ -3916,7 +3935,7 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
     let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
     // The coding charter carries the full preservation rule when the spec is small.
     let compact = concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames. ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. ",
         "Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; ",
         "say in your result which you kept or restored, and why."
     )
@@ -3942,6 +3961,39 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
     Some(out.into_boxed())
 }
 
+/// temper/docs/design/domain/forge/change/questions.md, 1, What later work is told:
+/// its fixed lines, room split and UTF-8 cut.
+fn asked_now(request: &[u8], revision: u64, answered: &[forge_change::Answered], room: usize) -> Box<[u8]> {
+    let opening = b"\n\nWhat this change is asked now: its request as revised and the answers given on it. Where they differ from its title, its original request or the preservation rule, they come first.";
+    let answers_label: &[u8] = if answered.is_empty() { b"" } else { b"\nAnswers given on it, newest first:" };
+    let mut request_label = List::uncapped();
+    append(&mut request_label, b"\nIts request, at spec revision ");
+    append(&mut request_label, skein_lib::Decimal::of(revision).as_bytes());
+    append(&mut request_label, b":\n");
+    let fixed = opening.len().saturating_add(answers_label.len()).saturating_add(request_label.as_slice().len());
+    let Some(left) = room.checked_sub(fixed) else { return Box::new([]) };
+    let mut answers = List::uncapped();
+    for answer in answered.iter().rev() {
+        append(&mut answers, b"\nTask ");
+        append(&mut answers, skein_lib::Decimal::of(answer.asker).as_bytes());
+        append(&mut answers, b" asked: ");
+        append(&mut answers, &answer.line);
+        append(&mut answers, b"\nAnswer: ");
+        append(&mut answers, &answer.answer);
+    }
+    let half = left.checked_div(2).expect("two is nonzero");
+    let answer_room = answers.as_slice().len().min(half.max(left.saturating_sub(request.len())));
+    let answers = forge::text::fit(answers.as_slice(), answer_room, "…".as_bytes());
+    let request = forge::text::fit(request, left.saturating_sub(answer_room), "…".as_bytes());
+    let mut out = List::uncapped();
+    append(&mut out, opening);
+    append(&mut out, answers_label);
+    append(&mut out, &answers);
+    append(&mut out, request_label.as_slice());
+    append(&mut out, &request);
+    out.into_boxed()
+}
+
 fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
     let mut room = bound;
     for parameter in parameters {
@@ -3954,7 +4006,8 @@ fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
 
 const REPAIR_PRESERVATION: &[u8] = concat!(
     " Preserve the requested change and unrelated base content, including both ",
-    "independent appended lines and existing blank lines; do not remove content to make a check pass."
+    "independent appended lines and existing blank lines, and do not remove content to make a check pass, ",
+    "unless the change's request as revised, or an answer given on it, says otherwise."
 )
 .as_bytes();
 

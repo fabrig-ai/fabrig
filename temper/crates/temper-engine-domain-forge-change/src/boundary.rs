@@ -601,6 +601,21 @@ pub struct Questions {
     /// Open questions in the order taken; the first is the one being worked.
     pub open: Box<[Open]>,
     pub waiting: Box<[Waiting]>,
+    /// The newest answers, kept oldest first for later work.
+    pub answered: Box<[Answered]>,
+}
+
+/// Answers kept for later work at most.
+pub const ANSWERS_KEPT: usize = 16;
+
+/// A ruling kept for later work (temper/docs/design/domain/forge/change/questions.md, 1,
+/// Its answers, kept for later work).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Answered {
+    pub asker: u64,
+    pub number: u64,
+    pub line: Box<[u8]>,
+    pub answer: Box<[u8]>,
 }
 
 /// Words retained until the requester is told (domain/forge/change/questions.md, 1).

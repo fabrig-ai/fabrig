@@ -601,7 +601,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   the question's words, its `read whole` call when cut, its answer line
   and the read-on call, then `met`.
 - **Wait timers** are bounded by `Deadlines::with_capacity(rows)` in
-  `temper-client-tools`' `jig/wait.rs`, one per admitted call. Arming a
+  `temper-client-tools-jig`'s `jig/wait.rs`, one per admitted call. Arming a
   new timer past that capacity refuses; admitted calls keep within it.
   The tools do not price the timer table.
 - **A watch that ends under a wait** (jig's `client/domain/contract/README.md`,

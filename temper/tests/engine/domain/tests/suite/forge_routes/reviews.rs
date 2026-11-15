@@ -943,7 +943,14 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
     let retry = &live_task(&world, second.task).spec.words;
     assert_ne!(retry, &original);
     assert!(retry.starts_with(OPENING), "retry names the first failure: {retry:?}");
-    assert_eq!(&retry[OPENING.len()..], original.as_ref());
+    // The retry account comes first; its room no longer holds the optional block.
+    let required = core::str::from_utf8(&original)
+        .expect("review words")
+        .split_once("\n\nWhat this change is asked now:")
+        .expect("first review carries its request")
+        .0;
+    assert_eq!(&retry[OPENING.len()..], required.as_bytes());
+    assert!(original.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
     assert!(
         second.sections.iter().any(|section| matches!(&section.body,
         engine::BriefBody::Text(words) if words.starts_with(OPENING))),

@@ -373,7 +373,8 @@ pub(crate) fn refused(
         Some(passed) => passed.retained,
         None => row.questions.waiting.clone(),
     };
-    relayed.questions = change::Questions { open, waiting, ..row.questions.clone() };
+    let answered = relayed.questions.answered;
+    relayed.questions = change::Questions { open, waiting, answered, ..row.questions.clone() };
     relayed.acts = Box::new([]);
     relayed.more = false;
     let mut decision = holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());

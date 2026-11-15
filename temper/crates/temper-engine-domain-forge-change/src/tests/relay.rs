@@ -1,5 +1,8 @@
 //! The relay's policy alone (temper/docs/design/domain/forge/change/questions.md, 1).
-use crate::{Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Stands, relay};
+use crate::{
+    ANSWERS_KEPT, Answered, Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Stands,
+    relay,
+};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
@@ -28,7 +31,15 @@ fn open(asker: u64, number: u64, stands: Stands) -> Open {
 }
 
 fn head(stands: Stands) -> Questions {
-    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]), waiting: Box::new([]) }
+    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]), ..Questions::default() }
+}
+
+fn answered(words: &[u8]) -> Box<[Answered]> {
+    Box::new([Answered { asker: ASKER, number: NUMBER, line: b"Which path?".as_slice().into(), answer: words.into() }])
+}
+
+fn answered_head(words: &[u8]) -> Questions {
+    Questions { answered: answered(words), ..head(Stands::Held { answer: words.into() }) }
 }
 
 fn asked() -> Asked<'static> {
@@ -41,6 +52,61 @@ fn answer(words: &[u8]) -> RelayAct {
 
 fn ask(reasons: &[u8]) -> RelayAct {
     RelayAct::Ask { asker: ASKER, number: NUMBER, reasons: bytes::copy_of(reasons) }
+}
+
+/// questions.md, 1, Its answers, kept for later work: relayed, held and ended are all taken once.
+#[test]
+fn answers_are_kept_at_the_step_that_takes_them_once() {
+    let question = Open {
+        asker: 7,
+        number: 3,
+        line: b"Question: keep both lines?".as_slice().into(),
+        words: b"Question: keep both lines?\nOptions".as_slice().into(),
+        stands: Stands::Asked,
+    };
+    let q = Questions { open: Box::new([question.clone()]), route: Route::Up, ..Questions::default() };
+    let expected = Box::new([Answered {
+        asker: 7,
+        number: 3,
+        line: question.line.clone(),
+        answer: b"keep both lines".as_slice().into(),
+    }]);
+    for (room, held, ended) in
+        [(4, false, false), (0, false, false), (4, true, false), (4, false, true), (0, false, true)]
+    {
+        let ended_askers: &[u64] = if ended { &[7] } else { &[] };
+        let result = relay(
+            &q,
+            &RelayHeard { answer: Some(b"keep both lines"), held, ended: ended_askers, ..heard() },
+            &super::LIMITS,
+            room,
+        );
+        assert_eq!(result.questions.answered.as_ref(), expected.as_ref(), "room {room}, held {held}, ended {ended}");
+        let acts: Box<[RelayAct]> = if room == 0 || held {
+            Box::new([])
+        } else if ended {
+            Box::new([RelayAct::Left { asker: 7, number: 3, line: question.line.clone(), answered: true }])
+        } else {
+            Box::new([RelayAct::Answer { asker: 7, number: 3, words: b"keep both lines".as_slice().into() }])
+        };
+        assert_eq!(result.acts, acts);
+        let next = relay(&result.questions, &RelayHeard { ended: ended_askers, ..heard() }, &super::LIMITS, 4);
+        assert_eq!(next.questions.answered, result.questions.answered, "replaying a held answer records nothing");
+        assert!(next.questions.open.is_empty());
+    }
+}
+
+#[test]
+fn only_the_sixteen_newest_answers_are_kept_oldest_first() {
+    let mut q = Questions { route: Route::Up, ..Questions::default() };
+    for number in 1..=u64::try_from(ANSWERS_KEPT + 1).unwrap() {
+        q.open = Box::new([open(ASKER, number, Stands::Asked)]);
+        q = relay(&q, &RelayHeard { answer: Some(b"Keep it"), ..heard() }, &super::LIMITS, ROOM).questions;
+    }
+    assert_eq!(q.answered.len(), ANSWERS_KEPT);
+    for (index, answer) in q.answered.iter().enumerate() {
+        assert_eq!(answer.number, u64::try_from(index).unwrap() + 2);
+    }
 }
 
 #[test]
@@ -97,7 +163,7 @@ fn a_dependency_holds_an_answer_until_it_clears() {
         &super::LIMITS,
         ROOM,
     );
-    assert_eq!(result.questions, head(Stands::Held { answer: Box::from(b"Use the fixture.".as_slice()) }));
+    assert_eq!(result.questions, answered_head(b"Use the fixture."));
     assert!(result.acts.is_empty());
     assert!(!result.more);
     for room in [0, ROOM] {
@@ -134,7 +200,7 @@ fn a_dependency_hold_keeps_the_retry_for_an_ended_question_without_room() {
             answered: false,
         }]
     );
-    assert_eq!(next.questions, head(Stands::Held { answer: b"Use the fixture.".as_slice().into() }));
+    assert_eq!(next.questions, answered_head(b"Use the fixture."));
     assert!(!next.more);
 }
 
@@ -142,7 +208,7 @@ fn a_dependency_hold_keeps_the_retry_for_an_ended_question_without_room() {
 fn no_room_saves_the_answer_then_retries_it() {
     let result =
         relay(&head(Stands::Asked), &RelayHeard { answer: Some(b"Use the fixture."), ..heard() }, &super::LIMITS, 0);
-    assert_eq!(result.questions, head(Stands::Held { answer: Box::from(b"Use the fixture.".as_slice()) }));
+    assert_eq!(result.questions, answered_head(b"Use the fixture."));
     assert!(result.acts.is_empty());
     assert!(result.more);
     let waiting = relay(&result.questions, &heard(), &super::LIMITS, 0);
@@ -215,9 +281,8 @@ fn no_room_keeps_an_ended_question_until_it_can_be_reported_once() {
         let q = head(stands.clone());
         let result = relay(&q, &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), ..heard() }, &super::LIMITS, 0);
         let (expected, answered) = match stands {
-            Stands::Asked | Stands::Held { .. } => {
-                (head(Stands::Held { answer: Box::from(b"Unused".as_slice()) }), true)
-            }
+            Stands::Asked => (answered_head(b"Unused"), true),
+            Stands::Held { .. } => (head(Stands::Held { answer: Box::from(b"Unused".as_slice()) }), true),
             Stands::Taken => (q, false),
         };
         assert_eq!(result.questions, expected);

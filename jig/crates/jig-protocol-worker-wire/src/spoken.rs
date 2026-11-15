@@ -9,6 +9,16 @@ pub struct Spoken {
 }
 
 impl Spoken {
+    /// A range copied from a generated layout table (protocol/channel/bridges.md, 2).
+    #[must_use]
+    pub fn kept(name: &'static str, floor: u16, layouts: &[[u8; 32]]) -> Spoken {
+        let mut kept = List::with_capacity(u32::try_from(layouts.len()).expect("a kept range fits u32"));
+        for layout in layouts {
+            kept.push(*layout).expect("room for every kept layout");
+        }
+        Spoken { name, lowest: floor, layouts: kept }
+    }
+
     /// Fingerprints from the family's floor (protocol/channel/bridges.md, 2).
     pub fn of(name: &'static str, texts: &[&str], floor: u16) -> Result<Spoken, skein_codec::bridge::BridgeError> {
         Ok(Spoken { name, lowest: floor, layouts: skein_codec::bridge::layouts(texts, floor)? })
@@ -43,34 +53,28 @@ pub struct Agreed {
 /// Jig's wires, then its dependencies' wires, in the statement's order.
 #[must_use]
 pub fn spoken() -> List<Spoken> {
-    with_worker(
-        Spoken::of(crate::wire::FAMILY, crate::patches::kept::jig_worker_wire::TEXTS, crate::wire::FLOOR)
-            .expect("jig's kept wire"),
-    )
+    with_worker(Spoken::kept(crate::wire::FAMILY, crate::wire::FLOOR, crate::patches::kept::jig_worker_wire::LAYOUTS))
 }
 
 pub(crate) fn with_worker(worker: Spoken) -> List<Spoken> {
     let mut wires = List::with_capacity(4);
     for wire in [
         worker,
-        Spoken::of(
+        Spoken::kept(
             smith_channel::pieces::wire::FAMILY,
-            smith_channel::patches::kept::smith_pieces::TEXTS,
             smith_channel::pieces::wire::FLOOR,
-        )
-        .expect("smith's kept pieces"),
-        Spoken::of(
+            smith_channel::patches::kept::smith_pieces::LAYOUTS,
+        ),
+        Spoken::kept(
             smith_charter::wire::FAMILY,
-            smith_charter::patches::kept::smith_charter::TEXTS,
             smith_charter::wire::FLOOR,
-        )
-        .expect("smith's kept charter"),
-        Spoken::of(
+            smith_charter::patches::kept::smith_charter::LAYOUTS,
+        ),
+        Spoken::kept(
             smith_transcript::wire::FAMILY,
-            smith_transcript::patches::kept::smith_transcript::TEXTS,
             smith_transcript::wire::FLOOR,
-        )
-        .expect("smith's kept transcript"),
+            smith_transcript::patches::kept::smith_transcript::LAYOUTS,
+        ),
     ] {
         wires.push(wire).expect("four wires have four slots");
     }
@@ -115,6 +119,7 @@ mod tests {
                 smith_transcript::wire::FLOOR,
             ),
         ] {
+            assert_eq!(*wire, Spoken::of(wire.name, texts, floor).expect("parsed kept range"));
             assert_eq!(wire.lowest, floor);
             let mut count = 0;
             for text in texts {
@@ -136,13 +141,12 @@ mod tests {
 
     #[test]
     fn a_spoken_range_names_each_versions_layout() {
-        let mut spoken = Spoken::current("example", 7, [1; 32]);
+        let spoken = Spoken::current("example", 7, [1; 32]);
         assert_eq!(spoken.highest(), 7);
         assert_eq!(spoken.layout(7), Some([1; 32]));
-        let mut layouts = skein_lib::List::with_capacity(2);
-        layouts.push([1; 32]).expect("first version");
-        layouts.push([2; 32]).expect("next version");
-        spoken.layouts = layouts;
+        let spoken = Spoken::kept("x", 7, &[[1; 32], [2; 32]]);
+        assert_eq!(spoken.name, "x");
+        assert_eq!(spoken.lowest, 7);
         assert_eq!(spoken.highest(), 8);
         assert_eq!(spoken.layout(6), None);
         assert_eq!(spoken.layout(8), Some([2; 32]));

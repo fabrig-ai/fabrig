@@ -34,6 +34,7 @@ pub struct Wires {
 pub struct Prepared {
     pub root: root::Limits,
     pub link: link::Limits,
+    pub schema: skein_channel::Schema,
     pub payload: v1::Limits,
     pub prefix: u64,
     pub address: io::Addr,
@@ -65,7 +66,9 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
         .or(Err(problem(b"agent", What::Bound)))?;
     let payload = payload_limits(own).ok_or(problem(b"limits", What::Bound))?;
     let link = link_limits(&worker.jig, &payload, own.peer.forges).ok_or(problem(b"limits", What::Bound))?;
-    if !link::valid(&link) {
+    let bodies = jig_protocol_worker_wire::sizes::limits(&link.sizes).ok_or(problem(b"limits", What::Bound))?;
+    let schema = jig_protocol_worker_wire::schema(&bodies).or(Err(problem(b"limits", What::Bound)))?;
+    if !link::valid_with_schema(&link, &schema) {
         return Err(problem(b"limits", What::Bound));
     }
     let prefix = crate::tokens::worker(0).ok_or(problem(b"slots", What::Bound))?;
@@ -77,7 +80,7 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
     {
         return Err(problem(b"limits", What::Bound));
     }
-    Ok(Prepared { root: domain_limits, link, payload, prefix, address })
+    Ok(Prepared { root: domain_limits, link, schema, payload, prefix, address })
 }
 
 #[must_use]

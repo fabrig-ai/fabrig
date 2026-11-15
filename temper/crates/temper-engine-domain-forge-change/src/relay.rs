@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
-use crate::{Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, Route, Stands};
+use crate::{ANSWERS_KEPT, Answered, Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, Route, Stands};
 
 /// A question one of the change's own agents asked, taken at this step.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -59,6 +59,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     let mut open = take_questions(questions, heard, &mut acts, &mut room, &mut more);
     let mut heard = *heard;
     let mut taken = questions.taken;
+    let mut answered = questions.answered.clone();
     let mut done: usize = 0;
     for question in &mut open {
         if heard.ended.contains(&question.asker) && question.stands != Stands::Asked {
@@ -67,6 +68,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
         if question.stands == Stands::Asked
             && let Some(answer) = heard.answer
         {
+            answered = keep_answer(&answered, question, answer);
             if heard.ended.contains(&question.asker) {
                 if room == 0 {
                     question.stands = Stands::Held { answer: bytes::copy_of(answer) };
@@ -128,10 +130,27 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
     Relayed {
-        questions: Questions { taken, open: Box::from(remaining), ..questions.clone() },
+        questions: Questions { taken, open: Box::from(remaining), answered, ..questions.clone() },
         acts: acts.into_boxed(),
         more,
     }
+}
+
+// questions.md, 1, Its answers, kept for later work: taking an Asked answer is the only write.
+fn keep_answer(answered: &[Answered], question: &Open, answer: &[u8]) -> Box<[Answered]> {
+    let mut kept = List::with_capacity(u32::try_from(ANSWERS_KEPT).expect("answer bound fits u32"));
+    let skip = answered.len().saturating_add(1).saturating_sub(ANSWERS_KEPT);
+    for previous in answered.get(skip..).expect("only the oldest answers leave") {
+        kept.push(previous.clone()).expect("one answer slot reserved");
+    }
+    kept.push(Answered {
+        asker: question.asker,
+        number: question.number,
+        line: question.line.clone(),
+        answer: bytes::copy_of(answer),
+    })
+    .expect("one answer slot reserved");
+    kept.into_boxed()
 }
 
 fn take_questions(

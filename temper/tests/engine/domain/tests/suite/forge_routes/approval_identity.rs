@@ -1076,7 +1076,8 @@ fn waiting_approval_with_client(concurrent: bool) -> (World, u64) {
         1000,
         Gate { agent: true, approval: Some(engine::Freshness::Clean), ..Gate::default() },
         None,
-        StoryLimits { kinds: true, ..StoryLimits::default() },
+        // A person's repair retains the quoted-remarks instruction and preservation rule.
+        StoryLimits { kinds: true, spec_bytes: Some(1024), ..StoryLimits::default() },
     );
     if concurrent {
         // Three fresh chains and their keep reads can progress beside the held update.
