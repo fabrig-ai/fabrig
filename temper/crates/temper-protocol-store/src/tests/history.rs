@@ -113,9 +113,31 @@ fn history_records_round_trip_every_kind_and_interval() {
         check(Stored::HistoryEvent(event(What::Updated { outcome })));
     }
     for job in [Job::Prepare, Job::Merge] {
-        for outcome in [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Failed, JobOutcome::Lost] {
+        for outcome in
+            [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Timeout, JobOutcome::Cancelled, JobOutcome::Lost]
+        {
             check(Stored::HistoryEvent(event(What::JobEnded { job, outcome })));
         }
+    }
+    for class in [
+        JobFailure::Unprepared,
+        JobFailure::Run,
+        JobFailure::Result,
+        JobFailure::Unstarted,
+        JobFailure::Undelivered,
+        JobFailure::Unknown,
+    ] {
+        let outcome = JobOutcome::Failed { class };
+        check(Stored::HistoryEvent(event(What::JobEnded { job: Job::Merge, outcome })));
+        let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+        change.job = Some(JobRecord {
+            step: JobStep { task: 61, attempt: 2, job: Job::Merge, outcome: Some(outcome), head: None },
+            round: 0,
+            members: Box::new([]),
+            head: None,
+            written: false,
+        });
+        check(Stored::Change(Box::new(change)));
     }
     for ask in [Ask::Resolution, Ask::Repair, Ask::Judgement] {
         check(Stored::HistoryEvent(event(What::Asked { ask, task: 29, gate: None })));

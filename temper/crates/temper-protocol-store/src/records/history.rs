@@ -65,11 +65,37 @@ fn decode_job(value: w::HistoryJob) -> d::Job {
         w::HistoryJob::Merge => d::Job::Merge,
     }
 }
+fn encode_job_failure(value: d::JobFailure) -> w::HistoryJobFailure {
+    match value {
+        d::JobFailure::Unprepared => w::HistoryJobFailure::Unprepared,
+        d::JobFailure::Run => w::HistoryJobFailure::Run,
+        d::JobFailure::Result => w::HistoryJobFailure::Result,
+        d::JobFailure::Unstarted => w::HistoryJobFailure::Unstarted,
+        d::JobFailure::Undelivered => w::HistoryJobFailure::Undelivered,
+        d::JobFailure::Unknown => w::HistoryJobFailure::Unknown,
+    }
+}
+fn decode_job_failure(value: w::HistoryJobFailure) -> d::JobFailure {
+    match value {
+        w::HistoryJobFailure::Unprepared => d::JobFailure::Unprepared,
+        w::HistoryJobFailure::Run => d::JobFailure::Run,
+        w::HistoryJobFailure::Result => d::JobFailure::Result,
+        w::HistoryJobFailure::Unstarted => d::JobFailure::Unstarted,
+        w::HistoryJobFailure::Undelivered => d::JobFailure::Undelivered,
+        w::HistoryJobFailure::Unknown => d::JobFailure::Unknown,
+    }
+}
 fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
         d::JobOutcome::Done => w::HistoryJobOutcome::Done,
         d::JobOutcome::Conflict => w::HistoryJobOutcome::Conflict,
-        d::JobOutcome::Failed => w::HistoryJobOutcome::Failed,
+        d::JobOutcome::Failed { class: d::JobFailure::Unknown } => w::HistoryJobOutcome::Failed,
+        d::JobOutcome::Failed { class } => w::HistoryJobOutcome::FailedClass(
+            w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: encode_job_failure(class) })
+                .expect(FITS),
+        ),
+        d::JobOutcome::Timeout => w::HistoryJobOutcome::Timeout,
+        d::JobOutcome::Cancelled => w::HistoryJobOutcome::Cancelled,
         d::JobOutcome::Lost => w::HistoryJobOutcome::Lost,
     }
 }
@@ -77,7 +103,12 @@ fn decode_job_outcome(value: w::HistoryJobOutcome) -> d::JobOutcome {
     match value {
         w::HistoryJobOutcome::Done => d::JobOutcome::Done,
         w::HistoryJobOutcome::Conflict => d::JobOutcome::Conflict,
-        w::HistoryJobOutcome::Failed => d::JobOutcome::Failed,
+        w::HistoryJobOutcome::Failed => d::JobOutcome::Failed { class: d::JobFailure::Unknown },
+        w::HistoryJobOutcome::FailedClass(value) => {
+            d::JobOutcome::Failed { class: decode_job_failure(value.into_parts().class) }
+        }
+        w::HistoryJobOutcome::Timeout => d::JobOutcome::Timeout,
+        w::HistoryJobOutcome::Cancelled => d::JobOutcome::Cancelled,
         w::HistoryJobOutcome::Lost => d::JobOutcome::Lost,
     }
 }

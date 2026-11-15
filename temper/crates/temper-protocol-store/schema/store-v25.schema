@@ -293,7 +293,9 @@ enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, d
 record LandingRun { id: u64 attempt: u32 ended: bool }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
-enum HistoryJobOutcome { done, conflict, failed, lost }
+enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }
+record HistoryJobFailed { class: HistoryJobFailure }
+enum HistoryJobOutcome { done, conflict, failed, lost, timeout, cancelled, failed_class: HistoryJobFailed }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
 record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }
