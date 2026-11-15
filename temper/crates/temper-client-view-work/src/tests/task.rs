@@ -864,13 +864,14 @@ fn the_header_says_its_exact_wait_in_both_shells() {
     me.projects.get_mut(0).expect("project").role = c::HeldRole::Owner;
     let mut pending = List::with_capacity(ONE);
     pending.push(DEPENDENCY).expect("pending");
-    let cases: [(c::WaitsOn, &[u8]); 6] = [
+    let cases: [(c::WaitsOn, &[u8]); 7] = [
         (c::WaitsOn::Dependencies { pending, count: 3 }, b"waiting on 3 tasks"),
         (party_wait(c::Whom::Person(me.party.number)), b"waiting on an answer from you"),
         (party_wait(c::Whom::Role { project: task.project, role: 0 }), b"waiting on an answer from you"),
         (party_wait(c::Whom::Person(DEPENDENCY)), b"waiting on an answer from person 17"),
         (party_wait(c::Whom::Role { project: task.project, role: 7 }), b"waiting on an answer from role 7"),
         (c::WaitsOn::News, b"waiting on news"),
+        (c::WaitsOn::Question { number: 7 }, b"waiting on an answer to its question 7"),
     ];
     for words in [fixtures::words(), fixtures::browser_words()] {
         for (waits_on, expected) in &cases {

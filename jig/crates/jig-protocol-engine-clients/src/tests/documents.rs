@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v23 as w;
+use jig_client_protocol_wire::v24 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -551,4 +551,21 @@ fn the_task_document_carries_its_talk_session_and_offered_acts() {
     assert_eq!(decoded.acts.len(), 2);
     assert_eq!(decoded.acts.get(0).unwrap().act, c::ActKind::Talk);
     assert_eq!(decoded.acts.get(1).unwrap().act, c::ActKind::Leave);
+}
+
+#[test]
+fn an_own_question_wait_reaches_the_client_through_both_translations() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::documents::WaitsOn;
+    use skein_lib::{Reader, Writer};
+    let limits = fixtures::wire_limits();
+    let mut source = fixtures::task_with_hold();
+    source.waits_on = WaitsOn::Question { number: 7 };
+    let record = translate::task::document(&source, &[], &limits).unwrap();
+    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    let bytes = bytes.finish();
+    let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+    let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
+    assert_eq!(decoded.waits_on, c::WaitsOn::Question { number: 7 });
 }

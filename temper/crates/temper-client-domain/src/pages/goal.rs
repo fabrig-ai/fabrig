@@ -390,6 +390,7 @@ pub fn line(chip: &c::Chip, yours: bool) -> Option<Line> {
         | task::State::WaitingForDelegates(_)
         | task::State::WaitingForYou
         | task::State::WaitingForParty(_)
+        | task::State::WaitingForQuestion(_)
         | task::State::WaitingForNews
         | task::State::Running
         | task::State::Writing

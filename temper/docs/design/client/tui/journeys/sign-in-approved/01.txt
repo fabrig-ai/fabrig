@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:36339                                     │
+│ Sign in this terminal to 127.0.0.1:46411                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ TKBG-SMXB, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:36339/terminal?code=TKBG-SMXB                  │
+│ GSKL-MPCH, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:46411/terminal?code=GSKL-MPCH                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:36339/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:46411/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
