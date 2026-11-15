@@ -109,6 +109,11 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
     `runner::reads::{project, task_query}`; `wait::{fire, next_deadline}`.
 - **A newly public item takes what its lints ask** (`Debug`, `#[must_use]`), and nothing else of it
   changes.
+- **A type a public item's signature or public field exposes is `pub` where it stands,** its module
+  staying private, so that `private_interfaces` holds: such as `render::document::accounts::Accounts`,
+  `render::document::waiting::Waiting`, `runner::reads::Reading`, and `render::outcome::{Account,
+  Asked}` and `render::outcome::start_model::Start`. No path temper's part names changes, and no
+  module widens for it.
 
 ## 3. What crosses the cut
 
