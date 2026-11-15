@@ -23,6 +23,5 @@
   `temper ctl forge connect forgejo-admin`, which the engine admits,
   remains the way back; the panel alone does not repair admission.
 
-- **Not yet:** the whole document, *Setting up, in the row*: the steps "Fetching Forgejo", "Fetched Forgejo", "Preparing Forgejo" and "Starting Forgejo", naming no version; they read "... and its runner", "Preparing: its database, temper’s admin, your account" and name the versions [in flight: change 3620].
 
 - **Not yet:** the whole document: The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for .
