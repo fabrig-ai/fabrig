@@ -1,0 +1,14 @@
+# early-start-checked: status
+
+2026-11-15. Where the design lags or departs from [early-start-checked.md](early-start-checked.md).
+
+The design carries the draft: sections 1 and 2 in `../domain/forge/change/questions.md`, 1 (*Early starts*: *When*, *A checked head*, *From what* and *It is told*), with `../domain/forge/change/README.md`, 2, step 1 and `../domain/agent/README.md`, section 5; section 3 in the stock charters, `temper/docs/charters/stock/designer.md`, `implementer.md` and `coordinator.md` (`stock-charters.status.md`, 9.3 to 9.5).
+
+- **Design lags:** none.
+- **Design departs:**
+  - 1: the last checked head is kept on the dependency's own record (`last_checked`, beside its `last_head`), which every dependent's start reads, and each dependent keeps the commit it merged as its `StartedFrom`, as it did: one record per change, set by its delegates' reports, rather than a copy in each dependent kept current. The goal's designer, 2026-11-15.
+  - 1: the stored format moves no version and brings no patch. The change record is in `temper-store`, a registered family (`AGENTS.md`, section 2; jig's `protocol/store/layouts.md`), whose upgrade rule is a field added with a default: `last_checked` defaults to none, so a change stored before it has no checked head until its next checked push, and its dependents wait for that push or its landing. Section 5's "the stored format's patch: its focused upgrade test" is the focused test that a record written before the field reads with none. The goal's designer, 2026-11-15, by the upgrade rules the draft names.
+  - 1: a producer's result counts through its own delivery, not as a second source: a change contract's finish checks and delivers (smith's `domain/run.md`, 8.5), and the attempt's answer reports that push checked. A head found only by the read that frees a lost attempt's writer says nothing of checks and doesn't count, so there the dependents wait for a later checked push or the landing. Counting the head the change holds when the result arrives could count an earlier save, while the read that would find the result's head is still out. The goal's designer, 2026-11-15.
+  - 2: the lines are cut to the producer's spec bound, which jig enforces on the producer's whole spec, the scope giving way first; a brief's own cut from its end reaches them last, since they follow the words' first line. A spec whose change's words alone fill its bound leaves them no room, since the change's words are never cut. The goal's designer, 2026-11-15.
+  - 5: the pure start tests take the dependency's last checked head as their input (`PendingKind::Change { checked, .. }`), so their cases there are no checked head and a checked one; the third, a later unchecked push after a checked one, is pinned where its rule lives, in the forge's record of reported pushes, and end to end in the stories. The goal's designer, 2026-11-15.
+- **Open:** none.
