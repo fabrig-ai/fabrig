@@ -217,7 +217,8 @@ default; the document is `temper.json` in the configuration directory
   {version}, {map} key {hex}` (a frame: `{family} {version},
   transcript {name} at {offset}`), and the rehearsal ends there, exit
   1; else `decoded {records} records`. It prints a line per patch with
-  its counts and time, the time
+  its counts and time, a line per job as a start's (below) with its
+  time after its counts, the time
   of the whole, and the refusal a start would meet, in a start's words,
   or that the patches and the restores pass, saying that what follows
   the switch is not rehearsed; then whether each worker may stay, by
@@ -237,6 +238,14 @@ default; the document is `temper.json` in the configuration directory
   (`../draft/upgrades.md`, 3.2).
 - **A start that patches** prints a line per patch as it ends:
   `temper-box serve: patched {owner} {patch}: {records} records in {commits} commits`.
+  A start that runs a job at open prints a line per job as it ends,
+  `temper-box serve: ran {owner} {job}: {rows} rows in {commits} commits`,
+  and, for a job that counts (jig's `protocol/store/jobs.md`, 3), `; `
+  then each of its counts as `{name} {count}`, joined by `, `, in the
+  job's order, zeros included:
+  `temper-box serve: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; dropped 5, BranchHead 1, PullState 2, Ci 0, Client 0, Receipt 2, Tier 0, Verification 0, LandingLog 0, Names 0`
+  (`store.md`, 4). `upgrade --check`'s line is the same with `upgrade`
+  for `serve`, then `; ` and its time.
 - **`temper-box program-login NAME`:** a program's login for
   the program source NAME, on this host: it checks the document and the
   agent's configuration, makes the source's configuration directory, and
