@@ -194,7 +194,13 @@ fn assert_merge_answer(up: &hub::LinkUp, parts: &[jig_protocol_worker_wire::Part
 }
 
 fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
-    let mut worker = fixtures::started_worker().worker;
+    merge_link(fixtures::started_worker().worker, fixtures::worker_peers::LinkPeer::new())
+}
+
+fn merge_link(
+    mut worker: Worker,
+    mut peer: fixtures::worker_peers::LinkPeer,
+) -> (Worker, fixtures::worker_peers::LinkPeer) {
     worker.env.limits.checkout.conflicts = 1;
     worker.root = root::Domain::new(
         &worker.env.limits,
@@ -204,9 +210,36 @@ fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
             delivers: true,
         }]),
     );
-    let mut peer = fixtures::worker_peers::LinkPeer::new();
     peer.open(&mut worker);
     (worker, peer)
+}
+
+/// Keep the prepare's fields whole on both sides of the test link.
+fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
+    let mut settings = fixtures::worker_settings();
+    settings.jig.limits.hub.detail_bytes = 4096;
+    let agent = fixtures::worker_agent();
+    let mut stand = fixtures::WorkerStand::new();
+    stand.worker = Worker::new(
+        &settings,
+        &agent,
+        &fixtures::worker_limits(),
+        &fixtures::worker_files(),
+        crate::WorkerRuntime {
+            wires: None,
+            root: io::kernel::Fd::new(9),
+            path: b"/worker".as_slice().into(),
+            agent: fixtures::pinned_agent(&settings.jig.agent),
+        },
+        7,
+    )
+    .expect("worker settings fit");
+    for _ in 0_u16..1000 {
+        if !stand.turn() {
+            return merge_link(stand.worker, fixtures::worker_peers::LinkPeer::with_settings(&settings, &agent));
+        }
+    }
+    panic!("git start finishes");
 }
 
 /// temper/docs/design/domain/worker/jobs.md; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
@@ -482,8 +515,8 @@ fn hosted_preparation_answers_keep_the_head_at_the_wire_bound() {
 #[test]
 fn failed_jobs_name_the_workers_why_once() {
     use hub::{DeliveryOutcome, JobFailure, Preparation};
-    let fetch = b"fetch base: Broken: fatal: base fetch failed".as_slice();
-    let hosted_fetch = b"host worker-a: fetch base: Broken: fatal: base fetch failed".as_slice();
+    let fetch = b"fetch base: Broken (workspace 0, repository 0 app, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms): fatal: base fetch failed".as_slice();
+    let hosted_fetch = b"host worker-a: fetch base: Broken (workspace 0, repository 0 app, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms): fatal: base fetch failed".as_slice();
     for (case, expected_failure, expected_detail, expected_why) in [
         (FailureCase::BaseFetch, JobFailure::Unprepared(Preparation::Transient), hosted_fetch, fetch),
         (FailureCase::Command(Exit::Code(1)), JobFailure::Failed, b"exit 1: stderr", b"exit 1: stderr"),
@@ -514,7 +547,7 @@ fn failed_jobs_name_the_workers_why_once() {
             b"delivery Failed: push: Unreachable: fatal: early EOF",
         ),
     ] {
-        let (mut worker, mut peer) = merge_worker();
+        let (mut worker, mut peer) = merge_worker_with_details();
         while worker.notes().pop().is_some() {}
         fail_merge(&mut worker, case);
         let (answer, _) = merge_answer(&mut peer, &mut worker);
