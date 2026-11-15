@@ -483,6 +483,30 @@ pub fn plain_commit(number: u64) -> Box<[Write]> {
     Box::new([Write::Save(header(number)), Write::Save(live_task(LIVE + 1))])
 }
 
+/// Several tasks' history shares one atomic commit (protocol/store/logs.md, 10).
+#[must_use]
+pub fn history_commit(number: u64) -> Box<[Write]> {
+    let mut writes = vec![Write::Save(header(number))];
+    for task in [LIVE, LIVE + 1, LIVE + 2] {
+        writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            task,
+            attempt: 1,
+            claimed: Some(Wall::from_nanos(number)),
+            started: Some(Wall::from_nanos(number)),
+            ended: None,
+            end: None,
+            phases: None,
+        }))));
+        writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Hold(tasks::HoldRow {
+            task,
+            position: number,
+            held: tasks::Held { was: tasks::Was::Active(tasks::Active::Idle), why: tasks::Hold::Stopped, source: None },
+            at: Wall::from_nanos(number),
+        }))));
+    }
+    writes.into_boxed_slice()
+}
+
 /// A linked person/task pair for crash rows (protocol/store/README.md, 9).
 #[must_use]
 pub fn person(number: u64) -> core::Record {

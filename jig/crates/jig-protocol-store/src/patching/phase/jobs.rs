@@ -27,6 +27,15 @@ pub(crate) struct Running {
     first: bool,
 }
 impl Running {
+    pub(crate) fn writes_history(&self) -> bool {
+        if !self.registered {
+            return false;
+        }
+        match self.pending.get(self.index) {
+            Some((Owner::Jig, job)) => job.name == "task-logs",
+            Some((Owner::Skein | Owner::Smith | Owner::Application, _)) | None => false,
+        }
+    }
     pub(super) fn ready(&self) -> bool {
         match self.waiting {
             Waiting::Ready => true,

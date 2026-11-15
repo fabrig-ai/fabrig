@@ -80,7 +80,7 @@ pub(super) fn transcripts(directory: &Path, store: &mut crate::referee::Store) {
         }
         let host = host_path(directory, path);
         if host.is_file() {
-            store.transcript_file(relative.as_bytes().to_vec(), std::fs::read(host).expect("kept transcript"));
+            store.transcript_file(relative.as_bytes().to_vec(), std::fs::read(host).expect("kept payload"));
         }
     }
 }

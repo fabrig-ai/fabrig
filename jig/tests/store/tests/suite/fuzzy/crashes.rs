@@ -5,6 +5,58 @@ use jig_store_world::{
 };
 use skein_lib::Rng;
 
+fn history_world() -> World {
+    // This crash sweep holds log atomicity, not registry planning. Keep the
+    // binary's job and key ranges, without registering unrelated layouts.
+    const SETS: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
+        sets: &[jig_protocol_store::PatchSet {
+            patches: &[],
+            jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
+            families: &[
+                jig_protocol_store::KeptFamily { types: &[], texts: &[], ..jig_protocol_store::STORE_FAMILIES[3] },
+                jig_protocol_store::KeptFamily { types: &[], texts: &[], ..jig_protocol_store::STORE_FAMILIES[4] },
+            ],
+            ..jig_protocol_store::JIG_STORE_PATCH_SET
+        }],
+    };
+    let mut limits = root::limits();
+    limits.store.record = limits.store.page.bytes;
+    let mut world = World::unopened_observed(0, limits, None);
+    world.patch_sets(SETS);
+    assert_eq!(world.open(), Some(0));
+    assert_eq!(world.commit(root::first()), Some(1));
+    world
+}
+#[test]
+fn history_commits_crashed_at_every_file_operation_recover_whole() {
+    for number in [2, 3] {
+        let mut reference = history_world();
+        if number == 3 {
+            assert_eq!(reference.commit(root::history_commit(2)), Some(2));
+        }
+        assert_eq!(reference.commit(root::history_commit(number)), Some(number));
+        let operations = reference.operation_count();
+        for cut in 0..=operations {
+            let mut world = history_world();
+            if number == 3 {
+                assert_eq!(world.commit(root::history_commit(2)), Some(2));
+            }
+            world.cut_at(cut);
+            let acknowledged = world.commit(root::history_commit(number));
+            assert!(world.reached_cut(), "cut {cut} of {operations}");
+            world.crash(u64::from(cut));
+            let restored = world.reopen();
+            Referee::check(&world.model, &restored)
+                .unwrap_or_else(|error| panic!("history commit {number}, cut {cut}: {error:?}"));
+            if acknowledged.is_some() {
+                assert_eq!(restored.last, number);
+            }
+            let inventory = world.retained();
+            assert!(inventory.keys().all(|key| jig_protocol_store::keys::logged(key).is_none()));
+        }
+    }
+}
+
 #[test]
 fn a_crash_at_each_file_operation_of_a_turn_keeps_a_whole_prefix() {
     use super::super::crashes::{checked_cut, operations};

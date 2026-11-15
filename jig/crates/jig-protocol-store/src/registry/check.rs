@@ -138,6 +138,30 @@ fn job(store: &Store, key: &RowKey, row: &Row) -> bool {
     }
     false
 }
+/// Log layouts remain held even when the map census is empty (logs.md, 8).
+fn history_type(family: &str, number: u16) -> bool {
+    for held in crate::patch_set::STORE_FAMILIES {
+        if held.name != family {
+            continue;
+        }
+        for ty in held.types {
+            if ty.number != number {
+                continue;
+            }
+            if family == "jig-store-tasks" && ty.root == "Row" && ty.variant.is_none() {
+                return true;
+            }
+            for range in ty.keys {
+                for logged in crate::jobs::task_logs::JOB.keys {
+                    if range.from < logged.to && logged.from < range.to {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
 fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::ValueType)> {
     let mut index = 0_u32;
     for set in store.patch_sets.sets {
@@ -180,7 +204,7 @@ pub(super) fn plans(
             None => false,
         };
         // A patch has not yet moved the active census's version heads to the seed's ids.
-        let values = if !row.stored && patches {
+        let values = if history_type(&key.0, key.1) || (!row.stored && patches) {
             None
         } else {
             match found {
@@ -238,6 +262,7 @@ pub(super) fn plans(
             }
         }
         if let Unplanned::Underived(_) = why
+            && !history_type(&key.0, key.1)
             && job(store, key, layouts.rows.get(key).expect("held row"))
         {
             continue;

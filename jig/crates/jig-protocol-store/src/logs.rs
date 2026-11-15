@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 
 pub mod record;
+pub(crate) mod write;
 
 pub const EXTENTS: [u8; 2] = [0, 9];
 

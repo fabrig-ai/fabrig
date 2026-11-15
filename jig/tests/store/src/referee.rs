@@ -43,11 +43,11 @@ impl Referee {
             }
             live_rows += 1;
             if restored.rows.get(key) != Some(row) {
-                return Err(Violation("all restored and loaded pages equal one whole model prefix"));
+                return Err(Violation("restored live rows and fetched task histories equal one whole model prefix"));
             }
         }
         if restored.rows.len() != live_rows || restored.application != expected.application {
-            return Err(Violation("all restored and loaded pages equal one whole model prefix"));
+            return Err(Violation("restored live rows and fetched task histories equal one whole model prefix"));
         }
         for (task, turns) in &expected.turns {
             if restored.turns(*task) != turns {
