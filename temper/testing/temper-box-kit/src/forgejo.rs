@@ -273,11 +273,6 @@ impl Throwaway {
 
     /// Add a fixture file through the person's API, retaining its exact bytes.
     pub fn add_file(&self, file: &str, content: &[u8]) {
-        self.add_file_on("main", file, content);
-    }
-
-    /// Move a fixture branch through the owned person's contents API.
-    pub fn add_file_on(&self, branch: &str, file: &str, content: &[u8]) {
         let path = format!("/api/v1/repos/acme/widget/contents/{file}");
         let size = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
@@ -288,7 +283,7 @@ impl Throwaway {
         skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, content, &mut encoded).expect("base64 file");
         let encoded = encoded.finish();
         let content = std::str::from_utf8(&encoded).expect("base64 text");
-        let body = serde_json::to_vec(&json!({"branch":branch,"message":format!("Add {file}"),"content":content}))
+        let body = serde_json::to_vec(&json!({"branch":"main","message":format!("Add {file}"),"content":content}))
             .expect("contents JSON");
         let response = self
             .instance
@@ -708,45 +703,6 @@ impl Throwaway {
                 ))
                 .expect("remove hook answer");
             assert_eq!(response.status, 204, "remove adoption hook");
-        }
-    }
-
-    /// Keeps the forge's pull, branch and comparison evidence when an update stalls.
-    pub fn pull_update_failure(&self, base: Option<&str>) {
-        eprintln!("stalled update: style=rebase, requested base={base:?}");
-        match self.instance.server_log() {
-            Ok(log) => eprintln!("stalled forge server log:\n{log}"),
-            Err(error) => eprintln!("stalled forge server log: {error:?}"),
-        }
-        let mut heads = Vec::new();
-        for suffix in ["pulls/1", "branches/temper/2/c3", "branches/main"] {
-            let response = self.get(suffix);
-            eprintln!(
-                "stalled forge {suffix}: status={}, {}",
-                response.status,
-                String::from_utf8_lossy(&response.body)
-            );
-            if let Ok(value) = serde_json::from_slice::<Value>(&response.body) {
-                let head = match suffix {
-                    "pulls/1" => value["head"]["sha"].as_str(),
-                    "branches/temper/2/c3" => value["commit"]["id"].as_str(),
-                    _ => None,
-                };
-                if let Some(head) = head {
-                    heads.push((suffix, head.to_owned()));
-                }
-            }
-        }
-        if let Some(base) = base {
-            for (source, head) in heads {
-                // The client proves an update by comparing its head against the requested base.
-                let response = self.get(&format!("compare/{head}...{base}"));
-                eprintln!(
-                    "stalled forge comparison ({source}, {head}...{base}): status={}, {}",
-                    response.status,
-                    String::from_utf8_lossy(&response.body)
-                );
-            }
         }
     }
 

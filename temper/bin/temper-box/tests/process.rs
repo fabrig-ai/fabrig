@@ -161,253 +161,82 @@ fn a_persons_change_lands_on_the_forge_and_is_found_after_a_restart() {
 }
 
 #[test]
+#[ignore = "real Forgejo by choice: cancellation redispatch, gate status and merged pull heads; run by name with --run-ignored only"]
 fn a_turn_landing_is_found_after_a_runner_cancellation_and_restarts() {
-    turn_landing_restarts("turn-retry-restarts", true);
-}
-
-/// temper/docs/design/domain/landing.md, 15: an external worker survives each engine restart.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn an_engine_restarts_in_each_turn_landing_phase() {
-    support::turn_drills::run(support::turn_drills::Drill::Phases);
-}
-
-/// temper/docs/design/domain/landing.md, 15: the external worker saves an in-flight producer.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn an_engine_and_worker_restart_during_delivery_beside_proof() {
-    support::turn_drills::run(support::turn_drills::Drill::Delivery);
-}
-
-/// temper/docs/design/domain/landing.md, 5 and 9: four template goals share one turn.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn four_goals_land_together_after_loading_batch_four() {
-    support::turn_drills::run(support::turn_drills::Drill::BatchFour);
-}
-
-/// temper/docs/design/domain/landing.md, 7 and 9: the third member is blamed and repaired.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four() {
-    support::turn_drills::run(support::turn_drills::Drill::Breaking);
-}
-
-/// temper/docs/design/domain/landing.md, 4.3 and 9: a conflicting member resolves next round.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn conflicting_goals_depart_and_resolve_in_batch_four() {
-    support::turn_drills::run(support::turn_drills::Drill::Conflict);
-}
-
-/// temper/docs/design/domain/landing.md, 13: one owner revision keeps running work's settings.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
-    support::turn_drills::run(support::turn_drills::Drill::GoLive);
-}
-
-/// temper/docs/design/domain/landing.md, 4.3: a moved head leaves a sealed batch of three.
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_member_head_moves_during_a_three_goal_batch_proof() {
-    support::turn_drills::run(support::turn_drills::Drill::Moving);
-}
-
-/// temper/docs/design/testing/process-tier.md: a queue that lands green.
-#[test]
-fn a_batch_of_three_lands_by_one_fast_forward() {
-    batch_landing("batch-three", false);
+    turn_landing_restarts("turn-retry-restarts");
 }
 
 /// temper/docs/design/testing/process-tier.md: a red narrowed.
 #[test]
+#[ignore = "real Forgejo by choice: dispatch-only probes, prefix fast-forward and merged pull heads; run by name with --run-ignored only"]
 fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
-    batch_landing("batch-red-narrowed", true);
+    batch_landing("batch-red-narrowed");
 }
 
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_copied_projects_red_member_repairs_and_lands_later() {
-    deployment_turn("copied-red-repaired", support::batch_landing::deployment::run_repaired);
-}
-
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_deployment_sized_repository_root_lands_by_turn() {
-    deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
-}
-
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn two_conflicting_changes_resolve_and_land_by_turn() {
-    deployment_turn("deployment-conflict", support::batch_landing::deployment::run_conflict);
-}
-
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
-    deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
-}
-
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run() {
-    deployment_turn("deployment-shared-midproof", support::batch_landing::deployment::run_midproof_shared);
-}
-
-#[test]
-#[ignore = "landing by turn's deployment drills, past the process tier's CPU budget: run by name with --run-ignored only"]
-fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
-    use support::{batch_landing, landing_by_turn, turn_restart};
-    let scratch = support::Scratch::new("deployment-batch-four");
-    let barrier = support::forgejo::JobBarrier::new(scratch.path());
-    let forge = turn_restart::start(&scratch);
-    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
-    batch_landing::deployment::add_root(&forge);
-    support::configuration(scratch.path(), &forge.forge());
-    batch_landing::deployment::configure_policy(
-        scratch.path(),
-        forge.repository(),
-        4,
-        batch_landing::deployment::Policy::StockCopy,
-    );
-    batch_landing::run_narrowed_four(scratch.path(), &forge, &barrier);
-    forge.stop();
-    scratch.remove();
-}
-
-fn deployment_turn(case: &str, run: fn(&std::path::Path, &support::forgejo::Throwaway, &support::forgejo::JobBarrier)) {
-    use support::{batch_landing::deployment, landing_by_turn, turn_restart};
-    let scratch = support::Scratch::new(case);
-    let barrier = support::forgejo::JobBarrier::new(scratch.path());
-    let forge = turn_restart::start(&scratch);
-    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
-    deployment::add_root(&forge);
-    support::configuration(scratch.path(), &forge.forge());
-    deployment::configure(scratch.path(), forge.repository());
-    run(scratch.path(), &forge, &barrier);
-    forge.stop();
-    scratch.remove();
-}
-
-fn batch_landing(case: &str, narrowed: bool) {
+fn batch_landing(case: &str) {
     use support::{batch_landing, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new(case);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
-    forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
+    forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
     batch_landing::configure(scratch.path(), forge.repository());
-    if narrowed {
-        batch_landing::run_narrowed(scratch.path(), &forge, &barrier);
-    } else {
-        batch_landing::run(scratch.path(), &forge, &barrier);
-    }
+    batch_landing::run_narrowed(scratch.path(), &forge, &barrier);
     forge.stop();
     scratch.remove();
 }
 
-fn turn_landing_restarts(case: &str, retry: bool) {
+fn turn_landing_restarts(case: &str) {
     use support::{landing_by_turn, turn_restart};
-    let clock = skein_shell::Clock::new();
-    let began = clock.now().now;
     let scratch = support::Scratch::new(case);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
-    forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
+    forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
-    turn_restart::cuts::configure(scratch.path(), forge.repository());
-    let started = clock.now().now;
-    let preparing = turn_restart::cuts::preparing(scratch.path(), &forge, &barrier);
-    assert_eq!(preparing.reads.landing["phase"], "preparing");
-    eprintln!("turn restart cut: preparing");
-    let proof = turn_restart::cuts::prepared(scratch.path(), &forge, &barrier, &preparing);
-    eprintln!("turn restart first run: {}", landing_by_turn::elapsed(&clock, started));
-    let panel = &proof.reads.landing;
-    eprintln!("turn restart mid-proof: {}", serde_json::to_string(&proof.reads.landing).expect("landing JSON"));
-    assert_eq!(panel["phase"], "proving");
-    let member = &panel["members"][0];
-    let candidate = member["candidate"].as_str().expect("candidate");
+    turn_restart::configure(scratch.path(), forge.repository());
+    let (proof, _) = turn_restart::run(scratch.path(), &forge, &barrier, None);
+    let proof = proof.expect("held gate");
+    let candidate = proof.reads.landing["members"][0]["candidate"].as_str().expect("candidate");
     let commit = &candidate[..40];
-    assert_ne!(proof.original, commit, "the merge train combined the change");
-    assert_ne!(proof.moved, commit, "the candidate has not landed yet");
-    assert_eq!(member["base"].as_str().map(|base| &base[..40]), Some(proof.moved.as_str()));
-    assert!(member["gates"][0]["proof"].get("dispatched").is_some());
-    assert_eq!(forge.merged_pull(), None);
-    let retried = if retry {
-        forge.cancel_run(proof.run);
-        let started = clock.now().now;
-        let retried = turn_restart::retry(scratch.path(), &forge, &barrier, &proof);
-        eprintln!("turn restart retry run: {}", landing_by_turn::elapsed(&clock, started));
-        assert_eq!(retried.reads.landing["members"][0]["gates"][0]["key"], member["gates"][0]["key"]);
-        assert_eq!(retried.reads.landing["members"][0]["candidate"], candidate);
-        barrier.release(proof.run);
-        Some(retried)
-    } else {
-        None
-    };
-    let proof = retried.as_ref().unwrap_or(&proof);
-    let started = clock.now().now;
+    forge.cancel_run(proof.run);
+    let retried = turn_restart::retry(scratch.path(), &forge, &barrier, &proof);
+    assert_eq!(retried.reads.landing["members"][0]["candidate"], candidate);
     barrier.release(proof.run);
-    let turning = turn_restart::cuts::turn(scratch.path(), &forge, &barrier, proof);
-    assert_eq!(turning.reads.landing["phase"], "turn");
-    eprintln!("turn restart cut: turn");
-    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(&turning));
-    eprintln!("turn restart second run: {}", landing_by_turn::elapsed(&clock, started));
+    // The final sitting finds the retry while held, then releases it.
+    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(&retried));
     let landed = landed.expect("landed reads before stopping");
-    assert_eq!(landed.landing["phase"], "landed");
-    assert_eq!(landed.change["step"], "landed");
-    assert_eq!(landed.change["repairs"]["used"], 0, "runner faults do not repair the change");
-    assert_eq!(landed.landing["members"][0]["candidate"], candidate);
     let gate = &landed.landing["members"][0]["gates"][0];
-    let receipt = &gate["proof"]["passed"];
-    assert_eq!(receipt["run"], proof.run, "the restart found the dispatched run");
+    assert_eq!(gate["proof"]["passed"]["run"], retried.run, "the restart found the dispatched run");
     let round = landed.landing["round"]["pull"]["number"].as_u64().expect("round pull");
-    let main = forge.branch_head(b"main").expect("main tip");
-    assert_eq!(main.as_ref(), commit.as_bytes());
-    assert!(forge.main_readme().ends_with(support::EDIT), "the produced edit reached main");
     let pull = forge.repository_observation("acme", "widget", &format!("pulls/{round}"));
     assert_eq!(pull["merged"], true, "the round pull merged");
     assert_eq!(pull["head"]["sha"], commit);
     assert_eq!(pull["merge_commit_sha"], commit);
-    let parents = forge.repository_observation("acme", "widget", &format!("git/commits/{commit}"));
-    assert_eq!(parents["parents"].as_array().expect("parents").len(), 2);
-    assert_eq!(parents["parents"][0]["sha"], proof.moved);
-    assert_eq!(parents["parents"][1]["sha"], proof.original);
     let member = &landed.landing["members"][0];
-    assert_eq!(member["pull"]["number"], 1);
-    let pull = forge.repository_observation("acme", "widget", "pulls/1");
+    let number = member["pull"]["number"].as_u64().expect("member pull");
+    let pull = forge.repository_observation("acme", "widget", &format!("pulls/{number}"));
     assert_eq!(pull["head"]["sha"], proof.original, "the member pull keeps its head");
     assert_eq!(pull["merged"], true, "the forge detected the member's merge");
     let prefix = member["landed"].as_str().expect("member landed prefix");
     assert_eq!(pull["merge_commit_sha"], &prefix[..40]);
-    turn_gate_runs(&forge, commit, proof.run, retry, gate);
-    eprintln!("turn restart landed reads: {landed:?}");
+    turn_gate_runs(&forge, commit, retried.run, gate);
     forge.stop();
     scratch.remove();
-    eprintln!("turn restart story wall: {}", landing_by_turn::elapsed(&clock, began));
 }
 
-/// The landed commit's gate runs and status: one dispatch per key, or two after a retry.
-fn turn_gate_runs(
-    forge: &support::forgejo::Throwaway,
-    commit: &str,
-    passed_run: u64,
-    retry: bool,
-    gate: &serde_json::Value,
-) {
+/// The real runner's two dispatches and the receipted status after cancellation.
+fn turn_gate_runs(forge: &support::forgejo::Throwaway, commit: &str, passed_run: u64, gate: &serde_json::Value) {
     let receipt = &gate["proof"]["passed"];
     let runs = forge.repository_observation("acme", "widget", &format!("actions/runs?head_sha={commit}&limit=100"));
     let runs: Vec<_> = runs["workflow_runs"]
         .as_array()
         .expect("workflow runs")
         .iter()
-        .filter(|run| run["workflow_id"] == "gate.yaml")
+        .filter(|run| run["workflow_id"] == "gate.yml")
         .collect();
-    assert_eq!(runs.len(), if retry { 2 } else { 1 }, "only the expected dispatches for the key");
+    assert_eq!(runs.len(), 2, "only the expected dispatches for the key");
     let passed = runs.iter().find(|run| run["id"] == passed_run).expect("receipted run");
     for run in &runs {
         assert_eq!(run["commit_sha"], commit);

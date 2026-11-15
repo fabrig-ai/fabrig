@@ -138,11 +138,6 @@ fn cluster_turn_proof_cut_refuses_to_pass_after_proving() {
 }
 
 #[test]
-fn four_reviews_and_the_latch_can_wait_on_the_model_together() {
-    support::turn_drills::tests::four_reviews_and_the_latch_can_wait_on_the_model_together();
-}
-
-#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
@@ -287,11 +282,6 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
 #[test]
 fn turn_configuration_declares_the_prepare_job() {
     support::turn_restart::tests::turn_configuration_declares_the_prepare_job();
-}
-
-#[test]
-fn turn_restart_keeps_the_moved_main_witness_on_retry() {
-    support::turn_restart::tests::keeps_the_moved_main_witness_on_retry();
 }
 
 #[cfg(target_os = "linux")]

@@ -21,7 +21,6 @@ pub mod landing_by_turn;
 pub mod owned;
 pub mod socket;
 pub mod terminal;
-pub mod turn_drills;
 pub mod turn_restart;
 pub mod webhooks;
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(60);
@@ -441,7 +440,6 @@ impl Host for StdoutReader {
     }
 }
 enum Process {
-    Member(Box<cluster::Member>),
     Calls(Box<ctl::Calls>),
     Binary(Box<Binary>),
     Stdout(Box<StdoutReader>),
@@ -454,7 +452,6 @@ impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(x) => x.as_ref(),
-            Self::Member(x) => x.as_ref(),
             Self::Calls(x) => x.as_ref(),
             Self::Stdout(x) => x.as_ref(),
             Self::Person(x) => x.as_ref(),
@@ -467,7 +464,6 @@ impl Delegate for Process {
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Binary(x) => x.as_mut(),
-            Self::Member(x) => x.as_mut(),
             Self::Calls(x) => x.as_mut(),
             Self::Stdout(x) => x.as_mut(),
             Self::Person(x) => x.as_mut(),
@@ -710,7 +706,6 @@ impl Referee<Process> for ChatJudge<'_> {
                     .count(),
             ),
             Process::Binary(_)
-            | Process::Member(_)
             | Process::Person(_)
             | Process::Stdout(_)
             | Process::Calls(_)
