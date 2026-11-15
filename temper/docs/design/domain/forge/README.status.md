@@ -2,8 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 6: a resolution after a merge job is not told to keep a file the base deleted unless the change needs it (`change/repairs.md`) [in flight: change 3704].
-- **Not yet:** 6: the reference's merge job names the files it leaves by path alone, with no kind, side or deleting commit (`../../protocol/tooling.md`, 4.1) [in flight: change 3703].
 
 
 - **Not yet:** 2: the follow procedure, its task making follow changes
