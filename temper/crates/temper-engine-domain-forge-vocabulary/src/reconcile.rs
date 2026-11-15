@@ -47,6 +47,55 @@ pub enum RecordKind {
     RedPass,
     HistoryProject,
 }
+impl RecordKind {
+    /// History survives removal without retaining its repository's row
+    /// (temper/docs/design/domain/forge/adoption.md, 1).
+    pub const fn historical_repository(self) -> bool {
+        match self {
+            RecordKind::BranchHead
+            | RecordKind::PullState
+            | RecordKind::Ci
+            | RecordKind::Change
+            | RecordKind::Issue
+            | RecordKind::Application
+            | RecordKind::Landing
+            | RecordKind::Receipt
+            | RecordKind::Follow
+            | RecordKind::Tier
+            | RecordKind::Verification
+            | RecordKind::LandingLog => true,
+            RecordKind::Closer
+            | RecordKind::Forge
+            | RecordKind::Call
+            | RecordKind::ProposedEffect
+            | RecordKind::Repository
+            | RecordKind::Hold
+            | RecordKind::Names
+            | RecordKind::Subscription
+            | RecordKind::Landed
+            | RecordKind::Entry
+            | RecordKind::Client
+            | RecordKind::Release
+            | RecordKind::Writer
+            | RecordKind::Making
+            | RecordKind::Binding
+            | RecordKind::HistoryProject
+            | RecordKind::ProjectFacts
+            | RecordKind::Device
+            | RecordKind::LandedDraft
+            | RecordKind::Red
+            | RecordKind::RedPass
+            | RecordKind::RedNumber
+            | RecordKind::Away
+            | RecordKind::Decided
+            | RecordKind::Finding
+            | RecordKind::Looked
+            | RecordKind::Dismissed
+            | RecordKind::Setting
+            | RecordKind::Flight => false,
+        }
+    }
+}
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
     Forge(u16),

@@ -4,10 +4,14 @@ use jig_protocol_store::{JobAnswer, JobPage, JobRefusal, JobWrite};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary::{ChangeRow, Key, Stored};
 
+mod deleted;
+pub use deleted::{Present, read_present};
+
 /// Dispatch an application's job at open.
-pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
+pub fn page(job: &str, page: &JobPage, present: &Present, bounds: &crate::Bounds) -> Result<JobAnswer, JobRefusal> {
     match job {
         "change-parts" => change_parts(page),
+        "deleted-repository-forge-rows" => deleted::page(page, present, bounds),
         _ => Err(refusal(None, "no such temper job")),
     }
 }
