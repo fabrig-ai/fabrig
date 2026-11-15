@@ -284,8 +284,8 @@ fn the_coordinator_uses_existing_prerequisites_instead_of_promising_word_later()
     let coordinator = engine.charters.iter().find(|charter| charter.number == 5).unwrap();
     let part = coordinator.parts.iter().find(|part| part.on.contains(jig_domain_tasks::Reasons::QUESTION)).unwrap();
     let words = core::str::from_utf8(&part.instructions).unwrap();
-    assert!(words.contains("use the change that carries it, a goal's sibling too, or make one"));
-    assert!(words.contains("Never answer with a promise to send word later"));
+    assert!(words.contains("the change carrying it, a sibling's too, or a new one"));
+    assert!(words.contains("never promising word later"));
 }
 
 #[test]
