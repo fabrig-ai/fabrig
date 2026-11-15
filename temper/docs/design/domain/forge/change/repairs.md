@@ -396,7 +396,8 @@
   change decides nothing on its head until that run's push or end
   (`README.md`, 3).
 
-  The same rule ends a repair of a landing gate's failure, a CI failure,
+  The same rule ends a repair of a gate's refusal, a person's request
+  for changes on the forge, a landing gate's failure, a CI failure,
   or CI failing after a clean update: its brief pins the failure at the
   last head, so a move leaves its work unjudged at the new head. At
   repairing, with that repair live but no run in progress (made and not
@@ -414,6 +415,21 @@
   so an older read cannot end the repair on its own delivered head.
   A change already held for another writer's drift keeps that hold and
   its repair's brief as it stands (the open question below).
+
+  **A delivered repair is taken before judging the new head.** A
+  repair ending with a change result has delivered, even if another writer
+  has since advanced its branch and its delivered head is an ancestor
+  of the branch's head. Its terminal is recorded as a delivery, never
+  turned into a delegate failure for that move. As for every pushing
+  delegate's terminal, a gather already in progress starts again with
+  a branch read sent after the terminal. The change reads its branch,
+  base and pull afresh and takes the head it now reads, clearing its
+  clean heads and judging its gates again there. A drift the read
+  proves holds for its drift cause with its words (`README.md`, 3),
+  rather than saying that a repair which delivered failed. A live
+  repair whose run is in progress is left to deliver; an idle repair
+  whose branch moved before it delivered follows the cancel rule
+  above, including while waiting for an answer to its question.
 
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine/briefs.md`, 1.1):

@@ -183,7 +183,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     advance_phase(change, next, facts, standing, now, limits)
 }
 
-// Resolutions and landing or CI repairs end at a moved head
+// Resolutions and repairs end at a moved head
 // (temper/docs/design/domain/forge/change/repairs.md, A resolution's moved head).
 fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
     match &change.state {
@@ -191,8 +191,12 @@ fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
             Some(*base)
         }
         State::Repairing { requested: true, why } if facts.delegate == Some(Delegate::Repair(*why)) => match why {
-            Repair::Ci | Repair::Semantic | Repair::Landing { .. } | Repair::LandingAt { .. } => Some(facts.base_tip),
-            Repair::Gate(_) | Repair::Review { .. } => None,
+            Repair::Ci
+            | Repair::Semantic
+            | Repair::Landing { .. }
+            | Repair::LandingAt { .. }
+            | Repair::Gate(_)
+            | Repair::Review { .. } => Some(facts.base_tip),
         },
         State::Producing { .. }
         | State::Opening { .. }

@@ -166,12 +166,14 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
 }
 
 #[test]
-fn a_moved_head_ends_only_an_idle_landing_or_ci_repair_and_decides_afresh() {
+fn a_moved_head_ends_only_an_idle_repair_and_decides_afresh() {
     for why in [
         Repair::Ci,
         Repair::Semantic,
         Repair::Landing { gate: 0 },
         Repair::LandingAt { gate: 0, candidate: MERGE, below: None },
+        Repair::Gate(1),
+        Repair::Review { head: HEAD },
     ] {
         let mut c = change(State::Repairing { requested: true, why });
         c.repairs = 1;

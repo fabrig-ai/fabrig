@@ -1074,6 +1074,20 @@ fn a_failed_review_repair_names_its_task_account_and_release() {
 // temper/docs/design/domain/forge/change/questions.md, 1: answering a repair cannot consume its terminal result.
 #[test]
 fn a_delivered_review_repair_after_a_relayed_question_is_taken() {
+    delivered_review_repair(false, false);
+}
+
+#[test]
+fn a_delivered_review_repair_is_taken_after_another_writer_advances_its_branch() {
+    delivered_review_repair(true, false);
+}
+
+#[test]
+fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_branch() {
+    delivered_review_repair(false, true);
+}
+
+fn delivered_review_repair(moved: bool, idle: bool) {
     let (mut world, requester) = super::questions::plan_world_with_limits(
         None,
         Gate { agent: true, ..Gate::default() },
@@ -1107,10 +1121,40 @@ fn a_delivered_review_repair_after_a_relayed_question_is_taken() {
     let event =
         world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
+    if idle {
+        for _ in 0..MAX_TICKS {
+            world.tick();
+        }
+        let head = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            &branch,
+            b"another-file",
+            b"another writer",
+            2,
+        )
+        .expect("another writer advances the idle repair's branch");
+        for _ in 0..MAX_TICKS {
+            world.tick();
+        }
+        let row = change_row(&world, change);
+        assert_ne!(row.delegate.map(|(task, _)| task), Some(repair.task), "stale repair must end: {row:?}");
+        assert!(!matches!(
+            row.change.state,
+            temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+        ));
+        assert!(row.change.last_head == Some(translate::commit(head)) || row.drift.is_some());
+        return;
+    }
     super::questions::answer(&mut world, &requester, change, 102);
     let resumed = next_assignment(&mut world, 7);
     assert_eq!(resumed.task, repair.task);
     push_append(&mut world, &resumed, &branch, b"both lines");
+    if moved {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
+            .expect("another writer advances the delivered branch");
+    }
     let head = translate::commit(world.fake.branch(b"org/repo", &branch).expect("repaired branch"));
     for _ in 0..MAX_TICKS {
         world.tick();
@@ -1120,7 +1164,10 @@ fn a_delivered_review_repair_after_a_relayed_question_is_taken() {
     }
     let row = change_row(&world, change);
     assert_eq!(row.change.last_head, Some(head), "delivered repair must advance the change: {row:?}");
-    assert!(world.assigned.get(8).is_some(), "successful repair must be reviewed: {row:?}");
+    let fresh = world.assigned.get(8).expect("successful repair must be reviewed");
+    assert_review_head(&world, fresh, head);
+    assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    assert!(row.questions.open.is_empty());
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 

@@ -3817,9 +3817,9 @@ fn delegate_result(
             read.branch.due = true;
         }
     }
-    // A CI repair's terminal needs a branch read sent after its end, even
-    // when a step already gathering CI observes the result first.
-    if ci_repair {
+    // A pushing delegate's terminal needs a branch read sent after its end,
+    // even when a step already gathering facts observes the result first.
+    if agent {
         let mut gathering = None;
         for (token, pending) in &d.steps {
             if pending.task == task {

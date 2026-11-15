@@ -7,7 +7,16 @@ fn goal_world() -> (World, engine::Assignment, Box<[u8]>) {
 }
 
 fn goal_world_with(limits: &StoryLimits) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
+    goal_world_with_gate(limits, Gate::default())
+}
+
+fn goal_world_with_gate(limits: &StoryLimits, gate: Gate) -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(true, true, false, 1000, gate, None, *limits);
+    if gate.agent {
+        world.env.limits.brief.budgets.task = 512;
+        let client = world.env.limits.forge.client;
+        world = world.with_forge_client(client);
+    }
     world.adopt();
     let mut hello = hello_prepare(limits.slots.unwrap_or(3));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
@@ -17,11 +26,85 @@ fn goal_world_with(limits: &StoryLimits) -> (World, engine::Assignment, Box<[u8]
     };
     worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
     world.send(hello);
-    let ask = goal_branch::goal_request(&world, true);
+    let mut ask = goal_branch::goal_request(&world, true);
+    if gate.agent {
+        let people::Ask::Create { batch, .. } = &mut ask else { panic!("goal request") };
+        batch[0].budget = people::Budget::AsAllowed { cap: Some(500) };
+    }
     let goal = assigned_chat(&mut world, 92, ask);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     world.until(Until::Ready);
     (world, goal, branch)
+}
+
+#[test]
+fn a_delivered_review_repair_is_reviewed_again_after_a_goal_train_advances_its_branch() {
+    use temper_engine_domain_forge_change::{Delegate, State};
+    let (mut world, goal, branch) = goal_world_with_gate(
+        &StoryLimits {
+            turn: true,
+            batch: Some(4),
+            landing_members: Some(4),
+            slots: Some(4),
+            tasks: Some(12),
+            spec_bytes: Some(2048),
+            inbox_messages: Some(16),
+            stall: Some(Duration::from_secs(3600)),
+            ..StoryLimits::default()
+        },
+        Gate { agent: true, ..Gate::default() },
+    );
+    let (first, producer) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 101, b"first");
+    finish_child(&mut world, &producer, b"First goal change");
+    await_change(&mut world, first);
+    let (child, producer) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 102, b"another-file");
+    let assigned = world.assigned.len();
+    let answer =
+        goal_landing::mine(&mut world, &goal, 103, br#"{"words":"Land the goal","branch":"mine","questions":"up"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("main change: {answer:?}") };
+    let whole = made[0].task;
+    let reviewer = reviews::next_assignment(&mut world, assigned);
+    reviews::finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 2, fields: Box::new([]), words: b"keep both lines".as_slice().into() },
+    );
+    let repair = reviews::next_assignment(&mut world, assigned + 1);
+    let delivered = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"first", b"repaired", 1)
+        .expect("repair delivers on the goal branch");
+    finish_child(&mut world, &repair, b"Repair the review");
+    finish_child(&mut world, &producer, b"Advance the goal train");
+    await_change(&mut world, child);
+    let head = goal_branch::branch_tip(&mut world, &branch);
+    assert_ne!(head, delivered);
+    let mut ended_old = None;
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        let row = goal_landing::row(&world, whole);
+        assert!(!matches!(row.change.state, State::Held { .. }), "{row:?}");
+        if let Some((task, Delegate::Gate { head: reviewed, .. })) = row.delegate
+            && reviewed == translate::commit(head)
+            && world.assigned.iter().any(|run| run.task == task)
+        {
+            assert_eq!(row.change.last_head, Some(reviewed));
+            assert_eq!(row.change.repairs, 1);
+            assert!(row.questions.open.is_empty());
+            return;
+        }
+        if let Some((task, Delegate::Gate { head: reviewed, .. })) = row.delegate
+            && reviewed != translate::commit(head)
+            && ended_old != Some(task)
+            && let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned()
+        {
+            reviews::finish_review(
+                &mut world,
+                &run,
+                tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+            );
+            ended_old = Some(task);
+        }
+    }
+    panic!("goal train's new head must receive a fresh review: {:?}", goal_landing::row(&world, whole));
 }
 
 fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: &[u8]) -> (u64, engine::Assignment) {
