@@ -43,6 +43,36 @@ pub(crate) fn stage(tui: &Tui, words: &Words) -> Option<(Box<[u8]>, Style)> {
     };
     Some((line, look::HINT))
 }
+pub(crate) fn start(tui: &Tui, words: &Words) -> Option<Box<[u8]>> {
+    match tui.box_stage() {
+        BoxStage::Finding | BoxStage::Fetching { .. } | BoxStage::Starting => {
+            let (line, _style) = stage(tui, words).expect("a starting stage has a line");
+            Some(line)
+        }
+        BoxStage::Running => {
+            let mut last = None;
+            for line in tui.box_log() {
+                last = Some(line);
+            }
+            let line = last?;
+            Some(lossy(without_time(line)))
+        }
+        BoxStage::Failed { .. } | BoxStage::Stopping | BoxStage::Ended { .. } => None,
+    }
+}
+fn without_time(line: &[u8]) -> &[u8] {
+    let Some(prefix) = line.get(..10) else { return line };
+    for (byte, shape) in prefix.iter().zip(b"00:00:00Z ") {
+        if *shape == b'0' {
+            if !byte.is_ascii_digit() {
+                return line;
+            }
+        } else if byte != shape {
+            return line;
+        }
+    }
+    line.get(10..).expect("the time prefix fits the line")
+}
 fn megabytes(bytes: u64) -> Box<[u8]> {
     concat(&[
         Decimal::of(bytes.checked_div(1_000_000).expect("nonzero divisor")).as_bytes(),
