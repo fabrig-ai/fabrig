@@ -526,6 +526,39 @@ fn prepares_unattributed_rebase_is_drift_on_any_other_completion() {
 }
 
 #[test]
+fn a_frozen_prepares_late_rebase_answer_or_outcome_cannot_drift_its_goal() {
+    for attributed in [false, true] {
+        let (mut d, resource) = preparing_domain(true);
+        observed_rebase(&mut d, if attributed { Some(7) } else { None });
+        d.changes.get_mut(&fixtures::CHANGE).unwrap().ending = Some(Ending::Cancelled);
+        let requests = if attributed {
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: LANDING_TIP, page: 1 }));
+            fixtures::answer(&mut d, call, Ok(design_ancestry(false)))
+        } else {
+            let mut out = Queue::uncapped();
+            domain::change_outcome(
+                &mut d,
+                &env(),
+                UPDATE,
+                skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout),
+                &mut out,
+            );
+            let mut requests = skein_lib::List::uncapped();
+            while let Some(request) = out.pop() {
+                requests.push(request).unwrap();
+            }
+            requests.into_boxed()
+        };
+        for request in &requests {
+            assert!(!matches!(request, Request::Drift { .. }), "{request:?}");
+        }
+        assert_eq!(d.hold(&resource).unwrap().drift, None);
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, None);
+    }
+}
+
+#[test]
 fn prepares_rebase_without_main_is_drift() {
     for goal_branch in [false, true] {
         let (mut d, resource) = preparing_domain(goal_branch);
