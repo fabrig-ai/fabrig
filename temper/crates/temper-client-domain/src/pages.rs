@@ -52,7 +52,7 @@ pub mod choice;
 pub mod composer;
 pub mod connect_model;
 pub mod decided;
-pub mod delegation;
+pub use crate::delegation;
 pub mod delete_project;
 pub mod findings;
 pub mod goal;
@@ -69,6 +69,7 @@ pub mod rail;
 pub mod report;
 mod signing;
 pub mod start_goal;
+pub mod stock_ways;
 pub mod stop_asking;
 pub mod switcher;
 pub mod task;
@@ -120,7 +121,7 @@ pub struct Pages {
     changes: Option<changes::Changes>,
     drafts: Option<drafts::Drafts>,
     draft_starts: skein_lib::Set<jig_client::Key>,
-    stock_ways: Option<crate::forge::stock_ways::StockWays>,
+    stock_ways: Option<stock_ways::StockWays>,
     how: Option<how::Open>,
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
@@ -635,7 +636,7 @@ impl Pages {
         self.home.as_ref()
     }
     #[must_use]
-    pub const fn stock_ways(&self) -> Option<&crate::forge::stock_ways::StockWays> {
+    pub const fn stock_ways(&self) -> Option<&stock_ways::StockWays> {
         self.stock_ways.as_ref()
     }
     #[must_use]
@@ -991,19 +992,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::UseWay { project, way } } => {
             if let Some(page) = &mut pages.stock_ways {
-                page.send_act(
-                    project,
-                    Some(way),
-                    crate::forge::stock_ways::WayAct::Use,
-                    client,
-                    &mut pages.serial,
-                    out,
-                );
+                page.send_act(project, Some(way), stock_ways::WayAct::Use, client, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::KeepWay { project } } => {
             if let Some(page) = &mut pages.stock_ways {
-                page.send_act(project, None, crate::forge::stock_ways::WayAct::Keep, client, &mut pages.serial, out);
+                page.send_act(project, None, stock_ways::WayAct::Keep, client, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
@@ -2022,8 +2016,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         if let Address::Ask { project } | Address::Settings { project } = address
             && pages.stock_ways.is_none()
         {
-            pages.stock_ways =
-                Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
+            pages.stock_ways = Some(stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Settings { project } = address {
             pages.how = Some(how::Open::new(project, &mut pages.next, &env.limits, out));

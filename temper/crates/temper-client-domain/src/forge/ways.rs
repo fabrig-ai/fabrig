@@ -751,14 +751,13 @@ pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
 /// Reconcile only proposals on the current chat or inbox page (client/pages/settings.md, 2).
 pub(crate) fn proposals(
     side: &mut Side,
-    cards: Option<&List<crate::pages::inbox::Card>>,
+    cards: &mut dyn ExactSizeIterator<Item = Option<&c::ReadValue>>,
     limits: Limits,
     out: &mut Queue<Request>,
 ) {
-    let Some(cards) = cards else { return };
-    let skip = cards.len().saturating_sub(super::forges::ROWS);
-    for card in cards.iter().skip(usize::try_from(skip).expect("bounded cards")) {
-        let Some(c::ReadValue::Proposal(proposal)) = &card.page else { continue };
+    let skip = cards.len().saturating_sub(usize::try_from(super::forges::ROWS).expect("bounded cards"));
+    for page in cards.skip(skip) {
+        let Some(c::ReadValue::Proposal(proposal)) = page else { continue };
         let c::ProposalAction::Settings(settings) = &proposal.action else { continue };
         let Some(review) = &settings.review else { continue };
         let Some(key) = review.key else { continue };
