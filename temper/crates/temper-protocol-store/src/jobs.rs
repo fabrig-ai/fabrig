@@ -18,7 +18,7 @@ fn refusal(key: Option<Box<[u8]>>, why: &str) -> JobRefusal {
 
 fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     let mut writes = List::uncapped();
-    let mut bytes = 0_u32;
+    let mut bytes = 0_u64;
     let mut through = None;
     for row in &page.rows {
         let Some(change) = legacy(&row.key, &row.value) else {
@@ -29,13 +29,21 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         let hot_key = crate::keys::encode(&Key::ChangeHot(hot.task), u32::MAX).expect("change key");
         let cold = crate::records::encode(&Stored::ChangeCold(Box::new(cold)));
         let hot = crate::records::encode(&Stored::ChangeHot(Box::new(hot)));
-        let cost = match cost(&cold_key, &cold, &hot_key, &hot, &row.key) {
-            Some(cost) => bytes.checked_add(cost),
-            None => None,
-        };
+        let row_writes = [
+            JobWrite::Put { key: cold_key, value: cold },
+            JobWrite::Put { key: hot_key, value: hot },
+            JobWrite::Erase { key: row.key.clone() },
+        ];
+        let mut cost = Some(bytes);
+        for write in &row_writes {
+            cost = match cost {
+                Some(cost) => cost.checked_add(write.bytes()),
+                None => None,
+            };
+        }
         let count = writes.len().checked_add(3);
         let fits = match (cost, count) {
-            (Some(cost), Some(count)) => u64::from(cost) <= page.room.bytes && count <= page.room.writes,
+            (Some(cost), Some(count)) => cost <= page.room.bytes && count <= page.room.writes,
             (None, _) | (_, None) => false,
         };
         if !fits {
@@ -45,9 +53,9 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             return Ok(JobAnswer { writes: writes.into_boxed(), through });
         }
         bytes = cost.expect("cost checked");
-        writes.push(JobWrite::Put { key: cold_key, value: cold }).expect("uncapped job writes");
-        writes.push(JobWrite::Put { key: hot_key, value: hot }).expect("uncapped job writes");
-        writes.push(JobWrite::Erase { key: row.key.clone() }).expect("uncapped job writes");
+        for write in row_writes {
+            writes.push(write).expect("uncapped job writes");
+        }
         through = Some(row.key.clone());
     }
     Ok(JobAnswer { writes: writes.into_boxed(), through: None })
@@ -67,10 +75,4 @@ fn legacy(key: &[u8], bytes: &[u8]) -> Option<ChangeRow> {
         return None;
     }
     Some(row)
-}
-
-fn cost(cold_key: &[u8], cold: &[u8], hot_key: &[u8], hot: &[u8], old_key: &[u8]) -> Option<u32> {
-    skein_kv::put_bytes(u32::try_from(cold_key.len()).ok()?, u32::try_from(cold.len()).ok()?)?
-        .checked_add(skein_kv::put_bytes(u32::try_from(hot_key.len()).ok()?, u32::try_from(hot.len()).ok()?)?)?
-        .checked_add(skein_kv::erase_bytes(u32::try_from(old_key.len()).ok()?)?)
 }

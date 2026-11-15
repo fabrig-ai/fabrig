@@ -98,18 +98,14 @@ fn writes_bytes(writes: &[JobWrite]) -> u32 {
 
 #[test]
 fn projection_parts_pages_obey_both_edges_and_pass_rows_already_in_parts() {
-    let mut page = JobPage {
-        rows: whole_rows(11).into(),
-        end: false,
-        layout: None,
-        room: JobRoom { writes: 4, bytes: u64::from(u32::MAX) },
-    };
+    let mut page =
+        JobPage { rows: whole_rows(11).into(), end: false, layout: None, room: JobRoom { writes: 4, bytes: u64::MAX } };
     let answer = jobs::page("projection-parts", &page).unwrap();
     assert_eq!(answer.writes.len(), 4);
     let first_bytes = writes_bytes(&answer.writes[..2]);
     let total = writes_bytes(&answer.writes);
     for edge in [
-        JobRoom { writes: 2, bytes: u64::from(u32::MAX) },
+        JobRoom { writes: 2, bytes: u64::MAX },
         JobRoom { writes: 2, bytes: u64::from(first_bytes) },
         JobRoom { writes: 4, bytes: u64::from(total - 1) },
     ] {
@@ -119,9 +115,7 @@ fn projection_parts_pages_obey_both_edges_and_pass_rows_already_in_parts() {
         assert_eq!(answer.through, Some(page.rows[0].key.clone()));
         assert_eq!(writes_bytes(&answer.writes), first_bytes);
     }
-    for edge in
-        [JobRoom { writes: 1, bytes: u64::from(u32::MAX) }, JobRoom { writes: 4, bytes: u64::from(first_bytes - 1) }]
-    {
+    for edge in [JobRoom { writes: 1, bytes: u64::MAX }, JobRoom { writes: 4, bytes: u64::from(first_bytes - 1) }] {
         page.room = edge;
         let refusal = jobs::page("projection-parts", &page).unwrap_err();
         assert_eq!(refusal.key, Some(page.rows[0].key.clone()));

@@ -8,7 +8,7 @@ use skein_lib::{List, Reader, Writer, length::usize_of};
 pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     let mut writes = List::uncapped();
     let mut through = None;
-    let mut bytes = 0_u32;
+    let mut bytes = 0_u64;
     for row in &page.rows {
         let Some(parts) = convert(&row.key, &row.value) else {
             return Err(refusal(&row.key, "invalid projection row"));
@@ -47,15 +47,15 @@ fn within(value: Option<u32>, limit: u32) -> bool {
     }
 }
 
-fn within_bytes(value: Option<u32>, limit: u64) -> bool {
+fn within_bytes(value: Option<u64>, limit: u64) -> bool {
     match value {
-        Some(value) => u64::from(value) <= limit,
+        Some(value) => value <= limit,
         None => false,
     }
 }
 
-fn parts_size(hot: &JobWrite, words: &JobWrite, bytes: u32) -> Option<u32> {
-    bytes.checked_add(put_size(hot)?)?.checked_add(put_size(words)?)
+fn parts_size(hot: &JobWrite, words: &JobWrite, bytes: u64) -> Option<u64> {
+    bytes.checked_add(hot.bytes())?.checked_add(words.bytes())
 }
 
 fn convert(key: &[u8], bytes: &[u8]) -> Option<Converted> {
@@ -91,13 +91,4 @@ fn put(value: wire::ProjectionRecord) -> Option<JobWrite> {
     let mut writer = Writer::new(usize_of(row.measure()));
     row.encode(&mut writer).ok()?;
     Some(JobWrite::Put { key, value: writer.finish() })
-}
-
-fn put_size(write: &JobWrite) -> Option<u32> {
-    match write {
-        JobWrite::Put { key, value } => {
-            skein_kv::put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)
-        }
-        JobWrite::Erase { .. } => None,
-    }
 }

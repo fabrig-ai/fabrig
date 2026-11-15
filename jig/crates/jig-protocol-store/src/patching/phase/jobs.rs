@@ -293,8 +293,8 @@ fn operations(
     number: u64,
     end: bool,
 ) -> Result<Box<[skein_kv::Op]>, JobRefusal> {
-    let edge = room(store, of, job).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
-    if len_u64(writes.len()) > u64::from(edge.writes) {
+    let room = room(store, of, job).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
+    if len_u64(writes.len()) > u64::from(room.writes) {
         return Err(invalid(None, "job answer is past the store commit edge"));
     }
     let done = crate::jobs::kept::operation(store, of, job, number).ok_or(invalid(None, "job row does not fit"))?;
@@ -319,7 +319,7 @@ fn operations(
         bytes = bytes.checked_add(size).ok_or(invalid(None, "job write does not fit"))?;
         ops.push(op).expect("answer count checked");
     }
-    if bytes > edge.bytes {
+    if bytes > room.bytes {
         return Err(invalid(None, "job answer is past the store commit byte bound"));
     }
     if end {

@@ -74,7 +74,7 @@ record LiveCold { spec: Spec contract: Contract authority: Authority instruction
 - **Value types** (`layouts.md`, 2): the live key's range stays value
   type 0, the tasks' `Row` whole, which now holds `live_hot` there.
   `01 01 18` is value type 21, `Row`'s variant `live_cold`, over
-  `[01 01 18, 01 02)`; holds narrow to `[01 01 17, 01 01 18)`.
+  `[01 01 18, 01 02)`; S5's holds (value type 20) narrow to `[01 01 17, 01 01 18)`.
   The census names `01 01 18` `tasks.live-cold`. `Row`'s `Value` gains
   `live_hot` and `live_cold` after its last variant. `live` and
   `live_talk` stay declared, read by the job (4) alone.
@@ -157,9 +157,9 @@ when they land:
   job decodes it by the binary's code, splits it by the codec's split
   (2, 3) and encodes each part as a save of it is, `models` included.
   A row already in parts passes with no write.
-- **Each answer** stays within the commit edge less the job's row:
-  a whole row makes two puts, so an answer consumes the page's rows that
-  fit (`through`) and the next page goes on after them.
+- **Each answer** stays within the page's room (`jobs.md`, 3):
+  a whole row makes two puts, so an answer consumes the page's rows whose
+  writes fit (`through`) and the next page goes on after them.
 - **Its cost:** on dev.fabrig.ai about 20 to 70 live tasks and about 80
   projection rows: a commit or a few, read and written in memory.
 - **A later job** that rewrites live tasks or projections, declared after
@@ -187,7 +187,7 @@ when they land:
 - **The jobs,** step tests: a store holding whole rows, as a binary
   before this one wrote them, runs each job once in pages within the
   commit edge; afterwards no whole row remains, every record reads back
-  equal to the one written before, ended tasks and milestones are as
+  equal to the one written before, ended tasks, attempts and holds are as
   they were, and a later start runs it no more.
 - **Fuzzy:** the tasks world's lifecycle and amendments suites, with
   their restart cuts, read every live task back equal after a restart;

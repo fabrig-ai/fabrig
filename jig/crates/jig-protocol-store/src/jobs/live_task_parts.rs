@@ -22,14 +22,8 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         {
             let mut size = 0_u64;
             for write in &pair {
-                let JobWrite::Put { key, value } = write else { unreachable!("parts are puts") };
-                let put = skein_kv::put_bytes(
-                    u32::try_from(key.len()).expect("bounded job key"),
-                    u32::try_from(value.len()).expect("bounded job value"),
-                )
-                .ok_or(refusal(Some(row.key.clone()), "live parts exceed row bounds"))?;
                 size = size
-                    .checked_add(u64::from(put))
+                    .checked_add(write.bytes())
                     .ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
             }
             let total = bytes.checked_add(size).ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;

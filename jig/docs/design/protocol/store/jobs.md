@@ -55,9 +55,11 @@ pub struct Converts {
   the map, never the secrets' store; a written job's family a registered
   family of the set and its value type one of that family's, its ranges
   that value type's.
-- **jig's jobs:** `charter-versions`, a written job (4), and
+- **jig's jobs:** `charter-versions`, a written job (4);
   `milestones`, which folds the tasks' milestones into their attempts
-  and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4).
+  and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4);
+  and `live-task-parts` and `projection-parts`, which put a store's whole
+  live tasks and projection rows into their parts (`parts.md`, 4).
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one
@@ -101,16 +103,6 @@ pub struct Converts {
   answers `Request::Job`. While a page is out, the owner may read other
   ranges of the map through `Store::patch_page`, as a written site's
   owner may.
-- **Its edge:** each page carries `room`, what its answer may write:
-  `writes`, the commit edge's writes (`records.md`, 4: the lesser of
-  `limits.commits.writes` and `limits.store.ops`) less one for the
-  job's row; `bytes`, the store's commit bytes less the frame and the
-  job's row, and, for the application, less the tag's bytes on each of
-  `writes` keys, so an owner that counts each write by skein-kv's
-  `put_bytes` or `erase_bytes` over the keys it writes stays within.
-  One function computes it for the page and for the check of the
-  answer, so the two cannot differ. An owner whose rows each take
-  several writes consumes the rows whose writes fit (`through`).
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the

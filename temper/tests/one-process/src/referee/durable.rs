@@ -312,7 +312,7 @@ impl Store {
         self.applied = commit.number;
     }
     fn decode(
-        &self,
+        &mut self,
         key: &core::Key,
         value: &[u8],
         ops: &[skein_kv::Op],
@@ -328,7 +328,9 @@ impl Store {
         let mut cold = None;
         for op in ops {
             match op {
-                skein_kv::Op::Put { key, value } if *key == raw => cold = Some(value.clone()),
+                skein_kv::Op::Put { key, value } if *key == raw => {
+                    cold = Some(self.layouts.serving(key, value.clone()).ok()?);
+                }
                 skein_kv::Op::Erase { key } if *key == raw => return None,
                 skein_kv::Op::Put { .. } | skein_kv::Op::Erase { .. } => {}
             }
@@ -340,8 +342,7 @@ impl Store {
             };
             cold = codec::encode(record, limits, names);
         }
-        let mut cold = cold?;
-        cold.get_mut(..2)?.copy_from_slice(&13_u16.to_be_bytes());
+        let cold = cold?;
         Some(core::Record::Tasks(codec::tasks::decode_live(value, &cold, &limits.tasks, names).ok()?))
     }
 
