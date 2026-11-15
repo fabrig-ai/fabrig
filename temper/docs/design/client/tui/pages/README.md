@@ -7,7 +7,10 @@ launchpad, the root at `Home { project }`; a chat, the root at
 `Chat { task }` (`../README.md`, 3, *Its pages*), with its draft beside it where it
 has one (`design-session.md`, section 1); and a talk with a standing role,
 the root at `Talk { project, task }`, drawn as a chat under a head of its
-own (`talk.md`, section 1). Signing in has a framed top, the
+own (`talk.md`, section 1). Over the launchpad, a chat or a talk, a
+place of the TUI's own not yet started, for `/ask`, `/change`, `/draft`
+or `/tell` pressed alone, is drawn as a chat before its first message
+(section 2, *Not yet started*). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: the link's state, and what closes the TUI. The
 launchpad opens with the header, two lines, the mark, the build and the
@@ -35,7 +38,8 @@ the foot and the commands (`../box.md`).
   narrow row leaves out; the question set aside by "Tell it something
   else" (`chat.md`, section 2); the notice standing (`README.md`, section 1, *The notice*);
   the theme chosen, the terminal's scheme Auto reads, and whether the
-  theme's list stands (`README.md`, section 2, *`/theme`*); the left-off chat selected on the
+  theme's list stands (`README.md`, section 2, *`/theme`*); the place
+  not yet started, if one stands (section 2, *Not yet started*); the left-off chat selected on the
   launchpad, by its task (`launchpad.md`, 4, *Where you left off*); the reply whose choices
   were set aside, and the chat a goal's start was asked from (`design-session.md`, section 1); and whether it is on a
   box (`../README.md`, 2, *On a box*). The root stays the one source of the
@@ -99,7 +103,8 @@ chat, the running line above them.
   11.1 and its Pair mockup have it), "/ for commands" with no project, "Reply" on a chat, and on a chat
   that has ended "/new starts another chat", as the browser's terminal
   keeps its box for commands there; on a talk its own (`talk.md`, section
-  1, *The box*); none while a list stands under it.
+  1, *The box*); in a place not yet started its own (section 2, *Not yet
+  started*); none while a list stands under it.
   - *With a project its words are the root's:* Home's composer's on the launchpad
     (`Act::ChatWords`) and the chat's on a chat (`Act::MessageWords`),
     so that what the domain reads of them, a command's beginning, a
@@ -125,7 +130,8 @@ chat, the running line above them.
     launchpad's empty box with a left-off chat
     selected, that chat opened (`launchpad.md`, 4, *Where you left off*); else the box's
     words, by what they are, in this order: a
-    command's beginning, as `README.md`, section 2 says; on a chat whose question
+    command's beginning, as `README.md`, section 2 says; in a place not
+    yet started, its first words (section 2, *Not yet started*); on a chat whose question
     stands, its answer in words (`chat.md`, section 2); with no
     project, nothing; otherwise sent: on the launchpad `Act::StartChat`,
     which asks Ask temper in the project and opens the chat it makes
@@ -297,36 +303,90 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   change, run as the project's way says", "A role, about its area", "Ask
   temper", "The brief, whole", "Walk what needs you", "Open this on the
   web", "Tell temper what's off", "Auto, light or dark".
-  - *`/draft`* on the launchpad, pressed or sent alone, leaves "/draft "
-    in the box for the words; sent with words, `/draft WORDS` starts a
+  - *`/draft`* on the launchpad, pressed or sent alone, goes to a design
+    session not yet started (*Not yet started*); sent with words, `/draft WORDS` starts a
     design session as the browser's new chat with a draft does (`../../pages/README.md`, *A
     new chat*, *With a draft*): the root to `NewChat { draft: true }`,
     its words, `Act::StartChat`, so the domain sends WORDS, a blank line
     and "Write this up as a draft beside us." from template 6 where `me`
     lists it, and from the project's chat template otherwise; the chat
     opens as a chat started from the launchpad is, its pane at half (`design-session.md`, section 1). A refusal is drawn under the box, as `/change`'s.
-  - *`/change` and `/ask`,* pressed or sent alone, leave "/change " or
-    "/ask " in the box for the words; sent with words, `/change WORDS`
+  - *`/change` and `/ask`,* pressed or sent alone, go to a new change's
+    chat or an Ask temper chat not yet started (*Not yet started*); sent
+    with words, typed whole, the shortcut they were, `/change WORDS`
     starts a chat in the project, the one change's (the project's chat
     template, as the browser's "+ New chat" starts it: the root to
     `NewChat { draft: false }`, its words, `Act::StartChat`), opened as
     a chat started from the launchpad is, and run as the project's way
     says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
     is drawn under the box, as a send's, and the launchpad stays.
-  - *Their name left in the box* (the user's request `tui-17`,
-    2026-11-15): wherever `/draft`, `/change`, `/ask` or `/tell`,
-    pressed or sent alone, leaves its name and a space in the box, the
-    caret stands after the space, at the words' end, so that the words
-    typed go after it: "/change" pressed, then "fix the README" typed,
-    is "/change fix the README", never "/changefix the README ". Sent
-    with nothing after the name but white space ("/change ", "/ask  "),
-    on a screen that offers the command, it starts nothing, sends
-    nothing and files nothing, gives no notice, and the box keeps its
-    words as they are, the caret where it was: the person has yet to
-    say the words. A screen that doesn't offer it takes such words as
-    any other words. No hint of the command's words is drawn after the
-    space (the request's third ask, left to the designer:
-    `../README.md`, 5, *A command's words hinted*).
+  - *Not yet started* (the user's request `tui-20` of 2026-11-15, after
+    "/ask" pressed left "/ask " in the box and read as doing nothing; it
+    replaces `tui-17`'s name left in the box): `/draft`, `/change`,
+    `/ask` and `/tell`, pressed, or sent alone with or without white
+    space after the name, on a screen that offers them, go to their
+    place not yet started: the TUI's own, `Tui`'s, as the theme's list
+    is, over the screen they were pressed on, which stays the root's.
+    Nothing reaches the root, and so nothing a model, until the person
+    sends words there: the user's word on `tui-17` holds, "when entering
+    /change no prompt should be started". It is a place of the TUI's
+    rather than the root's `Ask { project }` or `NewChat { draft }`
+    (the request left it to the designer): `/tell` has no root page,
+    going back ends the TUI's state alone, and the first words take the
+    path `NAME WORDS` takes. A screen that doesn't offer the command
+    takes such words as any other words.
+    - *Drawn* as a chat before its first message: no header and no
+      conversation yet, then the foot (section 1): the rule above the
+      box as a chat's (`chat.md`, section 1, *The rule above the box*),
+      the project, " / ", the place's title, " on " and the engine's
+      place, with no chat's number; the box, empty, with the focus and
+      the place's placeholder, named by the place's title; and the
+      quiet line of the screen under it (section 1, *The quiet line*),
+      with no "n to walk" and no pane parts. Each place's title, then
+      its placeholder, the TUI's own words:
+      - `/ask`: "Ask temper"; "Ask temper anything, or Esc to go back."
+      - `/change`: "New change"; "Say the change, or Esc to go back."
+      - `/draft`: "Design session"; "Say what to design, or Esc to go
+        back."
+      - `/tell`: "Tell temper"; "Tell temper what's off, or Esc to go
+        back."
+
+      The placeholder is skein's, painted while the box is empty
+      (skein's `ui/screen.md`, 5.4), as a talk's "Talk to NAME, or Esc
+      to go back." is (`talk.md`, section 1).
+    - *Its box* holds the words of the screen under it: Home's
+      composer's on the launchpad (`Act::ChatWords`), a chat's or a
+      talk's under `/tell` (`Act::MessageWords`). Going to the place
+      clears them, as a command pressed does (*Pressed*), clears the
+      launchpad's left-off selection and ends a walk standing. On its
+      empty box Up, Down and `n` are the box's: no left-off chat is
+      selected, `n` types, and Ctrl-P moves no pane.
+    - *Its first words,* sent, do what `NAME WORDS` sent on the screen
+      under it does (`/draft`, `/change` and `/ask`, `/tell`, here):
+      `/ask`'s ask Ask temper, `/change`'s start the change's chat,
+      `/draft`'s the design session, `/tell`'s are filed. The place
+      stands while the start is asked, the words in its box, and ends as
+      the root opens the chat the words made; a refusal stands under its
+      box, the words kept and the place standing, so that the person
+      can send again. Filed, a word ends the place, back on the screen
+      under it, with the notice "Filed as finding N on PROJECT."; a
+      word refused, lost or too long comes back to the place's box,
+      WORDS alone, its refusal under it. Enter on an empty box, or one
+      of white space alone, does nothing.
+    - *Words that begin with "/"* are as on the screen under it: its
+      commands offered, listed and pressed as there (*Offered*, *The
+      list*, *Pressed*), the place standing; one of the four alone goes
+      to its own place instead; `NAME WORDS` sent whole does as on that
+      screen.
+    - *Esc* on its empty box with no list standing goes back where the
+      person came from: the place ends, starting nothing, and where a
+      refused start left the root at `NewChat`, the root goes back to
+      `Home { project }`. With words in its box Esc does nothing; with a
+      list standing, it closes the list, as anywhere.
+    - *It ends* too as the root goes to any other page: a chat or a
+      talk opened, `/new`, a `Show` followed (`../README.md`, 3, *Its
+      pages*), the link signed out; never by the `NewChat` or `Home` its
+      own start passes through.
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
@@ -352,7 +412,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     "No role on PROJECT is named WORDS · /talk lists them", and the box
     keeps its words.
   - *`/tell`* (`../../../draft/surfaces.md`, 9 and 11.4), pressed or sent
-    alone, leaves "/tell " in the box for the words; sent with words,
+    alone, goes to temper's Tell not yet started (*Not yet started*),
+    whose `about` is the screen under it; sent with words,
     `/tell WORDS` files them as Tell temper does, the root's `Act::Tell {
     project, words, about }` (`../../pages/needs-you.md`, 1, *Tell temper*), in the
     screen's project, the launchpad's or the chat's or talk's task's, and
@@ -361,7 +422,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     told in a standing role's talk goes to the area the role holds
     (*Where it goes*, there). Filed, the notice "Filed as finding N on
     PROJECT." (`tell::State::Filed`); refused, the box holds "/tell WORDS"
-    again and the refusal is drawn under it in the view's words
+    again (in the place not yet started, WORDS alone) and the refusal is drawn under it in the view's words
     (`shared::finding_refusal`); lost, the same with "temper couldn't
     file that. Try again."; past the bound, the same with "Too long to
     file: N bytes past 4,096.". Each outcome is said once, by its

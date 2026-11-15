@@ -4,10 +4,11 @@
 
 - **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
   flight: change 3611].
-- **Not yet:** 3: the events table's `Send` and `Own` rows: the caret
-  after a command's name and the name alone sent [in flight: change
-  3607]; its `Act { act }` row: a close done going to the launchpad [in
-  flight: change 3609].
+- **Not yet:** 3: the events table's `Act { act }` row: a close done
+  going to the launchpad [in flight: change 3609].
+- **Not yet:** 3: the events table's `Send`, `Own` and `Back` rows and
+  *Its pages*: no place not yet started and no `Back`; a command's name
+  alone is left in the box [in flight: change 4200].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,

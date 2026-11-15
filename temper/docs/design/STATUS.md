@@ -284,10 +284,16 @@ the place (`client/tui/pages/README.md`, 3). The requests `tui-15` to
 `tui-19` of the same day, goal 3597, add blank rows around temper's
 line when the terminal is lent, draw the header and the welcome as
 their mockups (a blank row on top, the mark at column 1, the link at
-"Welcome."'s column, "In the browser" on one line), put the caret after
-"/change " and start nothing on a command's name alone, go back to the
+"Welcome."'s column, "In the browser" on one line), go back to the
 launchpad once `/close` is done, and give each recording run its own
-file, the last ten kept (`client/tui/journeys.md`, 3.1).
+file, the last ten kept (`client/tui/journeys.md`, 3.1). The requests
+`tui-20` and `tui-21` of the same day, goal 4172, take `/ask`,
+`/change`, `/draft` and `/tell` alone to a chat not yet started, its
+box empty with a placeholder, started by the first words sent and left
+by Esc, in the place of `tui-17`'s name left in the box
+(`client/tui/pages/README.md`, 2, *Not yet started*), and put the
+link's state first on every screen's bottom row, at its first column
+(`client/tui/pages/README.md`, *The link's state*).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
