@@ -419,6 +419,7 @@ pub(super) fn prepare(
         | Event::SignInAddress { .. }
         | Event::SignInKept { .. }
         | Event::Went { .. }
+        | Event::Returned { .. }
         | Event::Told { .. }
         | Event::Push(_)
         | Event::Link { .. }) => event,
@@ -455,6 +456,7 @@ pub(super) fn prepare(
         | Event::SignInAddress { .. }
         | Event::SignInKept { .. }
         | Event::Went { .. }
+        | Event::Returned { .. }
         | Event::Told { .. }
         | Event::Push(_)
         | Event::Link { .. }) => Some(event),

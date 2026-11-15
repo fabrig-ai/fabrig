@@ -26,6 +26,7 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, bool),
     Place(Box<[u8]>),
+    Returned(Box<[u8]>),
 }
 struct Shell {
     host: host::Host,
@@ -86,7 +87,7 @@ pub fn start() {
         dom,
         platform,
         store,
-        history: history::web::History::new(Rc::clone(&inbox), Report::Place),
+        history: history::web::History::new(Rc::clone(&inbox), Report::Place, Report::Returned),
         timer: timer::web::Timer::new(Rc::clone(&inbox), || Report::Due),
         title: title::web::Title::default(),
     };
@@ -108,7 +109,7 @@ impl Shell {
                     self.host.due();
                 }
                 Report::Act(node, act) => self.host.act(node, act),
-                Report::Place(path) => self.host.went(&path),
+                Report::Place(path) | Report::Returned(path) => self.host.went(&path),
                 Report::Fetch(report) => self.host.heard(adapter::fetched(report)),
                 Report::Carried(reports, stored) => self.host.carried(reports, stored),
             }

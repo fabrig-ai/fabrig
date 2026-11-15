@@ -151,6 +151,17 @@ fn each_piece_is_sent_at_its_own_latency() {
 }
 
 #[test]
+fn a_hold_read_reports_only_calls_sitting_at_that_hold() {
+    let mut play = Playback::new(STREAM_CONFIG, Box::new([piece(b"a", Some(b"h"))]));
+    assert!(!play.domain.is_held(b"h"), "the call has not reached its hold");
+    play.fire(1);
+    assert!(play.domain.is_held(b"h"), "the call is parked at its hold");
+    assert!(!play.domain.is_held(b"other"), "only the named hold is open");
+    play.release(b"h");
+    assert!(!play.domain.is_held(b"h"), "a release resumes the held call");
+}
+
+#[test]
 fn a_release_before_its_hold_changes_nothing() {
     let mut play = Playback::new(STREAM_CONFIG, Box::new([piece(b"a", Some(b"h"))]));
     play.release(b"h");

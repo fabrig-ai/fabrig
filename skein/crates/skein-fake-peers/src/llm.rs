@@ -203,6 +203,12 @@ impl Peer {
         self.ignore_half_close = true;
     }
 
+    /// Whether an accepted call is sitting at this named hold.
+    #[must_use]
+    pub fn is_held(&self, name: &[u8]) -> bool {
+        self.domain.is_held(name)
+    }
+
     /// Queues a hold name for the next domain pass, without releasing from the wire.
     pub fn release(&mut self, name: &[u8]) -> Result<(), Error> {
         if name.is_empty() || name.len() > 64 || self.releases.room() == 0 {

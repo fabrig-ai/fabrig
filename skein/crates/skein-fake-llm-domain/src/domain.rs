@@ -388,6 +388,17 @@ impl Domain {
         self.calls.len()
     }
 
+    /// Whether a call is sitting at this named hold, not merely approaching it.
+    #[must_use]
+    pub fn is_held(&self, name: &[u8]) -> bool {
+        for id in &self.held {
+            if pieces::held_at(&self.calls.get(*id).expect("held call lives").state, &self.played.scripts, name) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Earliest injected deadline still pending, or `None` when no timed work remains.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.

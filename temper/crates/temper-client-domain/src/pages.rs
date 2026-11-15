@@ -375,6 +375,7 @@ pub enum Event {
     SignInAddress { value: skein_lib::Secret },
     SignInKept { source: u32, address: Box<[u8]>, refused: bool },
     Went { address: Address },
+    Returned { address: Address },
     Act { act: Act },
     Told { told: Told },
     Link { link: Link },
@@ -736,6 +737,19 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
     }
+    let returning = match &event {
+        Event::Returned { .. } => true,
+        Event::Push(_)
+        | Event::Started
+        | Event::Left
+        | Event::AccountKey { .. }
+        | Event::SignInAddress { .. }
+        | Event::SignInKept { .. }
+        | Event::Went { .. }
+        | Event::Act { .. }
+        | Event::Told { .. }
+        | Event::Link { .. } => false,
+    };
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
         Event::Act { act: Act::OpenLanded { draft, start } } => {
@@ -772,14 +786,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Push(report) => pages.told.report(report, &mut pages.serial, env.limits.forge, out),
         Event::Started => started(pages, out),
-        Event::Went { address } => {
+        Event::Went { address } | Event::Returned { address } => {
             team::hand::leave(pages, out);
-            if pages.address != address
+            if (returning || pages.address != address)
                 && let Some(chat) = &pages.chat
             {
                 chat.leave_talk(client, &mut pages.serial, out);
             }
-            went(pages, env, client, address, out);
+            went(pages, env, client, address, returning, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
             }
@@ -1279,7 +1293,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Address::ConnectModel { .. } = pages.address
         && let Some(added) = connect_model::added(pages, client)
     {
-        went(pages, env, client, Address::Accounts, out);
+        went(pages, env, client, Address::Accounts, false, out);
         pages.accounts.added = Some(added);
         pages.accounts.added_from_connect = true;
         out.push(Request::Replace { address: Address::Accounts });
@@ -1761,38 +1775,46 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 }
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
-fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address, out: &mut Queue<Request>) {
-    if pages.address != address {
+fn went(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    address: Address,
+    returned: bool,
+    out: &mut Queue<Request>,
+) {
+    let changing = returned || pages.address != address;
+    if changing {
         tell::remember(pages, client);
-        if !tell::showing(&address) {
+        if returned || !tell::showing(&address) {
             pages.tell_words = Box::default();
         }
     }
-    if pages.address != address {
+    if changing {
         pages.notes.clear();
         pages.listing = None;
         if let Some((project, _)) = &pages.ask_with
-            && address != (Address::Ask { project: *project })
+            && (returned || address != (Address::Ask { project: *project }))
         {
             pages.ask_with = None;
         }
     }
     if address == Address::Members {
-        if pages.members.is_none() {
+        if returned || pages.members.is_none() {
             pages.members = Some(members::Members::new());
         }
     } else {
         pages.members = None;
     }
     if address == Address::Remembered {
-        if pages.remembered.is_none() {
+        if returned || pages.remembered.is_none() {
             pages.remembered = Some(remembered::Remembered::new());
         }
     } else {
         pages.remembered = None;
     }
     pages.told_open = address == Address::Told;
-    if !pages.told_open {
+    if returned || !pages.told_open {
         pages.told.close(out);
     }
     let mut opening = chat::document::Mode::Chat;
@@ -1804,20 +1826,21 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         opening = mode;
         started = true;
     }
-    if pages.address != address {
+    if changing {
         pages.forges_opened = None;
         pages.start = None;
     }
-    if pages.address != address {
+    if changing {
         pages.stop_asking = None;
     }
-    pages.needs.went(&pages.address, &address);
+    pages.needs.went(&pages.address, &address, returned);
     pages.switcher.went(&address);
-    if let (
-        Address::Chats { .. } | Address::NewChat { .. },
-        Address::Chats { .. } | Address::NewChat { .. },
-        Some(page),
-    ) = (&pages.address, &address, &mut pages.chats)
+    if !returned
+        && let (
+            Address::Chats { .. } | Address::NewChat { .. },
+            Address::Chats { .. } | Address::NewChat { .. },
+            Some(page),
+        ) = (&pages.address, &address, &mut pages.chats)
     {
         if let Address::Chats { filter } = address {
             page.filter = filter;
@@ -1828,7 +1851,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         pages.address = address;
         return;
     }
-    if let (Some(current), Some(project)) = (work_project(&pages.address), work_project(&address))
+    if !returned
+        && let (Some(current), Some(project)) = (work_project(&pages.address), work_project(&address))
         && current == project
         && let Some(page) = &mut pages.goals
     {
@@ -1838,7 +1862,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         pages.address = address;
         return;
     }
-    if let (Address::Task { task: current }, Address::Task { task }, Some(_)) = (&pages.address, &address, &pages.task)
+    if !returned
+        && let (Address::Task { task: current }, Address::Task { task }, Some(_)) =
+            (&pages.address, &address, &pages.task)
         && current == task
     {
         pages.address = address;
@@ -1860,12 +1886,20 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         && pages.chat.is_none()
         && pages.task.is_none()
         && pages.welcome.is_none())
-        || pages.address != address
+        || changing
     {
         if let Some(page) = &mut pages.connect_model {
-            page.changing_way(&pages.address, &address);
+            if returned {
+                page.leave();
+            } else {
+                page.changing_way(&pages.address, &address);
+            }
         }
         pages.accounts.leave(out);
+        if returned {
+            pages.team.leave(out);
+            pages.switcher.close();
+        }
         pages.builders.leave(out);
         pages.roles.leave(out);
         pages.team_open = address_project(&address).is_some() || tell::showing(&address);
@@ -1956,7 +1990,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
         }
         let keep_ways = match address_project(&address) {
             Some(project) => {
-                address_project(&pages.address) == Some(project)
+                !returned
+                    && address_project(&pages.address) == Some(project)
                     && (address == (Address::Ask { project }) || address == (Address::Settings { project }))
             }
             None => false,
