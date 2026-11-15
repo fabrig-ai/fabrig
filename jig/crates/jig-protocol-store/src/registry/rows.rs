@@ -35,7 +35,10 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                         .ok()
                         .ok_or(OpenRefusal::Failed)?;
                     let bytes = Box::from(value.text());
-                    layouts.texts.insert(digest, Text { bytes, schema: None, stored: true }).expect("uncapped texts");
+                    layouts
+                        .texts
+                        .insert(digest, Text { bytes, schema: None, stored: true, current: false })
+                        .expect("uncapped texts");
                 }
                 Some(
                     keys::Own::Format

@@ -244,6 +244,6 @@ pub(super) fn plans(
         }
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });
     }
-    texts::clear(layouts);
+    texts::clear_all(layouts);
     Ok(())
 }
