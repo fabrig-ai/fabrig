@@ -1151,7 +1151,7 @@ fn failed_run_stderr_escapes_control_bytes_on_one_line() {
     );
 }
 
-const PREPARATION_DETAIL: &str = "host w1: check out: TimedOut (workspace 3, repository 0 fab\"ric, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x";
+const PREPARATION_DETAIL: &str = "host w1: check out: TimedOut (workspace 3, repository 0 quo\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x";
 
 #[test]
 fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
@@ -1159,7 +1159,7 @@ fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
     let note = failed_run_note(&detail, jig_domain_host::Failure::Unprepared(jig_domain_host::Preparation::Transient));
     assert_eq!(
         note_line("temper", note),
-        "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): host w1: check out: TimedOut (workspace 3, repository 0 fab\\\"ric, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x\\n\\x00\\xff\n"
+        "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): host w1: check out: TimedOut (workspace 3, repository 0 quo\\\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x\\n\\x00\\xff\n"
     );
 }
 
@@ -1170,7 +1170,7 @@ fn failed_run_stderr_keeps_a_bounded_head() {
     const OVERSIZED_BYTES: usize = 5000;
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
     let expected_detail = format!(
-        "host w1: check out: TimedOut (workspace 3, repository 0 fab\\\"ric, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x{}",
+        "host w1: check out: TimedOut (workspace 3, repository 0 quo\\\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x{}",
         "x".repeat(DETAIL_BYTES - PREPARATION_DETAIL.len()),
     );
     for length in [DETAIL_BYTES, OVERSIZED_BYTES] {
