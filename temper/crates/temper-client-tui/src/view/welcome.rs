@@ -214,7 +214,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
             || root.client().link().state == Link::Starting
         {
             let mut last = None;
-            for line in tui.box_log() {
+            for line in tui.box_lines() {
                 last = Some(line);
             }
             match last {

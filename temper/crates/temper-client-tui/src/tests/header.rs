@@ -31,7 +31,7 @@ fn the_header_names_only_the_build_and_place() {
         tui.header(plain, version.into());
         tui.step(Told::Local { local: Local::Signing });
         if front {
-            tui.step(Told::Front);
+            tui.step(Told::Front { set_up: false, box_log: Box::default() });
         }
         let mut view = f::view();
         f::build(&mut view, &tui, &root);
@@ -126,7 +126,7 @@ fn the_welcome_uses_the_header_and_spaces_its_link() {
     let (root, _) = f::starting();
     let mut tui = Tui::new(f::ADDRESS);
     tui.header(false, VERSION.into());
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     tui.step(Told::BoxLine {
         line: crate::BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:8367/link".as_slice().into()) },
     });
