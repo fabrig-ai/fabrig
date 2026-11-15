@@ -43,7 +43,7 @@ fn reds_bound_the_count_and_key_when_built_and_decoded() {
 #[test]
 fn reds_roots_have_no_counterpart_before_v8() {
     let application = crate::application(&fixtures::limits()).unwrap();
-    let bridge = application.bridges.get(0).unwrap();
+    let bridge = application.kept.get(0).unwrap().bridge().unwrap();
     for root in [b"Ask".as_slice(), b"Answer"] {
         assert_eq!(bridge.total(7, root), None, "the previous version has no counterpart");
     }

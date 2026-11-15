@@ -1,6 +1,6 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::{Agreed, Application, Carried, Root, v14 as wire};
+use crate::{Agreed, Application, Carried, Kept, Root, v14 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -23,17 +23,32 @@ pub struct Translation {
     jig: Lazy,
     charter: Lazy,
     transcript: Lazy,
-    application: List<Bridge>,
+    application: List<KeptBridge>,
     roots: List<Root>,
 }
 
 impl Translation {
     pub fn new(application: Application) -> Result<Self, BridgeError> {
+        let mut kept = List::uncapped();
+        for wire in application.kept.into_boxed() {
+            let text = wire.texts.last().ok_or(BridgeError::Floor)?;
+            let schema = skein_codec::schema::parse(text.as_bytes()).or(Err(BridgeError::Floor))?;
+            if schema.spelled(schema.family()) != wire.family.as_bytes() {
+                return Err(BridgeError::Floor);
+            }
+            for root in &application.roots {
+                if root.wire == wire.family && schema.find(root.declaration.as_bytes()).is_none() {
+                    return Err(BridgeError::Floor);
+                }
+            }
+            let current = schema.version();
+            kept.push(KeptBridge { kept: wire, current, machine: None }).expect("uncapped kept wires");
+        }
         for root in &application.roots {
             let mut found = false;
-            for bridge in &application.bridges {
-                if bridge.family() == root.wire.as_bytes() {
-                    found = bridge.total(bridge.current(), root.declaration.as_bytes()).is_some();
+            for wire in &kept {
+                if wire.kept.family == root.wire {
+                    found = true;
                 }
             }
             if !found {
@@ -44,7 +59,7 @@ impl Translation {
             jig: Lazy::new(Family::Records),
             charter: Lazy::new(Family::Charter),
             transcript: Lazy::new(Family::Transcript),
-            application: application.bridges,
+            application: kept,
             roots: application.roots,
         })
     }
@@ -111,11 +126,15 @@ impl Translation {
 
     #[cfg(test)]
     pub(crate) fn planned(&self) -> u32 {
-        u32::from(self.jig.machine.is_some())
+        let mut made = u32::from(self.jig.machine.is_some())
             .checked_add(u32::from(self.charter.machine.is_some()))
             .expect("three families")
             .checked_add(u32::from(self.transcript.machine.is_some()))
-            .expect("three families")
+            .expect("three families");
+        for wire in &self.application {
+            made = made.checked_add(u32::from(wire.machine.is_some())).expect("kept families fit");
+        }
+        made
     }
 
     fn current_payloads(&self, kind: u16, agreed: &[Agreed]) -> bool {
@@ -127,7 +146,7 @@ impl Translation {
                 return false;
             }
             for bridge in &self.application {
-                if wire.name.as_bytes() == bridge.family() && wire.version != bridge.current() {
+                if wire.name == bridge.kept.family && wire.version != bridge.current {
                     return false;
                 }
             }
@@ -137,7 +156,7 @@ impl Translation {
             && (kind == crate::Kind::Turn.number() || kind == crate::Kind::Assignment.number()))
     }
 
-    fn application_total(&self, wire: &Agreed) -> bool {
+    fn application_total(&mut self, wire: &Agreed) -> bool {
         for root in &self.roots {
             let sent = match root.carried {
                 Carried::Left
@@ -149,8 +168,8 @@ impl Translation {
                 Carried::JobSpec | Carried::Grant | Carried::Answer => false,
             };
             if sent && root.wire == wire.name {
-                for bridge in &self.application {
-                    if bridge.family() == wire.name.as_bytes()
+                for bridge in self.application.iter_mut() {
+                    if bridge.kept.family == wire.name
                         && bridge.total(wire.version, root.declaration.as_bytes()) != Some(true)
                     {
                         return false;
@@ -171,10 +190,10 @@ impl Translation {
         for root in &self.roots {
             if root.carried == carried {
                 for bridge in self.application.iter_mut() {
-                    if bridge.family() == root.wire.as_bytes() {
-                        let version = version_of(agreed, bridge.family()).unwrap_or(bridge.current());
-                        let (from, to) = versions(bridge.current(), version, down);
-                        return convert(bridge, from, to, root.declaration.as_bytes(), value);
+                    if bridge.kept.family == root.wire {
+                        let version = version_of(agreed, bridge.kept.family.as_bytes()).unwrap_or(bridge.current);
+                        let (from, to) = versions(bridge.current, version, down);
+                        return bridge.translate(from, to, root.declaration.as_bytes(), value);
                     }
                 }
             }
@@ -269,6 +288,41 @@ impl Translation {
             record.encode(&mut writer).or(Err(order()))?;
             Ok(writer.finish())
         }
+    }
+}
+
+/// Construction checks only the current schema; plans wait for an older version.
+#[derive(Debug)]
+struct KeptBridge {
+    kept: Kept,
+    current: u16,
+    machine: Option<Bridge>,
+}
+impl KeptBridge {
+    fn materialize(&mut self) -> Result<&mut Bridge, BridgeError> {
+        if self.machine.is_none() {
+            self.machine = Some(self.kept.bridge()?);
+        }
+        Ok(self.machine.as_mut().expect("materialized application bridge"))
+    }
+    fn translate(&mut self, from: u16, to: u16, root: &[u8], value: Box<[u8]>) -> Result<Box<[u8]>, Untranslated> {
+        if from == to {
+            return Ok(value);
+        }
+        let family = self.kept.family;
+        let current = self.current;
+        let bridge = self.materialize().or(Err(Untranslated {
+            wire: bytes::copy_of(family.as_bytes()),
+            version: current,
+            halt: Halt::Room,
+        }))?;
+        convert(bridge, from, to, root, value)
+    }
+    fn total(&mut self, to: u16, root: &[u8]) -> Option<bool> {
+        if to == self.current {
+            return Some(true);
+        }
+        self.materialize().ok()?.total(to, root)
     }
 }
 
