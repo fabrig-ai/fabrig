@@ -183,7 +183,31 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         b"ChangeRow",
         patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
     );
-    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    // Patches end at the kept v25 layout; the registry derives additions since it.
+    let old_layout = kept_schema(25);
+    let mut current = None;
+    for family in crate::PATCH_SET.families {
+        if family.name == "temper-store" {
+            current = Some(skein_codec::schema::parse(family.current.as_bytes()).unwrap());
+            break;
+        }
+    }
+    let current = current.unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old_layout,
+        old_layout.root(b"ChangeRow", None).unwrap(),
+        &[],
+        &current,
+        current.root(b"ChangeRow", None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut converted = skein_lib::Buffer::with_capacity(16_384);
+    plan.convert(&bytes, &mut converted, &mut work).unwrap();
+    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(converted.as_slice())).unwrap();
+    assert!(after.questions().waiting().is_empty());
     assert!(after.history().is_none());
     assert!(after.job().is_none());
     let schema = kept_schema(20);

@@ -161,7 +161,7 @@ pub(super) fn replies(world: &World, target: u64, from: u64) -> Vec<&tasks::Word
     live_task(world, target).inbox.iter().filter(|word| word.from == tasks::Party::Task(from)).collect()
 }
 
-fn up_world(bound: Option<u32>) -> (World, engine::Assignment, u64, engine::Assignment) {
+pub(super) fn up_world(bound: Option<u32>) -> (World, engine::Assignment, u64, engine::Assignment) {
     let (mut world, requester) = plan_world(bound);
     let change = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
     let producer = next_producer(&mut world, change);

@@ -791,7 +791,7 @@ fn unsuccessful_answers(story: &mut Story, producer_question: u64) {
     story.world.until(Until::Ready);
     assert!(live_task(&story.world, story.goal.task).inbox.iter().any(|word| {
         word.from == tasks::Party::Task(story.a)
-            && word.words.windows(b"Words do not answer".len()).any(|part| part == b"Words do not answer")
+            && word.words.windows(b"words do not answer it".len()).any(|part| part == b"words do not answer it")
     }));
     let target = story.a;
     amend_spec(story, target, r#"{"words":"Keep the design."}"#, 117);
