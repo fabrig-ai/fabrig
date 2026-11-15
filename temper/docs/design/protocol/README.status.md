@@ -2,7 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 6.1, 6.2: the `names` stage resolves none of GitHub's names, which the shell looks up before the start serves (`temper-engine-shell/src/serve.rs`, `github_runtime`; `served.rs`, `resolve`) [in flight: change 3453].
 
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
