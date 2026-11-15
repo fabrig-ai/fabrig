@@ -50,7 +50,7 @@ pub(crate) fn encoded(value: wire::ProjectionRecord) -> Box<[u8]> {
     row.encode(&mut writer).unwrap();
     writer.finish()
 }
-pub(crate) fn legacy(number: u64) -> [JobRow; 2] {
+pub(crate) fn whole_rows(number: u64) -> [JobRow; 2] {
     let core::ProjectionGoal { number, project, priority, words, phase: goal_phase } = goal(number);
     let goal = wire::ProjectionGoal::new(
         &wire::CEILINGS,
@@ -99,7 +99,7 @@ fn writes_bytes(writes: &[JobWrite]) -> u32 {
 #[test]
 fn projection_parts_pages_obey_both_edges_and_pass_rows_already_in_parts() {
     let mut page =
-        JobPage { rows: legacy(11).into(), end: false, layout: None, room: JobRoom { writes: 4, bytes: u64::MAX } };
+        JobPage { rows: whole_rows(11).into(), end: false, layout: None, room: JobRoom { writes: 4, bytes: u64::MAX } };
     let answer = jobs::page("projection-parts", &page).unwrap();
     assert_eq!(answer.writes.len(), 4);
     let first_bytes = writes_bytes(&answer.writes[..2]);
@@ -143,7 +143,7 @@ fn projection_parts_pages_obey_both_edges_and_pass_rows_already_in_parts() {
     page.rows = Box::new([JobRow { key: key(&records(11)[0]), value: Box::new([]) }]);
     assert_eq!(jobs::page("projection-parts", &page).unwrap_err().key, Some(page.rows[0].key.clone()));
     // Whole variants are only inputs to the job, not restored projection rows.
-    let legacy = legacy(11);
-    codec::core::decode(&legacy[0].value, &limits).unwrap_err();
-    wire::Row::decode(&wire::CEILINGS, &mut Reader::new(&legacy[0].value)).unwrap();
+    let whole_rows = whole_rows(11);
+    codec::core::decode(&whole_rows[0].value, &limits).unwrap_err();
+    wire::Row::decode(&wire::CEILINGS, &mut Reader::new(&whole_rows[0].value)).unwrap();
 }

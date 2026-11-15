@@ -1,6 +1,6 @@
 //! The real jig set splits a store's whole projections once (protocol/store/parts.md, 4–5).
 use super::*;
-use crate::tests::projection_parts::{goal, key, legacy, records, task};
+use crate::tests::projection_parts::{goal, key, records, task, whole_rows};
 use crate::{Owner, PatchSet, PatchSets};
 use alloc::collections::VecDeque;
 use jig_domain_core_vocabulary::{CoreRecord, ProjectionRecord};
@@ -65,7 +65,7 @@ fn projection_parts_open_splits_whole_rows_keeps_milestones_and_runs_once() {
     let milestone_bytes = crate::codec::core::encode(&CoreRecord::Projection(milestone), &before.codec_limits).unwrap();
     let mut ops = Vec::new();
     for number in [11, 21] {
-        for row in legacy(number) {
+        for row in whole_rows(number) {
             ops.push(skein_kv::Op::Put { key: row.key, value: row.value });
         }
     }
