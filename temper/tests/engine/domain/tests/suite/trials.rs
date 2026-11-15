@@ -683,10 +683,21 @@ fn the_calendar_takes_no_period_of_project_zero() {
 }
 
 fn zero_periods(driver: &Driver) -> Vec<engine::Key> {
-    driver.store.rows.keys().filter(|key| matches!(key,
-        engine::Key::Core(core::Key::Tasks(tasks::Key::Ledger(tasks::Funder::Period { project: 0, .. })
-            | tasks::Key::ClosedLedger(tasks::Funder::Period { project: 0, .. })))
-    )).cloned().collect()
+    driver
+        .store
+        .rows
+        .keys()
+        .filter(|key| {
+            matches!(
+                key,
+                engine::Key::Core(core::Key::Tasks(
+                    tasks::Key::Ledger(tasks::Funder::Period { project: 0, .. })
+                        | tasks::Key::ClosedLedger(tasks::Funder::Period { project: 0, .. })
+                ))
+            )
+        })
+        .cloned()
+        .collect()
 }
 
 #[test]
