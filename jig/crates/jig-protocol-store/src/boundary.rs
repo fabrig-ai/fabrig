@@ -65,6 +65,8 @@ pub enum Write {
     /// A task's transcript dropped whole (protocol/store/transcripts.md 5): its places erased,
     /// its file removed before the commit is submitted.
     DropTranscript { task: u64 },
+    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
+    DropHistory { task: u64 },
     /// The application's put: its key's bytes (without the tag) and its value's.
     Put { key: Box<[u8]>, value: Box<[u8]> },
     /// The application's erase.

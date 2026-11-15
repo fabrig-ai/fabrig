@@ -769,7 +769,7 @@ fn apply(rows: &mut BTreeMap<root::Key, root::Record>, writes: &[root::Write]) {
                     }
                 });
             }
-            root::Write::Wires => {}
+            root::Write::DropHistory { .. } | root::Write::Wires => {}
             root::Write::CopySettingsRevision(number) => {
                 use jig_domain_core as core;
                 let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));

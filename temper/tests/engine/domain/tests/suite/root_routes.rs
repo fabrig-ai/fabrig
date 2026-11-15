@@ -4152,7 +4152,8 @@ fn multiple_waiting_recipients_preflight_together_and_a_full_journal_hands_the_a
                 {
                     Some(actual)
                 }
-                Write::DropTranscript { .. }
+                Write::DropHistory { .. }
+                | Write::DropTranscript { .. }
                 | Write::Opening(_)
                 | Write::Wires
                 | Write::CopySettingsRevision(_)

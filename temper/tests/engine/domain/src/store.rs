@@ -580,7 +580,7 @@ impl Store {
                                 }
                             });
                         }
-                        Write::Opening(_) | Write::Wires => {}
+                        Write::DropHistory { .. } | Write::Opening(_) | Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
                                 jig_domain_core::settings::Key::Held(*number),

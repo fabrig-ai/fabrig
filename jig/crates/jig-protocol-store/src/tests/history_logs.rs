@@ -109,6 +109,29 @@ pub(super) fn same(store: &mut Store, tasks: &[u64], range: reads::Range) -> rea
     equal(&before, &after);
     after
 }
+#[test]
+fn dropping_history_without_a_log_commits_harmlessly() {
+    let mut store = fixtures::opened();
+    let events = fixtures::run(
+        &mut store,
+        fixtures::commit(1, Box::new([fixtures::header(1), crate::Write::DropHistory { task: CHILD }])),
+    );
+    let [Event::Committed { number: 1, .. }] = events.as_ref() else { panic!("drop committed: {events:?}") };
+    assert_eq!(fixtures::get_kv(&mut store, &logs::extent_key(logs::history(CHILD).unwrap())), None);
+}
+
+#[test]
+fn dropping_history_with_an_unrepresentable_log_refuses_capacity() {
+    let mut store = fixtures::opened();
+    let events = fixtures::run(
+        &mut store,
+        fixtures::commit(1, Box::new([fixtures::header(1), crate::Write::DropHistory { task: 1_u64 << 63_u8 }])),
+    );
+    let [Event::Failed { why: crate::CommitFailure::Check(crate::CommitCheck::Capacity), .. }] = events.as_ref() else {
+        panic!("capacity refusal: {events:?}")
+    };
+}
+
 fn child_store() -> Store {
     let mut store = fixtures::opened();
     fixtures::committed(
