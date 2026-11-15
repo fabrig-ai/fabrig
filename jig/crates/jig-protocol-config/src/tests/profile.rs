@@ -185,7 +185,7 @@ fn each_profiles_store_map_holds_its_fill_mark() {
 fn standard_page_holds_smiths_largest_turn() {
     let limits = profile(Profile::Standard);
     let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
-    assert_eq!(frame, 33_554_496);
+    assert_eq!(frame, 33_554_501);
     assert!(limits.store.store.page.bytes >= frame);
 }
 

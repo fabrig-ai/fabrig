@@ -52,11 +52,16 @@ pub(crate) fn route(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[
             continue;
         };
         let log = logs::history(task).ok_or(CommitCheck::Capacity)?;
-        if drops.contains(&log) {
+        let dropping = drops.contains(&log);
+        if dropping && value.is_some() {
             return Err(CommitCheck::Capacity);
         }
         if view::raw_get(store, key.clone()).or(Err(CommitCheck::Reads))?.is_some() {
             kept.push(skein_kv::Op::Erase { key: key.clone() }).expect("operations bounded at submission");
+        }
+        // Erases accompanying a whole drop remove map copies, not log rows.
+        if dropping {
+            continue;
         }
         if !tasks.contains_key(&task) {
             tasks.insert(task, Map::uncapped()).expect("tasks bounded by input operations");

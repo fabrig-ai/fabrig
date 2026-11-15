@@ -1,4 +1,5 @@
 //! Durability observations from real file completions, independent of the service.
+pub mod logs;
 mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -14,6 +15,7 @@ use std::collections::{BTreeMap, VecDeque};
 pub struct Commit {
     pub number: u64,
     pub writes: Vec<root::Write>,
+    log_ends: BTreeMap<u64, Option<u64>>,
 }
 #[derive(Default)]
 pub struct Store {
@@ -23,6 +25,7 @@ pub struct Store {
     pub recovered: std::collections::BTreeSet<u64>,
     files: BTreeMap<Vec<u8>, Vec<u8>>,
     lengths: BTreeMap<u64, u64>,
+    log_lengths: BTreeMap<u64, u64>,
 }
 #[derive(Debug)]
 pub enum Observed {
@@ -100,7 +103,7 @@ impl Capture {
             let turn = frames.iter().any(|(_, ops)| {
                 ops.iter().any(|op| match op {
                     skein_kv::Op::Put { key, .. } => {
-                        matches!(keys::decode_own(key), Some(keys::Own::Transcript { .. }))
+                        matches!(keys::decode_own(key), Some(keys::Own::Transcript { .. } | keys::Own::TurnLog { .. }))
                     }
                     skein_kv::Op::Erase { .. } | skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => false,
                 })
@@ -111,6 +114,14 @@ impl Capture {
         false
     }
     pub fn corrupt_transcript(&self, op: &mut Op, limits: &codec::View) {
+        if let Op::Write { fd, bytes, from: 0, .. } = op
+            && self.path(*fd).is_some_and(|path| store_file(path).is_some_and(|name| name.starts_with(b"logs/")))
+        {
+            if let Some(corrupt) = logs::corrupt(bytes, limits) {
+                *bytes = corrupt;
+            }
+            return;
+        }
         if let Op::Write { fd, bytes, from: 0, .. } = op
             && self.path(*fd).is_some_and(|path| {
                 path.starts_with(b"transcripts/") && path.len() == 45 && path.get(28) == Some(&b'/')
@@ -133,6 +144,7 @@ impl Store {
         self.rows.clear();
         self.applied = 0;
         self.lengths.clear();
+        self.log_lengths.clear();
         self.files.retain(|path, _| store_file(path).is_none());
         self.crash();
     }
@@ -160,7 +172,7 @@ impl Store {
         for event in events.drain(..) {
             match event {
                 Observed::Bytes { path, at, bytes } => {
-                    let file = self.files.entry(path).or_default();
+                    let file = self.files.entry(logs::path(&path).unwrap_or(path)).or_default();
                     file.resize(file.len().max(at + bytes.len()), 0);
                     file[at..at + bytes.len()].copy_from_slice(&bytes);
                 }
@@ -257,6 +269,16 @@ impl Store {
                 }
             }
         }
+        for (log, end) in &commit.log_ends {
+            match end {
+                Some(end) => {
+                    self.log_lengths.insert(*log, *end);
+                }
+                None => {
+                    self.log_lengths.remove(log);
+                }
+            }
+        }
         self.applied = commit.number;
         Ok(())
     }
@@ -310,13 +332,43 @@ impl Store {
         connector: &jig_test_connector::Limits,
     ) -> Result<Commit, String> {
         let mut writes = Vec::new();
+        let mut log_ends = BTreeMap::new();
         for op in ops {
             match op {
                 skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
                     unreachable!("decoded commit frames contain map operations")
                 }
                 skein_kv::Op::Put { key, value } => {
-                    if let Some(key) = keys::decode(key) {
+                    if let Some((log, end)) = logs::extent(key, value) {
+                        if log % 2 == 1 {
+                            let name = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
+                            let file = self.files.get(&name).ok_or("turns log write precedes map commit")?;
+                            let mut at = self.log_lengths.get(&log).copied().unwrap_or(0);
+                            let bound = u32::try_from(
+                                jig_protocol_store::core_v6::TurnRecord::encoded_bound(&limits.core)
+                                    .ok_or("turn body bound")?,
+                            )
+                            .map_err(|why| why.to_string())?;
+                            while at < end {
+                                let (length, body) = logs::record(
+                                    file.get(
+                                        usize::try_from(at).map_err(|why| why.to_string())?
+                                            ..usize::try_from(end).map_err(|why| why.to_string())?,
+                                    )
+                                    .ok_or("whole log extent")?,
+                                    bound,
+                                )
+                                .ok_or("whole turns-log record")?;
+                                let turn = codec::core::read_turn(&body, limits)
+                                    .map_err(|why| format!("turns-log body: {why:?}"))?;
+                                writes.push(root::Write::Save(root::Record::Core(core::Record::Core(
+                                    core::CoreRecord::Turn(turn),
+                                ))));
+                                at += u64::try_from(length).map_err(|why| why.to_string())?;
+                            }
+                            log_ends.insert(log, Some(end));
+                        }
+                    } else if let Some(key) = keys::decode(key) {
                         let row = self
                             .decode(&key, value, ops, limits, names)
                             .ok_or_else(|| format!("real stored row {key:?} decodes, head {:?}", value.get(..2)))?;
@@ -351,7 +403,13 @@ impl Store {
                     }
                 }
                 skein_kv::Op::Erase { key } => {
-                    if let Some(key) = keys::decode(key) {
+                    if key.starts_with(&jig_protocol_store::logs::EXTENTS) && key.len() == 10 {
+                        let log = Reader::new(&key[2..]).u64().ok_or("log name")?;
+                        if log % 2 == 1 {
+                            log_ends.insert(log, None);
+                            writes.push(root::Write::DropTranscript { task: log / 2 });
+                        }
+                    } else if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
                     } else if let Some(keys::Own::History { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropHistory { task });
@@ -365,7 +423,7 @@ impl Store {
                 }
             }
         }
-        Ok(Commit { number, writes })
+        Ok(Commit { number, writes, log_ends })
     }
 }
 type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;

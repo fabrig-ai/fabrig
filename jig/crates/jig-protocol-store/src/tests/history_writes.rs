@@ -189,6 +189,45 @@ fn a_drop_and_history_write_or_excess_routed_operations_fail_capacity() {
 }
 
 #[test]
+fn dropping_history_with_erases_removes_map_copies_without_appending() {
+    for held in [false, true] {
+        let mut store = opened();
+        let ended = fixtures::ended_of(5, tasks::Party::Person(fixtures::ALICE));
+        if held {
+            fixtures::committed(&mut store, Box::new([fixtures::header(2), fixtures::save(ended.clone())]));
+            assert!(store.stores.store.log_end(logs::history(5).unwrap()) > 0);
+        }
+        let old = fixtures::history(5, 1);
+        let op = put(&store, &old);
+        history_logs::raw_commit(&mut store, Box::new([op]));
+        assert!(fixtures::get_kv(&mut store, &key(&old)).is_some());
+        let number = store.stores.store.last().checked_add(1).unwrap();
+        let events = fixtures::run(
+            &mut store,
+            fixtures::commit(
+                number,
+                Box::new([
+                    fixtures::header(number),
+                    crate::Write::DropHistory { task: 5 },
+                    crate::Write::Erase(ended.key()),
+                    crate::Write::Erase(old.key()),
+                ]),
+            ),
+        );
+        committed(&events);
+        assert_eq!(store.stores.store.log_end(logs::history(5).unwrap()), 0);
+        for key in [
+            key(&ended),
+            key(&old),
+            logs::extent_key(logs::history(5).unwrap()),
+            keys::encode_own(&keys::Own::History { task: 5 }, fixtures::KEY_LIMIT).unwrap(),
+        ] {
+            assert_eq!(fixtures::get_kv(&mut store, &key), None);
+        }
+    }
+}
+
+#[test]
 fn task_logs_consumes_only_the_rows_within_quarter_writes_and_all_bytes() {
     let rows = [fixtures::terminal(5, 1), fixtures::terminal(6, 1), fixtures::terminal(7, 1)];
     let store = opened();

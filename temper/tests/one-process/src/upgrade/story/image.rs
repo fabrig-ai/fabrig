@@ -24,16 +24,11 @@ impl Image {
             disk.close(root);
         }
         for item in &self.roots[0] {
-            if item.path.starts_with(b"transcripts/")
+            if (item.path.starts_with(b"transcripts/")
+                || jig_channel_kit::world::store::logs::path(&item.path).is_some())
                 && let Made::File(bytes) = &item.made
             {
                 store.transcript_file(item.path.clone(), bytes.clone());
-            }
-            if item.path.starts_with(b"generations/")
-                && item.path.windows(12).any(|part| part == b"/store/logs/")
-                && let Made::File(bytes) = &item.made
-            {
-                store.history_file(item.path.clone(), bytes.clone());
             }
         }
         disk

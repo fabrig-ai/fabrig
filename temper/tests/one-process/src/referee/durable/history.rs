@@ -4,7 +4,7 @@ use skein_lib::{List, Reader};
 use std::collections::BTreeMap;
 
 pub(super) fn is_payload(path: &[u8]) -> bool {
-    in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/logs/"))
+    path.starts_with(b"logs/") || in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/logs/"))
 }
 
 impl Store {
@@ -29,9 +29,7 @@ impl Store {
             if let Some(value) = value {
                 let end = usize::try_from(Reader::new(value).u64().ok_or("history extent")?)
                     .map_err(|why| format!("history length: {why:?}"))?;
-                let generation = self.active.as_deref().unwrap_or(b"generations/1");
-                let mut path = generation.to_vec();
-                path.extend_from_slice(format!("/store/logs/{:016x}/{log:016x}", log >> 12).as_bytes());
+                let path = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
                 let bytes = self
                     .files
                     .get(&path)

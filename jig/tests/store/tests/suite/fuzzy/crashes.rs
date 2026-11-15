@@ -58,6 +58,22 @@ fn history_commits_crashed_at_every_file_operation_recover_whole() {
 }
 
 #[test]
+fn a_crash_at_each_file_operation_of_a_turn_keeps_a_whole_prefix() {
+    use super::super::crashes::{checked_cut, operations};
+    let count = operations(root::turn_commit(2, LIVE, 1, b"one turn"));
+    for cut in 0..=count {
+        let label = "whole turns-log prefix";
+        let (restored, acknowledged) = checked_cut(cut, root::turn_commit(2, LIVE, 1, b"one turn"), label);
+        assert!(restored.last == 1 || restored.last == 2, "{label}, cut {cut}");
+        if acknowledged.is_some() {
+            assert_eq!(restored.last, 2, "acknowledged turn, cut {cut}");
+        }
+        let expected = if restored.last == 2 { vec![root::turn(LIVE, 1, 1, b"one turn")] } else { Vec::new() };
+        assert_eq!(restored.turns(LIVE), expected, "{label}, cut {cut}");
+    }
+}
+
+#[test]
 fn random_commits_and_crashes_keep_the_referees_promises() {
     for (linked, seed) in [false, true].into_iter().flat_map(|linked| (0..64).map(move |seed| (linked, seed))) {
         let mut random = Rng::new(seed);

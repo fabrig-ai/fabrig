@@ -90,7 +90,13 @@ pub struct Disk {
 }
 pub fn file_limits() -> FileLimits {
     let skein_kv::Limits { chunk: read, deadline: timeout, .. } = store_limits().store;
-    FileLimits { files: 8, read, entries: 32, whole: read, timeout }
+    FileLimits {
+        files: store_limits().store.logs.checked_add(8).expect("payload cache plus map and temporary handles"),
+        read,
+        entries: 32,
+        whole: read,
+        timeout,
+    }
 }
 fn drivers(fd: skein_io::kernel::Fd) -> [FileIo; 3] {
     core::array::from_fn(|_| {

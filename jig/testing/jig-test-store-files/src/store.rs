@@ -7,6 +7,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 
+mod faults;
 mod readback;
 pub use readback::ReadbackFinding;
 #[cfg(test)]
@@ -241,7 +242,7 @@ impl Store {
     pub fn unread_transcript(&mut self, task: u64) {
         match &mut self.disk {
             Some(disk) => disk.unread_transcript(task),
-            None => self.files.unread_transcript(task),
+            None => self.unread_memory_turn(task, 0),
         }
     }
     pub fn fault(&mut self, fault: Fault) {

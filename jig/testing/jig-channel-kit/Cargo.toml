@@ -33,6 +33,7 @@ jig-test-store.workspace = true
 jig-protocol-store.workspace = true
 jig-test-connector.workspace = true
 skein-kv.workspace = true
+skein-deflate.workspace = true
 jig-fake-parties.workspace = true
 jig-protocol-worker-wire.workspace = true
 jig-protocol-config.workspace = true

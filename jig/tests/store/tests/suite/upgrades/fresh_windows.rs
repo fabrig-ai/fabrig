@@ -278,8 +278,8 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
             assert_eq!(turns.as_ref(), &[root::turn(root::LIVE, 1, 1, &[])]);
             assert_eq!(*cut, Some(u32::try_from(patched.len()).expect("fixture length")));
             let stored = patches::fixture_turn(1, patches::FRESH_SAID, patches::FRESH_REPLAY, 0);
-            let frame = jig_test_patches_jig::frames::frame(6, &stored);
-            assert_eq!(*next, Some(len_u64(frame.len())), "continue past the stored frame");
+            let length = super::frames::log_frame_bytes(&root::turn(root::LIVE, 1, 1, &stored));
+            assert_eq!(*next, Some(length), "continue past the stored frame");
         } else {
             let [Event::Turns { turns, .. }] = events.as_slice() else {
                 panic!("bounded read: {events:?}");

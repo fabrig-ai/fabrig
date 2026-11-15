@@ -70,8 +70,11 @@ fn turns(machine: Option<&Machine>) -> Result<u64, Halt> {
 
 impl Decode {
     pub(crate) fn begin(record: &[u8], machines: &mut Machines, limits: &codec::View) -> Result<Self, Unread> {
-        let body = body(record)?;
-        let size = u32::try_from(record.len()).or(Err(Unread::Lengths))?;
+        Self::from_body(body(record)?, machines, limits)
+    }
+    pub(crate) fn from_body(body: &[u8], machines: &mut Machines, limits: &codec::View) -> Result<Self, Unread> {
+        let size =
+            u32::try_from(body.len()).or(Err(Unread::Lengths))?.checked_add(WRAPPER_BYTES).ok_or(Unread::Lengths)?;
         let remaining = turns(machines.body.as_ref())
             .or(Err(Unread::Record))?
             .checked_add(turns(machines.turn.as_ref()).or(Err(Unread::Record))?)

@@ -101,17 +101,17 @@ fn fixture_limits_fit_their_store() {
     // The settings revision holds two sets: each adds two 16-byte parts slices
     // and eight templates with 24-byte later choices in both Template and New.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 11, commit: 22_185 }));
+    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 15, commit: 24_285 }));
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
-    limits.ops = 10;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Ops { needs: 11, has: 10 }));
+    limits.ops = 14;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Ops { needs: 15, has: 14 }));
 }
 fn too_few_commit_bytes_are_refused() {
     let mut limits = store();
-    limits.commit = 22_184;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 22_185, has: 22_184 }));
+    limits.commit = 24_284;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 24_285, has: 24_284 }));
 }
 fn too_few_in_flight_slots_are_refused() {
     let mut limits = store();
@@ -127,8 +127,8 @@ fn a_journal_bound_past_the_queue_is_refused_at_start() {
 }
 fn too_few_queued_bytes_are_refused() {
     let mut limits = store();
-    limits.queued_bytes = 44_369;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 44_370, has: 44_369 }));
+    limits.queued_bytes = 48_569;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 48_570, has: 48_569 }));
 }
 #[test]
 fn a_domain_limit_past_its_family_ceiling_is_refused_at_start() {
@@ -200,7 +200,7 @@ fn larger_application_encodings_are_included_in_the_bounds() {
     let application = sizes::Application { version: 1, key: 1023, value: 9_000_000 };
     assert_eq!(
         sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &store(), 0),
-        Ok(sizes::Sizes { key: 1024, value: 9_000_000, ops: 11, commit: 27_773 }),
+        Ok(sizes::Sizes { key: 1024, value: 9_000_000, ops: 15, commit: 31_905 }),
     );
 }
 #[test]
@@ -217,8 +217,8 @@ fn a_map_budget_past_the_commit_envelope_is_refused() {
     // The value includes the tasks row's models; the commit adds framing to the map budget.
     // The settings revision includes cache lifetime in its model carriers.
     for (label, budget, expected) in [
-        ("exact_u32_commit", 4_294_961_494, Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 11, commit: u32::MAX })),
-        ("one_byte_past_u32", 4_294_961_495, Err(sizes::SizeRefusal::Ceiling)),
+        ("exact_u32_commit", 4_294_959_394, Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 15, commit: u32::MAX })),
+        ("one_byte_past_u32", 4_294_959_395, Err(sizes::SizeRefusal::Ceiling)),
         ("u64_sum_overflows", u64::MAX, Err(sizes::SizeRefusal::Ceiling)),
     ] {
         let limits = skein_kv::Limits { budget, commit: u32::MAX, queued_bytes: u64::MAX, ..store() };

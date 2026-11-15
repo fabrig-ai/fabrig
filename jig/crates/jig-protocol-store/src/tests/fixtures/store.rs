@@ -352,8 +352,35 @@ pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_do
 }
 pub fn opened_with_transcripts() -> (Store, Below) {
     let mut store = opened();
-    committed(&mut store, Box::new([header(1)]));
+    committed_with_places(&mut store, Box::new([header(1)]), &[LIVE, ENDED, 23]);
     (store, below())
+}
+
+pub fn committed_with_places(store: &mut Store, writes: Box<[Write]>, tasks: &[u64]) {
+    // These fixtures exercise files belonging to tasks written before turns logs.
+    let number = store.stores.store.last().checked_add(1).expect("fixture commit");
+    let crate::Phase::Ready { format_due, .. } = store.phase else { panic!("ready fixture") };
+    let mut pending = crate::commits::operations(store, number, writes, format_due).expect("fixture operations");
+    let mut ops = List::with_capacity(32);
+    for op in pending.ops {
+        ops.push(op).expect("first operations");
+    }
+    for task in tasks {
+        ops.push(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Transcript { task: *task }, KEY_LIMIT).expect("legacy place key"),
+            value: codec::component::Transcript { length: 0, window: 0 }.encode().expect("legacy place"),
+        })
+        .expect("legacy place slot");
+    }
+    pending.ops = ops.into_boxed();
+    store.phase = crate::Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };
+    store.transcripts.current = Some(pending);
+    let mut above = Queue::uncapped();
+    let mut below = below();
+    crate::transcripts::write::fire(store, &env(), &mut above, &mut below);
+    let Some(Event::Committed { number: found, .. }) = above.pop() else { panic!("fixture commit") };
+    assert_eq!(found, number);
+    assert!(above.is_empty());
 }
 #[derive(Clone)]
 pub enum Answer {

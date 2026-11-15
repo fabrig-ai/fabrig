@@ -82,7 +82,7 @@ fn a_turns_save_puts_no_turn_row_in_the_map() {
     assert_eq!(fixtures::get_kv(&mut store, &key), None);
 }
 #[test]
-fn a_turn_is_saved_as_a_row_until_transcript_files_land() {
+fn an_existing_transcript_keeps_writing_its_file() {
     let (mut store, below) = writing();
     let (bytes, below) = turn_bytes(&mut store, below);
     let expected = fixtures::turn(LIVE, 1, 1, b"one");
@@ -316,16 +316,26 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     );
     let [Event::Committed { number: 1, .. }] = &*committed else { panic!("prior commit durable: {committed:?}") };
     let first = fixtures::turn(LIVE, 1, 2, b"new");
-    let oversized = fixtures::turn(23, 1, 1, b"long");
+    let oversized = fixtures::turn(23, 1, 1, b"longer and less repetitive");
     let limit = u32::try_from(
-        crate::transcripts::frame::encode(&first, &store.codec_limits).expect("bounded tiny frame fixture").len(),
+        store
+            .stores
+            .store
+            .frame(&crate::codec::core::turn(&first, &store.codec_limits).expect("turn body"))
+            .expect("log frame")
+            .len(),
     )
     .expect("bounded tiny frame fixture");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&oversized, &store.codec_limits).expect("bounded tiny frame fixture").len(),
+        store
+            .stores
+            .store
+            .frame(&crate::codec::core::turn(&oversized, &store.codec_limits).expect("turn body"))
+            .expect("log frame")
+            .len(),
     )
     .expect("bounded tiny frame fixture");
-    assert_eq!(bytes, limit.checked_add(1).expect("bounded tiny frame fixture"));
+    assert!(bytes > limit);
     store.limits.store.page.bytes = limit;
     let before = disk.requests().len();
     let refused = disk.request(
@@ -455,7 +465,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
     };
     fixtures::answer(store, Io::Transcripts(Arrived { event, fd: None }))
 }
-fn answer_reads(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> Box<[Event]> {
+pub(super) fn answer_reads(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> Box<[Event]> {
     for _ in 0_u32..4096 {
         let (events, next) = read_answer(store, below, disk, chunk);
         if !events.is_empty() {
@@ -1292,7 +1302,7 @@ fn orphan_erases_are_included_in_the_commits_operation_bound() {
     let limits = fixtures::store_limits();
     let sizes = crate::sizes::check_commits(&limits.core, &fixtures::APPLICATION, &limits.commits, &limits.store, 1)
         .expect("fits");
-    assert_eq!(sizes.ops, 12);
+    assert_eq!(sizes.ops, 16);
 }
 #[test]
 fn dropping_a_transcript_fails_without_submitting_the_commit() {

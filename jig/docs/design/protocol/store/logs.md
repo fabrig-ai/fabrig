@@ -125,7 +125,10 @@ key's first field after the family's tag:
   (9).
 - **`Write::DropHistory { task }`** drops the task's history log
   (`Op::Drop`) and erases its `00 0a` row. A commit that drops a log
-  and writes one of its keys fails `Check(Capacity)`: a writer's fault.
+  and puts one of its keys fails `Check(Capacity)`: a writer's fault.
+  An erase of one of its keys in that commit (the ended record or
+  summary the drop goes with, 9) erases the map's row where the map
+  holds it and appends nothing: the log goes whole.
 - **Bounds:** a commit's operations grow by an append, an extent and a
   place per task it writes history of; its bounds count them
   (`Check(Capacity)`).

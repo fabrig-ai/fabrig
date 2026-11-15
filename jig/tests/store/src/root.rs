@@ -245,8 +245,8 @@ pub fn limits() -> Limits {
         key: 1024,
         // Admit the record bounds before tightening to check_commits' sizes (protocol/store/records.md, 4).
         value: 2_097_152,
-        // Two places per journal write, three creation rows and one orphan erase.
-        ops: 4004,
+        // A log append and two places per write, three creation rows and one orphan erase.
+        ops: 6004,
         commit: 1_073_741_824,
         queued: 2,
         queued_bytes: 2_147_483_648,
@@ -270,6 +270,7 @@ pub fn limits() -> Limits {
     map.queued_bytes = u64::from(sizes.commit) * 2;
     map.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).expect("bounded row chunk");
     map.page.bytes = sizes.key + sizes.value;
+    map.record = map.page.bytes;
     Limits {
         core: CORE_LIMITS,
         store: map,
