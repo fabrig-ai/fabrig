@@ -1002,7 +1002,15 @@ fn recording_keys_save_whole_and_closing_saves_again() {
         assert_eq!(mode, 0o600, "{mark:?}: recording is private");
         let lines = replay(&first);
         assert!(lines.contains(&Line::Seed(SEED)), "{mark:?}");
-        assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: world.wall }), "{mark:?}");
+        // Host construction uses zero clocks; the first report follows the background wait.
+        assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }), "{mark:?}");
+        assert!(
+            lines.contains(&Line::Turn {
+                now: Time::ZERO.saturating_add(limits::BACKGROUND),
+                wall: Wall::from_nanos(world.wall.as_nanos() + limits::BACKGROUND.as_nanos()),
+            }),
+            "{mark:?}: the start turn keeps the live clocks"
+        );
         assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Some(Scheme::Dark) }), "{mark:?}");
         assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())), "{mark:?}");
         assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))), "{mark:?}");
