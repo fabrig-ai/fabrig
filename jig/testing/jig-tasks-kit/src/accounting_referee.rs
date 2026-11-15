@@ -317,6 +317,7 @@ impl Accounting {
                     | Stored::Activity(_)
                     | Stored::History(_)
                     | Stored::Milestone(_)
+                    | Stored::Hold(_)
                     | Stored::ClosedLedger(_)
                     | Stored::DecidedProposal(_)
             ) && rows.get(key) != Some(old)
@@ -400,6 +401,8 @@ impl Accounting {
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
                             | Stored::Milestone(_)
+                            | Stored::Attempt(_)
+                            | Stored::Hold(_)
                             | Stored::History(_)
                             | Stored::PlacedHold(_)
                             | Stored::PersonProposal(_) => None,
@@ -453,6 +456,8 @@ impl Accounting {
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
                             | Stored::Milestone(_)
+                            | Stored::Attempt(_)
+                            | Stored::Hold(_)
                             | Stored::History(_)
                             | Stored::PlacedHold(_)
                             | Stored::PersonProposal(_) => None,
@@ -525,6 +530,8 @@ impl Accounting {
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
+                | Stored::Attempt(_)
+                | Stored::Hold(_)
                 | Stored::History(_)
                 | Stored::PlacedHold(_)
                 | Stored::PersonProposal(_) => {}

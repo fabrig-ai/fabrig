@@ -9,4 +9,6 @@ mod notes_v1;
 #[rustfmt::skip]
 mod openings_v1;
 #[rustfmt::skip]
+mod registry_v1;
+#[rustfmt::skip]
 mod secrets_v1;

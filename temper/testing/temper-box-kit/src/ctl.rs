@@ -376,15 +376,18 @@ impl Child {
     fn finished(&self) -> bool {
         self.ended.exit.is_some() && self.pidfd.is_none() && self.closing == 0 && self.signals == 0
     }
-    fn check_adoption(&self, cut: bool) {
-        assert!(
-            self.kind != CallKind::Adoption
-                || self.ended.exit == Some(Exit::Code(0))
-                || cut && self.ended.exit == Some(Exit::Code(143)),
+    fn check_adoption(&self, cut: bool) -> Result<(), String> {
+        if self.kind != CallKind::Adoption
+            || self.ended.exit == Some(Exit::Code(0))
+            || cut && self.ended.exit == Some(Exit::Code(143))
+        {
+            return Ok(());
+        }
+        Err(format!(
             "adoption ended refused: exit={:?}; {}",
             self.ended.exit,
             String::from_utf8_lossy(&self.ended.stderr)
-        );
+        ))
     }
 }
 
@@ -448,6 +451,7 @@ pub struct Calls {
     forgejo: Option<u32>,
     ends: Vec<Ended>,
     last_unmet: Option<Ended>,
+    finding: Option<String>,
     observed_at: Vec<Option<Wall>>,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
@@ -552,6 +556,10 @@ impl Calls {
         self.awaiting_started = false;
         self.action = self.child.as_ref().map(|_| Action::Run);
     }
+    /// The first ctl check's finding, kept for the owning judge's next watch.
+    pub(super) fn check(&self) -> Result<(), String> {
+        self.finding.clone().map_or(Ok(()), Err)
+    }
     /// Completed calls, in the order their steps ran.
     #[must_use]
     pub fn ends(&self) -> &[Ended] {
@@ -633,6 +641,7 @@ impl Calls {
             forgejo,
             ends: Vec::new(),
             last_unmet: None,
+            finding: None,
             observed_at: Vec::new(),
             complete: Queue::with_capacity(32),
             submit: Queue::with_capacity(32),
@@ -719,18 +728,22 @@ impl Calls {
             self.child.as_mut().expect("running call").kind = kind;
         }
     }
-    fn finish(&mut self, now: Time) {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Each completed action returns its prerequisite finding before any retry."
+    )]
+    fn finish(&mut self, now: Time) -> Result<(), String> {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
             let (child, index) = self.started.take().expect("finished started call");
             if !self.cancelling {
-                child.check_adoption(self.awaiting_started);
+                child.check_adoption(self.awaiting_started)?;
             }
             self.ends[index] = child.ended;
             self.observed_at[index] = Some(self.wall);
             self.awaiting_started = false;
         }
         if !self.child.as_ref().is_some_and(Child::finished) {
-            return;
+            return Ok(());
         }
         let child = self.child.take().expect("finished ctl");
         let ended = child.ended;
@@ -741,15 +754,15 @@ impl Calls {
                 self.observed_at.push(Some(self.wall));
             }
             Action::Until(mut call, condition) => {
-                if !self.cancelling {
-                    assert_eq!(
-                        ended.exit,
-                        Some(Exit::Code(0)),
-                        "poll prerequisite argv={:?}: stdout {}; stderr {}",
+                if !self.cancelling && ended.exit != Some(Exit::Code(0)) {
+                    return Err(format!(
+                        "assertion `left == right` failed: poll prerequisite argv={:?}: stdout {}; stderr {}\n  left: {:?}\n right: {:?}",
                         call.arguments.iter().map(|word| String::from_utf8_lossy(word)).collect::<Vec<_>>(),
                         String::from_utf8_lossy(&ended.stdout),
-                        String::from_utf8_lossy(&ended.stderr)
-                    );
+                        String::from_utf8_lossy(&ended.stderr),
+                        ended.exit,
+                        Some(Exit::Code(0))
+                    ));
                 }
                 if condition.matches(&ended.stdout) {
                     self.ends.push(ended);
@@ -768,13 +781,15 @@ impl Calls {
             }
             Action::TaskExists(mut call, task) => {
                 if !self.cancelling {
-                    assert_eq!(
-                        ended.exit,
-                        Some(Exit::Code(0)),
-                        "task-list prerequisite: stdout {}; stderr {}",
-                        String::from_utf8_lossy(&ended.stdout),
-                        String::from_utf8_lossy(&ended.stderr)
-                    );
+                    if ended.exit != Some(Exit::Code(0)) {
+                        return Err(format!(
+                            "assertion `left == right` failed: task-list prerequisite: stdout {}; stderr {}\n  left: {:?}\n right: {:?}",
+                            String::from_utf8_lossy(&ended.stdout),
+                            String::from_utf8_lossy(&ended.stderr),
+                            ended.exit,
+                            Some(Exit::Code(0))
+                        ));
+                    }
                     let document = json(&ended);
                     let rows = if call.arguments.iter().any(|word| word.as_ref() == b"--ended") {
                         &document["ended"]["rows"]["rows"]
@@ -811,13 +826,18 @@ impl Calls {
             Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
                 unreachable!("referee action has no child")
             }
-            Action::Signal => assert_eq!(
-                ended.exit,
-                Some(Exit::Code(0)),
-                "Forgejo signal: {}",
-                String::from_utf8_lossy(&ended.stderr)
-            ),
+            Action::Signal => {
+                if ended.exit != Some(Exit::Code(0)) {
+                    return Err(format!(
+                        "assertion `left == right` failed: Forgejo signal: {}\n  left: {:?}\n right: {:?}",
+                        String::from_utf8_lossy(&ended.stderr),
+                        ended.exit,
+                        Some(Exit::Code(0))
+                    ));
+                }
+            }
         }
+        Ok(())
     }
     fn finish_step(&mut self, call: bool) {
         if let Some(wall) = self.began.take()
@@ -1068,10 +1088,15 @@ impl Host for Calls {
                 self.member = None;
             }
         }
-        self.finish(now);
-        self.bound(now);
-        if self.closing == 0 && (self.output.is_none() || super::printed_link(&self.link).is_some()) {
-            self.advance(now);
+        if let Err(why) = self.finish(now) {
+            self.finding.get_or_insert(why);
+            self.cancel();
+        }
+        if self.finding.is_none() {
+            self.bound(now);
+            if self.closing == 0 && (self.output.is_none() || super::printed_link(&self.link).is_some()) {
+                self.advance(now);
+            }
         }
         if let Some(child) = &mut self.child {
             child.drive(&mut self.submit, self.cancelling);
@@ -1125,6 +1150,15 @@ impl Host for Calls {
     }
 }
 
+pub(super) fn check(procs: &[Process]) -> Result<(), String> {
+    for proc in procs {
+        if let Process::Calls(calls) = proc {
+            calls.check()?;
+        }
+    }
+    Ok(())
+}
+
 struct Judge {
     stopped: bool,
     settled: bool,
@@ -1169,6 +1203,7 @@ impl Referee<Process> for Judge {
         }
     }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        check(procs)?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }
@@ -1385,7 +1420,7 @@ pub mod read_condition_tests {
         calls.observe_box_stderr(b"later output", Time::ZERO);
         assert_eq!(calls.submit.len(), submissions, "the callback runs only once");
         calls.child = Some(completed(b"connected"));
-        calls.finish(Time::ZERO);
+        calls.finish(Time::ZERO).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.ends.len(), 1, "the new step keeps ordinary call accounting");
     }
 
@@ -1414,7 +1449,7 @@ pub mod read_condition_tests {
         calls.child = Some(completed(
             br#"{"tasks":{"rows":[{"chip":{"task":1}}]},"read_on":"task list --project 1 --parent 1 --after 0102"}"#,
         ));
-        calls.finish(Time::ZERO);
+        calls.finish(Time::ZERO).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.retry, Some(Time::ZERO));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("next list page") };
         assert_eq!(
@@ -1422,7 +1457,7 @@ pub mod read_condition_tests {
             Call::new(&["task", "list", "--project", "1", "--parent", "1", "--after", "0102", "--json"]).arguments
         );
         calls.child = Some(completed(br#"{"live":[],"read_on":null}"#));
-        calls.finish(Time::ZERO);
+        calls.finish(Time::ZERO).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.retry, Some(Time::ZERO));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("ended list") };
         assert_eq!(
@@ -1430,15 +1465,15 @@ pub mod read_condition_tests {
             Call::new(&["task", "list", "--project", "1", "--parent", "1", "--ended", "--json"]).arguments
         );
         calls.child = Some(completed(br#"{"ended":{"rows":{"rows":[]}},"read_on":null}"#));
-        calls.finish(Time::ZERO);
+        calls.finish(Time::ZERO).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.retry, Some(Time::ZERO.saturating_add(PACE)));
         let Some(Action::TaskExists(call, _)) = &calls.action else { panic!("poll from the first page") };
         assert_eq!(call.arguments, Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]).arguments);
         calls.child =
             Some(completed(br#"{"tasks":{"rows":[]},"read_on":"task list --project 1 --parent 1 --after 0102"}"#));
-        calls.finish(Time::ZERO.saturating_add(PACE));
+        calls.finish(Time::ZERO.saturating_add(PACE)).unwrap_or_else(|why| panic!("{why}"));
         calls.child = Some(completed(br#"{"live":[{"chip":{"task":3}}],"read_on":null}"#));
-        calls.finish(Time::ZERO.saturating_add(PACE));
+        calls.finish(Time::ZERO.saturating_add(PACE)).unwrap_or_else(|why| panic!("{why}"));
         assert!(calls.action.is_none());
         assert!(calls.ends.is_empty());
     }
@@ -1457,7 +1492,7 @@ pub mod read_condition_tests {
             let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
             calls.action = Some(Action::TaskExists(Call::new(&arguments), 2));
             calls.child = Some(completed(present));
-            calls.finish(Time::ZERO.saturating_add(PACE));
+            calls.finish(Time::ZERO.saturating_add(PACE)).unwrap_or_else(|why| panic!("{why}"));
             assert!(calls.action.is_none());
             assert!(calls.ends.is_empty());
             assert_eq!((calls.observed_at()).len(), 0);
@@ -1468,11 +1503,17 @@ pub mod read_condition_tests {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action =
             Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]), 2));
-        let mut child = completed(b"");
+        let mut child = completed(br#"{"tasks":{"rows":[{"chip":{"task":2}}]}}"#);
         child.ended.exit = Some(Exit::Code(2));
         child.ended.stderr = b"unknown".to_vec();
         calls.child = Some(child);
-        calls.finish(Time::ZERO);
+        let finding = calls.finish(Time::ZERO).expect_err("failed task-list prerequisite");
+        assert!(finding.contains("task-list prerequisite"), "{finding}");
+        assert!(finding.contains("stderr unknown"), "{finding}");
+        assert!(calls.retry.is_none(), "a failed prerequisite is not retried");
+        assert!(calls.action.is_none(), "no next page or poll");
+        assert!(calls.submit.is_empty(), "no later call was submitted");
+        assert!(calls.ends.is_empty(), "the failed prerequisite is no story call");
     }
 
     pub fn a_failed_poll_stops_before_retrying_an_unmet_condition() {
@@ -1482,7 +1523,15 @@ pub mod read_condition_tests {
         child.ended.exit = Some(Exit::Code(2));
         child.ended.stderr = b"unknown".to_vec();
         calls.child = Some(child);
-        calls.finish(Time::ZERO);
+        let finding = calls.finish(Time::ZERO).expect_err("failed poll prerequisite");
+        assert!(
+            finding.contains("poll prerequisite argv=[\"task\", \"show\", \"2\"]: stdout ; stderr unknown"),
+            "{finding}"
+        );
+        assert!(calls.retry.is_none(), "a failed poll is not retried");
+        assert!(calls.action.is_none(), "no unmet condition is scheduled");
+        assert!(calls.submit.is_empty(), "no later call was submitted");
+        assert!(calls.ends.is_empty(), "the failed poll satisfies no condition");
     }
 
     pub fn a_refused_started_adoption_fails_before_polling_pending() {
@@ -1492,8 +1541,64 @@ pub mod read_condition_tests {
         child.ended.exit = Some(Exit::Code(2));
         child.ended.stderr = b"unreachable".to_vec();
         calls.started = Some((child, 0));
+        calls.ends.push(super::Ended { exit: None, stdout: Vec::new(), stderr: Vec::new() });
+        calls.observed_at.push(None);
         calls.action = Some(Action::Until(Call::new(&["pending"]), ReadCondition::Contains(b"adopt")));
-        calls.finish(Time::ZERO);
+        calls.child = Some(completed(b"not yet"));
+        let finding = calls.finish(Time::ZERO).expect_err("refused adoption");
+        assert_eq!(finding, "adoption ended refused: exit=Some(Code(2)); unreachable");
+        assert!(calls.child.is_some(), "the pending poll was not observed");
+        assert!(calls.retry.is_none(), "no pending poll is retried");
+        assert!(calls.submit.is_empty(), "no later call was submitted");
+        assert_eq!(calls.ends.len(), 1, "only the started call's reserved slot");
+        assert!(calls.ends[0].exit.is_none(), "no poll or refused adoption recorded as passing");
+        assert_eq!(calls.observed_at, [None]);
+    }
+
+    pub fn a_failed_ctl_check_reaches_the_world_after_cleanup() {
+        let scratch = super::super::Scratch::new("ctl-check-cleanup");
+        let root = skein_shell::open_root(scratch.path()).expect("scratch root");
+        let clock = Clock::new();
+        let mut world = real::World::new(Judge {
+            stopped: false,
+            settled: false,
+            deadline: clock.now().now.saturating_add(Duration::from_secs(2)),
+            scratch: scratch.path().into(),
+            token_names: Vec::new(),
+            pending: String::new(),
+            finding: None,
+        });
+        world.spawn_with_fds(vec![root], || {
+            Process::Calls(Box::new(Calls::new(
+                root,
+                vec![
+                    Step::Start(Call::command(
+                        std::path::Path::new("/bin/sh"),
+                        &["-c", "echo $$ > child; exec /bin/sleep 30"],
+                    )),
+                    Step::Until(
+                        Call::command(
+                            std::path::Path::new("/bin/sh"),
+                            &["-c", "while [ ! -f child ]; do :; done; printf refused >&2; exit 2"],
+                        ),
+                        b"ready",
+                    ),
+                    Step::Run(Call::command(std::path::Path::new("/bin/sh"), &["-c", "touch retried"])),
+                ],
+                None,
+                None,
+            )))
+        });
+        let finding = world.try_run(&clock, Duration::from_secs(2)).err().expect("ctl check finding");
+        assert!(finding.contains("poll prerequisite"), "{finding}");
+        assert!(finding.contains("stderr refused"), "{finding}");
+        assert!(!scratch.path().join("retried").exists(), "no step after a finding");
+        let pid = std::fs::read_to_string(scratch.path().join("child")).expect("companion child pid");
+        assert!(
+            !std::path::Path::new(&format!("/proc/{}", pid.trim())).exists(),
+            "the world reaped its companion child"
+        );
+        scratch.remove();
     }
 
     struct VisitJudge {
@@ -1557,7 +1662,7 @@ pub mod read_condition_tests {
             br#"{"task":{"chip":{"task":8,"phase":"running"},"digest":"0123456789abcdef"},"met":true}"#,
         ));
         let now = Time::from_nanos(1);
-        calls.finish(now);
+        calls.finish(now).unwrap_or_else(|why| panic!("{why}"));
         assert!(calls.ends.is_empty());
         assert_eq!(calls.retry, Some(now));
         let Some(Action::Until(call, _)) = &calls.action else { panic!("task watch") };
@@ -1572,20 +1677,20 @@ pub mod read_condition_tests {
         calls.action = Some(Action::Until(Call::new(&["task", "show", "2", "--json"]), condition));
         calls.child = Some(completed(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
         calls.wall = Wall::from_nanos(10);
-        calls.finish(Time::from_nanos(1));
+        calls.finish(Time::from_nanos(1)).unwrap_or_else(|why| panic!("{why}"));
         assert!(calls.ends.is_empty());
         assert_eq!((calls.observed_at()).len(), 0);
         let stdout = b"{\n \"chip\": {\"task\":2,\"phase\":\"due\"},\n \"run_wait\":{\"account\":{\"account\":1,\"source\":0,\"why\":{\"limited\":{\"until\":30}}}}\n}\n";
         calls.child = Some(completed(stdout));
         calls.wall = Wall::from_nanos(20);
-        calls.finish(Time::from_nanos(2));
+        calls.finish(Time::from_nanos(2)).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.ends.len(), 1);
         assert_eq!(calls.ends[0].stdout, stdout);
         assert_eq!(calls.observed_at(), &[Some(Wall::from_nanos(20))]);
         calls.action = Some(Action::Run);
         calls.child = Some(completed(b"{\"accounts\":{}}"));
         calls.wall = Wall::from_nanos(40);
-        calls.finish(Time::from_nanos(3));
+        calls.finish(Time::from_nanos(3)).unwrap_or_else(|why| panic!("{why}"));
         assert_eq!(calls.observed_at(), &[Some(Wall::from_nanos(20)), Some(Wall::from_nanos(40))]);
     }
 }

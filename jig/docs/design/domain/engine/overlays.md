@@ -147,7 +147,11 @@ its parts, `../tasks/messages.md`, 6.
   read document gains the optional overlay of 6.
 - **Versioned:** stored settings move from version 2 to 3 in jig's patch
   2, after its catch-up patch; old values retain their fields and gain
-  no overlay (`temper/docs/design/protocol/baseline.md`, 7). The client
+  no overlay (`temper/docs/design/protocol/baseline.md`, 7). A stored
+  charter version is one root, `CharterVersion`, with an optional
+  overlay. jig's written job `charter-versions` puts each version
+  stored before it again as that root
+  (`../../protocol/store/layouts.md`, 2). The client
   wire moves from version 19 to 20, and a client of another version is
   refused (`../../protocol/client/README.md`, 6).
 - **Bounds:** an overlay's instructions and each part are bounded as a

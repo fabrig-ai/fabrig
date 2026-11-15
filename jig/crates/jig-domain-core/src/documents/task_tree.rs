@@ -124,7 +124,7 @@ pub(super) fn hold_for(
     limits: &Limits,
     party: u64,
     row: &tasks::TaskRecord,
-) -> Result<Option<HoldLine>, Missing> {
+) -> Result<Option<HoldPhaseLine>, Missing> {
     let mut line = hold(limits, row)?;
     if let Some(line) = &mut line {
         line.placed = placed(core, limits, party, row.number)?;

@@ -20,7 +20,8 @@ pub(super) fn activity(
             reads::PageRow::Activity { line, turn } => (line, turn),
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Inbox(_)
             | reads::PageRow::Line(_)
             | reads::PageRow::Note(_)
@@ -57,21 +58,25 @@ pub(super) fn history(
     let mut rows = List::with_capacity(page.rows.len());
     for row in &page.rows {
         rows.push(match row {
+            reads::PageRow::Attempt(value) if subtree || value.task == task => {
+                w::HistoryRow::Attempt(w::HistoryRowAttempt::new(
+                    limits,
+                    w::HistoryRowAttemptParts { value: objects::ended::attempt(value, limits)? },
+                )?)
+            }
             reads::PageRow::History(value) if subtree || value.task == task => {
                 w::HistoryRow::Change(Box::new(w::HistoryRowChange::new(
                     limits,
                     w::HistoryRowChangeParts { value: history::line(models, value, limits)? },
                 )?))
             }
-            reads::PageRow::Milestone(value) if subtree || value.task == task => {
-                w::HistoryRow::Milestone(w::HistoryRowMilestone::new(
-                    limits,
-                    w::HistoryRowMilestoneParts { value: objects::ended::milestone(value, limits)? },
-                )?)
-            }
+            reads::PageRow::Hold(value) if subtree || value.task == task => w::HistoryRow::Hold(
+                w::HistoryRowHold::new(limits, w::HistoryRowHoldParts { value: objects::ended::hold(value, limits)? })?,
+            ),
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Activity { .. }
             | reads::PageRow::Inbox(_)
             | reads::PageRow::Line(_)
@@ -109,7 +114,8 @@ pub(super) fn inbox(
             reads::PageRow::Inbox(value) => value,
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Activity { .. }
             | reads::PageRow::Line(_)
             | reads::PageRow::Note(_)
@@ -151,7 +157,8 @@ pub(super) fn ended(
         let value = match row {
             reads::PageRow::EndedDelegate(value) => value,
             reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Activity { .. }
             | reads::PageRow::Inbox(_)
             | reads::PageRow::Line(_)
@@ -204,7 +211,8 @@ pub(super) fn spend(
             reads::PageRow::Spend(value) => value,
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Activity { .. }
             | reads::PageRow::Inbox(_)
             | reads::PageRow::Line(_)
@@ -239,7 +247,8 @@ pub(super) fn notes(
             reads::PageRow::Note(value) => value,
             reads::PageRow::EndedDelegate(_)
             | reads::PageRow::History(_)
-            | reads::PageRow::Milestone(_)
+            | reads::PageRow::Attempt(_)
+            | reads::PageRow::Hold(_)
             | reads::PageRow::Activity { .. }
             | reads::PageRow::Inbox(_)
             | reads::PageRow::Line(_)

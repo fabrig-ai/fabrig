@@ -288,7 +288,9 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 
 - **Versions move with layouts, from now** (the user, 2026-11-12). Each
   of jig's encodings has one current version. A stored family moves its
-  version with its patch from its baseline (`store/records.md`); a wire,
+  version with its patch from its baseline (`store/records.md`), until
+  it is registered: from then on its version stays and the store
+  converts each value from its layout (`store/layouts.md`); a wire,
   an encoding two builds exchange, moves its version at the landing that
   changes its layout, keeps the old text and brings its forward patch
   (skein's `data/codec/README.md`, section 5; `data/codec/command.md`, 2,

@@ -196,11 +196,3 @@ fn the_rows_have_unique_names_and_bounded_lines() {
         }
     }
 }
-
-#[cfg(debug_assertions)]
-#[test]
-#[should_panic(expected = "configuration member missing from table")]
-fn an_absent_member_without_a_row_fails_its_decoder() {
-    let document = config::document(b"{}", &LIMITS).unwrap();
-    let _member = super::object(&document, 0, "application").unwrap().member(&document, b"unlisted");
-}

@@ -317,7 +317,7 @@ const ROOT: Root = Root {
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
         // The 65,536-byte forge answer dominates small's deep task row,
-        // including its four AuthorityExecutor values (engine::row_bound).
+        // including its four AuthorityExecutor values and 56-byte Option<OpenAttempt> (engine::row_bound).
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
@@ -408,9 +408,10 @@ const STANDARD_ROOT: Root = Root {
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds (engine::row_bound):
         // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
-        // plus 22 executor places * 8 bytes per AuthorityExecutor and the
-        // eight-byte question wake watermark = 22,467,848.
-        transcript_bytes: 22_467_848,
+        // + 22 executor places * 8 bytes per AuthorityExecutor
+        // + 8 bytes for the question wake watermark
+        // + 56 bytes for Option<OpenAttempt> = 22,467,904.
+        transcript_bytes: 22_467_904,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

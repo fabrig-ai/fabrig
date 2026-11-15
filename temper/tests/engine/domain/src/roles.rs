@@ -244,6 +244,8 @@ impl World {
                         | tasks::Stored::PlacedHold(_)
                         | tasks::Stored::Pool(_)
                         | tasks::Stored::Milestone(_)
+                        | tasks::Stored::Attempt(_)
+                        | tasks::Stored::Hold(_)
                         | tasks::Stored::History(_)
                         | tasks::Stored::PersonProposal(_)
                         | tasks::Stored::Update(_)
@@ -393,7 +395,8 @@ impl World {
             &mut self.store,
             &mut self.protocol,
             config(self.settings),
-        );
+        )
+        .unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Complete registered outside replies and pending store IO within a bounded number of iterations.

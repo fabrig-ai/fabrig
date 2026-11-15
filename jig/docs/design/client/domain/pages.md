@@ -336,9 +336,12 @@ A section with nothing in it is not shown.
   Filtered: held only, live only. Live tasks are watched; ended ones are
   read as their branches open.
 - **History:** each task made (with its batch), amended (before and
-  after), held (why), released, cancelled or moved, by whom (a party, a
-  task, the deployment), when, and the reason given. For a coordinator it
-  is the plan's story. Read a page at a time, for the task alone or its
+  after), held (why, and from what phase), released, cancelled or moved,
+  by whom (a party, a task, the deployment), when, and the reason given;
+  and each of its attempts: when it was claimed, when it started, when
+  and how it ended, and how many phase changes it took
+  (`../../domain/tasks/lifecycle.md`, 12). For a coordinator it is the
+  plan's story. Read a page at a time, for the task alone or its
   subtree.
 - **Budget and authority:** its budget, spent by itself, by its ended
   delegates, reserved for its live ones, and left; who funds it; where it

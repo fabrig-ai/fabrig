@@ -184,7 +184,8 @@ fn question(address: &Address, gathered: &Gathered) -> Option<(u64, u64)> {
             core::reads::PageRow::Line(_)
             | core::reads::PageRow::EndedDelegate(_)
             | core::reads::PageRow::History(_)
-            | core::reads::PageRow::Milestone(_)
+            | core::reads::PageRow::Attempt(_)
+            | core::reads::PageRow::Hold(_)
             | core::reads::PageRow::Activity { .. }
             | core::reads::PageRow::Note(_)
             | core::reads::PageRow::Spend(_) => continue,

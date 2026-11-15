@@ -1030,6 +1030,7 @@ impl Referee<cluster::Root> for Judge {
     }
 
     fn watch(&mut self, now: Time, roots: &[cluster::Root]) -> Result<(), String> {
+        cluster::check_calls(roots)?;
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }

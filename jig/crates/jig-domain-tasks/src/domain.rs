@@ -1217,14 +1217,17 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
     if initial || held {
         crate::activity::append(&mut task.record, env.wall, crate::Line::Milestone { position }, out);
     }
-    out.push(Request::Save {
-        record: Stored::Milestone(crate::Milestone {
-            task: number,
-            position: task.record.milestone,
-            phase: task.record.phase.clone(),
-            at: env.wall,
-        }),
-    });
+    if let Phase::Held { was, why, source } = &task.record.phase {
+        out.push(Request::Save {
+            record: Stored::Hold(crate::HoldRow {
+                task: number,
+                position,
+                held: crate::Held { was: was.clone(), why: *why, source: source.clone() },
+                at: env.wall,
+            }),
+        });
+    }
+    crate::attempts::changed(&mut task.record, env.wall, out);
 }
 
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
@@ -1513,6 +1516,7 @@ pub(crate) fn make_admitted(
             offered: crate::Reasons::ALL,
             asked_requester: false,
             question_woken: 0,
+            open_attempt: None,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
             label: new.label,

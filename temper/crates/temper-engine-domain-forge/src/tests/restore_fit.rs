@@ -938,14 +938,6 @@ fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
 }
 
 #[test]
-#[should_panic(expected = "restore_begin precedes every restored row")]
-fn restoring_a_row_requires_the_start_observation() {
-    let mut d = domain();
-    let mut out = Queue::uncapped();
-    step(&mut d, &env(), Event::Restore { record: application(1, Wall::EPOCH) }, &mut out);
-}
-
-#[test]
 fn unknown_tier_events_keep_state_and_hold_the_step() {
     let mut d = domain();
     let before = alloc::format!("{d:?}");

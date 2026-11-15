@@ -11,7 +11,7 @@ use crate::{
     fixtures,
     world::HarnessProcess,
 };
-use jig_client_protocol_wire::{public_v1 as public, v22 as wire};
+use jig_client_protocol_wire::{public_v1 as public, v23 as wire};
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 use std::net::SocketAddr;
@@ -774,7 +774,7 @@ impl skein_world::Referee<Proc> for Judge {
     }
 }
 fn owned() -> wire::Owned {
-    wire::Owned::new(&wire::CEILINGS, wire::OwnedParts { owner: wire::Owner::Jig, version: 22, record: Box::default() })
+    wire::Owned::new(&wire::CEILINGS, wire::OwnedParts { owner: wire::Owner::Jig, version: 23, record: Box::default() })
         .expect("owned read")
 }
 fn anonymous_body(route: &[u8]) -> Box<[u8]> {
@@ -785,7 +785,7 @@ fn anonymous_body(route: &[u8]) -> Box<[u8]> {
                 wire::KeyedParts {
                     key: [7; 16],
                     owner: wire::Owner::Jig,
-                    version: 22,
+                    version: 23,
                     request: Box::default(),
                     value: None,
                 },

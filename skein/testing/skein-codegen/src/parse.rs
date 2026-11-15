@@ -30,6 +30,8 @@ fn word(source: &str, at: Span) -> &str {
 fn refusal(source: &str, error: SchemaError) -> Error {
     let found = || word(source, error.at);
     let message = match error.wrong {
+        Wrong::Former => "former name repeats a name in its scope".into(),
+        Wrong::Default => "default is not a value of the field type".into(),
         Wrong::Long => "schema longer than 1048576 bytes".into(),
         Wrong::Many => "more than 4096 declarations".into(),
         Wrong::Character => {
@@ -43,6 +45,8 @@ fn refusal(source: &str, error: SchemaError) -> Error {
         }
         Wrong::End => "unexpected end of schema".into(),
         Wrong::Expected(expected) => match expected {
+            Expected::Name => "expected a name after was".into(),
+            Expected::Default => "expected a default".into(),
             Expected::Family => format!("expected family, found {}", found()),
             Expected::Open => format!("expected {{, found {}", found()),
             Expected::Colon => format!("expected :, found {}", found()),

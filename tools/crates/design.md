@@ -134,6 +134,7 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
 | `temper-engine-domain-forge` | about 79,000, and about 70,000 after G5 | `Domain`'s state grouped into owned parts (`temper/docs/development/debt/D013-forge-one-object.md`), then a split along them: G5 moves its vocabulary out, but `Domain` can't be cut (`temper/docs/design/domain/forge/README.md`, 3) |
 | `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
+| `temper-protocol-store` | 60,366, including 42,356 in generated `patches/mod.rs` | the store change that moves its generated `patches/mod.rs` out of the library, not yet planned |
 | `temper-client-tools` | about 67,000 | its split, not yet planned |
 | `jig-client-view` | about 64,000 | its split, not yet planned |
 | `jig-client-protocol-wire`'s own family | about 130,000 | a crate of its own for its `public` family (section 5) |

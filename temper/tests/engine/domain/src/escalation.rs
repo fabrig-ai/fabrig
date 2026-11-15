@@ -856,7 +856,8 @@ impl World {
             &mut self.store,
             &mut self.protocol,
             config(self.settings.seed),
-        );
+        )
+        .unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Complete every outside obligation and actual pending IO within 600 passes.

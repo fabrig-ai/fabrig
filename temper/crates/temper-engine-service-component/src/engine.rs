@@ -793,7 +793,19 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }
-            event @ jig_protocol_store::Event::Site { .. } => {
+            jig_protocol_store::Event::Ran { owner, of, job, rows, commits } => {
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.events.push(jig_protocol_store::Event::Ran {
+                        owner,
+                        of,
+                        job: job.clone(),
+                        rows,
+                        commits,
+                    });
+                }
+                engine.notes.try_push(crate::Note::Ran { of, job, rows, commits }).expect("job progress note room");
+            }
+            event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
                 crate::store::route::site(
                     &mut engine.store.routes,
                     &mut engine.store.host.component,
@@ -913,6 +925,8 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::OlderBuild { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Generations { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Ahead { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Job { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Patch { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),

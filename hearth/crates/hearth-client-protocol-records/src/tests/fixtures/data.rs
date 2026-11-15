@@ -1,15 +1,20 @@
-use crate::{
+use crate::records::Record;
+use hearth_domain_render_vocabulary as render;
+use render::{
     diff::{Change, PartChange, Rebuild, TargetChange},
-    parts::data::{Data, DataChange, DataClass, DataEntry, DataKeyed, DataValue},
-    records::{Part, PartRecord, Record},
+    parts::{
+        Part, PartRecord,
+        data::{Data, DataChange, DataClass, DataEntry, DataKeyed, DataValue},
+    },
 };
+
 pub fn value(class: DataClass) -> DataValue {
     DataValue { class, path: b"/var/lib/iwd".as_slice().into() }
 }
 pub fn spec() -> Record {
     let mut spec = super::x1_prod();
     spec.parts = Box::new([Part {
-        digest: [0; 32],
+        digest: hearth_lib::encode::Digest([0; 32]),
         record: PartRecord::Data(Data {
             entries: Box::new([
                 DataEntry { name: b"iwd".as_slice().into(), value: value(DataClass::Core) },

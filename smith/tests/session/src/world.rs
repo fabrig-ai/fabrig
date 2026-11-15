@@ -17,7 +17,7 @@ use crate::translate;
 mod llm;
 mod window_referee;
 
-pub use window_referee::{assert_prompt_bound, assert_prompt_boundary, assert_prompt_extends};
+pub use window_referee::{check_prompt_bound, check_prompt_boundary, check_prompt_extends};
 
 /// What the fake opener says when it nudges a session on.
 const NUDGE: &[u8] = b"You have not finished: carry on.";
@@ -581,6 +581,7 @@ pub struct World {
     sessions: BTreeMap<u64, Session>,
     openers: BTreeMap<Token, u64>,
 
+    finding: Option<String>,
     stats: Stats,
     told: Told,
     trace: Trace,
@@ -632,6 +633,7 @@ impl World {
             serving: Ledger::new("call the provider serves"),
             sessions: BTreeMap::new(),
             openers: BTreeMap::new(),
+            finding: None,
             stats: Stats::default(),
             told: Told::default(),
             trace: Trace::default(),
@@ -699,6 +701,9 @@ impl World {
     pub fn run_observed(&mut self, iterations: u32, mut observe: impl FnMut(&mut Self, Reclaim)) {
         for _ in 0..iterations {
             self.iterate(&mut observe);
+            if let Some(why) = &self.finding {
+                panic!("{why}");
+            }
             if self.has_work_now() {
                 continue;
             }
@@ -761,6 +766,9 @@ impl World {
         // What the steps asked for, submitted at the end of the iteration.
         while let Some(request) = self.agent_stage.out.pop() {
             self.agent_request(request);
+            if self.finding.is_some() {
+                return;
+            }
         }
         while let Some(request) = self.provider_stage.out.pop() {
             self.provider_request(request);

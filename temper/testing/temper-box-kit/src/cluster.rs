@@ -385,6 +385,15 @@ impl Cluster {
     }
 }
 
+pub(super) fn check_calls(roots: &[Root]) -> Result<(), String> {
+    for root in roots {
+        if let Root::Client { calls: Some(calls), .. } = root {
+            calls.check()?;
+        }
+    }
+    Ok(())
+}
+
 /// A cluster world root: one described process or the story's client calls.
 pub enum Root {
     Process(Box<Member>),

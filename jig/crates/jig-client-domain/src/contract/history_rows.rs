@@ -1,13 +1,13 @@
-//! Whole heterogeneous history rows (client/domain/objects.md, 11;
-//! pages.md, 5.2). A revision and an activity position name different facts.
-use super::{HistoryLine, MilestoneLine};
+//! Whole history rows in source page order (client/domain/contract/README.md, 4).
+use super::{AttemptLine, HistoryLine, HoldLine};
 use alloc::boxed::Box;
 
-/// One supplied semantic change or lifecycle milestone, in source page order.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum HistoryRow {
-    /// An immutable semantic change named by its task and revision.
+    /// A semantic change named by its task and revision.
     Change(Box<HistoryLine>),
-    /// A lifecycle transition named by its task and activity position.
-    Milestone(Box<MilestoneLine>),
+    /// A run named by its task and attempt number.
+    Attempt(Box<AttemptLine>),
+    /// A held phase named by its task and phase change position.
+    Hold(Box<HoldLine>),
 }

@@ -130,6 +130,7 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
             if super::drop::restore(store).is_err() {
                 open::refuse(store, store.directory.owner, OpenRefusal::Failed, above);
             } else {
+                store.registry.settle();
                 crate::patching::switch::opened(store);
                 above.push(Event::Opened {
                     owner: store.directory.owner,

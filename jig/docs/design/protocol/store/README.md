@@ -34,11 +34,18 @@ section 11.
   each owner's patch level and the deployment; a store of another
   version or deployment refuses to open, and before the first release
   nothing is translated (`records.md`).
+- **Values name their layout.** A registered family's value carries its
+  value type's layout id, an entry of the store's registry; the open
+  checks that each layout held converts to the binary's, and each value
+  is converted as it is read (`layouts.md`).
 - **Generations.** The maps live in numbered generations under the
-  deployment's directory, `active` naming the open one. A store behind
-  the binary's patch levels is patched at open in a copy, checked, and
-  switched to by one durable rename; a crash anywhere leaves one whole
-  generation active (`README.md`, section 2, and `opening.md`, section 2 to 4).
+  deployment's directory, `active` naming the open one. A store the open
+  must write before serving (a patch pending, its registry to seed or
+  extend, a job pending) is upgraded at open in a new generation made
+  by links, checked, and switched to by one durable rename; a crash
+  anywhere leaves one whole generation active (`README.md`, section 2,
+  and `opening.md`, section 2 to 4). Jobs at open walk the map for their
+  owners when a binary needs it in another shape (`jobs.md`).
 - **One decision, one commit, the same number.** Each of the root's
   commits is one skein-kv commit with the same number. Group commit folds
   bursts into one sync. A failed or refused commit stops the engine
@@ -346,6 +353,7 @@ child puts live first.
 | component | the format row | none: one row | at open |
 | component | the installation's identifier, at its reserved key in the accounts' family (01 04 03): drawn by the shell at each start (`../configuration.md`, section 7) and kept by the store's first commit, beside the format row (`records.md`, 3), so that each later start's draw is ignored | none: one row | at open, handed up as the store opens, never by the restart's ranges (`loads.md`, 2) |
 | component | transcripts' places: each task's committed length and its current window's start; each attempt's first turn | task; task, attempt | at open, the run proofs' tasks' lengths (`transcripts.md`, 4); the rest when read |
+| component | the registry: each layout of the registered families' value types, the schema texts they name, and the jobs done (`layouts.md`, 3; `jobs.md`, 2) | family, value type, id; a text's digest; owner, job | at open, whole |
 | core | the deployment: its id, its numbers (the next project's among them, past every project seeded or made), the last commit | none: one row | at start |
 | core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
@@ -353,7 +361,7 @@ child puts live first.
 | core | turns (in transcripts' files, `transcripts.md`), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
 | tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
-| tasks | ended tasks, past periods, decided proposals, history, milestones, activity | task, then a position or revision; funder, period; proposal | on demand |
+| tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../../domain/people/public-reading.md`, 2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../../domain/people/acts.md`, 3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../../domain/people/acts.md`, 2), at most one per project the deployment has room for, erased with the deletion's last step; each deleted project's mark, its number alone, kept past its deletion, at most as many as the projects the deployment has room for, the lowest number's erased to make room (`../../domain/people/acts.md`, 2, *Marked deleted*) | as the people child keys them; a live conversation's position by party, then task; a deletion by its project; a mark by its project | at start |
 | people | ended conversations' read positions (`loads.md`, 4) | task, then party | at start, by the census, every row (`loads.md`, 2); otherwise on demand |
 | accounts | issued program names, including retired ones, with their source number and original holder and desired sign-out (key tag 4, after the installation's reserved tag); the next number the accounts child gives, below which it gives none again; LLM accounts: each one's holder, LLM provider, subject and display name, its uses, and what its last list reads gave, where it has any: the catalogue's numbers as a bit each, when its last good read was, when its last attempt ended, why that failed, and how many names took no number (`../../domain/accounts.md`, 3.7); their sources, each at its place in its holder's order, with its kind, its name for a program's, and its hold: limited, with its reset as a wall time where it has one, refused, or moving (a signed-in source whose record is out with a move, or back and not yet refreshed: `../../domain/accounts.md`, section 6). The rest of a source's state is heard again at each start, and none is kept per host (`../../domain/accounts.md`, 3.5); what each account's LLM provider says of it, a record per account of at most 24 facts (key tag 5, after the issued names; `../../domain/accounts.md`, 3.7) | source for an issued name; none: one row; account; account, source; account for its facts | at start, issued names before live account/source records, an account's facts after them |
@@ -536,11 +544,11 @@ count up, and nothing of it is stored.
   the map (the active generation's and a patched copy's, never the
   secrets' store) the census rule of its tags (4.2): a key under tag 0
   counts by its first two bytes, the component's family; under tag 1 by
-  three, jig's child and family (`01 01 0a`, the tasks child's
-  milestones); under tag 2 by two, the application's first key tag
+  three, jig's child and family (`01 01 16`, the tasks child's
+  attempts); under tag 2 by two, the application's first key tag
   (`02 0c`); any other first byte by one.
 - **Names,** `OWNER.FAMILY`, ASCII lower-case letters, digits, `.` and
-  `-`, at most 48 bytes: `component.format`, `tasks.milestones`,
+  `-`, at most 48 bytes: `component.format`, `tasks.attempts`,
   `core.terminals`, `temper.changes`. The component's and jig's come
   from a table beside the component's key encoders (`keys`), one name per
   tag they write; the application's from a table it hands the component

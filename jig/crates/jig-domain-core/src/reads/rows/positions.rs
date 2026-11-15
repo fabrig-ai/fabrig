@@ -40,9 +40,9 @@ fn history_after(position: Option<&Position>) -> Option<u64> {
 
 fn history_task(position: &Position) -> Option<u64> {
     match position {
-        Position::Owner(Key::Tasks(tasks::Key::History { task, .. } | tasks::Key::Milestone { task, .. })) => {
-            Some(*task)
-        }
+        Position::Owner(Key::Tasks(
+            tasks::Key::History { task, .. } | tasks::Key::Attempt { task, .. } | tasks::Key::Hold { task, .. },
+        )) => Some(*task),
         Position::Owner(_) | Position::Inbox { .. } => None,
     }
 }

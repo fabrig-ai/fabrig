@@ -4,6 +4,7 @@
 
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
+- **Not yet:** 8: the worst case (`sizes.rs`) does not count the registry's rows held at open, their parsed schema texts, the derived plans' tables or the one `Workspace` fitted to them (`layouts.md`, 7); change 2846 left it, its memory bounded by the registered families' texts.
 
 `records.md`, section 1's tasks-v9 terminal includes a bounded failed-activation reason.
 Its schema, generated codec, goldens and layout fingerprint change together

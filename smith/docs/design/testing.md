@@ -165,7 +165,9 @@ patch and drift tests check the generated `encoded_bound` and
   fake's crate as a dev-dependency, for its stories and observations,
   and has no binary of its own for it (skein/docs/foundation/cli.md, 3).
   A run that hasn't built it fails, naming
-  `cargo build -p smith-fake-claude --bin fake-claude`; the delivery check
+  `cargo build -p smith-fake-claude --bin fake-claude`: the lookup
+  returns that refusal, its tests read it, and the story panics on it
+  at its top; the delivery check
   builds it first whenever it runs `smith`'s tests (tools/pre-pr/design.md, 4).
 - **The referee reads what shows from outside:**
   - the terminal's transcript;
@@ -570,7 +572,18 @@ Every component's files and processes go through it:
   with the transport's own check beneath them, return the first
   difference as their finding, naming the record or the message by
   position; the world or the story panics on it at its top, and their
-  own tests read it. Nothing in smith's tests catches a panic.
+  own tests read it. So do the host world's common parent referee, over
+  a run's answers, its terminals, its unread report, its fences and
+  `Gone`, with the inline world's check of an answer to a parent call;
+  the protocol world's reading of a native request the component sent,
+  its cache markers and breakpoints (`protocol/llm.md`, 2.3); the
+  session world's window referee, over a window's system, affinity,
+  history and bound (`domain/session.md`, 8); and the local-process
+  world's person, whose terminal write that fails where its script
+  doesn't expect a failure is its finding. Nothing in smith's tests
+  catches a panic, and none triggers an assertion: what an assertion
+  guards is tested through the outcomes around it
+  (`skein/docs/foundation/programming-model.md`, 10.4).
 
 ## 6. What the worlds check
 

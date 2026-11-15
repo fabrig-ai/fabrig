@@ -32,13 +32,18 @@ hearth-fake-machine
   io and simulator only in its face behind the simulator, which
   translates.
 - **It checks its client.** It refuses what Linux refuses, with Linux's
-  error, and asserts what its client guarantees: a handle it issued, a
-  process it started.
+  error, and checks what its client guarantees: a handle it issued, a
+  process it started. Each check returns its finding, a value apart
+  from Linux's refusals, which its call panics on, as skein's minimal
+  fake machine's check of a handle does (`skein/docs/design/testing/README.md`, 5);
+  the checks' tests read the finding.
 - **It keeps a ledger:** every operation, who made it (process, ids,
   view; one process until the steward and its builders run apart [M3],
   since skein's calls name no process), what it changed and what it
   refused, in a bounded queue the
-  referee drains; and counts a world reads at settle: bytes read and
+  referee drains, its scenario's size its price: a test fills it to
+  that size and compares what it drains with it, and one more entry
+  before a drain is an assertion, which no test triggers; and counts a world reads at settle: bytes read and
   written per process, inodes changed, subvolumes made, programs run.
   The steward's rule is read from it (hearth/docs/design/domain/steward.md, 2.2): no open beneath
   the store's `layers/` or `repo/`, and no build tool spawned, by the
@@ -209,8 +214,10 @@ archive    Installed-Size; the .deb's size and SHA-256, as Packages lists them
   `standard`, each the packages of its priority and those above it, with
   apt.
 - **No Breaks, Replaces or Recommends,** until a scenario shows that
-  one changes a closure (`README.md`, 3.1). The fake mmdebstrap asserts `APT::Install-Recommends "false"` (hearth/docs/design/domain/render/spec.md, 2.2),
-  naming the option where a world passes another.
+  one changes a closure (`README.md`, 3.1). The fake mmdebstrap checks `APT::Install-Recommends "false"` (hearth/docs/design/domain/render/spec.md, 2.2):
+  where a world passes another, its check of the invocation returns the
+  finding naming the option, which the fake's run panics on, and the
+  check's tests read it.
 - **base-files and base-passwd:** `/usr/lib/os-release`,
   `/etc/debian_version`, and the static users and groups.
 - **dpkg's database, of the real shape:** `/var/lib/dpkg/status` with

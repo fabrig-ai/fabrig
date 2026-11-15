@@ -16,11 +16,14 @@ use skein_lib::{Token, Wall, length::len_u64};
 pub(super) const SETS: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
+                current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
+                types: &[],
                 flights: &[],
                 name: "fixture-frame",
                 texts: jig::kept::fixture_frame::TEXTS,
@@ -30,11 +33,14 @@ pub(super) const SETS: PatchSets = PatchSets {
             }],
         },
         PatchSet {
+            jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             patches: smith::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
+                current: smith::kept::fixture_turn::TEXTS.last().expect("kept text"),
+                types: &[],
                 flights: &[],
                 name: "fixture-turn",
                 texts: smith::kept::fixture_turn::TEXTS,
@@ -212,6 +218,8 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             | Event::Back { .. }
             | Event::BackRefused { .. }
             | Event::Closed { .. }
+            | Event::Job { .. }
+            | Event::Ran { .. }
             | Event::Patched { .. }) => result.push(other),
         }
     }
@@ -360,7 +368,12 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
     const MISMATCH: PatchSets = PatchSets {
         sets: &[
             PatchSet {
-                families: &[KeptFamily { name: "other-frame", texts: &[OTHER], ..SETS.sets[0].families[0] }],
+                families: &[KeptFamily {
+                    current: OTHER,
+                    name: "other-frame",
+                    texts: &[OTHER],
+                    ..SETS.sets[0].families[0]
+                }],
                 patches: &[],
                 ..SETS.sets[0]
             },
@@ -403,12 +416,12 @@ fn empty_kept_sets_make_no_machine_and_the_same_requests() {
     const EMPTY: PatchSets = PatchSets {
         sets: &[
             PatchSet {
-                families: &[KeptFamily { texts: &[], ..SETS.sets[0].families[0] }],
+                families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[0].families[0] }],
                 patches: &[],
                 ..SETS.sets[0]
             },
             PatchSet {
-                families: &[KeptFamily { texts: &[], ..SETS.sets[1].families[0] }],
+                families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[1].families[0] }],
                 patches: &[],
                 ..SETS.sets[1]
             },
@@ -572,7 +585,7 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
     const FIRST: &str = "family fixture-turn 1\nrecord Empty {}\nversioned record Turn { nodes: list 64 Empty }\n";
     const LAST: &str = "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { nodes: list 64 Empty }\n";
     const SMITH: PatchSet = PatchSet {
-        families: &[KeptFamily { texts: &[FIRST, LAST], ..SETS.sets[1].families[0] }],
+        families: &[KeptFamily { current: LAST, texts: &[FIRST, LAST], ..SETS.sets[1].families[0] }],
         patches: &[PATCH],
         ..SETS.sets[1]
     };
@@ -650,12 +663,20 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
         sets: &[
             PatchSet {
                 patches: &[],
-                families: &[KeptFamily { texts: &[jig::kept::fixture_frame::TEXTS[0]], ..SETS.sets[0].families[0] }],
+                families: &[KeptFamily {
+                    current: jig::kept::fixture_frame::TEXTS[0],
+                    texts: &[jig::kept::fixture_frame::TEXTS[0]],
+                    ..SETS.sets[0].families[0]
+                }],
                 ..SETS.sets[0]
             },
             PatchSet {
                 patches: &[],
-                families: &[KeptFamily { texts: &[smith::kept::fixture_turn::TEXTS[0]], ..SETS.sets[1].families[0] }],
+                families: &[KeptFamily {
+                    current: smith::kept::fixture_turn::TEXTS[0],
+                    texts: &[smith::kept::fixture_turn::TEXTS[0]],
+                    ..SETS.sets[1].families[0]
+                }],
                 ..SETS.sets[1]
             },
         ],

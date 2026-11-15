@@ -54,7 +54,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
                     task: task::document(document, models, limits)?,
                     decision: ended::escalation_decision(decision, limits)?,
                     hold: match hold {
-                        Some(item) => Some(ended::milestone(item, limits)?),
+                        Some(item) => Some(ended::hold(item, limits)?),
                         None => None,
                     },
                 },

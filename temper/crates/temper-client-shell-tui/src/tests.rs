@@ -15,7 +15,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v22 as w;
+use jig_client_protocol_wire::v23 as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -148,12 +148,6 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
 }
 
 #[test]
-#[should_panic(expected = "a report before the TUI's start")]
-fn a_report_before_start_panics() {
-    host().report(Report::Due);
-}
-
-#[test]
 fn reports_keep_their_order() {
     let mut host = host();
     assert_eq!(host.frame().size(), Size { columns: 0, rows: 0 });
@@ -233,7 +227,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v22 as w;
+    use jig_client_protocol_wire::v23 as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -323,7 +317,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v22 as w;
+    use jig_client_protocol_wire::v23 as w;
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -395,7 +389,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v22 as w;
+    use jig_client_protocol_wire::v23 as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));

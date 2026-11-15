@@ -717,3 +717,134 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   finish, a cancel, its requester's) closes its closer as any delegate
   (1). Restart takes the closer as any task, and the task's record its
   number.
+
+## 12. What is kept of it
+
+A task's phase changes are not kept one by one. What people read of a
+lifecycle is per attempt and per hold: when a run was claimed, when it
+started, when and how it ended, and the holds between (temper's
+`draft/store-shape.md`, section 6). A wake that moves a task through
+idle, due, preparing, claimed, running and backing off writes nothing
+of its own beyond the task's record. The tasks child keeps, beside the
+task's record (`README.md`, section 3):
+
+- **Its count of phase changes,** `milestone` in its record: one more
+  at each phase change the tasks child publishes, its first phase and
+  its end included. A phase change's **position** is the count it
+  brought, from 1. No row is written per phase change.
+- **Its attempts** (12.1): a row per attempt.
+- **Its holds** (12.2): a row per held phase.
+- **Its activity's phase lines,** as before: a line naming the
+  position at its first phase, at each held phase (whose hold row is at
+  that position) and at its end. The lines of the first phase and the
+  end name no row.
+
+Times are the engine's wall clock at the commit that made the change,
+in nanoseconds.
+
+### 12.1 Attempts
+
+An attempt is a claim of a run and what follows until that run ends,
+named by its attempt number (2). A phase **names** attempt N when it is
+`Active::Claimed { N }` or `Active::Running { N }`, a hold whose `was`
+is one of those, or closing at stage `Run(N)`.
+
+```
+# the tasks family (jig-store-tasks); a row at 01 01 16 <task> <attempt>
+record AttemptRow { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option EndKind phases: option u32 }
+# kept in the live task's record, TaskRun.open_attempt: option OpenAttempt
+record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: u64 end: option EndKind }
+```
+
+- **Opened** at the first phase change after which the phase names it:
+  the task's record keeps it as `open_attempt`, `claimed` that change's
+  time, `started` that time too where the phase is running, `from` its
+  position; and its row is put, with no end.
+- **Started** at the first phase change after which the phase is
+  `Running { N }`: `started` takes its time, and the row is put again.
+- **Its run's end:** where the tasks child accepts its run's end and
+  writes the activity's `RunEnded` line, `open_attempt.end` keeps the
+  end's kind.
+- **Closed** at the first phase change after which the phase no longer
+  names it, the task's end among them: its row is put whole, `ended`
+  that change's time, `end` its run's end where one was heard, `phases`
+  that change's position less `from`; and `open_attempt` clears. An
+  attempt costs three puts of one row.
+- **A task restored** whose phase names an attempt its record keeps no
+  `open_attempt` for (one claimed before the upgrade that folded its
+  milestones, 12.4) takes `open_attempt { attempt, claimed: none,
+  started: none, from: 0, end: none }`; at its close its row is put
+  whole with what it knows, `claimed`, `started` and `phases` none.
+
+### 12.2 Holds
+
+```
+# the tasks family; a row at 01 01 17 <task> <position>
+record HoldRow { task: u64 position: u64 held: Held at: u64 }
+```
+
+- **A row per held phase:** each phase change after which the task is
+  held puts a row at its position, with the held phase whole (where it
+  was, why, its source) and the change's time: a hold made, its reason
+  or source changed, or its `was` moved, as a run's end heard while
+  held moves it. The row is never written again: its release is the
+  task's history (`Released`, `changes.md`), and the next phase change
+  says where the task went.
+- **The task's `hold`** is the position of its latest held phase, as
+  before, so the row at its `hold` is the task's latest hold. The hold's
+  revision (`Revisions.hold`), which escalations and releases name
+  (6, `proposals.md`), is unchanged.
+
+### 12.3 Who reads them
+
+- **Escalations:** an escalation's decision is read with the hold row
+  at its task's `hold` (`../../protocol/store/loads.md`, 3).
+- **History pages:** a task's history page holds its changes, then its
+  attempts, then its holds, each in key order; a subtree's, each task's
+  in turn, by the index of its delegates (`../../protocol/store/loads.md`,
+  3). The client's wire carries them as a history page's rows
+  (`../../client/domain/contract/README.md`, 4).
+- **Goals' projections** are fed holds and ends alone
+  (`../connectors.md`, 8): each hold row as it is saved, as the lifecycle
+  identity `{ task, position }` with its held phase; and a task's end,
+  as its ended record is saved, as `{ task, position }` its record's
+  `milestone`, with its ended phase. Attempts are not fed. The
+  identities are those the milestones of the same phase changes had, so
+  what a projection has already written of a task is not written again.
+- **A task's erasure** erases its attempts and holds with its other
+  rows.
+
+### 12.4 From milestones
+
+A store written before this design holds a row per phase change,
+`Milestone { task, position, phase, at }` at `01 01 0a <task>
+<position>`. jig's job at open `milestones`
+(`../../protocol/store/jobs.md`, 1) folds them into attempts and holds
+and erases them, so that no milestone is left once it is done:
+
+- **Its range** is `[01 01 0a, 01 01 0b)`; each task's milestones are
+  contiguous, in position order.
+- **Each held milestone** is a hold row at its position, its held phase
+  and its `at`.
+- **Attempts** follow 12.1's rules over the milestones in order: an
+  attempt opens at the first milestone naming it, `claimed` its `at`;
+  starts at its first running milestone; closes at the first milestone
+  after it that no longer names it, `ended` that milestone's `at` and
+  `phases` the milestones between. `end` is none: the kind of a run's
+  end before the fold is its activity's `RunEnded` line. An attempt the
+  task's last milestone still names is put open, with no end.
+- **Its answer** erases every milestone it consumed and puts the rows
+  they fold into, within the page's room (`../../protocol/store/jobs.md`,
+  3). It consumes whole tasks, leaving the page's last task to the next
+  page; a task longer than the room is cut after a milestone that names
+  no attempt, so that no attempt spans two pages; failing that, it
+  consumes what fits, and an attempt so cut is put again by the next
+  page from what that page holds.
+- **Nothing else moves:** the activity's lines and the tasks' records
+  keep their positions, which now name the hold rows, and the projections'
+  identities stay as they were.
+- **The `milestone` variant stays** in the tasks family's `Row` and its
+  value type stays declared, holding no value once the job is done: the
+  live and ended tasks' value types are the `Row` whole, whose stored
+  layouts a dropped variant would leave with no derived plan (skein's
+  `data/codec/layouts.md`, 2). No binary writes one.

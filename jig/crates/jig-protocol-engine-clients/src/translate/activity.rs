@@ -101,7 +101,7 @@ fn why(value: t::Why, limits: &w::Limits) -> Result<w::RunWhy, w::Problem> {
         t::Why::Changed => w::RunWhy::Changed,
     })
 }
-fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
+pub(super) fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
     Ok(match value {
         t::EndKind::Parked => w::RunEnd::Parked,
         t::EndKind::Finished => w::RunEnd::Finished,

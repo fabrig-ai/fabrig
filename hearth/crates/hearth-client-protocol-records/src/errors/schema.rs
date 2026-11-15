@@ -1,254 +1,236 @@
+use super::type_name::{type_name_article, type_name_name};
 use super::{Box, Encoder, Lines, Schema, field, json_names, names, signed, validation};
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Format {
-    DataName,
-    Sha256,
-    Link,
-    Path,
-    Mode,
-    Duration,
-    Secret,
-    File,
-    Key,
-    Timestamp,
-    Debian,
-    Preseed,
-    Module,
-    Param,
-}
-impl Format {
-    pub(super) fn name(self) -> &'static [u8] {
-        match self {
-            Self::DataName => b"data name",
-            Self::Link => b"link",
-            Self::Path => b"path",
-            Self::Mode => b"mode",
-            Self::Duration => b"duration",
-            Self::Secret => b"secret",
-            Self::File => b"file",
-            Self::Key => b"key",
-            Self::Timestamp => b"timestamp",
-            Self::Debian => b"debian",
-            Self::Preseed => b"preseed",
-            Self::Module => b"module",
-            Self::Param => b"param",
-            Self::Sha256 => b"sha256",
-        }
-    }
-}
-impl Schema {
-    pub(super) fn text(&self, lines: &mut Lines, task: Option<&[u8]>) {
-        match self {
-            Self::Export { fault } => export_text(lines, *fault),
-            Self::Unlisted { reader, root, task, setting } => {
-                unlisted_text(lines, reader, *root, task, setting.as_deref());
-            }
-            Self::Source { first, second } => {
-                lines.put(b"two sources ");
-                lines.put(first);
-                lines.put(b" and ");
-                lines.put(second);
-            }
-            Self::Dynamic { root } => dynamic_text(lines, *root),
-            Self::Malformed { format } => {
-                lines.put(b"malformed ");
-                lines.put(format.name());
-            }
-            Self::Target { name, environment } => {
-                lines.put(b"no target ");
-                lines.put(name);
-                lines.put(b" in ");
-                lines.put(environment);
-            }
-            Self::File { path } => {
-                lines.put(b"no file ");
-                lines.put(path);
-                lines.put(b" at this revision");
-            }
-            Self::Large { path, max } => large_text(lines, path, *max),
-            Self::Component { package, component } => component_text(lines, package, component),
-            Self::Beneath { allowed } => {
-                lines.put(b"path must be beneath ");
-                names(lines, allowed);
-            }
-            Self::Main => lines.put(b"debian.components must keep main on"),
-            Self::Security => lines.put(b"debian.snapshot.security is required with its pocket"),
+use hearth_domain_render_vocabulary::errors::{Format, Root};
 
-            Self::Undeclared { setting, declared } => {
-                validation::undeclared(lines, task.unwrap_or(b"task"), setting, declared);
-            }
-            Self::Missing { setting } => {
-                lines.put(b"missing required setting ");
-                lines.put(setting);
-            }
-            Self::Absent { task } => {
-                lines.put(b"reads ");
-                lines.put(task);
-                lines.put(b", which this target lacks");
-            }
-            Self::Wrong { expected } => {
-                lines.put(b"not ");
-                lines.put(expected.article());
-                lines.put(expected.name());
-            }
-            Self::Enum { value, listed } => {
-                lines.quote(value);
-                lines.put(b" is not one of ");
-                names(lines, listed);
-            }
-            Self::Below { min } => {
-                lines.put(b"below its min ");
-                signed(lines, *min);
-            }
-            Self::Above { max } => {
-                lines.put(b"past its max ");
-                signed(lines, *max);
-            }
-            Self::Length { max_length } => {
-                lines.put(b"past its max_length ");
-                signed(lines, *max_length);
-            }
-            Self::Null => lines.put(b"null in a default"),
-            Self::UndeclaredField { field, declared } => {
-                lines.put(b"undeclared field ");
-                lines.quote(field);
-                lines.put(b"; the object declares ");
-                names(lines, declared);
-            }
-            Self::MissingField { field } => {
-                lines.put(b"missing required field ");
-                lines.put(field);
-            }
-
-            Self::Task { task } => {
-                lines.put(b"reads ");
-                lines.put(task);
-                lines.put(b", which tasks/ lacks");
-            }
-            Self::Unread { task, setting, declared } => unread_text(lines, task, setting, declared),
-        }
-    }
-    pub(super) fn json(&self, json: &mut Encoder) {
-        json.object_start();
-        match self {
-            Self::Export { fault } => export_json(json, *fault),
-            Self::Unlisted { reader, root, task, setting } => {
-                unlisted_json(json, reader, *root, task, setting.as_deref());
-            }
-            Self::Source { first, second } => {
-                field(json, b"first", first);
-                field(json, b"kind", b"source");
-                field(json, b"second", second);
-            }
-            Self::Dynamic { root } => dynamic_json(json, *root),
-            Self::Malformed { format } => {
-                field(json, b"format", format.name());
-                field(json, b"kind", b"malformed");
-            }
-            Self::Target { name, environment } => {
-                field(json, b"environment", environment);
-                field(json, b"kind", b"target");
-                field(json, b"name", name);
-            }
-            Self::File { path } => {
-                field(json, b"kind", b"file");
-                field(json, b"path", path);
-            }
-            Self::Large { path, max } => large_json(json, path, *max),
-            Self::Beneath { allowed } => {
-                json.key(b"allowed");
-                json_names(json, allowed);
-                field(json, b"kind", b"beneath");
-            }
-            Self::Component { package, component } => component_json(json, package, component),
-            Self::Main => field(json, b"kind", b"main"),
-            Self::Security => field(json, b"kind", b"security"),
-
-            Self::Undeclared { setting, declared } => {
-                json.key(b"declared");
-                json_names(json, declared);
-                field(json, b"kind", b"undeclared");
-                field(json, b"setting", setting);
-            }
-            Self::Missing { setting } => {
-                field(json, b"kind", b"missing");
-                field(json, b"setting", setting);
-            }
-            Self::Absent { task } => {
-                field(json, b"kind", b"absent");
-                field(json, b"task", task);
-            }
-            Self::Wrong { expected } => {
-                field(json, b"expected", expected.name());
-                field(json, b"kind", b"wrong");
-            }
-            Self::Enum { value, listed } => {
-                field(json, b"kind", b"enum");
-                json.key(b"listed");
-                json_names(json, listed);
-                field(json, b"value", value);
-            }
-            Self::Below { min } => {
-                field(json, b"kind", b"below");
-                json.key(b"min");
-                json.signed(*min);
-            }
-            Self::Above { max } => {
-                field(json, b"kind", b"above");
-                json.key(b"max");
-                json.signed(*max);
-            }
-            Self::Length { max_length } => {
-                field(json, b"kind", b"length");
-                json.key(b"max_length");
-                json.signed(*max_length);
-            }
-            Self::Null => field(json, b"kind", b"null"),
-            Self::UndeclaredField { field: name, declared } => {
-                json.key(b"declared");
-                json_names(json, declared);
-                field(json, b"field", name);
-                field(json, b"kind", b"undeclared_field");
-            }
-            Self::MissingField { field: name } => {
-                field(json, b"field", name);
-                field(json, b"kind", b"missing_field");
-            }
-
-            Self::Task { task } => {
-                field(json, b"kind", b"task");
-                field(json, b"task", task);
-            }
-            Self::Unread { task, setting, declared } => {
-                json.key(b"declared");
-                json_names(json, declared);
-                field(json, b"kind", b"unread");
-                field(json, b"setting", setting);
-                field(json, b"task", task);
-            }
-        }
-        json.object_end();
+pub(super) fn format_name(item: Format) -> &'static [u8] {
+    match item {
+        Format::DataName => b"data name",
+        Format::Link => b"link",
+        Format::Path => b"path",
+        Format::Mode => b"mode",
+        Format::Duration => b"duration",
+        Format::Secret => b"secret",
+        Format::File => b"file",
+        Format::Key => b"key",
+        Format::Timestamp => b"timestamp",
+        Format::Debian => b"debian",
+        Format::Preseed => b"preseed",
+        Format::Module => b"module",
+        Format::Param => b"param",
+        Format::Sha256 => b"sha256",
     }
 }
 
-impl super::Root {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Tasks => b"tasks",
-            Self::Debian => b"debian",
-            Self::Exports => b"exports",
+pub(super) fn schema_text(item: &Schema, lines: &mut Lines, task: Option<&[u8]>) {
+    match item {
+        Schema::Export { fault } => export_text(lines, *fault),
+        Schema::Unlisted { reader, root, task, setting } => {
+            unlisted_text(lines, reader, *root, task, setting.as_deref());
         }
+        Schema::Source { first, second } => {
+            lines.put(b"two sources ");
+            lines.put(first.key());
+            lines.put(b" and ");
+            lines.put(second.key());
+        }
+        Schema::Dynamic { root } => dynamic_text(lines, *root),
+        Schema::Malformed { format } => {
+            lines.put(b"malformed ");
+            lines.put(format_name(*format));
+        }
+        Schema::Target { name, environment } => {
+            lines.put(b"no target ");
+            lines.put(name);
+            lines.put(b" in ");
+            lines.put(environment);
+        }
+        Schema::File { path } => {
+            lines.put(b"no file ");
+            lines.put(path);
+            lines.put(b" at this revision");
+        }
+        Schema::Large { path, max } => large_text(lines, path, *max),
+        Schema::Component { package, component } => component_text(lines, package, component),
+        Schema::Beneath { allowed } => {
+            lines.put(b"path must be beneath ");
+            names(lines, allowed);
+        }
+        Schema::Main => lines.put(b"debian.components must keep main on"),
+        Schema::Security => lines.put(b"debian.snapshot.security is required with its pocket"),
+
+        Schema::Undeclared { setting, declared } => {
+            validation::undeclared(lines, task.unwrap_or(b"task"), setting, declared);
+        }
+        Schema::Missing { setting } => {
+            lines.put(b"missing required setting ");
+            lines.put(setting);
+        }
+        Schema::Absent { task } => {
+            lines.put(b"reads ");
+            lines.put(task);
+            lines.put(b", which this target lacks");
+        }
+        Schema::Wrong { expected } => {
+            lines.put(b"not ");
+            lines.put(type_name_article(expected));
+            lines.put(type_name_name(expected));
+        }
+        Schema::Enum { value, listed } => {
+            lines.quote(value);
+            lines.put(b" is not one of ");
+            names(lines, listed);
+        }
+        Schema::Below { min } => {
+            lines.put(b"below its min ");
+            signed(lines, *min);
+        }
+        Schema::Above { max } => {
+            lines.put(b"past its max ");
+            signed(lines, *max);
+        }
+        Schema::Length { max_length } => {
+            lines.put(b"past its max_length ");
+            signed(lines, *max_length);
+        }
+        Schema::Null => lines.put(b"null in a default"),
+        Schema::UndeclaredField { field, declared } => {
+            lines.put(b"undeclared field ");
+            lines.quote(field);
+            lines.put(b"; the object declares ");
+            names(lines, declared);
+        }
+        Schema::MissingField { field } => {
+            lines.put(b"missing required field ");
+            lines.put(field);
+        }
+
+        Schema::Task { task } => {
+            lines.put(b"reads ");
+            lines.put(task);
+            lines.put(b", which tasks/ lacks");
+        }
+        Schema::Unread { task, setting, declared } => unread_text(lines, task, setting, declared),
     }
 }
-fn unlisted_text(lines: &mut Lines, reader: &[u8], root: super::Root, task: &[u8], setting: Option<&[u8]>) {
-    lines.put(root.name());
+pub(super) fn schema_json(item: &Schema, json: &mut Encoder) {
+    json.object_start();
+    match item {
+        Schema::Export { fault } => export_json(json, *fault),
+        Schema::Unlisted { reader, root, task, setting } => {
+            unlisted_json(json, reader, *root, task, setting.as_deref());
+        }
+        Schema::Source { first, second } => {
+            field(json, b"first", first.key());
+            field(json, b"kind", b"source");
+            field(json, b"second", second.key());
+        }
+        Schema::Dynamic { root } => dynamic_json(json, *root),
+        Schema::Malformed { format } => {
+            field(json, b"format", format_name(*format));
+            field(json, b"kind", b"malformed");
+        }
+        Schema::Target { name, environment } => {
+            field(json, b"environment", environment);
+            field(json, b"kind", b"target");
+            field(json, b"name", name);
+        }
+        Schema::File { path } => {
+            field(json, b"kind", b"file");
+            field(json, b"path", path);
+        }
+        Schema::Large { path, max } => large_json(json, path, *max),
+        Schema::Beneath { allowed } => {
+            json.key(b"allowed");
+            json_names(json, allowed);
+            field(json, b"kind", b"beneath");
+        }
+        Schema::Component { package, component } => component_json(json, package, component),
+        Schema::Main => field(json, b"kind", b"main"),
+        Schema::Security => field(json, b"kind", b"security"),
+
+        Schema::Undeclared { setting, declared } => {
+            json.key(b"declared");
+            json_names(json, declared);
+            field(json, b"kind", b"undeclared");
+            field(json, b"setting", setting);
+        }
+        Schema::Missing { setting } => {
+            field(json, b"kind", b"missing");
+            field(json, b"setting", setting);
+        }
+        Schema::Absent { task } => {
+            field(json, b"kind", b"absent");
+            field(json, b"task", task);
+        }
+        Schema::Wrong { expected } => {
+            field(json, b"expected", type_name_name(expected));
+            field(json, b"kind", b"wrong");
+        }
+        Schema::Enum { value, listed } => {
+            field(json, b"kind", b"enum");
+            json.key(b"listed");
+            json_names(json, listed);
+            field(json, b"value", value);
+        }
+        Schema::Below { min } => {
+            field(json, b"kind", b"below");
+            json.key(b"min");
+            json.signed(*min);
+        }
+        Schema::Above { max } => {
+            field(json, b"kind", b"above");
+            json.key(b"max");
+            json.signed(*max);
+        }
+        Schema::Length { max_length } => {
+            field(json, b"kind", b"length");
+            json.key(b"max_length");
+            json.signed(*max_length);
+        }
+        Schema::Null => field(json, b"kind", b"null"),
+        Schema::UndeclaredField { field: name, declared } => {
+            json.key(b"declared");
+            json_names(json, declared);
+            field(json, b"field", name);
+            field(json, b"kind", b"undeclared_field");
+        }
+        Schema::MissingField { field: name } => {
+            field(json, b"field", name);
+            field(json, b"kind", b"missing_field");
+        }
+
+        Schema::Task { task } => {
+            field(json, b"kind", b"task");
+            field(json, b"task", task);
+        }
+        Schema::Unread { task, setting, declared } => {
+            json.key(b"declared");
+            json_names(json, declared);
+            field(json, b"kind", b"unread");
+            field(json, b"setting", setting);
+            field(json, b"task", task);
+        }
+    }
+    json.object_end();
+}
+
+pub(super) fn root_name(item: Root) -> &'static [u8] {
+    match item {
+        Root::Tasks => b"tasks",
+        Root::Debian => b"debian",
+        Root::Exports => b"exports",
+    }
+}
+
+fn unlisted_text(lines: &mut Lines, reader: &[u8], root: Root, task: &[u8], setting: Option<&[u8]>) {
+    lines.put(root_name(root));
     lines.put(b".");
     lines.put(task);
     if let Some(setting) = setting {
         lines.put(b".");
         lines.put(setting);
     }
-    if root == super::Root::Tasks && setting.is_none() {
+    if root == Root::Tasks && setting.is_none() {
         lines.put(b" is not an optional read of ");
         lines.put(reader);
     } else {
@@ -257,10 +239,10 @@ fn unlisted_text(lines: &mut Lines, reader: &[u8], root: super::Root, task: &[u8
         lines.put(b"'s reads");
     }
 }
-fn unlisted_json(json: &mut Encoder, reader: &[u8], root: super::Root, task: &[u8], setting: Option<&[u8]>) {
+fn unlisted_json(json: &mut Encoder, reader: &[u8], root: Root, task: &[u8], setting: Option<&[u8]>) {
     field(json, b"kind", b"unlisted");
     field(json, b"reader", reader);
-    field(json, b"root", root.name());
+    field(json, b"root", root_name(root));
     json.key(b"setting");
     if let Some(setting) = setting {
         json.string(setting);
@@ -270,14 +252,14 @@ fn unlisted_json(json: &mut Encoder, reader: &[u8], root: super::Root, task: &[u
     field(json, b"task", task);
 }
 
-fn dynamic_text(lines: &mut Lines, root: super::Root) {
-    lines.put(root.name());
+fn dynamic_text(lines: &mut Lines, root: Root) {
+    lines.put(root_name(root));
     lines.put(b" takes only literal names");
 }
 
-fn dynamic_json(json: &mut Encoder, root: super::Root) {
+fn dynamic_json(json: &mut Encoder, root: Root) {
     field(json, b"kind", b"dynamic");
-    field(json, b"root", root.name());
+    field(json, b"root", root_name(root));
 }
 
 fn export_text(lines: &mut Lines, fault: super::ExportFault) {
@@ -285,7 +267,7 @@ fn export_text(lines: &mut Lines, fault: super::ExportFault) {
         super::ExportFault::Form => lines.put(b"an export's value must be one {{ }} tag"),
         super::ExportFault::Root { root } => {
             lines.put(b"an export reads settings and target alone, not ");
-            lines.put(root.name());
+            lines.put(root_name(root));
         }
     }
 }
@@ -295,7 +277,7 @@ fn export_json(json: &mut Encoder, fault: super::ExportFault) {
         super::ExportFault::Form => field(json, b"fault", b"form"),
         super::ExportFault::Root { root } => {
             field(json, b"fault", b"root");
-            field(json, b"root", root.name());
+            field(json, b"root", root_name(root));
         }
     }
 }

@@ -171,6 +171,7 @@ struct ResetJudge {
 impl Referee<Process> for ResetJudge {
     fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        super::ctl::check(procs)?;
         self.settled = procs.iter().all(Host::is_empty);
         if !self.settled && now >= self.until {
             return Err(String::from("reset did not remove its project before the cut"));

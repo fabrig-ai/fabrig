@@ -1,6 +1,6 @@
 # fake-machine: status
 
-2026-11-10. Where the tree's code lags or departs from [fake-machine.md](fake-machine.md).
+2026-11-14. Where the tree's code lags or departs from [fake-machine.md](fake-machine.md).
 
 - **Not yet:** 2: the shared fake machine's full file metadata and kinds,
   snapshot sharing, subvolume inode rules and all path-resolution flags;

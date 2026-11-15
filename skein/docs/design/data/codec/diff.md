@@ -32,7 +32,12 @@
 ## 1. Matching
 
 - **Confirmed renames first,** each pairing a kept declaration, field
-  or variant with a current one; then what is left pairs by name.
+  or variant with a current one; then what is left pairs by name. A
+  former name the current text gives (`README.md`, section 3: `assignee
+  was owner`) is a rename confirmed, pairing the kept part of that name
+  with the current one, when the kept text has no part of the current
+  name in that scope; a rename given beside it for the same part takes
+  its place.
   A rename names the old declaration and the new; a field's or a
   variant's, its declaration by its current name, its old name and its
   new. A rename is refused that names what its text lacks, a name a
@@ -77,10 +82,13 @@
   first, a named type and a held record by their names: `T` with the
   kept text's names and `U` with the current's. A type ends where the
   grammar says, so a line needs no other marks.
-- **An added field's value** is `none` for an `option`, which needs no
-  more; otherwise `?`, asked of its author: no value is invented
-  (temper's `draft/upgrades.md`, 4.3). The other forms of a value are
-  the patch text's (`patches.md`).
+- **An added field's value** is its default where the current text
+  gives one (`README.md`, section 3), spelled as the text spells it;
+  `none` for an `option` without one, which needs no more; otherwise
+  `?`, asked of its author: no value is invented (temper's
+  `draft/upgrades.md`, 4.3). The other forms of a value are the patch
+  text's (`patches.md`). `Fill::Default` carries the default's
+  spelling.
 - **Order:** the changes of each declaration in the current text's
   order, then the declarations dropped, in the kept text's. Within a
   declaration: its rename; `reshape`, after which its parts are not
@@ -191,7 +199,7 @@ pub enum Op {
     Payload { decl: String, variant: String,
               kept: Option<String>, current: Option<String> },
 }
-pub enum Fill { Absent, Asked }          // `none`, `?`
+pub enum Fill { Absent, Asked, Default(String) } // `none`, `?`, the text's default as spelled
 pub enum Rename {
     Declaration { old: String, new: String },
     Part { decl: String, old: String, new: String },

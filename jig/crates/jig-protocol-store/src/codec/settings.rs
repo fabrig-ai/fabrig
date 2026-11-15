@@ -1888,18 +1888,26 @@ fn encode_charter_version(
         Some(charter) => Some(encode_charter(charter, limits)?),
         None => None,
     };
-    wire::CharterVersion::new(limits, wire::CharterVersionParts { charter: field_charter })
+    let overlay = match &value.overlay {
+        Some(overlay) => Some(encode_overlay(overlay, limits)?),
+        None => None,
+    };
+    wire::CharterVersion::new(limits, wire::CharterVersionParts { charter: field_charter, overlay })
 }
 fn decode_charter_version(
     value: wire::CharterVersion,
     limits: &wire::Limits,
 ) -> Result<settings::CharterVersion, wire::Problem> {
-    let wire::CharterVersionParts { charter } = value.into_parts();
+    let wire::CharterVersionParts { charter, overlay } = value.into_parts();
     let field_charter = match charter {
         Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
         None => None,
     };
-    Ok(settings::CharterVersion { overlay: None, charter: field_charter })
+    let overlay = match overlay {
+        Some(overlay) => Some(Box::new(decode_overlay(overlay, limits)?)),
+        None => None,
+    };
+    Ok(settings::CharterVersion { overlay, charter: field_charter })
 }
 fn encode_proposal(
     value: &settings::Proposal,
@@ -2531,41 +2539,13 @@ fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<setting
     })
 }
 
-// Versions without an overlay retain their existing stored form (domain/engine/overlays.md, 7).
+// One root per charter-version range (protocol/store/layouts.md, 2).
 fn encode_version(value: &settings::CharterVersion, limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
-    match &value.overlay {
-        Some(overlay) => {
-            let charter = match &value.charter {
-                Some(charter) => Some(encode_charter(charter, limits)?),
-                None => None,
-            };
-            let value = wire::OverlaidCharterVersion::new(
-                limits,
-                wire::OverlaidCharterVersionParts { charter, overlay: encode_overlay(overlay, limits)? },
-            )?;
-            let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
-            value.encode(&mut writer).expect("measured version");
-            Ok(writer.finish())
-        }
-        None => {
-            let value = encode_charter_version(value, limits)?;
-            let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
-            value.encode(&mut writer).expect("measured version");
-            Ok(writer.finish())
-        }
-    }
+    let value = encode_charter_version(value, limits)?;
+    let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
+    value.encode(&mut writer).expect("measured version");
+    Ok(writer.finish())
 }
 fn decode_version(bytes: &[u8], limits: &wire::Limits) -> Result<settings::CharterVersion, wire::Problem> {
-    if let Ok(value) = wire::CharterVersion::decode(limits, &mut Reader::new(bytes)) {
-        return decode_charter_version(value, limits);
-    }
-    let wire::OverlaidCharterVersionParts { charter, overlay } =
-        wire::OverlaidCharterVersion::decode(limits, &mut Reader::new(bytes))?.into_parts();
-    Ok(settings::CharterVersion {
-        charter: match charter {
-            Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
-            None => None,
-        },
-        overlay: Some(Box::new(decode_overlay(overlay, limits)?)),
-    })
+    decode_charter_version(wire::CharterVersion::decode(limits, &mut Reader::new(bytes))?, limits)
 }

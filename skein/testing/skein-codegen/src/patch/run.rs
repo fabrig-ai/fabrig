@@ -155,6 +155,10 @@ fn families(
     let mut blocks = Vec::new();
     let mut refreshed = BTreeSet::new();
     for (family, current) in &tree.current {
+        if tree.registered.contains(family) {
+            report.outcomes.push(Outcome::Registered { family: family.clone() });
+            continue;
+        }
         let Some((_, kept)) = base.kept.get(family).and_then(|texts| texts.last_key_value()) else {
             remove_other_kept(tree, family, current.version, &mut writes);
             writes.insert(kept_path(family, current.version), Some(current.source.as_bytes().to_vec()));

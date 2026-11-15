@@ -14,6 +14,7 @@ use skein_lib::{
     Env, Queue, Token,
     stream::{Down, Up},
 };
+
 #[derive(Debug)]
 enum Stream {
     Taking,
@@ -164,21 +165,34 @@ impl Client {
     pub fn answer(&mut self, env: &Env<Limits>, answer: Answer, store: &[u8]) {
         assert!(self.takes(), "printer takes one record at a time");
         let record = match answer {
-            Answer::Spec(spec) => Record::Spec(Box::new(answers::spec(spec))),
+            Answer::Spec(spec) => Record::Spec(Box::new(spec)),
             Answer::Error(mut error) => {
-                if let crate::render::errors::Kind::Store(fault) = &mut error.kind {
-                    fault.store = skein_lib::bytes::copy_of(store);
+                use crate::render::errors::Kind;
+                match &mut error.kind {
+                    Kind::Store(fault) => fault.store = skein_lib::bytes::copy_of(store),
+                    Kind::Reserved(_)
+                    | Kind::Exported(_)
+                    | Kind::Ids(_)
+                    | Kind::Resolution(_)
+                    | Kind::Evaluation(_)
+                    | Kind::Schema(_)
+                    | Kind::Guard(_)
+                    | Kind::Collision(_)
+                    | Kind::Decode(_)
+                    | Kind::Repository(_)
+                    | Kind::Tool(_)
+                    | Kind::Composition(_) => {}
                 }
-                Record::Error(crate::translate::errors::error(error))
+                Record::Error(error)
             }
-            Answer::Change(change) => Record::Change(super::translate::changes::change(change)),
+            Answer::Change(change) => Record::Change(change),
             Answer::Layer { layer, key, state } => Record::Layer(answers::layer(layer, key, state)),
             Answer::Failed { step, why } => {
                 let failed = answers::failed(step, why);
                 self.failed = Some(failed.why);
                 Record::Failed(failed)
             }
-            Answer::Full { limit, most } => Record::Error(answers::full(limit, most, store)),
+            Answer::Full { limit, most } => Record::StoreFull(answers::full(limit, most, store)),
         };
         self.print(env, record);
     }
@@ -194,7 +208,6 @@ impl Client {
         assert_eq!(to.into_token(), Token::new(0), "the initial call's reply");
         self.stream.end(outcome);
         let outcome = self.outcome(outcome);
-        let diff = super::translate::changes::optional_tally(diff);
         self.print(env, Record::Terminal(records::records::Terminal { outcome, diff, left_out }));
     }
     /// The terminal's outcome: a refused record fails the answer, and an

@@ -7,10 +7,13 @@ use skein_lib::{Queue, Token, Wall};
 
 const SETS: PatchSets = PatchSets {
     sets: &[PatchSet {
+        jobs: &[],
         owner: Owner::Jig,
         name: "jig",
         fresh: None,
         families: &[KeptFamily {
+            current: patches::kept::jig_store_settings::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-store-settings",
             texts: patches::kept::jig_store_settings::TEXTS,
             map: KeptMap::Store,

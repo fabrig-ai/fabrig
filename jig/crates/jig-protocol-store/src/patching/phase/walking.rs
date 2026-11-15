@@ -7,8 +7,7 @@ use crate::patching::{
     walk::{self, Stop},
 };
 use crate::{
-    Below, Cursor, Event, KeptMap, Limits, OpenRefusal, Owner, Store, codec, commits, format, keys, open, pages,
-    secrets,
+    Below, Cursor, Event, KeptMap, Limits, OpenRefusal, Owner, Store, codec, commits, keys, open, pages, secrets,
 };
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
@@ -433,7 +432,8 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         | Patching::Mapping { .. }
         | Patching::Recovering { .. }
         | Patching::Sealing { .. }
-        | Patching::Checking(_) => unreachable!("resume routed Walking"),
+        | Patching::Checking(_)
+        | Patching::Jobs(_) => unreachable!("resume routed Walking"),
     };
     let Some(done) = drive(store, &mut walking, above) else {
         return open::refuse(
@@ -444,13 +444,13 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         );
     };
     if done {
-        let sealing = Sealing {
+        let sealing = super::sealing::Sealing {
             before: walking.pending.found,
             header: walking.header,
             number: walking.next,
             counts: walking.before,
         };
-        return seal(store, env, sealing, above, below);
+        return super::jobs::begin(store, env, sealing, above, below);
     }
     match walking.waiting {
         Waiting::Ready if !walking.ops.is_empty() => {
@@ -485,54 +485,6 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         }
         Waiting::Ready | Waiting::Site(_) | Waiting::Commit { .. } => state(store, Patching::Walking(walking)),
     }
-}
-struct Sealing {
-    header: Deployment,
-    number: u64,
-    before: crate::patching::plan::Levels,
-    counts: List<crate::patching::check::Counted>,
-}
-fn seal(store: &mut Store, env: &Env<Limits>, sealing: Sealing, above: &mut Queue<Event>, below: &mut Below) {
-    let Sealing { mut header, number, before, counts } = sealing;
-    header.commits = number;
-    let Some(format_key) = keys::encode_own(&keys::Own::Format, store.limits.store.key) else {
-        return refuse(store, above);
-    };
-    let Some(header_key) = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key) else {
-        return refuse(store, above);
-    };
-    let mut format = format::current(store.application.version, header.id);
-    format.levels = crate::patching::plan::binary(&store.patch_sets);
-    let Ok(format) = format.encode() else {
-        return refuse(store, above);
-    };
-    let Some(header) = codec::encode(&Record::Core(CoreRecord::Deployment(header)), &store.codec_limits, &store.names)
-    else {
-        return refuse(store, above);
-    };
-    let mut size = u64::from(skein_kv::FRAME_BYTES);
-    let Some(layouts_key) = keys::encode_own(&keys::Own::Layouts, store.limits.store.key) else {
-        return refuse(store, above);
-    };
-    if store.limits.store.ops < 3 {
-        return refuse(store, above);
-    }
-    let mut ops = List::with_capacity(3);
-    for (key, value) in [(format_key, format), (header_key, header), (layouts_key, store.layouts.encode())] {
-        let Some(total) = put_size(&key, &value, size) else { return refuse(store, above) };
-        size = total;
-        if size > u64::from(store.limits.store.commit) {
-            return refuse(store, above);
-        }
-        ops.push(skein_kv::Op::Put { key, value }).expect("three sealing puts");
-    }
-    state(store, Patching::Sealing { number, before, counts });
-    commits::submit(store, env, number, ops.into_boxed(), above, below);
-}
-
-fn put_size(key: &[u8], value: &[u8], before: u64) -> Option<u64> {
-    before
-        .checked_add(u64::from(skein_kv::put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)?))
 }
 
 fn start(walking: &mut Walking, family: FamilyIx, root: &str, row: pages::WalkRow) -> Option<()> {

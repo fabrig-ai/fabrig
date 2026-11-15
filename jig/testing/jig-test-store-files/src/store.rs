@@ -627,7 +627,9 @@ impl Store {
                 self.route(event, requests);
             }
             // These worlds supply sets without written sites; routing answers NoSite.
-            event @ (Event::Site { .. }
+            event @ (Event::Job { .. }
+            | Event::Ran { .. }
+            | Event::Site { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }

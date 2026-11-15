@@ -1,0 +1,16 @@
+family jig-store-registry 1
+
+# A layout of a value type, by its id within the value type.
+versioned record Layout {
+    root: text 256
+    variant: option text 256
+    layout: fixed 32
+    text: fixed 32
+    held: list 16 fixed 32
+}
+
+# A schema text a layout names.
+versioned record Text { text: bytes 262144 }
+
+# A job done: the commit that ended it.
+versioned record Job { ended: u64 }
