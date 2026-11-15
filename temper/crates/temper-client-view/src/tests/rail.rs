@@ -321,6 +321,73 @@ fn the_panel_puts_all_projects_first_and_links_after_the_forms() {
 }
 
 #[test]
+fn the_switcher_names_the_only_project_even_across_projects() {
+    for (projects, address, summary, pressed) in [
+        (1, Address::Inbox { filter: d::address::Filter::ALL }, "Hello", "Hello"),
+        (1, Address::AllHome, "Hello", "Hello"),
+        (1, Address::Home { project: f::PROJECT }, "Hello", "Hello"),
+        (2, Address::Inbox { filter: d::address::Filter::ALL }, "All projects", "All projects"),
+        (2, Address::AllHome, "All projects", "All projects"),
+    ] {
+        let (mut root, watch, _) = f::root_at(address.clone(), &f::domain_limits());
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.projects.get_mut(0).unwrap().name =
+            c::DocumentText::complete(c::Text::new(b"Hello".as_slice().into(), 32).unwrap());
+        me.projects =
+            List::from_boxed(me.projects.iter().take(projects).cloned().collect::<Vec<_>>().into_boxed_slice());
+        let names: Vec<_> = me.projects.iter().map(|p| p.name.bytes().to_vec()).collect();
+        f::deliver_me(&mut root, watch, me);
+        for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+            let disclosure = &styled(view.tree(), look::PROJECTS)[0];
+            assert_eq!(disclosure.role, Role::Disclosure);
+            assert_eq!(disclosure.name.as_deref(), Some(summary.as_bytes()), "{projects} {address:?}");
+            let rows = switcher_rows(view.tree());
+            let mut expected: Vec<&[u8]> = Vec::new();
+            if projects >= 2 {
+                expected.push(b"All projects");
+            }
+            expected.extend(names.iter().map(Vec::as_slice));
+            assert_eq!(rows.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
+            assert_eq!(
+                rows.iter()
+                    .filter(|n| n.states.as_slice().contains(&State::Pressed))
+                    .map(|n| n.name.as_deref().unwrap())
+                    .collect::<Vec<_>>(),
+                [pressed.as_bytes()],
+                "{projects} {address:?}"
+            );
+            if !browser && projects == 1 && address == (Address::Inbox { filter: d::address::Filter::ALL }) {
+                let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+                skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
+                let text = String::from_utf8_lossy(print.text.as_slice());
+                assert!(text.contains("Hello · no repository (pressed)"), "{text}");
+            }
+            if projects == 1 && address != (Address::Home { project: f::PROJECT }) {
+                for (name, target) in [
+                    (b"Home".as_slice(), Address::AllHome),
+                    (b"Needs you".as_slice(), Address::Inbox { filter: d::address::Filter::ALL }),
+                ] {
+                    for style in if browser { vec![look::RAIL_NAV, look::TABBAR] } else { vec![look::RAIL_NAV] } {
+                        let name =
+                            if style == look::TABBAR && name == b"Needs you" { b"Needs".as_slice() } else { name };
+                        let node = styled(view.tree(), style)
+                            .iter()
+                            .find(|n| n.role == Role::Link && n.name.as_deref() == Some(name))
+                            .unwrap();
+                        assert_eq!(node.states.as_slice().contains(&State::Current), address == target);
+                        let id = node.id;
+                        assert_eq!(
+                            crate::act(&mut view, id, Act::Press),
+                            Some(d::Action::Pages(pages::Act::Go { address: target.clone() }))
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn members_keep_new_and_settings_without_rename_in_both_shells() {
     let root = f::root_in_project(None);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
