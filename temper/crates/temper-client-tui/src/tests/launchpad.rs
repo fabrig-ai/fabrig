@@ -1522,8 +1522,9 @@ fn the_headers_frame_has_one_blank_row_before_a_section_or_note() {
         let printed = frame.print();
         let printed = core::str::from_utf8(&printed).unwrap();
         let mut lines = printed.lines();
-        assert_eq!(lines.next().unwrap().trim_end(), " ▄█▀▀   temper");
-        assert_eq!(lines.next().unwrap().trim_end(), "▄█▄█▄█  127.0.0.1:8367");
+        assert_eq!(lines.next().unwrap().trim_end(), "");
+        assert_eq!(lines.next().unwrap().trim_end(), "  ▄█▀▀   temper");
+        assert_eq!(lines.next().unwrap().trim_end(), " ▄█▄█▄█  127.0.0.1:8367");
         assert_eq!(lines.next().unwrap().trim(), "");
         assert_eq!(lines.next().unwrap().trim(), if section { "Start" } else { "A note" });
     }
