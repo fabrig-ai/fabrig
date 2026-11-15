@@ -38,12 +38,12 @@
   later work is told*): its request as revised and the answers given on
   it, so that a review judges the change by a person's ruling, not by
   its title and original request alone. The review charter judges
-  against what the change was asked to do with them first where they
-  differ: `judge them against what the change was asked to do: its
+  against what the change was asked to do, its first sentence as it
+  stands, and its second says what that is: `What it was asked is its
   request as revised and the answers given on it, as your brief gives
-  them, come before its title and its original request where they
-  differ.` A person's approval and a check, asked with the same words,
-  carry them too.
+  them: where they differ from its title or its original request, they
+  come first.` A person's approval and a check, asked with the same
+  words, carry them too.
 - **A review that cannot review fails; it never asks for changes.** A
   reviewer that could not read what it judges (the pull request, its
   files, the head), or could not judge it for any other reason of its
