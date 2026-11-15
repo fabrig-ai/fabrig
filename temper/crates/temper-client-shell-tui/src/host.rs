@@ -42,12 +42,14 @@ enum Opening {
 
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "local link, box placement, front and prior setup are independent start facts"
+    reason = "terminal capability, local link, box placement, front and prior setup are independent start facts"
 )]
 pub struct Start {
     pub size: Size,
     pub scheme: Option<tui::Scheme>,
     pub background: Option<Rgb>,
+    pub plain: bool,
+    pub version: Box<[u8]>,
     pub address: Box<[u8]>,
     pub local: bool,
     pub boxed: bool,
@@ -362,7 +364,9 @@ impl Host {
 
     fn start(&mut self, start: Start, duties: &mut Duties) {
         assert!(self.state.is_none(), "the TUI starts once");
-        self.state = Some(tui::Tui::new(&start.address));
+        let mut state = tui::Tui::new(&start.address);
+        state.header(start.plain, start.version);
+        self.state = Some(state);
         if start.front {
             self.tell(Told::Front { set_up: start.set_up, box_log: start.box_log });
             self.tell(Told::Stage { stage: tui::BoxStage::Finding });

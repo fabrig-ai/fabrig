@@ -78,6 +78,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::BoxLog(bytes)
         | Line::BoxLine(bytes)
         | Line::BoxStage(bytes)
+        | Line::Version(bytes)
         | Line::Address(bytes)
         | Line::Signed(bytes)
         | Line::Browse(bytes) => vec![(bytes, Text)],
@@ -93,6 +94,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Clocks { .. }
         | Line::Screen { .. }
         | Line::Background(_)
+        | Line::Plain
         | Line::Box
         | Line::Turn { .. }
         | Line::Start
@@ -172,6 +174,8 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Clocks { .. }
             | Line::Screen { .. }
             | Line::Background(_)
+            | Line::Plain
+            | Line::Version(_)
             | Line::Box
             | Line::Address(_)
             | Line::Stored { .. }

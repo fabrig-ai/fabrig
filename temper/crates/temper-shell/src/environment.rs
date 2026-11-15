@@ -59,6 +59,15 @@ pub const COLORTERM: Variable = Variable {
     notes: "",
     way: Way::Reads,
 };
+pub const TERM_PROGRAM: Variable = Variable {
+    name: "TERM_PROGRAM",
+    set: Set::Public,
+    form: "NAME",
+    line: "Terminal application; Apple_Terminal draws the TUI header without its mark.",
+    absent: "Draw the TUI header's mark.",
+    notes: "",
+    way: Way::Reads,
+};
 pub const COLORFGBG: Variable = Variable {
     name: "COLORFGBG",
     set: Set::Public,

@@ -200,6 +200,8 @@ impl World {
             directory: b"tui".as_slice().into(),
             address: if front { b"127.0.0.1:9000" } else { b"127.0.0.1:8367" }.as_slice().into(),
             scheme,
+            plain: false,
+            version: Box::default(),
             boxed: true,
             link_file: link.map(Into::into),
             note,

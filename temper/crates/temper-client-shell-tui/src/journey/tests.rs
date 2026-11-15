@@ -17,6 +17,8 @@ fn facts() -> Facts {
         size: Size { rows: 12, columns: 48 },
         scheme: Some(Scheme::Dark),
         background: None,
+        plain: false,
+        version: Box::default(),
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         front: false,
@@ -856,5 +858,53 @@ impl Walk {
             duties.asked.push(request);
         }
         duties
+    }
+}
+
+#[test]
+fn header_facts_are_optional_ordered_and_replayed() {
+    for (plain, version, background) in [
+        (false, b"".as_slice(), None),
+        (true, b"0.0.0 (b948f40d6df1)".as_slice(), Some(Rgb { red: 0, green: 43, blue: 54 })),
+        (false, b"0.0.0 (b948f40d6df1)".as_slice(), None),
+        (true, b"".as_slice(), None),
+    ] {
+        let mut facts = facts();
+        facts.front = true;
+        facts.plain = plain;
+        facts.version = version.into();
+        facts.background = background;
+        let mut walk = Walk::with(&facts);
+        let recording = walk.save();
+        let records = lines(&recording).expect("records");
+        let mut at = 4;
+        if let Some(background) = background {
+            assert!(records[at] == Line::Background(background));
+            at += 1;
+        }
+        if plain {
+            assert!(records[at] == Line::Plain);
+            at += 1;
+        }
+        if !version.is_empty() {
+            assert!(records[at] == Line::Version(version.into()));
+            at += 1;
+        }
+        assert!(records[at] == Line::Address(facts.address.clone()));
+        let (read, _) = replay::facts(&records).expect("header facts read");
+        let (_, Report::Start(start)) = read.start() else { panic!("start") };
+        assert_eq!(start.plain, plain);
+        assert_eq!(start.version.as_ref(), version);
+        assert!(prove(&recording).is_ok(), "the header facts reproduce the frame");
+        let frame = String::from_utf8(walk.host.frame().print().into_vec()).unwrap();
+        let expected = if plain { " temper" } else { " ▄█▀▀   temper" };
+        let first = frame.lines().next().unwrap();
+        assert!(first.starts_with(expected));
+        assert_eq!(first.contains("0.0.0"), !version.is_empty());
+        for misplaced in [Line::Plain, Line::Version(b"build".as_slice().into())] {
+            let mut changed = records.clone();
+            changed.insert(at + 1, misplaced);
+            assert!(Replay::new(&written(&changed)).is_err(), "header facts cannot follow address");
+        }
     }
 }

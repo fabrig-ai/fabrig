@@ -37,6 +37,8 @@ pub struct Tui {
     left_off: Option<u64>,
     boxed: bool,
     front: bool,
+    plain: bool,
+    version: Box<[u8]>,
     set_up: bool,
     box_log_path: Box<[u8]>,
     starting: Queue<Box<[u8]>>,
@@ -246,6 +248,8 @@ impl Tui {
             focus: 1,
             box_written: 0,
             front: false,
+            plain: false,
+            version: Box::default(),
             set_up: false,
             box_log_path: Box::default(),
             starting: Queue::with_capacity(limits::STARTING),
@@ -361,6 +365,19 @@ impl Tui {
     #[must_use]
     pub const fn box_written(&self) -> u64 {
         self.box_written
+    }
+    /// The terminal and build facts of the two-line header (client/tui/pages/README.md, 3).
+    pub fn header(&mut self, plain: bool, version: Box<[u8]>) {
+        self.plain = plain;
+        self.version = version;
+    }
+    #[must_use]
+    pub const fn plain(&self) -> bool {
+        self.plain
+    }
+    #[must_use]
+    pub fn version(&self) -> &[u8] {
+        &self.version
     }
     #[must_use]
     pub const fn front(&self) -> bool {

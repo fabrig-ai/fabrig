@@ -636,6 +636,8 @@ impl TuiWorld {
             size,
             scheme: Some(temper_client_tui::Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: address.into(),
             front: false,

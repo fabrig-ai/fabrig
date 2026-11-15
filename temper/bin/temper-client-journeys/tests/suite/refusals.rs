@@ -257,6 +257,8 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
         size: Size { rows: 16, columns: 100 },
         scheme: Some(temper_client_tui::Scheme::Dark),
         background: None,
+        plain: false,
+        version: Box::default(),
         boxed: false,
         address: address.into(),
         local: false,

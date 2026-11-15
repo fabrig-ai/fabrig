@@ -88,6 +88,8 @@ impl World {
             size: Size { rows: 24, columns: 80 },
             scheme: Some(Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: b"127.0.0.1:8367".as_slice().into(),
             front: false,

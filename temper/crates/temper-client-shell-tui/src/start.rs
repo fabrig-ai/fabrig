@@ -160,6 +160,11 @@ pub fn scheme(environment: &[EnvironmentEntry]) -> Option<Scheme> {
 }
 
 #[must_use]
+pub fn plain(environment: &[EnvironmentEntry]) -> bool {
+    temper_shell::environment::TERM_PROGRAM.value(environment) == Some(b"Apple_Terminal".as_slice())
+}
+
+#[must_use]
 pub fn depth(environment: &[EnvironmentEntry]) -> Depth {
     match temper_shell::environment::COLORTERM.value(environment) {
         Some(b"truecolor" | b"24bit") => Depth::True,
@@ -173,12 +178,19 @@ pub fn terminal_refusal(name: &str, given: bool) -> String {
 }
 
 #[must_use]
-pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry], working: &[u8], clock: &Clock) -> u8 {
+pub fn run(
+    name: &str,
+    argument: Option<&[u8]>,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    version: &[u8],
+    clock: &Clock,
+) -> u8 {
     if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
         eprint!("{}", terminal_refusal(name, argument.is_some()));
         return 1;
     }
-    match start(argument, environment, working, clock, None) {
+    match start(argument, environment, working, version, clock, None) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line(name));
@@ -241,6 +253,7 @@ pub fn run_box(
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
+    version: &[u8],
     clock: &Clock,
 ) -> u8 {
     let front = BoxStart {
@@ -254,7 +267,7 @@ pub fn run_box(
         ),
         log: box_log(&directories.data),
     };
-    match start(None, environment, working, clock, Some(front)) {
+    match start(None, environment, working, version, clock, Some(front)) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line("temper"));
@@ -268,6 +281,7 @@ fn start(
     argument: Option<&[u8]>,
     environment: &[EnvironmentEntry],
     working: &[u8],
+    version: &[u8],
     clock: &Clock,
     front: Option<BoxStart>,
 ) -> Result<u8, Refused> {
@@ -328,6 +342,8 @@ fn start(
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
             scheme,
+            plain: plain(environment),
+            version: version.into(),
             boxed,
             link_file: link_file.map(|path| path.as_os_str().as_bytes().into()),
             note,
