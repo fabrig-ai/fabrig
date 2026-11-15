@@ -162,7 +162,7 @@ pub fn read(archive: &[u8], max_bytes: u32, bound: u32) -> Result<File, Error> {
             }
         }
         8 => {
-            super::inflate::deflate(payload, &mut inflated).ok_or(Error::InvalidAnswer)?;
+            skein_deflate::decode(payload, &mut inflated).ok_or(Error::InvalidAnswer)?;
         }
         _ => return Err(Error::Refused),
     }
