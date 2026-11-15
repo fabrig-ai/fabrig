@@ -3,6 +3,7 @@ use super::{
     Pages, Request as Output,
     accounts::{self, Broken, Way, request::Request},
 };
+use crate::pages::Root;
 use crate::{Address, ModelWay, Step, WayKind};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
@@ -105,7 +106,7 @@ pub const fn model_way(way: Way) -> ModelWay {
 /// Whether this person holds a source of this provider and kind
 /// (temper/docs/design/client/pages/README.md, `ConnectModel`, Choose).
 #[must_use]
-pub fn connected(root: &crate::Domain, way: Way) -> bool {
+pub fn connected(root: &dyn Root, way: Way) -> bool {
     let Some(me) = accounts::current_me(root.client()) else { return false };
     let Some(doc) = accounts::document(root.client()) else { return false };
     let kind = match way {
@@ -126,7 +127,7 @@ pub fn connected(root: &crate::Domain, way: Way) -> bool {
 }
 /// The first unconnected offered way; none when every way is connected (client/pages/README.md).
 #[must_use]
-pub fn default_way(ways: &skein_lib::List<Way>, root: &crate::Domain) -> Option<Way> {
+pub fn default_way(ways: &skein_lib::List<Way>, root: &dyn Root) -> Option<Way> {
     for way in ways {
         if !connected(root, *way) {
             return Some(*way);

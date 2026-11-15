@@ -5,6 +5,7 @@ use super::{
     chat::document::{Mode, WRITE_THIS_UP},
 };
 use crate::address::ChatsFilter;
+use crate::pages::Routing;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::contract::{
@@ -685,8 +686,9 @@ fn newer(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
     a.0 > b.0 || (a.0 == b.0 && a.1 < b.1)
 }
 
-pub(crate) fn refresh(root: &mut crate::Domain, out: &mut Queue<Request>) {
-    if let Some(chats) = &mut root.pages.chats {
-        chats.goal_watch(&root.client, &root.forge, chats.documents.capacity(), out);
+pub(crate) fn refresh(root: &mut dyn Routing, out: &mut Queue<Request>) {
+    let parts = root.parts();
+    if let Some(chats) = &mut parts.pages.chats {
+        chats.goal_watch(parts.client, parts.forge, chats.documents.capacity(), out);
     }
 }

@@ -6,6 +6,7 @@ pub mod sheet;
 mod talking;
 mod views;
 use super::{Act, Request, activity::Asking, delegation};
+use crate::pages::Root;
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
@@ -230,7 +231,7 @@ impl Chat {
     }
     /// The newest of this person's starts, with the goal number breaking a clock tie.
     #[must_use]
-    pub fn goal_from(&self, root: &crate::Domain) -> Option<(u64, u64)> {
+    pub fn goal_from(&self, root: &dyn Root) -> Option<(u64, u64)> {
         self.goal_fact(root.client(), root.forge())
     }
     fn goal_fact(&self, client: &Client, forge: &crate::forge::Side) -> Option<(u64, u64)> {
@@ -283,7 +284,7 @@ impl Chat {
         }
     }
     #[must_use]
-    pub fn goal_chip<'a>(&self, root: &'a crate::Domain) -> Option<&'a c::Chip> {
+    pub fn goal_chip<'a>(&self, root: &'a dyn Root) -> Option<&'a c::Chip> {
         let (goal, _) = self.goal_from(root)?;
         let document = root.client().document(self.goal_read)?;
         if document.state == jig_client::State::Ended {

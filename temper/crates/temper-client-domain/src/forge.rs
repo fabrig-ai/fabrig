@@ -85,7 +85,7 @@ pub struct Side {
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
-    trials: trials::Trials,
+    pub(crate) trials: trials::Trials,
     approvals: approvals::Approvals,
     approvals_open: bool,
     away: away::State,

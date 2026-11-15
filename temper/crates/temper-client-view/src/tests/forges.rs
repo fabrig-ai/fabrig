@@ -172,14 +172,14 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
     rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
     rows.push(cf::row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
     let mut root = f::playground_forges_root(Address::Forges, rows);
-    assert!(d::forge::listed::playground(&root).is_some());
+    assert!(d::forge::listed::playground(root.forge()).is_some());
     let view = f::page_view(&root);
     let row = f::find(view.tree(), Role::Disclosure, b"Playground forge").unwrap();
     assert!(!view.tree().nodes().iter().find(|n| n.id == row).unwrap().states.as_slice().contains(&State::Expanded));
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) });
-    assert!(d::forge::listed::playground(&root).is_some());
+    assert!(d::forge::listed::playground(root.forge()).is_some());
     let root = f::playground_forges_root(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
-    assert!(d::forge::listed::playground(&root).is_none());
+    assert!(d::forge::listed::playground(root.forge()).is_none());
     assert!(f::find(f::page_view(&root).tree(), Role::Heading { level: 2 }, b"The playground").is_none());
 }
 

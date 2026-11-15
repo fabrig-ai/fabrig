@@ -3,6 +3,7 @@ use super::{
     Pages, Request,
     inbox::{Card, Inbox},
 };
+use crate::pages::Root;
 use crate::{Address, Limits, acts, address::Filter, forge::approvals::Approvals, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{
@@ -65,7 +66,7 @@ fn asking(card: &Card) -> Option<(Option<u64>, Option<Wall>)> {
 }
 /// None where the need has no line, or its document does not say.
 #[must_use]
-pub fn why(root: &crate::Domain, need: Need<'_>) -> Option<Why> {
+pub fn why(root: &dyn Root, need: Need<'_>) -> Option<Why> {
     let Need::Card(card) = need else { return None };
     if let Some((task, since)) = asking(card) {
         let project = card.project?;
@@ -112,7 +113,7 @@ pub fn why(root: &crate::Domain, need: Need<'_>) -> Option<Why> {
 }
 /// False while a question's project's `decided` document is watched and not yet delivered.
 #[must_use]
-pub fn ready(root: &crate::Domain, need: Need<'_>) -> bool {
+pub fn ready(root: &dyn Root, need: Need<'_>) -> bool {
     let Need::Card(card) = need else { return true };
     if (asking(card).is_some() || card.group == contract::InboxGroup::Questions)
         && let Some(project) = card.project

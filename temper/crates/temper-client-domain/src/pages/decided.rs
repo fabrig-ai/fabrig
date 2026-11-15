@@ -1,6 +1,7 @@
 //! Decided for you: the open page's projects' decisions (temper/docs/design/client/pages/README.md, Decided for you).
 use super::Pages;
-use crate::{Address, Domain, Limits, Request, forge, owner::Owner};
+use crate::pages::{Root, Routing};
+use crate::{Address, Limits, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, List, Queue, Wall, bytes};
@@ -319,8 +320,8 @@ impl Pages {
         Document::Unwatched
     }
 }
-pub(super) fn wanted(root: &Domain) -> List<u32> {
-    let pages = &root.pages;
+pub(super) fn wanted(root: &dyn Root) -> List<u32> {
+    let pages = root.pages();
     let mut wanted = List::with_capacity(u32::try_from(DECIDED_PROJECTS).expect("decision bound fits"));
     if !pages.watching {
         return wanted;
@@ -390,8 +391,8 @@ pub(super) fn wanted(root: &Domain) -> List<u32> {
     }
     wanted
 }
-fn launchpad_projects(root: &Domain) -> List<u32> {
-    let pages = &root.pages;
+fn launchpad_projects(root: &dyn Root) -> List<u32> {
+    let pages = root.pages();
     let capacity = u32::try_from(DECIDED_PROJECTS).expect("decision bound fits");
     let mut wanted = List::with_capacity(capacity);
     if let Address::Home { project } = pages.address {
@@ -426,15 +427,15 @@ fn launchpad_projects(root: &Domain) -> List<u32> {
     wanted
 }
 /// Keep watches and task reads while their projects and rows remain on the open page.
-pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let wanted = wanted(root);
-    let more = match root.pages.me(root.client()) {
+pub(crate) fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
+    let wanted = wanted(&*root);
+    let more = match root.pages().me(root.client()) {
         Some(me) => me.projects.len() > wanted.len(),
         None => false,
     };
-    let beginning = match root.pages.address {
+    let beginning = match root.pages().address {
         Address::Home { project } => {
-            root.pages.left_off.is_none() && super::home::facts(root, project, env.wall).to_begin()
+            root.pages().left_off.is_none() && super::home::facts(&*root, project, env.wall).to_begin()
         }
         Address::AllHome
         | Address::Inbox { .. }
@@ -466,7 +467,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         | Address::Tell { .. }
         | Address::Adopt { .. } => false,
     };
-    let pages = &mut root.pages;
+    let pages = root.pages_mut();
     if let Some(inbox) = &pages.inbox {
         pages.next = pages.next.max(inbox.next);
     }
@@ -511,7 +512,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
     }
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded reconciliation queue") {
-            super::Request::Client(event) => crate::route::client(root, env, event, out),
+            super::Request::Client(event) => root.request(env, crate::pages::Request::Client(event)),
             super::Request::Push(_)
             | super::Request::Screen { .. }
             | super::Request::KeepLook { .. }

@@ -171,3 +171,30 @@ pub(crate) fn signed_in(request: &request::Request, client: &Client, chosen: Opt
     }
     None
 }
+
+/// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
+pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+    if accounts.program_hosts.is_empty() {
+        return true;
+    }
+    for account in &accounts.accounts {
+        for row in &account.sources {
+            if row.number != source {
+                continue;
+            }
+            let Some(name) = &row.name else { return false };
+            for host in &accounts.program_hosts {
+                if host.connected && host.awaiting_logins {
+                    return false;
+                }
+                for login in &host.programs {
+                    if host.connected && login.name == *name && login.state.is_none() {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+    false
+}

@@ -513,3 +513,51 @@ fn a_too_linked_task_page_says_so() {
         DocumentRead::Ended { why: ReadEnd::TooLinked { joins: READ_JOINS }, retry_at: None }
     );
 }
+
+/// The adapter routes at the call, not after the page's act returns.
+#[test]
+fn routed_requests_reach_the_root_before_returning() {
+    use pages::Routing;
+    let limits = fixtures::limits();
+    let env = fixtures::env(&limits);
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    fixtures::start(&mut root, skein_lib::List::with_capacity(0));
+    let mut out = Queue::uncapped();
+    crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::Show { address: Address::Forges });
+    assert_eq!(out.pop(), Some(crate::Request::Show { address: Address::Forges, replace: false }));
+    assert!(out.is_empty());
+    crate::route::Routed { root: &mut root, out: &mut out }
+        .request(&env, Request::Replace { address: Address::Forges });
+    assert_eq!(out.pop(), Some(crate::Request::Show { address: Address::Forges, replace: true }));
+    assert!(out.is_empty());
+
+    // Changing the watch synchronously changes the client's document table.
+    let handle = pages::me_handle();
+    assert!(root.client().document(handle).is_some());
+    crate::route::Routed { root: &mut root, out: &mut out }
+        .request(&env, Request::Client(jig_client::Event::Unwatch { handle }));
+    assert!(root.client().document(handle).is_none());
+    out.clear();
+
+    let duty = pages::told::Duty::Drop { token: 7 };
+    crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::Push(duty));
+    assert_eq!(out.pop(), Some(crate::Request::Push(duty)));
+    assert!(out.is_empty());
+    crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::Screen { on: true });
+    assert_eq!(out.pop(), Some(crate::Request::Screen { on: true }));
+    assert!(out.is_empty());
+    let look = pages::terminal::Look {
+        terminal: true,
+        theme: pages::terminal::Theme::Light,
+        font: pages::terminal::Font::Plex,
+        night: true,
+    };
+    crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::KeepLook { look });
+    assert_eq!(out.pop(), Some(crate::Request::KeepLook { look }));
+    assert!(out.is_empty());
+    root.tab = Some(jig_client::Key { asker: PAGES, number: 42 });
+    crate::route::Routed { root: &mut root, out: &mut out }.request(&env, Request::OpenTab { provider: 9 });
+    assert_eq!(root.tab, root.pages().sign_in_key());
+    assert_eq!(out.pop(), Some(crate::Request::Tab { tab: crate::Tab::Open { provider: 9 } }));
+    assert!(out.is_empty());
+}

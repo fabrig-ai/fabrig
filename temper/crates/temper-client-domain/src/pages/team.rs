@@ -1,6 +1,7 @@
 //! Team: a project's people and what waits on each
 //! (temper/docs/design/client/pages/team.md, 1).
 use super::Request;
+use crate::pages::Root;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
@@ -38,8 +39,8 @@ pub enum Holder {
     Role(u32),
 }
 #[must_use]
-pub fn areas(root: &crate::Domain, project: u32) -> Option<HeldAreas> {
-    let document = root.pages.needs.findings.document(project)?;
+pub fn areas(root: &dyn Root, project: u32) -> Option<HeldAreas> {
+    let document = root.pages().needs.findings.document(project)?;
     let mut rows = List::with_capacity(document.areas().len());
     for area in document.areas() {
         rows.push(HeldArea {
@@ -69,7 +70,7 @@ pub const ROLES: u32 = 16;
 
 /// The project's open period lasts seven days (client/pages/talk.md, 2).
 #[must_use]
-pub fn weekly(root: &crate::Domain, project: u32) -> bool {
+pub fn weekly(root: &dyn Root, project: u32) -> bool {
     let Some(document) = root.pages().team.document(project) else { return false };
     let Some(period) = &document.current_period else { return false };
     if period.closed {
@@ -848,17 +849,17 @@ fn other_waits(client: &Client, handle: Handle, party: u64) -> Option<Waits> {
 }
 /// Team's page for the project, from its document and delivered waits.
 #[must_use]
-pub fn shown(root: &crate::Domain, project: u32) -> Shown {
-    shown_at(root, project, root.pages.team.sessions.wall())
+pub fn shown(root: &dyn Root, project: u32) -> Shown {
+    shown_at(root, project, root.pages().team.sessions.wall())
 }
 /// Project the card's sessions at the view's wall, including week expiry between deliveries.
 #[must_use]
-pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
-    let state = &root.pages.team;
+pub fn shown_at(root: &dyn Root, project: u32, wall: Wall) -> Shown {
+    let state = &root.pages().team;
     if state.project != Some(project) {
         return Shown::Reading;
     }
-    let you = match root.pages.me(root.client()) {
+    let you = match root.pages().me(root.client()) {
         Some(me) => me.party.number,
         None => 0,
     };
@@ -916,8 +917,8 @@ pub enum Missing {
 /// Home and How work runs share the rail's project read, including its answer
 /// while the address keeps the same project.
 #[must_use]
-pub fn missing(root: &crate::Domain, project: u32) -> Missing {
-    let state = &root.pages.team;
+pub fn missing(root: &dyn Root, project: u32) -> Missing {
+    let state = &root.pages().team;
     if state.project != Some(project) {
         return Missing::Reading;
     }
@@ -930,25 +931,25 @@ pub fn missing(root: &crate::Domain, project: u32) -> Missing {
 
 /// The project's people counted for the rail while its document is read.
 #[must_use]
-pub fn people(root: &crate::Domain, project: u32) -> Option<u32> {
-    let state = &root.pages.team;
+pub fn people(root: &dyn Root, project: u32) -> Option<u32> {
+    let state = &root.pages().team;
     if state.project != Some(project) {
         return None;
     }
-    let you = match root.pages.me(root.client()) {
+    let you = match root.pages().me(root.client()) {
         Some(me) => me.party.number,
         None => 0,
     };
     Some(gather(state.document.as_deref()?, you, None, &[], None, Wall::EPOCH).people.len())
 }
-fn yours(root: &crate::Domain, project: u32) -> Option<Waits> {
+fn yours(root: &dyn Root, project: u32) -> Option<Waits> {
     let client = root.client();
     let document = client.document(super::needs::handle())?;
     if document.state == jig_client::State::Ended {
         return None;
     }
     let Latest::Jig(c::Delivery::Inbox(inbox)) = document.latest? else { return None };
-    let session = root.pages.needs();
+    let session = root.pages().needs();
     let approvals = root.forge().approvals();
     let mut waits = Waits { cut: session.count(client, approvals, project).cut, ..Waits::default() };
     for row in &inbox.needs {
@@ -981,11 +982,11 @@ fn selected(roles: &List<Role>, requested: Option<u64>) -> Option<u64> {
 }
 /// The live standing roles counted for the rail.
 #[must_use]
-pub fn standing_roles(root: &crate::Domain, project: u32) -> Option<u32> {
-    if root.pages.team.project != Some(project) {
+pub fn standing_roles(root: &dyn Root, project: u32) -> Option<u32> {
+    if root.pages().team.project != Some(project) {
         return None;
     }
-    root.pages.team.standing.count()
+    root.pages().team.standing.count()
 }
 impl Team {
     pub(super) fn send(

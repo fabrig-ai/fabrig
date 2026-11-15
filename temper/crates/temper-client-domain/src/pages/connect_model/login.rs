@@ -198,7 +198,7 @@ impl ConnectModel {
     }
 }
 fn signed_in(doc: &c::Accounts, provider: u32, source: u32, number: u32) -> LoginState {
-    if !crate::route::program_settled(doc, source) {
+    if !accounts::program_settled(doc, source) {
         return LoginState::Waiting { number: Some(number), cancelled: false };
     }
     for row in &doc.accounts {

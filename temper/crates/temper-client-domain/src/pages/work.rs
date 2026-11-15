@@ -1,5 +1,6 @@
 //! Work places each item by its own facts (temper/docs/design/client/pages/work.md, 1).
 
+use crate::pages::Root;
 use alloc::boxed::Box;
 use core::cmp::Reverse;
 use jig_client::contract as c;
@@ -435,7 +436,7 @@ pub fn shown(filters: &Filters, overrides: Overrides) -> Shown {
 
 /// Neither switch hides a filter until Kind 7 is read.
 #[must_use]
-pub fn overrides(root: &crate::Domain, project: u32) -> Overrides {
+pub fn overrides(root: &dyn Root, project: u32) -> Overrides {
     match root.forge().ways(project) {
         Some(ways) => Overrides { goals: !ways.goals, changes: !ways.changes },
         None => Overrides::default(),
@@ -501,7 +502,7 @@ fn row_signed(reader: u64, row: &w::ChangesLanded, people: Option<&c::Project>) 
 /// Gather the four lists only once each has answered (client/pages/README.md, Work).
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "Work joins its four lists and each landing's signers in one facts read")]
-pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
+pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     use super::changes::State;
     let goals = root.pages().goals()?;
     let changes = root.pages().changes()?;
@@ -521,7 +522,7 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
         State::Ended => None,
     };
     let mut facts = Facts::default();
-    let people = root.pages.team.document(project);
+    let people = root.pages().team.document(project);
     let reader = root.pages().me(root.client())?.party.number;
     match drafts.state() {
         super::drafts::State::Loading => return None,
@@ -636,7 +637,7 @@ fn gather_chat(facts: &mut Facts, chats: &super::chats::Chats, line: &jig_client
         .expect("one fact per chat row");
 }
 
-fn belongs(root: &crate::Domain, task: u64) -> Belongs {
+fn belongs(root: &dyn Root, task: u64) -> Belongs {
     use super::changes::From;
     let Some(page) = root.pages().changes() else { return Belongs::Nothing };
     if let Some(goal) = page.goal(task) {

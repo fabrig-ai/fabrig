@@ -7,6 +7,8 @@ use jig_client::{
     contract::{Delivery, Me, Subject},
 };
 use skein_lib::{Env, Queue, Time};
+mod root;
+pub use root::{Parts, Root, Routing};
 pub mod accounts;
 mod activity;
 pub mod away;
@@ -22,7 +24,7 @@ pub mod roles;
 pub mod told;
 /// Whether the project's settings offer writing drafts (client/pages/settings.md, 2).
 #[must_use]
-pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
+pub fn drafts_offered(root: &dyn Root, project: u32) -> bool {
     match root.forge().ways(project) {
         Some(ways) => ways.drafts,
         None => false,
@@ -31,14 +33,14 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
 /// Whether a chat offers "+ Draft": an Ask temper chat whatever its project's settings
 /// say, another while they offer drafts (client/pages/README.md).
 #[must_use]
-pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
+pub fn chat_offers_draft(root: &dyn Root, task: &jig_client::contract::Task) -> bool {
     if let Some(chat) = root.pages().chat()
         && chat.task == task.chip.task
         && chat.talk().is_some()
     {
         return false;
     }
-    let asking = match root.pages.me(&root.client) {
+    let asking = match root.pages().me(root.client()) {
         Some(me) => chats::asking(me, task.project, &task.chip.executor),
         None => false,
     };
@@ -3239,12 +3241,12 @@ fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &T
 }
 
 /// Settings replaces its connection page with the live row; welcome owns its steps.
-pub(crate) fn forge_progress(root: &mut crate::Domain, env: &Env<Limits>, out: &mut Queue<crate::Request>) {
-    let Address::ConnectForge { forge } = root.pages.address() else { return };
+pub(crate) fn forge_progress(root: &mut dyn Routing, env: &Env<Limits>) {
+    let Address::ConnectForge { forge } = root.pages().address() else { return };
     let Some(number) = crate::forge::connect::following(*forge, root.forge()) else { return };
-    crate::route::pages(root, env, Event::Went { address: Address::Forges }, out);
-    root.pages.forges_opened = Some(number);
-    out.push(crate::Request::Show { address: Address::Forges, replace: true });
+    root.event(env, Event::Went { address: Address::Forges });
+    root.pages_mut().forges_opened = Some(number);
+    root.request(env, Request::Replace { address: Address::Forges });
 }
 
 fn configure_stock_ways(pages: &mut Pages, client: &Client) {

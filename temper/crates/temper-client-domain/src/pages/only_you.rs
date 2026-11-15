@@ -1,4 +1,5 @@
 //! Only you (temper/docs/design/client/pages/README.md, Only you).
+use crate::pages::Root;
 use jig_client::contract::{AccountHolder, AccountKind, AccountLine, AccountState, Accounts};
 use skein_lib::List;
 
@@ -73,7 +74,7 @@ fn item(account: &AccountLine, party: u64, playground: Option<u32>) -> Option<It
 /// `items` over the root's accounts, person and playground provider.
 /// With no document or no `me`, no items and not cut.
 #[must_use]
-pub fn read(root: &crate::Domain) -> OnlyYou {
+pub fn read(root: &dyn Root) -> OnlyYou {
     let Some(document) = root.pages().accounts_document(root.client()) else {
         return OnlyYou { items: List::with_capacity(0), cut: false };
     };

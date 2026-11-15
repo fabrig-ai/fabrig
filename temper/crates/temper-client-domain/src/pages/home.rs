@@ -1,6 +1,7 @@
 //! Home's facts, watches and entry look (temper/docs/design/client/pages/README.md, Home).
 use super::{Request, welcome};
-use crate::{Domain, forge, owner::Owner};
+use crate::pages::{Root, Routing};
+use crate::{forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, PersonFact};
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
@@ -493,13 +494,13 @@ impl Facts {
 /// Whether To begin shows for the rail: on Home and on Ask temper's page alone
 /// (temper/docs/design/client/view.md, 3, *While To begin shows*).
 #[must_use]
-pub fn beginning(root: &Domain, project: u32, wall: Wall) -> bool {
+pub fn beginning(root: &dyn Root, project: u32, wall: Wall) -> bool {
     (root.pages().address() == &(crate::Address::Home { project })
         || root.pages().address() == &(crate::Address::Ask { project }))
         && facts(root, project, wall).to_begin()
 }
 #[must_use]
-pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
+pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
     let home = if root.pages().address() == &(crate::Address::Home { project }) { root.pages().home() } else { None };
     let asking = match root.pages().chats() {
         Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
@@ -568,7 +569,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
     facts
 }
 #[must_use]
-pub fn repository(root: &Domain, project: u32) -> Repository {
+pub fn repository(root: &dyn Root, project: u32) -> Repository {
     use forge::listed::Held;
     if let Some(copies) = copy_repository(root.forges(), forge::connect::playground(root.forge()), project) {
         return copies;
@@ -793,9 +794,9 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
 }
 
 /// Send this entry's look once the facts and dismissals settle and To begin is gone.
-pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
-    super::all_home::look(root, env, out);
-    let project = match root.pages.address() {
+pub(crate) fn look(root: &mut dyn Routing, env: &Env<crate::Limits>) {
+    super::all_home::look(root, env);
+    let project = match root.pages().address() {
         crate::Address::Home { project } => *project,
         crate::Address::NewChat { .. }
         | crate::Address::AllHome
@@ -827,18 +828,18 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Tell { .. }
         | crate::Address::Adopt { .. } => return,
     };
-    let facts = facts(root, project, env.wall);
-    let Some(home) = root.pages.home.as_ref() else { return };
+    let facts = facts(&*root, project, env.wall);
+    let Some(home) = root.pages().home.as_ref() else { return };
     match home.look {
         Look::NotSent => {}
         Look::Out(_) | Look::Answered => return,
     }
-    if !facts.delivered || !root.forge.settled() || facts.to_begin() {
+    if !facts.delivered || !root.forge().settled() || facts.to_begin() {
         return;
     }
     let Some(request) = forge::status::ask(project, &env.limits.forge) else { return };
-    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    root.pages.home.as_mut().expect("Home is open").look = Look::Out(key);
-    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+    root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: Owner::Pages.asker(), number: root.pages().serial };
+    root.pages_mut().home.as_mut().expect("Home is open").look = Look::Out(key);
+    root.request(env, Request::Client(jig_client::Event::Send { key, name: None, request }));
 }

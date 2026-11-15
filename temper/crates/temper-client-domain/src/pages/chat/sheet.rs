@@ -1,6 +1,6 @@
 //! A chat opens the shared goal sheet with its document (client/pages/README.md, client/pages/goal.md, 3).
 use crate::{
-    Domain, Limits,
+    Limits,
     pages::{self, Act, Event, Request, home},
 };
 use alloc::boxed::Box;
@@ -98,16 +98,17 @@ pub(crate) fn snapshot(name: &[u8], path: &[u8], body: &[u8], chat: Option<u64>)
 }
 
 /// Supply the shared sheet's project facts at its page boundary.
-pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub(crate) fn step(root: &mut dyn pages::Routing, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     if let Event::Act { act: Act::Needs(act) } = event {
-        pages::needs::act(&mut root.pages, env, &root.client, root.forge.approvals(), act, out);
-        root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown count fits");
+        let parts = root.parts();
+        pages::needs::act(parts.pages, env, parts.client, parts.forge.approvals(), act, out);
+        root.pages_mut().shown = root.pages().shown.checked_add(1).expect("pages shown count fits");
         return;
     }
     if let Event::Act { act: Act::AddDraft } = &event
-        && let Some(chat) = root.pages.chat()
+        && let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
-        && !pages::chat_offers_draft(root, task)
+        && !pages::chat_offers_draft(&*root, task)
     {
         return;
     }
@@ -116,41 +117,43 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
     let landed_opening = if let Event::Act { act: Act::OpenLanded { start, .. } } = &mut event {
         landed_run = *start;
         *start = false;
-        root.pages.start().is_none()
+        root.pages().start().is_none()
     } else {
         false
     };
     let opening = if let Event::Act { act: Act::OpenStart { chat: Some(number), .. } } = &event {
-        if let Some(chat) = root.pages.chat() {
+        if let Some(chat) = root.pages().chat() {
             let Some(task) = chat.task(root.client()) else { return };
             let Some(draft) = &chat.draft else { return };
-            if *number != chat.task || draft.body.is_empty() || chat.goal_from(root).is_some() {
+            if *number != chat.task || draft.body.is_empty() || chat.goal_from(&*root).is_some() {
                 return;
             }
-            let home::Repository::In { .. } = home::repository(root, task.project) else { return };
+            let home::Repository::In { .. } = home::repository(&*root, task.project) else { return };
         }
-        root.pages.start().is_none()
+        root.pages().start().is_none()
     } else {
         false
     };
-    pages::step(&mut root.pages, env, &root.client, event, out);
-    let me = root.pages.me(&root.client);
+    let parts = root.parts();
+    pages::step(parts.pages, env, parts.client, event, out);
+    let me = parts.pages.me(parts.client);
     if (opening || landed_opening)
-        && let Some(start) = &mut root.pages.start
+        && let Some(start) = &mut parts.pages.start
         && let Some(me) = me
     {
-        let configured = match root.forge.ways(start.project) {
+        let configured = match parts.forge.ways(start.project) {
             Some(ways) => Some(ways.way),
             None => None,
         };
         start.way = pages::start_goal::preferred_way(me, start.project, configured);
         start.default = start.way;
         if landed_opening && landed_run {
-            start.send(env, Some(me), &mut root.pages.serial, out);
+            start.send(env, Some(me), &mut parts.pages.serial, out);
         }
     }
     pages::chats::refresh(root, out);
-    if let Some(chat) = &mut root.pages.chat {
-        chat.goal_watch(&root.client, &root.forge, out);
+    let parts = root.parts();
+    if let Some(chat) = &mut parts.pages.chat {
+        chat.goal_watch(parts.client, parts.forge, out);
     }
 }

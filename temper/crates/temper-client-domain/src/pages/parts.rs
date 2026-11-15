@@ -1,5 +1,5 @@
 //! A page's parts (temper/docs/design/client/pages/home.md, 1, A page's parts).
-use crate::Domain;
+use crate::pages::Root;
 use skein_lib::Wall;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,7 +88,7 @@ pub const fn needs(facts: &NeedsFacts) -> NeedsParts {
     }
 }
 #[must_use]
-pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
+pub fn needs_facts(root: &dyn Root, wall: Wall) -> NeedsFacts {
     let (known, open) = match root.pages().inbox() {
         Some(inbox) => (
             inbox.known(),
