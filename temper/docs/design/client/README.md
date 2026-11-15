@@ -135,7 +135,9 @@ section 5.
 
 ```
 temper's client
-temper-client-domain            the client root: jig-client held, temper's pages, the forge's side (sections 3 and 4)
+temper-client-domain            the client root: jig-client held, temper's pages, the forge's side (sections 3 and 4); its routes and every piece's items under today's paths (domain-crates.md)
+├── temper-client-domain-pages  temper's pages: their state, facts and acts, reaching the root through pages::Root and pages::Routing
+├── temper-client-domain-forge  the forge's side and the client's vocabulary: addresses, limits, owners, words, the public reader
 ├── jig-client                  jig's client: the link, watches by handle, the request table, kept work, families; jig's helpers
 └── temper-client-protocol-wire the forge family's records, for both ends (4.6)
 temper-client-view              the view: temper's pages as skein-ui's tree, temper's words (section 5); its state, build and act, the frame, and every piece's items under today's paths (view-crates.md)
@@ -187,7 +189,8 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
 
 - **The crate graph.** `temper-client-domain` depends on skein-lib,
   `jig-client`, jig's records (`jig-client-protocol-wire`,
-  `jig-client-protocol-link`) and `temper-client-protocol-wire`;
+  `jig-client-protocol-link`) and `temper-client-protocol-wire`; so do
+  its two pieces, below it (`domain-crates.md`, 2);
   `temper-client-view` on skein-lib, `skein-ui`, `jig-client` (for jig's
   facts and words) and `temper-client-domain`, and on no crate of jig's
   reference UI; so do its four pieces, below it (`view-crates.md`, 2). Neither links io, HTTP, smith, or an engine crate of
