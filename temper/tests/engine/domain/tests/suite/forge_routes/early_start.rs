@@ -21,6 +21,10 @@ fn world_with(across: bool) -> World {
 }
 
 fn world_with_inbox(across: bool, inbox_bytes: Option<u32>) -> World {
+    world_with_limits(across, inbox_bytes, None, 1)
+}
+
+fn world_with_limits(across: bool, inbox_bytes: Option<u32>, spec_bytes: Option<u32>, dependencies: u32) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -31,12 +35,14 @@ fn world_with_inbox(across: bool, inbox_bytes: Option<u32>) -> World {
         StoryLimits {
             across,
             inbox_bytes,
+            spec_bytes,
             slots: Some(WORKER_SLOTS),
             result_bytes: Some(RESULT_BYTES),
             ..StoryLimits::default()
         },
     );
     world.env.limits.tasks.batch = 2;
+    world.env.limits.tasks.dependencies = dependencies;
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
         engine::LandingRule {
@@ -386,6 +392,98 @@ fn ticks(world: &mut World) {
 pub(super) fn active_without_producer(world: &World, task: u64) {
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Active(_)));
     assert_eq!(change_row(world, task).delegate, None, "{:?}", change_row(world, task));
+}
+
+fn start_line(task: u64, head: u64) -> Vec<u8> {
+    let digits = engine::commit_text(&translate::commit(head));
+    format!(
+        "[Started from change {task} at {}, not landed]\n",
+        std::str::from_utf8(&digits).expect("hexadecimal commit")
+    )
+    .into_bytes()
+}
+
+fn amend_words(world: &mut World, goal: &engine::Assignment, change: u64, words: &[u8]) {
+    let revision = spec_revision(world, change);
+    let amendment = temper_engine_domain_world::fixtures::task_amendment(Some(words), None, b"Clarify the work");
+    let answer = call(world, goal, engine::Tool::Amend { keep_parameters: true, target: change, revision, amendment });
+    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "{answer:?}");
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(world, change).inbox.is_empty() && world.store.pending.is_empty() {
+            return;
+        }
+    }
+    panic!("the change takes its amendment");
+}
+
+#[test]
+fn an_early_producers_start_lines_keep_dependency_order_and_survive_amendment_and_resume() {
+    let (mut world, goal, _, base) = goal_world_in(world_with_limits(false, None, None, 2));
+    let first = make(&mut world, &goal, b"First prerequisite", &[]);
+    let upstream = questions::next_producer(&mut world, first);
+    let (first_head, _) = checked_push(&mut world, &upstream, base, b"first");
+    let second = make(&mut world, &goal, b"Second prerequisite", &[]);
+    let upstream = questions::next_producer(&mut world, second);
+    let (second_head, _) = checked_push(&mut world, &upstream, base, b"second");
+    let change = make(&mut world, &goal, b"Fix the parser\n## Goal\n...", &[second, first]);
+    let producer = questions::next_producer(&mut world, change);
+    let lines = [start_line(second, second_head), start_line(first, first_head)].concat();
+    assert_eq!(
+        change_row(&world, change).change.early,
+        change::Early::Started(Box::new([
+            change::StartedFrom { task: second, head: translate::commit(second_head) },
+            change::StartedFrom { task: first, head: translate::commit(first_head) },
+        ]))
+    );
+    let required = [b"Fix the parser\n".as_slice(), &lines, b"## Goal\n..."].concat();
+    let spec = &live_task(&world, producer.task).spec;
+    assert!(spec.words.starts_with(&required));
+    assert!(spec.words[required.len()..].starts_with(b"\n\nThe host pushes what you deliver;"));
+    assert_eq!(spec.words.split(|byte| *byte == b'\n').next(), Some(b"Fix the parser".as_slice()));
+    let original_revision = spec_revision(&world, producer.task);
+    amend_words(&mut world, &goal, change, b"Fix the parser completely\n## Goal\nNew words");
+    let required = [b"Fix the parser completely\n".as_slice(), &lines, b"## Goal\nNew words"].concat();
+    let amended = live_task(&world, producer.task).spec.clone();
+    assert!(amended.words.starts_with(&required));
+    assert_eq!(spec_revision(&world, producer.task), original_revision + 1);
+    assert_eq!(amended.words.split(|byte| *byte == b'\n').next(), Some(b"Fix the parser completely".as_slice()));
+    report_save(&mut world, &producer, base);
+    let resumed = continue_producer(&mut world, &producer);
+    assert_eq!(resumed.task, producer.task);
+    assert_eq!(live_task(&world, resumed.task).spec, amended);
+    assert!(task_brief(&resumed).starts_with(&required));
+    stop(&mut world, &goal);
+}
+
+#[test]
+fn a_tight_early_producer_spec_drops_scope_before_cutting_start_lines() {
+    const SPEC_BYTES: u32 = 1024; // Room for a long change and the goal's own spec.
+    for cut in [false, true] {
+        let (mut world, goal, _, base) = goal_world_in(world_with_limits(false, None, Some(SPEC_BYTES), 1));
+        let dependency = make(&mut world, &goal, b"Prerequisite", &[]);
+        let upstream = questions::next_producer(&mut world, dependency);
+        let head = push(&mut world, &upstream, base, b"prerequisite");
+        let change = make(&mut world, &goal, b"Fix parser", &[dependency]);
+        let row = change_row(&world, change);
+        let line = start_line(dependency, head);
+        let facts_room = if cut { line.len() / 2 } else { line.len() };
+        let room = usize::try_from(SPEC_BYTES).expect("spec bound fits") - row.base.len() - row.branch.len();
+        let mut words = b"Fix parser\n".to_vec();
+        words.resize(room - facts_room, b'x');
+        amend_words(&mut world, &goal, change, &words);
+        report_checked_push(&mut world, &upstream, head);
+        let producer = questions::next_producer(&mut world, change);
+        let line = if cut { [&line[..facts_room - "…\n".len()], "…\n".as_bytes()].concat() } else { line };
+        let expected = [&words[..b"Fix parser\n".len()], &line, &words[b"Fix parser\n".len()..]].concat();
+        let spec = &live_task(&world, producer.task).spec;
+        assert_eq!(spec.words.as_ref(), expected);
+        assert_eq!(
+            spec.words.len() + row.base.len() + row.branch.len(),
+            usize::try_from(SPEC_BYTES).expect("spec bound fits")
+        );
+        stop(&mut world, &goal);
+    }
 }
 
 #[test]

@@ -15,6 +15,77 @@ const COMMITS: &[([u8; 32], &[u8])] = &[
     (SHA256, b"abababababababababababababababababababababababababababababababab"),
 ];
 
+const START_LINES: &[u8] = b"[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at abababababababababababababababababababababababababababababababab, not landed]\n";
+
+fn started_heads() -> Box<[super::forge_change::StartedFrom]> {
+    Box::new([
+        super::forge_change::StartedFrom { task: 12, head: SHA1 },
+        super::forge_change::StartedFrom { task: 13, head: SHA256 },
+    ])
+}
+
+fn producer_words(words: &[u8], early: &super::forge_change::Early, room: usize) -> Box<[u8]> {
+    let base = b"main";
+    let branch = b"temper/change";
+    super::produce_words(
+        words,
+        super::started_from(early),
+        base,
+        branch,
+        u32::try_from(room.checked_add(base.len()).unwrap().checked_add(branch.len()).unwrap()).unwrap(),
+    )
+}
+
+fn word_parts(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut words = super::List::uncapped();
+    for part in parts {
+        super::append(&mut words, part);
+    }
+    words.into_boxed()
+}
+
+#[test]
+fn producer_words_without_started_dependencies_stay_byte_for_byte() {
+    use super::forge_change::Early;
+    let words = b"Fix the parser\n## Goal\n...";
+    let scoped = word_parts(&[words.as_slice(), b"\n\n", super::PRODUCE_SCOPE]);
+    for early in [Early::None, Early::Started(Box::new([])), Early::Spent(started_heads())] {
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), words);
+    }
+}
+
+#[test]
+fn producer_start_lines_follow_the_title_in_record_order_and_precede_the_optional_scope() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let required = word_parts(&[b"Fix the parser\n", START_LINES, rest]);
+        let scoped = word_parts(&[required.as_ref(), b"\n\n", super::PRODUCE_SCOPE]);
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), required.as_ref());
+        assert_eq!(producer_words(words, &early, required.len()).as_ref(), required.as_ref());
+    }
+}
+
+#[test]
+fn producer_start_lines_are_cut_from_the_end_without_cutting_change_words() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let cut = "[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at …\n".as_bytes();
+        let expected = word_parts(&[b"Fix the parser\n", cut, rest]);
+        assert_eq!(producer_words(words, &early, expected.len()).as_ref(), expected.as_ref());
+        let minimum = word_parts(&[b"Fix the parser\n", "…\n".as_bytes(), rest]);
+        assert_eq!(producer_words(words, &early, minimum.len()).as_ref(), minimum.as_ref());
+        assert_eq!(producer_words(words, &early, words.len()).as_ref(), words);
+    }
+}
+
 #[test]
 fn commit_text_uses_lowercase_digits_at_the_identifier_width() {
     for (commit, digits) in COMMITS {
