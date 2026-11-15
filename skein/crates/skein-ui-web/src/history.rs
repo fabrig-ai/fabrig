@@ -12,6 +12,15 @@ impl History {
         self.restore = Some(scroll);
         path.into()
     }
+    /// A first show starts a client; only a kept document returns to its entry.
+    #[must_use]
+    pub fn shown(&mut self, path: &[u8], persisted: bool) -> Option<Box<[u8]>> {
+        if !persisted {
+            return None;
+        }
+        self.restore = None;
+        Some(path.into())
+    }
     pub fn take_scroll(&mut self) -> Option<(f64, f64)> {
         self.restore.take()
     }

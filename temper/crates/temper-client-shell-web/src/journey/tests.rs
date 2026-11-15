@@ -232,6 +232,30 @@ fn a_saves_turn_keeps_nothing() {
     prove(&recorder.save(&page)).expect("save's empty turn needs no replay");
 }
 #[test]
+fn a_kept_pages_return_is_recorded_and_replayed_as_its_own_report() {
+    let mut facts = facts();
+    facts.path = b"/accounts".as_slice().into();
+    let (mut host, mut page) = facts.start();
+    let mut recorder = Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, crate::host::Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    recorder.turn(facts.now, facts.wall);
+    let duties = recorder.report(
+        &mut host,
+        &page,
+        crate::host::Report::Returned { path: facts.path.clone() },
+    );
+    assert_eq!(duties.show, None);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    let saved = recorder.save(&page);
+    let records = lines(&saved).expect("return records");
+    assert!(records.contains(&Line::Returned(facts.path)));
+    prove(&saved).expect("return replays and draws the recorded page");
+}
+#[test]
 fn a_walk_is_its_acts_key_marks_and_end() {
     assert_eq!(
         walk(&recording(&walk_records())),

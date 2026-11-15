@@ -6,6 +6,7 @@ use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 pub struct History {
     model: Rc<RefCell<super::History>>,
     _pop: Closure<dyn FnMut(web_sys::PopStateEvent)>,
+    _show: Closure<dyn FnMut(web_sys::PageTransitionEvent)>,
     _scroll: Closure<dyn FnMut(web_sys::Event)>,
 }
 fn save(window: &web_sys::Window) {
@@ -16,7 +17,11 @@ fn save(window: &web_sys::Window) {
 }
 impl History {
     #[must_use]
-    pub fn new<R: 'static>(inbox: Rc<Inbox<R>>, wrap: fn(Box<[u8]>) -> R) -> Self {
+    pub fn new<R: 'static>(
+        inbox: Rc<Inbox<R>>,
+        wrap: fn(Box<[u8]>) -> R,
+        returned: fn(Box<[u8]>) -> R,
+    ) -> Self {
         let window = web_sys::window().expect("window");
         window
             .history()
@@ -26,6 +31,7 @@ impl History {
         save(&window);
         let model = Rc::new(RefCell::new(super::History::default()));
         let target = Rc::clone(&model);
+        let pop_inbox = Rc::clone(&inbox);
         let pop = Closure::new(move |event: web_sys::PopStateEvent| {
             let window = web_sys::window().expect("window");
             let state = js_sys::Array::from(&event.state());
@@ -33,12 +39,22 @@ impl History {
             let location = window.location();
             let path = location.pathname().expect("path") + &location.search().expect("query");
             let path = target.borrow_mut().gone_to(path.as_bytes(), scroll);
-            inbox.raise(wrap(path));
+            pop_inbox.raise(wrap(path));
         });
         window.add_event_listener_with_callback("popstate", pop.as_ref().unchecked_ref()).expect("popstate listener");
+        let target = Rc::clone(&model);
+        let show = Closure::new(move |event: web_sys::PageTransitionEvent| {
+            let window = web_sys::window().expect("window");
+            let location = window.location();
+            let path = location.pathname().expect("path") + &location.search().expect("query");
+            if let Some(path) = target.borrow_mut().shown(path.as_bytes(), event.persisted()) {
+                inbox.raise(returned(path));
+            }
+        });
+        window.add_event_listener_with_callback("pageshow", show.as_ref().unchecked_ref()).expect("pageshow listener");
         let scroll = Closure::new(move |_: web_sys::Event| save(&web_sys::window().expect("window")));
         window.add_event_listener_with_callback("scroll", scroll.as_ref().unchecked_ref()).expect("scroll listener");
-        Self { model, _pop: pop, _scroll: scroll }
+        Self { model, _pop: pop, _show: show, _scroll: scroll }
     }
     pub fn show(&self, path: &[u8], replace: bool) {
         let window = web_sys::window().expect("window");

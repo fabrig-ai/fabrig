@@ -48,6 +48,10 @@ pub enum Event {
     Went {
         place: Place,
     },
+    /// A document resumed from the browser’s back-forward cache (client/web/README.md, 2.3).
+    Returned {
+        place: Place,
+    },
     Act {
         action: Action,
     },

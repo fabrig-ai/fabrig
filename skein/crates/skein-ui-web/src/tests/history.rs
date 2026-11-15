@@ -12,6 +12,12 @@ fn an_entrys_scroll_is_restored_once() {
     assert_eq!(history.take_scroll(), None);
 }
 #[test]
+fn only_a_kept_page_reports_a_return_to_its_entry() {
+    let mut history = History::default();
+    assert_eq!(history.shown(b"/notes/7?q=a", false), None);
+    assert_eq!(history.shown(b"/notes/7?q=a", true).as_deref(), Some(b"/notes/7?q=a".as_slice()));
+}
+#[test]
 fn the_title_joins_the_heading_and_application_name() {
     for (heading, expected) in [(b"Groceries".as_slice(), "Groceries · Notes"), (b"", "Notes")] {
         assert_eq!(crate::title::text(heading, b"Notes"), expected);
