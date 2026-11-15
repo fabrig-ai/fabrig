@@ -1,5 +1,141 @@
 //! Harness contracts run once in focused (skein/docs/foundation/testing-strategy.md, 8).
 use crate::support;
+#[path = "../cluster_turn/setup.rs"]
+mod cluster_turn_setup;
+
+#[test]
+fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
+    use serde_json::json;
+    use temper_service::startup;
+    let scratch = support::Scratch::startup("cluster-turn-documents");
+    let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
+    cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
+    let forge = cluster_turn_setup::read(&cluster.dir("forge").join("forge.json"));
+    assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
+    assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
+    assert_eq!(forge["pace"]["ci_ms"], cluster_turn_setup::CI_MS);
+    temper_fake::forge::Document::decode(&serde_json::to_vec(&forge).expect("forge JSON")).expect("forge document");
+    let llm = cluster_turn_setup::read(&cluster.dir("llm").join("llm.json"));
+    temper_fake::llm::Document::decode(&serde_json::to_vec(&llm).expect("LLM JSON"))
+        .expect("scripted producer and chat");
+    let producer = &llm["cued"][0]["turns"];
+    assert_eq!(producer[2]["lines"][0]["call"], "save");
+    assert_eq!(
+        producer[3]["lines"][0]["arguments"]["content"].as_str().expect("both lines").as_bytes(),
+        cluster_turn_setup::CONTENT
+    );
+    assert_eq!(producer[4]["lines"][0]["call"], "deliver");
+    let engine = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
+    let project = &engine["application"]["landing"]["projects"][0];
+    assert_eq!(project["by"], "turn");
+    assert_eq!(project["batch"], 1);
+    assert_eq!(project["gates"][0]["gates"][0]["workflow"], "gate.yml");
+    let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
+    let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
+    let engine = startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("initial engine");
+    assert!(
+        temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
+        "the worker's merge train must be declared"
+    );
+    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
+    let agent = temper_worker_shell::agent::read(&cluster.dir("w1").join("config/agent.json")).expect("agent profile");
+    for process in ["engine", "w1"] {
+        let root = cluster.dir(process);
+        let directories = temper_real_loop_world::cluster::directories_in([
+            &root.join("config"),
+            &root.join("data"),
+            &root.join("cache"),
+        ]);
+        let directories = temper_box_shell::directories::jig_directories(&directories);
+        let bytes = std::fs::read(root.join("config/temper.json")).expect("deployment document");
+        if process == "engine" {
+            startup::store_limits(&bytes, &directories, Some(&agent.declaration()))
+                .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
+        }
+        match startup::shape(&bytes, &directories).expect("separate shape") {
+            startup::Shape::EngineAlone => {
+                startup::named(&bytes, &directories).expect("checked engine alone");
+            }
+            startup::Shape::WorkerAlone => {
+                startup::worker_part(&bytes, &directories).expect("checked worker alone");
+            }
+            startup::Shape::Standalone => panic!("separate deployment processes"),
+        }
+    }
+    let core = jig_protocol_config::core(&engine, [0; 16], 1);
+    let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
+    assert_eq!(
+        jig_domain_fleet::shortfall(&needs, &agent.bounds, jig_domain_fleet::HostKind::Worker),
+        None,
+        "the sole worker admits the stock and the prepare job"
+    );
+    scratch.remove();
+}
+
+#[test]
+fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
+    use serde_json::json;
+    let scratch = support::Scratch::new("cluster-turn-settings");
+    let calls: Vec<_> = [
+        json!({}),
+        json!({"newest":7}),
+        json!({"setting":{"kind":"policy","number":1},"value":{
+            "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
+        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat"}}),
+        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer"}}),
+    ]
+    .iter()
+    .map(|value| support::Ended {
+        exit: Some(skein_io::kernel::Exit::Code(0)),
+        stdout: serde_json::to_vec(value).expect("setting JSON"),
+        stderr: Vec::new(),
+    })
+    .collect();
+    let _apply = cluster_turn_setup::settings(scratch.path(), &calls);
+    let settings = cluster_turn_setup::read(&scratch.path().join("turn-settings.json"));
+    let policy = &settings["items"][0]["set"];
+    assert_eq!(policy["roles"][0]["period_spend"], 41000, "7000 of the period remains for preparation");
+    assert_eq!(policy["kept"], "policy");
+    assert_eq!(settings["items"][1]["set"]["kept"], "chat");
+    assert_eq!(settings["items"][2]["set"]["kept"], "producer");
+    assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
+    scratch.remove();
+}
+
+#[test]
+fn cluster_turn_wrapper_holds_delivery_not_the_saved_push() {
+    use std::path::Path;
+    let script = cluster_turn_setup::wrapper(Path::new("/story"), Path::new("/story/git"));
+    assert!(script.contains("if [ \"$arg\" = push ] && [ -f '/story/delivery.hold' ]"));
+    assert!(script.contains("if mkdir '/story/saved-push'"), "save's first push passes the barrier");
+    let entered = script.find(": > '/story/delivery.entered'").expect("entered before waiting");
+    let waiting = script.find("while [ -f '/story/delivery.hold' ]").expect("wait on the hold file");
+    assert!(entered < waiting);
+    assert!(
+        script.ends_with("exec '/story/git' \"$@\"\n"),
+        "the wrapper always invokes fake git with the same arguments"
+    );
+}
+
+#[test]
+fn cluster_turn_proof_cut_refuses_to_pass_after_proving() {
+    use serde_json::json;
+    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"preparing"})), Ok(None));
+    assert_eq!(
+        cluster_turn_setup::proof_cut(&json!({"phase":"proving","members":[{"gates":[{"proof":{
+        "dispatched":{"attempt":1,"run":3}}}]}]})),
+        Ok(Some(3))
+    );
+    for panel in [
+        json!({"phase":"turn"}),
+        json!({"phase":"landed"}),
+        json!({"phase":"proving","members":[{"gates":[{"proof":{"passed":{"run":3}}}]}]}),
+    ] {
+        let finding = cluster_turn_setup::proof_cut(&panel).expect_err("a missed cut never passes");
+        assert!(finding.contains(&format!("pace.ci_ms={}", cluster_turn_setup::CI_MS)), "{finding}");
+    }
+}
 
 #[test]
 fn four_reviews_and_the_latch_can_wait_on_the_model_together() {

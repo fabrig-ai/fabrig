@@ -8,6 +8,8 @@ mod box_lifetime;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
+#[path = "cluster_turn/mod.rs"]
+mod cluster_turn;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 #[path = "suite/startover.rs"]
