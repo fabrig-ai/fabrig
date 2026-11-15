@@ -74,6 +74,15 @@ pub(crate) fn operations(
                 };
                 ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
+            Write::DropHistory { task } => {
+                let log = crate::logs::history(task).ok_or(Refusal::Check(CommitCheck::Capacity))?;
+                ops.push(skein_kv::Op::Drop { log }).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
+                let op = match operation(store, Write::DropHistory { task }) {
+                    Ok(op) => op,
+                    Err(check) => return Err(Refusal::Check(check)),
+                };
+                ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
+            }
             Write::DropTranscript { task } => {
                 if crate::patching::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
@@ -202,6 +211,9 @@ fn operation(store: &mut Store, write: Write) -> Result<skein_kv::Op, CommitChec
         Write::Remove { key } => {
             Ok(skein_kv::Op::Erase { key: keys::application(&key, limit).ok_or(CommitCheck::Encoding)? })
         }
+        Write::DropHistory { task } => Ok(skein_kv::Op::Erase {
+            key: keys::encode_own(&keys::Own::History { task }, limit).ok_or(CommitCheck::Encoding)?,
+        }),
         Write::DropTranscript { task } => Ok(skein_kv::Op::Erase {
             key: keys::encode_own(&keys::Own::Transcript { task }, limit).ok_or(CommitCheck::Encoding)?,
         }),
@@ -233,19 +245,22 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
         | Write::Erase(_)
         | Write::Put { .. }
         | Write::Remove { .. }
+        | Write::DropHistory { .. }
         | Write::DropTranscript { .. } => None,
     }
 }
 
 fn append(ops: &mut List<skein_kv::Op>, op: skein_kv::Op, bytes: &mut u64, limit: u32) -> Result<(), CommitCheck> {
-    let key = u32::try_from(op.key().len()).ok().ok_or(CommitCheck::Bytes)?;
+    let key = u32::try_from(operation_key(&op).len()).ok().ok_or(CommitCheck::Bytes)?;
     let size = match &op {
-        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => return Err(CommitCheck::Bytes),
+        skein_kv::Op::Append { .. } => return Err(CommitCheck::Bytes),
         skein_kv::Op::Put { key: _, value } => {
             skein_kv::put_bytes(key, u32::try_from(value.len()).ok().ok_or(CommitCheck::Bytes)?)
                 .ok_or(CommitCheck::Bytes)?
         }
-        skein_kv::Op::Erase { key: _ } => skein_kv::erase_bytes(key).ok_or(CommitCheck::Bytes)?,
+        skein_kv::Op::Erase { key: _ } | skein_kv::Op::Drop { .. } => {
+            skein_kv::erase_bytes(key).ok_or(CommitCheck::Bytes)?
+        }
     };
     let total = bytes.checked_add(u64::from(size)).ok_or(CommitCheck::Bytes)?;
     if total > u64::from(limit) {
@@ -261,17 +276,27 @@ fn unique(ops: Box<[skein_kv::Op]>, capacity: u32) -> Option<Box<[skein_kv::Op]>
     let mut positions = Map::with_capacity(capacity);
     let mut kept = List::with_capacity(capacity);
     for op in ops {
-        if let Some(position) = positions.get(op.key()).copied() {
+        let key = operation_key(&op);
+        if let Some(position) = positions.get(&key).copied() {
             *kept.get_mut(position).expect("each indexed operation has its first slot") = op;
         } else {
-            positions.insert(skein_lib::bytes::copy_of(op.key()), kept.len()).ok()?;
+            positions.insert(key, kept.len()).ok()?;
             kept.push(op).ok()?;
         }
     }
     Some(kept.into_boxed())
 }
 
-/// A commit's most operations: two turn places per write, the first commit's
+fn operation_key(op: &skein_kv::Op) -> Box<[u8]> {
+    match op {
+        skein_kv::Op::Drop { log } => crate::logs::extent_key(*log),
+        skein_kv::Op::Put { key, .. } | skein_kv::Op::Erase { key } => skein_lib::bytes::copy_of(key),
+        skein_kv::Op::Append { .. } => unreachable!("history appends are not root writes"),
+    }
+}
+
+/// A commit's most operations: two turn places or a history drop and its place
+/// per write, the first commit's
 /// own rows (Format, Layouts and the installation's identifier), and the
 /// orphans' erases it carries.
 pub(crate) fn most_ops(writes: u32, orphan_erases: u32) -> Option<u32> {

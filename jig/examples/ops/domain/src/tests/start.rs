@@ -102,7 +102,9 @@ fn drive(domain: &mut Domain, env: &Env<Limits>, rows: &mut Map<Key, Record>, cu
                                 let _previous = rows.remove(&key);
                             }
                             Write::Wires => wires = true,
-                            Write::DropTranscript { .. } => panic!("start preserves transcripts"),
+                            Write::DropHistory { .. } | Write::DropTranscript { .. } => {
+                                panic!("start preserves transcripts")
+                            }
                             Write::CopySettingsRevision(_) => panic!("unchanged settings"),
                         }
                     }

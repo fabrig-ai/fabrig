@@ -76,6 +76,50 @@ fn answer(events: Box<[Event]>) -> reads::Loaded {
     result
 }
 #[test]
+fn dropping_histories_erases_extents_places_and_durable_files() {
+    let (mut disk, mut store) = setup();
+    moved(&mut disk, &mut store, CHILD);
+    moved(&mut disk, &mut store, GOAL);
+    let files: Vec<_> = disk
+        .tree()
+        .into_iter()
+        .filter(|(path, kind, _)| path.windows(5).any(|part| part == b"logs/") && *kind == skein_io::kernel::Kind::File)
+        .map(|(path, _, _)| path)
+        .collect();
+    assert_eq!(files.len(), 2, "the helper appended both logs through skein-kv");
+    for task in [CHILD, GOAL] {
+        let extent = logs::extent_key(logs::history(task).unwrap());
+        let place = keys::encode_own(&keys::Own::History { task }, store.limits.store.key).unwrap();
+        assert!(fixtures::get_kv(&mut store, &extent).is_some());
+        assert!(fixtures::get_kv(&mut store, &place).is_some());
+    }
+    let number = store.stores.store.last().checked_add(1).unwrap();
+    let events = disk.request(
+        &mut store,
+        fixtures::commit(
+            number,
+            Box::new([
+                fixtures::header(number),
+                crate::Write::DropHistory { task: CHILD },
+                crate::Write::DropHistory { task: GOAL },
+            ]),
+        ),
+    );
+    let [Event::Committed { number: found, .. }] = events.as_ref() else { panic!("drop committed: {events:?}") };
+    assert_eq!(*found, number);
+    for task in [CHILD, GOAL] {
+        let extent = logs::extent_key(logs::history(task).unwrap());
+        let place = keys::encode_own(&keys::Own::History { task }, store.limits.store.key).unwrap();
+        assert_eq!(fixtures::get_kv(&mut store, &extent), None);
+        assert_eq!(fixtures::get_kv(&mut store, &place), None);
+    }
+    let tree = disk.tree();
+    for path in files {
+        assert!(!tree.iter().any(|(standing, _, _)| standing == &path), "durable drop removed the log file");
+    }
+}
+
+#[test]
 fn two_tasks_missed_in_one_run_are_fetched_before_one_answer() {
     let (mut disk, mut store) = setup();
     let range = fixtures::read(

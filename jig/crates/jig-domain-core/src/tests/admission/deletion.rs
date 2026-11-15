@@ -819,7 +819,7 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
         for request in collect(requests) {
             if let Request::Held(held) = request
                 && let Held::ReadLoad { range, .. } = *held
-                && range.scope == crate::reads::Scope::EndedTasks
+                && range.scope == crate::reads::Scope::TaskSummaries
             {
                 loads += 1;
             }

@@ -80,7 +80,7 @@ impl Host {
                 }
                 Write::Erase(key) => self.rows.retain(|row| row.key() != key),
                 Write::Wires => wires = true,
-                Write::DropTranscript { .. } => panic!("start preserves transcripts"),
+                Write::DropHistory { .. } | Write::DropTranscript { .. } => panic!("start preserves transcripts"),
                 Write::CopySettingsRevision(_) => panic!("fixture keeps the configured settings"),
             }
         }

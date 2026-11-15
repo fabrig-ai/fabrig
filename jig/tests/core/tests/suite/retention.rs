@@ -171,7 +171,12 @@ fn record_stage_keeps_only_summary_and_ended_indexes_at_day_thirty_one() {
         party: PARTY,
         task: record.number
     }))));
-    assert!(w.commits.iter().any(|commit| commit.contains(&root::Write::Erase(key(tasks::Key::Ended(record.number))))));
+    assert!(w.commits.iter().any(|commit| {
+        commit.contains(&root::Write::Erase(key(tasks::Key::Ended(record.number))))
+            && commit.contains(&root::Write::DropHistory { task: record.number })
+            && commit.iter().any(|write| matches!(write, root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Retention(row))))
+                if row.stage == tasks::RetentionStage::Summary && row.number == record.number))
+    }));
 }
 
 #[test]
@@ -233,6 +238,8 @@ fn live_names_defer_whole_tasks_and_a_read_forgotten_owner_goes_whole_afterwards
         pass(&mut w);
         assert!(!has(&w, record.number));
         assert_eq!(summary(&w, record.number), !forgotten);
+        assert!(w.commits.iter().any(|commit| commit.contains(&root::Write::DropHistory { task: record.number })
+            && commit.contains(&root::Write::Erase(key(tasks::Key::Ended(record.number))))));
         if forgotten {
             assert_eq!(indexes(&w, record.number), 0);
         }
@@ -322,11 +329,17 @@ fn forgotten_stage_erases_the_remains_on_the_next_pass() {
     assert!(!has(&w, record.number));
     assert!(summary(&w, record.number));
     assert_ne!(own(&w, record.number), []);
+    assert!(
+        !w.commits.iter().any(|commit| commit.contains(&root::Write::DropHistory { task: record.number })),
+        "forgetting the record leaves history until the remains walk"
+    );
     pass(&mut w);
     assert!(!summary(&w, record.number), "forgotten stage takes summary");
     assert_eq!(own(&w, record.number), []);
     assert!(!places(&mut w, record.number));
     assert_eq!(indexes(&w, record.number), 0);
+    assert!(w.commits.iter().any(|commit| commit.contains(&root::Write::DropHistory { task: record.number })
+        && commit.contains(&root::Write::Erase(key(tasks::Key::Summary(record.number))))));
 }
 
 #[test]
@@ -373,6 +386,12 @@ fn deletion_takes_shrunk_summaries_and_indexes_before_a_queued_pass() {
     pass(&mut w);
     assert!(!has(&w, record.number));
     assert!(summary(&w, record.number));
+    let ask = jig_core_world::fixtures::chat(&w, 1, b"recent ended task".as_slice().into());
+    request(&mut w, 74, ask);
+    let recent = finish(&mut w);
+    at(&mut w, &recent, 1);
+    assert!(has(&w, recent.number), "the second task still has its full record");
+    let before = w.commits.len();
     w.send_all(vec![
         root::Event::Core(core::Event::Act {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(72)),
@@ -384,6 +403,14 @@ fn deletion_takes_shrunk_summaries_and_indexes_before_a_queued_pass() {
         root::Event::Timer(core::Timer::Retention),
     ]);
     assert!(matches!(w.act_answers.last(), Some((_, people::Outcome::ProjectRemoved { project: 1 }))));
-    assert!(!summary(&w, record.number), "deletion takes already shrunk task");
-    assert_eq!(indexes(&w, record.number), 0);
+    for task in [record.number, recent.number] {
+        assert!(!summary(&w, task), "deletion takes both full and shrunk tasks");
+        assert!(!has(&w, task));
+        assert_eq!(indexes(&w, task), 0);
+        assert_eq!(own(&w, task), []);
+        assert!(!places(&mut w, task));
+        assert!(w.commits[before..].iter().any(|commit| commit.contains(&root::Write::DropHistory { task })
+            && commit.contains(&root::Write::Erase(key(tasks::Key::Ended(task))))
+            && commit.contains(&root::Write::Erase(key(tasks::Key::Summary(task))))));
+    }
 }

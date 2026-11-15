@@ -252,6 +252,9 @@ pub(crate) fn core_out(
     let mut out = requests;
     for _ in 0..out.len() {
         match out.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropHistory { task }) => {
+                write(domain, decision, Write::DropHistory { task });
+            }
             core::Request::Write(core::Write::DropTranscript { task }) => {
                 write(domain, decision, Write::DropTranscript { task });
             }
