@@ -1,7 +1,9 @@
 # README: status
 
-2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3: `Start` has no `plain` and no `version`, and the
+  binary reads no `TERM_PROGRAM` [in flight: change 3431].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
