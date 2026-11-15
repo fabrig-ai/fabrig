@@ -195,6 +195,7 @@ pub enum Word {
     LeftAfter,
     LeftNow,
     NoRole,
+    LinkPending,
     StartingGroup,
     StartedGroup,
     StartingTemper,
@@ -209,7 +210,7 @@ pub enum Word {
     ProjectsReading,
     StartingFollowed,
 }
-pub(crate) const ALL: [Word; 198] = [
+pub(crate) const ALL: [Word; 199] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -408,6 +409,7 @@ pub(crate) const ALL: [Word; 198] = [
     Word::ProjectsAhead,
     Word::ProjectsReading,
     Word::StartingFollowed,
+    Word::LinkPending,
 ];
 
 #[derive(Clone, Copy)]
@@ -656,19 +658,20 @@ impl Word {
             Self::LeftAfter => 180,
             Self::LeftNow => 181,
             Self::NoRole => 182,
+            Self::LinkPending => 190,
             Self::StartingGroup => 188,
             Self::StartedGroup => 189,
-            Self::StartingTemper => 190,
-            Self::BoxStarted => 191,
-            Self::BoxLog => 192,
-            Self::TemperAhead => 193,
-            Self::TemperStarting => 194,
-            Self::TemperStarted => 195,
-            Self::SignInAhead => 196,
-            Self::SignedIn => 197,
-            Self::ProjectsAhead => 198,
-            Self::ProjectsReading => 199,
-            Self::StartingFollowed => 200,
+            Self::StartingTemper => 191,
+            Self::BoxStarted => 192,
+            Self::BoxLog => 193,
+            Self::TemperAhead => 194,
+            Self::TemperStarting => 195,
+            Self::TemperStarted => 196,
+            Self::SignInAhead => 197,
+            Self::SignedIn => 198,
+            Self::ProjectsAhead => 199,
+            Self::ProjectsReading => 200,
+            Self::StartingFollowed => 201,
         }
     }
     const fn id(self) -> PhraseId {
@@ -764,6 +767,7 @@ impl Word {
             Self::BoxPurpose => (&[b"a whole deployment on this machine"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
+            Self::LinkPending => (&[b"The link comes here once the box has started."], &[]),
             Self::InTheBrowser => (&[b"In the browser"], &[]),
             Self::Step => (&[b"", b" ", b""], &[Slot::Number, Slot::Label]),
             Self::Following => (&[b"Setting temper up in your browser"], &[]),

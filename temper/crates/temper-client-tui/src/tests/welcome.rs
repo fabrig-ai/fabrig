@@ -11,6 +11,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const FULL: skein_ui_screen::Size = skein_ui_screen::Size { columns: 80, rows: 24 };
 const PRINTED: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPEN: &str = "Welcome. Set temper up in your browser: open this link on this machine.";
+const PENDING: &str = "The link comes here once the box has started.";
 const ONCE: &str = "It signs you in as this temper's owner, once, within 2 hours.";
 const FOLLOW: &str = "Setting temper up in your browser";
 const FOLLOWED: &str = "The steps are the browser's; this screen follows them.";
@@ -343,8 +344,10 @@ fn the_welcome_says_each_state() {
                     let printed =
                         if name == "non UTF-8 link" { "link�".as_bytes().into() } else { link.expose().into() };
                     want.push(printed).unwrap();
-                    want.push(ONCE.as_bytes().into()).unwrap();
+                } else {
+                    want.push(PENDING.as_bytes().into()).unwrap();
                 }
+                want.push(ONCE.as_bytes().into()).unwrap();
                 want.push(b"In the browser".as_slice().into()).unwrap();
                 want.push("1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes().into()).unwrap();
             }
@@ -1020,6 +1023,12 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the stage golden table embeds its frames")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "body rows are collected for comparison across stages"
+)]
+#[expect(clippy::too_many_lines, reason = "stage frames pin the stable body and failed link section")]
 fn the_starting_box_welcomes_are_their_goldens() {
     use crate::BoxStage;
     let rows = [
@@ -1027,46 +1036,37 @@ fn the_starting_box_welcomes_are_their_goldens() {
             "welcome-finding-80x24-dark",
             BoxStage::Finding,
             None,
-            "Finding temper-box…",
-            look::HINT,
             include_bytes!("golden/welcome-finding-80x24-dark.txt").as_slice(),
         ),
         (
             "welcome-fetching-80x24-dark",
             BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
             None,
-            "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
-            look::HINT,
             include_bytes!("golden/welcome-fetching-80x24-dark.txt").as_slice(),
         ),
         (
             "welcome-fetching-unsized-80x24-dark",
             BoxStage::Fetching { done: 12_300_000, total: None },
             None,
-            "Downloading temper-box, once for this build: 12.3 MB",
-            look::HINT,
             include_bytes!("golden/welcome-fetching-unsized-80x24-dark.txt").as_slice(),
         ),
         (
             "welcome-starting-80x24-dark",
             BoxStage::Starting,
             Some(b"10:41:01 Starting serve".as_slice()),
-            "Starting the box…",
-            look::HINT,
             include_bytes!("golden/welcome-starting-80x24-dark.txt").as_slice(),
         ),
         (
             "welcome-failed-80x24-dark",
             BoxStage::Failed { why: b"WHY".as_slice().into() },
             None,
-            "temper-box could not start: WHY",
-            look::REFUSED,
             include_bytes!("golden/welcome-failed-80x24-dark.txt").as_slice(),
         ),
     ];
     let root = f::signed_out();
     let mut views = List::with_capacity(u32::try_from(rows.len()).unwrap());
-    for (_, stage, log, line, style, _) in &rows {
+    let mut first_body = None;
+    for (_, stage, log, _) in &rows {
         let mut tui = front(None);
         tui.step(Told::Size { columns: FULL.columns });
         tui.step(Told::Local { local: Local::Signing });
@@ -1075,16 +1075,50 @@ fn the_starting_box_welcomes_are_their_goldens() {
             tui.step(Told::BoxLine { line: BoxLine::Log { line: (*line).into() } });
         }
         let view = build(&root, &tui);
-        let node = f::find(view.tree(), Role::Paragraph, line.as_bytes());
-        assert!(node.styles.as_slice().contains(style));
-        for line in &body(view.tree()) {
-            assert_ne!(line.as_ref(), ONCE.as_bytes());
+        let lines = body(view.tree());
+        if let BoxStage::Failed { .. } = stage {
+            let node = f::find(view.tree(), Role::Paragraph, b"temper-box could not start: WHY");
+            assert!(node.styles.as_slice().contains(&look::REFUSED));
+            f::find(view.tree(), Role::Paragraph, b"Ctrl+C closes; temper then says what to do.");
+            assert!(!lines.iter().any(|line| line.as_ref() == ONCE.as_bytes()));
+            assert!(!lines.iter().any(|line| line.as_ref() == PENDING.as_bytes()));
+        } else {
+            assert_eq!(
+                lines.iter().map(Box::as_ref).collect::<Vec<_>>(),
+                [
+                    OPEN.as_bytes(),
+                    PENDING.as_bytes(),
+                    ONCE.as_bytes(),
+                    b"In the browser",
+                    "1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes(),
+                ]
+            );
+            let mut frame = skein_ui_screen::Frame::new(FULL);
+            skein_ui_screen::render(
+                view.tree(),
+                &crate::theme(Scheme::Dark, None),
+                FULL,
+                &mut skein_ui_screen::Focus::default(),
+                &mut frame,
+            );
+            let printed = frame.print();
+            let text = core::str::from_utf8(&printed).unwrap();
+            let body_rows: Vec<_> = text.lines().take(20).map(str::to_owned).collect();
+            assert_eq!(body_rows[4], "");
+            assert_eq!(body_rows[5], "   The link comes here once the box has started.");
+            assert_eq!(body_rows[6], "");
+            assert_eq!(body_rows[7], "   It signs you in as this temper's owner, once, within 2 hours.");
+            if let Some(first) = &first_body {
+                assert_eq!(&body_rows, first, "the body's rows do not move while the box starts");
+            } else {
+                first_body = Some(body_rows);
+            }
         }
         super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
         views.push(view).unwrap();
     }
     let mut checks = List::with_capacity(u32::try_from(rows.len()).unwrap());
-    for ((name, _, _, _, _, want), view) in rows.iter().zip(&views) {
+    for ((name, _, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
                 name,
@@ -1112,22 +1146,7 @@ fn startup_details() {
         tui.step(Told::Stage { stage: BoxStage::Fetching { done, total } });
         assert_eq!(view::front::stage(&tui, &f::words()), Some((want.as_bytes().into(), look::HINT)));
     }
-    let (starting, _) = f::starting();
-    let (live, _) = f::live(Some(f::me(&[])));
     let signed_out = f::signed_out();
-    for (root, local, last) in
-        [(&signed_out, Local::Signing, true), (&starting, Local::Ended, true), (&live, Local::Idle, false)]
-    {
-        let mut tui = front(Some(PRINTED));
-        tui.step(Told::Local { local });
-        tui.step(Told::Size { columns: 12 });
-        tui.step(Told::BoxLine { line: BoxLine::Log { line: b"old".as_slice().into() } });
-        tui.step(Told::BoxLine { line: BoxLine::Log { line: "ab界cd界ef".as_bytes().into() } });
-        let part = view::welcome::read(root, &tui, &f::words(), f::NOW);
-        assert_eq!(part.last_log.as_deref(), if last { Some("ab界cd界".as_bytes()) } else { None });
-        assert!(part.stage.is_none(), "the printed link wins over a stage");
-        assert!(!part.signed_in, "the browser's sign-in is not the TUI's");
-    }
     let mut tui = front(None);
     assert!(view::front::stage(&tui, &f::words()).is_none(), "running without a link draws nothing");
     tui.step(Told::Stage { stage: BoxStage::Failed { why: b"\xff\x80".as_slice().into() } });

@@ -39,6 +39,7 @@ pub(crate) struct Foot {
     pub launchpad: bool,
     pub needs: Count,
     pub notice: Option<Box<[u8]>>,
+    pub box_start: Option<Box<[u8]>>,
     pub box_state: Option<(Box<[u8]>, Style)>,
     pub playground: bool,
     pub closed: Option<Box<[u8]>>,
@@ -260,6 +261,11 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             Some(notice) => Some(words.notice(notice)),
             None => None,
         },
+        box_start: if super::welcome::shown(root, tui) && (tui.local() == Local::Signing || super::landing(root)) {
+            front::start(tui, words)
+        } else {
+            None
+        },
         box_state: front::box_state(tui, words),
         playground: front::playground(root, project),
         project: project_name(root, project),
@@ -376,20 +382,23 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     } else {
         Box::default()
     };
-    let mut right = List::with_capacity(7);
+    let mut right = List::with_capacity(8);
     let mut shortcut = None;
     let mut goal = None;
     if let Some(notice) = &part.notice {
         right.push((copy_of(notice), look::SIGNAL)).expect("one notice fits");
     } else {
+        if let Some(start) = &part.box_start {
+            right.push((copy_of(start), look::HINT)).expect("eight quiet line parts");
+        }
         if let Some((state, style)) = &part.box_state {
-            right.push((copy_of(state), *style)).expect("seven quiet line parts");
+            right.push((copy_of(state), *style)).expect("eight quiet line parts");
         }
         if part.playground {
-            right.push((words.say(Word::Playground, &[]), look::HINT)).expect("seven quiet line parts");
+            right.push((words.say(Word::Playground, &[]), look::HINT)).expect("eight quiet line parts");
         }
         if part.paused {
-            right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("seven quiet line parts");
+            right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("eight quiet line parts");
         }
         if let Some(mode) = part.pane {
             let (state, key) = match mode {
@@ -397,19 +406,19 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
                 chat::document::Mode::Split => (Word::PaneHalf, Word::PaneWidens),
                 chat::document::Mode::Draft => (Word::PaneAll, Word::PaneFolds),
             };
-            right.push((words.say(state, &[]), look::HINT)).expect("seven quiet line parts");
+            right.push((words.say(state, &[]), look::HINT)).expect("eight quiet line parts");
             shortcut = Some(usize::try_from(right.len()).expect("quiet parts fit usize"));
-            right.push((words.say(key, &[]), look::HINT)).expect("seven quiet line parts");
+            right.push((words.say(key, &[]), look::HINT)).expect("eight quiet line parts");
             if let Some(line) = &part.goal {
                 goal = Some(usize::try_from(right.len()).expect("quiet parts fit usize"));
-                right.push((copy_of(line), look::HINT)).expect("seven quiet line parts");
+                right.push((copy_of(line), look::HINT)).expect("eight quiet line parts");
             }
         }
         if let Some(session) = &part.talk_session {
-            right.push((copy_of(session), look::HINT)).expect("seven quiet line parts");
+            right.push((copy_of(session), look::HINT)).expect("eight quiet line parts");
         }
         if !needing.is_empty() {
-            right.push((needing, look::SIGNAL)).expect("seven quiet line parts");
+            right.push((needing, look::SIGNAL)).expect("eight quiet line parts");
         }
     }
     let mut right_width = 0_u32;
