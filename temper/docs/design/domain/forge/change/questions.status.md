@@ -3,10 +3,12 @@
 2026-11-15. Where the tree's code lags or departs from [questions.md](questions.md).
 
 
-- **Not yet:** 1, *Relayed at once, kept or not* and *Held only for message
-  room*: the relay still holds an answer while the change is kept by a
-  pending dependency, and `ctl change show` words a held answer
-  `answered, held for dependencies` [in flight: change 3437].
+- **Not yet:** 1, *Held for a dependency it did not start from* and
+  *Held for message room*: the relay still holds an answer while the
+  change is kept by any pending dependency, those its task started from
+  and changes into another repository included, and `ctl change show`
+  words a held answer `answered, held for dependencies` [in flight:
+  change 3437].
 - **Not yet:** 1, *Passed up*: a requester's run that reads the change's
   question and ends without answering leaves later runs no sight of it,
   and the requester idle with it [in flight: change 838].
