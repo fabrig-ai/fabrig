@@ -1,19 +1,21 @@
 //! Shared documents for the two process boundaries (testing/process-tier.md, landing by turn on the fake forge).
-use serde_json::{Value, json};
-use std::{fs, path::Path};
-use temper_box_kit::{
+use crate::{
     self as support,
     cluster::Cluster,
     ctl::{self, Call},
 };
+use serde_json::{Value, json};
+use std::{fs, path::Path};
 
 pub const CI_MS: u32 = 10_000;
 pub const CONTENT: &[u8] = b"Saved work\nDelivered work\n";
 
+#[must_use]
 pub fn fixture() -> std::path::PathBuf {
     skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster-turn")
 }
 
+#[must_use]
 pub fn read(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("story document")).expect("story JSON")
 }
@@ -73,6 +75,7 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
 
 /// Leave seven forty-eighths of the period for landing tasks, not the owner's pool.
 /// Copy current whole settings so the fixture pins no stock charter document.
+#[must_use]
 pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     let mut items = Vec::new();
     for call in &calls[2..5] {
@@ -105,6 +108,7 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
 
 /// The first push is save's. Every later push waits while delivery.hold exists.
 /// Only this worker invokes the wrapper; setup and the fake forge use fake git directly.
+#[must_use]
 pub fn wrapper(root: &Path, git: &Path) -> String {
     format!(
         r#"#!/bin/sh

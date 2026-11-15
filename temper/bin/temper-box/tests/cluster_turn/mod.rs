@@ -1,5 +1,4 @@
 //! Landing's two process boundaries on the fake forge (testing/process-tier.md).
-mod setup;
 use serde_json::Value;
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, Time};
@@ -12,6 +11,7 @@ use std::{
 use temper_box_kit::{
     self as support,
     cluster::{Cluster, Members, Root},
+    cluster_turn as setup,
     ctl::{self, Call, Step},
 };
 

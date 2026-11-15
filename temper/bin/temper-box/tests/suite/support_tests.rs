@@ -1,7 +1,6 @@
 //! Harness contracts run once in focused (skein/docs/foundation/testing-strategy.md, 8).
 use crate::support;
-#[path = "../cluster_turn/setup.rs"]
-mod cluster_turn_setup;
+use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
 fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {

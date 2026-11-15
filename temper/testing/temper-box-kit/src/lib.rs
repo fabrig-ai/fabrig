@@ -9,6 +9,7 @@ pub mod box_link;
 pub mod boxed;
 pub mod case;
 pub mod cluster;
+pub mod cluster_turn;
 pub mod configuration;
 pub mod csv_repair;
 pub mod ctl;
