@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 4: the wait timers' table is in `temper-client-tools`' `jig/wait.rs`: there is no `temper-client-tools-jig` (`tools-crates.status.md`) [in flight: change 4087].
 
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
