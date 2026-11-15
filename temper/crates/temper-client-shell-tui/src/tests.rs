@@ -4,6 +4,9 @@ mod talk;
 #[path = "tests/tell.rs"]
 mod tell;
 
+#[path = "tests/own.rs"]
+mod own;
+
 #[path = "tests/goal.rs"]
 mod goal;
 #[path = "tests/lending.rs"]
