@@ -28,6 +28,9 @@ fn limits() -> Limits {
         snapshot_after: 16384,
         chunk: 4096,
         page: Page { rows: 10, bytes: 4096 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     }
 }
@@ -545,6 +548,7 @@ fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
         map.apply(&ops, used, None, true);
         for op in ops {
             match op {
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                 Op::Put { key, value } => {
                     model.insert(key, value);
                 }
@@ -649,7 +653,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
                 match refusal {
                     Refusal::Full(..) => full += 1,
                     Refusal::TooLarge(..) => too_large += 1,
-                    Refusal::Busy | Refusal::Unavailable => panic!("map admission refusal"),
+                    Refusal::Busy | Refusal::Unavailable | Refusal::Logs => panic!("map admission refusal"),
                 }
                 // Rebuild the state before the refusal and compare the next admission.
                 let mut unchanged = Queued::new();
@@ -717,4 +721,86 @@ fn chunk_target_is_the_target_under_a_higher_ceiling() {
     {
         assert_eq!(Limits { chunk, ..limits() }.chunk_target(), target);
     }
+}
+
+#[test]
+fn payload_frames_choose_the_shorter_body_and_check_the_layout() {
+    let mut limits = limits(); limits.record = 1024;
+    let store = Store::memory(&limits);
+    let random: Vec<u8> = (0..256_u32).map(|n| u8::try_from(n).expect("byte")).collect();
+    for (record, kind) in [(&[b'a'; 512][..], 1), (random.as_slice(), 0)] {
+        let framed = store.frame(record).expect("record fits");
+        let bytes = &framed.bytes;
+        let len = u32::try_from(bytes.len()).expect("frame length");
+        assert_eq!(frame::u32_at(bytes, 0), Some(len));
+        assert_eq!(bytes.get(4), Some(&kind));
+        assert_eq!(frame::u32_at(bytes, 5), u32::try_from(record.len()).ok());
+        assert_eq!(frame::u32_at(bytes, bytes.len() - 4), Some(len));
+        assert_eq!(frame::u32_at(bytes, bytes.len() - 8), Some(crc::crc32c(bytes.get(..bytes.len() - 8).expect("prefix"))));
+        if kind == 1 { assert!(framed.len() < u64::try_from(record.len()).expect("length")); }
+        else { assert_eq!(bytes.get(9..bytes.len() - 8), Some(record)); }
+        assert_eq!(crate::logs::decode(bytes, limits.record).as_deref(), Some(record));
+        for at in 0..bytes.len() {
+            let mut bad = bytes.clone(); *bad.get_mut(at).expect("byte") ^= 1;
+            assert!(crate::logs::decode(&bad, limits.record).is_none(), "bad byte {at}");
+        }
+    }
+}
+
+#[test]
+fn payload_memory_reads_cut_and_drop_with_the_commit() {
+    use crate::{Direction, LogRecord, LogRule};
+    let mut env = env(); env.limits.record = 64;
+    let mut store = Store::memory(&env.limits);
+    store.logs(LogRule { prefix: Box::from(&b"extent/"[..]) });
+    let a = store.frame(b"a").expect("frame"); let end_a = a.len();
+    let bb = store.frame(b"bb").expect("frame"); let end = end_a + bb.len();
+    let mut above = Queue::uncapped(); let mut below = Queue::uncapped(); let owner = Token::new(1);
+    down(&mut store, &env, Request::Commit { owner, ops: Box::new([Op::Append { log: 7, frame: a }, Op::Append { log: 7, frame: bb }]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Committed { owner, number: 1 })); assert_eq!(store.log_end(7), end);
+    for (direction, at, max, expected, next) in [
+        (Direction::Forward, 0, 64, vec![(0, end_a, 1, Some(&b"a"[..])), (end_a, end, 2, Some(&b"bb"[..]))], None),
+        (Direction::Backward, end, 64, vec![(end_a, end, 2, Some(&b"bb"[..])), (0, end_a, 1, Some(&b"a"[..]))], None),
+        (Direction::Backward, end, 1, vec![(end_a, end, 2, None)], Some(end_a)),
+    ] {
+        down(&mut store, &env, Request::ReadLog { owner, log: 7, at, direction, max }, &mut above, &mut below);
+        let records = expected.into_iter().map(|(at,end,length,record)| LogRecord { at,end,length,record:record.map(Box::from) }).collect::<Vec<_>>().into_boxed_slice();
+        assert_eq!(above.pop(), Some(Event::LogRead { owner, records, next }));
+    }
+    down(&mut store, &env, Request::Commit { owner, ops: Box::new([Op::Drop { log: 7 }]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Committed { owner, number: 2 })); assert_eq!(store.log_end(7), 0);
+    down(&mut store, &env, Request::ReadLog { owner, log: 7, at: 0, direction: Direction::Forward, max: 64 }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::LogRead { owner, records: Box::new([]), next: None })); assert!(below.is_empty());
+}
+
+#[test]
+fn payload_admission_refusals_and_queued_ends_are_atomic() {
+    use crate::LogRule;
+    let mut env = env(); env.limits.record = 64; env.limits.log = 82;
+    let mut above = Queue::uncapped(); let mut below = Queue::uncapped();
+    let mut store = open_store(&env, &mut above, &mut below);
+    let owner = Token::new(2);
+    let frame = store.frame(b"a").expect("frame"); let length = frame.len();
+    for op in [Op::Append { log: 7, frame: frame.clone() }, Op::Drop { log: 7 }] {
+        down(&mut store, &env, Request::Commit { owner, ops: Box::new([op]) }, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(Event::Refused { owner, refusal: Refusal::Logs }));
+        assert!(below.is_empty()); assert_eq!(store.last(), 0); assert_eq!(store.log_end(7), 0);
+    }
+    store.logs(LogRule { prefix: Box::from(&b"e/"[..]) });
+    for ops in [vec![put(b"e/forbidden", b"x")], vec![Op::Erase { key: Box::from(&b"e/x"[..]) }], vec![Op::Append { log: 7, frame: frame.clone() }, Op::Drop { log: 7 }], vec![Op::Drop { log: 7 }, Op::Append { log: 7, frame: frame.clone() }]] {
+        down(&mut store, &env, Request::Commit { owner, ops: ops.into_boxed_slice() }, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(Event::Refused { owner, refusal: Refusal::Logs }));
+        assert!(below.is_empty()); assert_eq!(store.used(), 0); assert_eq!(store.projected_keys(), 0); assert_eq!(store.log_end(7), 0);
+    }
+    assert_eq!(store.frame(&[0; 65]), Err(Refusal::TooLarge(Large::Record)));
+    for count in [2_u64, 1, 1] {
+        let at = store.log_end(7);
+        let ops = (0..count).map(|_| Op::Append { log: 7, frame: frame.clone() }).collect::<Vec<_>>().into_boxed_slice();
+        down(&mut store, &env, Request::Commit { owner, ops }, &mut above, &mut below);
+        assert!(above.is_empty()); assert_eq!(store.log_end(7), at + count * length);
+    }
+    let before = store.log_end(7); let projected = store.projected_keys();
+    down(&mut store, &env, Request::Commit { owner, ops: Box::new([Op::Append { log: 7, frame }]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Log) }));
+    assert_eq!(store.log_end(7), before); assert_eq!(store.projected_keys(), projected); assert_eq!(store.last(), 0); assert_eq!(store.used(), 0);
 }

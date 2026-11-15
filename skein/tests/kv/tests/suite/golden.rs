@@ -25,6 +25,9 @@ const LIMITS: Limits = Limits {
     snapshot_after: 100,               // Commit 1's 120 bytes start the snapshot at 2.
     chunk: 52,                         // Empty + a fit; b and the maximum row each need a chunk.
     page: Page { rows: 1, bytes: 24 }, // One maximum key/value pair per page.
+    record: 1,
+    log: 1 << 40,
+    logs: 16,
     deadline: Duration::from_secs(1),
 };
 
@@ -67,6 +70,7 @@ fn model() -> BTreeMap<Box<[u8]>, Box<[u8]>> {
     for ops in commits() {
         for op in ops {
             match op {
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                 Op::Put { key, value } => {
                     map.insert(key, value);
                 }

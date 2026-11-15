@@ -23,6 +23,9 @@ fn store() -> skein_kv::Limits {
         snapshot_after: 134_217_728,
         chunk: 16_778_260,
         page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_nanos(1_000_000_000),
     }
 }

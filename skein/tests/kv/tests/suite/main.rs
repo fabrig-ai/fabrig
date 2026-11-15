@@ -7,6 +7,7 @@ mod census;
 mod disk;
 mod golden;
 mod memory;
+mod logs;
 mod open;
 mod real;
 mod recovery;

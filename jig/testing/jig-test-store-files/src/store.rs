@@ -715,6 +715,9 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         snapshot_after: 1,
         chunk: 1,
         page: skein_kv::Page { rows: 2, bytes: u32::MAX },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     };
     let sizes = protocol::sizes::check_commits(

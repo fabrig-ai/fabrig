@@ -17,15 +17,17 @@ mod frame;
 mod key;
 mod limits;
 mod map;
+mod logs;
 mod snapshot;
 mod store;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{Event, Exhausted, Failure, Large, Op, Page, Range, Refusal, Request, Row};
+pub use boundary::{Direction, LogRecord, LogRule, Event, Exhausted, Failure, Large, Op, Page, Range, Refusal, Request, Row};
 pub use census::{CENSUS_HEADS, CENSUS_KEYSPACES, CENSUS_PREFIX, Census, CensusRule, Head, Keyspace};
 pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};
 pub use key::{KeyReader, KeyWriter};
 pub use limits::{CHUNK_TARGET, Limits, SNAPSHOT_FLOOR, SNAPSHOT_MULTIPLE};
 pub use snapshot::chunk_bytes;
+pub use logs::LogFrame;
 pub use store::{Store, down, fire, is_ready, up};

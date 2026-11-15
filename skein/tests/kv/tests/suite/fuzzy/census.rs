@@ -55,6 +55,7 @@ impl Model {
             self.spaces.insert(space.clone());
             if writes {
                 let count = match op {
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                     Op::Put { key, value } => [1, 0, u64::try_from(key.len() + value.len()).expect("written bytes")],
                     Op::Erase { key } => [0, 1, u64::try_from(key.len()).expect("written bytes")],
                 };
@@ -62,6 +63,7 @@ impl Model {
             }
             self.rows.remove(op.key());
             match op {
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                 Op::Put { key, value } => {
                     // Recount present heads after removing the overwritten row.
                     // Short values share None but are not bound overflow.
@@ -160,6 +162,9 @@ fn limits() -> Limits {
         snapshot_after: u64::MAX,
         chunk: 256,
         page: Page { rows: 4, bytes: 64 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     }
 }
