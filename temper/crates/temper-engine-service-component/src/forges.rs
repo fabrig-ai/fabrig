@@ -134,6 +134,7 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
         return false;
     };
     let held = endpoint.address == skein_io::Addr::Ip(crate::forge::HELD_ADDRESS);
+    let waiting = held && engine.forge.github_api != crate::forge::github::Api::Failed && github_host(engine, &host);
     if !engine.workers.forges.insert(forge) {
         engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
         return false;
@@ -164,7 +165,16 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
         return false;
     }
 
-    if held {
+    if waiting {
+        engine.forge.held.remove(&number);
+        if !engine.forge.github_waiting.contains_key(&number) {
+            engine
+                .forge
+                .github_waiting
+                .insert(number, crate::forge::github::Waiting::new())
+                .expect("kept forge capacity");
+        }
+    } else if held {
         engine.forge.held.insert(number, host).expect("kept forge capacity");
         if engine.forge.serving.is_none() {
             engine.forge.resolving.insert(number, ()).expect("kept forge capacity");
@@ -189,17 +199,11 @@ pub(crate) fn endpoint(
                 Some(ip) => core::net::SocketAddr::new(*ip, *port),
                 None => crate::forge::HELD_ADDRESS,
             };
-            if let Some(github) = &engine.forge.github {
-                let github_name = match &github.transport {
-                    Transport::Tls { server_name, .. } => match server_name.server() {
-                        skein_tls::Server::Dns(name) => Some(name.as_bytes()),
-                        skein_tls::Server::Ip(_) => None,
-                    },
-                    Transport::Plaintext { name } => name.as_deref(),
-                };
-                if github_name == Some(name.as_ref()) && github.address != crate::forge::HELD_ADDRESS {
-                    address = core::net::SocketAddr::new(github.address.ip(), *port);
-                }
+            if let Some(github) = &engine.forge.github
+                && github_host(engine, name)
+                && github.address != crate::forge::HELD_ADDRESS
+            {
+                address = core::net::SocketAddr::new(github.address.ip(), *port);
             }
             (address, Some(name.clone()))
         }
@@ -232,7 +236,15 @@ fn log_origins(
         Some(origins) => origins.clone(),
         None => match forge.kind {
             crate::settings::Kind::GitHub => match &engine.forge.github {
-                Some(github) => github.log_origins.clone(),
+                Some(github) => {
+                    let mut resolved = List::with_capacity(github.log_origins.len());
+                    for entry in &github.log_origins {
+                        if entry.address != skein_io::Addr::Ip(crate::forge::HELD_ADDRESS) {
+                            resolved.push(entry.clone()).expect("default origins capacity");
+                        }
+                    }
+                    resolved
+                }
                 None => List::with_capacity(0),
             },
             crate::settings::Kind::Forgejo => List::with_capacity(0),
@@ -242,6 +254,47 @@ fn log_origins(
         return None;
     }
     Some(origins)
+}
+
+/// Match the machine's GitHub place exactly as endpoint selection does.
+pub(crate) fn github_host(engine: &crate::engine::Engine, host: &[u8]) -> bool {
+    let Some(github) = &engine.forge.github else { return false };
+    let name = match &github.transport {
+        skein_forge_connection::settings::Transport::Tls { server_name, .. } => match server_name.server() {
+            skein_tls::Server::Dns(name) => Some(name.as_bytes()),
+            skein_tls::Server::Ip(_) => None,
+        },
+        skein_forge_connection::settings::Transport::Plaintext { name } => name.as_deref(),
+    };
+    name == Some(host)
+}
+
+/// Re-add an answered forge and resume the start its records or adoption supply.
+pub(crate) fn resolved(
+    engine: &mut crate::engine::Engine,
+    forge: u16,
+    address: core::net::SocketAddr,
+    adopted: Option<skein_forge_connection::Access>,
+) {
+    let Some(configured) = engine.workers.forges.remove(forge) else { return };
+    engine.forge.down(skein_forge_connection::Request::Remove { forge });
+    if let jig_protocol_config::Address::Host { name, .. } = &configured.api {
+        engine.forge.names.insert(name.clone(), address.ip()).expect("kept host capacity");
+    }
+    let Some(mut endpoint) = endpoint(engine, &configured) else {
+        assert!(engine.workers.forges.insert(configured), "removed forge has table room");
+        return;
+    };
+    endpoint.address = skein_io::Addr::Ip(address);
+    engine.forge.endpoints.insert(forge, endpoint).expect("kept forge capacity");
+    if keep(engine, configured) {
+        engine.setup.replace_endpoint(forge, address);
+        if let Some(access) = adopted {
+            crate::forge::connect(engine, forge, Ok(crate::forge::Start::Adopted(access)));
+        } else if engine.forge_records.done() {
+            crate::forge::records::connect(engine, forge);
+        }
+    }
 }
 
 #[cfg(test)]

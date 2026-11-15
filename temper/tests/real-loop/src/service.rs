@@ -536,8 +536,7 @@ fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, bl
     )
     .expect("machine roots");
     let roots = skein_tls::Config::from_der(&roots.certificates, &[]).expect("TLS roots").0;
-    let mut log_origins = temper_box_shell::github_logs::resolve(None, |_| Ok(([127, 0, 0, 1], 443).into()))
-        .expect("production default with fake DNS");
+    let mut log_origins = temper_box_shell::github_logs::defaults();
     // The fake serves plaintext on loopback; keep the production host policy.
     for at in 0..log_origins.len() {
         let entry = log_origins.get_mut(at).expect("default origin");
