@@ -239,8 +239,14 @@ fn workflow_runs(world: &World) -> Box<[raw::Run]> {
     // Four retained runs fit two pages in the small fake.
     for page in 1..=2 {
         let raw::Answer::Runs(runs) = world.inspect(&raw::Read::Runs {
-            workflow: Some(b"gate.yml".as_slice().into()), commit: None, number: None, page, limit: 8,
-        }) else { panic!("workflow runs") };
+            workflow: Some(b"gate.yml".as_slice().into()),
+            commit: None,
+            number: None,
+            page,
+            limit: 8,
+        }) else {
+            panic!("workflow runs")
+        };
         all.extend(runs);
     }
     all.into_boxed_slice()
@@ -282,7 +288,8 @@ fn drill_19_named_flake_and_inherited_reports_are_still_a_failed_landing_gate() 
     landings::drive_landing(&mut world, landing);
     let member = &world.landing(landing).landing.members[0];
     let Some(landing::Leave::Failed { run, .. }) = member.left else { panic!("failed gate") };
-    let candidate = translate::commit(workflow_runs(&world).iter().find(|known| known.id == run).expect("candidate run").commit);
+    let candidate =
+        translate::commit(workflow_runs(&world).iter().find(|known| known.id == run).expect("candidate run").commit);
     assert_eq!(report(&world, run).as_ref(), b"case.flake\ncase.inherited\n");
     assert_eq!(member.landed, None);
     assert_eq!(world.branch(b"main"), main);

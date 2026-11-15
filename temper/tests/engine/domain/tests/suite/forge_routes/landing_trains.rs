@@ -3,11 +3,11 @@ use super::super::{goal_branch, goal_landing};
 use super::*;
 
 fn goal_world() -> (World, engine::Assignment, Box<[u8]>) {
-    goal_world_with(StoryLimits { turn: true, spec_bytes: Some(1024), ..StoryLimits::default() })
+    goal_world_with(&StoryLimits { turn: true, spec_bytes: Some(1024), ..StoryLimits::default() })
 }
 
-fn goal_world_with(limits: StoryLimits) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits);
+fn goal_world_with(limits: &StoryLimits) -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
     world.adopt();
     let mut hello = hello_prepare(limits.slots.unwrap_or(3));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
@@ -38,8 +38,12 @@ fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: 
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the dependency, two in-flight trains and restored ordering share one bounded world"
+)]
 fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
-    let (mut world, goal, branch) = goal_world_with(StoryLimits {
+    let (mut world, goal, branch) = goal_world_with(&StoryLimits {
         turn: true,
         batch: Some(3),
         slots: Some(4),
@@ -196,7 +200,7 @@ fn finish_child(world: &mut World, producer: &engine::Assignment, title: &[u8]) 
 fn narrow(authority: &mut authority::Authority) {
     authority.grants = authority.grants.iter().filter(|grant| grant.kind != 15).cloned().collect();
     authority.delegation.kinds =
-        authority.delegation.kinds.iter().filter(|kind| **kind != authority::Executor::Job(1)).cloned().collect();
+        authority.delegation.kinds.iter().filter(|kind| **kind != authority::Executor::Job(1)).copied().collect();
 }
 
 fn narrow_policy(policy: &mut jig_domain_core::ConfiguredPolicy) {
@@ -243,6 +247,10 @@ fn reviewed_change(world: &mut World, change: u64) {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one owner act and its running stock goal are checked together through both trains"
+)]
 fn drill_15_an_owner_widens_its_own_project_roles_for_template_four_goal_trains() {
     use jig_domain_core::settings as s;
     let broad = goal_branch::stock_defaults();

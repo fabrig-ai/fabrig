@@ -8,7 +8,7 @@ fn hello() -> engine::Event {
         panic!("hello")
     };
     hello.bounds.message_bytes = 256;
-    hello.jobs = Box::new([hello.jobs[0].clone(), protocol::merge_bound()]);
+    hello.jobs = Box::new([hello.jobs[0], protocol::merge_bound()]);
     event
 }
 
@@ -53,6 +53,10 @@ fn prepare_three(world: &mut World, job: &host::JobAssignment, conflicted: u64) 
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "a batch departure, merge-job push and next landing are one continuous root scenario"
+)]
 fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent() {
     let mut world = World::configured_limits(
         true,
@@ -97,7 +101,7 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
     for _ in 0..PAIR_TICKS {
         world.tick();
     }
-    assert!(landing_rows(&world).is_empty());
+    assert!(landing_rows(&world).is_empty(), "no room before restart: {:?}", landing_rows(&world));
     assert!(changes.iter().all(|change| matches!(
         super::super::goal_landing::row(&world, *change).change.state,
         temper_engine_domain_forge_change::State::Ready { .. }

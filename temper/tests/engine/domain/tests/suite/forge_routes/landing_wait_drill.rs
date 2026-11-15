@@ -15,7 +15,7 @@ fn drill_20_a_due_change_blocks_formation_without_an_account_in_the_train_view()
     for _ in 0..PAIR_TICKS {
         world.tick();
     }
-    assert!(landing_rows(&world).is_empty());
+    assert!(landing_rows(&world).is_empty(), "no room before restart: {:?}", landing_rows(&world));
     world.drain_cut();
     let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(due)));
     let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) = world.store.rows.get_mut(&key)
