@@ -174,7 +174,8 @@ pub fn after(
             _ => {}
         },
         Command::DiffPaths { .. } if code == 0 => {
-            if let Some(files) = output::design_paths(stdout, checkout) {
+            let git::Op::DiffPaths { markdown, .. } = op else { unreachable!("path comparison") };
+            if let Some(files) = output::design_paths(stdout, checkout, *markdown) {
                 return Next::End(git::Done::Paths { files });
             }
         }

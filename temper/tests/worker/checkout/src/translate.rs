@@ -297,7 +297,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 }
             }
         }
-        Op::DiffPaths { at, before, after } => {
+        Op::DiffPaths { at, before, after, markdown } => {
             assert_cloned(disk, &at);
             let before = forge.tree(fake(before));
             let after = forge.tree(fake(after));
@@ -306,7 +306,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 files: paths
                     .into_iter()
                     .filter(|path| before.get(*path) != after.get(*path))
-                    .filter(|path| !path.ends_with(b".md"))
+                    .filter(|path| markdown || !path.ends_with(b".md"))
                     .take(1)
                     .map(|path| path.clone().into_boxed_slice())
                     .collect(),

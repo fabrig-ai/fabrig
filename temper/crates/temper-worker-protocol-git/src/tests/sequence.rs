@@ -172,7 +172,8 @@ fn an_always_commit_writes_a_tree_without_comparing_the_parent() {
 
 #[test]
 fn changed_paths_keep_the_first_code_path_without_a_conflict_count_limit() {
-    let op = git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT };
+    let op =
+        git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT, markdown: false };
     let command = Command::DiffPaths { before: fixtures::PARENT, after: fixtures::COMMIT };
     assert_eq!(sequence::first(&op), Next::Run(command.clone()));
     let valid: &[(&[u8], &[&[u8]])] =
