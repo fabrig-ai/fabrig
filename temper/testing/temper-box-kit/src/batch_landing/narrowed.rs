@@ -207,6 +207,13 @@ impl Judge<'_> {
         let prefix = sha(&third["candidate"])?;
         self.dispatched(run, prefix)?;
         let branch = panel["round"]["branch"].as_str().ok_or(String::from("next round's landing branch"))?;
+        // Forgejo archives the head ref after the landing deletes its branch.
+        // Observe its named branch while this round's gate still holds the turn.
+        let number = panel["round"]["pull"]["number"].as_u64().ok_or(String::from("next round's pull"))?;
+        let pull = get(self.forge, &format!("pulls/{number}"));
+        if pull["head"]["ref"] != branch {
+            return Err(String::from("the next round's pull names its landing branch"));
+        }
         {
             let (left, right) = (&(get(self.forge, &format!("branches/{branch}"))["commit"]["id"]), &(prefix));
             if left != right {
@@ -278,12 +285,6 @@ impl Judge<'_> {
                 }
             }
             {
-                let (left, right) = (&(pull["head"]["ref"]), &(second.panel["round"]["branch"]));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            {
                 let (left, right) = (&(pull["head"]["sha"]), &(prefix));
                 if left != right {
                     return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
@@ -306,8 +307,8 @@ impl Judge<'_> {
             Step::Boundary => self.boundary()?,
             Step::Remainder => {
                 if self.remainder()? {
-                    // The owner and repair stay held; no repair result is needed
-                    // to witness the next round's turn. Terminate drains them.
+                    // No repair result is needed to witness the next round's
+                    // turn. These replies stay held until the engine's clients end.
                     self.stop(procs)?;
                 }
             }

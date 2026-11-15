@@ -742,16 +742,24 @@ fn landing_repair_panel(reason: change::Repair, gate: u16) {
     assert_eq!(*decoded.in_landing(), Some(13));
     assert_eq!(
         *decoded.step(),
-        repairing(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::from(gate) }).unwrap()))
+        repairing(w::Reason::Landing(
+            w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::from(gate) }).unwrap()
+        ))
     );
 }
 #[test]
 fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
-    landing_repair_panel(change::Repair::LandingAt {
-        gate: 0,
-        candidate: [7; 32],
-        below: Some(change::Below { green: [8; 32], changes: [Some(change::Landed { change: 3, pull: 5 }), None, None, None] }),
-    }, 0);
+    landing_repair_panel(
+        change::Repair::LandingAt {
+            gate: 0,
+            candidate: [7; 32],
+            below: Some(change::Below {
+                green: [8; 32],
+                changes: [Some(change::Landed { change: 3, pull: 5 }), None, None, None],
+            }),
+        },
+        0,
+    );
 }
 #[test]
 fn a_candidate_landing_repair_panel_keeps_its_gate_and_delegate() {

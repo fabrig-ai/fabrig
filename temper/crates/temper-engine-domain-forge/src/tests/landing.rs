@@ -551,46 +551,65 @@ fn busy_landing_gather() -> (Domain, Env<Limits>) {
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     member_landing(&mut d);
-    outputs(&mut d, Event::StepLanding {
-        task: 61,
-        entry: 91,
-        heard: LandingHeard {
-            job: None,
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
-            held: Box::new([]),
-            failure: Box::new([]),
-            preparation: policy::Preparation::Idle,
-            released: false,
-            cancelled: false,
-            kept: Box::new([]),
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
-    });
+    );
     let environment = Env { limits, ..env() };
     let mut sent = Queue::uncapped();
     resume(&mut d, &environment, &mut sent);
     let mut first = None;
     while let Some(request) = sent.pop() {
         if let Request::Call { call, op, .. } = request {
-            assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"temper/51".as_slice().into() }));
+            assert_eq!(
+                op,
+                skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"temper/51".as_slice().into() })
+            );
             first = Some(call);
         }
     }
     // A watched base is due after the foreground call spends its share. The
     // next fresh read must yield admission to that background work.
-    step(&mut d, &environment, Event::Names { task: 61, resources: Box::new([Name {
-        forge: REPO.forge,
-        repository: REPO.repository,
-        what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
-    }]) }, &mut Queue::uncapped());
+    step(
+        &mut d,
+        &environment,
+        Event::Names {
+            task: 61,
+            resources: Box::new([Name {
+                forge: REPO.forge,
+                repository: REPO.repository,
+                what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+            }]),
+        },
+        &mut Queue::uncapped(),
+    );
     let mut answered = Queue::uncapped();
-    step(&mut d, &environment, Event::Client(skein_forge_client::Event::Answered {
-        free: 0,
-        rate: None,
-        call: first.expect("source branch read"),
-        cost: 1,
-        result: Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)),
-    }), &mut answered);
+    step(
+        &mut d,
+        &environment,
+        Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call: first.expect("source branch read"),
+            cost: 1,
+            result: Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)),
+        }),
+        &mut answered,
+    );
     d.reclaim();
     while let Some(request) = answered.pop() {
         if let Request::LandingDecision { .. } = request {
@@ -622,16 +641,29 @@ fn a_busy_landing_gather_keeps_its_prefix_until_the_read_can_be_admitted() {
                         pull.number = number;
                         Answer::Pull(pull)
                     }
-                    Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                    Op::Read(Read::Reviews { .. }) => {
+                        Answer::Reviews { reviews: Box::new([]), more: false, cut: false }
+                    }
                     Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
-                    Op::Read(Read::File { head, path, .. }) => Answer::Directory { head, path, entries: Box::new([]), truncated: false },
+                    Op::Read(Read::File { head, path, .. }) => {
+                        Answer::Directory { head, path, entries: Box::new([]), truncated: false }
+                    }
                     Op::Read(Read::Checks { .. }) => Answer::Checks(Box::new([])),
                     Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
                 };
                 let mut answered = Queue::uncapped();
-                step(&mut d, &environment, Event::Client(skein_forge_client::Event::Answered {
-                    free: 0, rate: None, call, cost: 1, result: Ok(answer),
-                }), &mut answered);
+                step(
+                    &mut d,
+                    &environment,
+                    Event::Client(skein_forge_client::Event::Answered {
+                        free: 0,
+                        rate: None,
+                        call,
+                        cost: 1,
+                        result: Ok(answer),
+                    }),
+                    &mut answered,
+                );
                 d.reclaim();
                 while let Some(request) = answered.pop() {
                     if let Request::LandingDecision { task: 61, .. } = request {
@@ -644,7 +676,9 @@ fn a_busy_landing_gather_keeps_its_prefix_until_the_read_can_be_admitted() {
             break;
         }
         d.reclaim();
-        if !d.is_ready() && let Some(at) = d.next_deadline() {
+        if !d.is_ready()
+            && let Some(at) = d.next_deadline()
+        {
             environment.now = at;
             environment.wall = Wall::from_nanos(at.as_nanos());
             fire(&mut d, &environment, &mut Queue::uncapped());

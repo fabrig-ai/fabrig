@@ -159,8 +159,11 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>) {
             Decision::Key { member, candidate, .. } => f.members[usize::from(member)].gates[0].key = Some(candidate),
             Decision::Dispatch { member, .. } => f.members[usize::from(member)].gates[0].receipt = Status::Passed,
             Decision::Merge { candidate, .. } => {
-                for fresh in &mut f.members {
+                for (fresh, member) in f.members.iter_mut().zip(&next.landing.members) {
                     fresh.main = candidate;
+                    if member.combined == Some(Combine::Merge) {
+                        fresh.merged = member.candidate;
+                    }
                 }
             }
             Decision::Record { member, .. } => f.members[usize::from(member)].record = Status::Passed,

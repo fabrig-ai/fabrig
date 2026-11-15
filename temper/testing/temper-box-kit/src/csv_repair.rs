@@ -49,9 +49,12 @@ pub fn initialize(paths: &[PathBuf; 3]) {
     let initialized = super::story_command::standalone(
         std::process::Command::new(skein_scratch::paths::binary("temper-box"))
             .args(["init", "--box"])
-            .args(["--config", "--data", "--cache"].into_iter().zip(paths).flat_map(|(flag, path)| {
-                [std::ffi::OsString::from(flag), path.as_os_str().to_owned()]
-            }))
+            .args(
+                ["--config", "--data", "--cache"]
+                    .into_iter()
+                    .zip(paths)
+                    .flat_map(|(flag, path)| [std::ffi::OsString::from(flag), path.as_os_str().to_owned()]),
+            )
             .current_dir(&paths[1]),
         "initialize the CSV box",
         super::WITHIN,

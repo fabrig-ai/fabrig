@@ -5,7 +5,10 @@ use skein_lib::{Env, List, Queue};
 
 const LATCH: u64 = 7;
 
-#[expect(clippy::too_many_lines, reason = "one root fixture couples the shared dependency, gated changes and due task steps")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one root fixture couples the shared dependency, gated changes and due task steps"
+)]
 fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     let mut limits = crate::tests::resume_fixture::limits();
     limits.tasks.tasks = 4;
@@ -20,39 +23,41 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     let template = fixture.core.tasks.task(task).unwrap();
     let mut batch = List::with_capacity(4);
     for number in core::iter::once(LATCH).chain(changes.iter().copied()) {
-        batch.push(tasks::New {
-            number,
-            project: 1,
-            label: 0,
-            flags: tasks::Flags::PLAIN,
-            executor: tasks::Executor::Procedure { connector: 0, code: 2 },
-            llm: None,
-            spec: tasks::Spec {
-                parameters: if number == LATCH {
-                    Box::new([])
-                } else {
-                    Box::new([
-                        tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 1) },
-                        tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
-                    ])
+        batch
+            .push(tasks::New {
+                number,
+                project: 1,
+                label: 0,
+                flags: tasks::Flags::PLAIN,
+                executor: tasks::Executor::Procedure { connector: 0, code: 2 },
+                llm: None,
+                spec: tasks::Spec {
+                    parameters: if number == LATCH {
+                        Box::new([])
+                    } else {
+                        Box::new([
+                            tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 1) },
+                            tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+                        ])
+                    },
+                    ..template.spec.clone()
                 },
-                ..template.spec.clone()
-            },
-            contract: if number == LATCH {
-                tasks::Contract::Report { words: 32 }
-            } else {
-                tasks::Contract::Change { connector: 0, kind: 1, words: 32 }
-            },
-            deadline: tasks::Deadline::Named,
-            authority: template.authority.clone(),
-            numbers: template.numbers,
-            funder: tasks::Funder::Period { project: 1, period: 1 },
-            dependencies: if number == LATCH { Box::new([]) } else { Box::new([LATCH]) },
-            holdings: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
-            recurring: None,
-            tracked: None,
-        }).unwrap();
+                contract: if number == LATCH {
+                    tasks::Contract::Report { words: 32 }
+                } else {
+                    tasks::Contract::Change { connector: 0, kind: 1, words: 32 }
+                },
+                deadline: tasks::Deadline::Named,
+                authority: template.authority.clone(),
+                numbers: template.numbers,
+                funder: tasks::Funder::Period { project: 1, period: 1 },
+                dependencies: if number == LATCH { Box::new([]) } else { Box::new([LATCH]) },
+                holdings: Box::new([]),
+                wake: tasks::WakePolicy::DEFAULT,
+                recurring: None,
+                tracked: None,
+            })
+            .unwrap();
     }
     let mut made = Queue::uncapped();
     tasks::step(
@@ -73,7 +78,8 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         row.change.task = *task;
         let repository = super::adopted(1);
         row.repository = repository.provider;
-        row.branch = super::super::tree_branch(&repository, *task, b'c', *task, None, env.limits.forge.name_bytes).unwrap();
+        row.branch =
+            super::super::tree_branch(&repository, *task, b'c', *task, None, env.limits.forge.name_bytes).unwrap();
         row.change.way = change::Way::Turn;
         row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
         row.change.gates = Box::new([change::Gate {
@@ -119,10 +125,19 @@ fn ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     row.change.ready_since = Some(env.wall);
     domain.work.push(Work::Forge(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) }));
     let mut answered = Queue::uncapped();
-    answered.push(forge::Request::ChangeDecision { task, decision: change::Decision::Ready, entry: None, evidence: None });
+    answered.push(forge::Request::ChangeDecision {
+        task,
+        decision: change::Decision::Ready,
+        entry: None,
+        evidence: None,
+    });
     domain.work.push(Work::ForgeSettings(answered));
     super::judge_trains(domain, env);
-    assert!(domain.core.tasks.procedure_due(task).is_none(), "readiness read settled: {:?}", domain.core.tasks.task(task));
+    assert!(
+        domain.core.tasks.procedure_due(task).is_none(),
+        "readiness read settled: {:?}",
+        domain.core.tasks.task(task)
+    );
 }
 
 #[test]

@@ -857,9 +857,17 @@ fn a_landing_repair_is_read_with_its_delegate_in_text_and_json() {
         let call = root.submit(argv);
         assert_eq!(root.reads[&call].1, c::Read::Task { task: 2 });
         serve(&mut root, call, false, false);
-        let step = w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts {
-            reason: w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap()),
-        }).unwrap());
+        let step = w::Step::Repairing(
+            w::Repairing::new(
+                &w::CEILINGS,
+                w::RepairingParts {
+                    reason: w::Reason::Landing(
+                        w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        );
         let mut parts = panel(step).into_parts();
         parts.way = w::Way::Turn;
         parts.in_landing = Some(13);

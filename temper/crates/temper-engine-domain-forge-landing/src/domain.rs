@@ -384,7 +384,7 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 wait(next, None)
             }
         }
-        Phase::Turn { .. } => turn(next, facts),
+        Phase::Turn { .. } => turn(next, facts, limits, now),
         Phase::Landed | Phase::Held { .. } | Phase::Cancelled => unreachable!("inactive phases returned above"),
     }
 }
@@ -828,7 +828,7 @@ fn red(mut landing: Landing, facts: &Facts, gate: u16, run: u64) -> Stepped {
     done(landing, decision)
 }
 
-fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
+fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
     let top = top(&landing);
     if let Some(top) = top {
         let member = landing.members.get(usize::from(top)).expect("top");
@@ -869,6 +869,11 @@ fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
                         return done(landing, Decision::Hold(why));
                     }
                 }
+            }
+            // Keep the change's branch until the forge detects its manual
+            // merge; telling the change lets it delete that branch (landing.md, 8).
+            if !member.told && member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
+                return wait(landing, Some(Wall::from_nanos(now.as_nanos().saturating_add(limits.poll.as_nanos()))));
             }
             if !member.told {
                 member.told = true;

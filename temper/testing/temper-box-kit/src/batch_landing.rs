@@ -147,7 +147,11 @@ pub fn configure(root: &Path, repository: u64) {
     let engine = temper_real_loop_world::settings::configuration(&value);
     // Each direct child reserves the prepare-sized result carrier in its
     // requester's inbox (jig's domain/tasks/messages.md, 2).
-    let inbox_bytes = engine.limits.core.tasks.inbox_messages
+    let inbox_bytes = engine
+        .limits
+        .core
+        .tasks
+        .inbox_messages
         .checked_mul(engine.limits.core.tasks.result_bytes)
         .expect("batch result credits");
     for name in ["tasks.tasks", "tasks.project_tasks", "tasks.tree_tasks", "tasks.exemptions"] {
@@ -246,8 +250,20 @@ pub mod tests {
     pub fn gate_receipt_waits_for_an_unpublished_status_context() {
         use serde_json::json;
         assert_eq!(super::narrowed::gate_status(&json!({"statuses":null}), "failure"), Ok(false));
-        assert_eq!(super::narrowed::gate_status(&json!({"statuses":[{"context":"temper/gate/gate","status":"pending"}]}), "failure"), Ok(false));
-        assert_eq!(super::narrowed::gate_status(&json!({"statuses":[{"context":"temper/gate/gate","status":"failure"}]}), "failure"), Ok(true));
+        assert_eq!(
+            super::narrowed::gate_status(
+                &json!({"statuses":[{"context":"temper/gate/gate","status":"pending"}]}),
+                "failure"
+            ),
+            Ok(false)
+        );
+        assert_eq!(
+            super::narrowed::gate_status(
+                &json!({"statuses":[{"context":"temper/gate/gate","status":"failure"}]}),
+                "failure"
+            ),
+            Ok(true)
+        );
         assert!(super::narrowed::gate_status(&json!({"statuses":"malformed"}), "failure").is_err());
     }
 
@@ -273,7 +289,8 @@ pub mod tests {
         let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
         let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
         let delegate: serde_json::Value = serde_json::from_slice(arguments).expect("delegate JSON");
-        let tracked = delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
+        let tracked =
+            delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
         assert!(
             u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
             "the independent changes fit the project's goal limit"
@@ -325,6 +342,12 @@ enum Phase {
     Ending,
     Search(narrowed::Step),
 }
+#[derive(Clone, Copy)]
+enum PeerStop {
+    Waiting,
+    Due(Time),
+    Stopped,
+}
 struct Judge<'a> {
     failed: Option<String>,
     chat: ChatJudge<'a>,
@@ -338,6 +361,7 @@ struct Judge<'a> {
     second: Option<Proof>,
     story: Story,
     probes: Vec<u64>,
+    peer_stop: PeerStop,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
@@ -576,11 +600,6 @@ impl Judge<'_> {
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
-        for proc in procs {
-            if let Process::Peer(peer) = proc {
-                peer.shutdown();
-            }
-        }
         self.chat.phase = ChatPhase::Stopping;
         eprintln!("batch stopping at {:?}", Clock::new().now().now);
 
@@ -910,6 +929,21 @@ impl Referee<Process> for Judge<'_> {
             return;
         }
         let result = (|| -> Result<(), String> {
+            if let PeerStop::Due(_) = self.peer_stop {
+                // The terminal proof observes no repair result. Only once the
+                // engine and its clients have ended may the scripted replies
+                // finish, with no live client left to receive them.
+                if let Story::Narrowed = self.story {
+                    release(procs, b"batch-owner")?;
+                    release(procs, b"batch-repair")?;
+                }
+                for proc in procs.iter_mut() {
+                    if let Process::Peer(peer) = proc {
+                        peer.shutdown();
+                    }
+                }
+                self.peer_stop = PeerStop::Stopped;
+            }
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
                 if calls(procs)?.ends().len() < turn_restart::SETUP_CALLS {
                     return Ok(());
@@ -945,11 +979,21 @@ impl Referee<Process> for Judge<'_> {
         if let Some(why) = self.failed.take() {
             return Err(why);
         }
+        if self.chat.stopping()
+            && matches!(self.peer_stop, PeerStop::Waiting)
+            && let Some(Process::Binary(binary)) = procs.first()
+            && binary.is_empty()
+        {
+            self.peer_stop = PeerStop::Due(now);
+        }
         self.chat.watch(now, procs)
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
-            self.chat.next_deadline()
+            match self.peer_stop {
+                PeerStop::Due(at) => skein_lib::earliest(Some(at), self.chat.next_deadline()),
+                PeerStop::Waiting | PeerStop::Stopped => self.chat.next_deadline(),
+            }
         } else {
             Some(self.chat.deadline.until().map_or(self.poll, |until| until.min(self.poll)))
         }
@@ -1024,6 +1068,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         second: None,
         story,
         probes: Vec::new(),
+        peer_stop: PeerStop::Waiting,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {

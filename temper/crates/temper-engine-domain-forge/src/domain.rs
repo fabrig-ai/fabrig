@@ -1062,7 +1062,10 @@ impl Domain {
             || !self.procedure_wakes.is_empty()
             || goal_branch::room_waiting(self)
             || self.client.is_ready()
-            || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self) || crate::landing::read_waiting(self))
+            || ((self.lost_waiting()
+                || brief::waiting(self)
+                || goal_branch::read_waiting(self)
+                || crate::landing::read_waiting(self))
                 && self.client.has_room())
     }
 
