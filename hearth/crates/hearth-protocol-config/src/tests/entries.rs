@@ -1,6 +1,6 @@
 use super::fixtures::declaration;
 use crate::{
-    Declared, Error, Expected, Fault, Object, Position,
+    Declared, Decode, Error, Expected, Fault, Object, Position,
     entries::{Literal, Map, Name, Takes},
 };
 
@@ -87,7 +87,11 @@ const A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Position, Declared)
 #[test]
 fn a_field_its_map_lacks_is_refused_at_its_key() {
     for &(input, at, expected) in A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -141,7 +145,11 @@ const A_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Position, Decla
 #[test]
 fn a_field_of_another_form_is_refused_at_its_value() {
     for &(input, at, expected) in A_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -160,7 +168,11 @@ const AN_ENTRY_OR_A_MAP_THAT_IS_NOT_AN_OBJECT_IS_REFUSED_AT_ITS_VALUE: &[(&[u8],
 #[test]
 fn an_entry_or_a_map_that_is_not_an_object_is_refused_at_its_value() {
     for &(input, at, expected) in AN_ENTRY_OR_A_MAP_THAT_IS_NOT_AN_OBJECT_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -168,7 +180,10 @@ fn an_entry_or_a_map_that_is_not_an_object_is_refused_at_its_value() {
 fn a_download_s_artifact_is_refused_at_its_key_until_m6() {
     assert_eq!(
         declaration(br#"{"software":{"stoa":{"artifact":1}}}"#),
-        Err(Error { at: Position { offset: 21, line: 1, column: 22 }, fault: Fault::Declaration(Declared::Later) })
+        Err(Error {
+            at: Position { offset: 21, line: 1, column: 22 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Later))
+        })
     );
 }
 
