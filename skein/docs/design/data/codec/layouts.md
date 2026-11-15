@@ -69,6 +69,17 @@ one given on one side alone has no plan (`Underived::Held`).
   item type no plan reaches. These are written changes: a store converts
   them by its owner's written job (jig's `protocol/store/jobs.md`, 4),
   never at read.
+- **Derived with its drops refused** (`derive_dropping`, 4): the same
+  matching and the same judgement, but a variant of the root's reach
+  that the new text drops is planned as a refusal rather than
+  `Underived` (`VariantDropped`): the plan keeps, per such variant, its
+  old tag and its names in the old text (its enumeration's and its
+  own), and its enumeration and every declaration enclosing it in the
+  reach no longer keep, so no copy of a span passes over it. Any other
+  part that is not derived still refuses the plan as `derive` does. A
+  plan with no drop is `derive`'s, byte for byte. A store uses it only
+  to settle its values once (jig's `protocol/store/jobs.md`, 5), never
+  for what it reads while serving.
 - **What a plan keeps** for its pass, per old declaration of the reach:
   its new declaration; per new field, its old field and that field's
   conversion, or the default's bytes; per old variant, its new tag; per
@@ -106,7 +117,10 @@ the new value's into the caller's buffer:
   plan sizes by the most fields any record of the reach has, one table
   per level of the stack.
 - **An enumeration:** the old tag read, its new tag written, then its
-  record converted; a tag the old text lacks is `Misconverted::Tag`.
+  record converted; a tag the old text lacks is `Misconverted::Tag`; a
+  tag a plan of `derive_dropping` refuses is `Misconverted::Dropped`,
+  read before anything of it is written, naming the dropped variant by
+  its index in the plan (`Plan::dropped`).
 - **A list:** its count, then each item converted; an option: its
   presence (0 or 1, else `Tag`), then its value.
 - **A widened integer** is read at its old width and written at its new
@@ -139,13 +153,19 @@ pub const MAX_DEPTH: u32 = 64;
 pub struct Plan { /* owned tables, built from the texts, holding no reference to them */ }
 pub struct Underived { pub why: Why, pub decl: Span, pub part: Option<Span>, pub old: bool } // a span of the new text, or of the old when `old`
 pub enum Why { Root, NoDefault, Retyped, Reshaped, VariantDropped, Payload, Held, Pieces, Deep }
-pub enum Misconverted { Short, Tag, Bool, Bound, Trailing, Room }
+pub enum Misconverted { Short, Tag, Bool, Bound, Trailing, Room, Dropped(u16) } // Dropped: the plan's index of the dropped variant held
 
 impl Plan {
     pub fn derive(
         old: &Schema, old_root: Root, old_held: &[&Schema],
         new: &Schema, new_root: Root, new_held: &[&Schema],
     ) -> Result<Plan, Underived>;
+    pub fn derive_dropping(                           // 2: a dropped variant of the reach refused per value
+        old: &Schema, old_root: Root, old_held: &[&Schema],
+        new: &Schema, new_root: Root, new_held: &[&Schema],
+    ) -> Result<Plan, Underived>;
+    pub fn drops(&self) -> bool;                       // it refuses at least one variant
+    pub fn dropped(&self, index: u16) -> Option<(&str, &str)>; // a dropped variant's enumeration and variant, by the old text's names
     pub fn keeps(&self) -> bool;                       // the root keeps: its head alone moves
     pub fn convert(&self, old: &[u8], out: &mut Buffer, work: &mut Workspace)
         -> Result<(), Misconverted>;                   // lib's Buffer, cleared first; Room if `work` does not fit
@@ -199,6 +219,15 @@ impl Workspace {
   `retype`), a broad root whose sibling variant changed and keeps, a
   held record converted in its length, pieces copied and opened, former
   names matched, each `Underived` and each `Misconverted`.
+- **Drops refused,** step tests beside them: `derive_dropping` over a
+  root whose reach drops a variant before, between and after kept ones,
+  and one nested in a record of the reach, plans where `derive` is
+  `VariantDropped`; a value holding a kept variant converts to the bytes
+  written by hand, its moved tag among them; a value holding the dropped
+  one is `Dropped`, whose index `dropped` names by the old text's names;
+  the plan does not keep though every other part does; a part refused
+  for another reason (a field added with no default) still refuses
+  the plan; a pair with no drop gives `derive`'s plan.
 - **The machine as oracle,** in the fuzzy suite: for each pair of
   `tests/codec-patches`' fixture texts whose patch is derived, values
   drawn from the old text by the seeded generator of `README.md`, 8.3,

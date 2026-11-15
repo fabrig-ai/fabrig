@@ -816,6 +816,13 @@ record HoldRow { task: u64 position: u64 held: Held at: u64 }
 
 ### 12.4 From milestones
 
+Every store at or past dev.fabrig.ai's has run the job this section
+describes, so since store-floor's F0 (temper's `draft/store-floor.md`,
+section 2) the tasks' milestone variant is gone from the schema, its
+value type is retired with its range (`../../protocol/store/layouts.md`,
+2), and the job is no longer declared: a store that still holds a
+milestone is refused at open. What it did:
+
 A store written before this design holds a row per phase change,
 `Milestone { task, position, phase, at }` at `01 01 0a <task>
 <position>`. jig's job at open `milestones`

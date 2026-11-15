@@ -82,7 +82,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 | 9 | `Landed` | `Landed(Commit)` | a merge temper made, and its task | `landings` |
 | 10 | `Entry` | `Entry(u64)`: the entry's number | an unsettled outbox entry, held or not, and whether the forge's merge queue holds its merge (`queued`, skein's `forge/client.md`, 7.7) | `entries` |
 | 11 | `Client` | `Client(client::Key)`: `Live(Resource)` or `Repository(Repository)` | the client's working set: a live resource's row, or a repository's listing mark | the client's `resources` and `repositories` |
-| 12 | `Change` | `Change(u64)`: the task | a change's record whole, as a store from before families 47 and 48 holds it, read by the job `change-parts` alone, which moves it into them (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
+| 12 | `Change` | `Change(u64)`: the task | retired (jig's `protocol/store/layouts.md`, 2): no row holds it and `Row` has no `change` variant since store-floor's F0 (section 4); it held a change's record whole, which families 47 and 48 hold in two parts (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
 | 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
@@ -254,9 +254,10 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     `Restored` (section 5); one part without the other stops the
     restart as a row this build cannot read does, naming the present
     part's family.
-  - **The job `change-parts`** (jig's `protocol/store/jobs.md`) walks
-    family 12 and, for each row, puts the change's two parts and
-    erases its row, in answers within the commit edge: 379 rows on
+  - **The job `change-parts`** (jig's `protocol/store/jobs.md`), no
+    longer declared since store-floor's F0 retired family 12 (section
+    4), walked family 12 and, for each row, put the change's two parts and
+    erased its row, in answers within the commit edge: 379 rows on
     dev.fabrig.ai. Afterwards family 12 is empty.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
@@ -408,11 +409,15 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   2): its `Row`'s variants, one value type per variant its keys hold
   (section 3), each numbered in `temper-protocol-store`'s patch set,
   in its keys' order, and never renumbered; `temper-secrets` is
-  patched as before. The application's jobs at open (jig's
-  `protocol/store/jobs.md`) are dispatched by
-  `temper_protocol_store::jobs::page`, which names `change-parts`
-  (section 2, a change's two parts), then
-  `deleted-repository-forge-rows` (below), in that order.
+  patched as before. Family 12, `Change`, is retired with its range
+  (jig's `protocol/store/layouts.md`, 2), and `Row`'s variants after it
+  each move their tag by one, which their plans derive. The
+  application's jobs at open (jig's `protocol/store/jobs.md`) run in
+  this order: `deleted-repository-forge-rows` (below), then
+  store-floor's F0 jobs (below), `settle-layouts`, the store's own, and
+  `round-branches`. `temper_protocol_store::jobs::page` dispatches the
+  two that are the application's; a name it does not know is its
+  refusal.
 - **The job `deleted-repository-forge-rows`** drops what a project's
   deletion left naming a repository whose `Repository` row is gone
   (`../draft/deleted-repository-rows.md`), so that the restart's link
@@ -451,12 +456,12 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     (`Hold names deleted repository 1/20`), so the start is refused
     `OpenRefusal::Job` naming it, the store unchanged.
   - **Its ranges:** families 1, 3 to 8, 10, 11, 13 to 15, 23, 24, 28
-    to 30, 42 and 47, in key order; family 12 is empty once
-    `change-parts` has run. **What it reads:** while each page is out,
+    to 30, 42 and 47, in key order; family 12 is retired and holds
+    nothing. **What it reads:** while each page is out,
     families 2, 25 and 26 whole, through `Store::patch_page` (jig's
     `protocol/store/jobs.md`, 3), bounded by `repositories` and
     `forges`; a row of them that does not decode refuses, naming it.
-  - **Its answers** fit `room` as `change-parts`' do: an answer stops
+  - **Its answers** fit `room`: an answer stops
     before a row whose writes would not fit and names `through`; a row
     that cannot fit alone refuses.
   - **Its counts,** in order: `dropped`, then `BranchHead`,
@@ -464,6 +469,23 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     `LandingLog`, `Application` and `Names`: the rows each answer erased of that
     family, `Names` the resources removed, and `dropped` their sum
     (`binaries.md`, 2, prints them).
+- **Store-floor's F0 jobs** (`../draft/store-floor.md`, section 2), run
+  once, in the open that settles dev.fabrig.ai's store, and marked done
+  by every fresh store's first commit:
+  - **`settle-layouts`,** temper's settling job (jig's
+    `protocol/store/jobs.md`, 5): every value of `temper-store`'s value
+    types not at the binary's layout put again at it, among them the
+    landing history at layouts 25 and 26 and every family after 12,
+    whose tags moved; its end retires their other layouts. A value that
+    still holds the dropped `change` variant cannot be one, since family
+    12 is retired and must be empty.
+  - **`round-branches`,** over family 23, `Landing`: it decodes each
+    landing and writes nothing; its counts, in order, are `empty`, the
+    landings whose round branch is empty (a single landing from before
+    trains, `../domain/landing.md`, which the forge's views read as one,
+    `temper/crates/temper-engine-domain-forge/src/views.rs`), and
+    `named`, the others. A landing that does not decode refuses, naming
+    it.
 - **A repository's tag** is its forge's number and its id, packed
   (`../domain/forge/adoption.md`): the tasks' resource parameters and
   saved resources jig keeps name the pair.

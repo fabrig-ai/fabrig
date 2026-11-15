@@ -62,6 +62,11 @@ pub struct KeptFamily {
     // ... as `opening.md`, 3
     pub current: &'static str,          // the binary's text of the family; a patched one's latest kept text
     pub types: &'static [ValueType],    // its value types; empty for a family the store patches
+    pub retired: &'static [Retired],    // its value types no binary writes again
+}
+pub struct Retired {
+    pub number: u16,                    // the retired value type's, never reused
+    pub keys: &'static [KeyRange],      // the keys that held it, which hold nothing now
 }
 pub struct ValueType {
     pub number: u16,                    // the value type's, within its family: stable, never reused
@@ -103,9 +108,10 @@ pub struct KeyRange {
   number given once in its family; each root a declaration of `current`
   and each variant given only where that root is broad, naming one of
   its leading enumeration's variants (`Schema::root`); each range
-  non-empty and the ranges of all the family's types ordered, disjoint,
-  and together exactly the family's `keys`, so that each key the family
-  holds resolves to one value type; a family with types whose
+  non-empty and the ranges of all the family's types and retired types
+  ordered, disjoint, and together exactly the family's `keys`, so that
+  each key the family holds resolves to one value type or one retired;
+  a retired number not among the family's types; a family with types whose
   `current` does not parse, or that is not in the map (`KeptMap::Store`),
   or a `current` whose version is not the family's at the binary's
   level.
@@ -113,6 +119,15 @@ pub struct KeyRange {
   table ordered by `from`, the application's under its tag, and finds a
   key's by a binary search, as it finds a key's family for the census
   (`README.md`, 6.3).
+- **Retired** (temper's `draft/store-floor.md`, section 2): a value
+  type whose variant or root the family's text no longer declares, as
+  the tasks' milestones (10) and temper's whole change records (12)
+  since store-floor's F0, is declared retired with the ranges that held
+  it. Its ranges hold nothing: every open reads them at its check
+  (5.3) and refuses a store where they hold a value, and a put to one is
+  a writer's fault, the commit failing (`Failed`) as for a head that is
+  not its family's version (4). Its registry rows are erased as 5.4
+  says. The census keeps naming its ranges, each counting none.
 
 ## 3. The registry
 
@@ -247,11 +262,22 @@ memory for the read edge. A layout with no plan is refused, unless:
 
 - a written job of the binary converts from it (`jobs.md`, 4), pending
   or done; or
+- its value type's set has a settling job pending and only dropped
+  variants keep it from deriving: it is planned with its drops refused
+  (`jobs.md`, 5.2); or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
   there (`README.md`, 6.3), where it is retired (5.4). A value type a
   task log holds (`logs.md`, 2) has every layout held, since the census
   counts the map alone (`logs.md`, 8).
+
+A layout row of a retired value type (2) is no layout to plan: the
+check reads the type's ranges, and where they hold nothing the row is
+retired (5.4); where they hold a value, the open is refused
+`OpenRefusal::Layout` with why `Retired`, the id the first value's head
+names and the values unknown. The ranges are read so at every open,
+with or without a row, so a store holding a retired type's value never
+opens.
 
 The refusal, `OpenRefusal::Layout`, names the family, the value type
 (its number, root and variant), the id, why (`Underived`'s, a text its
@@ -265,10 +291,15 @@ not: the refusal names the family as the row's key spells it.
 ### 5.4 Retirement
 
 A layout that is not its value type's binary layout and that no value
-holds (5.3's second exception) has its row erased by the next open that
-writes (`opening.md`, 2), with each text no other row names. No open
-writes for retirement alone. A log-held value type's layouts never
-retire (`logs.md`, 8).
+holds (5.3's census exception), or a retired value type's whose ranges
+hold nothing (5.3), has its row erased by the next open that writes
+(`opening.md`, 2), with each text no other row names. No open writes
+for retirement alone. A log-held value type's layouts never retire by
+the census (`logs.md`, 8).
+
+**By proof:** a settling job's end erases every layout row of its
+value types but the binary's, having walked their ranges whole
+(`jobs.md`, 5.3), a log-held type's only while `task-logs` is pending.
 
 ### 5.5 When the open writes
 
@@ -343,7 +374,17 @@ plan (`jobs.md`, 4).
   written job fails in its owner's focused suite, not at a deployment's
   open. A value type that text does not declare is new since it (5.1)
   and has nothing to derive from; it is counted apart, and its root and
-  variant must resolve in `current`.
+  variant must resolve in `current`. A value type whose layout there
+  derives only with its drops refused, settled by its set's settling
+  job (`jobs.md`, 5.2), is named apart too: jig's tasks 0 and 6 and its
+  core's projections (1) since store-floor's F0; a retired value type
+  (2) has no layout in `current`.
+- **Retired value types,** step tests: a set whose family declares one
+  is admitted only with the ranges rule of 2; a store whose retired
+  range holds a value is refused `Layout` with why `Retired` before
+  anything is written; one whose registry holds a retired type's rows
+  and whose range is empty has them erased by the open that writes; a
+  put into a retired range fails its commit.
 - **A new value type at the seed,** a step test: a store at a fixture
   family's last kept text, unseeded, opened by a binary whose `current`
   adds a value type in a new key range, opens with no refusal; the seed
