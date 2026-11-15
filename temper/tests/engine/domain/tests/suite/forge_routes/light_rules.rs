@@ -5,12 +5,8 @@ use temper_engine_domain_forge_change as change_step;
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
 
-pub(super) fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub(super) fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {

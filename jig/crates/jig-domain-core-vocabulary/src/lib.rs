@@ -33,8 +33,8 @@ pub use crate::{
         EffectKey, EffectOrigin, EffectPurpose,
         connector::PersonSeed,
         projections::{
-            MilestoneId, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
-            ProjectionTask, projection_record_bytes,
+            MilestoneId, ProjectionFeed, ProjectionGoal, ProjectionGoalHot, ProjectionKey, ProjectionMilestone,
+            ProjectionRecord, ProjectionTask, ProjectionTaskHot, projection_record_bytes,
         },
     },
     limits::{

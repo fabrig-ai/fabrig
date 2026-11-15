@@ -12,6 +12,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             core::CoreKey::Deployment => {}
             core::CoreKey::Projection(key) => match key {
                 core::ProjectionKey::Goal(task)
+                | core::ProjectionKey::GoalWords(task)
+                | core::ProjectionKey::TaskWords { task, .. }
                 | core::ProjectionKey::Task { task, .. }
                 | core::ProjectionKey::Lifecycle { task, .. }
                 | core::ProjectionKey::Revision { task, .. } => name.task = Some(*task),

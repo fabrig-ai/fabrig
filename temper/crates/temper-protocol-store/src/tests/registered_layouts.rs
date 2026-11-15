@@ -18,7 +18,7 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
     let old_held: Vec<_> = old.iter().collect();
     let new_held: Vec<_> = new.iter().collect();
     let mut types = 0_usize;
-    let mut added = 0_usize;
+    let mut added = Vec::new();
     for ((family, old), new) in families.iter().zip(&old).zip(&new) {
         if !crate::PATCH_SET.families.iter().any(|own| own.name == family.name) {
             continue;
@@ -28,7 +28,7 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
             let old_root = old.root(ty.root.as_bytes(), variant);
             let new_root = new.root(ty.root.as_bytes(), variant).unwrap();
             let Some(old_root) = old_root else {
-                added += 1;
+                added.push(ty.number);
                 continue;
             };
             let plan = skein_codec::layout::Plan::derive(old, old_root, &old_held, new, new_root, &new_held);
@@ -36,5 +36,6 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
             types += 1;
         }
     }
-    assert_ne!(types + added, 0);
+    assert_ne!(types, 0);
+    assert_eq!(added, [47, 48]);
 }

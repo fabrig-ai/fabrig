@@ -2763,3 +2763,64 @@ fn a_pending_merge_job_end_and_its_readback_marker_round_trip() {
         assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
     }
 }
+
+#[test]
+fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
+    use skein_lib::Rng;
+    let bounds = crate::bounds(&fixtures::LIMITS, 8192).unwrap();
+    let mut random = Rng::new(0x12_2f_30);
+    for state in fixtures::change_states().into_boxed() {
+        let mut row = fixtures::change_row(state);
+        row.task = random.next_u64();
+        row.change.task = row.task;
+        row.priority =
+            i32::from_be_bytes(u32::try_from(random.next_u64() & u64::from(u32::MAX)).unwrap().to_be_bytes());
+        row.body = Box::new([42; 6144]);
+        if row.task & 1 != 0 {
+            use jig_domain_tasks::{LlmChoice, ModelEffort};
+            use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
+            let model = ModelEffort { model: 0, effort: None };
+            row.producing_llm =
+                Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
+            row.review_llm = row.producing_llm.clone();
+            row.close = Some(b"close".as_slice().into());
+            row.merge_result = Some(b"merged".as_slice().into());
+            row.questions.open = Box::new([Open {
+                asker: 1,
+                number: 2,
+                line: b"question".as_slice().into(),
+                words: b"whole question".as_slice().into(),
+                stands: Stands::Held { answer: b"answer".as_slice().into() },
+            }]);
+            row.change.early = Early::Started(Box::new([StartedFrom { task: 2, head: [3; 32] }]));
+        }
+        let (cold, hot) = row.clone().split();
+        assert_eq!(forge::ChangeRow::join(cold.clone(), hot.clone()), row);
+        let whole = records::encode(&forge::Stored::Change(Box::new(row.clone())));
+        let hot_bytes = records::encode(&forge::Stored::ChangeHot(Box::new(hot.clone())));
+        assert!(hot_bytes.len() + 6000 < whole.len(), "hot {} whole {}", hot_bytes.len(), whole.len());
+        for (part, other) in [
+            (forge::Stored::ChangeCold(Box::new(cold.clone())), forge::Key::ChangeCold(row.task.wrapping_add(1))),
+            (forge::Stored::ChangeHot(Box::new(hot)), forge::Key::ChangeHot(row.task.wrapping_add(1))),
+        ] {
+            let bytes = records::encode(&part);
+            let key = crate::keys::encode(&forge::stored_key(&part), u32::MAX).unwrap();
+            assert_eq!(
+                records::row(&key, &bytes, &bounds),
+                Ok(part.clone()),
+                "hot {} whole {}",
+                hot_bytes.len(),
+                whole.len()
+            );
+            assert_eq!(
+                records::row(&crate::keys::encode(&other, u32::MAX).unwrap(), &bytes, &bounds),
+                Err(crate::Undecodable::Malformed)
+            );
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = part.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        }
+    }
+}

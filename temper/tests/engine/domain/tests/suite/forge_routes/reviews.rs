@@ -880,19 +880,8 @@ fn requester(world: &World, task: u64) -> u64 {
     parent
 }
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    world
-        .store
-        .rows
-        .values()
-        .find_map(|record| match record {
-            Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == task => Some(row),
-                _ => None,
-            },
-            Record::Core(_) => None,
-        })
-        .expect("durable change")
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn assert_review_head(world: &World, reviewer: &engine::Assignment, head: [u8; 32]) {
@@ -1097,7 +1086,7 @@ fn release(world: &mut World, task: u64) {
     assert!(
         writes.iter().any(|write| matches!(write,
             engine::Write::Save(Record::Forge { row }) if matches!(row.as_ref(),
-                forge_top::Stored::Change(row) if row.task == task
+                forge_top::Stored::ChangeHot(row) if row.task == task
                     && !matches!(row.change.state, temper_engine_domain_forge_change::State::Held { .. })
                     && row.change.gate_failures.is_empty()
                     && row.change.released.is_some())

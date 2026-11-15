@@ -996,7 +996,7 @@ fn implementation_land(world: &mut PersonWorld, change: u64, producer: &engine::
     for _ in 0..200 {
         world.tick();
         if world.store.rows.values().any(|stored| matches!(stored,
-            engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Change(row)
+            engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::ChangeHot(row)
                 if row.task == change && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
         )) && world.store.pending.is_empty() {
             return;

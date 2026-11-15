@@ -23,6 +23,73 @@ pub struct ProjectionTask {
     pub phase: tasks::Phase,
 }
 
+/// The goal's changing facts, without its words (protocol/store/parts.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectionGoalHot {
+    pub number: u64,
+    pub project: u32,
+    pub priority: u32,
+    pub phase: tasks::Phase,
+}
+
+impl ProjectionGoal {
+    /// Copy the changing facts without copying the words.
+    #[must_use]
+    pub fn hot(&self) -> ProjectionGoalHot {
+        let Self { number, project, priority, words: _, phase } = self;
+        ProjectionGoalHot { number: *number, project: *project, priority: *priority, phase: phase.clone() }
+    }
+
+    /// Place every goal field in its durable part.
+    #[must_use]
+    pub fn split(self) -> (ProjectionGoalHot, Box<[u8]>) {
+        let Self { number, project, priority, words, phase } = self;
+        (ProjectionGoalHot { number, project, priority, phase }, words)
+    }
+}
+
+impl ProjectionGoalHot {
+    /// Assemble the whole goal handed to the feed.
+    #[must_use]
+    pub fn join(self, words: Box<[u8]>) -> ProjectionGoal {
+        let Self { number, project, priority, phase } = self;
+        ProjectionGoal { number, project, priority, words, phase }
+    }
+}
+
+/// The plan task's changing facts, without its words (protocol/store/parts.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectionTaskHot {
+    pub number: u64,
+    pub requester: tasks::Party,
+    pub phase: tasks::Phase,
+}
+
+impl ProjectionTask {
+    /// Copy the changing facts without copying the words.
+    #[must_use]
+    pub fn hot(&self) -> ProjectionTaskHot {
+        let Self { number, requester, words: _, phase } = self;
+        ProjectionTaskHot { number: *number, requester: *requester, phase: phase.clone() }
+    }
+
+    /// Place every plan task field in its durable part.
+    #[must_use]
+    pub fn split(self) -> (ProjectionTaskHot, Box<[u8]>) {
+        let Self { number, requester, words, phase } = self;
+        (ProjectionTaskHot { number, requester, phase }, words)
+    }
+}
+
+impl ProjectionTaskHot {
+    /// Assemble the whole plan task handed to the feed.
+    #[must_use]
+    pub fn join(self, words: Box<[u8]>) -> ProjectionTask {
+        let Self { number, requester, phase } = self;
+        ProjectionTask { number, requester, words, phase }
+    }
+}
+
 /// Stable identity from the task's lifecycle or semantic history family.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MilestoneId {
@@ -61,17 +128,25 @@ pub enum ProjectionKey {
     Lifecycle { goal: u64, task: u64, position: u64 },
     /// One unread semantic history milestone.
     Revision { goal: u64, task: u64, revision: u64 },
+    /// The tracked goal's words.
+    GoalWords(u64),
+    /// One plan task's words.
+    TaskWords { goal: u64, task: u64 },
 }
 
 /// One bounded row of a projection; the whole tree is never one journal row.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProjectionRecord {
     /// Feed metadata, retained through the last closing settlement.
-    Goal { goal: ProjectionGoal, pending: Box<[u16]>, changed: bool, fed_at: Option<u64> },
+    GoalHot { goal: ProjectionGoalHot, pending: Box<[u16]>, changed: bool, fed_at: Option<u64> },
     /// One current task in the bounded tree.
-    Task { goal: u64, task: ProjectionTask },
+    TaskHot { goal: u64, task: ProjectionTaskHot },
     /// History recorded since the last feed.
     Milestone { goal: u64, milestone: ProjectionMilestone },
+    /// The goal's words; `task` equals `goal`.
+    GoalWords { goal: u64, task: u64, words: Box<[u8]> },
+    /// One plan task's words.
+    TaskWords { goal: u64, task: u64, words: Box<[u8]> },
 }
 
 impl ProjectionRecord {
@@ -79,9 +154,14 @@ impl ProjectionRecord {
     #[must_use]
     pub fn key(&self) -> ProjectionKey {
         match self {
-            Self::Goal { goal, .. } => ProjectionKey::Goal(goal.number),
-            Self::Task { goal, task } => ProjectionKey::Task { goal: *goal, task: task.number },
+            Self::GoalHot { goal, .. } => ProjectionKey::Goal(goal.number),
+            Self::TaskHot { goal, task } => ProjectionKey::Task { goal: *goal, task: task.number },
             Self::Milestone { goal, milestone } => milestone_key(*goal, milestone.identity),
+            Self::GoalWords { goal, task, .. } => {
+                assert_eq!(goal, task, "goal words identify the goal");
+                ProjectionKey::GoalWords(*goal)
+            }
+            Self::TaskWords { goal, task, .. } => ProjectionKey::TaskWords { goal: *goal, task: *task },
         }
     }
 }
@@ -102,10 +182,13 @@ pub fn projection_record_bytes(row: &ProjectionRecord) -> Option<u64> {
 
 fn record_bytes(row: &ProjectionRecord) -> Option<u64> {
     match row {
-        ProjectionRecord::Goal { goal, pending, .. } => len_u64(goal.words.len())
-            .checked_add(tasks::phase_bytes(&goal.phase)?)?
-            .checked_add(len_u64(pending.len()).checked_mul(2)?),
-        ProjectionRecord::Task { task, .. } => len_u64(task.words.len()).checked_add(tasks::phase_bytes(&task.phase)?),
+        ProjectionRecord::GoalHot { goal, pending, .. } => {
+            tasks::phase_bytes(&goal.phase)?.checked_add(len_u64(pending.len()).checked_mul(2)?)
+        }
+        ProjectionRecord::TaskHot { task, .. } => tasks::phase_bytes(&task.phase),
+        ProjectionRecord::GoalWords { words, .. } | ProjectionRecord::TaskWords { words, .. } => {
+            Some(len_u64(words.len()))
+        }
         ProjectionRecord::Milestone { milestone, .. } => {
             len_u64(milestone.words.len()).checked_add(match &milestone.phase {
                 Some(phase) => tasks::phase_bytes(phase)?,

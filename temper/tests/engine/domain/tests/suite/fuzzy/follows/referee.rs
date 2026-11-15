@@ -23,7 +23,7 @@ impl Referee {
         let mut landed = BTreeMap::new();
         for record in world.store.rows.values() {
             if let Record::Forge { row } = record
-                && let forge::Stored::Change(change) = row.as_ref()
+                && let forge::Stored::ChangeHot(change) = row.as_ref()
                 && matches!(change.change.state, temper_engine_domain_forge_change::State::Held { .. })
             {
                 let task = world
@@ -44,12 +44,7 @@ impl Referee {
             if let Record::Forge { row } = record
                 && let forge::Stored::Landed { task, .. } = row.as_ref()
             {
-                let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::Change(*task))) else {
-                    panic!("landed change retained");
-                };
-                let forge::Stored::Change(change) = row.as_ref() else {
-                    panic!("change row");
-                };
+                let Some(change) = world.store.change(*task) else { panic!("durable change") };
                 if let Some(follows) = &change.follows {
                     landed.insert(*task, follows.commits.to_vec());
                 }
@@ -99,13 +94,7 @@ impl Referee {
         let mut owners: BTreeMap<Commit, u64> = BTreeMap::new();
         for record in world.store.rows.values() {
             if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = record {
-                let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::Change(task.number)))
-                else {
-                    continue;
-                };
-                let forge::Stored::Change(change) = row.as_ref() else {
-                    continue;
-                };
+                let Some(change) = world.store.change(task.number) else { panic!("durable change") };
                 let Some(follows) = &change.follows else {
                     continue;
                 };

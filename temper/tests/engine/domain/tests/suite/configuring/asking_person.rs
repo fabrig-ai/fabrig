@@ -53,7 +53,7 @@ fn producer(world: &mut World, change: u64) -> engine::Assignment {
         world.driver.fire_at(skein_lib::Duration::from_nanos(next));
         world.driver.settle();
     }
-    let changes: Vec<_> = world.driver.store.rows.values().filter(|row| matches!(row, engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(_)))).collect();
+    let changes: Vec<_> = world.driver.store.rows.values().filter(|row| matches!(row, engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(_)))).collect();
     panic!("producer assigned: {changes:?}");
 }
 

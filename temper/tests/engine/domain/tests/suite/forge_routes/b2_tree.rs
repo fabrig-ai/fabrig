@@ -373,7 +373,7 @@ fn pushed(world: &mut World, run: &engine::Assignment, turns: u64, head: u64) {
 fn landed(world: &World, task: u64) -> bool {
     world.store.rows.values().any(|stored| {
         matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
             if row.task == task && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))
     })
 }

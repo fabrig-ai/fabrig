@@ -547,12 +547,11 @@ fn ended_row(number: u64) -> store::Row {
 }
 
 fn projection_row() -> core::Record {
-    core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Task {
+    core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::TaskHot {
         goal: 1,
-        task: core::ProjectionTask {
+        task: core::ProjectionTaskHot {
             number: 1,
             requester: jig_domain_tasks::Party::Deployment { project: 1 },
-            words: Box::new([]),
             phase: jig_domain_tasks::Phase::Waiting,
         },
     }))
@@ -1339,4 +1338,32 @@ fn the_components_census_is_handed_to_the_root_whole() {
     let engine::Event::Store(engine::StoreInput::Census(found)) = *event else { panic!("root census") };
     assert_eq!(found, census);
     assert!(out.is_empty(), "one report");
+}
+
+#[test]
+fn change_parts_job_routes_to_the_application_at_open() {
+    let mut routes = fixtures::routes();
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Job {
+            owner: fixtures::OWNER,
+            of: store::Owner::Application,
+            job: "change-parts".into(),
+            page: store::JobPage {
+                rows: Box::new([]),
+                end: true,
+                layout: None,
+                edge: store::JobEdge { writes: 0, bytes: 0 },
+            },
+        },
+        &mut out,
+    );
+    let Some(Up::Ask(store::Request::Job { owner, answer: Ok(answer) })) = out.pop() else {
+        panic!("change-parts answer")
+    };
+    assert_eq!(owner, fixtures::OWNER);
+    assert!(answer.writes.is_empty());
+    assert_eq!(answer.through, None);
+    assert!(out.is_empty());
 }

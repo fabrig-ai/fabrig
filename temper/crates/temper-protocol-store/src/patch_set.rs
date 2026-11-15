@@ -1,6 +1,6 @@
 //! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType};
+use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
@@ -8,7 +8,7 @@ use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, V
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
 pub const PATCH_SET: PatchSet = PatchSet {
-    jobs: &[],
+    jobs: &[Job { name: "change-parts", keys: &[KeyRange { from: &[12], to: &[13] }], converts: None }],
     owner: Owner::Application,
     name: "temper",
     patches: crate::patches::PATCHES,
@@ -255,6 +255,18 @@ pub const PATCH_SET: PatchSet = PatchSet {
                     keys: &[KeyRange { from: &[crate::keys::RED_PASS], to: &[47] }],
                 },
                 ValueType {
+                    number: 47,
+                    root: "Row",
+                    variant: Some("change_cold"),
+                    keys: &[KeyRange { from: &[47], to: &[48] }],
+                },
+                ValueType {
+                    number: 48,
+                    root: "Row",
+                    variant: Some("change_hot"),
+                    keys: &[KeyRange { from: &[48], to: &[49] }],
+                },
+                ValueType {
                     number: 41,
                     root: "Row",
                     variant: Some("history_project"),
@@ -331,6 +343,8 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[crate::keys::RED], to: &[crate::keys::RED_NUMBER], root: "Row" },
                 Keys { from: &[crate::keys::RED_NUMBER], to: &[crate::keys::RED_PASS], root: "Row" },
                 Keys { from: &[crate::keys::RED_PASS], to: &[47], root: "Row" },
+                Keys { from: &[47], to: &[48], root: "Row" },
+                Keys { from: &[48], to: &[49], root: "Row" },
                 Keys { from: &[127], to: &[128], root: "Row" },
                 Keys { from: &[128], to: &[129], root: "Row" },
                 Keys { from: &[129], to: &[130], root: "Row" },

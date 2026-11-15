@@ -17,6 +17,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
             }),
         },
         Job { name: "live-task-parts", keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }], converts: None },
+        Job { name: "projection-parts", keys: &[KeyRange { from: &[1, 0, 1, 0], to: &[1, 0, 1, 2] }], converts: None },
     ],
     owner: Owner::Jig,
     name: "jig",
