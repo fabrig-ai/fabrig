@@ -15,7 +15,7 @@ use jig_client::{
     contract as c,
 };
 use skein_lib::{Env, Queue};
-use temper_client_domain::{forge, owner::Owner};
+use temper_client_domain_forge::{forge, owner::Owner};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]

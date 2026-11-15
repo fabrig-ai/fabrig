@@ -2,6 +2,12 @@
 
 2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
+  flight: change 3611].
+- **Not yet:** 3: the events table's `Send` and `Own` rows: the caret
+  after a command's name and the name alone sent [in flight: change
+  3607]; its `Act { act }` row: a close done going to the launchpad [in
+  flight: change 3609].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,

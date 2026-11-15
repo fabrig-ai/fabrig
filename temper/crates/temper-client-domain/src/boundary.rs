@@ -1,4 +1,5 @@
 //! Temper's child actions and the shell's obligations.
+pub use crate::owner::Fact;
 use crate::{Address, Place};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -72,11 +73,6 @@ pub enum Event {
         address: Box<[u8]>,
         refused: bool,
     },
-}
-/// Bounded routing and child facts for the shell to observe.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Fact {
-    UnknownAsker,
 }
 /// What the shell does with a sign-in's tab (client/pages/README.md, `ConnectModel`, The sign-in's tab).
 #[derive(Clone, Debug, PartialEq, Eq)]

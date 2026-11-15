@@ -14,7 +14,7 @@ use jig_client::{Answered, Ask, Family, contract as c};
 use jig_client::{Event, Key, Outcome, Told};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
-use temper_client_domain::owner::Owner;
+use temper_client_domain_forge::owner::Owner;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ fn request(
     limits: &Limits,
     new: Option<w::ForgeAsk>,
 ) -> Option<Ask> {
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let making = match new {
         Some(forge) => w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge }).ok()?),
         None => w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?),
@@ -106,11 +106,11 @@ fn pasted_app(call: &jig::call::Call) -> Option<(u64, bool)> {
 }
 // The bundle's item is AdminToken (1), not AppKey (11). Preserve every byte.
 fn admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
-    temper_client_domain::forge::forges::pasted_admin_token(token)
+    temper_client_domain_forge::forge::forges::pasted_admin_token(token)
 }
 fn admin_how(call: &jig::call::Call, limits: &Limits) -> Result<w::ForgejoAdmin, &'static [u8]> {
     let invalid = b"invalid first repository, project or runner label".as_slice();
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge).ok_or(invalid)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge).ok_or(invalid)?;
     let first = match value(call, 3) {
         None => {
             if value(call, 4).is_some() || value(call, 5).is_some() {
@@ -320,7 +320,7 @@ fn replace(state: &mut Forges, env: &Env<Limits>, mut called: Called, out: &mut 
         return;
     };
     let forge = u16::try_from(number(&called.call, 0).expect("forge argument")).expect("checked forge");
-    let bounds = temper_client_domain::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
+    let bounds = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let request = w::Request::Replace(w::Replace::new(&bounds, w::ReplaceParts { forge }).expect("checked forge"));
     let Some(request) = super::lifecycle::ask(request, &env.limits) else {
         let printed = render::failure(b"forge request encoding failed", called.json, 1);
@@ -349,7 +349,9 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
         Told::Kept { key, request: Ask::Family { scope: c::Scope::Deployment, record } }
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
-            let Some(bounds) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return false };
+            let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else {
+                return false;
+            };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
             let (forge, install, installation, manifest) = match request.into_parts().request {
                 w::Request::Replace(_) => return false,
@@ -452,7 +454,7 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let value = w::Answer::decode(&bounds, &mut reader).ok()?;
     if !reader.is_empty() {
@@ -530,7 +532,7 @@ fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &m
         Answer::Connecting => {
             out.put(b"connecting\n");
             if let Ask::Family { record, .. } = &pending.request
-                && let Some(bounds) = temper_client_domain::forge::wire_limits(&limits.domain.forge)
+                && let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)
                 && let Some(request) = wire::decode_requesting(&record.bytes, &bounds)
                 && let w::Request::Connect(connect) = request.request()
                 && let w::How::GithubApp(app) = connect.how()
@@ -775,7 +777,7 @@ fn number(call: &jig::call::Call, index: usize) -> Option<u64> {
     jig::call::number(call, index)
 }
 fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let (api_at, tls_at, git_at, web_at, program_at) = if call.form == 7 { (3, 4, 5, 6, 7) } else { (6, 7, 8, 9, 10) };
     let Some(Value::Text(api)) = value(call, api_at) else { return None };
     let mut split = None;

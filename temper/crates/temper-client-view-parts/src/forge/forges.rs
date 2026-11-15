@@ -94,7 +94,7 @@ pub fn main(
         }
     }
     b.close();
-    if let Some((playground, row)) = listed::playground(root) {
+    if let Some((playground, row)) = listed::playground(root.forge()) {
         settings::section_head(b, &w.say(Word::ForgePlaygroundHeading, &[]));
         b.close();
         b.open(Role::Slot);

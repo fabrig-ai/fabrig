@@ -345,7 +345,12 @@ impl OneShot {
                     Some(NotSignedIn::Full { sign_ins, earliest, link_until }) => {
                         self.output.push(
                             true,
-                            temper_client_domain::sign_in::full_line("temper ctl", sign_ins, earliest, link_until),
+                            temper_client_domain_forge::sign_in::full_line(
+                                "temper ctl",
+                                sign_ins,
+                                earliest,
+                                link_until,
+                            ),
                         );
                         self.finish(1, false);
                         return;

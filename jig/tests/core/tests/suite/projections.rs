@@ -620,3 +620,146 @@ fn a_restarted_projection_feeds_the_same_whole_goal_plan_and_history() {
         }
     }
 }
+
+#[test]
+fn a_delegate_tracked_then_ended_keeps_its_ancestors_plan_current_after_restart() {
+    let (mut world, restart) = tree_world();
+    finish_chat(&mut world, 0, b"");
+    let ask = jig_core_world::fixtures::goal(
+        &world,
+        1,
+        b"ancestor".as_slice().into(),
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
+    );
+    crate::read_support::request(&mut world, 94, ask);
+    let goal = world.assigned.as_ref().expect("goal assigned").task;
+    let (child, _) = delegate_agent(&mut world, b"delegate", 150, 0, 0);
+    assert_ne!(child, goal, "delegate admitted: {:?}", world.answers);
+    crate::read_support::request(
+        &mut world,
+        95,
+        people::Ask::Amend {
+            project: 1,
+            task: child,
+            revision: 0,
+            release: None,
+            amendment: people::Amendment {
+                tracked: Some(people::Tracking::Tracked { priority: 0 }),
+                spec: Some(people::Spec {
+                    asks: false,
+                    words: b"tracked delegate".as_slice().into(),
+                    parameters: Box::new([]),
+                    inputs: Box::new([]),
+                }),
+                ..jig_test_profile::fixtures::person_unchanged(b"track delegate")
+            },
+        },
+    );
+    assert_eq!(jig_core_world::fixtures::live_row(&world, child).tracked, Some(0));
+    assert!(projection_rows(&world, child) > 0);
+    let words_key = root::Key::Core(core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::TaskWords {
+        goal,
+        task: child,
+    })));
+    assert!(matches!(world.store.rows.get(&words_key),
+        Some(root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+            core::ProjectionRecord::TaskWords { words, .. }
+        )))) if words.as_ref() == b"tracked delegate"
+    ));
+    world.projections.clear();
+    finish_chat(&mut world, 0, b"delegate done");
+    let key =
+        root::Key::Core(core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Task { goal, task: child })));
+    let ended = world.store.rows.get(&key).expect("ancestor plan retains delegate").clone();
+    assert!(matches!(&ended,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+            core::ProjectionRecord::TaskHot { task, .. }
+        ))) if matches!(task.phase, tasks::Phase::Ended(_))
+    ));
+    assert_eq!(projection_rows(&world, child), 0, "own closing projection settled");
+    assert!(world.projections.iter().any(|(_, _, feed)| feed.goal.number == goal
+        && feed.milestones.iter().any(|m| matches!(m.identity,
+            core::MilestoneId::Lifecycle { task, .. } if task == child)
+            && matches!(m.phase, Some(tasks::Phase::Ended(_))))));
+    world.restart_with(restart);
+    assert!(world.domain.ready());
+    assert_eq!(world.store.rows.get(&key), Some(&ended));
+}
+
+#[test]
+fn restart_repairs_missing_live_plan_tasks_durably_and_only_once() {
+    for (own, phase) in [
+        (false, tasks::Phase::Waiting),
+        (true, tasks::Phase::Waiting),
+        (false, tasks::Phase::Active(tasks::Active::Running { attempt: 1 })),
+        (true, tasks::Phase::Held { was: tasks::Was::Waiting, why: tasks::Hold::Stopped, source: None }),
+    ] {
+        let seed = 175;
+        let mut world = World::new(Setup { seed, ..Setup::default() });
+        finish_chat(&mut world, 0, b"");
+        let goal = tracked_goal(&mut world);
+        let task = 900;
+        let hot_key = core::ProjectionKey::Task { goal, task };
+        let words_key = core::ProjectionKey::TaskWords { goal, task };
+        let mut rows = vec![
+            core::ProjectionRecord::TaskHot {
+                goal,
+                task: core::ProjectionTaskHot { number: task, requester: tasks::Party::Task(goal), phase },
+            },
+            core::ProjectionRecord::TaskWords { goal, task, words: b"stale delegate".as_slice().into() },
+        ];
+        let ended = tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) });
+        if own {
+            rows.extend([
+                core::ProjectionRecord::GoalHot {
+                    goal: core::ProjectionGoalHot { number: task, project: 1, priority: 0, phase: ended.clone() },
+                    pending: Box::new([1, 2]),
+                    changed: false,
+                    fed_at: None,
+                },
+                core::ProjectionRecord::GoalWords { goal: task, task, words: b"ended goal".as_slice().into() },
+            ]);
+        }
+        world.store.seed(
+            rows.into_iter()
+                .map(|row| root::Record::Core(core::Record::Core(core::CoreRecord::Projection(row))))
+                .collect(),
+        );
+        world.hold_projection_settlements = true;
+        world.projections.clear();
+        world.commits.clear();
+        world.restart_with(fixture(seed, false).0);
+        assert!(world.domain.ready());
+        let key = |key| root::Key::Core(core::Key::Core(core::CoreKey::Projection(key)));
+        if own {
+            assert!(matches!(world.store.rows.get(&key(hot_key)),
+                Some(root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+                    core::ProjectionRecord::TaskHot { task, .. }
+                )))) if task.phase == ended
+            ));
+            assert!(world.store.rows.contains_key(&key(words_key)));
+        } else {
+            assert!(!world.store.rows.contains_key(&key(hot_key)));
+            assert!(!world.store.rows.contains_key(&key(words_key)));
+        }
+        let touches_task = |write: &root::Write| match write {
+            root::Write::Erase(k) => *k == key(hot_key) || *k == key(words_key),
+            root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Projection(row)))) => {
+                row.key() == hot_key || row.key() == words_key
+            }
+            _ => false,
+        };
+        assert!(world.commits.iter().flatten().any(touches_task), "repair was committed");
+        assert!(world.projections.iter().any(|(_, _, feed)| feed.goal.number == goal
+            && if own {
+                feed.plan.iter().any(|row| row.number == task && row.phase == ended)
+            } else {
+                feed.plan.iter().all(|row| row.number != task)
+            }));
+        world.commits.clear();
+        world.restart_with(fixture(seed, false).0);
+        assert!(world.domain.ready());
+        assert!(!world.commits.iter().flatten().any(touches_task), "next restart has nothing to repair");
+    }
+}

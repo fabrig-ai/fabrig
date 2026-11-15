@@ -1,8 +1,8 @@
 //! Bounded projection assembly and links (jig/docs/design/domain/engine/restart.md).
 use crate::{
-    Core, CoreKey, Key, Limits, Projection, ProjectionGoalHot, ProjectionKey, ProjectionMilestone, ProjectionRecord,
-    ProjectionTaskHot,
-    effects::projections::phase_within,
+    Core, CoreKey, CoreRecord, Key, Limits, Projection, ProjectionGoalHot, ProjectionKey, ProjectionMilestone,
+    ProjectionRecord, ProjectionTaskHot, Record, Request, Write,
+    effects::projections::{header, phase_within},
     people,
     start::{Failure, Linked, LiveSet},
     tasks,
@@ -149,6 +149,57 @@ pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRec
 }
 
 impl Core {
+    pub(crate) fn start_projections_repair(&mut self, out: &mut skein_lib::Queue<Request>) {
+        let mut goals = List::with_capacity(self.projections.len());
+        for (goal, _) in &self.projections {
+            goals.push(*goal).expect("bounded projection repair");
+        }
+        for goal in &goals {
+            let state = self.projections.get(goal).expect("assembled projection");
+            let mut plan = List::with_capacity(u32::try_from(state.plan.len()).expect("bounded plan"));
+            let mut repaired = false;
+            for row in &state.plan {
+                let missing = match row.phase {
+                    tasks::Phase::Closing(_)
+                    | tasks::Phase::Ended(_)
+                    | tasks::Phase::Held { was: tasks::Was::Closing(_), .. } => false,
+                    tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {
+                        self.tasks.task(row.number).is_none()
+                    }
+                };
+                if !missing {
+                    plan.push(row.clone()).expect("assembled plan room");
+                    continue;
+                }
+                repaired = true;
+                match self.projections.get(&row.number) {
+                    Some(own) => {
+                        let mut row = row.clone();
+                        row.phase.clone_from(&own.goal.phase);
+                        out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Projection(
+                            ProjectionRecord::TaskHot { goal: *goal, task: row.hot() },
+                        )))));
+                        plan.push(row).expect("assembled plan room");
+                    }
+                    None => {
+                        for key in [
+                            ProjectionKey::Task { goal: *goal, task: row.number },
+                            ProjectionKey::TaskWords { goal: *goal, task: row.number },
+                        ] {
+                            out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))));
+                        }
+                    }
+                }
+            }
+            if repaired {
+                let state = self.projections.get_mut(goal).expect("assembled projection");
+                state.plan = plan.into_boxed();
+                state.changed = true;
+                out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Projection(header(state))))));
+            }
+        }
+    }
+
     pub(crate) fn start_projections_link(&mut self) {
         let Some(mut assemblies) = self.start.projections.take() else { return };
         for _ in 0..assemblies.len() {

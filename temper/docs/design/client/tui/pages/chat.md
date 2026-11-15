@@ -178,6 +178,28 @@ Illustrative (the request's 03, with the look request
   chat that has ended the box takes commands alone, and words that are
   no command note "This chat is closed. /new starts another.", the
   root's note (`../../pages/chat/terminal.md`, 1, *The box*).
+- **Closing** (the user's request `tui-18`, 2026-11-15: "when entering
+  /close we should go back to the dashboard"): "Close" taken on
+  `/close`'s list (`README.md`, section 2, *A command's list*) sends the
+  close as before, `Act::Confirm`, and the TUI's state keeps the chat as
+  closed by the person, from then until the root's answer to that close.
+  - *Answered done,* the host goes to the launchpad, `Went(Home {
+    project })`, the chat's project, as leaving a talk does (`talk.md`,
+    section 1, *Leaving*), and gives the notice (`README.md`, section 1,
+    *The notice*) "Closed TN · TITLE", the chat's number and title as
+    `/chats` lists them (`shared::chats`), " · TITLE" left out where the
+    chat has none. Where you left off no longer lists it, from that
+    frame on (`launchpad.md`, 4).
+  - *Answered otherwise,* refused or lost, the chat stays, as it does
+    today, and the state keeps it no longer.
+  - *Left first:* another screen gone to before the answer, by `/new`,
+    `/chats` or a list's choice, clears it, and the answer then moves
+    nothing and gives no notice.
+  - *Not closing:* "Keep it open" stays on the chat. A chat closed
+    otherwise, by someone else or from the browser while the TUI shows
+    it, keeps its closed foot (*The foot*, above): the person didn't ask
+    to leave, and may read how it ended (the request left this to the
+    designer).
 
 ## 2. The chat's question
 

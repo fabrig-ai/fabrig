@@ -1019,8 +1019,6 @@ pub enum Word {
     Sections,
 
     ForgeHereVersionDetails,
-    ForgeFetchVersions,
-    ForgeFetchedVersions,
     GitHubPrivateTag,
     GitHubChooseRepositories,
     GitHubNotListedAfter,
@@ -2119,7 +2117,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2663;
+const PHRASES: u32 = 2661;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2146,10 +2144,10 @@ const PHRASES: u32 = 2663;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4879;
+const SEGMENTS: u32 = 4869;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 63358;
-const ALL: [Word; 1948] = [
+const ENGLISH_BYTES: u32 = 63210;
+const ALL: [Word; 1946] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -3106,8 +3104,6 @@ const ALL: [Word; 1948] = [
     Word::RailSettings,
     Word::Sections,
     Word::ForgeHereVersionDetails,
-    Word::ForgeFetchVersions,
-    Word::ForgeFetchedVersions,
     Word::GitHubPrivateTag,
     Word::GitHubChooseRepositories,
     Word::GitHubNotListedAfter,
@@ -5095,8 +5091,7 @@ impl Word {
             Self::Sections => 3085,
 
             Self::ForgeHereVersionDetails => 2116,
-            Self::ForgeFetchVersions => 2117,
-            Self::ForgeFetchedVersions => 2118,
+            // 2117 and 2118 are unused.
             Self::GitHubPrivateTag => 2119,
             Self::GitHubChooseRepositories => 2120,
             Self::GitHubNotListedAfter => 2121,
@@ -7420,8 +7415,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::RailSettings => (&[b"Settings"], &[]),
         Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
-        Word::ForgeFetchVersions => (&[b"Fetching Forgejo ", b" and its runner ", b""], &[Name, Name]),
-        Word::ForgeFetchedVersions => (&[b"Fetched Forgejo ", b" and its runner ", b""], &[Name, Name]),
         Word::GitHubPrivateTag => (&[b"private"], &[]),
         Word::GitHubChooseRepositories => (&[b"Choose its repositories on GitHub"], &[]),
         Word::GitHubNotListedAfter => (&[b", and GitHub sends you back here."], &[]),
@@ -7564,13 +7557,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeBotOnly => (&[b"Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
         Word::ForgeRestart => (&[b"Restart temper box, then connect it from this page."], &[]),
         Word::ForgeSettingUpTitle => (&[b"Setting up Forgejo on this machine"], &[]),
-        Word::ForgeFetched => (&[b"Fetched Forgejo and its runner"], &[]),
+        Word::ForgeFetched => (&[b"Fetched Forgejo"], &[]),
         Word::ForgeConnectingAsTemper => (&[b"Connecting as temper"], &[]),
         Word::ForgeMakingAndAdopting => (&[b"Making ", b""], &[Name]),
         Word::ForgeMakingFirst => (&[b"Making the first repository"], &[]),
-        Word::ForgeFetch => (&[b"Fetching Forgejo and its runner"], &[]),
-        Word::ForgePrepare => (&[b"Preparing: its database, temper\xe2\x80\x99s admin, your account"], &[]),
-        Word::ForgeRun => (&[b"Starting Forgejo and its runner"], &[]),
+        Word::ForgeFetch => (&[b"Fetching Forgejo"], &[]),
+        Word::ForgePrepare => (&[b"Preparing Forgejo"], &[]),
+        Word::ForgeRun => (&[b"Starting Forgejo"], &[]),
         Word::ForgeLeave => (&[b"You may leave this page: the steps go on, and the banner says where they are."], &[]),
         Word::ForgeProgress => (&[b"Each step"], &[]),
         Word::ForgeAdopt => (&[b"Adopt a repository"], &[]),

@@ -144,7 +144,7 @@ pub(crate) fn key_bytes(call: &Call) -> u32 {
     } else if TOOLS[usize::from(call.tool)].name == b"forge connect"
         || TOOLS[usize::from(call.tool)].name == b"forge replace"
     {
-        u32::try_from(temper_client_domain::forge::forges::PASTED_PAYLOAD).expect("carried bundle bound")
+        u32::try_from(temper_client_domain_forge::forge::forges::PASTED_PAYLOAD).expect("carried bundle bound")
     } else {
         temper_client_tools::limits::KEY_BYTES
     }

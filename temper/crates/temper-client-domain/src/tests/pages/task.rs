@@ -963,7 +963,7 @@ fn a_goals_page_has_no_older_read() {
     assert!(page_act(&mut pages, &client, Act::Older).is_empty());
 }
 fn paused_agent() -> c::Task {
-    let mut task = super::goal::paused_task();
+    let mut task = fixtures::chat::paused_task();
     task.priority = None;
     task
 }

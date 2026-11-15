@@ -699,7 +699,10 @@ procedure, but a mechanism of the connector's, keyed to the goal.
   (tasks/lifecycle.md, 12.3), never a wake's phase. Milestones come
   as they are recorded, each with an identity of its own, so the
   connector keeps what it has written and adds to it; the plan comes
-  whole, within the tree's limits (tasks/README.md, section 6). The last
+  whole, within the tree's limits (tasks/README.md, section 6). A nested
+  tracked task has its own projection and remains in each enclosing goal's
+  plan; its saves and milestones feed those goals too, through its end.
+  Becoming tracked never leaves an enclosing plan row stale. The last
   feed, as the goal closes, is its closing state; a goal an amendment
   untracks is fed its state then, as a last feed (tasks/changes.md).
 - **Where:** in the project's home for that connector (model.md, 6.1).

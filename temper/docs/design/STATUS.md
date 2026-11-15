@@ -277,7 +277,14 @@ from the box's `starting`, `started` and `dormant` lines, a first run's
 start steps on the quiet line rather than in the welcome's body, a
 cleared screen when the terminal is lent to Claude Code's sign-in, and
 the TUI's two-line header after pi's, fabrig.ai's mark, the build and
-the place (`client/tui/pages/README.md`, 3).
+the place (`client/tui/pages/README.md`, 3). The requests `tui-15` to
+`tui-19` of the same day, goal 3597, add blank rows around temper's
+line when the terminal is lent, draw the header and the welcome as
+their mockups (a blank row on top, the mark at column 1, the link at
+"Welcome."'s column, "In the browser" on one line), put the caret after
+"/change " and start nothing on a command's name alone, go back to the
+launchpad once `/close` is done, and give each recording run its own
+file, the last ten kept (`client/tui/journeys.md`, 3.1).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
@@ -323,6 +330,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)

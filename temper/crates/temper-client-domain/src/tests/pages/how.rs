@@ -35,7 +35,7 @@ fn up(root: &mut Domain, up: Up) -> Queue<Request> {
     event(root, Event::Client { event: jig_client::Event::Up { up } })
 }
 fn opened(out: &Queue<Request>) -> Token {
-    let wanted = crate::forge::stock_ways::watch(f::PROJECT, &f::limits().forge).unwrap();
+    let wanted = crate::pages::stock_ways::watch(f::PROJECT, &f::limits().forge).unwrap();
     for request in out {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
             request

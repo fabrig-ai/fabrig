@@ -559,52 +559,52 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
 }
 #[test]
 fn the_setup_strip_shows_while_there_is_no_demo_and_the_first_run_is_not_over() {
-    use forge::listed;
+    use pages::welcome;
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) });
-    assert!(listed::setup(&root).is_none());
+    assert!(welcome::setup(&root).is_none());
     account(&mut root, accounts, 18, false);
     strip_forges(&mut root, forges.unwrap(), None);
-    assert!(listed::setup(&root).is_none());
+    assert!(welcome::setup(&root).is_none());
     answer(&mut root, false);
-    assert!(listed::setup(&root).is_some());
+    assert!(welcome::setup(&root).is_some());
     answer(&mut root, true);
-    assert!(listed::setup(&root).is_some());
+    assert!(welcome::setup(&root).is_some());
 }
 #[test]
 fn the_strip_names_what_is_missing_and_a_non_owner_misses_the_model_alone() {
-    use forge::listed;
+    use pages::welcome;
     for owner in [false, true] {
         let (mut root, _, accounts, forges) = opened(owner, Step::Model { way: None });
         answer(&mut root, false);
         account(&mut root, accounts, 18, false);
         strip_forges(&mut root, forges.unwrap(), None);
-        let setup = listed::setup(&root).unwrap();
+        let setup = welcome::setup(&root).unwrap();
         assert_eq!(setup.forge, owner);
         assert!(setup.model);
         account(&mut root, accounts, 18, true);
         if owner {
-            let setup = listed::setup(&root).unwrap();
+            let setup = welcome::setup(&root).unwrap();
             assert!(setup.forge);
             assert!(!setup.model);
         } else {
-            assert!(!listed::setup(&root).unwrap().model);
+            assert!(!welcome::setup(&root).unwrap().model);
         }
     }
 }
 #[test]
 fn continue_setting_up_goes_to_the_first_step_not_done() {
-    use forge::listed;
+    use pages::welcome;
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     let watch = forges.unwrap();
     answer(&mut root, false);
     account(&mut root, accounts, 18, false);
     strip_forges(&mut root, watch, None);
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Forge { forge: None });
+    assert_eq!(welcome::setup(&root).unwrap().step, Step::Forge { forge: None });
     strip_forges(&mut root, watch, Some(w::Connection::Connecting));
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Model { way: None });
+    assert_eq!(welcome::setup(&root).unwrap().step, Step::Model { way: None });
     account(&mut root, accounts, 18, true);
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Ready);
+    assert_eq!(welcome::setup(&root).unwrap().step, Step::Ready);
     strip_forges(
         &mut root,
         watch,
@@ -612,11 +612,11 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
             w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
         )),
     );
-    assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Whole));
+    assert_eq!(welcome::decision(&root), Some(FirstRun::Whole));
     rows(&mut root, watch, 3);
-    assert!(listed::setup(&root).is_none());
+    assert!(welcome::setup(&root).is_none());
     account(&mut root, accounts, 18, false);
-    let setup = listed::setup(&root).unwrap();
+    let setup = welcome::setup(&root).unwrap();
     assert!(!setup.forge);
     assert!(setup.model);
     assert_eq!(setup.step, Step::Model { way: None });
@@ -633,9 +633,9 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
     account(&mut root, accounts, 18, true);
     rows(&mut root, watch, wire::FORGE);
-    assert_eq!(forge::listed::playground(&root).unwrap().1.number, wire::FORGE);
+    assert_eq!(forge::listed::playground(root.forge()).unwrap().1.number, wire::FORGE);
     rows(&mut root, watch, 3);
-    assert!(forge::listed::playground(&root).is_none());
+    assert!(forge::listed::playground(root.forge()).is_none());
 }
 
 #[test]

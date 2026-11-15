@@ -158,17 +158,17 @@ start and stop are this section's own.
 **The box's stages**, illustrative (a first run's start, then a stop):
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  temper box · a whole deployment on this machine
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
-   The link comes here once the box has started.
+ The link comes here once the box has started.
 
-   It signs you in as this temper's owner, once, within 2 hours.
+ It signs you in as this temper's owner, once, within 2 hours.
 
- In the browser
-   1 Welcome · 2 Forge · 3 Model · 4 Ready
+ In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
 ...
 ────────────────────────────────────────────────────────────────────────────────
 ❯ / for commands
@@ -233,8 +233,9 @@ start and stop are this section's own.
 2026-11-15, a box set up before, its Forgejo starting):
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  temper box · a whole deployment on this machine
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
 
  Starting temper
    ✓ The box started · its log in /srv/temper/box/logs/box.log
@@ -305,20 +306,21 @@ welcome for the seconds it takes to sign in and read `me`.
   handed link*).
 
 **The welcome**, illustrative (the request's 01, before the person
-signed in, and 02, after):
+signed in, drawn as the user's request `tui-16` of 2026-11-15 gives its
+first rows at 150 by 39, dark; and 02, after):
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  temper box · a whole deployment on this machine
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
-   http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…
+ http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…
 
-   It signs you in as this temper's owner, once, within 2 hours.
+ It signs you in as this temper's owner, once, within 2 hours.
 
- In the browser
-   1 Welcome · 2 Forge · 3 Model · 4 Ready
+ In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
 ```
 
 ```
@@ -347,20 +349,26 @@ signed in, and 02, after):
   (`welcome::signed_in`, below), its sections (`tui-sections`,
   `tui-spaced`):
   - "Welcome. Set temper up in your browser: open this link on this
-    machine."; under it, one blank row, then two columns in the printed
-    link, the URL of the box's latest `link` line, drawn whole and
-    wrapped at the window's columns, then one blank row (the user's
-    request `tui-14`); and "It signs you in as this temper's owner,
-    once, within 2 hours." (`tui-hint`), the box's own words for it
+    machine."; under it, one blank row, then the printed link, the URL
+    of the box's latest `link` line, drawn whole and wrapped at the
+    window's columns, then one blank row (the user's request `tui-14`);
+    and "It signs you in as this temper's owner, once, within 2 hours."
+    (`tui-hint`), the box's own words for it
     (`../../protocol/setup/box.md`, 2). Before the box's first `link`
     line, the link's place holds "The link comes here once the box has
     started.", or a failed start's lines (*The box's stages*, above).
-    The TUI never opens the link nor gives it to its opener: the person
-    opens it, in a browser on this machine.
-  - "In the browser" (`tui-head`) and, two columns in, the welcome's four
-    steps on one line, numbered, none started, "1 Welcome · 2 Forge · 3
-    Model · 4 Ready" (`tui-hint`), their labels the view's (`../pages/welcome.md`, 1, *Its
-    steps*).
+    Each of them, the link, its pending and failed lines and the line
+    under them, is a paragraph of its own at the column "Welcome."
+    starts at, never indented under it, and the link wraps to that
+    column too (the user's request `tui-16`, 2026-11-15). The TUI never
+    opens the link nor gives it to its opener: the person opens it, in
+    a browser on this machine.
+  - "In the browser" (`tui-head`), two spaces, then on the same line the
+    welcome's four steps, numbered, none started, joined by " · ", "1
+    Welcome · 2 Forge · 3 Model · 4 Ready" (`tui-hint`), their labels
+    the view's (`../pages/welcome.md`, 1, *Its steps*): one line, which
+    fits 80 columns (`tui-16`). A window too narrow for it wraps it as
+    any paragraph.
 - **After,** "Setting temper up in your browser" (`tui-head`) and, two
   columns in, a list: "Signed in as the owner", ticked; then the four
   steps, numbered, each marked as `welcome::step_marks` marks it at the
@@ -406,8 +414,9 @@ signed in, and 02, after):
 3: t2, the terminal while lent, and t3, back; `claude-sign-in/`):
 
 ```
-$ temper box
+(a blank row, the screen's first)
 temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.
+(a blank row)
 (Claude Code's own sign-in, its screens its own)
 ```
 
@@ -450,13 +459,21 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   2. the screen cleared and the cursor homed, `\x1b[H\x1b[2J`
      (`lending::CLEAR`), so that nothing of the shell's screen, which
      `LEAVE`'s `\x1b[?1049l` gives back, shows around the line or
-     Claude Code's own (the user's request `tui-12`, 2026-11-15); then
-     the line written to standard output, then a line feed: "temper:
-     Claude Code signs in here. Approve it on Anthropic's page, in the
-     tab it opens; if that page shows a code, paste it here. temper comes
-     back when it's done, or when you press Cancel in the browser.". The
-     clear, the line and its line feed are one write, completed before
-     the spawn; taking the terminal back is unchanged (*Back*);
+     Claude Code's own (the user's request `tui-12`, 2026-11-15); then a
+     line feed, a blank row above the line; then the line written to
+     standard output, "temper: Claude Code signs in here. Approve it on
+     Anthropic's page, in the tab it opens; if that page shows a code,
+     paste it here. temper comes back when it's done, or when you press
+     Cancel in the browser."; then two line feeds, a blank row between
+     the line and Claude Code's first, "Opening browser to sign in…"
+     (the user's request `tui-15`, 2026-11-15). The clear, the line feed,
+     the line and its two line feeds are one write, `\x1b[H\x1b[2J\nLINE\n\n`,
+     completed before the spawn. The clear erases the screen, never the
+     scrollback (no `\x1b[3J`): the scrollback is the person's shell
+     history, which a terminal such as emacs' vterm shows above a screen
+     shorter than its window or pulls back as the window grows, and the
+     blank row above the line keeps temper's line apart from it. Taking
+     the terminal back is unchanged (*Back*);
   3. NAME checked against a source's name's bounds, 1 to 32 of `a` to
      `z`, `0` to `9` and `-`, then the child spawned: the box's own
      `temper-box`, the path its fetch found (`found PATH`, *The box's
@@ -526,8 +543,9 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   run reported it.
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  temper box · a whole deployment on this machine
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
 
  This is the playground: a scripted model and in-memory forge. Set
  temper up in your browser when you're ready to leave it.

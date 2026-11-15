@@ -1,9 +1,8 @@
 //! Ask temper's watched ways and their settings decisions (client/forge/records.md and client/pages/settings.md, 2).
 use super::fixtures as f;
 use crate::{
-    Address, Domain, Event, Place, Request,
-    forge::stock_ways::{self, State, WayAct},
-    pages,
+    Address, Domain, Event, Place, Request, pages,
+    pages::stock_ways::{self, State, WayAct},
 };
 use jig_client::{Down, Handle, Key, Readable, Readout, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};

@@ -10,7 +10,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};
 use skein_lib::{Env, Queue, Reader};
-use temper_client_domain::owner::Owner;
+use temper_client_domain_forge::owner::Owner;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
     name == REMOVE.name || name == PLAYGROUND_END.name
 }
 pub(super) fn ask(request: w::Request, limits: &Limits) -> Option<Ask> {
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
     Some(Ask::Family {
         scope: c::Scope::Deployment,
@@ -37,7 +37,7 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
         finish(called, printed, out);
         return;
     }
-    let bounds = temper_client_domain::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
+    let bounds = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let end = crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == PLAYGROUND_END.name;
     let request = if end {
         w::Request::EndPlayground
@@ -64,7 +64,9 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
         Told::Kept { key, request: Ask::Family { scope: c::Scope::Deployment, record } }
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
-            let Some(bounds) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return false };
+            let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else {
+                return false;
+            };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
             let end = match request.request() {
                 w::Request::EndPlayground => true,
@@ -137,7 +139,7 @@ fn print(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> j
         Outcome::Answered(Answered::Family(record))
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
-            let Some(bounds) = temper_client_domain::forge::wire_limits(&limits.domain.forge) else {
+            let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge) else {
                 return render::failure(b"invalid limits", json, 1);
             };
             let mut reader = Reader::new(&record.bytes);
@@ -253,7 +255,7 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         w::Outcome::Removed if !end => (b"removed", None, 0),
         w::Outcome::Reset if end => (b"reset", None, 0),
         w::Outcome::RemoveRefused(value) if !end => {
-            (b"remove_refused", Some(temper_client_domain::forge::forges::connect_refusal(value.why())), 2)
+            (b"remove_refused", Some(temper_client_domain_forge::forge::forges::connect_refusal(value.why())), 2)
         }
         w::Outcome::EndRefused(value) if end => match value.why() {
             w::EndRefusal::NotOffered => (b"end_refused", Some((b"not_offered", b"not offered")), 2),

@@ -7,30 +7,21 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
-pub mod acts;
-pub mod address;
-pub mod amend;
 pub mod approve;
 pub mod asked;
 pub mod authorize;
 pub mod boundary;
 pub mod copy;
 pub mod domain;
-pub mod forge;
-pub mod key;
-pub mod limits;
-pub mod owner;
-pub mod pages;
-pub mod public;
-pub mod question;
 mod route;
-pub mod sign_in;
 mod sign_in_tab;
-pub mod views;
-pub mod words;
 pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind, WorkFilter};
 pub use boundary::{Action, Event, Fact, Request, Tab};
 pub use domain::{Domain, fire, new, next_deadline, shown, step, take, unlinked};
 pub use limits::{Limits, valid};
+pub use temper_client_domain_forge::{
+    address, amend, delegation, forge, key, limits, owner, public, question, sign_in, views, words,
+};
+pub use temper_client_domain_pages::{acts, pages};
 #[cfg(test)]
 mod tests;

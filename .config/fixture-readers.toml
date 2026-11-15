@@ -619,12 +619,26 @@ pair = "default"
 package = "smith-bench"
 filter = "binary(=suite) & test(/smith_adapter::/)"
 
-# temper/crates/temper-client-domain/src/tests.rs and its fixture helper modules; all unit callers.
+# Client domain pieces' private fixture helper modules; each piece's unit callers.
 [[fixture]]
 paths = ["temper/crates/temper-client-domain/src/tests/fixtures/*.rs"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-domain"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-domain-forge/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-domain-forge"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-domain-pages/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-domain-pages"
 filter = "kind(lib)"
 
 # temper/crates/temper-client-shell-cli/src/tests.rs and its fixture helper modules; all unit

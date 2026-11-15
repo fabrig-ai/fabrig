@@ -124,7 +124,7 @@ fn name(me: &c::Me, number: u32) -> Option<Box<[u8]>> {
     }
     None
 }
-fn left_off(root: &Domain, me: &c::Me, words: &Words, wall: Wall, tick: &mut Option<Wall>) -> List<LeftOff> {
+fn left_off(root: &Domain, tui: &Tui, me: &c::Me, words: &Words, wall: Wall, tick: &mut Option<Wall>) -> List<LeftOff> {
     let mut lines = List::with_capacity(3);
     let Some(reads) = root.pages().left_off() else { return lines };
     let tasks = reads.chats(root.client());
@@ -158,7 +158,7 @@ fn left_off(root: &Domain, me: &c::Me, words: &Words, wall: Wall, tick: &mut Opt
         }
         if let Some(tasks) = tasks {
             for row in &tasks.rows {
-                if chats::ended(&row.chip) {
+                if chats::ended(&row.chip) || tui.closed_chat(row.chip.task) {
                     continue;
                 }
                 if let Some(previous) = previous
@@ -203,7 +203,7 @@ fn before(line: &c::TaskLine, other: &c::TaskLine) -> bool {
     line.last_activity > other.last_activity
         || (line.last_activity == other.last_activity && line.chip.task < other.chip.task)
 }
-fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall, shown: bool) {
+fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall, tui: &Tui) {
     if root.pages().address() != &(Address::Home { project }) {
         return;
     }
@@ -223,7 +223,7 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
                 &concat(&[&byline, &words.say(Word::BriefMore, &[])]),
                 Some(look::BYLINE),
             );
-            if shown {
+            if tui.brief_shown() {
                 for line in &brief.lines {
                     for project in &facts.projects {
                         if project.project == line.project
@@ -245,7 +245,7 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
         }
     }
     part.team = team_rows(root, project, me, words, wall);
-    part.left_off = left_off(root, me, words, wall, &mut part.tick);
+    part.left_off = left_off(root, tui, me, words, wall, &mut part.tick);
     let mut needs = List::with_capacity(5);
     for prompt in shared::need_prompts(root, words.view()).into_iter().take(5) {
         let project = match prompt.project {
@@ -346,7 +346,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
     } else if let Some(me) = me {
         if let Some(number) = number {
             if part.project.is_some() {
-                home(&mut part, root, number, me, words, wall, tui.brief_shown());
+                home(&mut part, root, number, me, words, wall, tui);
                 if part.playground {
                     push(&mut part.lines, Role::Paragraph, &words.say(Word::PlaygroundBanner, &[]), None);
                 }

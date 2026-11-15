@@ -196,7 +196,8 @@ chat, the running line above them.
     after "/" (section 2); "Still signing in" (*Typed before the
     sign-in lands*); the theme taken's (section 2, *`/theme`*); a goal
     proposed's (`design-session.md`, section 1, *`/goal`*); a talk left's
-    (`talk.md`, section 1, *Leaving*); a role not found's and a word filed's
+    (`talk.md`, section 1, *Leaving*); a chat closed's, "Closed TN · TITLE"
+    (`chat.md`, section 1, *Closing*); a role not found's and a word filed's
     (section 2, *`/talk`* and *`/tell`*); in front, a box's group
     started, "Forgejo started" (`../box.md`, *The box's state*). Its words are
     the TUI's own (`tui-signal`).
@@ -292,6 +293,20 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     a chat started from the launchpad is, and run as the project's way
     says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
     is drawn under the box, as a send's, and the launchpad stays.
+  - *Their name left in the box* (the user's request `tui-17`,
+    2026-11-15): wherever `/draft`, `/change`, `/ask` or `/tell`,
+    pressed or sent alone, leaves its name and a space in the box, the
+    caret stands after the space, at the words' end, so that the words
+    typed go after it: "/change" pressed, then "fix the README" typed,
+    is "/change fix the README", never "/changefix the README ". Sent
+    with nothing after the name but white space ("/change ", "/ask  "),
+    on a screen that offers the command, it starts nothing, sends
+    nothing and files nothing, gives no notice, and the box keeps its
+    words as they are, the caret where it was: the person has yet to
+    say the words. A screen that doesn't offer it takes such words as
+    any other words. No hint of the command's words is drawn after the
+    space (the request's third ask, left to the designer:
+    `../README.md`, 5, *A command's words hinted*).
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
@@ -399,7 +414,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - `/close` and `/start-over`: the confirmation's question as the head
     and its two acts as choices, "Close" or "Start over" first, then
     "Keep it open" or "Keep this one" (`shared::confirmation`):
-    `Act::Confirm` and `Act::Cancel`.
+    `Act::Confirm` and `Act::Cancel`. "Close" taken goes back to the
+    launchpad once the close is done (`chat.md`, section 1, *Closing*).
 - **`/help`'s note:** the commands the TUI offers there, each name
   padded with spaces to the longest and two more, then its words; then
   its keys, a line each: "Enter sends", "Tab completes a command", "PgUp
@@ -433,27 +449,35 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
 
 ## 3. The header
 
-The user's request `tui-14` of 2026-11-15, after pi's: two lines at
-the top of the launchpad and, in front of a box, of the welcome and the
+The user's request `tui-14` of 2026-11-15, after pi's, drawn as its
+mockups by `tui-16` of the same day: a blank row and two lines at the
+top of the launchpad and, in front of a box, of the welcome and the
 starting screen (`../box.md`), where those drew the framed region
 `tui-top`; then a blank row. Illustrative, in front, at 150 by 39, and
-out of front:
+out of front, the first row blank in both:
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  temper box · a whole deployment on this machine
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
 ```
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  127.0.0.1:8367
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  127.0.0.1:8367
 ```
 
 - **The region** `tui-header` (`../theme.md`, *Its regions*): at the
-  top, its two lines, no border and no padding, so that the mark starts
-  at the window's first column; a blank row under it, before the body's
-  first section. It holds nothing but the mark and its two lines: no
-  project, no state, no notice.
+  top, a blank row, then its two lines, no border and a padding of 1, so
+  that the mark starts at the window's second column, the column the
+  body's sections start at (`tui-sections`, padding 1), and the mark's
+  lower row lines up with the body's text (the user: "let's reduce the
+  left side padding of the text to 1 blank instead of 2"); a blank row
+  under it, before the body's first section. The blank row on top is
+  the header's own, wherever the header stands (the user: "I'll put a
+  blank line on top"). It holds nothing but the mark and its two lines:
+  no project, no state, no notice.
 - **The mark,** fabrig.ai's factory, its smoke, chimney and sawtooth
   roof: six cells by two lines, in half blocks as pi draws its logo,
   each cell two square pixels, the upper and the lower. Its pixels, six
@@ -479,8 +503,9 @@ out of front:
   back too, its block elements drawn with gaps between rows: the binary
   reads `TERM_PROGRAM`, and `Apple_Terminal` there is `Start.plain`
   (`../README.md`, 3). With it the mark and the two cells after it are
-  left out, and the two lines start one column in, as the body's
-  sections do: the word "temper" alone stands where the mark was.
+  left out, and the two lines start at the region's padding, one column
+  in, as the body's sections do: the word "temper" alone stands where
+  the mark was. The blank row on top stands as with the mark.
 - **Its first line,** two cells after the mark: "temper" (`tui-name`),
   then a space and the build as `temper --version` prints it after
   "temper ", its version and commit, "0.0.0 (b948f40d6df1)"
@@ -499,15 +524,17 @@ out of front:
   section (`../box.md`, *The welcome*). The project's name and
   "playground" are the quiet line's alone (section 1, *The quiet line*;
   `../box.md`).
-- **Narrow:** a line wider than the window is cut at its end by skein
-  (skein's `ui/screen.md`, 5.2); the mark is never left out for the
-  width.
+- **Narrow:** a line wider than the window, its padding counted, is cut
+  at its end by skein (skein's `ui/screen.md`, 5.2); the mark is never
+  left out for the width.
 - **Not the header:** the sign-in screen keeps its framed top, which
   holds its form, and a talk its framed head, which holds the role
   (`talk.md`, section 1); a chat has no header. The request named the
   welcome and the launchpad, and neither of those two holds what the
   header holds.
-- **Its tests:** rows of the view for the mark's cells and tokens, the
-  plain start, the two places and an empty version; golden frames at 80
-  by 24, dark and light, of the launchpad and the welcome with it, and
-  at 150 by 39 of the welcome in front, the request's frame.
+- **Its tests:** rows of the view for the blank row on top, the mark's
+  cells, columns and tokens, the plain start at column 1, the two places
+  and an empty version; golden frames at 80 by 24, dark and light, of
+  the launchpad and the welcome with it, and at 150 by 39 of the welcome
+  in front, the request's frame (`tui-16`'s rows, `../box.md`, *The
+  welcome*).

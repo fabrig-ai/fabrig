@@ -18,7 +18,7 @@ use crate::{
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Event, Handle, Latest, Readable, Readout, State, Told, Watchable, Why, contract as c};
 use skein_lib::{Env, Queue, Time};
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::{self, change as words},
     owner::Owner,
 };

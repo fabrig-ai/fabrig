@@ -108,11 +108,10 @@ and `connect-forge.html`.
   playground is reset, it shows nowhere.
 - **Owned setup versions** come from the forge row's `owned` pins.
   Details names the Forgejo version in what temper box downloads;
-  the first of Each step's five lines names both Forgejo and runner
-  versions, "Fetching" until fetched, then "Fetched". Without `owned`,
-  Details keeps "Forgejo and its runner"; without `owned.runner`,
-  that first step keeps its unversioned wording. These are shared by
-  Connect a forge and the welcome. Preparing names no future login.
+  without `owned`, it keeps "Forgejo and its runner". Each step names
+  no version, even with `owned.runner`: "Fetching Forgejo" until
+  fetched, then "Fetched Forgejo". These are shared by Connect a forge
+  and the welcome. Preparing names no future login.
 - **Connecting a forge,** `ConnectForge { forge }` (the request
   `connect-flows`): the welcome's cards, panels and words, under Settings'
   path and in its column, with no list of steps; one or two pages, then the
@@ -333,22 +332,25 @@ and `connect-forge.html`.
   disclosure, its first repository’s line, “ORG/NAME”, then its compact
   live list, each line with
   its state in words, "done", "under way" or none for one to come:
-  "Fetching Forgejo and its runner" ("Fetched Forgejo and its runner"
+  "Fetching Forgejo" ("Fetched Forgejo"
   once done), and while the row says how far, "· 42%" or "· 41 MB"
   after it, as the row's words do (the table below), then
-  "Preparing: its database, temper’s admin, your account",
-  "Starting Forgejo and its runner", "Connecting as temper", and
-  "Making ORG/NAME". The box's step
+  "Preparing Forgejo",
+  "Starting Forgejo", "Connecting as temper", and
+  "Making ORG/NAME". Each names Forgejo alone, the list's verbs saying
+  what happens, so that each stays on one line in the welcome's pane
+  (`../pages/welcome.md`, 1; the look request `forge-steps`, the user's
+  word of 2026-11-15). The box's step
   names the one under way (fetch, prepare or run); none named yet, no
   individual step is marked. Connecting is the fourth, making the
   fifth, done once the first repository is made, unadopted. Before the
   target is known, the fifth reads "Making the first repository". A set up
   asked with copies or nothing has four steps, the row's `starts_with`
   saying so (`../../protocol/setup/owned.md`, 7).
-  GitHub rows never list Forgejo's steps. The first and the Details
-  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
-  and its runner 13.2.1"; the person's login stays off until the row
-  carries it. Then "You may
+  GitHub rows never list Forgejo's steps. No step names a version: the
+  Details alone name one, Forgejo's as the row's `owned` pins it, "temper
+  box downloads Forgejo 17.0.1 and its runner, ..."; the person's
+  login stays off until the row carries it. Then "You may
   leave this page: the steps go on." A failed setup keeps all five steps: those before the failed
   step are done, that step is marked failed (✕), and those after it
   are to come. After the list, "STEP failed: WHY", STEP one of
@@ -598,3 +600,11 @@ link meanwhile. The terminal prints it and opens nothing (`../line.md`,
 - **A connect's end told:** the forges' page reads how a connect ended
   on the deployment's part. Default: that read, watched while the page
   is open; no notice in the inbox.
+
+- **The third step's words while sign-in is connected** (`deployment.md`,
+  *Setting up, in the row*; the look request `forge-steps`, which leaves
+  them): while the box's step is the sign-in's source, the third step
+  reads "Connecting sign-in through temper" in place of "Starting
+  Forgejo", longer than the steps that wrapped in the welcome's pane, so
+  it likely wraps there too; no request has drawn it. A look question for
+  the user. Default: those words.

@@ -1,5 +1,5 @@
 use super::*;
-use temper_client_domain::forge;
+use temper_client_domain_forge::forge;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(crate) const DRAFT_PATH: &str = "docs/design/draft/catch-up.md";
