@@ -531,6 +531,15 @@ fn a_red_middle_unit_is_blamed_the_green_prefix_lands_and_the_suffix_stacks_agai
         })
         .collect();
     assert_eq!(dispatches.len(), 4);
+    for (index, (_, inputs)) in dispatches.iter().enumerate() {
+        let probes: Vec<_> = inputs.iter().filter(|input| input.name.as_ref() == b"temper_probe").collect();
+        if index == 1 || index == 2 {
+            assert_eq!(probes.len(), 1, "one probe input at boundary {index}");
+            assert_eq!(probes[0].value.as_ref(), b"yes");
+        } else {
+            assert!(probes.is_empty(), "round tops carry no probe input");
+        }
+    }
     for (index, commit) in [(1, first), (2, red)] {
         assert!(
             dispatches[index]

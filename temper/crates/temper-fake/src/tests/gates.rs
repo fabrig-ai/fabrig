@@ -72,17 +72,13 @@ fn jobs(forge: &Forge, name: &[u8], commit: u64) -> (a::Run, Box<[a::Job]>) {
     };
     (run.clone(), jobs)
 }
-fn dispatch(forge: &mut Forge, env: &mut Env<domain::Config>, name: &[u8]) {
+fn dispatch(forge: &mut Forge, env: &mut Env<domain::Config>, name: &[u8], inputs: Box<[a::WorkflowInput]>) {
     assert_eq!(
         call(
             forge,
             env,
             name,
-            a::Op::Write(a::Write::Dispatch {
-                workflow: copy_of(b"gate.yml"),
-                branch: copy_of(b"main"),
-                inputs: Box::new([]),
-            })
+            a::Op::Write(a::Write::Dispatch { workflow: copy_of(b"gate.yml"), branch: copy_of(b"main"), inputs })
         ),
         a::Answer::Done
     );
@@ -113,7 +109,7 @@ fn document_gates_judge_the_dispatched_tree_at_the_ci_pace() {
                 }
                 settle(&mut forge, &mut env);
                 let head = forge.domain.branch(name, b"main").unwrap();
-                dispatch(&mut forge, &mut env, name);
+                dispatch(&mut forge, &mut env, name, Box::new([]));
                 let (run, pending) = jobs(&forge, name, head);
                 assert_eq!(run.commit, head);
                 assert_eq!(run.event, a::RunEvent::Dispatch);
@@ -129,6 +125,40 @@ fn document_gates_judge_the_dispatched_tree_at_the_ci_pace() {
             }
         }
     }
+}
+
+#[test]
+fn document_gates_keep_probe_inputs_without_declaring_them_and_reach_the_same_verdict() {
+    let mut value = forge_document();
+    value["workflows"] = json!([workflow(json!({"declared":".fake-forge/gate"}))]);
+    let (mut forge, _) = decode(&value).seed(23);
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge.config.clone() };
+    let name = b"fake/widget";
+    domain::grant(&mut forge.domain, name, forge::OWNER, a::Permission::Admin);
+    let head = forge.domain.branch(name, b"main").unwrap();
+    let mut runs = Vec::new();
+    for probe in [true, false] {
+        let mut inputs = vec![
+            (copy_of(b"temper_commit"), head.to_string().into_bytes().into_boxed_slice()),
+            (copy_of(b"temper_key"), copy_of(b"key")),
+        ];
+        if probe {
+            inputs.push((copy_of(b"temper_probe"), copy_of(b"yes")));
+        }
+        let inputs = inputs.into_boxed_slice();
+        dispatch(&mut forge, &mut env, name, inputs.clone());
+        settle(&mut forge, &mut env);
+        let (run, completed) = jobs(&forge, name, head);
+        assert_eq!(run.commit, head);
+        assert_eq!(run.event, a::RunEvent::Dispatch);
+        assert_eq!(run.inputs, inputs);
+        assert_eq!(run.state, a::RunState::Completed);
+        assert_eq!(completed[0].conclusion, run.conclusion);
+        runs.push(run);
+    }
+    assert_ne!(runs[0].id, runs[1].id);
+    assert_eq!(runs[0].conclusion, Some(a::Conclusion::Success));
+    assert_eq!(runs[0].conclusion, runs[1].conclusion);
 }
 
 fn fast_forward(forge: &mut Forge, env: &mut Env<domain::Config>, name: &[u8], enabled: bool) {

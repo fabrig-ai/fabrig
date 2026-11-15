@@ -2696,7 +2696,12 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 runs::retry(flight, try_);
                 flight.purpose = purpose;
             } else {
-                let inputs = inputs(candidate, key.key, if configured.base { m.base } else { None });
+                let inputs = inputs(
+                    candidate,
+                    key.key,
+                    if configured.base { m.base } else { None },
+                    policy::probe(&row.landing) == Some(member),
+                );
                 let flight = runs::follow(
                     p.task,
                     p.entry,
@@ -3028,7 +3033,12 @@ fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, att
     .identity()
     .expect("fixed purpose")
 }
-pub(crate) fn inputs(candidate: api::Commit, key: policy::Key, base: Option<api::Commit>) -> Box<[api::Input]> {
+pub(crate) fn inputs(
+    candidate: api::Commit,
+    key: policy::Key,
+    base: Option<api::Commit>,
+    probe: bool,
+) -> Box<[api::Input]> {
     let mut inputs = List::with_capacity(u32::try_from(api::INPUTS).expect("forge input bound"));
     inputs
         .push(api::Input { name: Box::from(b"temper_commit".as_slice()), value: commit_hex(candidate) })
@@ -3038,6 +3048,11 @@ pub(crate) fn inputs(candidate: api::Commit, key: policy::Key, base: Option<api:
         inputs
             .push(api::Input { name: Box::from(b"temper_base".as_slice()), value: commit_hex(base) })
             .expect("base input");
+    }
+    if probe {
+        inputs
+            .push(api::Input { name: Box::from(b"temper_probe".as_slice()), value: Box::from(b"yes".as_slice()) })
+            .expect("probe input");
     }
     inputs.into_boxed()
 }
