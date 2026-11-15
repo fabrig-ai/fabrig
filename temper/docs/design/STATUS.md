@@ -182,6 +182,11 @@ reports to the engine, passed or refused. A change keeps the reds its
 passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
 4). Reds end too by the tool and with their goal (`draft/branch-reds.status.md`).
+Before its summary, the check writes every failure it found, with its
+key and class, to `temper/pre-pr-failures.json` in the git directory, and
+the summary's second line names that file and counts the failures by
+class, so that a key its capped summary had no room for stays readable
+(`draft/pre-pr-failure-list.status.md`).
 
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
@@ -505,6 +510,7 @@ Drafts:
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
+- [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
