@@ -1,4 +1,4 @@
-//! Texts parsed while a family and its held families are planned (protocol/store/layouts.md, 7).
+//! Currents kept through planning; other texts dropped with each family (protocol/store/layouts.md, 7).
 use super::{Digest, Layouts, Text};
 use crate::{OpenRefusal, PatchSets};
 use alloc::boxed::Box;
@@ -31,14 +31,21 @@ impl Binary {
                         return Err(refusal);
                     }
                     let digest = digest(text.as_bytes());
-                    if !layouts.texts.contains_key(&digest) {
+                    let current = text == family.current;
+                    if let Some(held) = layouts.texts.get_mut(&digest) {
+                        held.current |= current;
+                    } else {
                         // Keep Set's syntax refusal even for families with no value types.
-                        if schema::parse(text.as_bytes()).is_err() {
-                            return Err(refusal);
-                        }
+                        let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                        let schema = if current {
+                            Some(parsed)
+                        } else {
+                            drop(parsed);
+                            None
+                        };
                         layouts
                             .texts
-                            .insert(digest, Text { bytes: Box::from(text.as_bytes()), schema: None, stored: false })
+                            .insert(digest, Text { bytes: Box::from(text.as_bytes()), schema, stored: false, current })
                             .expect("uncapped texts");
                     }
                     digests.push(digest).expect("two texts");
@@ -128,9 +135,19 @@ pub(super) fn row(layouts: &mut Layouts, key: &super::RowKey) -> Option<()> {
 }
 
 pub(super) fn clear(layouts: &mut Layouts) {
+    clear_schemas(layouts, false);
+}
+
+pub(super) fn clear_all(layouts: &mut Layouts) {
+    clear_schemas(layouts, true);
+}
+
+fn clear_schemas(layouts: &mut Layouts, all: bool) {
     let mut digests = List::uncapped();
-    for (digest, _) in &layouts.texts {
-        digests.push(*digest).expect("uncapped digests");
+    for (digest, text) in &layouts.texts {
+        if all || !text.current {
+            digests.push(*digest).expect("uncapped digests");
+        }
     }
     for digest in &digests {
         layouts.texts.get_mut(digest).expect("held text").schema = None;

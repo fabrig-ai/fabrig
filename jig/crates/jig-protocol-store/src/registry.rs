@@ -9,6 +9,8 @@ use skein_lib::{Buffer, List, Map, Queue};
 mod check;
 pub(crate) mod rehearsal;
 mod rows;
+#[cfg(test)]
+mod tests;
 mod texts;
 
 /// Fitted at open beside the plans (protocol/store/layouts.md, 7). A store
@@ -38,6 +40,7 @@ struct Text {
     bytes: Box<[u8]>,
     schema: Option<Schema>,
     stored: bool,
+    current: bool,
 }
 #[derive(Debug)]
 struct Row {
