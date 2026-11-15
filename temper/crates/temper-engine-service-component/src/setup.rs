@@ -357,7 +357,19 @@ impl Layer {
 }
 /// Stop serving a removed forge, including events already queued by its host
 /// (temper/docs/design/protocol/forge/engine.md, 3).
+#[expect(clippy::too_many_lines, reason = "forget removes every setup state, including plans waiting for GitHub's API")]
 pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
+    if let Some(mut waiting) = engine.forge.github_waiting.remove(&forge) {
+        for _ in 0..waiting.plans.len() {
+            let plan = waiting.plans.pop().expect("waiting plan count");
+            let run = match plan {
+                crate::forge::github::Plan::Requested { run, .. } | crate::forge::github::Plan::Running { run, .. } => {
+                    run
+                }
+            };
+            engine.setup.public.remove(&run);
+        }
+    }
     let layer = &mut engine.setup;
     layer.served.remove(&forge);
     layer.unserved.remove(&forge);
@@ -469,6 +481,9 @@ fn forge(plan: &host::Plan) -> u16 {
 }
 pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
     let Some(plan) = engine.setup.staged.remove(&run) else { return };
+    request_plan(engine, run, plan);
+}
+pub(crate) fn request_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     let number = forge(&plan);
     if engine.domain.forge_ended(number) {
         ended(engine, run, root::SetupEnd::Stopped { forge: number, reason: Box::from(b"forge ended".as_slice()) });
@@ -478,6 +493,8 @@ pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
             run,
             root::SetupEnd::Stopped { forge: number, reason: Box::from(b"setup host is not running".as_slice()) },
         );
+    } else if let Some(waiting) = engine.forge.github_waiting.get_mut(&number) {
+        waiting.plans.push(crate::forge::github::Plan::Requested { run, plan });
     } else if let Some(host) = engine.forge.unreachable(number) {
         ended(engine, run, root::SetupEnd::Stopped { forge: number, reason: crate::forge::unreachable_text(&host) });
     } else if !engine.setup.served.contains_key(&number) {
@@ -762,10 +779,12 @@ mod scopes_tests;
 mod tests;
 
 /// Every setup path, including internal follow-ups, crosses the same unresolved-host gate.
-fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
+pub(crate) fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     let number = forge(&plan);
     if engine.domain.forge_ended(number) {
         lifecycle::refused(engine, run, number, Box::from(b"forge ended".as_slice()));
+    } else if let Some(waiting) = engine.forge.github_waiting.get_mut(&number) {
+        waiting.plans.push(crate::forge::github::Plan::Running { run, plan });
     } else if let Some(host) = engine.forge.unreachable(number) {
         lifecycle::refused(engine, run, number, crate::forge::unreachable_text(&host));
     } else {

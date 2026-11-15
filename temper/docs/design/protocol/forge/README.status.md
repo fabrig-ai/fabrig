@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 9: the protocol world's Forgejo change whose Actions CI stays pending ten minutes, with and without deliveries, counted a minute at a time.
 

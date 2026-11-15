@@ -34,8 +34,14 @@ fn record(host: &[u8]) -> domain::ForgeRecord {
     }
 }
 
-#[expect(clippy::disallowed_methods, reason = "ordinary fixtures parse their supplied host")]
 fn service(host: &[u8]) -> Service {
+    service_record(record(host))
+}
+
+#[expect(clippy::disallowed_methods, reason = "ordinary fixtures parse their supplied host")]
+fn service_record(record: domain::ForgeRecord) -> Service {
+    let host = record.place.api.host.as_ref();
+    let port = record.place.api.port;
     let mut settings = fixtures::engine();
     fixtures::fill_files(&mut settings);
     let mut service = Service::engine(settings, &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
@@ -43,18 +49,24 @@ fn service(host: &[u8]) -> Service {
     fixtures::commit(&mut store, 1, Box::new([root::Write::Erase(root::Key::Forge(domain::Key::Forge(1)))]));
     assert!(store.host.above.pop().is_some());
     service.engine.as_mut().unwrap().store = store;
-    let record = record(host);
     let api = match core::str::from_utf8(host).unwrap().parse::<core::net::IpAddr>() {
-        Ok(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(ip, PORT))),
-        Err(_) => jig_protocol_config::Address::Host { name: Box::from(host), port: PORT },
+        Ok(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(ip, port))),
+        Err(_) => jig_protocol_config::Address::Host { name: Box::from(host), port },
     };
-    let origin = forge_records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
+    let kind = match record.kind {
+        domain::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+        domain::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+    };
+    let origin = forge_records::origin(kind, &api).encode();
     for (item, bytes) in [
         (Item::Origin, origin),
         (Item::User, Box::from(42_u64.to_le_bytes())),
         (Item::ApiToken, Box::from(b"api-credential".as_slice())),
         (Item::GitToken, Box::from(b"git-credential".as_slice())),
     ] {
+        if record.kind == domain::Kind::GitHub && (item == Item::ApiToken || item == Item::GitToken) {
+            continue;
+        }
         let value = Secret::new(records::encode(item, &bytes).unwrap().into_boxed_slice());
         let engine = service.engine.as_mut().unwrap();
         assert!(
@@ -66,6 +78,22 @@ fn service(host: &[u8]) -> Service {
         assert!(engine.store.host.above.pop().is_some());
     }
     let engine = service.engine.as_mut().unwrap();
+    if record.kind == domain::Kind::GitHub {
+        for (item, bytes) in [
+            (Item::AppId, Box::from(7_u64.to_le_bytes())),
+            (Item::AppSlug, Box::from(b"fixture-app".as_slice())),
+            (Item::AppKey, Box::from(skein_fake_forge_github::keys::KEYS[0])),
+        ] {
+            let value = Secret::new(records::encode(item, &bytes).unwrap().into_boxed_slice());
+            assert!(
+                engine
+                    .store
+                    .secrets(Token::new(123), fixtures::application_request(records::number(NUMBER, item), value))
+                    .is_none()
+            );
+            assert!(engine.store.host.above.pop().is_some());
+        }
+    }
     fixtures::commit(
         &mut engine.store,
         2,
@@ -82,6 +110,8 @@ fn load(service: &mut Service) {
         face.turn(service);
         if service.engine.as_ref().unwrap().domain.ready()
             && service.engine.as_ref().unwrap().forge_records.done()
+            && (service.engine.as_ref().unwrap().forge.serving.is_some()
+                || !service.engine.as_ref().unwrap().forge.resolving.is_empty())
             && !face.work_pending(service)
         {
             break;
@@ -338,6 +368,349 @@ fn a_kept_github_uses_the_machine_endpoint_and_the_records_tls_name() {
     let skein_tls::Server::Dns(name) = server_name.server() else { panic!("DNS name") };
     assert_eq!(name, "certificate.github.test");
     assert!(service.unresolved().is_empty());
+}
+
+fn github_record(number: u16) -> domain::ForgeRecord {
+    let mut record = record(b"api.github.com");
+    record.number = number;
+    record.kind = domain::Kind::GitHub;
+    record.place.api.port = 443;
+    record.place.api.tls = Some(Box::from(b"api.github.com".as_slice()));
+    record
+}
+#[expect(clippy::disallowed_macros, reason = "the fixture formats the ordered default results hosts")]
+fn results_host(number: u32) -> Box<[u8]> {
+    format!("productionresultssa{number}.blob.core.windows.net").into_bytes().into_boxed_slice()
+}
+fn configure_unresolved_github(service: &mut Service) {
+    let roots = roots();
+    let mut log_origins = List::with_capacity(20);
+    for number in 0_u32..20 {
+        log_origins
+            .push(skein_forge_connection::settings::LogOrigin {
+                origin: skein_forge::github::redirect::Origin { tls: true, host: results_host(number), port: 443 },
+                address: skein_io::Addr::Ip(forge::HELD_ADDRESS),
+            })
+            .unwrap();
+    }
+    service.configure_forge_runtime(
+        crate::ForgeRuntime {
+            number: 0,
+            address: forge::HELD_ADDRESS,
+            transport: skein_forge_connection::settings::Transport::Tls {
+                server_name: skein_tls::Name::new("api.github.com").unwrap(),
+                trust: roots.clone(),
+            },
+            log_origins,
+        },
+        roots,
+    );
+}
+fn github_service() -> Service {
+    let mut service = service_record(github_record(NUMBER));
+    configure_unresolved_github(&mut service);
+    service
+}
+
+#[test]
+fn forgejo_alone_never_wants_github_names() {
+    let mut service = service(b"127.0.0.1");
+    configure_unresolved_github(&mut service);
+    assert!(service.engine.as_ref().unwrap().unresolved_github().is_none());
+    load(&mut service);
+    let mut face = fixtures::ForgeFace::new();
+    for _ in 0_u32..4 {
+        face.turn(&mut service);
+        let engine = service.engine.as_ref().unwrap();
+        assert!(engine.forge.serving.is_some());
+        assert!(engine.unresolved_github().is_none());
+    }
+}
+
+#[test]
+fn a_restored_github_waits_without_holding_serving_then_connects_on_its_records_port() {
+    let mut service = github_service();
+    assert!(service.engine.as_ref().unwrap().unresolved_github().is_none());
+    load(&mut service);
+    assert!(service.unresolved().is_empty());
+    let engine = service.engine.as_mut().unwrap();
+    assert!(engine.forge.serving.is_some());
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.notes.is_empty(), "a waiting forge is not refused: {:?}", engine.notes);
+    for _ in 0_u32..2 {
+        assert_eq!(engine.unresolved_github(), Some((Box::from(b"api.github.com".as_slice()), 443)));
+    }
+    engine.resolved_github(b"unrelated.test", None);
+    assert_eq!(engine.forge.github_waiting.len(), 1);
+    assert!(
+        crate::forges::endpoint(engine, engine.workers.forges.get(NUMBER).unwrap()).unwrap().log_origins.is_empty()
+    );
+    let mut also_waiting = github_record(NUMBER + 1);
+    also_waiting.place.api.port = 8443;
+    crate::route::request(engine, root::Request::ForgeKept(also_waiting));
+    assert_eq!(engine.forge.github_waiting.len(), 2);
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 9999).into()));
+    assert_eq!(engine.forge.starts.len(), 1);
+    let mut connected = false;
+    for request in &engine.forge.io {
+        if let skein_io::Request::Connect { addr, .. } = request {
+            assert_eq!(*addr, skein_io::Addr::Ip(([192, 0, 2, 9], 443).into()));
+            connected = true;
+        }
+    }
+    assert!(connected, "the component dials the answered API address, never the placeholder");
+    let configured = engine.workers.forges.get(NUMBER).unwrap();
+    assert_eq!(
+        crate::forges::endpoint(engine, configured).unwrap().address,
+        skein_io::Addr::Ip(([192, 0, 2, 9], 443).into())
+    );
+    assert!(engine.forge.github_waiting.is_empty());
+    let mut later = github_record(NUMBER + 2);
+    later.place.api.port = 8443;
+    crate::route::request(engine, root::Request::ForgeKept(later));
+    assert!(!engine.forge.github_waiting.contains_key(&(NUMBER + 2)));
+    assert!(engine.forge.unreachable(NUMBER + 2).is_none());
+    for number in [NUMBER + 1, NUMBER + 2] {
+        assert_eq!(
+            crate::forges::endpoint(engine, engine.workers.forges.get(number).unwrap()).unwrap().address,
+            skein_io::Addr::Ip(([192, 0, 2, 9], 8443).into())
+        );
+    }
+}
+
+#[test]
+fn a_failed_github_api_holds_later_forges_and_never_asks_for_results() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.resolved_github(b"api.github.com", None);
+    assert_eq!(
+        engine.notes.pop(),
+        Some(crate::Note::ForgeNotConnected {
+            number: NUMBER,
+            why: crate::NotConnected::Unreachable { host: Box::from(b"api.github.com".as_slice()) },
+        })
+    );
+    crate::route::request(engine, root::Request::ForgeKept(github_record(NUMBER + 1)));
+    assert_eq!(engine.forge.unreachable(NUMBER + 1).as_deref(), Some(b"api.github.com".as_slice()));
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.unresolved_github().is_none());
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    assert!(engine.unresolved_github().is_none());
+    assert!(engine.forge.starts.is_empty());
+}
+
+#[test]
+fn github_results_resolve_in_order_and_later_forges_take_only_answered_origins() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    let mut expected = List::with_capacity(20);
+    for number in 0_u32..20 {
+        let name = results_host(number);
+        for _ in 0_u32..2 {
+            assert_eq!(engine.unresolved_github(), Some((name.clone(), 443)));
+        }
+        let address = ([192, 0, 2, 17], 443).into();
+        let answer = if number % 2 == 0 { Some(address) } else { None };
+        engine.resolved_github(&name, answer);
+        assert_eq!(
+            engine.forge.github.as_ref().unwrap().log_origins.get(number).unwrap().address,
+            skein_io::Addr::Ip(answer.unwrap_or(forge::HELD_ADDRESS))
+        );
+        if answer.is_some() {
+            expected
+                .push(skein_forge_connection::settings::LogOrigin {
+                    origin: skein_forge::github::redirect::Origin { tls: true, host: name, port: 443 },
+                    address: skein_io::Addr::Ip(address),
+                })
+                .unwrap();
+        } else {
+            assert_eq!(engine.notes.pop(), Some(crate::Note::GitHubLogOriginUnresolved { host: name.clone() }));
+            engine.resolved_github(&name, None);
+            assert!(engine.notes.is_empty(), "a repeated answer names no failure twice");
+        }
+    }
+    assert!(engine.unresolved_github().is_none());
+    crate::route::request(engine, root::Request::ForgeKept(github_record(NUMBER + 1)));
+    let endpoint = crate::forges::endpoint(engine, engine.workers.forges.get(NUMBER + 1).unwrap()).unwrap();
+    assert_eq!(endpoint.log_origins, expected);
+}
+
+#[test]
+fn resolved_results_are_handed_once_to_each_kept_default_github() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    let first = resolved_origin(0);
+    engine.resolved_github(&first.origin.host, first.address.socket());
+    assert!(engine.forge.log_origins.is_empty(), "the API and its forges still wait");
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    engine.resolved_github(&first.origin.host, first.address.socket());
+    assert_eq!(engine.forge.log_origins.as_slice(), &[(NUMBER, first)]);
+
+    crate::route::request(engine, root::Request::ForgeKept(github_record(NUMBER + 1)));
+    let second = resolved_origin(1);
+    engine.resolved_github(&second.origin.host, second.address.socket());
+    assert_eq!(
+        engine.forge.log_origins.as_slice().get(1..).unwrap(),
+        &[(NUMBER, second.clone()), (NUMBER + 1, second.clone())]
+    );
+    engine.resolved_github(&second.origin.host, second.address.socket());
+    assert_eq!(engine.forge.log_origins.len(), 3, "an old answer is not handed again");
+    engine.resolved_github(&results_host(2), None);
+    assert_eq!(engine.forge.log_origins.len(), 3, "an unresolved results host sends nothing");
+}
+
+fn resolved_origin(number: u32) -> skein_forge_connection::settings::LogOrigin {
+    skein_forge_connection::settings::LogOrigin {
+        origin: skein_forge::github::redirect::Origin { tls: true, host: results_host(number), port: 443 },
+        address: skein_io::Addr::Ip(([192, 0, 2, 17], 443).into()),
+    }
+}
+
+#[test]
+fn resolved_results_exclude_forgejo_overrides_and_held_forges() {
+    use crate::settings::Kind;
+    for (kind, own_origins, held) in [
+        (Kind::Forgejo, None, false),
+        (Kind::GitHub, Some(List::with_capacity(0)), false),
+        (Kind::GitHub, Some(List::from_boxed(Box::new([resolved_origin(7)]))), false),
+        (Kind::GitHub, None, true),
+    ] {
+        let mut service = github_service();
+        load(&mut service);
+        let engine = service.engine.as_mut().unwrap();
+        engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+        let mut excluded = engine.workers.forges.get(NUMBER).unwrap().clone();
+        excluded.number = NUMBER + 1;
+        excluded.kind = kind;
+        excluded.log_origins = own_origins;
+        excluded.api = if held {
+            jig_protocol_config::Address::Host { name: Box::from(b"unresolved.test".as_slice()), port: 443 }
+        } else {
+            jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([192, 0, 2, 10], 443).into()))
+        };
+        assert!(crate::forges::keep(engine, excluded));
+        assert_eq!(engine.forge.held.contains_key(&(NUMBER + 1)), held);
+        let origin = resolved_origin(0);
+        engine.resolved_github(&origin.origin.host, origin.address.socket());
+        assert_eq!(engine.forge.log_origins.as_slice(), &[(NUMBER, origin)]);
+    }
+}
+
+#[test]
+fn later_and_readded_forges_take_resolved_origins_without_replaying_updates() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    let first = resolved_origin(0);
+    let second = resolved_origin(1);
+    for origin in [&first, &second] {
+        engine.resolved_github(&origin.origin.host, origin.address.socket());
+    }
+    crate::route::request(engine, root::Request::ForgeKept(github_record(NUMBER + 1)));
+    let readded = engine.workers.forges.remove(NUMBER).unwrap();
+    engine.forge.down(skein_forge_connection::Request::Remove { forge: NUMBER });
+    assert!(crate::forges::keep(engine, readded));
+    for number in [NUMBER, NUMBER + 1] {
+        let endpoint = crate::forges::endpoint(engine, engine.workers.forges.get(number).unwrap()).unwrap();
+        assert_eq!(endpoint.log_origins.as_slice(), &[first.clone(), second.clone()]);
+    }
+    assert_eq!(engine.forge.log_origins.as_slice(), &[(NUMBER, first.clone()), (NUMBER, second)]);
+    engine.resolved_github(&first.origin.host, first.address.socket());
+    assert_eq!(engine.forge.log_origins.len(), 2);
+    let third = resolved_origin(2);
+    engine.resolved_github(&third.origin.host, third.address.socket());
+    assert_eq!(engine.forge.log_origins.as_slice().get(2..).unwrap(), &[(NUMBER, third.clone()), (NUMBER + 1, third)]);
+}
+
+#[test]
+fn pending_and_skipped_results_facts_are_neither_kept_nor_logged() {
+    for skipped in [false, true] {
+        let mut service = github_service();
+        load(&mut service);
+        let engine = service.engine.as_mut().unwrap();
+        engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+        if skipped {
+            for number in 0..=3 {
+                let host = results_host(number);
+                engine.resolved_github(&host, None);
+                assert_eq!(engine.notes.pop(), Some(crate::Note::GitHubLogOriginUnresolved { host }));
+            }
+        }
+        assert!(engine.notes.is_empty());
+        for host in [results_host(3), Box::from(b"PRODUCTIONRESULTSSA3.BLOB.CORE.WINDOWS.NET".as_slice())] {
+            engine.forge.above.push(skein_forge_connection::Event::Fact {
+                forge: NUMBER,
+                fact: skein_forge_connection::Fact::Origin {
+                    origin: skein_forge::github::redirect::Origin { tls: true, host, port: 443 },
+                },
+            });
+            crate::engine::forge_pass(engine);
+            assert!(engine.forge.above.is_empty());
+            assert!(engine.notes.is_empty(), "a results host is not another refused origin");
+            let rows = engine.forge.origins.rows(engine.domain.forges());
+            assert_eq!(rows.rows.len(), 1);
+            assert!(rows.rows[0].ended.is_none(), "no refused origin is retained for the row");
+        }
+        for origin in [
+            skein_forge::github::redirect::Origin {
+                tls: true,
+                host: Box::from(b"logs.example.test".as_slice()),
+                port: 443,
+            },
+            skein_forge::github::redirect::Origin { tls: false, host: results_host(3), port: 443 },
+            skein_forge::github::redirect::Origin { tls: true, host: results_host(3), port: 8443 },
+        ] {
+            engine.forge.above.push(skein_forge_connection::Event::Fact {
+                forge: NUMBER,
+                fact: skein_forge_connection::Fact::Origin { origin: origin.clone() },
+            });
+            crate::engine::forge_pass(engine);
+            assert_eq!(engine.notes.pop(), Some(crate::Note::ForgeOrigin { number: NUMBER, origin: origin.clone() }));
+            assert_eq!(
+                engine.forge.origins.rows(engine.domain.forges()).rows[0].ended,
+                Some(forge::origins::text(&origin))
+            );
+        }
+    }
+}
+
+#[test]
+fn twenty_failed_results_name_each_host_and_the_empty_set_once() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    for number in 0_u32..20 {
+        let (name, _) = engine.unresolved_github().unwrap();
+        engine.resolved_github(&name, None);
+        assert_eq!(engine.notes.pop(), Some(crate::Note::GitHubLogOriginUnresolved { host: name }));
+        if number == 19 {
+            assert_eq!(engine.notes.pop(), Some(crate::Note::GitHubLogOriginsUnresolved));
+        }
+        assert!(engine.notes.is_empty());
+    }
+    assert!(engine.unresolved_github().is_none());
+    engine.resolved_github(b"productionresultssa19.blob.core.windows.net", None);
+    assert!(engine.notes.is_empty());
+}
+
+#[test]
+fn github_results_are_not_wanted_without_a_default_consumer() {
+    let mut service = github_service();
+    load(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.workers.forges.get_mut(NUMBER).unwrap().log_origins = Some(List::with_capacity(0));
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 9], 443).into()));
+    assert!(engine.unresolved_github().is_none());
+    engine.workers.forges.get_mut(NUMBER).unwrap().log_origins = None;
+    assert!(engine.unresolved_github().is_some());
+    engine.forge.github.as_mut().unwrap().log_origins = List::with_capacity(0);
+    assert!(engine.unresolved_github().is_none(), "a machine GitHub supplies no defaults");
 }
 
 #[test]
