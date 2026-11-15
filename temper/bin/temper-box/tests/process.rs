@@ -382,6 +382,22 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     assert_eq!(pull["merged"], true, "the forge detected the member's merge");
     let prefix = member["landed"].as_str().expect("member landed prefix");
     assert_eq!(pull["merge_commit_sha"], &prefix[..40]);
+    turn_gate_runs(&forge, commit, proof.run, retry, gate);
+    eprintln!("turn restart landed reads: {landed:?}");
+    forge.stop();
+    scratch.remove();
+    eprintln!("turn restart story wall: {}", landing_by_turn::elapsed(&clock, began));
+}
+
+/// The landed commit's gate runs and status: one dispatch per key, or two after a retry.
+fn turn_gate_runs(
+    forge: &support::forgejo::Throwaway,
+    commit: &str,
+    passed_run: u64,
+    retry: bool,
+    gate: &serde_json::Value,
+) {
+    let receipt = &gate["proof"]["passed"];
     let runs = forge.repository_observation("acme", "widget", &format!("actions/runs?head_sha={commit}&limit=100"));
     let runs: Vec<_> = runs["workflow_runs"]
         .as_array()
@@ -390,7 +406,7 @@ fn turn_landing_restarts(case: &str, retry: bool) {
         .filter(|run| run["workflow_id"] == "gate.yaml")
         .collect();
     assert_eq!(runs.len(), if retry { 2 } else { 1 }, "only the expected dispatches for the key");
-    let passed = runs.iter().find(|run| run["id"] == proof.run).expect("receipted run");
+    let passed = runs.iter().find(|run| run["id"] == passed_run).expect("receipted run");
     for run in &runs {
         assert_eq!(run["commit_sha"], commit);
         assert_eq!(run["trigger_event"], "workflow_dispatch");
@@ -408,10 +424,6 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let key = gate["key"].as_str().expect("receipt key");
     assert_eq!(status["description"], format!("key {} passed", &key[..16]));
     assert_eq!(status["target_url"], receipt["address"]);
-    eprintln!("turn restart landed reads: {landed:?}");
-    forge.stop();
-    scratch.remove();
-    eprintln!("turn restart story wall: {}", landing_by_turn::elapsed(&clock, began));
 }
 
 /// The landing story; the hinted case raises four limits and pushes the slow job marker.
