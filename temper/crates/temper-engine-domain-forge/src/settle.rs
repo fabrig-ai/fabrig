@@ -65,6 +65,9 @@ impl Settle {
 pub(crate) fn hinted(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint, tasks: &[u64]) {
     for task in tasks {
         let row = d.changes.get(task).expect("a change the hint wakes");
+        if row.frozen() {
+            continue;
+        }
         match &hint.change {
             skein_forge::api::Change::Branch(branch) | skein_forge::api::Change::BranchMoved { branch, .. } => {
                 if *row.branch != **branch && *row.base != **branch {

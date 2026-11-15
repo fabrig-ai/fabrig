@@ -46,6 +46,33 @@ fn patched_with(
     patcher.finish().expect("patched record").into()
 }
 
+// Landed patches finish at their kept text; registered additions derive from it
+// (jig/docs/design/protocol/store/layouts.md, 5.1 and 8).
+pub(super) fn current_layout(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+    let old = kept_schema(u16::try_from(crate::STORE_VERSION).expect("family version fits"));
+    let mut text = None;
+    for family in crate::PATCH_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let new = skein_codec::schema::parse(text.expect("application family").as_bytes()).expect("current schema");
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(root, None).expect("kept root"),
+        &[],
+        &new,
+        new.root(root, None).expect("current root"),
+        &[],
+    )
+    .expect("registered additions derive");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(131_072);
+    plan.convert(&bytes, &mut out, &mut work).expect("current layout");
+    out.as_slice().into()
+}
+
 fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
     for (version, patch) in [
         (11, 0),

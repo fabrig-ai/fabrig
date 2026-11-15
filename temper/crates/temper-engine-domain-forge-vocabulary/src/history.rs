@@ -149,8 +149,19 @@ pub enum Job {
 pub enum JobOutcome {
     Done,
     Conflict,
-    Failed,
+    Failed { class: JobFailure },
     Lost,
+    Timeout,
+    Cancelled,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobFailure {
+    Unprepared,
+    Run,
+    Result,
+    Unstarted,
+    Undelivered,
+    Unknown,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum With {

@@ -338,6 +338,7 @@ impl World {
             Event::Hint { .. } => self.hints += 1,
             Event::Keep { .. }
             | Event::Pushed { .. }
+            | Event::Fence { .. }
             | Event::Withdraw { .. }
             | Event::Restore { .. }
             | Event::Restored { .. }

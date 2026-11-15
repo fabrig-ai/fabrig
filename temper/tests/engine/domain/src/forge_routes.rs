@@ -82,6 +82,7 @@ pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) 
 pub enum HoldWrite {
     All,
     Merge,
+    Update,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2786,6 +2787,9 @@ impl World {
                         Some(HoldWrite::All) => matches!(op, skein_forge::api::Op::Write(_)),
                         Some(HoldWrite::Merge) => {
                             matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+                        }
+                        Some(HoldWrite::Update) => {
+                            matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Update { .. }))
                         }
                         None => false,
                     };

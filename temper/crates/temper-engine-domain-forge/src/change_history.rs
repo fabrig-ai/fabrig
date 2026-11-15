@@ -65,7 +65,8 @@ pub(crate) fn write(d: &mut Domain, wall: Wall, row: &mut ChangeRow, step: histo
 pub(crate) fn pushed(d: &mut Domain, wall: Wall, name: &crate::Name, head: Commit, out: &mut Queue<Request>) {
     let mut changes = List::uncapped();
     for (_, row) in &d.changes {
-        if row.repository.forge == name.forge
+        if !row.frozen()
+            && row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.branch)
             && row.change.last_head != Some(head)
@@ -96,7 +97,8 @@ pub(crate) fn delivered(
             Some(history) => history.delivered == Some(head),
             None => false,
         };
-        if !already
+        if !row.frozen()
+            && !already
             && let Some((child, _)) = row.delegate
             && child == producer
             && row.repository.forge == name.forge

@@ -1,6 +1,6 @@
 //! History records and the v20 patch (landing-history.md, 2, 4 and 7).
 use super::{
-    catch_up::{kept_golden, kept_schema, kept_value, patched},
+    catch_up::{current_layout, kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
 use crate::{keys, records, v25};
@@ -113,9 +113,31 @@ fn history_records_round_trip_every_kind_and_interval() {
         check(Stored::HistoryEvent(event(What::Updated { outcome })));
     }
     for job in [Job::Prepare, Job::Merge] {
-        for outcome in [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Failed, JobOutcome::Lost] {
+        for outcome in
+            [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Timeout, JobOutcome::Cancelled, JobOutcome::Lost]
+        {
             check(Stored::HistoryEvent(event(What::JobEnded { job, outcome })));
         }
+    }
+    for class in [
+        JobFailure::Unprepared,
+        JobFailure::Run,
+        JobFailure::Result,
+        JobFailure::Unstarted,
+        JobFailure::Undelivered,
+        JobFailure::Unknown,
+    ] {
+        let outcome = JobOutcome::Failed { class };
+        check(Stored::HistoryEvent(event(What::JobEnded { job: Job::Merge, outcome })));
+        let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+        change.job = Some(JobRecord {
+            step: JobStep { task: 61, attempt: 2, job: Job::Merge, outcome: Some(outcome), head: None },
+            round: 0,
+            members: Box::new([]),
+            head: None,
+            written: false,
+        });
+        check(Stored::Change(Box::new(change)));
     }
     for ask in [Ask::Resolution, Ask::Repair, Ask::Judgement] {
         check(Stored::HistoryEvent(event(What::Asked { ask, task: 29, gate: None })));
@@ -183,30 +205,8 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         b"ChangeRow",
         patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
     );
-    // Patches end at the kept v25 layout; the registry derives additions since it.
-    let old_layout = kept_schema(25);
-    let mut current = None;
-    for family in crate::PATCH_SET.families {
-        if family.name == "temper-store" {
-            current = Some(skein_codec::schema::parse(family.current.as_bytes()).unwrap());
-            break;
-        }
-    }
-    let current = current.unwrap();
-    let plan = skein_codec::layout::Plan::derive(
-        &old_layout,
-        old_layout.root(b"ChangeRow", None).unwrap(),
-        &[],
-        &current,
-        current.root(b"ChangeRow", None).unwrap(),
-        &[],
-    )
-    .unwrap();
-    let mut work = skein_codec::layout::Workspace::new();
-    assert!(work.fit(&plan));
-    let mut converted = skein_lib::Buffer::with_capacity(16_384);
-    plan.convert(&bytes, &mut converted, &mut work).unwrap();
-    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(converted.as_slice())).unwrap();
+    let bytes = current_layout(b"ChangeRow", bytes);
+    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.questions().waiting().is_empty());
     assert!(after.history().is_none());
     assert!(after.job().is_none());

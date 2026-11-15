@@ -396,6 +396,16 @@ pub(crate) fn route_core_requests(
     decision: &mut Decision,
     requests: Queue<core::Request>,
 ) {
+    route_core_with_job(domain, env, decision, requests, None);
+}
+
+fn route_core_with_job(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    requests: Queue<core::Request>,
+    job_answer: Option<forge_route::job_history::Answer>,
+) {
     standing::saved(domain, env, decision, &requests);
     let mut output = requests;
     for _ in 0..output.len() {
@@ -407,7 +417,7 @@ pub(crate) fn route_core_requests(
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
-                forge_route::job_history::saved(domain, &record);
+                forge_route::job_history::saved(domain, &record, job_answer);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
                     if let core::CallPart::Effect { .. } = row.part {
@@ -503,8 +513,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
                 let period = if let core::Event::Period { project, .. } = &event { Some(*project) } else { None };
+                let job_answer = forge_route::job_history::answer(domain, &event);
                 let routed = forge_route::step_core(domain, env, event);
-                route_core_requests(domain, env, decision, routed);
+                route_core_with_job(domain, env, decision, routed, job_answer);
                 if let Some(project) = period {
                     standing::move_roles(domain, project, None);
                 }

@@ -285,6 +285,8 @@ pub struct Change {
     pub gate_failures: Box<[GateFailure]>,
     /// A lifted hold awaiting the next fresh forge snapshot.
     pub released: Option<Hold>,
+    /// A failed resolution or merge job was retired; fresh facts decide its replacement (change/repairs.md, A release).
+    pub released_resolution: bool,
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,
