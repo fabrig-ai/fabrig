@@ -1,6 +1,9 @@
 # fake-forge: status
 
-2026-11-14. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-15. Where skein's code lags or departs from [forge.md](forge.md).
+
+- **Not yet:** 2.3: a run in flight cancelled by a user.
+  [in flight: change 3792]
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses
 the key's public half and verifies without signing; its exact-token/key
