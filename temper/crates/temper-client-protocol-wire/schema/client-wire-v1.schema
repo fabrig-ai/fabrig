@@ -1,4 +1,4 @@
-family temper-client-wire 24
+family temper-client-wire 25
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -345,9 +345,14 @@ record HeldRecord { member: u16 }
 enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn }
 enum Combined { merge, squash }
 record Train { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 }
-enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing }
+enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing, probing_by_test }
 record SearchBound { member: u16 prefix: fixed 32 }
-record LandingSearch { green: SearchBound red: SearchBound probe: option fixed 32 }
+# Search summaries (domain/landing-search-by-test.md, 8): three ids per selected gate.
+record SearchSelection { gate: u16 name: bytes 32 count: u32 ids: list 3 bytes 4096 }
+record SearchPass { member: u16 prefix: fixed 32 gate: u16 name: bytes 32 run: u64 }
+record SearchByTest { gates: list 8 SearchSelection passes: list 64 SearchPass }
+enum SearchTests { whole, by_test: SearchByTest, whole_again }
+record LandingSearch { green: SearchBound red: SearchBound probe: option fixed 32 tests: SearchTests }
 record LandingRound { number: u16 branch: bytes 1024 pull: option Pull combined: option Combined step: LandingStep upstream: option fixed 32 failure: bytes 512 search: option LandingSearch }
 record FailedGate { gate: u16 run: u64 }
 record BlamedGate { gate: u16 run: u64 red: fixed 32 green: fixed 32 }

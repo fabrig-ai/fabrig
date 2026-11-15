@@ -910,6 +910,90 @@ fn searching_landings_show_the_probe_in_the_landing_and_train() {
 }
 
 #[test]
+fn searches_by_test_show_bounded_selections_passes_and_the_train_probe() {
+    let mut d = setup();
+    let configured = &mut d.landing.projects.get_mut(&5).unwrap().1[0].gates;
+    let mut unit = configured[0].clone();
+    unit.name = b"unit".as_slice().into();
+    let mut lint = unit.clone();
+    lint.name = b"lint".as_slice().into();
+    *configured = Box::new([unit, lint]);
+    let mut landing = row(61, policy::Phase::Proving);
+    landing.landing.members[0].gates = vec![landing.landing.members[0].gates[0]; 2].into();
+    let mut second = landing.landing.members[0].clone();
+    second.change = SECOND;
+    second.unit = 2;
+    second.candidate = Some([9; 32]);
+    landing.landing.members = Box::new([landing.landing.members[0].clone(), second]);
+    landing.landing.round.search = Some(policy::Search {
+        green: 0,
+        red: 2,
+        tests: policy::SearchTests::ByTest {
+            gates: Box::new([
+                Some(Box::new([b"crate.a".as_slice().into(), b"crate.b".as_slice().into()])),
+                Some(Box::new([
+                    b"a".as_slice().into(),
+                    b"b".as_slice().into(),
+                    b"c".as_slice().into(),
+                    b"d".as_slice().into(),
+                ])),
+            ]),
+            probed: Box::new([
+                policy::Probed { member: 1, gate: 0, run: 7, passed: true },
+                policy::Probed { member: 1, gate: 1, run: 8, passed: true },
+            ]),
+        },
+    });
+    let mut second_change = queued(SECOND, 0, 0);
+    second_change.change.way = change::Way::Turn;
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(second_change)) });
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    change.change.way = change::Way::Turn;
+    change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    change.change.ready_since = Some(env().wall);
+    change.change.landing = Some(61);
+    let got = view(&d, 61);
+    let LandingSearchTests::ByTest { gates, passes } = got.round.search.unwrap().tests else { panic!("by test") };
+    assert_eq!(gates.len(), 2);
+    assert_eq!((gates[0].gate, gates[0].name.as_ref(), gates[0].count), (0, b"unit".as_slice(), 2));
+    assert_eq!(gates[0].ids.as_ref(), &[Box::<[u8]>::from(b"crate.a".as_slice()), b"crate.b".as_slice().into()]);
+    assert_eq!((gates[1].gate, gates[1].name.as_ref(), gates[1].count), (1, b"lint".as_slice(), 4));
+    assert_eq!(
+        gates[1].ids.as_ref(),
+        &[Box::<[u8]>::from(b"a".as_slice()), b"b".as_slice().into(), b"c".as_slice().into()]
+    );
+    assert_eq!(
+        passes.as_ref(),
+        &[
+            SearchPass { member: 1, prefix: fixtures::HEAD, gate: 0, name: b"unit".as_slice().into(), run: 7 },
+            SearchPass { member: 1, prefix: fixtures::HEAD, gate: 1, name: b"lint".as_slice().into(), run: 8 },
+        ]
+    );
+    assert_eq!((got.step, got.probe), (LandingStep::ProbingByTest, Some(fixtures::HEAD)));
+    let train = changes(&d);
+    let flight = train.queues[0].in_flight.as_ref().unwrap();
+    assert_eq!((flight.step, flight.probe), (LandingStep::ProbingByTest, Some(fixtures::HEAD)));
+    let policy::SearchTests::ByTest { gates, .. } =
+        &mut d.landing.rows.get_mut(&61).unwrap().landing.round.search.as_mut().unwrap().tests
+    else {
+        panic!("by test")
+    };
+    gates[1] = None;
+    let LandingSearchTests::ByTest { gates, .. } = view(&d, 61).round.search.unwrap().tests else { panic!("by test") };
+    assert_eq!(gates.len(), 1, "unselected gate omitted");
+    for (tests, expected) in [
+        (policy::SearchTests::Whole, LandingSearchTests::Whole),
+        (policy::SearchTests::WholeAgain, LandingSearchTests::WholeAgain),
+    ] {
+        d.landing.rows.get_mut(&61).unwrap().landing.round.search.as_mut().unwrap().tests = tests;
+        let got = view(&d, 61);
+        assert_eq!(got.round.search.unwrap().tests, expected);
+        assert_eq!((got.step, got.probe), (LandingStep::Probing, Some(fixtures::HEAD)));
+    }
+}
+
+#[test]
 fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     let mut d = setup();
     let mut landing = row(61, policy::Phase::Proving);

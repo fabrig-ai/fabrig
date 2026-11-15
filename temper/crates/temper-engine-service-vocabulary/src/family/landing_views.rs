@@ -22,6 +22,7 @@ pub(super) fn step(value: forge::LandingStep) -> w::LandingStep {
         forge::LandingStep::Preparing => w::LandingStep::Preparing,
         forge::LandingStep::Proving => w::LandingStep::Proving,
         forge::LandingStep::Probing => w::LandingStep::Probing,
+        forge::LandingStep::ProbingByTest => w::LandingStep::ProbingByTest,
         forge::LandingStep::Proved => w::LandingStep::Proved,
         forge::LandingStep::Turn => w::LandingStep::Turn,
         forge::LandingStep::Landed => w::LandingStep::Landed,
@@ -68,9 +69,56 @@ pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w
             green: bound(value, search.green, limits)?,
             red: bound(value, search.red, limits)?,
             probe: value.probe,
+            tests: search_tests(&search.tests, limits)?,
         },
     )
     .ok()
+}
+fn search_tests(value: &forge::LandingSearchTests, limits: &w::Limits) -> Option<w::SearchTests> {
+    Some(match value {
+        forge::LandingSearchTests::Whole => w::SearchTests::Whole,
+        forge::LandingSearchTests::WholeAgain => w::SearchTests::WholeAgain,
+        forge::LandingSearchTests::ByTest { gates, passes } => {
+            let mut selections = List::with_capacity(u32::try_from(gates.len()).ok()?);
+            for gate in gates {
+                selections
+                    .push(
+                        w::SearchSelection::new(
+                            limits,
+                            w::SearchSelectionParts {
+                                gate: gate.gate,
+                                name: gate.name.clone(),
+                                count: gate.count,
+                                ids: List::from_boxed(gate.ids.clone()),
+                            },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            let mut probed = List::with_capacity(u32::try_from(passes.len()).ok()?);
+            for pass in passes {
+                probed
+                    .push(
+                        w::SearchPass::new(
+                            limits,
+                            w::SearchPassParts {
+                                member: pass.member,
+                                prefix: pass.prefix,
+                                gate: pass.gate,
+                                name: pass.name.clone(),
+                                run: pass.run,
+                            },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            w::SearchTests::ByTest(
+                w::SearchByTest::new(limits, w::SearchByTestParts { gates: selections, passes: probed }).ok()?,
+            )
+        }
+    })
 }
 fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<w::SearchBound> {
     let prefix = if member == 0 {

@@ -1693,12 +1693,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_four() {
+fn embedded_client_refusals_keep_their_bytes_at_client_twenty_five() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v24::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 24);
+    assert_eq!(wire::CLIENT_VERSION, 25);
 }
 
 #[test]
@@ -1986,6 +1986,75 @@ fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     assert_eq!(search.probe(), &None);
     let Some(w::LandingLeave::Blamed(blamed)) = got.members().get(1).unwrap().left() else { panic!("blamed member") };
     assert_eq!((blamed.gate(), blamed.run(), blamed.red(), blamed.green()), (2, 7, &[0x33; 32], &[0x11; 32]));
+}
+
+#[test]
+fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
+    let mut value = landing_view();
+    value.step = forge::LandingStep::ProbingByTest;
+    value.probe = Some([0x11; 32]);
+    value.round.upstream = Some([0x22; 32]);
+    value.members[0].candidate = Some([0x11; 32]);
+    value.members[0].left = None;
+    let selected = forge::LandingSearchTests::ByTest {
+        gates: Box::new([
+            forge::SearchSelection {
+                gate: 0,
+                name: b"unit".as_slice().into(),
+                count: 2,
+                ids: Box::new([b"crate.a".as_slice().into(), b"crate.b".as_slice().into()]),
+            },
+            forge::SearchSelection {
+                gate: 1,
+                name: b"lint".as_slice().into(),
+                count: 4,
+                ids: Box::new([b"a".as_slice().into(), b"b".as_slice().into(), b"c".as_slice().into()]),
+            },
+        ]),
+        passes: Box::new([
+            forge::SearchPass { member: 1, prefix: [0x11; 32], gate: 0, name: b"unit".as_slice().into(), run: 7 },
+            forge::SearchPass { member: 1, prefix: [0x11; 32], gate: 1, name: b"lint".as_slice().into(), run: 8 },
+        ]),
+    };
+    value.round.search = Some(forge::LandingSearch { green: 0, red: 1, tests: selected });
+    let bytes =
+        family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let round = got.round().as_ref().unwrap();
+    assert_eq!(round.step(), &w::LandingStep::ProbingByTest);
+    let search = round.search().as_ref().unwrap();
+    assert_eq!(search.probe(), &Some([0x11; 32]));
+    let w::SearchTests::ByTest(tests) = search.tests() else { panic!("by test") };
+    assert_eq!(tests.gates().len(), 2);
+    let unit = tests.gates().get(0).unwrap();
+    assert_eq!((unit.gate(), unit.name(), unit.count()), (0, b"unit".as_slice(), 2));
+    assert_eq!(unit.ids().as_slice(), &[Box::<[u8]>::from(b"crate.a".as_slice()), b"crate.b".as_slice().into()]);
+    let lint = tests.gates().get(1).unwrap();
+    assert_eq!((lint.gate(), lint.name(), lint.count()), (1, b"lint".as_slice(), 4));
+    assert_eq!(
+        lint.ids().as_slice(),
+        &[Box::<[u8]>::from(b"a".as_slice()), b"b".as_slice().into(), b"c".as_slice().into()]
+    );
+    let passes = tests.passes();
+    assert_eq!(passes.len(), 2);
+    for (gate, name, run) in [(0, b"unit".as_slice(), 7), (1, b"lint".as_slice(), 8)] {
+        let pass = passes.get(gate).unwrap();
+        assert_eq!(
+            (pass.member(), pass.prefix(), pass.gate(), pass.name(), pass.run()),
+            (1, &[0x11; 32], u16::try_from(gate).unwrap(), name, run)
+        );
+    }
+    for (tests, expected) in [
+        (forge::LandingSearchTests::Whole, w::SearchTests::Whole),
+        (forge::LandingSearchTests::WholeAgain, w::SearchTests::WholeAgain),
+    ] {
+        value.round.search.as_mut().unwrap().tests = tests;
+        let bytes =
+            family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS)
+                .unwrap();
+        let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(got.round().as_ref().unwrap().search().as_ref().unwrap().tests(), &expected);
+    }
 }
 
 #[test]

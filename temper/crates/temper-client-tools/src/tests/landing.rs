@@ -538,8 +538,7 @@ fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
     }
 }
 
-#[test]
-fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_json() {
+fn probing_panel(tests: w::SearchTests) -> w::LandingPanel {
     let mut parts = panel(w::LandingPhase::Proving).into_parts();
     parts.round = Some(
         w::LandingRound::new(
@@ -556,6 +555,7 @@ fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_jso
                     w::LandingSearch::new(
                         &w::CEILINGS,
                         w::LandingSearchParts {
+                            tests,
                             green: w::SearchBound::new(
                                 &w::CEILINGS,
                                 w::SearchBoundParts { member: 0, prefix: [0x22; 32] },
@@ -575,7 +575,12 @@ fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_jso
         )
         .unwrap(),
     );
-    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    w::LandingPanel::new(&w::CEILINGS, parts).unwrap()
+}
+
+#[test]
+fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_json() {
+    let panel = probing_panel(w::SearchTests::Whole);
     let text = read_panel(&panel, false);
     assert_eq!(text.status, 0);
     for words in ["step: probing at 11111111", "search: green member 0 at 22222222", "red member 3 at 33333333"] {
@@ -591,6 +596,84 @@ fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_jso
     ] {
         assert!(contains(&json.stdout, words), "{words}");
     }
+}
+
+#[test]
+fn a_search_by_test_shows_its_selections_and_passes_in_text_and_json() {
+    let gates = List::from_boxed(Box::new([
+        w::SearchSelection::new(
+            &w::CEILINGS,
+            w::SearchSelectionParts {
+                gate: 0,
+                name: b"unit".as_slice().into(),
+                count: 2,
+                ids: List::from_boxed(Box::new([b"crate.a".as_slice().into(), b"crate.b".as_slice().into()])),
+            },
+        )
+        .unwrap(),
+        w::SearchSelection::new(
+            &w::CEILINGS,
+            w::SearchSelectionParts {
+                gate: 1,
+                name: b"lint".as_slice().into(),
+                count: 4,
+                ids: List::from_boxed(Box::new([
+                    b"crate.a".as_slice().into(),
+                    b"crate.b".as_slice().into(),
+                    b"crate.c".as_slice().into(),
+                ])),
+            },
+        )
+        .unwrap(),
+    ]));
+    let passes = List::from_boxed(Box::new([
+        w::SearchPass::new(
+            &w::CEILINGS,
+            w::SearchPassParts { member: 1, prefix: [0x11; 32], gate: 0, name: b"unit".as_slice().into(), run: 7 },
+        )
+        .unwrap(),
+        w::SearchPass::new(
+            &w::CEILINGS,
+            w::SearchPassParts { member: 1, prefix: [0x11; 32], gate: 1, name: b"lint".as_slice().into(), run: 8 },
+        )
+        .unwrap(),
+    ]));
+    let mut parts = probing_panel(w::SearchTests::ByTest(
+        w::SearchByTest::new(&w::CEILINGS, w::SearchByTestParts { gates, passes }).unwrap(),
+    ))
+    .into_parts();
+    let mut round = parts.round.take().unwrap().into_parts();
+    round.step = w::LandingStep::ProbingByTest;
+    parts.round = Some(w::LandingRound::new(&w::CEILINGS, round).unwrap());
+    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    let text = read_panel(&panel, false);
+    for words in [
+        "step: probing by test at 11111111",
+        "search by test: gate unit, 2 tests: crate.a, crate.b\n",
+        "search by test: gate lint, 4 tests: crate.a, crate.b, crate.c, …\n",
+        "gate unit green by test in run 7",
+        "gate lint green by test in run 8",
+    ] {
+        assert!(contains(&text.stdout, words), "{words}");
+    }
+    let json = read_panel(&panel, true);
+    for words in [
+        "\"mode\":\"by_test\"",
+        "\"gates\":[{\"gate\":0,\"name\":\"unit\",\"count\":2,\"ids\":[\"crate.a\",\"crate.b\"]},{\"gate\":1,\"name\":\"lint\",\"count\":4,\"ids\":[\"crate.a\",\"crate.b\",\"crate.c\"]}]",
+        "\"passes\":[{\"member\":1,\"prefix\":\"11111111",
+        "\"gate\":0,\"name\":\"unit\",\"run\":7}",
+        "\"gate\":1,\"name\":\"lint\",\"run\":8}",
+    ] {
+        assert!(contains(&json.stdout, words), "{words}");
+    }
+    let again = probing_panel(w::SearchTests::WholeAgain);
+    assert!(contains(&read_panel(&again, false).stdout, "search: whole again\n"));
+    assert!(contains(&read_panel(&again, true).stdout, "\"tests\":{\"mode\":\"whole_again\"}"));
+    let whole = probing_panel(w::SearchTests::Whole);
+    let text = read_panel(&whole, false);
+    assert!(!contains(&text.stdout, "by test"));
+    assert!(!contains(&text.stdout, "whole again"));
+    assert!(contains(&read_panel(&whole, true).stdout, "\"tests\":{\"mode\":\"whole\"}"));
 }
 
 #[test]
