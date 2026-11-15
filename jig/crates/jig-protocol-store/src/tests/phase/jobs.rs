@@ -5,17 +5,19 @@ use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, O
 use alloc::collections::VecDeque;
 
 const UPSTREAM_JOB: Job = Job {
+    counts: &[],
     name: "notes-to-labels",
     keys: &[KeyRange { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO }],
     converts: None,
 };
 const APP_JOB: Job = Job {
+    counts: &[],
     name: "consume-fixtures",
     keys: &[KeyRange { from: b"l", to: b"m" }, KeyRange { from: b"s", to: b"t" }],
     converts: None,
 };
 const FOLLOW: Job =
-    Job { name: "read-the-first-jobs-writes", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None };
+    Job { counts: &[], name: "read-the-first-jobs-writes", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None };
 const JOBS: PatchSets = PatchSets {
     // Deliberately downstream first: the component chooses Owner's order.
     sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
@@ -74,12 +76,13 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
         } else {
             Box::new([])
         };
-        return JobAnswer { writes, through: None };
+        return JobAnswer { counts: Box::new([]), writes, through: None };
     }
     let first = page.rows.first().unwrap();
     if of == Owner::Jig {
         assert_eq!(first.key.as_ref(), &[2, b'n', b'/', b'0']);
         return JobAnswer {
+            counts: Box::new([]),
             writes: Box::new([
                 JobWrite::Put { key: Box::from([2, b'l', b'/', b'0']), value: label(2) },
                 JobWrite::Erase { key: first.key.clone() },
@@ -90,12 +93,16 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
     if job == FOLLOW.name {
         assert_eq!(first.key.as_ref(), b"l/finished", "a set's later job reads its earlier one's last writes");
         assert_eq!(first.value, label(1));
-        return JobAnswer { writes: Box::new([]), through: None };
+        return JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None };
     }
     if first.key.as_ref() == b"l/0" {
         assert_eq!(first.value, label(2), "jig's writes precede the application's");
     }
-    JobAnswer { writes: Box::new([JobWrite::Erase { key: first.key.clone() }]), through: Some(first.key.clone()) }
+    JobAnswer {
+        counts: Box::new([]),
+        writes: Box::new([JobWrite::Erase { key: first.key.clone() }]),
+        through: Some(first.key.clone()),
+    }
 }
 fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> {
     let mut events = VecDeque::from(first.into_vec());
@@ -140,7 +147,8 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
                 }
                 events.extend(next);
             }
-            Event::Ran { of, ref job, rows: found, commits: made, .. } => {
+            Event::Ran { of, ref job, rows: found, commits: made, ref counts, .. } => {
+                assert!(counts.is_empty(), "jobs declaring no counts report none");
                 assert_eq!(found, rows);
                 assert_eq!(made, commits);
                 assert!(done(store, of, job).is_some_and(|ended| ended <= store.stores.store.last()));
@@ -174,7 +182,7 @@ fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -
     let JobWrite::Put { value, .. } = &mut writes[0] else { unreachable!() };
     *value = vec![0; usize::try_from(1 + page.room.bytes + u64::from(extra_bytes) - bytes).unwrap()].into();
     assert_eq!(writes.iter().map(JobWrite::bytes).sum::<u64>(), page.room.bytes + u64::from(extra_bytes));
-    JobAnswer { writes: writes.into_boxed_slice(), through: None }
+    JobAnswer { counts: Box::new([]), writes: writes.into_boxed_slice(), through: None }
 }
 #[test]
 fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
@@ -197,7 +205,10 @@ fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
                 }
                 let events = disk.request(
                     &mut store,
-                    Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+                    Request::Job {
+                        owner,
+                        answer: Ok(JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+                    },
                 );
                 let (_, _, _, next) = self::page(events);
                 page = next;
@@ -267,12 +278,18 @@ fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() 
             }
             next = disk.request(
                 &mut store,
-                Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+                Request::Job {
+                    owner,
+                    answer: Ok(JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+                },
             );
         };
         assert_eq!(ending.room.writes, 3);
         assert_eq!(ending.room.bytes, bytes);
-        let events = disk.request(&mut store, Request::Job { owner, answer: Ok(JobAnswer { writes, through: None }) });
+        let events = disk.request(
+            &mut store,
+            Request::Job { owner, answer: Ok(JobAnswer { counts: Box::new([]), writes, through: None }) },
+        );
         assert!(
             events.iter().any(|e| match e {
                 Event::Ran { of: found, .. } => *found == of,
@@ -324,6 +341,129 @@ fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_
     assert!(!disk.tree().iter().any(|(path, ..)| path.as_ref() == b"generations/3"));
 }
 #[test]
+fn job_counts_sum_each_answer_in_declared_order_and_reset_between_jobs() {
+    const COUNTED: Job = Job { counts: &["dropped", "kept"], keys: &[KeyRange { from: b"l", to: b"m" }], ..APP_JOB };
+    const NEXT: Job = Job { name: "count-again", counts: &["after"], ..COUNTED };
+    const SETS: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[COUNTED, NEXT], ..BASE.sets[0] }, BASE.sets[1]] };
+    for (answers, expected) in [
+        ([[2, 1], [3, 0], [0, 0]], [5, 1]),
+        ([[2, 1], [3, 0], [7, 2]], [12, 3]),
+        ([[u64::MAX, 0], [1, u64::MAX], [0, 1]], [u64::MAX, u64::MAX]),
+    ] {
+        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut store = store(&disk, SETS);
+        let mut events = disk.open(&mut store);
+        for (declared, answers, expected) in [
+            (COUNTED, answers.map(|counts| Box::from(counts.as_slice())), expected.to_vec()),
+            (NEXT, [Box::from([0].as_slice()), Box::from([0].as_slice()), Box::from([0].as_slice())], vec![0]),
+        ] {
+            for (index, counts) in answers.into_iter().enumerate() {
+                let (owner, of, job, page) = page(events);
+                assert_eq!((of, job.as_ref()), (Owner::Application, declared.name));
+                assert_eq!(page.end, index == 2);
+                let through = page.rows.first().map(|row| row.key.clone());
+                events = disk.request(
+                    &mut store,
+                    Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through, counts }) },
+                );
+            }
+            let mut progress = events.into_vec();
+            let Event::Ran { job, counts, commits: 3, .. } = progress.remove(0) else {
+                panic!("job progress: {progress:?}")
+            };
+            assert_eq!(job.as_ref(), declared.name);
+            assert_eq!(
+                counts.iter().map(|count| (count.name.as_ref(), count.count)).collect::<Vec<_>>(),
+                declared.counts.iter().copied().zip(expected).collect::<Vec<_>>()
+            );
+            events = progress.into_boxed_slice();
+        }
+        assert!(if let Some(Event::Opened { .. }) = events.first() { true } else { false }, "{events:?}");
+    }
+}
+#[test]
+fn job_answers_with_counts_not_one_per_name_refuse_without_changing_the_active_generation() {
+    for (names, wrong) in
+        [(&["dropped", "kept"][..], 0), (&["dropped", "kept"][..], 1), (&["dropped", "kept"][..], 3), (&[][..], 1)]
+    {
+        let declared = Job { counts: names, ..UPSTREAM_JOB };
+        let sets = PatchSets {
+            sets: Box::leak(Box::new([
+                BASE.sets[0],
+                PatchSet { jobs: Box::leak(Box::new([declared])), ..BASE.sets[1] },
+            ])),
+        };
+        let mut disk = Disk::new(&fixture_baseline(None));
+        let before = snapshot(&mut disk);
+        let mut store = store(&disk, sets);
+        let (owner, of, job, first) = page(disk.open(&mut store));
+        let mut response = answer(&first, of, &job);
+        response.counts = vec![0; names.len()].into();
+        let (_, _, _, end) = page(disk.request(&mut store, Request::Job { owner, answer: Ok(response) }));
+        assert!(end.end);
+        let events = disk.request(
+            &mut store,
+            Request::Job {
+                owner,
+                answer: Ok(JobAnswer { writes: Box::new([]), through: None, counts: vec![0; wrong].into() }),
+            },
+        );
+        let [Event::OpenRefused { why: OpenRefusal::Job { owner: Owner::Jig, job, why, .. }, .. }] = events.as_ref()
+        else {
+            panic!("count refusal: {events:?}")
+        };
+        assert_eq!(job.as_ref(), declared.name);
+        assert!(why.contains("counts are not one per declared name"), "{why}");
+        assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+        assert_eq!(snapshot(&mut disk), before);
+    }
+}
+#[test]
+fn job_admission_checks_count_name_bounds_alphabet_and_uniqueness() {
+    let sixteen: &'static [&'static str] = Box::leak(
+        (0_u32..16).map(|n| &*Box::leak(format!("Count-{n}").into_boxed_str())).collect::<Vec<_>>().into_boxed_slice(),
+    );
+    let seventeen: &'static [&'static str] = Box::leak(
+        (0_u32..17).map(|n| &*Box::leak(format!("Count-{n}").into_boxed_str())).collect::<Vec<_>>().into_boxed_slice(),
+    );
+    let bound: &'static str = "n".repeat(32).leak();
+    let past: &'static str = "n".repeat(33).leak();
+    for (base, job) in [(BASE.sets[0], APP_JOB), (BASE.sets[1], UPSTREAM_JOB)] {
+        for (names, accepted) in [
+            (&[][..], true),
+            (&["aZ09-"][..], true),
+            (&[bound][..], true),
+            (sixteen, true),
+            (&[""][..], false),
+            (&[past][..], false),
+            (&["has space"][..], false),
+            (&["café"][..], false),
+            (&["under_score"][..], false),
+            (&["same", "same"][..], false),
+            (seventeen, false),
+        ] {
+            let names = Box::leak(names.to_vec().into_boxed_slice());
+            let sets = PatchSets {
+                sets: Box::leak(Box::new([PatchSet {
+                    jobs: Box::leak(Box::new([Job { counts: names, ..job }])),
+                    ..base
+                }])),
+            };
+            let mut disk = Disk::new(&[]);
+            let mut store = store(&disk, sets);
+            let events = disk.open(&mut store);
+            if accepted {
+                assert_opened(&events, 0);
+            } else {
+                let [Event::OpenRefused { why: OpenRefusal::Set { owner, patch: 0 }, .. }] = events.as_ref() else {
+                    panic!("{names:?}: {events:?}")
+                };
+                assert_eq!(*owner, base.owner);
+            }
+        }
+    }
+}
+#[test]
 fn an_empty_stores_first_commit_marks_every_declared_job_done() {
     let mut disk = Disk::new(&[]);
     let mut store = store(&disk, JOBS);
@@ -357,7 +497,7 @@ fn refused_or_out_of_bounds_answers_abandon_the_copy_and_retry_from_the_first_pa
         let (owner, _, _, end) =
             page(disk.request(&mut store, Request::Job { owner, answer: Ok(answer(&first, of, &job)) }));
         assert!(end.end);
-        let mut response = JobAnswer { writes: Box::new([]), through: None };
+        let mut response = JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None };
         let result = match flaw {
             "owner refusal" => Err(JobRefusal { key: Some(first_key.clone()), why: "owner says no".into() }),
             "operations" => {
@@ -419,7 +559,10 @@ fn a_nonempty_pages_through_must_consume_a_key_of_that_page() {
         assert!(!first.end && !first.rows.is_empty());
         let events = disk.request(
             &mut store,
-            Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: Some(through.into()) }) },
+            Request::Job {
+                owner,
+                answer: Ok(JobAnswer { counts: Box::new([]), writes: Box::new([]), through: Some(through.into()) }),
+            },
         );
         assert!(match events.as_ref() {
             [Event::OpenRefused { why: OpenRefusal::Job { .. }, .. }] => true,

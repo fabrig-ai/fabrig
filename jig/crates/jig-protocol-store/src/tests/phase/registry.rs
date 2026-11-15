@@ -263,6 +263,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
         converts: Some(crate::Converts { family: holder.name, value_type: 0, from }),
@@ -538,7 +539,8 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job = crate::Job { name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
+const NOOP: crate::Job =
+    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -547,7 +549,10 @@ fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<
         if let Event::Job { owner, .. } = event {
             pending.extend(disk.request(
                 store,
-                Request::Job { owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+                Request::Job {
+                    owner,
+                    answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+                },
             ));
         } else {
             terminal.push(event);
@@ -621,6 +626,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,
         converts: Some(crate::Converts { family: FAMILY.name, value_type: 0, from }),
@@ -652,7 +658,10 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
         // the owner's promise to convert its from-layout, not a new plan.
         events = disk.request(
             &mut store,
-            Request::Job { owner: *owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+            Request::Job {
+                owner: *owner,
+                answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+            },
         );
     }
     assert_eq!(pages, 2);

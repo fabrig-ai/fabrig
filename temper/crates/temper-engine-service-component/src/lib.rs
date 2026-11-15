@@ -236,12 +236,13 @@ pub enum Note {
         layer: &'static str,
         reason: &'static str,
     },
-    /// One patch finished before the store opened (jig's protocol/store/opening.md, 2).
+    /// One job finished before the store opened (jig's protocol/store/jobs.md, 3).
     Ran {
         of: jig_protocol_store::Owner,
         job: Box<str>,
         rows: u64,
         commits: u64,
+        counts: Box<[jig_protocol_store::JobCount]>,
     },
     Patched {
         of: jig_protocol_store::Owner,

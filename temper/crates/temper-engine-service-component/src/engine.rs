@@ -793,7 +793,7 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }
-            jig_protocol_store::Event::Ran { owner, of, job, rows, commits } => {
+            jig_protocol_store::Event::Ran { owner, of, job, rows, commits, counts } => {
                 if let Some(state) = &mut engine.upgrade {
                     state.report.events.push(jig_protocol_store::Event::Ran {
                         owner,
@@ -801,9 +801,13 @@ pub(crate) fn answer(engine: &mut Engine) {
                         job: job.clone(),
                         rows,
                         commits,
+                        counts: counts.clone(),
                     });
                 }
-                engine.notes.try_push(crate::Note::Ran { of, job, rows, commits }).expect("job progress note room");
+                engine
+                    .notes
+                    .try_push(crate::Note::Ran { of, job, rows, commits, counts })
+                    .expect("job progress note room");
             }
             event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
                 crate::store::route::site(
