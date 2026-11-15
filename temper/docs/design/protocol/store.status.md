@@ -1,7 +1,11 @@
 # store: status
 
-2026-11-14. Where temper's code lags or departs from [store.md](store.md).
+2026-11-15. Where temper's code lags or departs from [store.md](store.md).
 
+- **Not yet:** 2, *A repository's release*: a release leaves the rows of
+  families 1, 3, 5 to 10, 13 to 15, 21, 23, 24, 28 to 30 and 46 to 48
+  that name the repository, and writes in no pages
+  [in flight: change 3717].
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
