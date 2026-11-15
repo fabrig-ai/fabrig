@@ -7,6 +7,16 @@ use crate::{logs, open};
 use alloc::boxed::Box;
 
 pub(crate) const OWNER: Token = Token::new(0x5456);
+
+pub(crate) fn waiting(store: &Store) -> bool {
+    if let Some(owner) = store.transcripts.reading
+        && let Some(read) = store.transcripts.reads.get(&owner)
+        && let Step::Log { waiting: true, .. } = read.step
+    {
+        return true;
+    }
+    false
+}
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Source {
     File,

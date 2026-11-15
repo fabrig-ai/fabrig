@@ -9,7 +9,7 @@ use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};
 mod party;
 mod source;
 use source::Source;
-pub(crate) use source::{OWNER as LOG_OWNER, arrived as log_arrived};
+pub(crate) use source::{OWNER as LOG_OWNER, arrived as log_arrived, waiting as log_waiting};
 pub(crate) const OWNER: Token = Token::new(0x5453);
 #[derive(Debug)]
 pub(crate) struct Party {

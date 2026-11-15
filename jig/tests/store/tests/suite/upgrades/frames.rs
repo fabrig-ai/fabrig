@@ -58,6 +58,12 @@ pub(crate) fn kinds() -> [TranscriptRead; 4] {
 fn ask(read: TranscriptRead, bytes: u64) -> Request {
     Request::Transcript { owner: READER, read, rows: patches::limits().store.page.rows, bytes }
 }
+pub(crate) fn log_frame_bytes(turn: &jig_domain_core::TurnRecord) -> u64 {
+    let limits = root::limits();
+    let codec = store::codec::limits(&limits.core).expect("codec");
+    let kv = skein_kv::Store::memory(&limits.store);
+    kv.frame(&store::codec::core::turn(turn, &codec).expect("turn body")).expect("log frame").len()
+}
 fn fixture(sets: PatchSets, transcript: &[u8]) -> World {
     let mut world = World::unopened_observed(41, patches::limits(), None);
     world.patch_sets(sets);
@@ -459,9 +465,6 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
 fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
     const COUNT: u32 = 3;
     let transcript = frame_reads::turn(1, b"said", b"replay", 0);
-    let limits = patches::limits();
-    let codec = store::codec::limits(&limits.core).expect("codec");
-    let kv = skein_kv::Store::memory(&limits.store);
     let mut offsets = Vec::new();
     let mut end = 0;
     for number in 1..=COUNT {
@@ -470,8 +473,7 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
         if number == 1 {
             turn.spent = frames::SPENT;
         }
-        let body = store::codec::core::turn(&turn, &codec).expect("turn body");
-        end += kv.frame(&body).expect("log frame").len();
+        end += log_frame_bytes(&turn);
     }
     let mut world = fixture(frame_reads::SETS, &transcript);
     for turn in 2..=COUNT {

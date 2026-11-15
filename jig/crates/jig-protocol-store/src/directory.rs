@@ -969,7 +969,7 @@ pub(crate) fn events_up(
                 }
             }
             skein_kv::Event::Refused { owner, refusal } => {
-                if owner == crate::transcripts::read::LOG_OWNER {
+                if owner == crate::transcripts::read::LOG_OWNER && crate::transcripts::read::log_waiting(store) {
                     crate::transcripts::read::log_arrived(store, None, above, below);
                     continue;
                 }

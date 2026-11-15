@@ -291,7 +291,10 @@ impl Referee {
             outcome.idle_elapsed = self.idle_until.is_some_and(|until| now >= until);
             outcome.idle_elapsed && parked
         } else {
+            // Observe the retry on its agent pipe before terminating the fixture.
+            // A taken claim can precede its worker's asynchronous spawn.
             task.attempt == 2
+                && service.wire.events.iter().any(|event| matches!(event, rules::Observed::Assigned { attempt: 2, .. }))
         })
     }
     fn say(&mut self, now: Time, event: rules::Observed) -> Result<(), String> {

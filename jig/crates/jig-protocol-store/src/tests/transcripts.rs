@@ -316,16 +316,26 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     );
     let [Event::Committed { number: 1, .. }] = &*committed else { panic!("prior commit durable: {committed:?}") };
     let first = fixtures::turn(LIVE, 1, 2, b"new");
-    let oversized = fixtures::turn(23, 1, 1, b"long");
+    let oversized = fixtures::turn(23, 1, 1, b"longer and less repetitive");
     let limit = u32::try_from(
-        crate::transcripts::frame::encode(&first, &store.codec_limits).expect("bounded tiny frame fixture").len(),
+        store
+            .stores
+            .store
+            .frame(&crate::codec::core::turn(&first, &store.codec_limits).expect("turn body"))
+            .expect("log frame")
+            .len(),
     )
     .expect("bounded tiny frame fixture");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&oversized, &store.codec_limits).expect("bounded tiny frame fixture").len(),
+        store
+            .stores
+            .store
+            .frame(&crate::codec::core::turn(&oversized, &store.codec_limits).expect("turn body"))
+            .expect("log frame")
+            .len(),
     )
     .expect("bounded tiny frame fixture");
-    assert_eq!(bytes, limit.checked_add(1).expect("bounded tiny frame fixture"));
+    assert!(bytes > limit);
     store.limits.store.page.bytes = limit;
     let before = disk.requests().len();
     let refused = disk.request(

@@ -415,3 +415,21 @@ fn log_places_include_turns_queued_behind_a_files_sync() {
     assert_eq!(got.as_ref(), &turns);
     assert_eq!(next, None);
 }
+
+#[test]
+fn a_commit_refusal_with_the_private_log_token_is_not_lost() {
+    let mut store = opened();
+    let mut events = Queue::uncapped();
+    let owner = crate::transcripts::read::LOG_OWNER;
+    events.push(skein_kv::Event::Refused { owner, refusal: skein_kv::Refusal::Busy });
+    let mut above = Queue::uncapped();
+    let mut below = fixtures::below();
+    crate::directory::events_up(&mut store, false, &mut events, &mut above, &mut below);
+    let Some(Event::Failed { number, why: crate::CommitFailure::Refused(skein_kv::Refusal::Busy) }) = above.pop()
+    else {
+        panic!("a commit number can equal the read's private token");
+    };
+    assert_eq!(number, owner.raw());
+    assert!(above.is_empty());
+    assert_eq!(store.phase, crate::Phase::Stopped);
+}
