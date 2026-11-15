@@ -3,13 +3,11 @@ use super::{
     accounts::{self, PasteState, SignInState, Way},
     connect_model,
 };
-use crate::{
-    Domain,
-    forge::{
-        self,
-        forges::{self, State as Forges},
-    },
+use crate::forge::{
+    self,
+    forges::{self, State as Forges},
 };
+use crate::pages::Root;
 use alloc::boxed::Box;
 use jig_client::{Latest, State};
 #[derive(Debug)]
@@ -51,7 +49,7 @@ pub enum ModelStep {
 }
 /// None until the page and `me` are in.
 #[must_use]
-pub fn model_step(root: &Domain) -> Option<ModelStep> {
+pub fn model_step(root: &dyn Root) -> Option<ModelStep> {
     let page = root.pages().connect_model()?;
     accounts::current_me(root.client())?;
     match page.login_state(root.client()) {
@@ -106,7 +104,7 @@ pub fn step_marks(at: crate::Step, forge_kept: bool, model_usable: bool) -> [Ste
 }
 /// A real forge is kept, even under way or cut short: what `decision` calls kept.
 #[must_use]
-pub fn forge_kept(root: &Domain) -> bool {
+pub fn forge_kept(root: &dyn Root) -> bool {
     let rows = match root.forges() {
         Forges::Rows(rows) => rows,
         Forges::Unknown | Forges::Ended => return false,
@@ -120,7 +118,7 @@ pub fn forge_kept(root: &Domain) -> bool {
 }
 /// Where "Go on setting up" and Forge's and Model's "Continue" go: Ready with a usable model, else Model.
 #[must_use]
-pub fn go_on(root: &Domain) -> crate::Step {
+pub fn go_on(root: &dyn Root) -> crate::Step {
     if model_counts(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
 }
 /// The store's first-run state (temper/docs/design/client/pages/README.md).
@@ -132,7 +130,7 @@ pub enum FirstRun {
 }
 /// None while the session's deployment, playground, forge or account facts are missing.
 #[must_use]
-pub fn decision(root: &Domain) -> Option<FirstRun> {
+pub fn decision(root: &dyn Root) -> Option<FirstRun> {
     root.forge().deployment()?;
     let me = accounts::current_me(root.client())?;
     if !root.forge().playground_answered() {
@@ -170,7 +168,7 @@ pub fn decision(root: &Domain) -> Option<FirstRun> {
 /// or the welcome's decision is past its first step, or `me` names a
 /// project (temper/docs/design/client/tui/box.md).
 #[must_use]
-pub fn signed_in(root: &Domain) -> bool {
+pub fn signed_in(root: &dyn Root) -> bool {
     if root.forge().linked() == Some(true) {
         return true;
     }
@@ -200,7 +198,7 @@ pub fn forge_connected(row: &forges::Row) -> bool {
 /// Ready's Create needs a connected real forge and a usable model, not the
 /// first-run routing decision (temper/docs/design/client/pages/welcome.md, 1).
 #[must_use]
-pub fn ready(root: &Domain) -> bool {
+pub fn ready(root: &dyn Root) -> bool {
     if model_counts(root) != Some(true) {
         return false;
     }
@@ -299,7 +297,7 @@ pub enum Ended {
 }
 /// A real account alone keeps the playground offered (3.5).
 #[must_use]
-pub fn playground_offered(root: &Domain) -> Option<bool> {
+pub fn playground_offered(root: &dyn Root) -> Option<bool> {
     if !root.forge().deployment()?.welcome {
         return Some(false);
     }
@@ -322,7 +320,7 @@ pub fn playground_offered(root: &Domain) -> Option<bool> {
 
 /// The welcome reads model facts, including an ended watch.
 #[must_use]
-pub fn model_usable(root: &Domain) -> Option<bool> {
+pub fn model_usable(root: &dyn Root) -> Option<bool> {
     let document = root.client().document(accounts::handle())?;
     let accounts = if document.state == State::Ended {
         None
@@ -342,7 +340,7 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
 
 /// `model_usable`, or a declaration whose host’s check is out (client/pages/README.md, *The try*).
 #[must_use]
-pub fn model_counts(root: &Domain) -> Option<bool> {
+pub fn model_counts(root: &dyn Root) -> Option<bool> {
     if let Some(page) = root.pages().connect_model() {
         match page.check {
             connect_model::ProgramCheck::Declaring | connect_model::ProgramCheck::Checking { .. } => return Some(true),
@@ -350,4 +348,50 @@ pub fn model_counts(root: &Domain) -> Option<bool> {
         }
     }
     model_usable(root)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Setup {
+    pub playground: bool,
+    pub forge: bool,
+    pub model: bool,
+    pub step: crate::Step,
+}
+#[must_use]
+pub fn setup(root: &dyn Root) -> Option<Setup> {
+    if !root.forge().playground_answered()
+        || root.forge().playground_running()
+        || match decision(root) {
+            Some(FirstRun::Empty | FirstRun::Unfinished { .. }) => false,
+            Some(FirstRun::Whole) | None => true,
+        }
+    {
+        return None;
+    }
+    let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
+    let mut connected = false;
+    let mut started = false;
+    let mut personal_connected = false;
+    for row in &forge::listed::rows(root.forges(), forge::connect::playground(root.forge())) {
+        if let forges::Connection::Connected { .. } = row.connection {
+            personal_connected = true;
+            connected |= !forge::connect::underway(row) && !forge::connect::failed(row);
+            started = true;
+        }
+        started |= forge::connect::underway(row);
+    }
+    let model = !model_usable(root)?;
+    let step = if owner && !started {
+        crate::Step::Forge { forge: None }
+    } else if model {
+        crate::Step::Model { way: None }
+    } else {
+        crate::Step::Ready
+    };
+    Some(Setup {
+        playground: !personal_connected && root.forge().playground().is_some(),
+        forge: owner && !connected,
+        model,
+        step,
+    })
 }

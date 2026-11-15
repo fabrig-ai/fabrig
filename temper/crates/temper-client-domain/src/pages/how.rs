@@ -1,5 +1,6 @@
 //! How work runs' parts, reaches, landing boxes and budgets
 //! (temper/docs/design/client/pages/settings.md, 2, *Its parts* and *What reaches you*).
+use crate::pages::Root;
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::{List, Map, Queue, Wall};
@@ -131,7 +132,7 @@ pub fn parts(facts: &Facts) -> Parts {
 
 /// Gather from `me`, the forge's kinds 7 and 8, ways and roles held for the address.
 #[must_use]
-pub fn facts(root: &crate::Domain, project: u32) -> Facts {
+pub fn facts(root: &dyn Root, project: u32) -> Facts {
     use crate::{Address, pages::stock_ways::State};
     let pages = root.pages();
     let me = pages.me(root.client());
@@ -465,7 +466,7 @@ fn follow_owner(
 }
 /// The running way, not the inspected tab (client/pages/settings.md, 2, *Its parts*).
 #[must_use]
-pub fn landed(root: &crate::Domain, project: u32) -> Landed {
+pub fn landed(root: &dyn Root, project: u32) -> Landed {
     let pages = root.pages();
     if pages.address() != &(crate::Address::Settings { project }) {
         return follows(None, None, None, 0, &[]);

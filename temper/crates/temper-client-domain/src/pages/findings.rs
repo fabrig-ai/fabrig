@@ -1,7 +1,8 @@
 //! The person's findings in Needs you (temper/docs/design/client/pages/needs-you.md, 1).
 use super::{Pages, Request, inbox::Inbox, needs};
+use crate::pages::{Root, Routing};
 use crate::{
-    Domain, Limits,
+    Limits,
     address::{Filter, Kind},
     forge,
     owner::Owner,
@@ -315,7 +316,7 @@ impl Need<'_> {
         }
     }
     #[must_use]
-    pub fn ready(self, root: &Domain) -> bool {
+    pub fn ready(self, root: &dyn Root) -> bool {
         match self {
             Self::Existing(need) => needs::ready(root, need),
             Self::Finding(_) => true,
@@ -545,14 +546,15 @@ fn send(card: &mut Card, request: w::Request, serial: &mut u64, env: &Env<Limits
     out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
 }
 
-pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<crate::Request>) {
-    let wanted = super::decided::wanted(root);
-    let more = match root.pages.me(root.client()) {
+pub(crate) fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
+    let wanted = super::decided::wanted(&*root);
+    let more = match root.pages().me(root.client()) {
         Some(me) => wanted.len() == PROJECTS && me.projects.len() > wanted.len(),
         None => false,
     };
     let mut requests = Queue::uncapped();
-    let pages = &mut root.pages;
+    let parts = root.parts();
+    let pages = parts.pages;
     let mut kept = List::with_capacity(PROJECTS);
     for held in core::mem::replace(&mut pages.needs.findings.projects, List::with_capacity(PROJECTS)).into_boxed() {
         if wanted.as_slice().contains(&held.project) {
@@ -594,7 +596,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
             routing |= card.mode == Mode::Route && Some(card.id) == shown;
         }
         if routing && held.goals_handle.is_none() {
-            if let Some(document) = root.client.document(super::me_handle())
+            if let Some(document) = parts.client.document(super::me_handle())
                 && let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest
                 && let Some(query) = super::goals::query(me, held.project)
             {
@@ -615,6 +617,6 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
         }
     }
     while let Some(event) = requests.pop() {
-        crate::route::client(root, env, event, out);
+        root.request(env, Request::Client(event));
     }
 }

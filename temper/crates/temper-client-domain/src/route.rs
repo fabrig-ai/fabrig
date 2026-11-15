@@ -1,12 +1,12 @@
 //! Route the shared client's tells to temper's owning child.
 use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge, owner::Owner};
-use skein_lib::{Env, Queue};
+use skein_lib::{Env, List, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
-    crate::pages::decided::reconcile(root, env, out);
-    crate::pages::home::look(root, env, out);
+    crate::pages::decided::reconcile(&mut Routed { root, out }, env);
+    crate::pages::home::look(&mut Routed { root, out }, env);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     if let Event::Act { .. } = &event {
@@ -14,7 +14,9 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
     }
     match event {
         Event::Push(report) => pages(root, env, crate::pages::Event::Push(report), out),
-        Event::Lends { terminal } => crate::pages::accounts::terminal_login::offer(root, env, terminal, out),
+        Event::Lends { terminal } => {
+            crate::pages::accounts::terminal_login::offer(&mut Routed { root, out }, env, terminal);
+        }
         Event::AskApproval => crate::asked::ask(root, env, out),
         Event::Launchpad => {
             let mut requests = Queue::uncapped();
@@ -44,7 +46,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Went { place } => went(root, env, place, out),
         Event::Act { action } => match action {
             Action::LoginEnded { number, exit } => {
-                crate::pages::accounts::terminal_login::ended(root, env, number, exit, out);
+                crate::pages::accounts::terminal_login::ended(&mut Routed { root, out }, env, number, exit);
             }
             Action::Approve(act) => crate::approve::act(root, act),
             Action::Copy { words } => root.copy.press(words, out),
@@ -60,9 +62,13 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
-            Action::Pages(crate::pages::Act::HandArea(act)) => crate::pages::team::hand::act(root, env, act, out),
-            Action::Pages(crate::pages::Act::StopAsking(act)) => crate::pages::stop_asking::act(root, env, act, out),
-            Action::Pages(crate::pages::Act::Away(act)) => crate::pages::away::act(root, env, act, out),
+            Action::Pages(crate::pages::Act::HandArea(act)) => {
+                crate::pages::team::hand::act(&mut Routed { root, out }, env, act);
+            }
+            Action::Pages(crate::pages::Act::StopAsking(act)) => {
+                crate::pages::stop_asking::act(&mut Routed { root, out }, env, act);
+            }
+            Action::Pages(crate::pages::Act::Away(act)) => crate::pages::away::act(&mut Routed { root, out }, env, act),
             Action::Pages(act) => pages(root, env, crate::pages::Event::Act { act }, out),
             Action::Forge(act) => forge(root, env, forge::Event::Act { act }, out),
         },
@@ -77,7 +83,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
     // Findings subscriptions follow the event's foreground reads and acts.
-    crate::pages::findings::reconcile(root, env, out);
+    crate::pages::findings::reconcile(&mut Routed { root, out }, env);
 }
 fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
@@ -126,7 +132,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         | crate::pages::Event::Told { .. }
         | crate::pages::Event::Link { .. } => false,
     };
-    crate::pages::chat::sheet::step(root, env, event, &mut child);
+    crate::pages::chat::sheet::step(&mut Routed { root, out }, env, event, &mut child);
     route_pages(root, env, &mut child, out);
     let subject = match root.pages.task() {
         Some(task) => task.panel(&root.client, root.forge_number()),
@@ -141,8 +147,8 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
     } else if task_document && let Some(subject) = subject {
         refresh_panel(root, env, subject, false, out);
     }
-    crate::pages::decided::reconcile(root, env, out);
-    crate::pages::home::look(root, env, out);
+    crate::pages::decided::reconcile(&mut Routed { root, out }, env);
+    crate::pages::home::look(&mut Routed { root, out }, env);
 }
 
 fn refresh_panel(
@@ -185,18 +191,21 @@ fn route_pages(
     out: &mut Queue<Request>,
 ) {
     for _ in 0..child.len() {
-        match child.pop().expect("counted pages output") {
-            crate::pages::Request::Push(duty) => out.push(Request::Push(duty)),
-            crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
-            crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
-            crate::pages::Request::OpenTab { provider } => {
-                root.tab = root.pages.sign_in_key();
-                out.push(Request::Tab { tab: crate::Tab::Open { provider } });
-            }
-            crate::pages::Request::Client(event) => client(root, env, event, out),
-            crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
-            crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),
+        page_request(root, env, child.pop().expect("counted pages output"), out);
+    }
+}
+fn page_request(root: &mut Domain, env: &Env<Limits>, request: crate::pages::Request, out: &mut Queue<Request>) {
+    match request {
+        crate::pages::Request::Push(duty) => out.push(Request::Push(duty)),
+        crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
+        crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
+        crate::pages::Request::OpenTab { provider } => {
+            root.tab = root.pages.sign_in_key();
+            out.push(Request::Tab { tab: crate::Tab::Open { provider } });
         }
+        crate::pages::Request::Client(event) => client(root, env, event, out),
+        crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
+        crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),
     }
 }
 
@@ -334,17 +343,17 @@ pub(crate) fn route_unlinked(
 }
 pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     tell(root, env, told, out);
-    crate::pages::decided::reconcile(root, env, out);
-    crate::pages::home::look(root, env, out);
-    forge::trials::look(root, env, out);
+    crate::pages::decided::reconcile(&mut Routed { root, out }, env);
+    crate::pages::home::look(&mut Routed { root, out }, env);
+    trials(root, env, out);
 }
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
     crate::sign_in_tab::told(root, &told, out);
-    if crate::pages::team::hand::told(root, env, &told, out) {
+    if crate::pages::team::hand::told(&mut Routed { root, out }, env, &told) {
         return;
     }
-    if crate::pages::stop_asking::told(root, env, &told) {
+    if crate::pages::stop_asking::told(&mut Routed { root, out }, env, &told) {
         return;
     }
     let asker = match &told {
@@ -536,7 +545,7 @@ pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mu
 
 /// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/pages/README.md).
 pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    crate::pages::forge_progress(root, env, out);
+    crate::pages::forge_progress(&mut Routed { root, out }, env);
     if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
         root.pages.address()
         && let forge::forges::State::Rows(rows) = root.forges()
@@ -618,7 +627,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
 fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
     let consumed = forge::ways::told(&mut root.forge, env.now, &root.client, told, env.limits.forge, &mut child);
-    crate::pages::stop_asking::applied(root, env, told);
+    crate::pages::stop_asking::applied(&mut Routed { root, out }, env, told);
     route_forge(root, env, &mut child, out);
     if consumed
         && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told
@@ -680,37 +689,10 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
         && let Some(accounts) = crate::pages::accounts::document(&root.client)
         && accounts.settled
         && !accounts.cut
-        && program_settled(accounts, source)
+        && crate::pages::accounts::program_settled(accounts, source)
     {
         page.check = ProgramCheck::NotYet;
     }
-}
-
-/// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
-pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
-    if accounts.program_hosts.is_empty() {
-        return true;
-    }
-    for account in &accounts.accounts {
-        for row in &account.sources {
-            if row.number != source {
-                continue;
-            }
-            let Some(name) = &row.name else { return false };
-            for host in &accounts.program_hosts {
-                if host.connected && host.awaiting_logins {
-                    return false;
-                }
-                for login in &host.programs {
-                    if host.connected && login.name == *name && login.state.is_none() {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-    }
-    false
 }
 
 fn approval(root: &mut Domain, env: &Env<Limits>, answer: jig_client::Approval, out: &mut Queue<Request>) {
@@ -721,5 +703,134 @@ fn approval(root: &mut Domain, env: &Env<Limits>, answer: jig_client::Approval, 
         answer @ (jig_client::Approval::Read { .. } | jig_client::Approval::Decided { .. }) => {
             crate::approve::answered(root, env, answer);
         }
+    }
+}
+
+/// Routes a page's act immediately (temper/docs/design/client/domain-crates.md, 3.2).
+pub(crate) struct Routed<'a> {
+    pub(crate) root: &'a mut Domain,
+    pub(crate) out: &'a mut Queue<Request>,
+}
+impl crate::pages::Root for Routed<'_> {
+    fn pages(&self) -> &crate::pages::Pages {
+        Domain::pages(self.root)
+    }
+    fn client(&self) -> &jig_client::Client {
+        Domain::client(self.root)
+    }
+    fn forge(&self) -> &forge::Side {
+        Domain::forge(self.root)
+    }
+    fn forges(&self) -> &forge::forges::State {
+        Domain::forges(self.root)
+    }
+    fn zone_minutes(&self) -> i32 {
+        Domain::zone_minutes(self.root)
+    }
+    fn away_on(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        Domain::away_on(self.root, project, wall)
+    }
+    fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        Domain::away_shown(self.root, project, wall)
+    }
+}
+
+impl crate::pages::Routing for Routed<'_> {
+    fn pages_mut(&mut self) -> &mut crate::pages::Pages {
+        &mut self.root.pages
+    }
+    fn parts(&mut self) -> crate::pages::Parts<'_> {
+        crate::pages::Parts {
+            pages: &mut self.root.pages,
+            client: &self.root.client,
+            forge: &mut self.root.forge,
+            terminal: &mut self.root.terminal,
+        }
+    }
+    fn request(&mut self, env: &Env<Limits>, request: crate::pages::Request) {
+        page_request(self.root, env, request, self.out);
+    }
+    fn event(&mut self, env: &Env<Limits>, event: crate::pages::Event) {
+        pages(self.root, env, event, self.out);
+    }
+    fn forge_requests(&mut self, env: &Env<Limits>, requests: &mut Queue<forge::Request>) {
+        route_forge(self.root, env, requests, self.out);
+    }
+}
+
+/// Told after the pages (temper/docs/design/domain/trial.md, 6).
+/// Reads the accounts document; the page holds no state of it.
+fn trials(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let Some(document) = crate::pages::accounts::document(&root.client) else { return };
+    let mut usable = List::with_capacity(document.accounts.len());
+    for account in &document.accounts {
+        for source in &account.sources {
+            if source.usable {
+                usable.push(account.number).expect("one usable entry per account");
+                break;
+            }
+        }
+    }
+    let seen = root.forge.trials.seen.replace(usable);
+    let Some(seen) = seen else { return };
+    match root.pages.address() {
+        Address::Welcome { step: crate::Step::Model { .. } | crate::Step::Ready } | Address::ConnectModel { .. } => {}
+        Address::Told | Address::Remembered | Address::Members | Address::Limits | Address::Accounts => {
+            let Some(page) = root.pages.accounts() else { return };
+            if page.added.is_none() || !page.added_from_connect {
+                return;
+            }
+        }
+        Address::Welcome { step: crate::Step::Welcome | crate::Step::WelcomeAsked | crate::Step::Forge { .. } }
+        | Address::AllHome
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Models { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Chat { .. }
+        | Address::Talk { .. }
+        | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Team { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
+        | Address::Adopt { .. } => return,
+    }
+    let mut accounts = List::with_capacity(document.accounts.len());
+    for account in &document.accounts {
+        if seen.as_slice().contains(&account.number) {
+            continue;
+        }
+        if let Some(provider) = root.forge.playground_provider()
+            && account.provider == Some(provider)
+        {
+            continue;
+        }
+        let mut has_row = false;
+        for row in &root.forge.trials.rows {
+            has_row |= row.account == account.number;
+        }
+        if has_row {
+            continue;
+        }
+        for source in &account.sources {
+            if source.usable {
+                accounts.push(account.number).expect("one new entry per account");
+                break;
+            }
+        }
+    }
+    for account in &accounts {
+        forge(root, env, forge::Event::Act { act: forge::Act::TryAccount { account: *account, again: false } }, out);
     }
 }

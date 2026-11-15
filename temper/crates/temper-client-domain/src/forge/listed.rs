@@ -1,11 +1,8 @@
 //! Kept forges and their navigation dot (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 4 and 7).
+use super::Side;
 use super::{
     Playground, connect,
     forges::{Connection, Mode, Row, State},
-};
-use crate::{
-    Domain, Step,
-    pages::{accounts, welcome},
 };
 use skein_lib::List;
 
@@ -58,9 +55,9 @@ pub fn dot(state: &State, playground: Option<u16>) -> Dot {
     dot
 }
 #[must_use]
-pub fn playground(root: &Domain) -> Option<(&Playground, &Row)> {
-    let playground = root.forge().playground()?;
-    if let State::Rows(rows) = root.forges() {
+pub fn playground(side: &Side) -> Option<(&Playground, &Row)> {
+    let playground = side.playground()?;
+    if let State::Rows(rows) = side.forges() {
         for row in rows {
             if row.number == playground.forge {
                 return Some((playground, row));
@@ -69,52 +66,6 @@ pub fn playground(root: &Domain) -> Option<(&Playground, &Row)> {
     }
     None
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Setup {
-    pub playground: bool,
-    pub forge: bool,
-    pub model: bool,
-    pub step: Step,
-}
-#[must_use]
-pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.forge().playground_answered()
-        || root.forge().playground_running()
-        || match welcome::decision(root) {
-            Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
-            Some(welcome::FirstRun::Whole) | None => true,
-        }
-    {
-        return None;
-    }
-    let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
-    let mut connected = false;
-    let mut started = false;
-    let mut personal_connected = false;
-    for row in &rows(root.forges(), connect::playground(root.forge())) {
-        if let Connection::Connected { .. } = row.connection {
-            personal_connected = true;
-            connected |= !connect::underway(row) && !connect::failed(row);
-            started = true;
-        }
-        started |= connect::underway(row);
-    }
-    let model = !welcome::model_usable(root)?;
-    let step = if owner && !started {
-        Step::Forge { forge: None }
-    } else if model {
-        Step::Model { way: None }
-    } else {
-        Step::Ready
-    };
-    Some(Setup {
-        playground: !personal_connected && root.forge().playground().is_some(),
-        forge: owner && !connected,
-        model,
-        step,
-    })
-}
-
 /// K4: Some(true) once the rows are delivered and none names `project`.
 #[must_use]
 pub fn without_repository(forges: &State, playground: Option<&Playground>, project: u32) -> Option<bool> {

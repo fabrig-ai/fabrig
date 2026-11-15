@@ -1,12 +1,14 @@
 //! The terminal offered for a program's login (temper/docs/design/client/tui/box.md,
 //! Lending its terminal; jig/docs/design/domain/terminal-login.md, 4–6).
-use crate::{Domain, Limits, Request, owner::Owner, route};
+use crate::pages::Routing;
+use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Handle, Latest, State, contract as c};
-use skein_lib::{Env, Queue};
+use skein_lib::Env;
 
+/// The offered terminal's login watch (temper/docs/design/client/domain-crates.md, 3.2).
 #[derive(Debug)]
-pub(crate) struct Terminal {
+pub struct Terminal {
     handle: Option<Handle>,
 }
 impl Terminal {
@@ -22,34 +24,34 @@ impl Terminal {
         terminal.login.as_ref()
     }
 }
-pub(crate) fn offer(root: &mut Domain, env: &Env<Limits>, terminal: u64, out: &mut Queue<Request>) {
-    if root.terminal.handle.is_some() {
+pub(crate) fn offer(root: &mut dyn Routing, env: &Env<Limits>, terminal: u64) {
+    let login = root.parts().terminal;
+    if login.handle.is_some() {
         return;
     }
     // Accounts occupies MAX; both global watches stand outside increasing page handles.
     let handle = Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(1).expect("global handle") };
-    root.terminal.handle = Some(handle);
-    route::client(
-        root,
+    login.handle = Some(handle);
+    root.request(
         env,
-        jig_client::Event::Watch { handle, subject: jig_client::Watchable::Jig(c::Subject::Terminal { terminal }) },
-        out,
+        crate::pages::Request::Client(jig_client::Event::Watch {
+            handle,
+            subject: jig_client::Watchable::Jig(c::Subject::Terminal { terminal }),
+        }),
     );
 }
-pub(crate) fn ended(root: &mut Domain, env: &Env<Limits>, number: u32, exit: c::LoginExit, out: &mut Queue<Request>) {
-    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-    let key = jig_client::Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    route::client(
-        root,
+pub(crate) fn ended(root: &mut dyn Routing, env: &Env<Limits>, number: u32, exit: c::LoginExit) {
+    root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
+    let key = jig_client::Key { asker: Owner::Pages.asker(), number: root.pages().serial };
+    root.request(
         env,
-        jig_client::Event::Send {
+        crate::pages::Request::Client(jig_client::Event::Send {
             key,
             name: None,
             request: jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
                 holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::LoginEnded { number, exit },
             })),
-        },
-        out,
+        }),
     );
 }

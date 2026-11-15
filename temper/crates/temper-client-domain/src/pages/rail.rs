@@ -1,6 +1,7 @@
 //! The rail's parts and the phone's tabs (temper/docs/design/client/view.md,
 //! 3, The rail's parts and On a phone).
-use crate::{Address, Domain};
+use crate::Address;
+use crate::pages::Root;
 use skein_lib::Wall;
 
 /// What the rail's parts are decided from.
@@ -104,7 +105,7 @@ pub fn tabs(parts: &Parts) -> Tabs {
 
 #[must_use]
 #[expect(clippy::useless_conversion, reason = "the rail's contract requires a saturating project-count conversion")]
-pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
+pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
     let (projects, asking) = match root.pages().me(root.client()) {
         Some(me) => (
             u32::try_from(me.projects.len()).unwrap_or(u32::MAX),
@@ -132,7 +133,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
 
 /// Whether the page is one across projects.
 #[must_use]
-pub fn across(root: &Domain) -> bool {
+pub fn across(root: &dyn Root) -> bool {
     root.pages().address() == &Address::AllHome
         || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
 }

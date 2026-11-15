@@ -383,7 +383,7 @@ fn repository_section(
         b.style(look::SETTINGS_LINES);
         if own_playground {
             if let Some(playground) = playground {
-                let name = match listed::playground(root) {
+                let name = match listed::playground(root.forge()) {
                     Some((_, row)) => crate::forge::connect::name(w, row, root),
                     None => w.say(Word::ForgePlayground, &[]),
                 };

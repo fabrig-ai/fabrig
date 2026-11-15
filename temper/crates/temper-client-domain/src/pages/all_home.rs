@@ -5,7 +5,8 @@ use super::{
     home::{self, Home, Needs, Status},
     parts,
 };
-use crate::{Domain, address::Filter, forge, owner::Owner};
+use crate::pages::{Root, Routing};
+use crate::{address::Filter, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{
     Client, Handle, Key, Told,
@@ -281,7 +282,7 @@ impl AllHome {
         }
         false
     }
-    fn rows(&self, root: &Domain, wall: Wall) -> (Box<[Decided]>, u32) {
+    fn rows(&self, root: &dyn Root, wall: Wall) -> (Box<[Decided]>, u32) {
         match root.pages().decided(self.project, wall) {
             Some(shown) => {
                 let mut rows = List::with_capacity(7);
@@ -294,10 +295,10 @@ impl AllHome {
         }
     }
 }
-fn reads(root: &Domain) -> Option<&AllHome> {
-    match root.pages.address() {
-        crate::Address::AllHome | crate::Address::Home { .. } => root.pages.all_home.as_ref(),
-        crate::Address::Inbox { .. } => root.pages.needs_decided.as_ref(),
+fn reads(root: &dyn Root) -> Option<&AllHome> {
+    match root.pages().address() {
+        crate::Address::AllHome | crate::Address::Home { .. } => root.pages().all_home.as_ref(),
+        crate::Address::Inbox { .. } => root.pages().needs_decided.as_ref(),
         crate::Address::Team { .. }
         | crate::Address::Ask { .. }
         | crate::Address::NewChat { .. }
@@ -328,20 +329,20 @@ fn reads(root: &Domain) -> Option<&AllHome> {
     }
 }
 #[must_use]
-pub fn decided(root: &Domain, wall: Wall) -> Box<[Decided]> {
+pub fn decided(root: &dyn Root, wall: Wall) -> Box<[Decided]> {
     match reads(root) {
         Some(reads) => reads.rows(root, wall).0,
         None => Box::default(),
     }
 }
-pub(super) fn showing(root: &Domain, wall: Wall) -> u32 {
+pub(super) fn showing(root: &dyn Root, wall: Wall) -> u32 {
     match reads(root) {
         Some(reads) => reads.rows(root, wall).1,
         None => 0,
     }
 }
 #[must_use]
-pub fn facts(root: &Domain, wall: Wall) -> Facts {
+pub fn facts(root: &dyn Root, wall: Wall) -> Facts {
     let mut projects = List::with_capacity(ACROSS);
     if let Some(me) = root.pages().me(root.client()) {
         for row in &me.projects {
@@ -349,10 +350,10 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
                 break;
             }
             let mut status = Status::Unknown;
-            if let Some(reads) = &root.pages.all_home {
-                if let crate::Address::Home { project } = root.pages.address
+            if let Some(reads) = &root.pages().all_home {
+                if let crate::Address::Home { project } = root.pages().address
                     && project == row.project
-                    && let Some(home) = &root.pages.home
+                    && let Some(home) = &root.pages().home
                 {
                     status = home.shown_status();
                 }
@@ -401,14 +402,14 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
             away = Some(Spell { since: row.since, off });
         }
     }
-    let (decided, showing) = match &root.pages.all_home {
+    let (decided, showing) = match &root.pages().all_home {
         Some(reads) => reads.rows(root, wall),
         None => (Box::default(), 0),
     };
     let mut follows = Box::default();
-    if root.pages.address == crate::Address::AllHome
-        && !root.pages.launchpad
-        && let Some(reads) = &root.pages.all_home
+    if root.pages().address == crate::Address::AllHome
+        && !root.pages().launchpad
+        && let Some(reads) = &root.pages().all_home
         && let Some(me) = root.pages().me(root.client())
     {
         follows = reads.relations(root.client(), me.projects.as_slice());
@@ -416,21 +417,21 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
     Facts { projects: projects.into_boxed(), needs, decided, showing, away, follows }
 }
 /// Reconcile only the seven displayed tasks, then send each settled project's entry look.
-pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
-    let Some(reads) = reads(root) else { return };
+pub(super) fn look(root: &mut dyn Routing, env: &Env<crate::Limits>) {
+    let Some(reads) = reads(&*root) else { return };
     let mut settled = List::with_capacity(ACROSS);
     if reads.statuses
-        && root.forge.settled()
+        && root.forge().settled()
         && (forge::ways::ended(root.forge()) || home::delivered(root.client(), forge::ways::handle()))
     {
         for (project, _) in &reads.homes {
-            if home::repository(root, *project) != home::Repository::Unknown {
+            if home::repository(&*root, *project) != home::Repository::Unknown {
                 settled.push(*project).expect("read projects fit");
             }
         }
     }
     let mut requests = Queue::uncapped();
-    let pages = &mut root.pages;
+    let pages = root.pages_mut();
     if let Some(inbox) = &pages.inbox {
         pages.next = pages.next.max(inbox.next);
     }
@@ -460,7 +461,7 @@ pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     }
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded project requests") {
-            Request::Client(event) => crate::route::client(root, env, event, out),
+            Request::Client(event) => root.request(env, Request::Client(event)),
             Request::Push(_)
             | Request::Screen { .. }
             | Request::KeepLook { .. }

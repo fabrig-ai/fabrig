@@ -1,6 +1,7 @@
 //! Tell temper's single filing (temper/docs/design/client/pages/needs-you.md, 1).
 mod context;
 use super::{Pages, Request, team};
+use crate::pages::Root;
 use crate::{Address, Limits, address, forge, owner::Owner};
 use alloc::boxed::Box;
 pub(super) use context::{outcome, remember, showing};
@@ -88,8 +89,8 @@ fn about_task(about: &About) -> Option<u64> {
     }
 }
 #[must_use]
-pub fn goes(root: &crate::Domain, project: u32, about: Option<&About>) -> Option<Goes> {
-    destination(&root.pages, project, about)
+pub fn goes(root: &dyn Root, project: u32, about: Option<&About>) -> Option<Goes> {
+    destination(root.pages(), project, about)
 }
 fn destination(pages: &Pages, project: u32, about: Option<&About>) -> Option<Goes> {
     Some(route(pages.needs.findings.document(project)?, about))

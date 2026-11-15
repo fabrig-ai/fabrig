@@ -1,6 +1,7 @@
 //! Away on All projects (temper/docs/design/client/pages/README.md, Away, On All projects).
 use super::{Pages, away, needs::Toasted};
-use crate::{Domain, Limits, Request, owner::Owner};
+use crate::pages::{Root, Routing};
+use crate::{Limits, owner::Owner};
 use jig_client::{Ask, Client, Key, Told};
 use skein_lib::{Env, List, Queue, Wall};
 
@@ -9,16 +10,16 @@ use skein_lib::{Env, List, Queue, Wall};
 pub struct Across {
     /// M: the projects `me` lists; 0 before `me`.
     pub projects: u32,
-    /// N: those whose row is on at the wall (`Domain::away_on`).
+    /// N: those whose row is on at the wall (`Root::away_on`).
     pub on: u32,
     /// The earliest `until` of the rows on; None where none has one.
     pub until: Option<Wall>,
-    /// 3.5's Away shows for any of them (`Domain::away_shown`).
+    /// 3.5's Away shows for any of them (`Root::away_shown`).
     pub shown: bool,
 }
 
 #[must_use]
-pub fn across(root: &Domain, wall: Wall) -> Across {
+pub fn across(root: &dyn Root, wall: Wall) -> Across {
     let mut result = Across { projects: 0, on: 0, until: None, shown: false };
     let Some(me) = root.pages().me(root.client()) else { return result };
     result.projects = me.projects.len();
@@ -49,33 +50,34 @@ pub(super) struct Pending {
     waiting: Queue<(Key, Ask)>,
 }
 
-pub(super) fn act(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if root.pages.away_busy() || !root.forge.away_available() {
+pub(super) fn act(root: &mut dyn Routing, env: &Env<Limits>) {
+    if root.pages().away_busy() || !root.forge().away_available() {
         return;
     }
-    let counts = across(root, env.wall);
+    let counts = across(&*root, env.wall);
     let on = counts.on < counts.projects;
-    let Some(me) = root.pages.me(&root.client) else { return };
+    let Some(me) = root.pages().me(root.client()) else { return };
     let mut pending = Pending { on, out: List::uncapped(), sent: 0, changed: 0, waiting: Queue::uncapped() };
-    for project in &me.projects {
-        if root.away_on(project.project, env.wall) == on {
+    let projects = me.projects.len();
+    for index in 0..projects {
+        let me = root.pages().me(root.client()).expect("the current person is delivered");
+        let project = me.projects.get(index).expect("counted projects").project;
+        if root.away_on(project, env.wall) == on {
             continue;
         }
-        let Some((request, _, _)) =
-            away::request(root, env, project.project, away::Act::Toggle { project: project.project })
-        else {
+        let Some((request, _, _)) = away::request(&*root, env, project, away::Act::Toggle { project }) else {
             continue;
         };
-        root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-        let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
+        root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
+        let key = Key { asker: Owner::Pages.asker(), number: root.pages().serial };
         pending.waiting.push((key, request));
         pending.sent = pending.sent.checked_add(1).expect("sent projects fit their count");
     }
     let Some((key, request)) = pending.waiting.pop() else { return };
     pending.out.push(key).expect("page keys grow");
-    root.pages.shown = root.pages.shown.checked_add(u64::from(pending.sent)).expect("pages shown fits");
-    root.pages.away_all = Some(pending);
-    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+    root.pages_mut().shown = root.pages().shown.checked_add(u64::from(pending.sent)).expect("pages shown fits");
+    root.pages_mut().away_all = Some(pending);
+    root.request(env, crate::pages::Request::Client(jig_client::Event::Send { key, name: None, request }));
 }
 
 pub(super) fn told(

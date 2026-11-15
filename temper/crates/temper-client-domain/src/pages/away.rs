@@ -1,7 +1,8 @@
 //! Away's acts and answered toast; the project's classes decide what Away may decide (temper/docs/design/client/pages/README.md, Away).
 use super::{Pages, needs::Toasted};
+use crate::pages::{Root, Routing};
 use crate::{
-    Address, Domain, Limits, Request,
+    Address, Limits,
     forge::{away, decided},
     owner::Owner,
 };
@@ -61,41 +62,41 @@ impl Pages {
         self.away.is_some() || self.away_all.is_some()
     }
 }
-pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
+pub(crate) fn act(root: &mut dyn Routing, env: &Env<Limits>, act: Act) {
     let project = match act {
         Act::ToggleAll => {
-            super::away_all::act(root, env, out);
+            super::away_all::act(root, env);
             return;
         }
         Act::Overturn { project, number } => {
-            overturn(root, env, project, number, out);
+            overturn(root, env, project, number);
             return;
         }
         Act::Limits { project } => {
-            root.pages.away_focus = root.pages.away_focus.checked_add(1).expect("focus count fits");
-            out.push(Request::Show { address: Address::Settings { project }, replace: false });
+            root.pages_mut().away_focus = root.pages().away_focus.checked_add(1).expect("focus count fits");
+            root.request(env, crate::pages::Request::Show { address: Address::Settings { project } });
             return;
         }
         Act::Toggle { project } | Act::Until { project, .. } => project,
     };
-    if root.pages.away_busy() || !root.forge.away_available() {
+    if root.pages().away_busy() || !root.forge().away_available() {
         return;
     }
-    let Some((request, on, until)) = request(root, env, project, act) else { return };
-    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    root.pages.away = Some(Pending { key, project, on, until });
-    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
-    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+    let Some((request, on, until)) = request(&*root, env, project, act) else { return };
+    root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: Owner::Pages.asker(), number: root.pages().serial };
+    root.pages_mut().away = Some(Pending { key, project, on, until });
+    root.pages_mut().shown = root.pages().shown.checked_add(1).expect("pages shown fits");
+    root.request(env, crate::pages::Request::Client(jig_client::Event::Send { key, name: None, request }));
 }
 /// The project's request, with the state its answer will toast.
 pub(super) fn request(
-    root: &Domain,
+    root: &dyn Root,
     env: &Env<Limits>,
     project: u32,
     act: Act,
 ) -> Option<(jig_client::Ask, bool, Option<Wall>)> {
-    let row = root.forge.away(project);
+    let row = root.forge().away(project);
     let mut on = root.away_on(project, env.wall);
     let mut until = match row {
         Some(row) => row.until,
@@ -165,12 +166,12 @@ pub(super) fn told(
     true
 }
 
-fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out: &mut Queue<Request>) {
-    let shown = match root.pages.address {
-        Address::Home { project: home } if home == project => super::home::facts(root, project, env.wall).decided,
-        Address::AllHome => root.pages.decided(None, env.wall),
+fn overturn(root: &mut dyn Routing, env: &Env<Limits>, project: u32, number: u32) {
+    let shown = match root.pages().address {
+        Address::Home { project: home } if home == project => super::home::facts(&*root, project, env.wall).decided,
+        Address::AllHome => root.pages().decided(None, env.wall),
         Address::Inbox { filter } if filter.project.is_none() || filter.project == Some(project) => {
-            root.pages.decided(filter.project, env.wall)
+            root.pages().decided(filter.project, env.wall)
         }
         Address::Home { .. }
         | Address::Inbox { .. }
@@ -202,7 +203,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         | Address::Tell { .. }
         | Address::Adopt { .. } => None,
     };
-    if root.pages.overturn_busy() {
+    if root.pages().overturn_busy() {
         return;
     }
     let Some(form) = shown else { return };
@@ -219,11 +220,12 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         if jig_client::contract::Text::new(words.clone(), env.limits.client.domain.text).is_err() {
             return;
         }
-        root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-        let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-        root.pages.overturns.pending = Some(Overturn { key, project, number, task: row.task, words: Some(words) });
-        root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
-        crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+        root.pages_mut().serial = root.pages().serial.checked_add(1).expect("page keys fit");
+        let key = Key { asker: Owner::Pages.asker(), number: root.pages().serial };
+        root.pages_mut().overturns.pending =
+            Some(Overturn { key, project, number, task: row.task, words: Some(words) });
+        root.pages_mut().shown = root.pages().shown.checked_add(1).expect("pages shown fits");
+        root.request(env, crate::pages::Request::Client(jig_client::Event::Send { key, name: None, request }));
         return;
     }
 }
