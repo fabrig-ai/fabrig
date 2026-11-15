@@ -756,6 +756,7 @@ pub enum Event {
         job: Box<str>,
         rows: u64,
         commits: u64,
+        counts: Box<[crate::JobCount]>,
     },
     /// A patch's walk is done and committed (protocol/store/opening.md 2, step 4).
     Patched {

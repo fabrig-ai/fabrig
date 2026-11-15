@@ -828,7 +828,7 @@ pub fn conflicting_head() {
     assert_eq!(failure, Failure::Conflicted { repository: 0, head: translate::commit(second) });
     let title = expected_merge_message(second);
     let hex = title.strip_prefix("Merge ").expect("merge title prefix");
-    assert_eq!(detail.as_ref(), format!("merge: Conflicted: head {hex} does not merge into early/base").as_bytes());
+    assert_eq!(detail.as_ref(), format!("merge: Conflicted (workspace 0, repository 0 temper, command none, operation 0 ms of 10000 ms, prepare 0 ms, queued 0 ms): head {hex} does not merge into early/base").as_bytes());
     assert_eq!(world.domain.holds(), 1);
     let hold = world.hold.expect("failed hold stays");
     for event in [

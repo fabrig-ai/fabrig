@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages.

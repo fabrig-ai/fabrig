@@ -14,6 +14,7 @@ pub(crate) const JOB: Job = Job {
         KeyRange { from: &[1, 1, 22], to: &[1, 1, 24] },
     ],
     converts: None,
+    counts: &[],
 };
 
 pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
@@ -31,11 +32,11 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if through.is_none() {
                 return Err(JobRefusal { key: Some(row.key.clone()), why: Box::from("history row exceeds job room") });
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         }
         bytes = next.expect("row fits the job byte edge");
         through = Some(row.key.clone());
         writes.push(write).expect("uncapped job writes");
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }

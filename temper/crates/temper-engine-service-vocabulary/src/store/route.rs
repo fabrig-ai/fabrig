@@ -293,7 +293,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             }
         }
         store::Event::Job { owner, of, job, page } => {
-            into.push(Up::Ask(job_answer(owner, of, &job, &page)));
+            into.push(Up::Ask(job_answer(owner, of, &job, &page, &routes.families)));
         }
         store::Event::Site { owner, of, site, at, patcher, key: _ } => {
             into.push(Up::Ask(dispatch(routes, owner, of, site, at, patcher)));
@@ -590,10 +590,22 @@ fn page_bytes(record: &engine::Record, kept: u64) -> Option<(u64, u64)> {
 }
 
 /// Route each job page to its owner's dispatch (jig protocol/store/jobs.md, 3).
-fn job_answer(owner: Token, of: store::Owner, job: &str, page: &store::JobPage) -> store::Request {
+fn job_answer(
+    owner: Token,
+    of: store::Owner,
+    job: &str,
+    page: &store::JobPage,
+    bounds: &families::Bounds,
+) -> store::Request {
     let answer = match of {
         store::Owner::Jig => store::jobs::page(job, page),
-        store::Owner::Application => families::jobs::page(job, page),
+        store::Owner::Application => {
+            if job == "deleted-repository-forge-rows" {
+                Err(store::JobRefusal { key: None, why: Box::from("deleted repository job facts unavailable") })
+            } else {
+                families::jobs::page(job, page, &families::jobs::Present::default(), bounds)
+            }
+        }
         store::Owner::Skein | store::Owner::Smith => {
             Err(store::JobRefusal { key: None, why: Box::from("no such job: this owner declares none") })
         }
@@ -626,8 +638,18 @@ fn dispatch(
     store::Request::Site { owner, patcher, result }
 }
 
-/// Read stored adoption settings for this landing alone; a later record inherits no input.
+/// Read a site's adoption settings or a job page's stored facts; later pages inherit no input.
 pub fn site(routes: &mut Routes, component: &mut store::Store, mut event: store::Event, into: &mut Queue<Up>) {
+    if let store::Event::Job { owner, of: store::Owner::Application, job, page } = &event
+        && job.as_ref() == "deleted-repository-forge-rows"
+    {
+        let answer = match families::jobs::read_present(component, &routes.families) {
+            Ok(present) => families::jobs::page(job, page, &present, &routes.families),
+            Err(why) => Err(why),
+        };
+        into.push(Up::Ask(store::Request::Job { owner: *owner, answer }));
+        return;
+    }
     routes.application_patch_context = families::patches::Context::default();
     if let store::Event::Site { of: store::Owner::Application, site, at, patcher, .. } = &mut event
         && *site == skein_codec::patch::Site::new(5, 0)

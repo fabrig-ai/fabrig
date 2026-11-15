@@ -116,7 +116,19 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         .concat()
         .into_boxed_slice();
     let codec = store::codec::limits(&disk.limits().core).unwrap();
+    // The smallest change names repository 0/0; keep its owner in the fixture too.
+    let repository_key = crate::keys::encode(
+        &temper_engine_domain_forge_vocabulary::Key::Repository(skein_forge::api::Repository {
+            forge: 0,
+            repository: 0,
+        }),
+        1024,
+    )
+    .unwrap();
+    let repository =
+        [&[0, 23, 2][..], &golden(change_text, "record_repository_smallest.bin")].concat().into_boxed_slice();
     let ops = vec![
+        put(store::keys::application(&repository_key, 1024).unwrap(), repository),
         put(store::keys::encode_own(&store::keys::Own::Format, 1024).unwrap(), format.encode().unwrap()),
         put(
             store::keys::encode(&header(2).key(), 1024).unwrap(),
@@ -145,7 +157,12 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
             Event::Patched { of, patch, .. } => patched.push((of, patch)),
             Event::Job { owner, of, job, page } => {
                 let answer = match of {
-                    store::Owner::Application => crate::jobs::page(&job, &page),
+                    store::Owner::Application => {
+                        let bounds =
+                            crate::bounds(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
+                        let present = crate::jobs::read_present(&mut current, &bounds).unwrap();
+                        crate::jobs::page(&job, &page, &present, &bounds)
+                    }
                     store::Owner::Jig => store::jobs::page(&job, &page),
                     store::Owner::Skein | store::Owner::Smith => panic!("no upstream jobs"),
                 };
@@ -215,5 +232,209 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         if let Some(key) = key {
             assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
         }
+    }
+}
+
+fn without_deleted_repository_job() -> PatchSets {
+    PatchSets {
+        sets: Box::leak(
+            SETS.sets
+                .iter()
+                .map(
+                    |set| {
+                        if set.name == "temper" { PatchSet { jobs: &crate::PATCH_SET.jobs[..1], ..*set } } else { *set }
+                    },
+                )
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+    }
+}
+
+fn pull(repository: skein_forge::api::Repository, number: u64) -> temper_engine_domain_forge_vocabulary::Stored {
+    use temper_engine_domain_forge_vocabulary::{Name, PullState, Stored, What};
+    Stored::PullState(PullState {
+        name: Name { forge: repository.forge, repository: repository.repository, what: What::Pull(number) },
+        head: [1; 32],
+        ci: skein_forge::api::Ci::Passed,
+        state: skein_forge::api::State::Closed,
+    })
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one open story checks pages, stored facts, readback and the durable job marker"
+)]
+fn deleted_repository_job_runs_over_directory_pages_once_and_preserves_present_and_ended_rows() {
+    use super::jobs::{A, B, JOB, application, encoded, names};
+    use skein_forge::api::Repository;
+    use temper_engine_domain_forge_vocabulary as d;
+    let mut disk = Disk::new();
+    let mut before = component(&disk, without_deleted_repository_job());
+    let events = disk.open(&mut before);
+    let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_slice() else {
+        panic!("first open: {events:?}")
+    };
+    let orphans = disk.limits().store.ops + 3;
+    let mut rows: Vec<_> = (0..u64::from(orphans)).map(|n| pull(B, n)).collect();
+    rows.extend([application(B), names(1, &[A, B])]);
+    let erased = rows[..usize::try_from(orphans + 1).unwrap()].to_vec();
+    let d::Stored::Repository(mut repository) = super::fixtures::adopted(d::Protection::Absent) else {
+        panic!("repository")
+    };
+    repository.provider = A;
+    let mut kept_forge = super::fixtures::forge_record();
+    kept_forge.number = 1;
+    let mut ended_forge = kept_forge.clone();
+    ended_forge.number = 2;
+    ended_forge.state = d::ForgeState::Ended { secrets_erased: true, box_removed: true };
+    let mut ended_application = application(Repository { forge: 3, ..B });
+    let d::Stored::Application { token, .. } = &mut ended_application else { panic!("application") };
+    *token = 2;
+    let kept = [
+        d::Stored::Repository(repository),
+        d::Stored::Forge(kept_forge),
+        d::Stored::Forge(ended_forge),
+        d::Stored::ForgeNumber { last: 3 },
+        pull(A, 1),
+        pull(A, 2),
+        pull(Repository { forge: 2, ..B }, 1),
+        ended_application,
+    ];
+    rows.extend(kept.clone());
+    // Seed the registry and the old set's job markers before the fixture rows.
+    let events = disk.request(&mut before, Request::Commit { number: 1, writes: Box::new([Write::Save(header(1))]) });
+    let [Event::Committed { .. }] = events.as_slice() else { panic!("seed: {events:?}") };
+    let mut number = 1;
+    for chunk in rows.chunks(usize::try_from(disk.limits().store.ops / 2).unwrap()) {
+        number += 1;
+        let mut writes = vec![Write::Save(header(number))];
+        for row in chunk {
+            let row = encoded(row);
+            writes.push(Write::Put { key: row.key, value: row.value });
+        }
+        let events = disk.request(&mut before, Request::Commit { number, writes: writes.into() });
+        let [Event::Committed { .. }] = events.as_slice() else { panic!("plant: {events:?}") };
+    }
+    drop(before);
+    disk.restart();
+    let mut current = component(&disk, SETS);
+    let bounds = crate::bounds(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
+    let mut events = alloc::collections::VecDeque::from(disk.open(&mut current));
+    let mut pages = 0_u32;
+    let mut ran = 0_u32;
+    let mut opened = false;
+    while let Some(event) = events.pop_front() {
+        match event {
+            Event::Job { owner, of: store::Owner::Application, job, page } => {
+                assert_eq!(&*job, JOB);
+                pages += 1;
+                assert!(page.rows.len() <= usize::try_from(disk.limits().store.ops).unwrap());
+                let present = crate::jobs::read_present(&mut current, &bounds).unwrap();
+                assert_eq!(present.repositories.as_ref(), [A]);
+                assert_eq!(present.forges.as_ref(), [(1, false), (2, true)]);
+                assert_eq!(present.last, 3);
+                let answer = crate::jobs::page(&job, &page, &present, &bounds);
+                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
+            }
+            Event::Ran { of: store::Owner::Application, job, counts, .. } => {
+                assert_eq!(&*job, JOB);
+                ran += 1;
+                let names: Vec<_> = counts.iter().map(|c| &*c.name).collect();
+                assert_eq!(names, crate::PATCH_SET.jobs[1].counts);
+                let counts: Vec<_> = counts.iter().map(|c| c.count).collect();
+                assert_eq!(counts, [u64::from(orphans + 2), 0, u64::from(orphans), 0, 0, 0, 0, 0, 0, 1, 1]);
+            }
+            Event::Opened { pending: true, .. } => opened = true,
+            Event::Census { .. } => {}
+            other => panic!("open: {other:?}; {:?}", current.start_open_failure()),
+        }
+    }
+    assert!(opened);
+    assert!(pages > 2, "more than one data page, then the empty end page");
+    assert_eq!(ran, 1);
+    for row in erased {
+        let events =
+            disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(encoded(&row).key) });
+        let [Event::Got { row: None, .. }] = events.as_slice() else { panic!("orphan gone: {events:?}") };
+    }
+    for row in kept.into_iter().chain([names(1, &[A])]) {
+        let row = encoded(&row);
+        let events =
+            disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(row.key.clone()) });
+        let [Event::Got { row: Some(Row::Application { key, value }), .. }] = events.as_slice() else {
+            panic!("kept: {events:?}")
+        };
+        assert_eq!((key, value), (&row.key, &row.value));
+    }
+    let events = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
+    let [Event::Switched { .. }] = events.as_slice() else { panic!("switch: {events:?}") };
+    drop(current);
+    disk.restart();
+    let mut again = component(&disk, SETS);
+    let events = disk.open(&mut again);
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_slice() else {
+        panic!("second open has no Job or Ran: {events:?}")
+    };
+}
+
+#[test]
+fn deleted_repository_job_refuses_unreadable_stored_facts_by_key() {
+    use super::jobs::{B, JOB, encoded};
+    use temper_engine_domain_forge_vocabulary as d;
+    let repository = encoded(&super::fixtures::adopted(d::Protection::Absent));
+    let mut forge = super::fixtures::forge_record();
+    forge.number = 2;
+    let forge = encoded(&d::Stored::Forge(forge));
+    let mut number = encoded(&d::Stored::ForgeNumber { last: 2 });
+    number.value = [&number.value[..], &[0]].concat().into_boxed_slice();
+    for (family, bad) in [
+        ("Repository", store::JobRow { key: Box::new([2]), value: repository.value }),
+        ("Forge", store::JobRow { key: crate::keys::encode(&d::Key::Forge(1), 1024).unwrap(), value: forge.value }),
+        ("ForgeNumber", number),
+    ] {
+        let mut disk = Disk::new();
+        let mut before = component(&disk, without_deleted_repository_job());
+        let events = disk.open(&mut before);
+        let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_slice() else {
+            panic!("open: {events:?}")
+        };
+        let events =
+            disk.request(&mut before, Request::Commit { number: 1, writes: Box::new([Write::Save(header(1))]) });
+        let [Event::Committed { .. }] = events.as_slice() else { panic!("seed: {events:?}") };
+        let orphan = encoded(&pull(B, 1));
+        let events = disk.request(
+            &mut before,
+            Request::Commit {
+                number: 2,
+                writes: Box::new([
+                    Write::Save(header(2)),
+                    Write::Put { key: bad.key.clone(), value: bad.value },
+                    Write::Put { key: orphan.key, value: orphan.value },
+                ]),
+            },
+        );
+        let [Event::Committed { .. }] = events.as_slice() else { panic!("plant: {events:?}") };
+        drop(before);
+        disk.restart();
+        let mut current = component(&disk, SETS);
+        let events = disk.open(&mut current);
+        let [Event::Job { owner, of: store::Owner::Application, job, .. }] = events.as_slice() else {
+            panic!("job: {events:?}")
+        };
+        assert_eq!(&**job, JOB);
+        let bounds = crate::bounds(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
+        let why = crate::jobs::read_present(&mut current, &bounds).unwrap_err();
+        assert_eq!(why.key.as_ref(), Some(&bad.key), "{family}");
+        assert_eq!(&*why.why, format!("unreadable {family} row"));
+        let events = disk.request(&mut current, Request::Job { owner: *owner, answer: Err(why) });
+        let [Event::OpenRefused { why: store::OpenRefusal::Job { owner: of, job, key, .. }, .. }] = events.as_slice()
+        else {
+            panic!("refusal: {events:?}")
+        };
+        assert_eq!(of, &store::Owner::Application);
+        assert_eq!(&**job, JOB);
+        assert_eq!(key.as_ref(), Some(&bad.key));
     }
 }

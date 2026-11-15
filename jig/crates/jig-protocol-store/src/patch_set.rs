@@ -5,6 +5,7 @@ use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet,
 pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     jobs: &[
         Job {
+            counts: &[],
             name: "charter-versions",
             keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
             converts: Some(Converts {
@@ -16,11 +17,32 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
                 ],
             }),
         },
-        Job { name: "milestones", keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }], converts: None },
-        Job { name: "live-task-parts", keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }], converts: None },
-        Job { name: "projection-parts", keys: &[KeyRange { from: &[1, 0, 1, 0], to: &[1, 0, 1, 2] }], converts: None },
-        Job { name: "retention-rows", keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }], converts: None },
         Job {
+            counts: &[],
+            name: "milestones",
+            keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }],
+            converts: None,
+        },
+        Job {
+            counts: &[],
+            name: "live-task-parts",
+            keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }],
+            converts: None,
+        },
+        Job {
+            counts: &[],
+            name: "projection-parts",
+            keys: &[KeyRange { from: &[1, 0, 1, 0], to: &[1, 0, 1, 2] }],
+            converts: None,
+        },
+        Job {
+            counts: &[],
+            name: "retention-rows",
+            keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }],
+            converts: None,
+        },
+        Job {
+            counts: &[],
             name: "retention-proposals",
             keys: &[KeyRange { from: &[1, 0, 6, 1], to: &[1, 0, 6, 2] }],
             converts: None,

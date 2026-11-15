@@ -71,6 +71,12 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     {
         return refuse(store, owner, why, above);
     }
+    // Compare the families' versions before reading the registry (protocol/store/records.md, 3).
+    let wanted = wanted(store, found_levels, binary, found.deployment);
+    if let Err(why) = format::check_versions(&found, &wanted, compared) {
+        refuse(store, owner, why, above);
+        return;
+    }
     let registry = match crate::registry::open(store, false) {
         Ok(writing) => writing,
         Err(why) => return refuse(store, owner, why, above),
@@ -80,12 +86,6 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         && let Err(why) = pending(store, found_levels, binary)
     {
         return refuse(store, owner, why, above);
-    }
-    // Refuse another family's version before decoding its header.
-    let wanted = wanted(store, found_levels, binary, found.deployment);
-    if let Err(why) = format::check_versions(&found, &wanted, compared) {
-        refuse(store, owner, why, above);
-        return;
     }
     if compared == format::Compared::Same
         && let Err(why) = check_layouts(store, owner, found_levels, binary)
