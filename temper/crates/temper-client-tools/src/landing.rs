@@ -19,7 +19,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Event, Handle, Latest, Readable, Readout, State, Told, Watchable, Why, contract as c};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
-use temper_client_domain::{forge, owner::Owner};
+use temper_client_domain_forge::{forge, owner::Owner};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {

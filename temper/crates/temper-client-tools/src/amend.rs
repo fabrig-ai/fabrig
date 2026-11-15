@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_lib::{List, Writer};
 
 pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) -> Prepared {
-    let mut draft = temper_client_domain::amend::Draft::of(task);
+    let mut draft = temper_client_domain_forge::amend::Draft::of(task);
     let shown = match number(call, 1) {
         Some(value) => Some(c::Revision { value }),
         None => None,
@@ -108,7 +108,7 @@ fn named_draft(
     task: &c::Task,
     me: &c::Me,
     limits: &Limits,
-) -> Result<temper_client_domain::amend::Drafted, Failed> {
+) -> Result<temper_client_domain_forge::amend::Drafted, Failed> {
     let mut change = c::Amendment {
         addressed: None,
         spec: None,
@@ -158,7 +158,7 @@ fn named_draft(
             Some(c::Tracking::Untracked) | None => false,
         };
     let revision = if priority_alone { None } else { Some(task.spec_revision) };
-    Ok(temper_client_domain::amend::Drafted { revision, change })
+    Ok(temper_client_domain_forge::amend::Drafted { revision, change })
 }
 
 fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, Failed> {
@@ -217,7 +217,7 @@ fn amend_error(task: &c::Task, suffix: &[u8], moved: Option<(u64, u64)>, prefix:
 }
 
 fn controls(
-    draft: &mut temper_client_domain::amend::Draft,
+    draft: &mut temper_client_domain_forge::amend::Draft,
     call: &Call,
     task: &c::Task,
     me: &c::Me,
@@ -258,8 +258,8 @@ fn controls(
     }
     Ok(())
 }
-fn whole(result: Result<(), temper_client_domain::amend::Cut>, task: &c::Task) -> Result<(), Failed> {
-    use temper_client_domain::amend::Cut;
+fn whole(result: Result<(), temper_client_domain_forge::amend::Cut>, task: &c::Task) -> Result<(), Failed> {
+    use temper_client_domain_forge::amend::Cut;
     let suffix = match result {
         Ok(()) => return Ok(()),
         Err(Cut::Authority) => {

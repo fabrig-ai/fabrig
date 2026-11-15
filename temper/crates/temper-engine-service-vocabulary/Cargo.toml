@@ -64,7 +64,7 @@ jig-domain-authority.workspace = true
 jig-domain-notes.workspace = true
 skein-world.workspace = true
 smith-protocol-channel.workspace = true
-temper-client-domain.workspace = true
+temper-client-domain-forge.workspace = true
 temper-engine-service-stock.workspace = true
 
 [lints]

@@ -16,7 +16,7 @@ use crate::{
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Event, Handle, Key, Outcome, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, Queue};
-use temper_client_domain::{forge, owner::Owner};
+use temper_client_domain_forge::{forge, owner::Owner};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const PROJECT: jig::table::Argument =
     flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project");

@@ -397,7 +397,8 @@ fn a_retry_keeps_the_adoptions_nondefault_options_and_quotes_arguments() {
 
 #[test]
 fn a_read_only_adoption_says_so() {
-    let limits = temper_client_domain::forge::wire_limits(&fixtures::limits_root().domain.forge).expect("forge limits");
+    let limits =
+        temper_client_domain_forge::forge::wire_limits(&fixtures::limits_root().domain.forge).expect("forge limits");
     for role in [w::Role::Owned, w::Role::Context] {
         let (mut root, call) = fixtures::adopt_root(&[]);
         let outcome = w::Outcome::Adopted(

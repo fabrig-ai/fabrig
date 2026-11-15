@@ -14,7 +14,7 @@ fn repositories_parses_bounds_defaults_and_the_requested_installation_and_page()
             panic!("deployment request")
         };
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        let bounds = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).unwrap();
+        let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
         let request = wire::decode_requesting(&record.bytes, &bounds).unwrap();
         let w::Request::Reachable(request) = request.into_parts().request else { panic!("reachable") };
         assert_eq!(request.forge(), 3);
@@ -34,7 +34,7 @@ fn repositories_parses_bounds_defaults_and_the_requested_installation_and_page()
         .unwrap();
 }
 fn page(more: bool) -> w::Outcome {
-    let bounds = temper_client_domain::forge::wire_limits(&f::limits_root().domain.forge).unwrap();
+    let bounds = temper_client_domain_forge::forge::wire_limits(&f::limits_root().domain.forge).unwrap();
     let mut rows = List::with_capacity(2);
     for (id, name, private) in [(42, b"app".as_slice(), true), (43, b"public".as_slice(), false)] {
         rows.push(
