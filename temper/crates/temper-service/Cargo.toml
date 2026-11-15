@@ -96,7 +96,6 @@ smith-local-service.workspace = true
 smith-agent-world.workspace = true
 jig-client.workspace = true
 temper-client-tools.workspace = true
-temper-client-domain.workspace = true
 temper-init.workspace = true
 temper-engine-domain-world = { path = "../../tests/engine/domain" }
 skein-shell.workspace = true

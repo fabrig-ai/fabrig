@@ -13,7 +13,7 @@ use jig_client::{Client, Key, Latest, Outcome, State, Told, contract as c};
 use skein_json::writer::Encoder;
 use skein_lib::{List, Queue};
 use skein_ui::phrases::Hole;
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::{
         self,
         words::{self, Word},
@@ -646,7 +646,7 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
         return;
     }
     out.put(b"Landed");
-    if let Some(commit) = temper_client_domain::pages::delegation::merge_commit(words.bytes()) {
+    if let Some(commit) = temper_client_domain_forge::delegation::merge_commit(words.bytes()) {
         out.put(b" \xc2\xb7 ");
         // A core Change result names its settled pull by number. Resource paths,
         // when supplied, additionally name its repository and host (client/forge/family.md, 1).

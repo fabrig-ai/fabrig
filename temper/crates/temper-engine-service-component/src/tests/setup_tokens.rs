@@ -63,7 +63,7 @@ impl Tokens {
         Self { api: random(&mut rng), git: random(&mut rng), hook: random(&mut rng) }
     }
     pub(super) fn bundle(&self, hook: bool) -> Secret {
-        temper_client_domain::forge::forges::pasted_tokens(
+        temper_client_domain_forge::forge::forges::pasted_tokens(
             Some(self.api.expose()),
             Some(self.git.expose()),
             if hook { Some(self.hook.expose()) } else { None },
