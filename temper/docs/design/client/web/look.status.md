@@ -2,6 +2,12 @@
 
 2026-11-15. Where the tree's code lags or departs from [look.md](look.md).
 
+- **Not yet:** *The project's frame*: the `rail-word` request's rendered
+  comparison at 1440, 1000 and 420 px follows landing on main, owned by
+  temper/ui (`look-requests.md`, 4). The stylesheet and view tests check
+  the rules and tree, not rendered equality; compilation and print checks
+  establish no rendered equality either.
+
 
 - **Not yet:** the whole document, *The project's frame*: the link's state as one word, 12.5 px, at the right of the rail's first row, out of the foot's flow [in flight: change 3618].
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not

@@ -837,6 +837,34 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
 }
 
 #[test]
+fn the_browser_foot_keeps_live_in_its_region_with_behind_as_the_next_sibling() {
+    let (mut root, _, page) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &f::domain_limits());
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch: page.unwrap(), end: jig_client::contract::WatchEnd::Dropped },
+            },
+        },
+    );
+    assert_eq!(root.client().link().state, jig_client::Link::Live);
+    let view = f::browser_page_view(&root);
+    let foot = children(styled(view.tree(), look::RAIL_FOOT));
+    let at = foot.iter().position(|node| node.region == Some(crate::frame::link_region())).unwrap();
+    let region = view.tree().nodes().iter().position(|node| node.id == foot[at].id).unwrap();
+    let end = region.checked_add(usize::try_from(view.tree().nodes()[region].size).unwrap()).unwrap();
+    let statuses = children(&view.tree().nodes()[region..end]);
+    assert_eq!(statuses.len(), 1, "the link region keeps only its own status");
+    assert_eq!(statuses[0].role, Role::Status);
+    assert_eq!(statuses[0].name.as_deref(), Some(b"Live".as_slice()));
+    assert!(statuses[0].styles.as_slice().contains(&look::LIVE));
+    let behind = foot[at + 1];
+    assert_eq!(behind.role, Role::Status);
+    assert_eq!(behind.name.as_deref(), Some(b"Behind".as_slice()));
+    assert!(behind.styles.as_slice().contains(&look::BEHIND));
+}
+
+#[test]
 fn settings_carries_both_forge_and_account_marks() {
     use jig_client::contract::AccountState;
     use temper_client_protocol_wire::v1 as w;
