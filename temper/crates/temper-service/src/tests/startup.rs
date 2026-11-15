@@ -1154,6 +1154,23 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
 }
 
 #[test]
+fn an_adopted_projects_batch_past_its_members_names_the_bound_not_the_project() {
+    // A staging deployment at batch 4 with forge.landing_members 2 was told only that its
+    // adopted project was an unknown reference.
+    const ADOPTED: u32 = 2;
+    let jig = fixtures::turn_jig();
+    let projects = format!(
+        r#"[{{"project":{ADOPTED},"by":"turn","batch":9,"gates":[{{"forge":1,"repository":1,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true}}],"tiers":[]}}]}}]"#
+    );
+    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+    let (_, problems) = application(&input, &jig);
+    let rendered = lines(&problems);
+    let text = core::str::from_utf8(&rendered).unwrap();
+    assert!(text.contains("batch passes forge.landing_members"), "{text}");
+    assert!(!text.contains("unknown reference"), "{text}");
+}
+
+#[test]
 fn queue_tiers_can_name_a_project_adopted_after_the_seed() {
     use skein_forge::api::Repository;
     use temper_engine_domain::{AfterLandingCheck, TierCheck, Way};

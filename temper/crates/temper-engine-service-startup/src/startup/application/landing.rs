@@ -34,7 +34,10 @@ pub(super) fn parse(
             if object.member(document, b"rules").is_some() {
                 problems.push(path.member(b"rules"), What::Half(crate::startup::EngineWhat::ProjectLandingStored));
             }
+            let before = (problems.problems.len(), problems.past);
             let landing = project_landing(&mut object, document, &path, &limits.forge, problems);
+            // An entry its own members refused names its reason; it is no unknown reference too.
+            let refused = landing.is_none() && (problems.problems.len(), problems.past) != before;
             if let Some(landing) = &landing
                 && landing.by == engine::Way::Turn
             {
@@ -65,7 +68,7 @@ pub(super) fn parse(
                 }
                 // temper/docs/design/protocol/configuration/engine.md: either way
                 // can configure a restored project; policy rules live in the store.
-                let restored = landing.is_some();
+                let restored = landing.is_some() || refused;
                 if !found && !restored {
                     problems.push(path.member(b"project"), What::Jig(config::What::Refers));
                 }
