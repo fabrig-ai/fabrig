@@ -86,7 +86,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     if let Some(commands) = commands(root, tui, words, value) {
         return Some(commands);
     }
-    if root.pages().chat().is_none() || !value.is_empty() {
+    if tui.place().is_some() || root.pages().chat().is_none() || !value.is_empty() {
         return None;
     }
     if root.pages().chat()?.talk().is_some() {

@@ -2429,7 +2429,7 @@ enum LaunchAt {
 #[derive(Debug)]
 enum LaunchWant {
     Started { label: u32, words: &'static [u8], from: Address },
-    Words(&'static [u8]),
+    Place(Own),
     Chat(u64),
     Unknown,
     Brief,
@@ -2457,14 +2457,14 @@ fn the_launchpad_takes_its_own_words() {
             LaunchAt::Home,
             LaunchWant::Started { label: 8, words: b"Add a CSV export", from: Address::NewChat { draft: false } },
         ),
-        (b"/draft", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
-        (b"/d", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
-        (b"/change", LaunchAt::Home, LaunchWant::Words(b"/change ")),
-        (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
-        (b"/", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
-        (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
-        (b"/tell", LaunchAt::Home, LaunchWant::Words(b"/tell ")),
-        (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
+        (b"/draft", LaunchAt::Home, LaunchWant::Place(Own::Draft)),
+        (b"/d", LaunchAt::Home, LaunchWant::Place(Own::Draft)),
+        (b"/change", LaunchAt::Home, LaunchWant::Place(Own::Change)),
+        (b"/c", LaunchAt::Home, LaunchWant::Place(Own::Change)),
+        (b"/", LaunchAt::Home, LaunchWant::Place(Own::Draft)),
+        (b"/ask", LaunchAt::Home, LaunchWant::Place(Own::Ask)),
+        (b"/tell", LaunchAt::Home, LaunchWant::Place(Own::Tell)),
+        (b"/a", LaunchAt::Home, LaunchWant::Place(Own::Ask)),
         (b"/n", LaunchAt::Need, LaunchWant::New),
         (b"/needs", LaunchAt::Need, LaunchWant::Walk),
         (b"/open", LaunchAt::Home, LaunchWant::Opened),
@@ -2532,7 +2532,10 @@ fn the_launchpad_takes_its_own_words() {
                 assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST }, "started chat opened");
                 assert!(host.words().is_empty(), "started chat box cleared");
             }
-            LaunchWant::Words(expected) => assert_eq!(host.words(), expected, "{words:?}"),
+            LaunchWant::Place(command) => {
+                assert!(host.words().is_empty(), "{words:?}");
+                assert_eq!(host.state().place(), Some(command), "{words:?}");
+            }
             LaunchWant::Chat(task) => assert_eq!(host.root.pages().address(), &Address::Chat { task }, "{words:?}"),
             LaunchWant::Unknown => assert_eq!(
                 host.state().notice(),
@@ -2616,9 +2619,9 @@ fn the_launchpad_takes_its_own_words() {
 fn each_event_becomes_its_acts() {
     let page = b"http://127.0.0.1:8367/projects/3".as_slice();
     for (event, words, brief, walking, open) in [
-        (Event::Own { command: Own::Draft }, b"/draft ".as_slice(), false, false, None),
-        (Event::Own { command: Own::Change }, b"/change ".as_slice(), false, false, None),
-        (Event::Own { command: Own::Ask }, b"/ask ".as_slice(), false, false, None),
+        (Event::Own { command: Own::Draft }, b"".as_slice(), false, false, None),
+        (Event::Own { command: Own::Change }, b"".as_slice(), false, false, None),
+        (Event::Own { command: Own::Ask }, b"".as_slice(), false, false, None),
         (Event::Own { command: Own::Brief }, b"".as_slice(), true, false, None),
         (Event::Own { command: Own::Needs }, b"".as_slice(), false, true, None),
         (Event::Own { command: Own::Open }, b"".as_slice(), false, false, Some(page)),
@@ -2630,6 +2633,10 @@ fn each_event_becomes_its_acts() {
         let before = host.state().box_written();
         let mut duties = Duties::default();
         host.event(event.clone(), &mut duties);
+        if let Event::Own { command: command @ (Own::Draft | Own::Change | Own::Ask) } = event {
+            assert_eq!(host.state().place(), Some(command));
+            assert!(host.state().box_written() > before);
+        }
         assert_eq!(host.words(), words, "{event:?}");
         assert!(words.is_empty() || host.state().box_written() > before, "{event:?}: box write count");
         assert_eq!(host.state().brief_shown(), brief, "{event:?}");

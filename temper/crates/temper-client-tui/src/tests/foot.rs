@@ -1155,12 +1155,12 @@ fn rule_states() {
             let read = part.rule.as_ref().unwrap();
             assert_eq!(read.project.as_ref(), b"Demo");
             assert_eq!(read.place.as_ref(), b"box:40691");
-            assert_eq!(read.task, 9);
+            assert_eq!(read.task, Some(9));
             assert_eq!(part.list.is_some(), list);
             part.rule = Some(foot::Rule {
                 project: b"Hello".as_slice().into(),
                 title: title.as_bytes().into(),
-                task: 2,
+                task: Some(2),
                 place: b"box:40691".as_slice().into(),
             });
             let view = draw(part);
@@ -1581,7 +1581,7 @@ fn the_foots_are_their_goldens() {
             part.rule = Some(foot::Rule {
                 project: b"Demo".as_slice().into(),
                 title: b"Plan".as_slice().into(),
-                task: 9,
+                task: Some(9),
                 place: b"box".as_slice().into(),
             });
         }
@@ -1589,7 +1589,7 @@ fn the_foots_are_their_goldens() {
             part.rule = Some(foot::Rule {
                 project: b"Hello".as_slice().into(),
                 title: "What landed…".as_bytes().into(),
-                task: 2,
+                task: Some(2),
                 place: b"box".as_slice().into(),
             });
             part.list = foot::lists::question_list(question(Some(1), false), None, &words);
@@ -2670,4 +2670,93 @@ fn tell_outcomes_stand_under_the_box_and_are_said_once() {
     let part = foot::read(&root, &tui, &words, f::NOW);
     assert_eq!(part.notice.as_deref(), Some(b"Filed as finding 12 on Hello.".as_slice()));
     assert!(has(draw(part).tree(), look::SIGNAL, b"Filed as finding 12 on Hello."));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "each place embeds its generated frame")]
+fn the_places_before_their_first_words_are_empty_chats() {
+    use crate::Own;
+    use skein_ui_screen::{Focus, Size};
+    let rows = [
+        (
+            Own::Ask,
+            "Ask temper",
+            "Ask temper anything, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-ask-80x24-dark",
+            include_bytes!("golden/not-started-ask-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Change,
+            "New change",
+            "Say the change, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-change-80x24-dark",
+            include_bytes!("golden/not-started-change-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Draft,
+            "Design session",
+            "Say what to design, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-draft-80x24-dark",
+            include_bytes!("golden/not-started-draft-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Tell,
+            "Tell temper",
+            "Tell temper what's off, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-tell-80x24-dark",
+            include_bytes!("golden/not-started-tell-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Ask,
+            "Ask temper",
+            "Ask temper anything, or Esc to go back.",
+            Scheme::Light,
+            "not-started-ask-80x24-light",
+            include_bytes!("golden/not-started-ask-80x24-light.txt").as_slice(),
+        ),
+    ];
+    let size = Size { columns: 80, rows: 24 };
+    for (command, title, placeholder, scheme, name, want) in rows {
+        let root = root(true, true, false, false, false);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Size { columns: size.columns });
+        tui.step(Told::Place { command: Some(command) });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        let field = f::find(view.tree(), Role::TextArea, title.as_bytes());
+        assert_eq!(field.placeholder.as_deref(), Some(placeholder.as_bytes()));
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"");
+        assert_eq!(field.focus, Some(tui.focus()));
+        assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
+        assert_eq!(crate::escape(&view), Some(TuiEvent::Back));
+        assert_eq!(crate::pane_key(&view), None);
+        assert_eq!(crate::walk_key(&view), None);
+        let part = foot::read(&root, &tui, &f::words(), f::NOW);
+        let rule = part.rule.unwrap();
+        assert_eq!(rule.title.as_ref(), title.as_bytes());
+        assert_eq!(rule.project.as_ref(), b"Demo");
+        assert_eq!(rule.task, None);
+        assert_eq!(rule.place.as_ref(), f::ADDRESS);
+        assert!(!part.launchpad);
+        assert!(part.pane.is_none());
+        assert!(part.running.is_none());
+        for node in view.tree().nodes() {
+            assert_ne!(node.region, Some(look::TOP));
+            assert_ne!(node.region, Some(look::HEADER));
+            assert_ne!(node.region, Some(look::SECTIONS));
+        }
+        goldens::check(&[goldens::Golden {
+            name,
+            tree: view.tree(),
+            scheme,
+            size,
+            background: Some(crate::theme::palette(scheme)[0].1),
+            focus: Focus::default(),
+            want,
+        }]);
+    }
 }
