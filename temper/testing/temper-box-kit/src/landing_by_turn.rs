@@ -204,8 +204,12 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     }
     for member in members {
         let change = member["change"].as_u64().ok_or(String::from("member change"))?;
-        for kind in ["formed", "gate-ended"] {
-            has_event(&events, change, kind)?;
+        has_event(&events, change, "formed")?;
+        if (!member["landed"].is_null() && !receipt_proof(&events, change, &panel["round"]["number"]))
+            || !member["left"]["failed"].is_null()
+            || !member["left"]["blamed"].is_null()
+        {
+            has_event(&events, change, "gate-ended")?;
         }
         if !member["landed"].is_null() {
             for kind in ["proved", "turn"] {
@@ -225,16 +229,25 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     if !events.iter().any(|event| event["what"]["kind"] == "landing-ended") {
         return Err(format!("{events:#?}"));
     }
-    let change =
-        members.iter().find(|member| !member["landed"].is_null()).ok_or(String::from("a landed member"))?["change"]
-            .as_u64()
-            .ok_or(String::from("member change"))?;
+    let Some(member) = members.iter().find(|member| !member["landed"].is_null()) else { return Ok(()) };
+    let change = member["change"].as_u64().ok_or(String::from("member change"))?;
     let events = history(root, project, "--change", change, client)?;
     for kind in ["ready", "landed"] {
         has_event(&events, change, kind)?;
     }
 
     Ok(())
+}
+// A proof carried by receipts has no local run end (domain/landing-history.md, 2.2).
+fn receipt_proof(events: &[Value], change: u64, round: &Value) -> bool {
+    events.iter().any(|event| {
+        event["change"] == change
+            && event["landing"]["round"] == *round
+            && event["what"]["kind"] == "proved"
+            && event["what"]["proofs"]
+                .as_array()
+                .is_some_and(|proofs| !proofs.is_empty() && proofs.iter().all(|proof| proof["run"].is_null()))
+    })
 }
 fn has_event(events: &[Value], change: u64, kind: &str) -> Result<(), String> {
     if !events.iter().any(|event| event["change"] == change && event["what"]["kind"] == kind) {
@@ -243,6 +256,10 @@ fn has_event(events: &[Value], change: u64, kind: &str) -> Result<(), String> {
 
     Ok(())
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "history is also checked inside a story loop, so each ctl loop runs on a separate thread"
+)]
 fn history(root: &Path, project: u64, of: &str, task: u64, client: Option<&str>) -> Result<Vec<Value>, String> {
     Ok({
         let project = project.to_string();
@@ -259,7 +276,8 @@ fn history(root: &Path, project: u64, of: &str, task: u64, client: Option<&str>)
             if let Some(client) = client {
                 call = call.in_directory(client);
             }
-            let ended = ctl::alone(root, call);
+            let ended =
+                std::thread::scope(|scope| scope.spawn(|| ctl::alone(root, call)).join().expect("history ctl read"));
             if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
                 return Err(format!("{}", String::from_utf8_lossy(&ended.stderr)));
             }

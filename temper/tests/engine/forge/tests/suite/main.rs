@@ -27,6 +27,7 @@ mod rules_by_path;
 mod settle;
 mod simulation;
 mod tiers;
+mod train_drills;
 mod trains;
 mod update_lost;
 mod writer;

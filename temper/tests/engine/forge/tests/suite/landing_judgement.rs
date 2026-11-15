@@ -37,7 +37,7 @@ fn reviewed_history(kind: change::GateKind, freshness: change::Freshness, histor
     world.event(top::Event::Change { row });
     assert_eq!(world.change(CHANGE).change.gates.len(), 1);
     let row = landings::landing_row(world.change(CHANGE));
-    world.event(top::Event::Landing { row });
+    landings::register(&mut world, row);
     world
 }
 fn request_judgement(world: &mut World, first: u64) -> api::Commit {
@@ -163,6 +163,7 @@ fn a_refused_prefix_review_repairs_at_the_changes_own_pull_and_the_member_leaves
         landing::Decision::Leave { member: 0, why: landing::Leave::Refused { gate: GATE } }
     );
     landings::drive_landing(&mut world, LANDING);
+    landings::close_landing(&mut world, LANDING);
     assert_eq!(world.landing(LANDING).landing.members[0].left, Some(landing::Leave::Refused { gate: GATE }));
     assert_eq!(world.change(CHANGE).change.ready_since, ready);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());

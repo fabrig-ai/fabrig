@@ -656,7 +656,10 @@ such a commit: `Brings { brings: true }`. An empty listing, or
 it with false. Any other exit, a malformed id, or output past
 `stdout_bytes` is `Broken`.
 
-`DiffPaths { at, before, after }` admits a design delivery's changed paths:
+`DiffPaths { at, before, after, markdown }` streams changed paths. With
+`markdown` true it retains the first differing path, including Markdown,
+for a prepare's whole-tree comparison (`../domain/landing.md`, 5.2).
+With `markdown` false it admits a design delivery's changed paths:
 
 ```
 git diff-tree --no-commit-id --name-only --no-renames -r -z <before> <after> --
@@ -665,8 +668,9 @@ git diff-tree --no-commit-id --name-only --no-renames -r -z <before> <after> --
 The complete stdout stream is read as NUL-terminated paths, including
 additions and deletions. Each name stays within `path_bytes`; no count of
 changed files is imposed by the merge-conflict limit. The component keeps
-only the current path and the first path not ending in `.md`, and returns
-`Paths` with that first non-Markdown name or no names. An incomplete,
+only the current path and the first admitted path, and returns `Paths`
+with that name or no names. A design comparison excludes names ending
+in `.md`; a prepare comparison includes them. An incomplete,
 empty or oversized path fails as `Broken`. A later code path cannot hide
 behind a long list of Markdown files or the stdout retention cap.
 

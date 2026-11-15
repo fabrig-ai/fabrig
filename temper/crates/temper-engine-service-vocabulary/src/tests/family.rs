@@ -1900,6 +1900,56 @@ fn landing_view() -> forge::LandingView {
     }
 }
 #[test]
+fn a_first_round_search_uses_its_members_base_at_boundary_zero() {
+    let mut value = landing_view();
+    value.step = forge::LandingStep::Probing;
+    value.round.upstream = None;
+    value.round.search = Some(forge::LandingSearch { green: 0, red: 1 });
+    value.members[0].base = Some([0x22; 32]);
+    value.members[0].candidate = Some([0x33; 32]);
+    value.members[0].left = None;
+    let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+        .expect("the original round's search has a base");
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
+    assert_eq!((search.red().member(), search.red().prefix()), (1, &[0x33; 32]));
+}
+
+#[test]
+fn a_later_search_keeps_its_base_after_a_prior_turn_and_a_cut() {
+    for cleared in [false, true] {
+        let mut value = landing_view();
+        value.step = forge::LandingStep::Probing;
+        value.round.upstream = None;
+        value.round.search = Some(forge::LandingSearch { green: 0, red: 2 });
+        let mut red = value.members[0].clone();
+        red.change = 52;
+        red.base = if cleared { None } else { Some([0x22; 32]) };
+        red.candidate = if cleared { None } else { Some([0x33; 32]) };
+        red.left = if cleared {
+            Some(forge::LandingLeave::Blamed { gate: 0, run: 7, red: [0x33; 32], green: [0x22; 32] })
+        } else {
+            None
+        };
+        let mut above = red.clone();
+        above.change = 53;
+        above.base = Some([0x22; 32]);
+        above.candidate = Some([0x44; 32]);
+        above.left = None;
+        value.members[0].landed = Some([0x11; 32]);
+        value.members[0].left = None;
+        value.members = Box::new([value.members[0].clone(), red, above]);
+        let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+            .expect("later search maps");
+        let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+        assert_eq!(search.green().prefix(), &[0x22; 32]);
+        assert_eq!(search.red().prefix(), &[0x33; 32]);
+    }
+}
+
+#[test]
 fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     let mut value = landing_view();
     value.step = forge::LandingStep::Probing;
@@ -5232,6 +5282,31 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     ] {
         let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
         assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
+    }
+}
+
+#[test]
+fn a_landing_repair_keeps_its_change_panel_readable() {
+    for reason in [
+        change::Repair::Landing { gate: 0 },
+        change::Repair::LandingAt {
+            gate: 0,
+            candidate: [8; 32],
+            below: Some(change::Below { green: [7; 32], changes: [None; 4] }),
+        },
+    ] {
+        let mut value = panel();
+        value.step = forge::PanelStep::Repairing(reason);
+        value.way = change::Way::Turn;
+        value.in_landing = Some(61);
+        value.runs = Some(88);
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        assert_eq!(
+            *got.step(),
+            repairing(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap()))
+        );
+        assert_eq!(*got.in_landing(), Some(61));
+        assert_eq!(*got.runs(), Some(88));
     }
 }
 

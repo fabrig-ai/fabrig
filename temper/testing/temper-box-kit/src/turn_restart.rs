@@ -1,11 +1,13 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
 //! (temper/docs/design/domain/landing.md, 7 and 15;
 //! temper/docs/design/protocol/forge/engine.md, 1).
+pub mod cuts;
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},
     landing_by_turn, landing_scripts, native_settings_setup, person, serve, write_private,
 };
+use cuts::Cut;
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
@@ -21,9 +23,19 @@ pub struct Reads {
     pub change: Value,
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a nested ctl real loop runs on its own thread and joins before the story advances"
+)]
 fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
     Ok({
-        let call = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
+        // A ctl read owns its real loop on a separate thread.
+        let call = std::thread::scope(|scope| {
+            scope
+                .spawn(|| ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json()))
+                .join()
+                .expect("ctl read")
+        });
         if call.exit != Some(Exit::Code(0)) {
             return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
         }
@@ -56,6 +68,43 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
 pub fn configure(root: &Path, repository: u64) {
     configure_batch(root, repository, 1);
+    // The prepare job needs the standard engine profile and room for its result.
+    let path = root.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    super::batch_landing::message_room(root, &mut value);
+    staging_limits(&mut value);
+    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+}
+
+pub(super) const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
+
+/// Staging's deployment limits, shared by the owned turn drills.
+/// temper/docs/design/protocol/configuration/limits.md.
+pub fn staging_limits(value: &mut Value) {
+    value["engine"]["limits"]["profile"] = "standard".into();
+    value["application"]["limits"]["profile"] = "standard".into();
+    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 63_740.into();
+    value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = STAGING_LIFETIME.as_millis().into();
+    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 63_738.into();
+    value["application"]["limits"]["overrides"]["forge_component.body_bytes"] = 127_497.into();
+    value["application"]["limits"]["overrides"]["forge.client.answer_bytes"] = 1_048_576.into();
+    value["application"]["limits"]["overrides"].as_object_mut().expect("limits").remove("forge.key_entries");
+    for limits in ["authority.executors", "tasks.executor_kinds"] {
+        value["engine"]["limits"]["overrides"][limits] = 24.into();
+    }
+    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 63_738).into();
+    value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["profile"] = "standard".into();
+    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
@@ -65,7 +114,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     config["application"]["landing"]["projects"] = json!([{
         "project":1,"by":"turn","batch":batch,
         "gates":[{"forge":1,"repository":repository,
-            "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
+            "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true,"base":true}]}]
     }]);
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
@@ -210,6 +259,7 @@ struct Judge<'a> {
     landed: &'a Cell<Option<Reads>>,
     previous: Option<&'a Proof>,
     retry: bool,
+    cut: Cut,
     ready: bool,
     advanced: Option<(String, String)>,
     poll: Time,
@@ -222,7 +272,22 @@ impl Judge<'_> {
             let forge = self.chat.forge.ok_or(String::from("owned forge"))?;
             if let Some(previous) = self.previous
                 && !self.retry
+                && self.cut != Cut::Prepared
             {
+                if self.cut == Cut::Turn {
+                    let (landing, change) = self.members()?;
+                    let reads = reads(self.root, landing, change)?;
+                    if reads.landing["phase"] != "turn" {
+                        return Ok(false);
+                    }
+                    self.proof.set(Some(Proof {
+                        reads,
+                        original: previous.original.clone(),
+                        moved: previous.moved.clone(),
+                        run: previous.run,
+                    }));
+                    return Ok(true);
+                }
                 let landing = previous.reads.landing["task"].as_u64().ok_or(String::from("landing task"))?;
                 let change = previous.reads.change["task"].as_u64().ok_or(String::from("change task"))?;
                 // Let the outer world drive its peers and binary pipes between reads.
@@ -297,6 +362,16 @@ impl Judge<'_> {
                     "turn restart: main moved from {before} to {moved} while the review held readiness at {original}"
                 );
                 self.advanced = Some((original, moved.to_owned()));
+            }
+            if self.cut == Cut::Preparing && self.root.join("prepare-started").is_file() {
+                let (landing, change) = self.members()?;
+                let reads = reads(self.root, landing, change)?;
+                if reads.landing["phase"] != "preparing" {
+                    return Err("git barrier is inside preparing".into());
+                }
+                let (original, moved) = self.advanced.clone().ok_or("main advanced before prepare")?;
+                self.proof.set(Some(Proof { reads, original, moved, run: 0 }));
+                return Ok(true);
             }
             let Some(run) = self.waiting_gate(forge)? else { return Ok(false) };
             let (landing, change) = self.members()?;
@@ -379,7 +454,8 @@ impl Judge<'_> {
         let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
         let setup = procs.iter().find_map(|proc| match proc {
             Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
-            Process::Binary(_)
+            Process::Member(_)
+            | Process::Binary(_)
             | Process::Stdout(_)
             | Process::Person(_)
             | Process::Peer(_)
@@ -468,7 +544,7 @@ impl Referee<Process> for Judge<'_> {
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
                 let Some(Process::Calls(calls)) = procs.get(2) else { return Err(String::from("turn settings setup")) };
                 if calls.ends().len() < SETUP_CALLS {
-                    self.poll = now.saturating_add(Duration::from_millis(250));
+                    self.poll = now.saturating_add(Duration::from_secs(1));
                     return Ok(());
                 }
                 self.chat.act(now, procs);
@@ -490,7 +566,7 @@ impl Referee<Process> for Judge<'_> {
                 self.stalled(procs, &figures)?;
             }
             if !self.chat.stopping() && now >= self.poll {
-                self.poll = now.saturating_add(Duration::from_millis(250));
+                self.poll = now.saturating_add(Duration::from_secs(1));
                 // A listener may draw another port on restart. Let the native
                 // client keep that address before ctl loads its client directory.
                 let settled = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
@@ -560,13 +636,13 @@ pub fn run(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
 ) -> (Option<Proof>, Option<Reads>) {
-    run_to(root, forge, barrier, previous, false)
+    run_to(root, forge, barrier, previous, false, Cut::Ordinary)
 }
 
 /// A cancelled run is redispatched by the policy; stop inside that retry's job.
 #[must_use]
 pub fn retry(root: &Path, forge: &Throwaway, barrier: &JobBarrier, previous: &Proof) -> Proof {
-    run_to(root, forge, barrier, Some(previous), true).0.expect("stopped inside the retry")
+    run_to(root, forge, barrier, Some(previous), true, Cut::Ordinary).0.expect("stopped inside the retry")
 }
 
 fn run_to(
@@ -575,11 +651,18 @@ fn run_to(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
     retry: bool,
+    cut: Cut,
 ) -> (Option<Proof>, Option<Reads>) {
     let first = previous.is_none();
     let peer = fake_llm(if first { held_review_scripts(forge) } else { landing_scripts(ANSWER, forge) });
     peer.configure(root);
-    let script = if first { person::adopt_and_start_change(forge) } else { person::found() };
+    let script = if first {
+        person::adopt_and_start_change(forge)
+    } else if cut == Cut::Prepared || cut == Cut::Turn {
+        person::signed_in()
+    } else {
+        person::found()
+    };
     let clock = Clock::new();
     let mut binary = serve(root);
     let streams = binary.take_streams().expect("serve pipes");
@@ -606,6 +689,7 @@ fn run_to(
         landed: &landed,
         previous,
         retry,
+        cut,
         ready: false,
         advanced: None,
         poll: clock.now().now,

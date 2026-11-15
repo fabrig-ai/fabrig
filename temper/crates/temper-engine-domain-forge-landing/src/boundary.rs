@@ -222,6 +222,9 @@ pub enum RoundEnd {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Preparation {
+    /// No prepare job for the unprepared suffix has been admitted.
+    Absent,
+    /// An admitted prepare ended; its prefixes or retained report may still be read.
     Idle,
     Running,
     Conflict,

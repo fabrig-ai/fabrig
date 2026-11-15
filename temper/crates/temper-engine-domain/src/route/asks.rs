@@ -517,7 +517,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 && let Some((child, _)) = row.delegate
             {
                 domain.work.push(Work::Forge(forge::Event::DelegateRefused { task, child }));
-                domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Procedure }));
+                forge_route::hold_reason(
+                    domain,
+                    task,
+                    b"its delegate admission was refused before work could be accepted",
+                );
             }
             None
         }

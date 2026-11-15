@@ -182,7 +182,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        // The stock chat amendment holds every declared grant and executor with the longest offered cue.
+        // Stock owner authority: 1,187 bytes, plus the longest 31-byte story cue.
         ("people.amendment_bytes", 1218),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
@@ -220,12 +220,12 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("authority.executors", 21),
+        ("authority.executors", 22),
         ("authority.segments", 8),
         ("tasks.authority_grants", 15),
         ("tasks.authority_bytes", 75),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 21),
+        ("tasks.executor_kinds", 22),
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {

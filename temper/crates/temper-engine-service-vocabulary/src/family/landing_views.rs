@@ -74,7 +74,20 @@ pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w
 }
 fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<w::SearchBound> {
     let prefix = if member == 0 {
-        value.round.upstream?
+        match value.round.upstream {
+            Some(base) => base,
+            None => {
+                let red = value.round.search?.red.checked_sub(1)?;
+                let member = value.members.get(usize::from(red))?;
+                if let Some(base) = member.base {
+                    base
+                } else if let Some(forge::LandingLeave::Blamed { green, .. }) = member.left {
+                    green
+                } else {
+                    return None;
+                }
+            }
+        }
     } else {
         let member = value.members.get(usize::from(member.checked_sub(1)?))?;
         if let Some(prefix) = member.candidate {

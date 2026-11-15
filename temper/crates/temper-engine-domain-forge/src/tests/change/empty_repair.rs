@@ -4,6 +4,16 @@ use skein_forge::api::{Answer, Check, Ci, CommitMessage, JobAttempt, Op, Read, S
 use temper_engine_domain_forge_change as change;
 
 fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision, u32) {
+    checked_repair(kind, late, no_change, change::Repair::Ci, None)
+}
+
+fn checked_repair(
+    kind: Kind,
+    late: bool,
+    no_change: bool,
+    why: change::Repair,
+    advanced: Option<[u8; 32]>,
+) -> (Domain, change::Decision, u32) {
     let mut d = fixtures::connected_domain();
     d.configured.get_mut(&1).expect("forge configuration").kind = kind;
     let mut repository = adopted();
@@ -16,10 +26,10 @@ fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision
     row.pending = None;
     row.pull = Some(1);
     row.effect = change::EffectResult::None;
-    row.change.state = change::State::Repairing { requested: true, why: change::Repair::Ci };
+    row.change.state = change::State::Repairing { requested: true, why };
     row.change.last_head = Some(fixtures::HEAD);
     row.change.repairs = 1;
-    row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
+    row.delegate = Some((52, change::Delegate::Repair(why)));
     row.delegate_status = change::Status::Pending;
     outputs(&mut d, Event::Change { row });
     if !late {
@@ -38,12 +48,14 @@ fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision
                     Answer::Commit(fixtures::BASE)
                 } else {
                     branches = branches.saturating_add(1);
-                    Answer::Commit(fixtures::HEAD)
+                    Answer::Commit(if branches > 1 { advanced.unwrap_or(fixtures::HEAD) } else { fixtures::HEAD })
                 }
             }
-            Op::Read(Read::Pull { .. }) => {
-                Answer::Pull(skein_forge::api::Pull { ci: Ci::Failed, ..fixtures::open_pull() })
-            }
+            Op::Read(Read::Pull { .. }) => Answer::Pull(skein_forge::api::Pull {
+                commit: if branches > 1 { advanced.unwrap_or(fixtures::HEAD) } else { fixtures::HEAD },
+                ci: Ci::Failed,
+                ..fixtures::open_pull()
+            }),
             Op::Read(Read::Checks { commit }) if commit == fixtures::HEAD => Answer::Checks(Box::new([Status {
                 at: Time::ZERO,
                 context: b"ci/test".as_slice().into(),
@@ -63,6 +75,9 @@ fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision
                 more: false,
             },
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, ahead: 1, behind: 0, files: Box::new([]), changed: 0 }
+            }
             other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected {other:?}"),
         };
         if terminal {
@@ -151,4 +166,15 @@ fn a_repair_terminal_during_ci_gathering_reads_its_branch_after_the_end() {
     let (_, decision, branches) = checked(Kind::Forgejo, true, true);
     assert_eq!(decision, change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD }));
     assert_eq!(branches, 2, "the empty-repair decision uses a branch read after its terminal");
+}
+
+#[test]
+fn a_review_repair_delivery_during_gathering_reads_its_branch_after_the_end() {
+    for why in [change::Repair::Gate(1), change::Repair::Review { head: fixtures::HEAD }] {
+        let advanced = [9; 32];
+        let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, why, Some(advanced));
+        assert_eq!(branches, 2, "{why:?}: a delivery needs a branch read after its terminal");
+        assert_eq!(d.change(fixtures::CHANGE).expect("delivered change").change.last_head, Some(advanced));
+        assert_ne!(decision, change::Decision::Hold(change::Hold::Failed));
+    }
 }

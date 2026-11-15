@@ -8,6 +8,24 @@ use temper_engine_domain_forge_landing as landing;
 pub const PROJECT: u32 = 5;
 pub const CHANGE: u64 = 51;
 pub const LANDING: u64 = 61;
+
+/// The scripted root takes the landing's branch holds as it forms the task
+/// (domain/landing.md, 4.2, 5.1).
+pub fn register(world: &mut World, row: top::LandingRow) {
+    for member in &row.landing.members {
+        world.event(top::Event::Hold {
+            entry: 0,
+            task: row.landing.task,
+            resource: top::Name {
+                forge: member.repository.forge,
+                repository: member.repository.repository,
+                what: top::What::Branch(member.branch.split(|byte| *byte == b'/').map(Into::into).collect()),
+            },
+            from: None,
+        });
+    }
+    world.event(top::Event::Landing { row });
+}
 #[must_use]
 pub fn turn_world() -> World {
     turn_in(World::turn())

@@ -1000,6 +1000,185 @@ fn a_request_for_changes_is_still_a_repair() {
     assert_eq!(row.verdicts[0].status, temper_engine_domain_forge_change::Status::Failed);
 }
 
+// temper/docs/design/domain/forge/change/repairs.md: a failed review repair holds at its attempted count.
+#[test]
+fn a_failed_review_repair_names_its_task_account_and_release() {
+    for (reason, no_change) in
+        [(b"cannot preserve both lines".as_slice(), false), (b"".as_slice(), false), (b"".as_slice(), true)]
+    {
+        let mut world = World::configured_limits(
+            true,
+            true,
+            false,
+            1000,
+            Gate { agent: true, ..Gate::default() },
+            None,
+            StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
+        );
+        world.adopt();
+        let mut hello = super::landing::hello_prepare(2);
+        let engine::Event::Worker(engine::WorkerInput::Link {
+            link: engine::Link::Hello { hello: worker, .. }, ..
+        }) = &mut hello
+        else {
+            panic!("worker hello")
+        };
+        worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+        world.send(hello);
+        let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+        batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+        let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+        let engine::CallAnswer::Delegated(made) =
+            super::change_tool::change(&mut world, &chat, 93, None, b"Keep both lines")
+        else {
+            panic!("change")
+        };
+        let change = made[0].task;
+        let producer = next_assignment(&mut world, 1);
+        let branch = producer.workspace.repositories[0].push.clone().expect("branch");
+        produce(&mut world, &producer, &branch);
+        for _ in 0..MAX_TICKS {
+            world.prepare_tick();
+            if world.assigned.len() > 2 {
+                break;
+            }
+        }
+        let review = world.assigned.get(2).expect("landing member review").clone();
+        reject_lost_content(&mut world, &review, b"keep both lines");
+        let repair = next_assignment(&mut world, 3);
+        let result = if no_change {
+            tasks::TaskResult::NoChange { words: reason.into() }
+        } else {
+            tasks::TaskResult::Failure { reason: reason.into() }
+        };
+        finish_review(&mut world, &repair, result);
+        wait_held(&mut world, change);
+        let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } =
+            &live_task(&world, change).phase
+        else {
+            panic!("failed repair must hold with its account: {:?}", live_task(&world, change).phase);
+        };
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("failure account") };
+        let words = core::str::from_utf8(words).expect("hold words");
+        for expected in [
+            format!("its repair, task {}", repair.task),
+            if reason.is_empty() { "gave no account".into() } else { String::from_utf8(reason.into()).unwrap() },
+            "release this change to ask for a fresh repair".into(),
+        ] {
+            assert!(words.contains(&expected), "missing {expected:?}: {words}");
+        }
+        assert_eq!(change_row(&world, change).change.repairs, 1);
+        assert_eq!(world.merges, 0);
+        let made_before = live_task(&world, change).made;
+        release(&mut world, change);
+        let replacement = next_assignment(&mut world, 4);
+        assert_ne!(replacement.task, repair.task);
+        assert_eq!(requester(&world, replacement.task), change);
+        assert_eq!(live_task(&world, change).made, made_before + 1);
+    }
+}
+
+// temper/docs/design/domain/forge/change/questions.md, 1: answering a repair cannot consume its terminal result.
+#[test]
+fn a_delivered_review_repair_after_a_relayed_question_is_taken() {
+    delivered_review_repair(false, false);
+}
+
+#[test]
+fn a_delivered_review_repair_is_taken_after_another_writer_advances_its_branch() {
+    delivered_review_repair(true, false);
+}
+
+#[test]
+fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_branch() {
+    delivered_review_repair(false, true);
+}
+
+fn delivered_review_repair(moved: bool, idle: bool) {
+    let (mut world, requester) = super::questions::plan_world_with_gate(
+        None,
+        Gate { agent: true, ..Gate::default() },
+        &StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
+        false,
+    );
+    let change = super::questions::make_change(&mut world, &requester, 93, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    let branch = change_row(&world, change).branch;
+    produce(&mut world, &producer, &branch);
+    let review = next_assignment(&mut world, 3);
+    reject_lost_content(&mut world, &review, b"keep both lines");
+    let first_repair = next_assignment(&mut world, 4);
+    push_append(&mut world, &first_repair, &branch, b"first repair");
+    let second_review = next_assignment(&mut world, 5);
+    reject_lost_content(&mut world, &second_review, b"keep the blank line too");
+    let repair = next_assignment(&mut world, 6);
+    world.producer_question(&repair, 101, b"May I keep both lines?");
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        if change_row(&world, change)
+            .questions
+            .open
+            .first()
+            .is_some_and(|question| question.stands == temper_engine_domain_forge_change::Stands::Asked)
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(!change_row(&world, change).questions.open.is_empty(), "repair question must go up");
+    let event =
+        world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    if idle {
+        for _ in 0..MAX_TICKS {
+            world.tick();
+        }
+        let head = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            &branch,
+            b"another-file",
+            b"another writer",
+            2,
+        )
+        .expect("another writer advances the idle repair's branch");
+        for _ in 0..MAX_TICKS {
+            world.tick();
+        }
+        let row = change_row(&world, change);
+        assert_ne!(row.delegate.map(|(task, _)| task), Some(repair.task), "stale repair must end: {row:?}");
+        assert!(!matches!(
+            row.change.state,
+            temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+        ));
+        assert!(row.change.last_head == Some(translate::commit(head)) || row.drift.is_some());
+        return;
+    }
+    super::questions::answer(&mut world, &requester, change, 102);
+    let resumed = next_assignment(&mut world, 7);
+    assert_eq!(resumed.task, repair.task);
+    push_append(&mut world, &resumed, &branch, b"both lines");
+    if moved {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
+            .expect("another writer advances the delivered branch");
+    }
+    let head = translate::commit(world.fake.branch(b"org/repo", &branch).expect("repaired branch"));
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        if world.assigned.len() > 8 {
+            break;
+        }
+    }
+    let row = change_row(&world, change);
+    assert_eq!(row.change.last_head, Some(head), "delivered repair must advance the change: {row:?}");
+    let fresh = world.assigned.get(8).expect("successful repair must be reviewed");
+    assert_review_head(&world, fresh, head);
+    assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    assert!(row.questions.open.is_empty());
+    assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+}
+
 // domain/forge/change/README.md, 3: the procedure retains the precise hold while its review waits.
 #[test]
 fn an_external_close_holds_the_change_during_review() {
