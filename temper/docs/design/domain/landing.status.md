@@ -23,8 +23,10 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   ref fast-forwarded (kind 19), a squashed member's pull request closed
   there, and its stories on the fake GitHub. 13.1: kinds 4 and 5 as
   settings. 13.2: adoption's checks under `turn` of each gate's workflow
-  and its triggers, and of the forge's autodetect and allowance of a
-  manual merge. 14: `repository receipts`.
+  and its triggers, of a reporting gate's workflow declaring
+  `temper_tests` (left with the others by the user's word, goal 4045),
+  and of the forge's autodetect and allowance of a manual merge. 14:
+  `repository receipts`.
 - **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
   (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
   where temper cannot fast-forward main, because GitHub's turn is not built.

@@ -37,6 +37,9 @@ top dispatches, reads and writes for it as for the round's top.
 - **Shown** (section 8): news of each probe, each probed prefix's gate
   statuses, the round's pull request naming the search, and the search
   in `landing show` and the changes view.
+- **By test** (`landing-search-by-test.md`): where the top's gates
+  report their failed cases, the probes run only those, and nothing
+  lands on them: the next round proves the green prefix whole.
 
 ## 2. When it starts
 
@@ -75,6 +78,9 @@ top dispatches, reads and writes for it as for the round's top.
   given none. Each gate's status,
   `temper/gate/<name>`, goes on that prefix (`landing.md`, section 10).
   An advisory gate is the candidate's alone: no probe dispatches it.
+  A search by test dispatches only the gates with a selection, each
+  given `temper_tests` too, posts no pending status, and judges its
+  probes by their selected cases (`landing-search-by-test.md`, 4).
 - **`temper_probe`'s reach:** the inputs are fixed at a key's first
   dispatch, so a rerun or a dispatch afresh (`landing.md`, 7.4) sends
   them again, and a key in flight from the top serves a probe as it is,
@@ -140,7 +146,9 @@ top dispatches, reads and writes for it as for the round's top.
      none is stacked again in it.
   3. **The green prefix lands** in the round's turn (section 5), where
      g is above 0. Where g is 0, the round lands nothing and ends: no
-     empty turn (`../draft/merge-queue.md`, section 8).
+     empty turn (`../draft/merge-queue.md`, section 8). A search by test
+     ends its round unlanded instead, and the next round proves the
+     green prefix whole (`landing-search-by-test.md`, 6).
   4. **The next round** takes the members still in the landing, the
      units above the blamed one, in their order: its base the train's
      tip read afresh, the green prefix where it landed, and its job
@@ -151,6 +159,8 @@ top dispatches, reads and writes for it as for the round's top.
 
 ## 5. The turn at the green prefix
 
+- **A whole search's alone:** a search by test never turns at its green
+  prefix (`landing-search-by-test.md`, 6).
 - **The round's proved prefix is the green one:** its blocking test
   gates passed at exactly that prefix, by its probe or by receipts, and
   each of its members' judgement gates holds at the member's own prefix
@@ -194,7 +204,9 @@ top dispatches, reads and writes for it as for the round's top.
   else: a run a probe or the candidate dispatched, followed to its end
   after its verdict was taken or its round ended (`landing.md`, 7.1),
   moves no bound and blames no unit. A later round's probe or candidate
-  whose key has that receipt holds by it.
+  whose key has that receipt holds by it. A run by test makes a failed
+  receipt where it is red, and nothing otherwise
+  (`landing-search-by-test.md`, 4).
 - **A key is a tree's, not a prefix's:** two prefixes with one tree
   (a squash that adds nothing), or one prefix kept across rounds, share
   each gate's key. One run answers every prefix with that key, and a
@@ -229,6 +241,9 @@ top dispatches, reads and writes for it as for the round's top.
   base and failed jobs.` and the preservation words, as the candidate's
   repair ends (`forge/change/repairs.md`). A brief too small for the
   list keeps the opening and cuts the list from its end.
+- **By test,** its next sentence names its failing tests, and, where the
+  blamed unit is the top, that they passed at every probed prefix below
+  it (`landing-search-by-test.md`, 7).
 - **Its result's account** is the candidate's, the landing's gate
   failed; it waits for a later landing, first in line by its kept time
   (`landing.md`, section 3).
@@ -255,6 +270,8 @@ top dispatches, reads and writes for it as for the round's top.
   leaving with its red and green prefixes.
 - **The changes view** (`landing.md`, section 14): the landing's step,
   `probing` with its prefix while a probe runs.
+- **A search by test's** news, line and views are
+  `landing-search-by-test.md`, 8's.
 
 ## 9. In the store
 
@@ -272,6 +289,8 @@ top dispatches, reads and writes for it as for the round's top.
 - **Patched in place,** before the first release (`../protocol/store.md`,
   section 2), by the store's patch and the golden store's line
   (`../protocol/baseline.md`, 7).
+- **By test,** the search keeps how it probes, its selections and its
+  passes by test (`landing-search-by-test.md`, 9).
 
 ## 10. The world
 
@@ -311,7 +330,9 @@ to its probes' dispatch-only runs and a merged pull's head as Forgejo
 keeps it (`../testing/process-tier.md`), run by name, in no budgeted
 run.
 
+A search by test's stories are `landing-search-by-test.md`, 12's.
+
 ## 11. Later
 
-- **Probes by test** (`../draft/merge-queue.md`, section 13): a probe
-  that builds and runs only the tests the candidate failed.
+- **What probes by test leave for later** is
+  `landing-search-by-test.md`, 13's.

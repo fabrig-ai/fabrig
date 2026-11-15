@@ -333,7 +333,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   each member's prefix to its branch, expecting the branch new; a member
   that conflicted, or left, has none in that round.
 - **A round ends** at its turn, when a member leaves after the job
-  stacked it (4.3), but for a unit its search blames, or when its base
+  stacked it (4.3), but for a unit a whole search blames, or when its base
   goes stale (section 8). Ended
   unlanded, the landing closes the round's pull request and deletes the
   branches of its first changed member and of every member above it,
@@ -520,8 +520,9 @@ The default, for a project with no prepare command:
 ### 6.2 A receipt
 
 - **A gate's result under a key:** passed or failed, the run (the
-  forge's run, its number and its link), the candidate it ran at, and
-  when it ended.
+  forge's run, its number and its link), the candidate it ran at, when
+  it ended, and, failed, its report's ids (`landing-search-by-test.md`,
+  2).
 - **Made only from a run temper dispatched** for that key and saw end
   at exactly that candidate. A status someone else wrote, or a run
   temper did not dispatch, is never a receipt.
@@ -563,12 +564,9 @@ The default, for a project with no prepare command:
   base, `temper_base` (the round's base). A gate that does not read the
   base is given no `temper_base`.
 - **At a search's probe** each dispatch also carries `temper_probe`,
-  `yes`, and the round's top none (`landing-search.md`, 3). A probe
-  needs only red or green, so a gate's workflow may stop at its first
-  red when given it, and run on past a red at a top, where one red
-  reports as much as it can. A probe's red run is still a failed
-  receipt under its key (6.2), reused as any, its output what the run
-  reached.
+  `yes`, so that the workflow may stop at its first red, and, by test,
+  `temper_tests`; the round's top neither (`landing-search.md`, 3;
+  `landing-search-by-test.md`, 4).
 - **The run is found and followed:** among the runs of that workflow
   at the candidate (skein's `Read::Runs`), one made by a dispatch,
   triggered by temper's own user on that forge, after the dispatch's
@@ -579,9 +577,9 @@ The default, for a project with no prepare command:
   are due at the client's `poll_at` for the run's repository, every
   `poll` or, while that repository hears, at its last hint plus
   `fallback` (`forge/keeping-up.md`, 2). A
-  run another user triggered is never taken. Two that match are two of
-  temper's own dispatches of one key at one commit, either of which
-  proves it: the first to complete makes the receipt. A run whose
+  run another user triggered is never taken, and one dispatch of a
+  workflow at a commit is in flight at a time, keeping its inputs
+  (`landing-search-by-test.md`, 5). A run whose
   commit is not the candidate is a fault (7.4): the branch moved under
   it. A run an ended round dispatched is followed to its end for its
   key's receipt, and acts in a later round only through that receipt,
@@ -886,7 +884,7 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | the members below |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), each proving the trains into its main (7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, whether it reads the base (`base`, no when absent), and its report (`landing-search-by-test.md`, 2), each proving the trains into its main (7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
 
 Kind 4's members, each with its default and the section it serves:
 
@@ -934,8 +932,8 @@ Kind 4's members, each with its default and the section it serves:
 
 - **Under `turn`,** for each repository: its gates, each workflow
   checked to exist at the landing branch's tip and to name
-  `workflow_dispatch` alone among its triggers, or said otherwise in
-  words; whether the forge marks a pull request merged once its base
+  `workflow_dispatch` alone among its triggers, and, with a report, to
+  declare `temper_tests`, or said otherwise in words; whether the forge marks a pull request merged once its base
   holds its head (Forgejo's "autodetect manual merge"), which lands a
   merged member's pull request (section 10); where one of the project's
   trains squashes, whether the forge lets a pull request be recorded

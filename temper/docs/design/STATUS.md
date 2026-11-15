@@ -119,7 +119,12 @@ landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
 next round, each probe's gates given `temper_probe` so that they may
-stop at their first red (`domain/landing-search.md`). Its behaviours are
+stop at their first red (`domain/landing-search.md`). Probes by test's
+milestone T1, goal 4045, runs a probe on only the cases the top's gates
+report failed, given `temper_tests`, lands nothing on it, and keeps one
+run per workflow and commit in flight
+(`domain/landing-search-by-test.md`; `draft/probes-by-test.status.md`).
+Its behaviours are
 checked in the engine's worlds; the process tier keeps two stories on
 the fake forge and two on the owned Forgejo, run by choice
 (`testing/process-tier.md`); its staging walks follow landing
@@ -419,6 +424,7 @@ Design documents:
 - [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
+- [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
