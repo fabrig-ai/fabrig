@@ -5,9 +5,6 @@
 
 
 
-- **Not yet:** 2.3, *Moving*: a client the browser kept and resumes on back or
-  forward keeps what its page drops on leaving, as Accounts' completion
-  line. [in flight: change 3585]
 - **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
   browser kit can't do it offline: `skein-browser`'s requests and
   `fake-person-browser`'s steps can't grant a notification permission,
