@@ -395,6 +395,42 @@
   resolution whose run is in progress holds the writer slot, so the
   change decides nothing on its head until that run's push or end
   (`README.md`, 3).
+
+  The same rule ends a repair of a gate's refusal, a person's request
+  for changes on the forge, a landing gate's failure, a CI failure,
+  or CI failing after a clean update: its brief pins the failure at the
+  last head, so a move leaves its work unjudged at the new head. At
+  repairing, with that repair live but no run in progress (made and not
+  yet started, between its tries, or held), its branch's writer slot
+  free, and a branch read at another head, the change cancels the repair
+  at that step with `the change's head moved to HEAD`, whoever moved it,
+  a goal's landing into its branch included. It waits for the repair's
+  terminal and decides afresh as once its producer ends, reading its
+  branch, base and pull and keeping the head it reads; the cancelled
+  repair's status causes no hold. Its counts remain spent. The new head
+  is checked again and, if ready, forms a fresh landing whose gates
+  prove its new candidate. A repair whose run is in progress keeps the
+  writer slot as a resolution's does. A run claiming that slot while a
+  change's read is in progress makes that read see it as running too,
+  so an older read cannot end the repair on its own delivered head.
+  A change already held for another writer's drift keeps that hold and
+  its repair's brief as it stands (the open question below).
+
+  **A delivered repair is taken before judging the new head.** A
+  repair ending with a change result has delivered, even if another writer
+  has since advanced its branch and its delivered head is an ancestor
+  of the branch's head. Its terminal is recorded as a delivery, never
+  turned into a delegate failure for that move. As for every pushing
+  delegate's terminal, a gather already in progress starts again with
+  a branch read sent after the terminal. The change reads its branch,
+  base and pull afresh and takes the head it now reads, clearing its
+  clean heads and judging its gates again there. A drift the read
+  proves holds for its drift cause with its words (`README.md`, 3),
+  rather than saying that a repair which delivered failed. A live
+  repair whose run is in progress is left to deliver; an idle repair
+  whose branch moved before it delivered follows the cancel rule
+  above, including while waiting for an answer to its question.
+
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine/briefs.md`, 1.1):
 
@@ -638,8 +674,31 @@
   reads its branch, its base and its pull request again, a read still
   outstanding from before abandoned, its answer changing nothing when
   it comes; and it reads its delegate's end and result as its task's
-  record keeps them, its pull request's title among them. So a change
+  record keeps them, its pull request's title among them, but for a
+  delegate the release retires (*In order*, below). So a change
   whose producer's result had already arrived moves on at the release.
+  **In order** (2026-11-15): a release takes effect once, in four steps,
+  in this order, whatever restart falls between two of them:
+  1. **Once.** A party's release names the hold revision of the
+     change's task (jig's `domain/tasks/holds.md`). The change keeps,
+     on its row, the last revision it took, and takes a release only
+     above it: a second delivery of one release, or an older one,
+     changes nothing, before a restart or after it.
+  2. **Fenced.** Before anything is read, the release abandons the
+     gather outstanding and fences the change's branch and pull
+     request: the answer of a read of either asked before the release,
+     a gather's, a watch's poll or a hint's, changes nothing when it
+     comes (`../keeping-up.md`, 3). Released from a delegate that
+     failed or was cancelled, its producer, a repair, its resolution or
+     its merge job, it retires that delegate: its status, its failure's
+     words and its result are never read again, from the change's row,
+     its task's record or an archived one, before a restart or after
+     it. A result kept on another hold is no failure, and is taken (*A
+     result that arrives on a held change*, above).
+  3. **Read afresh.** It reads its branch, its base and its pull
+     request afresh (`../keeping-up.md`, 3).
+  4. **Decided** on those facts alone, by the rules for the step it
+     was held at, below and in `README.md`, 2.
   A party's release of the change's task (a party's stop is a placed
   hold: jig's `domain/tasks/lifecycle.md`, 10) does the same, though
   the change itself was not held. A producer that fails for good holds the change at
@@ -665,18 +724,26 @@
   after a restart; a pending replacement is not asked twice.
   Released from a resolution or a merge job that failed or was
   cancelled, the change decides afresh as it does once its producer
-  ends (`A resolution`, above): it reads its branch, its base and its
-  pull, never the ended delegate's status again, and keeps the head it
-  reads as its last head, the release taking it as a drift's release
-  takes a moved head (`README.md`, 3), since the failure alone never
-  does. With no conflict left, it goes on at that head, checked again.
-  With a conflict left, it asks for a fresh resolution directly, at that
-  head and its base as now read, with no merge job before it (below),
-  counted against the resolution allowance the release reset, and held
-  by the rule above when its authority no longer covers one. A task
-  still live that pushes its branch is waited for, as there. A pending
-  replacement is not asked twice, and it never holds again on the old
-  delegate's status.
+  ends (`A resolution`, above), on what step 3 of *In order* read:
+  never the ended delegate's status, words, result or head. It keeps
+  the head it read as its last head, the release taking it as a
+  drift's release takes a moved head (`README.md`, 3), the branch's
+  known head with it, so that head raises no drift later; the failure
+  alone never takes a head. With no conflict left, it goes on at that
+  head, checked again (`README.md`, 2, step 3). With a conflict left,
+  it asks exactly one fresh resolution, directly, pinned to that head
+  and its base as now read, with no merge job before it (below);
+  under `turn`, the preparation that judges the conflict is made at
+  that head and main's tip as now read. The resolution is counted
+  against the allowance the release reset, and held by the rule above
+  when its authority no longer covers one. Since the ended delegate is
+  retired, the change itself keeps, on its row, that it was released
+  from a resolution or a merge job, so that a restart before the fresh
+  resolution is asked still asks it directly. A task still live that
+  pushes its branch is waited for, as there. The fresh resolution is
+  recorded as asked in the step that asks it, so it is asked once, a
+  restart included, and the change never holds again on the old
+  delegate's status, words or head.
   A delegate a person cancels holds at the same count and is released
   the same way, and its hold says what happened: `its repair, task N,
   was cancelled`, with the cancel's reason where it gave one, within the

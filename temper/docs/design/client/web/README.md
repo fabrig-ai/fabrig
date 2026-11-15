@@ -455,7 +455,13 @@ replay says the same clocks (`../view.md`, 6).
   is a move within the client, with a new history entry; back and
   forward are moves too, each entry keeping its scroll; a reload, or an
   address typed or opened, is a new client at that address (jig's
-  `protocol/browser/README.md`, section 10). That a client opens at the inbox
+  `protocol/browser/README.md`, section 10). Back or forward to an entry
+  of a client left by such a load is a new client at its address, or,
+  where the browser kept that client, its return (skein's
+  `ui/web/README.md`, 7): the client leaves
+  the page it showed and comes back to it, so what goes when the person
+  leaves a page has gone, as Accounts' completion line
+  (`../pages/accounts.md`, 1 and 2). That a client opens at the inbox
   (`../README.md`, 3.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
 - **A heading drawn after its page** (the answer of 2026-11-06 to the

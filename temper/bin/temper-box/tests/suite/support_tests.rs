@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn four_reviews_and_the_latch_can_wait_on_the_model_together() {
+    support::turn_drills::tests::four_reviews_and_the_latch_can_wait_on_the_model_together();
+}
+
+#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
@@ -33,6 +38,11 @@ fn person_a_chat_waits_for_the_model_watch_before_pressing_start() {
 #[test]
 fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
     support::terminal::tests::a_command_waits_for_fresh_controls_when_returning_to_settings();
+}
+
+#[test]
+fn gate_receipt_waits_for_an_unpublished_status_context() {
+    support::batch_landing::tests::gate_receipt_waits_for_an_unpublished_status_context();
 }
 
 #[test]
@@ -136,6 +146,11 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
     }
     scratch.remove();
+}
+
+#[test]
+fn turn_configuration_declares_the_prepare_job() {
+    support::turn_restart::tests::turn_configuration_declares_the_prepare_job();
 }
 
 #[test]

@@ -369,7 +369,7 @@ fn an_outcome_past_its_retention_is_encoded_unknown() {
 }
 #[test]
 fn a_core_refusal_uses_jigs_refusal_record() {
-    use jig_client_protocol_wire::v23 as j;
+    use jig_client_protocol_wire::v24 as j;
     let limits = fixtures::engine().jig.limits.clients.wire;
     for (row, input, expected) in [
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
@@ -728,6 +728,42 @@ fn a_panel_encodes_and_decodes_back_whole() {
     )
     .unwrap();
     assert_eq!(decoded_panel(panel(), &fixtures::forge_table(&[])), expected);
+}
+fn landing_repair_panel(reason: change::Repair, gate: u16) {
+    let mut value = panel();
+    value.way = change::Way::Turn;
+    value.in_landing = Some(13);
+    value.task = 4;
+    value.runs = Some(15);
+    value.step = forge::PanelStep::Repairing(reason);
+    let decoded = decoded_panel(value, &fixtures::forge_table(&[]));
+    assert_eq!(decoded.task(), 4);
+    assert_eq!(*decoded.runs(), Some(15));
+    assert_eq!(*decoded.in_landing(), Some(13));
+    assert_eq!(
+        *decoded.step(),
+        repairing(w::Reason::Landing(
+            w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::from(gate) }).unwrap()
+        ))
+    );
+}
+#[test]
+fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
+    landing_repair_panel(
+        change::Repair::LandingAt {
+            gate: 0,
+            candidate: [7; 32],
+            below: Some(change::Below {
+                green: [8; 32],
+                changes: [Some(change::Landed { change: 3, pull: 5 }), None, None, None],
+            }),
+        },
+        0,
+    );
+}
+#[test]
+fn a_candidate_landing_repair_panel_keeps_its_gate_and_delegate() {
+    landing_repair_panel(change::Repair::Landing { gate: u16::MAX }, u16::MAX);
 }
 fn repairing(reason: w::Reason) -> w::Step {
     w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
@@ -1260,7 +1296,7 @@ fn expected_forge_row(
 
 #[test]
 fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
-    use jig_client_protocol_wire::v23 as j;
+    use jig_client_protocol_wire::v24 as j;
     for (bound, expected) in [
         (people::Bound::Reasoning, j::Bound::Reasoning),
         (people::Bound::Metadata, j::Bound::Metadata),
@@ -1657,12 +1693,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_two() {
+fn embedded_client_refusals_keep_their_bytes_at_client_twenty_four() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::v23::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::v24::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 22);
+    assert_eq!(wire::CLIENT_VERSION, 24);
 }
 
 #[test]
@@ -1863,6 +1899,56 @@ fn landing_view() -> forge::LandingView {
         }]),
     }
 }
+#[test]
+fn a_first_round_search_uses_its_members_base_at_boundary_zero() {
+    let mut value = landing_view();
+    value.step = forge::LandingStep::Probing;
+    value.round.upstream = None;
+    value.round.search = Some(forge::LandingSearch { green: 0, red: 1 });
+    value.members[0].base = Some([0x22; 32]);
+    value.members[0].candidate = Some([0x33; 32]);
+    value.members[0].left = None;
+    let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+        .expect("the original round's search has a base");
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
+    assert_eq!((search.red().member(), search.red().prefix()), (1, &[0x33; 32]));
+}
+
+#[test]
+fn a_later_search_keeps_its_base_after_a_prior_turn_and_a_cut() {
+    for cleared in [false, true] {
+        let mut value = landing_view();
+        value.step = forge::LandingStep::Probing;
+        value.round.upstream = None;
+        value.round.search = Some(forge::LandingSearch { green: 0, red: 2 });
+        let mut red = value.members[0].clone();
+        red.change = 52;
+        red.base = if cleared { None } else { Some([0x22; 32]) };
+        red.candidate = if cleared { None } else { Some([0x33; 32]) };
+        red.left = if cleared {
+            Some(forge::LandingLeave::Blamed { gate: 0, run: 7, red: [0x33; 32], green: [0x22; 32] })
+        } else {
+            None
+        };
+        let mut above = red.clone();
+        above.change = 53;
+        above.base = Some([0x22; 32]);
+        above.candidate = Some([0x44; 32]);
+        above.left = None;
+        value.members[0].landed = Some([0x11; 32]);
+        value.members[0].left = None;
+        value.members = Box::new([value.members[0].clone(), red, above]);
+        let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+            .expect("later search maps");
+        let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+        assert_eq!(search.green().prefix(), &[0x22; 32]);
+        assert_eq!(search.red().prefix(), &[0x33; 32]);
+    }
+}
+
 #[test]
 fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     let mut value = landing_view();
@@ -5099,7 +5185,7 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     };
     let encoded = family::forge_read(
         root::ForgeReadAnswer::History(h::Reply::Page {
-            events: Box::new([event]),
+            events: Box::new([event.clone()]),
             after: Some(cursor),
             upper: 40,
             whole_since: Some(Wall::from_nanos(3)),
@@ -5111,6 +5197,53 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     let answer = wire::decode_history_answer(&encoded, &w::CEILINGS).unwrap();
     let w::HistoryReply::Page(page) = answer.result() else { panic!("page") };
     assert_eq!((page.upper(), page.after(), page.whole_since()), (40, &Some(bytes), &Some(3)));
+    let mut outcomes = List::uncapped();
+    for pair in [
+        (h::JobOutcome::Done, w::HistoryJobOutcome::Done),
+        (h::JobOutcome::Conflict, w::HistoryJobOutcome::Conflict),
+        (h::JobOutcome::Timeout, w::HistoryJobOutcome::Timeout),
+        (h::JobOutcome::Cancelled, w::HistoryJobOutcome::Cancelled),
+        (h::JobOutcome::Lost, w::HistoryJobOutcome::Lost),
+    ] {
+        outcomes.push(pair).unwrap();
+    }
+    for (class, expected) in [
+        (h::JobFailure::Unprepared, w::HistoryJobFailure::Unprepared),
+        (h::JobFailure::Run, w::HistoryJobFailure::Run),
+        (h::JobFailure::Result, w::HistoryJobFailure::Result),
+        (h::JobFailure::Unstarted, w::HistoryJobFailure::Unstarted),
+        (h::JobFailure::Undelivered, w::HistoryJobFailure::Undelivered),
+        (h::JobFailure::Unknown, w::HistoryJobFailure::Unknown),
+    ] {
+        outcomes
+            .push((
+                h::JobOutcome::Failed { class },
+                w::HistoryJobOutcome::Failed(
+                    w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: expected }).unwrap(),
+                ),
+            ))
+            .unwrap();
+    }
+    for (outcome, expected) in outcomes.into_boxed() {
+        let bytes = family::forge_read(
+            root::ForgeReadAnswer::History(h::Reply::Page {
+                events: Box::new([h::Event {
+                    what: h::What::JobEnded { job: h::Job::Merge, outcome },
+                    ..event.clone()
+                }]),
+                after: None,
+                upper: 40,
+                whole_since: None,
+            }),
+            b"",
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let reply = wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap();
+        let w::HistoryReply::Page(page) = reply.result() else { panic!("job history page") };
+        let w::HistoryWhat::JobEnded(ended) = page.events().get(0).unwrap().what() else { panic!("job end") };
+        assert_eq!(ended.outcome(), &expected);
+    }
     let event = page.events().get(0).unwrap();
     assert_eq!(
         (
@@ -5149,6 +5282,31 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     ] {
         let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
         assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
+    }
+}
+
+#[test]
+fn a_landing_repair_keeps_its_change_panel_readable() {
+    for reason in [
+        change::Repair::Landing { gate: 0 },
+        change::Repair::LandingAt {
+            gate: 0,
+            candidate: [8; 32],
+            below: Some(change::Below { green: [7; 32], changes: [None; 4] }),
+        },
+    ] {
+        let mut value = panel();
+        value.step = forge::PanelStep::Repairing(reason);
+        value.way = change::Way::Turn;
+        value.in_landing = Some(61);
+        value.runs = Some(88);
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        assert_eq!(
+            *got.step(),
+            repairing(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap()))
+        );
+        assert_eq!(*got.in_landing(), Some(61));
+        assert_eq!(*got.runs(), Some(88));
     }
 }
 

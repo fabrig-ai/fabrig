@@ -37,6 +37,7 @@ fn change(state: State) -> Change {
         gates: Box::new([]),
         clean: Box::new([]),
         gate_failures: Box::new([]),
+        released_resolution: false,
         released: None,
         repairs: 0,
         resolutions: 0,
@@ -116,7 +117,7 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
     for status in [Status::Unknown, Status::Pending] {
         let cancelled = decide(&c, &f, &Heard { delegate: status, ..live });
         assert_eq!(cancelled.change.state, State::WaitingProducer { base: BASE });
-        assert_eq!(cancelled.decision, Decision::CancelResolution { head: NEW });
+        assert_eq!(cancelled.decision, Decision::CancelMovedDelegate { head: NEW });
         assert_eq!(cancelled.change.since, at(1));
         assert_eq!(cancelled.change.last_head, Some(HEAD));
         assert_eq!(cancelled.change.resolutions, 1);
@@ -129,7 +130,7 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
             assert_resolution_reread(&next, mergeable, 2);
             f.drift = Some(Hold::BranchMoved);
             let first = decide(&c, &f, &live);
-            assert_eq!(first.decision, Decision::CancelResolution { head: NEW });
+            assert_eq!(first.decision, Decision::CancelMovedDelegate { head: NEW });
             let held = decide(&first.change, &f, &ended);
             assert_eq!(held.decision, Decision::Hold(Hold::BranchMoved));
             assert_eq!(
@@ -162,6 +163,76 @@ fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
         if status == Status::Passed {
             assert_eq!(next.change.state, State::Checking { head: NEW });
         }
+    }
+}
+
+#[test]
+fn a_moved_head_ends_only_an_idle_repair_and_decides_afresh() {
+    for why in [
+        Repair::Ci,
+        Repair::Semantic,
+        Repair::Landing { gate: 0 },
+        Repair::LandingAt { gate: 0, candidate: MERGE, below: None },
+        Repair::Gate(1),
+        Repair::Review { head: HEAD },
+    ] {
+        let mut c = change(State::Repairing { requested: true, why });
+        c.repairs = 1;
+        c.owns_turn = true;
+        let mut f = facts();
+        f.delegate = Some(Delegate::Repair(why));
+        f.branch = Some(NEW);
+        f.ci = Ci { head: NEW, status: Status::Failed };
+        let live = Heard { delegate_live: true, ..heard() };
+        for status in [Status::Unknown, Status::Pending] {
+            let cancelled = decide(&c, &f, &Heard { delegate: status, ..live });
+            assert_eq!(cancelled.decision, Decision::CancelMovedDelegate { head: NEW }, "{why:?}, {status:?}");
+            assert_eq!(cancelled.change.state, State::WaitingProducer { base: BASE });
+            assert_eq!(cancelled.change.last_head, Some(HEAD));
+            assert_eq!(cancelled.change.repairs, 1);
+            assert_eq!(cancelled.change.since, at(1));
+            assert!(!cancelled.change.owns_turn);
+            assert_eq!(decide(&cancelled.change, &f, &live).decision, Decision::Wait { until: None });
+            let ended = Heard { delegate: Status::Failed, ..heard() };
+            let next = decide(&cancelled.change, &f, &ended);
+            assert_eq!(next.change.state, State::Checking { head: NEW });
+            assert_eq!(next.change.last_head, Some(NEW));
+            assert_eq!(next.decision, Decision::None);
+        }
+        for (running, writer, head) in
+            [(true, false, Some(NEW)), (false, true, Some(NEW)), (false, false, Some(HEAD)), (false, false, None)]
+        {
+            f.writer_taken = writer;
+            f.branch = head;
+            let next = decide(&c, &f, &Heard { delegate_running: running, ..live });
+            assert_eq!(next.decision, Decision::Wait { until: Some(at(31)) });
+            assert_eq!(next.change.state, c.state);
+        }
+    }
+}
+
+#[test]
+fn a_drift_hold_keeps_its_idle_repair_after_the_head_moves() {
+    for why in [
+        Repair::Ci,
+        Repair::Semantic,
+        Repair::Landing { gate: 0 },
+        Repair::LandingAt { gate: 0, candidate: MERGE, below: None },
+        Repair::Gate(9),
+        Repair::Review { head: HEAD },
+    ] {
+        let c =
+            change(State::Held { was: Box::new(State::Repairing { requested: true, why }), why: Hold::BranchMoved });
+        let f = Facts {
+            branch: Some(NEW),
+            ci: Ci { head: NEW, status: Status::Failed },
+            delegate: Some(Delegate::Repair(why)),
+            drift: Some(Hold::BranchMoved),
+            ..facts()
+        };
+        let next = decide(&c, &f, &Heard { delegate_live: true, ..heard() });
+        assert_eq!(next.decision, Decision::None);
+        assert_eq!(next.change, c);
     }
 }
 
@@ -550,6 +621,29 @@ fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failu
         let pending = step(&replacement.change, &fresh, &heard(), at(5), &LIMITS);
         assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) }, "{terminal}");
         assert_eq!(pending.change.resolutions, 1, "{terminal}");
+    }
+}
+
+#[test]
+fn a_released_resolution_without_a_delegate_uses_the_fresh_head_and_base() {
+    let (held, facts, _) = failed_resolution(Delegate::Resolve { base: BASE });
+    for (mergeable, state, decision) in [
+        (Status::Passed, State::Checking { head: NEW }, Decision::None),
+        (
+            Status::Failed,
+            State::Resolving { requested: true, base: MERGE },
+            Decision::Delegate(Delegate::Resolve { base: MERGE }),
+        ),
+    ] {
+        let fresh =
+            Facts { delegate: None, branch: Some(NEW), base_tip: MERGE, mergeable, merge_job: true, ..facts.clone() };
+        let reset = step(&released(&held, at(3)), &fresh, &heard(), at(3), &LIMITS);
+        let next = step(&reset.change, &fresh, &heard(), at(4), &LIMITS);
+        assert_eq!(next.change.last_head, Some(NEW));
+        assert_eq!(next.change.state, state);
+        assert_eq!(next.decision, decision);
+        let pending = step(&next.change, &fresh, &heard(), at(5), &LIMITS);
+        assert!(!matches!(pending.decision, Decision::Delegate(Delegate::Resolve { .. } | Delegate::Merge { .. })));
     }
 }
 
@@ -1650,6 +1744,7 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
 mod empty_repair;
 mod green;
 mod merge;
+mod passing;
 mod relay;
 mod verifying;
 

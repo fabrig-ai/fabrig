@@ -170,7 +170,11 @@ fn pace(hearing: bool) {
         }
         if due {
             due = false;
-            if hearing {
+            // The opening overlaps its first keep when its settlement records
+            // the number. Measure checking gathers, not that bootstrap.
+            let checking = matches!(world.stored().get(&top::Key::ChangeHot(51)),
+                Some(top::Stored::ChangeHot(row)) if matches!(row.change.state, change::State::Checking { .. }));
+            if hearing && checking {
                 gather = Some((entry, head_status_reads(&world, &status)));
             }
             step_change(&mut world, entry, change::Status::Unknown, false);

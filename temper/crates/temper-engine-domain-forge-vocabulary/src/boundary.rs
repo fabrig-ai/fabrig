@@ -1312,6 +1312,12 @@ impl ChangeRow {
     }
 }
 impl ChangeRow {
+    /// Its facts are frozen from the step that ends it (domain/forge/keeping-up.md, 3).
+    #[must_use]
+    pub fn frozen(&self) -> bool {
+        self.ending.is_some() || self.terminal()
+    }
+
     /// The pull a judgement delegate reads; every other state keeps the change's pull.
     #[must_use]
     pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {

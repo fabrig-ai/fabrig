@@ -87,6 +87,7 @@ pub(crate) fn wait(domain: &mut Domain, env: &Env<Limits>, number: u64, room: Li
     task.record.room_wait = Some(RoomWait { room, order });
     task.record.phase = Phase::Active(Active::Idle);
     task.procedure_offered = None;
+    task.procedure_woken = false;
     publish(domain, env, number, out);
 }
 

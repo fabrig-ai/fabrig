@@ -61,6 +61,9 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+#[path = "forge_routes/producer_amendment.rs"]
+mod producer_amendment;
+mod producer_words;
 #[path = "forge_routes/questions.rs"]
 mod questions;
 
@@ -112,6 +115,7 @@ mod repair_cause;
 mod repair_empty;
 mod repair_green;
 mod resolution_head;
+mod resolution_release;
 mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
@@ -141,6 +145,7 @@ mod b2_tree;
 mod check_timeout;
 mod completed_change;
 mod completed_reads;
+mod pull_owner;
 mod saved_close;
 #[path = "forge_routes/saved_retry.rs"]
 mod saved_retry;

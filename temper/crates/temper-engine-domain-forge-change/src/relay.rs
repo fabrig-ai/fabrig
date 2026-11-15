@@ -20,10 +20,10 @@ pub struct RelayHeard<'a> {
     pub answer: Option<&'a [u8]>,
     /// Askers among the open questions' that have ended.
     pub ended: &'a [u64],
-    /// The change's task is kept by a pending dependency.
-    pub kept: bool,
     /// The change was released from its questions hold since its last step.
     pub released: bool,
+    /// A pending dependency the task did not start from holds the answer.
+    pub held: bool,
 }
 
 /// What the root applies for a change's relay.
@@ -79,8 +79,11 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 done = done.saturating_add(1);
                 continue;
             }
-            if heard.kept {
+            if heard.held || room == 0 {
                 question.stands = Stands::Held { answer: bytes::copy_of(answer) };
+                if !heard.held {
+                    more = true;
+                }
                 break;
             }
         }
@@ -125,7 +128,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
     Relayed {
-        questions: Questions { route: questions.route, taken, open: Box::from(remaining) },
+        questions: Questions { taken, open: Box::from(remaining), ..questions.clone() },
         acts: acts.into_boxed(),
         more,
     }
@@ -193,7 +196,7 @@ fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32
         }
         Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?) }),
         Stands::Held { answer } => {
-            if heard.kept {
+            if heard.held {
                 None
             } else {
                 Some(RelayAct::Answer { asker, number, words: answer.clone() })

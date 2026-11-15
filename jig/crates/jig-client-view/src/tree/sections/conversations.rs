@@ -103,7 +103,7 @@ pub(crate) fn section(
 }
 fn waiting(b: &mut Builder, client: &Borrowed<'_>, row: &jig_client::contract::TaskLine, words: &Words) {
     let kept = match &row.waits_on {
-        jig_client::contract::WaitsOn::Dependencies { .. } => true,
+        jig_client::contract::WaitsOn::Dependencies { .. } | jig_client::contract::WaitsOn::Question { .. } => true,
         jig_client::contract::WaitsOn::Party { .. }
         | jig_client::contract::WaitsOn::Delegates
         | jig_client::contract::WaitsOn::News
@@ -117,6 +117,9 @@ fn waiting(b: &mut Builder, client: &Borrowed<'_>, row: &jig_client::contract::T
         );
     }
     match &row.waits_on {
+        jig_client::contract::WaitsOn::Question { number } => {
+            words.text(b, JigPhrase::Word(Word::waiting(&row.waits_on)), &[Hole::Number(*number)]);
+        }
         jig_client::contract::WaitsOn::Party { .. } => {}
         jig_client::contract::WaitsOn::Dependencies { pending, .. } => {
             for task in pending {

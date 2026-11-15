@@ -1,5 +1,5 @@
 //! A task delivery sent on a connection accepted after the watch cue.
-use jig_client_protocol_wire::v23 as wire;
+use jig_client_protocol_wire::v24 as wire;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{
     Reader,

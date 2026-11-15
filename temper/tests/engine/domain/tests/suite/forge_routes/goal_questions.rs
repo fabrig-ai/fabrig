@@ -15,7 +15,7 @@ const STEPS: u32 = 1000; // The goal-change world's bound for landing and hold r
 const QUESTION: &[u8] = b"Which behavior?\nKeep the design or widen it? I recommend the design.";
 const SECOND: &[u8] = b"May I widen the scope?\nKeep it small or add a file? I recommend keeping it small.";
 const ANSWER: &[u8] = b"Keep the design.";
-const DEPENDENCY_ANSWER: &[u8] = b"Wait for C, then use its design.";
+const DEPENDENCY_ANSWER: &[u8] = b"Continue now; C orders the merge.";
 const A_REPORT: &[u8] = b"Done: added A.\n## Left\n- none";
 const B_REPORT: &[u8] = b"Done: added B.\n## Left\n- none";
 const C_REPORT: &[u8] = b"Done: clarified the design.\n## Left\n- none";
@@ -245,6 +245,7 @@ pub(super) fn land(
     file: &[u8],
     report: &[u8],
 ) -> u64 {
+    world.until(Until::Ready);
     let branch = producer.workspace.repositories[0].push.clone().expect("producer's push branch");
     assert_eq!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base })),
@@ -490,6 +491,7 @@ fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
     finish_story(&mut story);
 }
 
+// questions.md, 1, Held for a dependency it did not start from.
 #[test]
 fn an_answer_that_adds_a_dependency_waits_for_it() {
     let mut story = start(None);
@@ -790,7 +792,7 @@ fn unsuccessful_answers(story: &mut Story, producer_question: u64) {
     story.world.until(Until::Ready);
     assert!(live_task(&story.world, story.goal.task).inbox.iter().any(|word| {
         word.from == tasks::Party::Task(story.a)
-            && word.words.windows(b"Words do not answer".len()).any(|part| part == b"Words do not answer")
+            && word.words.windows(b"words do not answer it".len()).any(|part| part == b"words do not answer it")
     }));
     let target = story.a;
     amend_spec(story, target, r#"{"words":"Keep the design."}"#, 117);

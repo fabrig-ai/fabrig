@@ -7,6 +7,9 @@ use std::process::{Child, Command};
 #[cfg(target_os = "linux")]
 use std::time::Duration;
 
+#[cfg(target_os = "linux")]
+mod executable_read;
+
 /// Without Linux's retained identities, the test's ending stops its child.
 #[cfg(not(target_os = "linux"))]
 #[derive(Debug)]
@@ -38,6 +41,18 @@ struct Kept {
 }
 #[cfg(target_os = "linux")]
 impl Kept {
+    /// A proc read may lose the task's memory map before its pidfd reports exit.
+    /// Unlike cleanup's wait, this leaves a still-live process as the read's error.
+    fn wait_after_read(&self) {
+        let mut deadline = Deadline::arm("the unreadable process's exit", super::WITHIN);
+        deadline.watch_process(self.pid);
+        while !skein_shell::keeper::pidfd_exited(self.fd).expect("retained process exit") && !deadline.passed() {
+            if skein_shell::keeper::wait_readable(self.fd, deadline.remaining()).is_err() {
+                break;
+            }
+        }
+    }
+
     fn wait(&self, owned: bool, what: &'static str) -> Option<Starved> {
         let mut deadline = Deadline::arm(what, super::WITHIN);
         deadline.watch_process(self.pid);
@@ -68,6 +83,17 @@ impl Drop for Kept {
     fn drop(&mut self) {
         skein_shell::keeper::close_keeper_fd(self.fd);
     }
+}
+
+/// An executable and argv read while its retained process was alive.
+/// The file keeps the observed executable's identity if it is later unlinked
+/// (temper/docs/design/testing/process-tier.md, the newer-build story).
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub struct Executable {
+    pub path: std::path::PathBuf,
+    pub file: std::fs::File,
+    pub arguments: Vec<u8>,
 }
 
 #[cfg(target_os = "linux")]
@@ -110,6 +136,36 @@ impl Guard {
     #[must_use]
     pub fn children(&self, parent: u32) -> Vec<u32> {
         self.kept.iter().filter(|kept| kept.parent == parent).map(|kept| kept.pid).collect()
+    }
+
+    /// Read a retained process's executable, reporting a process exiting during the read as exited.
+    /// A failed read waits up to the world's patience for exit; a still-live process remains an error.
+    pub fn executable(&self, pid: u32) -> std::io::Result<Option<Executable>> {
+        let kept = self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process");
+        let exited = || skein_shell::keeper::pidfd_exited(kept.fd).expect("retained process exit");
+        if exited() {
+            return Ok(None);
+        }
+        let read = || {
+            let exe = format!("/proc/{pid}/exe");
+            Ok(Executable {
+                path: std::fs::read_link(&exe)?,
+                file: std::fs::File::open(&exe)?,
+                arguments: std::fs::read(format!("/proc/{pid}/cmdline"))?,
+            })
+        };
+        let mut result = read();
+        let mut waited = false;
+        loop {
+            match executable_read::observe(result, exited(), waited) {
+                executable_read::Read::Complete(result) => return result,
+                executable_read::Read::Wait(error) => {
+                    kept.wait_after_read();
+                    result = Err(error);
+                    waited = true;
+                }
+            }
+        }
     }
 
     /// The caller keeps this parent alive or unreaped throughout discovery.

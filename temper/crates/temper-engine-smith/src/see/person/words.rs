@@ -124,6 +124,9 @@ pub(super) fn state(chip: &d::Chip, waits: &d::WaitsOn, names: &SeeNames) -> Box
     };
     match waits {
         d::WaitsOn::Nothing => phase.into(),
+        d::WaitsOn::Question { number: question } => {
+            join(&[phase, b", waiting for an answer to its question ", &number(*question)])
+        }
         d::WaitsOn::News => join(&[phase, b", waiting for news"]),
         d::WaitsOn::Delegates => join(&[phase, b", waiting for delegates"]),
         d::WaitsOn::Dependencies { count, .. } => {

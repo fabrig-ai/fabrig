@@ -822,7 +822,7 @@ fn a_goal_branch_landed_before_or_after_verification_is_deleted() {
 fn a_closing_goal_keeps_its_branch_moved_past_its_landing() {
     let mut d = held_goal_with_change(landed_row(Some(fixtures::HEAD)));
     assert_kept_goal(&mut d);
-    assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(TIP));
+    assert_eq!(d.branch_head(&name(GOAL_BRANCH)), None);
 }
 
 #[test]

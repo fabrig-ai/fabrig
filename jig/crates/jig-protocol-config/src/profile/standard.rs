@@ -42,8 +42,8 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 8,
     authority_grants: 16,
     authority_bytes: 4_096,
-    // Twenty-one executor places hold the development delegation.
-    executor_kinds: 21,
+    // Twenty-two executor places hold the development delegation.
+    executor_kinds: 22,
     depth: 32,
     inbox_messages: 82,
     run_inbox: 82,
@@ -103,8 +103,8 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     roles: 8,
     requirements: 8,
     grants: 16,
-    // Twenty-one executor places hold the development delegation.
-    executors: 21,
+    // Twenty-two executor places hold the development delegation.
+    executors: 22,
     segments: 8,
     batch: 32,
     writes: 8,
@@ -263,7 +263,7 @@ pub(super) fn limits() -> Limits {
         &limits.clients.wire,
     )
     .expect("standard's first deliveries fit a u32 byte bound");
-    let record = jig_client_protocol_wire::v23::StreamEvent::encoded_bound(&limits.clients.wire)
+    let record = jig_client_protocol_wire::v24::StreamEvent::encoded_bound(&limits.clients.wire)
         .expect("standard stream record");
     let record = u32::try_from(record).expect("standard stream record fits u32");
     // Base64 data has one `data: ` prefix and two line feeds.

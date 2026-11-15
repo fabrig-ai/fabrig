@@ -13,8 +13,6 @@ fn world() -> World {
         let mut row = changes::change_row();
         row.task = task;
         row.change.task = task;
-        row.change.state = temper_engine_domain_forge_change::State::Ended;
-        row.ending = Some(forge::Ending::NoChange);
         world.event(forge::Event::Change { row });
     }
     world.take_seen();

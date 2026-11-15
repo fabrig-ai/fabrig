@@ -14,7 +14,7 @@ const ONE_MORE: u32 = 2;
 const ROOM: usize = 2;
 
 fn heard() -> RelayHeard<'static> {
-    RelayHeard { asked: &[], answer: None, ended: &[], kept: false, released: false }
+    RelayHeard { asked: &[], answer: None, ended: &[], released: false, held: false }
 }
 
 fn open(asker: u64, number: u64, stands: Stands) -> Open {
@@ -28,7 +28,7 @@ fn open(asker: u64, number: u64, stands: Stands) -> Open {
 }
 
 fn head(stands: Stands) -> Questions {
-    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]) }
+    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]), waiting: Box::new([]) }
 }
 
 fn asked() -> Asked<'static> {
@@ -81,21 +81,76 @@ fn the_requesters_answer_comes_down() {
 }
 
 #[test]
-fn an_answer_while_kept_is_held_then_relayed() {
+fn an_answer_to_the_head_is_relayed_at_the_step_that_takes_it() {
+    let result =
+        relay(&head(Stands::Asked), &RelayHeard { answer: Some(b"Use the fixture."), ..heard() }, &super::LIMITS, 1);
+    assert_eq!(result.acts.as_ref(), &[answer(b"Use the fixture.")]);
+    assert!(result.questions.open.is_empty());
+    assert!(!result.more);
+}
+
+#[test]
+fn a_dependency_holds_an_answer_until_it_clears() {
     let result = relay(
         &head(Stands::Asked),
-        &RelayHeard { answer: Some(b"Wait for the dependency."), kept: true, ..heard() },
+        &RelayHeard { answer: Some(b"Use the fixture."), held: true, ..heard() },
+        &super::LIMITS,
+        ROOM,
+    );
+    assert_eq!(result.questions, head(Stands::Held { answer: Box::from(b"Use the fixture.".as_slice()) }));
+    assert!(result.acts.is_empty());
+    assert!(!result.more);
+    for room in [0, ROOM] {
+        let waiting = relay(&result.questions, &RelayHeard { held: true, ..heard() }, &super::LIMITS, room);
+        assert_eq!(waiting, result);
+    }
+    let result = relay(&result.questions, &heard(), &super::LIMITS, ROOM);
+    assert_eq!(result.acts.as_ref(), &[answer(b"Use the fixture.")]);
+    assert!(result.questions.open.is_empty());
+    assert!(!result.more);
+}
+
+#[test]
+fn a_dependency_hold_keeps_the_retry_for_an_ended_question_without_room() {
+    let q = Questions {
+        open: Box::new([open(ASKER, NUMBER, Stands::Asked), open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken)]),
+        ..head(Stands::Asked)
+    };
+    let result = relay(
+        &q,
+        &RelayHeard { answer: Some(b"Use the fixture."), held: true, ended: &[NEXT_ASKER], ..heard() },
         &super::LIMITS,
         0,
     );
-    assert_eq!(result.questions, head(Stands::Held { answer: Box::from(b"Wait for the dependency.".as_slice()) }));
+    assert!(result.more, "the ended question still needs message room");
     assert!(result.acts.is_empty());
-    assert!(!result.more);
-    let waiting = relay(&result.questions, &RelayHeard { kept: true, ..heard() }, &super::LIMITS, ROOM);
+    let next = relay(&result.questions, &RelayHeard { held: true, ended: &[NEXT_ASKER], ..heard() }, &super::LIMITS, 1);
+    assert_eq!(
+        next.acts.as_ref(),
+        &[RelayAct::Left {
+            asker: NEXT_ASKER,
+            number: NEXT_NUMBER,
+            line: b"Which path?".as_slice().into(),
+            answered: false,
+        }]
+    );
+    assert_eq!(next.questions, head(Stands::Held { answer: b"Use the fixture.".as_slice().into() }));
+    assert!(!next.more);
+}
+
+#[test]
+fn no_room_saves_the_answer_then_retries_it() {
+    let result =
+        relay(&head(Stands::Asked), &RelayHeard { answer: Some(b"Use the fixture."), ..heard() }, &super::LIMITS, 0);
+    assert_eq!(result.questions, head(Stands::Held { answer: Box::from(b"Use the fixture.".as_slice()) }));
+    assert!(result.acts.is_empty());
+    assert!(result.more);
+    let waiting = relay(&result.questions, &heard(), &super::LIMITS, 0);
     assert_eq!(waiting, result);
-    let result = relay(&waiting.questions, &heard(), &super::LIMITS, ROOM);
-    assert_eq!(result.acts.as_ref(), &[answer(b"Wait for the dependency.")]);
+    let result = relay(&waiting.questions, &heard(), &super::LIMITS, 1);
+    assert_eq!(result.acts.as_ref(), &[answer(b"Use the fixture.")]);
     assert!(result.questions.open.is_empty());
+    assert!(!result.more);
 }
 
 #[test]
@@ -127,7 +182,7 @@ fn left(answered: bool) -> RelayAct {
 fn an_ended_asker_reports_each_question() {
     for (stands, answered) in [(Stands::Taken, false), (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true)]
     {
-        let result = relay(&head(stands), &RelayHeard { ended: &[ASKER], kept: true, ..heard() }, &super::LIMITS, 1);
+        let result = relay(&head(stands), &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, 1);
         let expected = vec![left(answered)];
         assert_eq!(result.acts.as_ref(), expected);
         assert!(result.questions.open.is_empty());
@@ -143,17 +198,15 @@ fn an_asked_question_of_an_ended_asker_reports_at_its_answer() {
     let waiting = relay(&q, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, ROOM);
     assert_eq!(waiting.questions, q);
     assert!(waiting.acts.is_empty());
-    for kept in [false, true] {
-        let result = relay(
-            &waiting.questions,
-            &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), kept, ..heard() },
-            &super::LIMITS,
-            1,
-        );
-        assert_eq!(result.acts.as_ref(), &[left(true)]);
-        assert!(result.questions.open.is_empty());
-        assert!(!result.more);
-    }
+    let result = relay(
+        &waiting.questions,
+        &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), ..heard() },
+        &super::LIMITS,
+        1,
+    );
+    assert_eq!(result.acts.as_ref(), &[left(true)]);
+    assert!(result.questions.open.is_empty());
+    assert!(!result.more);
 }
 
 #[test]
@@ -258,7 +311,7 @@ fn route_none_relays_nothing() {
     let q = Questions { route: Route::None, ..head(Stands::Asked) };
     let result = relay(
         &q,
-        &RelayHeard { asked: &[asked()], answer: Some(b"Unused"), ended: &[ASKER], released: true, ..heard() },
+        &RelayHeard { asked: &[asked()], answer: Some(b"Unused"), ended: &[ASKER], released: true, held: true },
         &super::LIMITS,
         ROOM,
     );
@@ -288,10 +341,8 @@ fn an_open_queue_takes_only_the_questions_that_fit() {
 
 #[test]
 fn no_room_preserves_each_message_before_it_is_sent() {
-    let heard_answer = RelayHeard { answer: Some(b"Use the path."), ..heard() };
     for (q, h) in [
         (Questions { route: Route::Up, ..head(Stands::Taken) }, heard()),
-        (head(Stands::Asked), heard_answer),
         (head(Stands::Held { answer: Box::from(b"Use the path.".as_slice()) }), heard()),
     ] {
         let result = relay(&q, &h, &super::LIMITS, 0);

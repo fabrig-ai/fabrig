@@ -1,4 +1,4 @@
-family temper-client-wire 22
+family temper-client-wire 24
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -266,7 +266,9 @@ enum HistoryUpdateOutcome { updated, conflict, failed }
 record HistoryUpdated { outcome: HistoryUpdateOutcome }
 enum HistoryJob { prepare, merge }
 record HistoryJobStarted { job: HistoryJob task: u64 }
-enum HistoryJobOutcome { done, conflict, failed, lost }
+enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }
+record HistoryJobFailed { class: HistoryJobFailure }
+enum HistoryJobOutcome { done, conflict, failed: HistoryJobFailed, lost, timeout, cancelled }
 record HistoryJobEnded { job: HistoryJob outcome: HistoryJobOutcome }
 enum HistoryWith { branch, earlier }
 record HistoryConflict { with: HistoryWith files: u32 }
@@ -371,7 +373,7 @@ versioned record ProjectStatus { project: u32 landed: u64 last_landed: option u6
 versioned record Watching { watch: Watch }
 record Queued { place: u32 ahead: list 64 u64 }
 record GateReason { gate: u64 }
-enum Reason { ci, gate: GateReason, semantic, review }
+enum Reason { ci, gate: GateReason, semantic, review, landing: GateReason }
 record Repairing { reason: Reason }
 record Landed { merge: fixed 32 }
 record InLanding { landing: option u64 }

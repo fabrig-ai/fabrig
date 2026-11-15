@@ -29,7 +29,10 @@ pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
         && !temper_client_domain::pages::chats::ended(&task.chip)
         && !temper_client_domain::pages::chat::paused(&task.chip, me)
         && (super::chats::active(root, w)
-            || (delegates > 0 && (task.waits_on == c::WaitsOn::Delegates || task.waits_on == c::WaitsOn::News))
+            || (delegates > 0
+                && (task.waits_on == c::WaitsOn::Delegates
+                    || task.waits_on == c::WaitsOn::News
+                    || is_question(&task.waits_on)))
             || account)
     {
         let (token, words) = super::chats::status_words(
@@ -65,4 +68,15 @@ pub fn text(b: &mut Builder, words: &[u8], style: Style) {
     b.name(words);
     b.text(Run::Plain, words);
     b.close();
+}
+
+fn is_question(waits: &c::WaitsOn) -> bool {
+    match waits {
+        c::WaitsOn::Question { .. } => true,
+        c::WaitsOn::News
+        | c::WaitsOn::Nothing
+        | c::WaitsOn::Delegates
+        | c::WaitsOn::Party { .. }
+        | c::WaitsOn::Dependencies { .. } => false,
+    }
 }

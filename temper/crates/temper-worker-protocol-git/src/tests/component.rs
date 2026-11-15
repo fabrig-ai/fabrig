@@ -41,10 +41,17 @@ fn every_push_fault_keeps_gits_stderr_tail() {
 
 #[test]
 fn design_paths_stream_past_the_stdout_and_conflict_limits() {
+    changed_paths(false);
+}
+#[test]
+fn prepare_tree_comparison_includes_markdown_paths_in_the_stream() {
+    changed_paths(true);
+}
+fn changed_paths(markdown: bool) {
     let mut component = fixtures::Started::new();
     component.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT },
+        op: git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT, markdown },
         deadline: fixtures::DEADLINE,
         identity: None,
     });
@@ -60,7 +67,12 @@ fn design_paths_stream_past_the_stdout_and_conflict_limits() {
     component.closed(child, &pipes);
     assert_eq!(
         component.done(),
-        Some((fixtures::OWNER, git::Done::Paths { files: Box::new([Box::from(b"src/lib.rs".as_slice())]) }))
+        Some((
+            fixtures::OWNER,
+            git::Done::Paths {
+                files: Box::new([Box::from(if markdown { b"docs/design.md".as_slice() } else { b"src/lib.rs" })])
+            }
+        ))
     );
     component.shutdown();
 }

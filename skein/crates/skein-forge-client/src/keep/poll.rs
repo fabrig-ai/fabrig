@@ -171,6 +171,21 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
         }
     }
 }
+pub(crate) fn fence(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
+    if let Some(row) = d.keep.live.get_mut(key)
+        && row.active
+    {
+        row.fence = d.calls.stamp();
+        match row.state {
+            State::Waiting(_, _) => {
+                d.alarms.cancel(Alarm::Resource(row.alarm));
+                row.state = State::Idle;
+            }
+            State::Idle | State::Due(_, _) | State::Busy(_, _) => {}
+        }
+        nudge_resource(&mut d.alarms, env, key, row);
+    }
+}
 pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
     let valid = match &hint.change {
         Change::Branch(name) | Change::BranchMoved { branch: name, .. } => {

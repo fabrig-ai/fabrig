@@ -101,7 +101,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | gating | which gates are running, as chips, and which requirements wait |
 | queued | its place in its landing branch's queue, and who is ahead; handed to GitHub's merge queue, "in GitHub's merge queue, n", n its place there |
 | first | first in the queue: updating from its base, CI on the updated head, or merging |
-| repairing | why (CI's failure, a gate's remarks, a person's request for changes on the forge, a semantic conflict, taken out of GitHub's merge queue and GitHub's reason), the repair as a chip, and how many repairs are left |
+| repairing | why (CI's failure, a gate's remarks, a person's request for changes on the forge, a semantic conflict, a landing's gate that failed by its number (`../../domain/landing.md`, 3), taken out of GitHub's merge queue and GitHub's reason), the repair as a chip, and how many repairs are left |
 | updating | the base it takes in |
 | resolving | the conflicting files, the resolution as a chip, and how many are left |
 | recreating, reopening | after drift released (5.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |

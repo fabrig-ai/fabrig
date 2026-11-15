@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_json::{Kind, document::Document};
 use skein_lib::List;
-use temper_engine_domain_forge_landing::Outcome;
+use temper_engine_domain_forge_landing::{Combine, Outcome};
 
 pub use temper_engine_domain_forge_vocabulary::preparation::Prepared;
 
@@ -77,6 +77,41 @@ pub fn outcomes(bytes: &[u8], members: u32) -> Option<Box<[Prepared]>> {
     }
     Some(result.into_boxed())
 }
+
+/// A successful delivery identifies the combination on the landing's exclusively held branch.
+#[must_use]
+pub(crate) fn combined(bytes: &[u8], member: u16) -> Option<Combine> {
+    let length = u32::try_from(bytes.len()).ok()?;
+    let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
+    let document =
+        skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
+    let array = document.member(0, b"combined")?;
+    if document.token(array)?.kind != Kind::ArrayStart {
+        return None;
+    }
+    let end = document.value_end(array)?.checked_sub(1)?;
+    let start = array.checked_add(1)?;
+    let mut cursor = start;
+    for at in start..end {
+        if at != cursor {
+            continue;
+        }
+        let token = document.token(document.member(at, b"member")?)?;
+        if token.kind != Kind::Number {
+            return None;
+        }
+        if skein_lib::bytes::decimal(document.text(token)?)? == u64::from(member).checked_add(1)? {
+            return match text(&document, at, b"by")?.as_ref() {
+                b"merge" => Some(Combine::Merge),
+                b"squash" => Some(Combine::Squash),
+                _ => None,
+            };
+        }
+        cursor = document.value_end(at)?;
+    }
+    None
+}
+
 fn text(document: &Document, object: u32, name: &[u8]) -> Option<Box<[u8]>> {
     let token = document.token(document.member(object, name)?)?;
     if token.kind != Kind::String {
@@ -94,9 +129,19 @@ fn append(list: &mut List<u8>, bytes: &[u8]) -> Option<()> {
 
 /// Keep each leaving member's words beside the current job or turn diagnostic.
 pub(crate) fn remember(prior: &[u8], incoming: &[u8], members: u32) -> Box<[u8]> {
+    remember_report(prior, incoming, members, true)
+}
+
+/// A changed round keeps departed members' conflict words, never the old delivery report.
+pub(crate) fn next_round(prior: &[u8], members: u32) -> Box<[u8]> {
+    remember_report(prior, b"", members, false)
+}
+
+fn remember_report(prior: &[u8], incoming: &[u8], members: u32, retain_combined: bool) -> Box<[u8]> {
     let old = outcomes(prior, members).unwrap_or(Box::new([]));
     let new = outcomes(incoming, members);
     let mut kept = List::with_capacity(members);
+    let mut combinations = List::with_capacity(members);
     for member in 0..members {
         let mut found = None;
         for outcome in &old {
@@ -111,32 +156,60 @@ pub(crate) fn remember(prior: &[u8], incoming: &[u8], members: u32) -> Box<[u8]>
                 }
             }
         }
-        if let Some(found) = found
-            && found.outcome != Outcome::Combined
-        {
-            kept.push(found).expect("one outcome per member");
+        if let Some(found) = found {
+            if found.outcome == Outcome::Combined {
+                if retain_combined {
+                    let by =
+                        combined(incoming, found.member).or(combined(prior, found.member)).expect("combined report");
+                    combinations.push((found.member, by)).expect("one combination per member");
+                }
+            } else {
+                kept.push(found).expect("one outcome per member");
+            }
         }
     }
-    if kept.is_empty() {
+    if kept.is_empty() && combinations.is_empty() {
         return Box::from(incoming);
     }
     let failure = if new.is_some() { Box::from([]) } else { failure(incoming) };
     let limits = skein_json::writer::Limits { depth: 6, length: 8192 };
     for compact in [false, true] {
         let mut measure = skein_json::writer::Encoder::measure(&limits);
-        encode(&mut measure, kept.as_slice(), &failure, compact);
+        encode(&mut measure, kept.as_slice(), combinations.as_slice(), &failure, compact);
         if let Ok(length) = measure.measured() {
             let mut json = skein_json::writer::Encoder::write(length, &limits);
-            encode(&mut json, kept.as_slice(), &failure, compact);
+            encode(&mut json, kept.as_slice(), combinations.as_slice(), &failure, compact);
             return json.finish();
         }
     }
     unreachable!("compact diagnostics reserve six escaped bytes per input byte")
 }
-fn encode(json: &mut skein_json::writer::Encoder, kept: &[Prepared], failure: &[u8], compact: bool) {
+fn encode(
+    json: &mut skein_json::writer::Encoder,
+    kept: &[Prepared],
+    combined: &[(u16, Combine)],
+    failure: &[u8],
+    compact: bool,
+) {
     let fields = kept.len().checked_add(1).expect("bounded members");
     let room = 7680_usize.checked_div(6).expect("nonzero escape width").checked_div(fields).expect("nonzero fields");
     json.object_start();
+    if !combined.is_empty() {
+        json.key(b"combined");
+        json.array_start();
+        for (member, by) in combined {
+            json.object_start();
+            json.key(b"member");
+            json.unsigned(u64::from(*member).checked_add(1).expect("member position"));
+            json.key(b"by");
+            json.string(match by {
+                Combine::Merge => b"merge",
+                Combine::Squash => b"squash",
+            });
+            json.object_end();
+        }
+        json.array_end();
+    }
     json.key(b"conflicts");
     json.array_start();
     for outcome in kept {
@@ -191,13 +264,16 @@ mod tests {
         let saved = remember(&saved, b"push refused", 3);
         assert_eq!(failure(&saved).as_ref(), b"push refused");
         let conflicts = outcomes(&saved, 3).expect("retained outcomes");
-        assert_eq!(conflicts.len(), 1);
-        assert_eq!(conflicts[0].member, 1);
-        assert_eq!(conflicts[0].outcome, Outcome::EarlierConflict);
-        assert_eq!(conflicts[0].files.as_ref(), b"quoted\"path, comma,path");
+        assert_eq!(conflicts.len(), 3);
+        assert_eq!(combined(&saved, 0), Some(Combine::Merge));
+        assert_eq!(combined(&saved, 2), Some(Combine::Squash));
+        let conflict = conflicts.get(2).expect("retained conflict");
+        assert_eq!(conflict.member, 1);
+        assert_eq!(conflict.outcome, Outcome::EarlierConflict);
+        assert_eq!(conflict.files.as_ref(), b"quoted\"path, comma,path");
         let cleared = remember(&saved, b"", 3);
         assert!(failure(&cleared).is_empty());
-        assert_eq!(outcomes(&cleared, 3).expect("kept conflict")[0].files, conflicts[0].files);
+        assert_eq!(outcomes(&cleared, 3).expect("kept conflict")[2].files, conflict.files);
         assert!(outcomes(br#"{"conflicts":[]}"#, 3).is_none());
         assert!(outcomes(br#"{"combined":[{"member":4,"by":"merge"}]}"#, 3).is_none());
     }

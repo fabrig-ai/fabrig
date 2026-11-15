@@ -137,8 +137,8 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(tasks.result_bytes, 262_144);
     assert_eq!(tasks.message_bytes, 262_144);
     assert_eq!(tasks.charters, 16);
-    // The development delegation has twenty-one executor places.
-    assert_eq!(tasks.executor_kinds, 21);
+    // The development delegation has twenty-two executor places.
+    assert_eq!(tasks.executor_kinds, 22);
     assert_eq!(tasks.authority_grants, 16);
     assert_eq!(tasks.authority_segments, 8);
     assert_eq!(tasks.hold_segments, 8);
@@ -154,8 +154,8 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.people.inbox_recipients, 176);
     assert_eq!(limits.core.people.words, 8_192);
     assert_eq!(limits.core.authority.grants, 16);
-    // The development delegation has twenty-one executor places.
-    assert_eq!(limits.core.authority.executors, 21);
+    // The development delegation has twenty-two executor places.
+    assert_eq!(limits.core.authority.executors, 22);
     assert_eq!(limits.core.authority.segments, 8);
     assert_eq!(limits.core.authority.batch, 32);
     assert_eq!(limits.hub.charter_bytes, 262_144);
@@ -258,7 +258,7 @@ fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
 // jig/docs/design/protocol/limits.md: first deliveries and the HTTP frame carrying each.
 #[test]
 fn standard_stream_edges_hold_every_first_delivery() {
-    use jig_client_protocol_wire::v23 as w;
+    use jig_client_protocol_wire::v24 as w;
     let limits = profile(Profile::Standard);
     let clients = limits.clients;
     let delivery = w::Delivery::encoded_bound(&clients.wire).expect("delivery bound") + 1;
@@ -286,7 +286,7 @@ fn standard_sse_edge_accepts_the_largest_stream_frame() {
     use skein_lib::{Env, Queue, Time, Wall};
     let limits = profile(Profile::Standard);
     let record =
-        jig_client_protocol_wire::v23::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
+        jig_client_protocol_wire::v24::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
     let data_bytes = skein_lib::base64::encoded_len(
         skein_lib::base64::Alphabet::Standard,
         u32::try_from(record).expect("u32 stream record"),

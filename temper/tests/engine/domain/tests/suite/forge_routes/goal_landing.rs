@@ -642,7 +642,7 @@ pub(super) fn finish_run(world: &mut World, run: &engine::Assignment, result: ta
     world.send(event);
 }
 
-fn finish_goal(world: &mut World, goal: &engine::Assignment) {
+pub(super) fn finish_goal(world: &mut World, goal: &engine::Assignment) {
     finish_run(world, goal, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
     for _ in 0..STEPS {
         world.tick();

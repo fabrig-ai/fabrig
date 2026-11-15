@@ -194,7 +194,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649725 bytes, past its bound of 4580852 bytes\n",
+            b"engine.limits.store: the store's map value, 47844499 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }
@@ -316,8 +316,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // Task row 22,467,664 + 21 * 8 executors + 8 question watermark + 56 open attempt.
-                transcript_bytes: 22_467_896,
+                // Task row 22,467,664 + 22 * 8 executors + 8 question watermark + 56 open attempt.
+                transcript_bytes: 22_467_904,
                 result_bytes: 335_619,
                 ..small.root.journal
             },

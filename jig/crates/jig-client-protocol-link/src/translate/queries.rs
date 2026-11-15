@@ -94,6 +94,7 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
             c::WaitsOn::Dependencies { pending: value.pending().clone(), count: value.count() }
         }
         w::WaitsOn::Delegates => c::WaitsOn::Delegates,
+        w::WaitsOn::Question(value) => c::WaitsOn::Question { number: value.number() },
         w::WaitsOn::News => c::WaitsOn::News,
         w::WaitsOn::Nothing => c::WaitsOn::Nothing,
     }

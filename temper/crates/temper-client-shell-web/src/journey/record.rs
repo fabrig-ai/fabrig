@@ -73,6 +73,7 @@ impl Recorder {
             Report::Due => lines.push(Line::Due),
             Report::TabRefused => lines.push(Line::TabRefused),
             Report::Place { path } => lines.push(Line::Place(path.clone())),
+            Report::Returned { path } => lines.push(Line::Returned(path.clone())),
             Report::Heard(heard) => lines.push(Line::Heard(clone_heard(heard))),
             Report::Act { node, act } => {
                 let Some(event) = super::event(host, *node, act) else {

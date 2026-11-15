@@ -1,6 +1,6 @@
 //! Batch storage and the v17 single-member patch (domain/landing.md, 12).
 use super::{
-    catch_up::{items, kept_golden, kept_schema, kept_value, patched},
+    catch_up::{current_layout, items, kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
 use crate::patches::kept::temper_store::v17 as kept;
@@ -212,6 +212,7 @@ fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
     assert!(value.boolean(value.field(row, old::change::ALONE).unwrap()).unwrap());
     let bytes = patched(19, 8, b"Change", patched(18, 7, b"Change", value.bytes().into()));
     let bytes = patched(20, 9, b"Change", bytes);
+    let bytes = current_layout(b"Change", bytes);
     let after = v25::Change::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(after.task(), value.uint(value.field(row, old::change::TASK).unwrap()).unwrap());
     assert_eq!(*after.landing(), uint_option(&value, row, old::change::LANDING));

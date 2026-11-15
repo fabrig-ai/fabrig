@@ -435,8 +435,8 @@ impl Session {
         }
         next
     }
-    pub(super) fn went(&mut self, before: &Address, after: &Address) {
-        if before != after {
+    pub(super) fn went(&mut self, before: &Address, after: &Address, returned: bool) {
+        if returned || before != after {
             self.reply = None;
             self.reply_beyond = 0;
         }

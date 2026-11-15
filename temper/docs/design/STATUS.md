@@ -132,6 +132,17 @@ ready; each landing's rounds, probes and proof time; paged by change
 with the running totals in the cursor, and read by `temper ctl landing
 times` (`draft/landing-history.status.md`).
 
+A held landing recovers (`draft/held-landing-recovery.status.md`): a
+release takes effect once, fenced, read afresh and decided on those
+reads, never on the ended delegate it retires, so a failed resolution's
+release checks the head its branch now holds, or asks one fresh
+resolution pinned to it (`domain/forge/change/repairs.md`, *A
+release*); a change owns only the pull request it opened or whose
+number it stored, never a closed one found by its branches
+(`domain/forge/change/README.md`, 2); an ended change's pull request,
+branch and history are frozen (`domain/forge/keeping-up.md`, 3); and a
+job's attempt names why it ended (`domain/landing-history.md`, 2.2).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -468,6 +479,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
+- [`draft/focused-pyramid.md`](draft/focused-pyramid.status.md)
 - [`draft/follows.md`](draft/follows.status.md)
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
@@ -478,6 +490,8 @@ Drafts:
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/goal-start-flags.md`](draft/goal-start-flags.status.md)
+- [`draft/held-landing-recovery.md`](draft/held-landing-recovery.status.md)
+- [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
@@ -490,6 +504,7 @@ Drafts:
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
+- [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)

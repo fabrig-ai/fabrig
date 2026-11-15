@@ -35,7 +35,7 @@ pub(super) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     )
 }
 
-fn stock_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
+pub(super) fn stock_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
     let people::Ask::Create { project, mut batch } = world.chat(1, b"TEXT") else { panic!("goal batch") };
     let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("coordinator charter") };
     let tasks::Contract::Report { words } = template.contract else { panic!("goal report") };
@@ -141,7 +141,10 @@ pub(super) fn goal_request(world: &World, tracked: bool) -> people::Ask {
 }
 
 pub(super) fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = adopted_world();
+    running_goal_in(adopted_world())
+}
+
+pub(super) fn running_goal_in(mut world: World) -> (World, engine::Assignment, Box<[u8]>) {
     let ask = goal_request(&world, true);
     let goal = assigned_chat(&mut world, GOAL_REQUEST, ask);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();

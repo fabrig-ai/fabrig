@@ -114,8 +114,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.writer_taken && !start_conflicted {
         return waiting_on_agent(next, facts, standing, now, limits);
     }
-    if let State::Resolving { requested: true, base } = next.state
-        && let Some(Delegate::Resolve { .. }) = facts.delegate
+    if let Some(base) = moved_delegate_base(&next, facts)
         && standing.delegate_live
         && !standing.delegate_running
         && !facts.writer_taken
@@ -128,7 +127,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         next.state = State::WaitingProducer { base };
         next.since = now;
         next.owns_turn = false;
-        return Stepped { change: next, decision: Decision::CancelResolution { head } };
+        return Stepped { change: next, decision: Decision::CancelMovedDelegate { head } };
     }
     if let Some(why) = facts.drift {
         return hold(next, why);
@@ -182,6 +181,48 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         }
     }
     advance_phase(change, next, facts, standing, now, limits)
+}
+
+// Resolutions and repairs end at a moved head
+// (temper/docs/design/domain/forge/change/repairs.md, A resolution's moved head).
+fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
+    match &change.state {
+        State::Resolving { requested: true, base } if facts.delegate == Some(Delegate::Resolve { base: *base }) => {
+            Some(*base)
+        }
+        State::Repairing { requested: true, why } if facts.delegate == Some(Delegate::Repair(*why)) => match why {
+            Repair::Ci
+            | Repair::Semantic
+            | Repair::Landing { .. }
+            | Repair::LandingAt { .. }
+            | Repair::Gate(_)
+            | Repair::Review { .. } => Some(facts.base_tip),
+        },
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::WaitingProducer { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::NoChange { .. }
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::Ended => None,
+    }
 }
 
 /// Only before its turn may a contained head end with no change (domain/forge/change/README.md, 2).
@@ -404,6 +445,9 @@ pub fn released(change: &Change, now: Wall) -> Change {
     match &change.state {
         State::Held { was, why } => {
             next.state = *was.clone();
+            if *why == Hold::Failed && resolving_state(was) {
+                next.released_resolution = true;
+            }
             next.released = Some(*why);
             next.gate_failures = Box::new([]);
             next.repairs = 0;
@@ -437,6 +481,35 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Ended => {}
     }
     next
+}
+
+fn resolving_state(state: &State) -> bool {
+    match state {
+        State::Resolving { .. } => true,
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Ready { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::WaitingProducer { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Ended => false,
+    }
 }
 
 fn released_step(change: Change, why: Hold, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
@@ -494,7 +567,8 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
                     change.last_head = Some(head);
                     match facts.pull {
                         Pull::Open { .. } => pushed(&change, head),
-                        Pull::Missing | Pull::Closed | Pull::Merged { .. } => State::Opening { requested: false },
+                        Pull::Closed => State::Reopening { requested: false, retarget: false },
+                        Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
                     }
                 }
                 None => State::Producing { requested: false },
@@ -529,7 +603,10 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         | State::First { .. }
             if !open =>
         {
-            State::Opening { requested: false }
+            match pull {
+                Pull::Closed => State::Reopening { requested: false, retarget: false },
+                Pull::Missing | Pull::Open { .. } | Pull::Merged { .. } => State::Opening { requested: false },
+            }
         }
         State::Ready { head, .. }
         | State::Queued { head, .. }
@@ -1333,6 +1410,7 @@ fn resolving_due(
     change.owns_turn = false;
     change.clean = Box::new([]);
     change.state = State::Resolving { requested: true, base };
+    change.released_resolution = false;
     change.since = now;
     Stepped { change, decision: Decision::Delegate(Delegate::Resolve { base }) }
 }
@@ -1448,7 +1526,9 @@ fn waiting_producer(
     }
     let Some(head) = facts.branch else { return hold(change, Hold::BranchMissing) };
     change.last_head = Some(head);
+    let released = change.released_resolution;
     if change.way == Way::Turn {
+        change.released_resolution = false;
         // The pull targets the goal branch, not the preparation's main tip.
         // Retry that preparation at the final pushed head to judge its conflict.
         let ready_since = change.ready_since.unwrap_or(now);
@@ -1459,6 +1539,7 @@ fn waiting_producer(
     match facts.mergeable {
         Status::Passed => take_pushed_head(change, head, now),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
+        Status::Failed if released => resolving_due(change, facts.base_tip, facts, standing, now, limits),
         Status::Failed => match facts.delegate {
             // A released resolution asks directly at the base now read, with no
             // merge job (temper/docs/design/domain/forge/change/repairs.md, A release).
@@ -1529,6 +1610,7 @@ fn delegated(
 }
 
 fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    change.released_resolution = false;
     change.clean = Box::new([]);
     change.owns_turn = false;
     change.state = pushed(&change, head);

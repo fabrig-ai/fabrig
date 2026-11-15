@@ -196,7 +196,7 @@ enum Way { queue, turn }
 record StartedFrom { task: u64 head: fixed 32 }
 record EarlyHeads { heads: list 64 StartedFrom }
 enum Early { none, started: EarlyHeads, spent: EarlyHeads }
-record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 gate_failures: list 1024 GateFailure released: option ChangeHold way: Way landing: option u64 }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
@@ -207,7 +207,8 @@ enum Route { none, retired, up }
 record Held { answer: bytes 262144 }
 enum Stands { taken, retired, asked, held: Held }
 record Open { asker: u64 number: u64 line: bytes 256 words: bytes 262144 stands: Stands }
-record Questions { route: Route taken: u32 open: list 128 Open }
+record Waiting { from: u64 number: u64 words: bytes 262144 passed: option u64 }
+record Questions { route: Route taken: u32 open: list 128 Open waiting: list 16 Waiting = [] }
 record ChangeFailure { line: bytes 1048576 }
 enum ChangeEnding { landed, no_change, cancelled, failed: ChangeFailure }
 record SignOff { person: u64 head: fixed 32 at: u64 }
@@ -293,7 +294,9 @@ enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, d
 record LandingRun { id: u64 attempt: u32 ended: bool }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
-enum HistoryJobOutcome { done, conflict, failed, lost }
+enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }
+record HistoryJobFailed { class: HistoryJobFailure }
+enum HistoryJobOutcome { done, conflict, failed, lost, timeout, cancelled, failed_class: HistoryJobFailed }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
 record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }

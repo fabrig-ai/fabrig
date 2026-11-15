@@ -362,9 +362,9 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.run_bytes", 32_768),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("authority.executors", 21),
+        ("authority.executors", 22),
         // The standing charters, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 21),
+        ("tasks.executor_kinds", 22),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
         ("tasks.charters", 16),

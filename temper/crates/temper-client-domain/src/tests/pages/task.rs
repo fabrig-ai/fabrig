@@ -1890,3 +1890,10 @@ fn talk_and_leave_keep_jigs_refusal_and_never_fall_back_to_message() {
     talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
     assert!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).is_empty());
 }
+
+#[test]
+fn the_header_names_its_own_question() {
+    let mut task = f::task();
+    task.waits_on = c::WaitsOn::Question { number: 7 };
+    assert_eq!(header_state(&task, None), State::WaitingForQuestion(7));
+}

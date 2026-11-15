@@ -6,7 +6,7 @@ use super::{
 };
 use alloc::boxed::Box;
 mod change;
-pub(super) use change::account as change_account;
+pub(super) use change::{account as change_account, fallback as change_fallback};
 
 pub(super) fn source(domain: &Domain, entry: Option<u64>, words: Box<[u8]>) -> tasks::HoldSource {
     tasks::HoldSource::Account { connector: domain.config.forge_connector, entry, words }
@@ -115,6 +115,9 @@ pub(super) fn effect(words: &mut List<u8>, description: &EffectDescription) {
             13 => b"edit issue",
             14 => b"set reviewers",
             15 => b"delete branch",
+            16 => b"dispatch workflow",
+            17 => b"rerun job",
+            19 => b"fast-forward branch",
             _ => b"forge effect",
         },
     );
@@ -129,6 +132,45 @@ pub(super) fn effect(words: &mut List<u8>, description: &EffectDescription) {
         words.truncate(177);
         append(words, b"...");
     }
+}
+
+/// Keep the operation and admission refusal together on the task's account.
+pub(super) fn effect_refusal(
+    domain: &Domain,
+    task: u64,
+    description: &EffectDescription,
+    why: jig_domain_core::effects::connector::EffectRefusal,
+    findings_: &[authority::Finding],
+) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    effect(&mut words, description);
+    append(
+        &mut words,
+        match why {
+            jig_domain_core::effects::connector::EffectRefusal::Authority => b" was vetoed by authority",
+            jig_domain_core::effects::connector::EffectRefusal::Obsolete => {
+                b" was refused: its procedure step or entry is no longer valid"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Description => {
+                b" was refused: its connector description is invalid"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Capacity => {
+                b" was refused: effect admission has no room"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Dependencies => {
+                b" was refused: its dependency is still pending"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Proposal => {
+                b" was refused: its proposal could not be admitted or addressed"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Unavailable => {
+                b" was refused: effect admission is unavailable"
+            }
+        },
+    );
+    findings(&mut words, findings_);
+    recovery(domain, task, &mut words);
+    words.into_boxed()
 }
 
 pub(super) fn recovery(domain: &Domain, task: u64, words: &mut List<u8>) {
@@ -160,12 +202,12 @@ pub(crate) fn refused_step(
     step: u64,
     findings_: &[authority::Finding],
 ) {
-    let Some((connector, code @ 2, current)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code @ (2 | 3), current)) = domain.core.tasks.procedure_due(task) else { return };
     if current != step || connector != domain.config.forge_connector {
         return;
     }
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    append(&mut words, b"Delegate refused");
+    append(&mut words, if code == 3 { b"Landing prepare delegate refused" } else { b"Delegate refused" });
     findings(&mut words, findings_);
     recovery(domain, task, &mut words);
     let decision = decision(domain, env, task, words.into_boxed());

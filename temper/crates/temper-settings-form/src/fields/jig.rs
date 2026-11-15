@@ -1180,7 +1180,7 @@ pub static FIELDS: [Field; 261] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"This job: 3 is the project's merge job.",
+        line: b"Jobs: 1 prepares a landing, 3 merges, 4 closes a goal.",
     },
     Field {
         shape: Shape::Resource,

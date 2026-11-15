@@ -320,6 +320,12 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
         }
     }
     authority_floors(&defaults.rules.ceiling, &core.authority, Setting::Rules)?;
+    floor(
+        b"tasks.executor_kinds",
+        u64::from(core.tasks.executor_kinds),
+        count(defaults.rules.ceiling.delegation.kinds.len()),
+        Setting::Rules,
+    )?;
     for (&number, policy) in &defaults.policies {
         let setting = Setting::Policy(number);
         let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates)
@@ -734,6 +740,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
                 authority::Executor::Procedure(6),
+                authority::Executor::Job(temper_engine_domain_forge::PREPARE_KIND),
                 authority::Executor::Job(3),
                 authority::Executor::Job(4),
                 authority::Executor::Role(0),

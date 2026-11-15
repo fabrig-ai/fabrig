@@ -80,7 +80,7 @@ fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bo
             vec![landing::GateProof { proof: landing::Proof::Unkeyed, posted: landing::Posted::Nothing, faults: 0 }; 2]
                 .into_boxed_slice();
     }
-    world.event(top::Event::Landing { row });
+    landings::register(&mut world, row);
     world
 }
 fn proving(world: &mut World) {
@@ -100,6 +100,7 @@ fn left(world: &mut World, why: landing::Leave) {
             break;
         }
     }
+    landings::close_landing(world, LANDING);
     let row = &world.landing(LANDING).landing;
     assert_eq!(row.phase, landing::Phase::Landed);
     assert_eq!(row.members[0].left, Some(why));

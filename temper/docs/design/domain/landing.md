@@ -269,6 +269,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     by the job's name in its run: `JOB: waiting for a runner labelled
     L1, L2`, `JOB: blocked by the jobs it needs`, `JOB: running at step
     N, NAME`, `JOB: pending, its job unread`;
+  - an effect refused at admission or failed at the forge, naming the
+    operation, its resource and the refusal or forge answer, with its
+    outbox entry and the task's release command;
   - its pull request or a merge refused for a cause not stale (section 8),
     `turn: WHY`.
 
@@ -336,8 +339,13 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   branches of its first changed member and of every member above it,
   its own effects (section 11), before anything else, so that the next
   round's job finds them new: from the member that left, or every
-  member's for a stale base. The members below keep their branches,
-  prefixes and receipts.
+  member's for a stale base. With no member remaining, no next round
+  needs new branches: task closure releases them instead, without a
+  separate kind-15 effect. The members below keep their branches,
+  prefixes and receipts. A prepare still running settles before cleanup;
+  its delivered prefixes are read and retained even when the round ends
+  before preparation recorded them. A restart at that boundary resumes
+  the same cleanup before any new prepare.
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the
   base (5.2); with none, the last kept prefix is its top, and no job is
@@ -407,8 +415,17 @@ The default, for a project with no prepare command:
   1); a train into a repository's main, or into a branch no goal holds,
   has none. The job tells, from the upstream's tip the round read
   (5.1), given in its request (`worker/jobs.md`).
-- **Its outcome:** the engine reads each member's branch afresh once
-  the job has ended. Its tip is the member's prefix when its parents
+- **Its outcome:** a successful report's `combined` member is taken at
+  the fresh tip of its branch, with the reported combination. The branch
+  is held exclusively for this round and delivery precedes the report;
+  an additional commit-range read cannot refuse that delivery. The round
+  retains each reported combination and conflict before reading
+  its prefixes, so a read waiting for client room or a restart cannot
+  consume that report. A changed round discards the earlier round's
+  combinations while keeping departed members' conflict words.
+  The engine reads each member's branch afresh once the job has ended.
+  Without a successful report, its tip is recognized as the member's
+  prefix when its parents
   are the prefix below and the member's head, a merge, or the prefix
   below alone with the member's head in its `Head` trailer, a line of
   its message's last paragraph, a squash (skein's `Read::Commits`); the
@@ -425,9 +442,29 @@ The default, for a project with no prepare command:
   reads its members' branches: each prefix found there in order, each
   on the one below, for the round's base and that member's head, is
   taken, and a job is made only for the members above the last taken.
-  A job whose push finds a branch already there fails as undelivered,
-  and the read that follows takes what it finds; a failed job after
-  which the read takes no new prefix holds the landing.
+  Each admitted unprepared suffix is delegated once: while its job has
+  no readable outcome, the landing waits for that job's retries, including
+  after restart. A prepare decision records intent before jig admits its
+  delegation. With no admitted job for that suffix, the landing offers
+  prepare again; a concurrent wait for the same procedure step cannot
+  strand that intent. The retained job record (landing-history.md,
+  3.3) identifies an admitted job by its round and ordered suffix members,
+  even after its child leaves the live delegate list. A failed prefix
+  read is no evidence of an absent push. A base found stale as preparation
+  ends closes that round before proof. After cleanup, the next round reads
+  its new base and advances its preparation number before asking for its
+  suffix: an earlier round's admitted job cannot keep that suffix waiting.
+  Before that base is initialized, no prepare report belongs to the new
+  round: repeated reports and retained combinations from the ended round
+  are discarded before its branches are read, including after restart.
+  A repeated job compares each rebuilt prefix's whole tree with the
+  existing branch, including Markdown paths, and checks that the existing
+  tip contains the prefix below and, for a merge, the member's head.
+  Where they agree it reuses that tip before stacking the next member,
+  so the chain keeps the earlier delivery's commits. A create refused
+  because that same tip is already there is verified by fetching it and
+  counts as delivered. A failed job after which the read takes no new
+  prefix holds the landing.
 - **Not drift:** the landing's branches are its own, written only by
   its jobs under its holds; no member's own branch is written.
 
@@ -628,8 +665,10 @@ The default, for a project with no prepare command:
   a pull request (`forge/adoption.md`, 4).
 - **Every member lands** once the branch's tip, read back, is the
   candidate: in the stack's order, the landing's state records each
-  landed at its prefix, then its pull request reads merged, then its
-  change is told it landed, at its prefix. The merge is the landing
+  landed at its prefix, then waits for its pull request's merge mark
+  until one configured poll after that readback, then its change is
+  told it landed, at its prefix. The branch readback is authoritative:
+  a forge whose detection is absent or delayed cannot strand the turn. The merge is the landing
   task's effect, but each landed commit is its member change's: the
   change lands, and its goal hears its own change's landing, as under
   `queue`. With members left in the landing, above a blamed unit, the
@@ -694,7 +733,12 @@ The default, for a project with no prepare command:
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch.
+  each train they touch. Changes made ready by one event (a dependency
+  they share ending, one decision's gates) are waiting together:
+  forming is judged once the readiness that event makes due has
+  settled, so they form one landing, never the first alone, and no
+  timer or delay stands in for that settling.
+  Other trains settle and form independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and
@@ -995,8 +1039,10 @@ forge's world holds:
   changed keys run in its next landing;
 - **a runner's fault** is rerun, never repaired, and past its bound
   holds the landing; a run past `gate_timeout` holds it;
-- **a stale base at the turn** ends the round, every member stacked
-  again, and the next round lands;
+- **a stale base as prepare ends or at the turn** ends the round, every
+  member stacked again once on the new base, and the next round lands;
+  a released prepare's prefixes are cleaned before that new job, including
+  after restarts during cleanup and before the new preparation's delivery;
 - **a restart** in each phase finds the landing again and carries it
   on, a batch's included;
 - **news** at each step to each member's goal, and the changes view

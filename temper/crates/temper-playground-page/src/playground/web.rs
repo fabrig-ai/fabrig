@@ -94,7 +94,7 @@ pub fn start() {
     }
     let inbox = Inbox::new();
     controls(&inbox);
-    let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place));
+    let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place, Report::Returned));
     let mut life = Life {
         worker: None,
         shell: None,
@@ -256,7 +256,8 @@ impl Life {
                 | Report::Push(_)
                 | Report::Screen(_)
                 | Report::Carried(..)
-                | Report::Place(_)) => {
+                | Report::Place(_)
+                | Report::Returned(_)) => {
                     if !self.failed
                         && let Some(shell) = &mut self.shell
                         && let Some(shown) = shell.report(inbox, report)

@@ -333,15 +333,15 @@ fn the_claude_launcher_refuses_invalid_held_directories() {
 
 #[test]
 fn a_claude_configuration_starts_on_inits_limits() {
-    assert_live_startup(configure_claude);
+    assert_live_startup("live-claude-startup", configure_claude);
 }
 
-fn assert_live_startup(configure: fn(&[std::path::PathBuf; 3])) {
+fn assert_live_startup(case: &str, configure: fn(&[std::path::PathBuf; 3])) {
     use skein_io::kernel::Exit;
     use skein_lib::Duration;
     use skein_world::end_to_end::Command;
     use support::{boxed, forge_land};
-    let (scratch, paths) = initialized_deployment("live-model-startup");
+    let (scratch, paths) = initialized_deployment(case);
     configure(&paths);
     // Stop at the sign-in line: no person signs in or starts the playground.
     // There is no login and the configured executable does not exist.
@@ -480,6 +480,7 @@ fn stock_charters_choose_claude_before_the_demo_model() {
 /// The Claude deployment's stock catalogue, endpoints, providers and charters 1 and 2
 /// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
 fn live_model_world(
+    case: &str,
     configure: fn(&[std::path::PathBuf; 3]),
 ) -> (
     support::Scratch,
@@ -492,7 +493,7 @@ fn live_model_world(
     };
     use temper_engine_domain_world::{store::Store, walking};
 
-    let (scratch, paths) = initialized_deployment("live-model-settings");
+    let (scratch, paths) = initialized_deployment(case);
     configure(&paths);
     let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
     let document = jig_protocol_config::document(
@@ -565,21 +566,33 @@ fn live_model_world(
 fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
     use std::path::Path;
     use support::forge_land::LiveModel;
-    assert_live_settings(LiveModel::ClaudeCode { login: Path::new("/held/claude-login") }, configure_claude);
+    assert_live_settings(
+        "live-claude-settings",
+        LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
+        configure_claude,
+    );
 }
 
 #[test]
 fn a_fresh_key_sitting_applies_claude_settings_on_inits_configuration() {
     use std::path::Path;
     use support::forge_land::LiveModel;
-    assert_live_settings(LiveModel::AnthropicKey { key: Path::new("/private/key") }, configure_key);
+    assert_live_settings(
+        "live-key-settings",
+        LiveModel::AnthropicKey { key: Path::new("/private/key") },
+        configure_key,
+    );
 }
 
-fn assert_live_settings(model: support::forge_land::LiveModel<'_>, configure: fn(&[std::path::PathBuf; 3])) {
+fn assert_live_settings(
+    case: &str,
+    model: support::forge_land::LiveModel<'_>,
+    configure: fn(&[std::path::PathBuf; 3]),
+) {
     use std::path::Path;
     use support::forge_land::{LiveModel, live_apply, live_settings};
     use temper_client_world::fixtures;
-    let (scratch, mut world) = live_model_world(configure);
+    let (scratch, mut world) = live_model_world(case, configure);
     let agent = fixtures::agent(&mut world);
     if let LiveModel::ClaudeCode { .. } = model {
         let call = fixtures::give(
@@ -2044,7 +2057,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
     assert_eq!(fs::read(agent_path).expect("key agent"), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
-    assert_live_startup(configure_key);
+    assert_live_startup("live-key-startup", configure_key);
 }
 
 #[test]

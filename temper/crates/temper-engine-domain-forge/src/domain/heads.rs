@@ -21,7 +21,7 @@ fn needed(d: &Domain, name: &Name, watched: &[Name]) -> bool {
     }
     for (_, row) in &d.changes {
         if row.repository == repository
-            && row.change.state != temper_engine_domain_forge_change::State::Ended
+            && !row.frozen()
             && (crate::items::branch_matches(name, &row.branch) || crate::items::branch_matches(name, &row.base))
         {
             return true;
@@ -128,7 +128,7 @@ pub(crate) fn record(
 /// A change's own branch takes precedence over the task performing the step.
 pub(super) fn concerning(d: &Domain, name: &Name, otherwise: Option<u64>) -> Option<u64> {
     for (_, row) in &d.changes {
-        if row.change.state != temper_engine_domain_forge_change::State::Ended
+        if !row.frozen()
             && row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.branch)

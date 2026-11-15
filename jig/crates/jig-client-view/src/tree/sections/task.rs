@@ -39,6 +39,13 @@ pub fn header(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &
         && let Some(me) = client.frame().document
     {
         match &doc.waits_on {
+            jig_client::contract::WaitsOn::Question { number } => {
+                words.text(
+                    b,
+                    JigPhrase::Word(jig_client::words::Word::waiting(&doc.waits_on)),
+                    &[Hole::Number(*number)],
+                );
+            }
             jig_client::contract::WaitsOn::Dependencies { .. } => {
                 words.text(b, JigPhrase::Word(jig_client::words::Word::waiting(&doc.waits_on)), &[]);
             }

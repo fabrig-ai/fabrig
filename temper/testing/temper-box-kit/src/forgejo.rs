@@ -273,6 +273,11 @@ impl Throwaway {
 
     /// Add a fixture file through the person's API, retaining its exact bytes.
     pub fn add_file(&self, file: &str, content: &[u8]) {
+        self.add_file_on("main", file, content);
+    }
+
+    /// Move a fixture branch through the owned person's contents API.
+    pub fn add_file_on(&self, branch: &str, file: &str, content: &[u8]) {
         let path = format!("/api/v1/repos/acme/widget/contents/{file}");
         let size = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
@@ -283,7 +288,7 @@ impl Throwaway {
         skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, content, &mut encoded).expect("base64 file");
         let encoded = encoded.finish();
         let content = std::str::from_utf8(&encoded).expect("base64 text");
-        let body = serde_json::to_vec(&json!({"branch":"main","message":format!("Add {file}"),"content":content}))
+        let body = serde_json::to_vec(&json!({"branch":branch,"message":format!("Add {file}"),"content":content}))
             .expect("contents JSON");
         let response = self
             .instance
@@ -625,12 +630,38 @@ impl Throwaway {
         let response = self
             .instance
             .exchange(&Outgoing::get(
-                &format!("/api/v1/repos/{org}/{name}/{suffix}"),
+                format!("/api/v1/repos/{org}/{name}/{suffix}").trim_end_matches('/'),
                 Some(&self.instance.admin().token),
             ))
             .expect("elsewhere repository answer");
         assert_eq!(response.status, 200, "elsewhere observation");
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
+    }
+
+    /// A merge train's members use Forgejo's manual-merge detection (domain/landing.md, 10).
+    pub fn detect_manual_merges(&self) {
+        let response = self
+            .instance
+            .exchange(&Outgoing::get("/api/v1/repos/acme/widget", Some(&self.instance.admin().token)))
+            .expect("repository settings");
+        assert_eq!(response.status, 200);
+        let before: Value = serde_json::from_slice(&response.body).expect("repository settings JSON");
+        // Forgejo edits pull-request options through the enabled repository unit.
+        let mut options = json!({"has_pull_requests":true,"allow_manual_merge":true,"autodetect_manual_merge":true});
+        for name in [
+            "allow_merge_commits",
+            "allow_rebase",
+            "allow_rebase_explicit",
+            "allow_squash_merge",
+            "allow_fast_forward_only_merge",
+            "allow_rebase_update",
+            "default_merge_style",
+            "default_delete_branch_after_merge",
+            "default_allow_maintainer_edit",
+        ] {
+            options[name] = before[name].clone();
+        }
+        request(&self.instance, &self.instance.admin().token, "PATCH", "/api/v1/repos/acme/widget", &options, 200);
     }
 
     /// Repositories outside the bot's organizations, before the managed deployment starts.

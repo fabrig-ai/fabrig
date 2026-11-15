@@ -43,6 +43,32 @@ jobs:
 "#;
 const CONTRIBUTING: &str = "# Contributing\n\nEach pull request adds `changes/<its number>.md`: one line saying what it\nchanges, for the next release's notes. CI checks it.\n";
 
+/// The worker pins its agent at startup (domain/worker/README.md, 5).
+/// Generate the shipped configuration before installing the held fake's endpoint.
+pub fn initialize(paths: &[PathBuf; 3]) {
+    let initialized = super::story_command::standalone(
+        std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+            .args(["init", "--box"])
+            .args(
+                ["--config", "--data", "--cache"]
+                    .into_iter()
+                    .zip(paths)
+                    .flat_map(|(flag, path)| [std::ffi::OsString::from(flag), path.as_os_str().to_owned()]),
+            )
+            .current_dir(&paths[1]),
+        "initialize the CSV box",
+        super::WITHIN,
+    );
+    let stderr = String::from_utf8_lossy(&initialized.stderr);
+    assert!(initialized.status.success(), "{stderr}");
+    assert!(initialized.stdout.is_empty(), "init prints its instructions on stderr");
+    for name in ["temper.json", "agent.json"] {
+        assert!(stderr.contains(&format!("init: wrote {}\n", paths[0].join(name).display())), "{stderr}");
+    }
+    assert!(stderr.contains("init: start it with temper box"), "{stderr}");
+    assert!(!stderr.contains("init: no git on PATH"), "real git is available: {stderr}");
+}
+
 #[must_use]
 pub fn llm(config: &Path) -> super::boxed::CtlLlm {
     let mut scripts = first_repository::csv_scripts().into_vec();
@@ -71,7 +97,10 @@ pub fn llm(config: &Path) -> super::boxed::CtlLlm {
             "title":"Add CSV export to widget", "body":"Widget prints its table with --csv and has its release note."
         }}))]),
     });
-    first_repository::model(config, scripts.into_boxed_slice())
+    let super::boxed::CtlLlm { peer, expected_exits, on_link } =
+        first_repository::model(config, scripts.into_boxed_slice());
+    on_link();
+    super::boxed::CtlLlm { peer, expected_exits, on_link: Box::new(|| {}) }
 }
 
 struct Forge {
@@ -252,6 +281,10 @@ pub fn task_steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step>
     let mut task = first_repository::csv_task_steps(client);
     let review = task.split_off(5);
     steps.extend(task);
+    steps.push(Step::TaskExists { project: 1, parent: 1, task: 2 });
+    // A chat's reply may precede delegation, and the forge registers the change
+    // after its task is made. The native change wait follows that registration.
+    steps.push(Step::Run(Call::new(&["change", "show", "2", "--until", "ci:failed", "--json"])));
     steps.push(Step::Until(Call::new(&["change", "show", "2", "--json"]), br#""step":"repairing""#));
     let red_paths = paths.clone();
     let red_client = client.to_path_buf();

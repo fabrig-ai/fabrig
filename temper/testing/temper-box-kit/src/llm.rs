@@ -92,6 +92,13 @@ impl Listening {
         self.peer.address().expect("bound fake listener")
     }
 
+    /// Retain no optional model records when the referee proves the story through other reads.
+    #[must_use]
+    pub fn without_records(mut self) -> Self {
+        self.peer = self.peer.without_records();
+        self
+    }
+
     /// Both consumers dial the same held listener, before either starts.
     pub fn configure(&self, directory: &Path) {
         let address = self.address().to_string();

@@ -67,6 +67,7 @@ mod payer;
 
 mod account;
 
+mod procedure_wakes;
 mod room;
 mod waits;
 

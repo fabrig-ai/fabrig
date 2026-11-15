@@ -28,6 +28,7 @@ pub enum Report {
     Due,
     Act { node: NodeId, act: Act },
     Place { path: Box<[u8]> },
+    Returned { path: Box<[u8]> },
     Heard(Heard),
     Visible { visible: bool },
 }
@@ -100,7 +101,7 @@ impl PublicHost {
             Report::Start => {}
             Report::Due => self.event(PublicEvent::Due),
             Report::Visible { visible } => self.event(PublicEvent::Visible { visible }),
-            Report::Place { path } => self.opened(&path, true),
+            Report::Place { path } | Report::Returned { path } => self.opened(&path, true),
             Report::Act { node, act } => {
                 if let Some(PublicEvent::Open { page }) = view::act(&mut self.view, node, act) {
                     self.opened(&print_public(&page), false);

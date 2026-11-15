@@ -2583,6 +2583,7 @@ pub(super) fn start_recovered_change(
                     gates,
                     clean: Box::new([]),
                     gate_failures: Box::new([]),
+                    released_resolution: false,
                     released: None,
                     repairs: 0,
                     resolutions: 0,
@@ -2612,7 +2613,7 @@ pub(super) fn start_recovered_change(
                 review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
-                questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
+                questions: forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2673,8 +2674,14 @@ pub(super) fn start_recovered_change(
     if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
+            )
             .expect("one released relay per change step");
+        let record = domain.core.tasks.task(task).expect("released change");
+        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
@@ -2685,6 +2692,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
+        // A retired delegate's inbox terminal is not fresh evidence (change/repairs.md, A release).
+        let Some((current, _)) = domain.forge.change(task).expect("registered change").delegate else { continue };
+        if child != current {
+            continue;
+        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
@@ -4069,6 +4081,17 @@ fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::
     Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
+fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut words, b", your change, was amended to spec revision ");
+    append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
+    append(&mut words, b". Your spec now holds its amended words; work to them from here on. Its reason: ");
+    append(&mut words, reason);
+    forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
+}
+
 fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
     let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
     let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
@@ -4352,17 +4375,16 @@ fn authority_hold_message(
 fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
-    let category = match was.as_ref() {
-        forge_change::State::Producing { .. } => tasks::Hold::EffectFailed,
+    let (category, producing) = match was.as_ref() {
+        forge_change::State::Producing { .. } => (tasks::Hold::EffectFailed, true),
+        forge_change::State::Gating { .. } | forge_change::State::Judging { .. } => (tasks::Hold::EffectFailed, false),
         forge_change::State::Repairing { .. }
         | forge_change::State::WaitingProducer { .. }
-        | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
+        | forge_change::State::Resolving { .. } => (tasks::Hold::Procedure, false),
         forge_change::State::Opening { .. }
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
         | forge_change::State::Checking { .. }
-        | forge_change::State::Judging { .. }
-        | forge_change::State::Gating { .. }
         | forge_change::State::Ready { .. }
         | forge_change::State::Preparing { .. }
         | forge_change::State::CancellingGates { .. }
@@ -4379,11 +4401,11 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         | forge_change::State::Uncleared { .. } => return None,
     };
     match &row.producer_failure {
-        Some(words) => Some((category, words.clone())),
-        None if category == tasks::Hold::EffectFailed && row.delegate_status == forge_change::Status::Failed => {
+        Some(words) if !words.is_empty() => Some((category, words.clone())),
+        Some(_) | None if producing && row.delegate_status == forge_change::Status::Failed => {
             Some((category, Box::from(b"producer failed for good without an account".as_slice())))
         }
-        None => None,
+        Some(_) | None => None,
     }
 }
 
@@ -4449,6 +4471,7 @@ fn hold_change_decision(
     } else {
         None
     };
+    let change_hold = why;
     let updates = why == forge_change::Hold::Updates;
     let why = match why {
         forge_change::Hold::BranchMoved
@@ -4466,18 +4489,26 @@ fn hold_change_decision(
         | forge_change::Hold::Questions => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
-    let end = if let Some(words) = account {
+    let end = if let Some(words) = account
+        && !words.is_empty()
+    {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
     } else if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
         && (updates || row.effect == forge_change::EffectResult::Failed)
         && let Some(account) = &row.effect_account
+        && !account.words.is_empty()
     {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }
-    } else if let Some(message) = &message {
+    } else if let Some(message) = &message
+        && !message.words.is_empty()
+    {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, message.words.clone())) }
     } else {
-        StepEnd::Hold(why)
+        StepEnd::HoldFrom {
+            why,
+            source: Box::new(holds::source(domain, None, holds::change_fallback(domain, env, task, change_hold))),
+        }
     };
     let mut decision = ProcedureStep::new(end);
     if let Some(message) = message {
@@ -4535,10 +4566,12 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
-fn cancel_change_resolution(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+fn cancel_moved_change_delegate(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
     let child = match domain.forge.change(task) {
         Some(row) => match row.delegate {
-            Some((child, forge_change::Delegate::Resolve { .. })) if domain.core.tasks.task(child).is_some() => {
+            Some((child, forge_change::Delegate::Resolve { .. } | forge_change::Delegate::Repair(_)))
+                if domain.core.tasks.task(child).is_some() =>
+            {
                 Some(child)
             }
             Some((
@@ -4705,6 +4738,7 @@ fn delegate_change_step(
         return;
     }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
             env,
@@ -4720,7 +4754,10 @@ fn delegate_change_step(
     } else {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false, passing: None },
+            )
             .expect("one forge procedure delegate");
     }
     let decision = append_change_replies(
@@ -4870,7 +4907,7 @@ fn change_decision_from_read(
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
-        forge_change::Decision::CancelResolution { head } => cancel_change_resolution(domain, task, head),
+        forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
         forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
@@ -5040,7 +5077,11 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Forge(step));
                     }
                 }
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                // A due change refreshes its own coherent gather. Other
+                // procedures retain changed facts through their pending step.
+                if domain.forge.change(task).is_none() || domain.core.tasks.procedure_due(task).is_none() {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                }
             }
             forge::Request::Resource { project, name, role, hold } => {
                 route_resource(domain, env, project, &name, role, hold);
@@ -5308,7 +5349,28 @@ pub(crate) fn outputs(
                         },
                         None => false,
                     };
-                    if let Some(tasks::Event::HoldFrom { why, .. }) = domain.core.connector_outbox(
+                    let failed = match outcome {
+                        skein_forge_client::Outcome::Failed(skein_forge::api::Error::Stale)
+                        | skein_forge_client::Outcome::Raced { .. }
+                        | skein_forge_client::Outcome::Made { .. }
+                        | skein_forge_client::Outcome::Queued
+                        | skein_forge_client::Outcome::Uncertain
+                        | skein_forge_client::Outcome::Held => false,
+                        skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Withdrawn => true,
+                    };
+                    if failed
+                        && landing_route::failed_effect_needs_hold(domain, task, entry)
+                        && domain.core.tasks.task(task).is_some()
+                    {
+                        let mut account = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+                        append(&mut account, &words);
+                        holds::recovery(domain, task, &mut account);
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+                            task,
+                            why: tasks::Hold::EffectFailed,
+                            source: Box::new(holds::source(domain, Some(entry), account.into_boxed())),
+                        }));
+                    } else if let Some(tasks::Event::HoldFrom { why, .. }) = domain.core.connector_outbox(
                         task,
                         domain.config.forge_connector,
                         entry,
@@ -5616,7 +5678,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::CancelRepair { .. }
-                | forge_change::Decision::CancelResolution { .. }
+                | forge_change::Decision::CancelMovedDelegate { .. }
                 | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
@@ -6018,40 +6080,11 @@ pub(crate) fn effect_ask(
                     } else if answer != authority::Answer::Refuse
                         || domain.core.tasks.waiting_effect_problem(task).is_none()
                     {
-                        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-                        holds::effect(&mut words, &description);
-                        append(
-                            &mut words,
-                            match why {
-                                jig_domain_core::effects::connector::EffectRefusal::Authority => {
-                                    b" was vetoed by authority"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Obsolete => {
-                                    b" was refused: its procedure step or entry is no longer valid"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Description => {
-                                    b" was refused: its connector description is invalid"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Capacity => {
-                                    b" was refused: effect admission has no room"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Dependencies => {
-                                    b" was refused: its dependency is still pending"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Proposal => {
-                                    b" was refused: its proposal could not be admitted or addressed"
-                                }
-                                jig_domain_core::effects::connector::EffectRefusal::Unavailable => {
-                                    b" was refused: effect admission is unavailable"
-                                }
-                            },
-                        );
-                        holds::findings(&mut words, &findings);
-                        holds::recovery(domain, task, &mut words);
+                        let words = holds::effect_refusal(domain, task, &description, why, &findings);
                         domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                             task,
                             why: tasks::Hold::Procedure,
-                            source: Box::new(holds::source(domain, Some(entry), words.into_boxed())),
+                            source: Box::new(holds::source(domain, Some(entry), words)),
                         }));
                     }
                 }
@@ -6066,8 +6099,16 @@ pub(crate) fn effect_ask(
                         closing,
                     }));
                 }
-                Some(EffectFlight::Landing { entry, task, evidence, .. }) => {
+                Some(EffectFlight::Landing { entry, task, evidence, description }) => {
                     drop_landing(domain, env, entry, task, evidence, answer);
+                    if answer != authority::Answer::Wait {
+                        let words = holds::effect_refusal(domain, task, &description, why, &findings);
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+                            task,
+                            why: tasks::Hold::Effects,
+                            source: Box::new(holds::source(domain, Some(entry), words)),
+                        }));
+                    }
                 }
                 Some(EffectFlight::Tier { entry, task, .. }) => {
                     domain.work.push(Work::Forge(forge::Event::VetoTier { task, entry }));
@@ -6160,8 +6201,6 @@ fn drop_landing(
             }
         }
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
-    } else {
-        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
     }
 }
 
@@ -6377,6 +6416,25 @@ fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
     for text in [b"".as_slice(), &[b'a'; 39], &[b'a'; 41], &[b'a'; 63], &[b'a'; 65], &[b'A'; 40], &[b'g'; 64]] {
         assert_eq!(catch_up_commit(text), None);
     }
+}
+
+/// temper/docs/design/domain/forge/change/questions.md, 1: the amendment reason fits the message bound.
+#[cfg(test)]
+#[test]
+fn a_producer_amendment_cuts_a_long_reason_at_its_end() {
+    let prefix = b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: ";
+    let short = producer_amendment_words(41, 3, b"Widen to the CLI", 512);
+    assert_eq!(short.as_ref(), b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: Widen to the CLI");
+    let reason = "\u{00e9}".repeat(256);
+    let long = producer_amendment_words(41, 3, reason.as_bytes(), 512);
+    assert!(long.len() <= 512);
+    assert!(long.starts_with(prefix));
+    assert!(long.ends_with("…".as_bytes()));
+    let mut expected = List::uncapped();
+    append(&mut expected, prefix);
+    append(&mut expected, "\u{00e9}".repeat(188).as_bytes());
+    append(&mut expected, "…".as_bytes());
+    assert_eq!(long.as_ref(), expected.as_slice(), "the cut keeps UTF-8 whole");
 }
 
 pub(crate) use follow_route::make_refused as follow_make_refused;

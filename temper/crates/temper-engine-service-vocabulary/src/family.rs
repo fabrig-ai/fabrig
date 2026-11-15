@@ -897,8 +897,11 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                             w::Reason::Gate(w::GateReason::new(limits, w::GateReasonParts { gate }).ok()?)
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
-                        // landing.md 3: the top's task
-                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
+                        change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {
+                            w::Reason::Landing(
+                                w::GateReason::new(limits, w::GateReasonParts { gate: u64::from(gate) }).ok()?,
+                            )
+                        }
                     },
                 },
             )
@@ -985,7 +988,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v23::Limits,
+    jig: &jig_client_protocol_wire::v24::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {

@@ -1,4 +1,4 @@
-//! Tier acts round trip under client wire 22 (client/forge/records.md).
+//! Tier acts round trip under client wire 24 (client/forge/records.md).
 use crate::{self as wire, v1 as w};
 use skein_lib::Reader;
 #[test]
@@ -34,7 +34,7 @@ fn tier_requests_and_outcomes_round_trip() {
                 w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::TierAct(request) }).unwrap();
             let bytes = wire::requesting(&requesting);
             assert_eq!(wire::decode_requesting(&bytes, &w::CEILINGS), Some(requesting));
-            assert_eq!(bytes.get(..2), Some(22_u16.to_be_bytes().as_slice()));
+            assert_eq!(bytes.get(..2), Some(24_u16.to_be_bytes().as_slice()));
         }
     }
     for refusal in [
