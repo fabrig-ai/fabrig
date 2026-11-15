@@ -400,6 +400,18 @@ fn a_change_in_each_state_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_changes_last_checked_head_round_trips_some_and_none() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for checked in [Some([29; 32]), None] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.change.last_checked = checked;
+        let row = forge::Stored::Change(Box::new(row));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn an_ended_changes_hold_round_trips_in_its_state() {
     use temper_engine_domain_forge_change::{Hold, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

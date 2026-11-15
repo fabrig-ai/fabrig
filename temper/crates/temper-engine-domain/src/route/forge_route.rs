@@ -2592,6 +2592,7 @@ pub(super) fn start_recovered_change(
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
+                    last_checked: None,
                 },
                 pull: None,
                 pending: None,

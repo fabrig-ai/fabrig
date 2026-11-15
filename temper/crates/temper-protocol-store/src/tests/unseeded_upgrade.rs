@@ -187,6 +187,7 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let crate::v25::Value::ChangeHot(change) = change.into_parts().value else { panic!("change row") };
     assert_eq!(change.task_release(), &None);
     assert!(!change.change().released_resolution());
+    assert_eq!(change.change().last_checked(), &None);
     let events = disk.request(
         &mut current,
         Request::Get {

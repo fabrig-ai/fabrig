@@ -1246,6 +1246,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         pull,
         pending: None,
@@ -4080,7 +4081,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
     use skein_lib::Queue;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap().clone();
-    for (registered, repository, base, executor, head, kept, expected) in [
+    for (registered, repository, base, executor, checked, kept, expected) in [
         (
             true,
             3,
@@ -4088,7 +4089,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             Some(SHA1),
             false,
-            change::PendingKind::Change { head: Some(SHA1), kept: false },
+            change::PendingKind::Change { checked: Some(SHA1), kept: false },
         ),
         (
             true,
@@ -4097,7 +4098,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             true,
-            change::PendingKind::Change { head: None, kept: true },
+            change::PendingKind::Change { checked: None, kept: true },
         ),
         (
             true,
@@ -4133,7 +4134,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             false,
-            change::PendingKind::Change { head: None, kept: false },
+            change::PendingKind::Change { checked: None, kept: false },
         ),
     ] {
         let (mut domain, env) = two_forges();
@@ -4171,6 +4172,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         upstream.repository.forge = repository;
         upstream.base = base.into();
         upstream.branch = b"temper/8".as_slice().into();
+        upstream.change.last_checked = checked;
         if registered {
             forge::step(
                 &mut domain.forge,
@@ -4179,7 +4181,8 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
                 &mut Queue::uncapped(),
             );
         }
-        if let Some(commit) = head {
+        {
+            let commit = [9; 32];
             forge::step(
                 &mut domain.forge,
                 &forge_env,
@@ -4279,7 +4282,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     upstream.task = 8;
     upstream.change.task = 8;
     upstream.branch = b"temper/8".as_slice().into();
-    for row in [change_row(None), upstream] {
+    for row in [change_row(None), upstream.clone()] {
         forge::step(
             &mut domain.forge,
             &forge_env,
@@ -4292,7 +4295,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     let forge::Event::StepChange { pending, .. } = stale else { panic!("change step") };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: None, kept: false } }]
     );
     forge::step(
         &mut domain.forge,
@@ -4304,20 +4307,27 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
                     repository: 1,
                     what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
                 },
-                commit: SHA1,
+                commit: [9; 32],
                 owned: true,
             }),
         },
         &mut Queue::uncapped(),
     );
-    // A head notification must update the outstanding step, not send an idle-only wake.
+    upstream.change.last_checked = Some(SHA1);
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(upstream)) },
+        &mut Queue::uncapped(),
+    );
+    // A checked-head notification must update the outstanding step, not send an idle-only wake.
     forge_request(&mut domain, &env, forge::Request::StepDependents { task: 8 });
     let Some(Work::Forge(forge::Event::StepChange { task: 7, pending, .. })) = domain.work.pop() else {
         panic!("a dependency wake refreshes the already-due step");
     };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: Some(SHA1), kept: false } }]
     );
     assert!(domain.work.is_empty());
 }

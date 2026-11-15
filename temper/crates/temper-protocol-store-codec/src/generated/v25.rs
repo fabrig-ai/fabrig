@@ -2124,6 +2124,8 @@ pub enum Path {
     ChangeOwnsTurn,
     /// The `last_head` field of `Change`.
     ChangeLastHead,
+    /// The `last_checked` field of `Change`.
+    ChangeLastChecked,
     /// The `gate_failures` field of `Change`.
     ChangeGateFailures,
     /// The `released` field of `Change`.
@@ -12243,6 +12245,8 @@ pub struct ChangeParts {
     pub owns_turn: bool,
     /// The `last_head` field.
     pub last_head: Option<[u8; 32]>,
+    /// The `last_checked` field.
+    pub last_checked: Option<[u8; 32]>,
     /// The `gate_failures` field.
     pub gate_failures: List<GateFailure>,
     /// The `released` field.
@@ -12270,6 +12274,7 @@ pub struct Change {
     ready_since: Option<u64>,
     owns_turn: bool,
     last_head: Option<[u8; 32]>,
+    last_checked: Option<[u8; 32]>,
     gate_failures: List<GateFailure>,
     released: Option<ChangeHold>,
     released_resolution: bool,
@@ -12280,8 +12285,8 @@ pub struct Change {
 impl Change {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeParts) -> Result<Self, Problem> {
-        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, since, ready_since, owns_turn, last_head, gate_failures, released, released_resolution, way, landing } = parts;
-        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, since, ready_since, owns_turn, last_head, gate_failures, released, released_resolution, way, landing };
+        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, since, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing } = parts;
+        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, since, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing };
         value.check(limits)?;
         Ok(value)
     }
@@ -12334,6 +12339,10 @@ impl Change {
     #[must_use]
     pub fn last_head(&self) -> &Option<[u8; 32]> { &self.last_head }
 
+    /// Reads the `last_checked` field.
+    #[must_use]
+    pub fn last_checked(&self) -> &Option<[u8; 32]> { &self.last_checked }
+
     /// Reads the `gate_failures` field.
     #[must_use]
     pub fn gate_failures(&self) -> &List<GateFailure> { &self.gate_failures }
@@ -12356,7 +12365,7 @@ impl Change {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, since: self.since, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing } }
+    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, since: self.since, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, last_checked: self.last_checked, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.early.check(limits)?;
@@ -34539,6 +34548,11 @@ impl Change {
         if field_last_head.is_some() {
         size = size.checked_add(32).expect("schema ceilings fit u32");
         }
+        let field_last_checked = &self.last_checked;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_last_checked.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         let field_gate_failures = &self.gate_failures;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_gate_failures.len().checked_mul(12).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
@@ -34601,6 +34615,14 @@ impl Change {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_last_checked = &self.last_checked;
+        match field_last_checked {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_gate_failures = &self.gate_failures;
         writer.put(&field_gate_failures.len().to_be_bytes())?;
         for item_0 in field_gate_failures.as_slice() {
@@ -34649,12 +34671,13 @@ impl Change {
         let decoded_ready_since = match reader.u8().ok_or(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Tag }) };
         let decoded_owns_turn = match reader.u8().ok_or(Problem { path: Path::ChangeOwnsTurn, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeOwnsTurn, reason: skein_codec::Reason::Bool }) };
         let decoded_last_head = match reader.u8().ok_or(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Tag }) };
+        let decoded_last_checked = match reader.u8().ok_or(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Tag }) };
         let decoded_gate_failures = { let count = match skein_codec::read_count(reader, limits.change_gate_failures.min(CEILINGS.change_gate_failures)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeGateFailures, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::ChangeGateFailures, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = GateFailure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_released = match reader.u8().ok_or(Problem { path: Path::ChangeReleased, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHold::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeReleased, reason: skein_codec::Reason::Tag }) };
         let decoded_released_resolution = match reader.u8().ok_or(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Bool }) };
         let decoded_way = Way::decode_from(limits, reader)?;
         let decoded_landing = match reader.u8().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, since: decoded_since, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing })
+        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, since: decoded_since, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, last_checked: decoded_last_checked, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing })
     }
 }
 
@@ -55558,9 +55581,9 @@ impl Change {
         size = size.checked_add(4_u64)?.checked_add(4_u64)?;
         size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64)?.checked_add(Way::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(Way::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -55579,9 +55602,9 @@ impl Change {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<GateFailure>::price(limits.change_gate_failures)?.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeHold::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Way::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<GateFailure>::price(limits.change_gate_failures)?.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(ChangeHold::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Way::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

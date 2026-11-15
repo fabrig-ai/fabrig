@@ -836,7 +836,7 @@ fn producer_start(change: &mut Change, facts: &Facts, standing: &Heard) -> bool 
     let mut heads = List::with_capacity(capacity);
     for pending in &facts.pending {
         match pending.kind {
-            PendingKind::Change { head: Some(head), kept: false } => {
+            PendingKind::Change { checked: Some(head), kept: false } => {
                 heads.push(StartedFrom { task: pending.task, head }).expect("one head per pending dependency");
             }
             PendingKind::Elsewhere => {}

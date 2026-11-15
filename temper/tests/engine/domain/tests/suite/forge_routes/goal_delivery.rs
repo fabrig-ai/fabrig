@@ -99,17 +99,7 @@ fn pending_design_delivery(world: &mut World, goal: &engine::Assignment, branch:
     let producer = reviews::next_assignment(world, assigned);
     let head = early_start::push(world, &producer, base, b"docs/design/input.md");
     status(world, head, raw::Check::Pending);
-    finish_run(
-        world,
-        &producer,
-        tasks::TaskResult::Change {
-            title: tasks::ChangeTitle::new(b"Write design".as_slice().into()),
-            connector: 0,
-            kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-            words: b"pushed".as_slice().into(),
-        },
-    );
+    early_start::finish(world, &producer, b"Write design");
     (base, head, design)
 }
 
