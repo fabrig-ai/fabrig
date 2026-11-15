@@ -75,7 +75,7 @@ fn an_absent_template_choice_keeps_the_engine_default() {
 fn home_chooses_the_ask_template_and_new_chat_keeps_its_own() {
     use crate::Address;
     const ASK: u32 = 5;
-    let mut me = super::chats::asking_me();
+    let mut me = fixtures::chats::asking_me();
     let project = me.projects.get_mut(0).expect("project");
     project.defaults = List::from_boxed(Box::new([
         c::MeDefault { template: ASK, choice: choice(b"asking") },
@@ -85,7 +85,7 @@ fn home_chooses_the_ask_template_and_new_chat_keeps_its_own() {
         (Address::Home { project: PROJECT }, ASK, b"asking".as_slice()),
         (Address::NewChat { draft: false }, jig_client::shapes::CHAT, b"ordinary".as_slice()),
     ] {
-        let page = super::chats::Page::new(me.clone(), address);
+        let page = fixtures::chats::Page::new(me.clone(), address);
         let draft = page.pages.choice();
         assert_eq!(
             draft.context,

@@ -221,3 +221,38 @@ pub fn activity_reply(speaker: c::Speaker, blocks: List<c::Block>, position: u64
         cut: false,
     }))))
 }
+
+pub fn paused_task() -> c::Task {
+    let mut task = task();
+    task.priority = Some(1);
+    task.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Release,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
+    phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 17 });
+    task.chip.details.details.hold = Some(c::ChipHold {
+        placed: Some(c::PlacedHold {
+            number: 1,
+            owner: c::HoldOwner::Party { person: PARTY },
+            mode: c::HoldMode::Stop,
+            scope: c::HoldScope::Subtree { task: TASK },
+            reason: Box::default(),
+            placed_at: Wall::from_nanos(10),
+            revision: c::Revision { value: 11 },
+            lifted: false,
+            may_lift: true,
+        }),
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::Stopped,
+        revision: 17,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
+        hold_wait_since: None,
+    });
+    task
+}

@@ -1,5 +1,5 @@
 //! The goal page's reads and decisions (temper/docs/design/client/pages/goal.md, 2).
-use super::{chats::chat_line, fixtures};
+use super::fixtures::{self, chats::chat_line};
 use crate::{
     Address,
     pages::{
@@ -609,7 +609,7 @@ fn with_offer(kind: c::ActKind) -> c::Task {
     task.acts = List::from_boxed(Box::new([c::Offered { act: kind, admission: c::Admission::Allowed, effect: None }]));
     task
 }
-pub(super) fn paused_task() -> c::Task {
+fn paused_task() -> c::Task {
     let mut task = with_offer(c::ActKind::Release);
     f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 17 });
     task.chip.details.details.hold = Some(c::ChipHold {

@@ -195,7 +195,7 @@ fn every_byte_prefix_parses_even_inside_utf8_characters() {
 
 #[test]
 fn in_words() {
-    use crate::tests::fixtures::acts as f;
+    use super::fixtures::acts as f;
     use jig_client::contract as c;
     let part = c::Part { connector: 1, kind: c::PartKind::Result, key: c::PartKey::Number(1) };
     for address in [c::PersonAddress::Party(73), c::PersonAddress::Role(0)] {

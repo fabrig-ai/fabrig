@@ -34,4 +34,8 @@ pub use boundary::{Action, Event, Fact, Request, Tab};
 pub use domain::{Domain, fire, new, next_deadline, shown, step, take, unlinked};
 pub use limits::{Limits, valid};
 #[cfg(test)]
+mod forge_tests;
+#[cfg(test)]
+mod pages_tests;
+#[cfg(test)]
 mod tests;
