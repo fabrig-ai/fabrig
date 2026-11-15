@@ -31,13 +31,13 @@ impl Service {
         seed: u64,
     ) -> Result<Self, Problems> {
         let io_limits = settings.jig.limits.io;
-        worker_settings::prepare(settings, agent, limits)?;
+        let prepared = worker_settings::prepare(settings, agent, limits)?;
         let worker_operations = worker_settings::configured_operations(&limits.git_component)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
         let operations = Process::operations_for(&io_limits, worker_operations)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
         Ok(Self {
-            worker: Worker::new(settings, agent, limits, files, runtime, seed)?,
+            worker: Worker::prepared(settings, agent, limits, files, runtime, seed, prepared)?,
             process: Process::new(io_limits, operations, WORKER_ALONE_QUEUE),
             held_listeners: List::with_capacity(io_limits.sockets),
             listeners_closing: 0,

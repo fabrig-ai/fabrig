@@ -49,7 +49,7 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, expected_engine);
         let wire = crate::workers::limits(&checked.engine).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_engine, expected_engine));
-        let worker = checked.worker.as_ref().unwrap();
+        let (worker, _) = checked.worker.as_ref().unwrap();
         let payload = crate::worker_settings::payload_limits(&crate::limits::worker(&checked.engine.limits)).unwrap();
         let wire =
             crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
