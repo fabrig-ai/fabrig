@@ -119,10 +119,16 @@ fn settling_reheads_keeps_converts_and_drops_only_held_by_no_value_then_retires_
         };
         assert_eq!(*of, owner);
         assert_eq!(job.as_ref(), JOB.name);
-        assert_eq!(
-            counts.as_ref(),
-            &[crate::JobCount { name: "put".into(), count: 4 }, crate::JobCount { name: "retired".into(), count: 4 }]
-        );
+        let mut expected = vec![
+            crate::JobCount { name: "put".into(), count: 4 },
+            crate::JobCount { name: "retired".into(), count: 4 },
+        ];
+        if owner == Owner::Jig {
+            for name in ["turns-6", "turns-7", "turns-other", "turns-unread"] {
+                expected.push(crate::JobCount { name: name.into(), count: 0 });
+            }
+        }
+        assert_eq!(counts.as_ref(), expected);
         assert!(*commits >= 5, "puts and retirement split within the commit edge");
         assert_eq!(snapshot(&mut disk), before);
         for i in 0..4 {

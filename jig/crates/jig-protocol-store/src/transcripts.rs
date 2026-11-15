@@ -1,4 +1,5 @@
 //! Transcript frames, queued commits and durable places (protocol/store/transcripts.md).
+pub(crate) mod census;
 pub(crate) mod cut;
 pub(crate) mod drop;
 pub mod frame;

@@ -191,6 +191,9 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     let (arrived, secret) = match io {
         Io::Store(arrived) => (arrived, false),
         Io::Secrets(arrived) => (arrived, true),
+        Io::Transcripts(arrived) if arrived.event.owner() == crate::transcripts::census::OWNER => {
+            return jobs::census_file(store, env, arrived, above, below);
+        }
         Io::Transcripts(arrived) => return file_up(store, env, arrived, false, above, below),
     };
     // KV recovery probes missing files; job commits also create payload logs.
@@ -322,6 +325,12 @@ pub(crate) fn event(
                 | Patching::Jobs(_)
                 | Patching::Checking(_) => refuse(store, above),
             }
+        }
+        skein_kv::Event::LogRead { owner, records, .. } if !secret && owner == crate::transcripts::census::OWNER => {
+            jobs::census_records(store, Some(records), above);
+        }
+        skein_kv::Event::LogUnread { owner, .. } if !secret && owner == crate::transcripts::census::OWNER => {
+            jobs::census_records(store, None, above);
         }
         skein_kv::Event::Refused { .. }
         | skein_kv::Event::Failed { .. }
