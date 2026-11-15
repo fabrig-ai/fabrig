@@ -1987,9 +1987,13 @@ impl World {
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         if !self.assigned.is_empty() {
-            self.events.push_back(protocol::hello_slots(
+            let mut bounds = protocol::bounds();
+            bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
+            self.events.push_back(protocol::hello_with(
                 Token::new(7),
+                0,
                 self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
+                bounds,
                 self.assigned
                     .iter()
                     .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))

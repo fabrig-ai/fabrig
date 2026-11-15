@@ -207,6 +207,7 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     );
     let bytes = current_layout(b"ChangeRow", bytes);
     let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert!(after.questions().waiting().is_empty());
     assert!(after.history().is_none());
     assert!(after.job().is_none());
     let schema = kept_schema(20);

@@ -1812,7 +1812,7 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State};
+    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
     let mut row =
         fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
@@ -1831,7 +1831,15 @@ fn a_changes_questions_round_trip_unchanged() {
         })
         .unwrap();
     }
-    row.questions = Questions { route: Route::Up, taken: 3, open: open.into_boxed() };
+    row.questions = Questions {
+        route: Route::Up,
+        taken: 3,
+        open: open.into_boxed(),
+        waiting: Box::new([
+            Waiting { from: 40, number: 8, words: Box::new([]), passed: Some(42) },
+            Waiting { from: 40, number: 9, words: b"Go on: prerequisite landed".as_slice().into(), passed: None },
+        ]),
+    };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(Box::new(row));
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
@@ -2788,7 +2796,12 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
         }
         parts.questions = w::Questions::new(
             &w::CEILINGS,
-            w::QuestionsParts { route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open },
+            w::QuestionsParts {
+                route: if route { w::Route::Retired } else { w::Route::Up },
+                taken: 1,
+                open,
+                waiting: skein_lib::List::with_capacity(0),
+            },
         )
         .unwrap();
         let row = w::Row::new(

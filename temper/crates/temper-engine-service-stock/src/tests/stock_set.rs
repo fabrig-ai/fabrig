@@ -123,7 +123,7 @@ fn the_coordinators_charter_writes_deliveries_for_history_and_catches_up_only_fo
     assert!(text.contains("a conflict going to a resolution; with no merge job the call is refused: ask your person"));
     assert!(text.contains("Never take main to keep g current"));
     assert!(text.contains("cut no implementer's change whose only work is a catch-up"));
-    assert!(text.contains("has its catch-up as prerequisite (the rules' **Main into g**)"));
+    assert!(text.contains("Main's gains since g come by its catch-up (the rules' **Main into g**)"));
     assert!(text.contains("never an implementer's change merging main"));
     assert!(!core::str::from_utf8(&charter.policy.instructions).unwrap().contains("Make no catch-up of g"));
     for part in &charter.parts {

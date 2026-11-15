@@ -2909,7 +2909,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
             None => None,
         };
         let expected = match expected {
-            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]) }),
+            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) }),
             None => None,
         };
         assert_eq!(made, expected);
@@ -3931,7 +3931,13 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             .forge_delegating
             .insert(
                 (task, step),
-                super::ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false },
+                super::ChangeStep {
+                    delegate: Some(kind),
+                    relayed: None,
+                    refusal: None,
+                    released: false,
+                    passing: None,
+                },
             )
             .unwrap();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -4366,6 +4372,7 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
                 relayed: None,
                 refusal: None,
                 released: false,
+                passing: None,
             },
         )
         .unwrap();

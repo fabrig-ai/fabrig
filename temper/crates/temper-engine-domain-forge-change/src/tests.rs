@@ -1674,6 +1674,7 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
 mod empty_repair;
 mod green;
 mod merge;
+mod passing;
 mod relay;
 mod verifying;
 

@@ -1457,6 +1457,23 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
         )
         .expect("same count");
     }
+    let mut waiting = List::with_capacity(u32::try_from(value.waiting.len()).expect("admitted count"));
+    for word in &value.waiting {
+        waiting
+            .push(
+                w::Waiting::new(
+                    &w::CEILINGS,
+                    w::WaitingParts {
+                        from: word.from,
+                        number: word.number,
+                        words: word.words.clone(),
+                        passed: word.passed,
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect("same count");
+    }
     w::Questions::new(
         &w::CEILINGS,
         w::QuestionsParts {
@@ -1466,13 +1483,19 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             },
             taken: value.taken,
             open,
+            waiting,
         },
     )
     .expect(FITS)
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::QuestionsParts { route, taken, open } = value.into_parts();
+    let w::QuestionsParts { route, taken, open, waiting } = value.into_parts();
+    let mut words_waiting = List::with_capacity(waiting.len());
+    for word in waiting.into_boxed() {
+        let w::WaitingParts { from, number, words, passed } = word.into_parts();
+        words_waiting.push(d::Waiting { from, number, words, passed }).expect("same count");
+    }
     let mut questions = List::with_capacity(open.len());
     for question in open.into_boxed() {
         let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
@@ -1492,6 +1515,7 @@ fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecoda
         },
         taken,
         open: questions.into_boxed(),
+        waiting: words_waiting.into_boxed(),
     })
 }
 

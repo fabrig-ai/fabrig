@@ -5,6 +5,34 @@ mod fence;
 mod released_resolution;
 
 #[test]
+fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
+    use temper_engine_domain_forge_change::{State, Waiting};
+    for passed in [None, Some(42)] {
+        let mut row = fixtures::opening_row();
+        row.change.state = State::Producing { requested: true };
+        row.change.last_head = None;
+        row.pending = None;
+        row.questions.waiting = Box::new([Waiting {
+            from: 40,
+            number: 7,
+            words: if passed.is_some() { Box::new([]) } else { b"Go on".as_slice().into() },
+            passed,
+        }]);
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let out = outputs(&mut d, Event::ReadAfresh);
+        let mut wakes: u32 = 0;
+        for request in &out {
+            if *request == (Request::WakeProcedure { task: fixtures::CHANGE }) {
+                wakes = wakes.saturating_add(1);
+            }
+        }
+        assert_eq!(wakes, 1, "waiting words make the next step due at restart");
+    }
+}
+
+#[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
     use temper_engine_domain_forge_change::{Hold, State};
     for (why, prior) in [(Hold::Repairs, None), (Hold::Resolutions, Some(Hold::Rejected))] {
