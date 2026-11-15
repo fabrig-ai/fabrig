@@ -3534,9 +3534,15 @@ fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_boun
                 Delegate::Gate { .. } => {
                     assert!(delegate.spec.words.starts_with(b"Review this change at the named head\n"));
                 }
-                Delegate::Repair(_) => {
+                Delegate::Repair(repair) => {
                     let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
-                    assert!(before.ends_with(super::REPAIR_PRESERVATION));
+                    let preservation = match repair {
+                        Repair::Landing { .. } | Repair::LandingAt { .. } => before
+                            .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
+                            .expect("a landing repair names its missing failure before the current request"),
+                        Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
+                    };
+                    assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
                 }
                 Delegate::Resolve { .. } => {
                     let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
