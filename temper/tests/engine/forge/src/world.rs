@@ -232,6 +232,30 @@ impl World {
             4,
         )
     }
+    /// Three simultaneous trains, with one spare branch per prepared member.
+    #[must_use]
+    pub fn parallel_trains() -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.statuses = 8;
+        let mut world = Self::configured_repositories(
+            13,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            None,
+            config,
+            None,
+            4,
+        );
+        world.env.limits.landings = 3;
+        world.restart();
+        world
+    }
     pub fn project_landing(
         &mut self,
         project: u32,
