@@ -193,8 +193,8 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   is at is current, those before it done, and all six done once it has
   landed. The steps 2.1 draws beside the way show at the one they
   serve: recreating and reopening at "Opening"; a repair of CI at
-  "Checking", of a gate at "Gating", of a semantic conflict at
-  "Queued"; first, updating and resolving at "Queued"; landing at
+  "Checking", of a gate at "Gating", of a semantic conflict or a
+  landing's gate at "Queued"; first, updating and resolving at "Queued"; landing at
   "Landed", current. "Queued" reads "Queued · Nth" while it has a place
   in its queue, "Queued · 1st" when first, the place an English
   ordinal ("1st", "2nd", "3rd", "4th", "11th", "12th", "13th",
@@ -214,7 +214,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes.", for a person's request on the forge "Repairing: a person asked for changes on the forge." (`../../domain/forge/change/gates.md`, 1) or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes.", for a person's request on the forge "Repairing: a person asked for changes on the forge." (`../../domain/forge/change/gates.md`, 1), for a semantic conflict "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with, or, for a gate's real failure in its landing, at the candidate or the prefix its search blamed (`../../domain/landing.md`, 3), "Repairing: landing gate N failed.", N the gate's number in its landing branch's rules; the candidate and the prefix are the landing's panel's |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (`../view.md`, 5) |
 
