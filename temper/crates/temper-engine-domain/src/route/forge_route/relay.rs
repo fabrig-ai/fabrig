@@ -56,7 +56,21 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         Some(pending) => pending.released,
         None => false,
     };
-    let heard = change::RelayHeard { asked: asked.as_slice(), answer, ended: ended.as_slice(), released };
+    let mut held = false;
+    for dependency in &row.waiting_on {
+        if row.started_from.contains(dependency) {
+            continue;
+        }
+        if let Some(dependency) = domain.forge.change(*dependency)
+            && let Some(change) = change_row
+            && dependency.repository != change.repository
+        {
+            continue;
+        }
+        held = true;
+        break;
+    }
+    let heard = change::RelayHeard { asked: asked.as_slice(), answer, ended: ended.as_slice(), released, held };
     let relayed = change::relay(
         &questions,
         &heard,
