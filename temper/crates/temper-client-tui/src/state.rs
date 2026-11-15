@@ -40,6 +40,7 @@ pub struct Tui {
     plain: bool,
     version: Box<[u8]>,
     set_up: bool,
+    me_read: bool,
     box_log_path: Box<[u8]>,
     starting: Queue<Box<[u8]>>,
     box_stage: BoxStage,
@@ -192,6 +193,8 @@ pub enum Told {
         set_up: bool,
         box_log: Box<[u8]>,
     },
+    /// The root has read `me` in front at least once in this run.
+    MeRead,
     /// The authority of the first local link handed by the box.
     Address {
         address: Box<[u8]>,
@@ -251,6 +254,7 @@ impl Tui {
             plain: false,
             version: Box::default(),
             set_up: false,
+            me_read: false,
             box_log_path: Box::default(),
             starting: Queue::with_capacity(limits::STARTING),
             box_stage: BoxStage::Finding,
@@ -386,6 +390,10 @@ impl Tui {
     #[must_use]
     pub const fn set_up(&self) -> bool {
         self.set_up
+    }
+    #[must_use]
+    pub const fn me_read(&self) -> bool {
+        self.me_read
     }
     #[must_use]
     pub fn box_log(&self) -> &[u8] {
@@ -712,6 +720,11 @@ impl Tui {
             Told::NotOpened { address } => {
                 let changed = self.not_opened != address;
                 self.not_opened = address;
+                changed
+            }
+            Told::MeRead => {
+                let changed = self.front && !self.me_read;
+                self.me_read |= self.front;
                 changed
             }
             Told::Front { set_up, box_log } => {

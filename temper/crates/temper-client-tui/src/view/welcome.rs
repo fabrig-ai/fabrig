@@ -38,7 +38,7 @@ pub(crate) struct StepLine {
 }
 
 pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
-    if !tui.front() {
+    if !tui.front() || super::starting::shown(root, tui) {
         return false;
     }
     match root.pages().address() {

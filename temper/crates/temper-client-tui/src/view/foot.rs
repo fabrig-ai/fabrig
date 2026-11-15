@@ -82,6 +82,9 @@ pub(crate) struct OptionItem {
     pub event: Event,
 }
 fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
+    if super::starting::shown(root, tui) {
+        return (Shared::Connecting, look::WAITING);
+    }
     match root.client().link().state {
         Link::Live => {
             if root.pages().me(root.client()).is_some() {
