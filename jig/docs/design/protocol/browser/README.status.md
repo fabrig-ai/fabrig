@@ -8,3 +8,4 @@ link exchange. Without `secret`, or at a different route, no link is taken.
 The shell's table covers these cases; cookie fallback remains deferred in
 section 16.
 
+

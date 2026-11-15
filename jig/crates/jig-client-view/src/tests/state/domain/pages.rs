@@ -409,13 +409,15 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
         state::{action::Act, fields::Purpose},
         tree::notices::kept::Kind,
     };
-    for away in [false, true] {
+    let conversations = Place::Jig(Address::Conversations { project: None });
+    for went in [None, Some(Place::Elsewhere), Some(conversations)] {
         let mut domain = Fixture::new(&LIMITS);
         let token = start(&mut domain, List::with_capacity(0));
         let mut value = frame(7);
         value.projects = List::with_capacity(1);
         value.projects.push(project(1, true)).unwrap();
         delivered(&mut domain, Time::ZERO, token, value);
+        drive(&mut domain, Time::ZERO, Event::Went { place: conversations });
         drive(
             &mut domain,
             Time::ZERO,
@@ -433,15 +435,22 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
             }
         }
         let request = request.unwrap();
-        if away {
-            drive(&mut domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
+        if let Some(place) = went {
+            drive(&mut domain, Time::ZERO, Event::Went { place });
         }
         let answer =
             Answer::Done(Outcome::Document(DocumentOutcome::Created { first: u64::MAX, last: u64::MAX, given: None }));
-        drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
+        let output = drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
+        let mut shown = List::with_capacity(1);
+        for request in &output {
+            if let Request::Show { place, how } = request {
+                shown.push((*place, *how)).unwrap();
+            }
+        }
         assert!(domain.chats().starting.is_none());
         assert_eq!((domain.fields().get(Purpose::NewChat).unwrap().text.bytes()).len(), 0);
-        if away {
+        if let Some(place) = went {
+            assert!(shown.is_empty(), "an answer after Went opens nothing");
             assert_eq!(domain.notices.ids().len(), 1);
             for (notice, ()) in domain.notices.ids() {
                 assert_eq!(
@@ -449,10 +458,19 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
                     Kind::Answer { object: ObjectKey::Task(u64::MAX), answer: answer.clone() }
                 );
             }
-            assert_eq!(domain.page(), &Page::Elsewhere);
+            match place {
+                Place::Elsewhere => assert_eq!(domain.page(), &Page::Elsewhere),
+                Place::Jig(address) => {
+                    let Page::Work { address: current, .. } = domain.page() else { panic!("still on Conversations") };
+                    assert_eq!(*current, address);
+                }
+                Place::Missing => unreachable!("the test leaves for a known place"),
+            }
         } else {
+            let activity = Address::Task { task: u64::MAX, section: TaskSection::Activity };
+            assert_eq!(shown.as_slice(), &[(Place::Jig(activity), crate::How::Push)]);
             let Page::Work { address, .. } = domain.page() else { panic!("actual chat task") };
-            assert_eq!(*address, Address::Task { task: u64::MAX, section: TaskSection::Activity });
+            assert_eq!(*address, activity);
         }
     }
 }
