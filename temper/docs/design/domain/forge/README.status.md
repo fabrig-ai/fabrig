@@ -1,11 +1,13 @@
 # forge: status
 
-2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 
 
 - **Not yet:** 2: the follow procedure, its task making follow changes
   (`follows.md`) [in flight: change 110].
+
+- **Not yet:** 4, 9: a change without a number takes a closed or merged pull request found by its branches at its pushed head (`temper-engine-domain-forge/src/domain.rs`, `step_read`) [in flight: change 3485].
 
 - **Not yet:** 5.1: follows reading the landings on a branch
   [in flight: change 105].
