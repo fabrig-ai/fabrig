@@ -212,6 +212,7 @@ impl Heap for api::Write {
             Self::Dispatch { workflow, branch, inputs } => sum(&[workflow.heap(), branch.heap(), inputs.heap()]),
             Self::PutPage { name, content } => sum(&[name.heap(), content.heap()]),
             Self::DeleteRepository
+            | Self::Cancel { .. }
             | Self::Rerun { .. }
             | Self::DeleteComment { .. }
             | Self::Submit { .. }

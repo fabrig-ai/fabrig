@@ -217,7 +217,7 @@ fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) 
     if run.run.workflow.is_none() && job.state == crate::api::RunState::Completed {
         let state = match job.conclusion {
             Some(crate::api::Conclusion::Success) => Check::Passed,
-            Some(crate::api::Conclusion::Failure) => Check::Failed,
+            Some(crate::api::Conclusion::Failure | crate::api::Conclusion::Cancelled) => Check::Failed,
             None => unreachable!("a completed CI job has a conclusion"),
         };
         let cue = crate::ci::effective(

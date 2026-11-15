@@ -581,6 +581,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Config>, out: &mut Queue<Request>) {
 }
 
 #[expect(clippy::too_many_arguments, reason = "one call carries its reply right, actor, operation and admission state")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "admission lists every write, including run cancellation, before retaining a late write"
+)]
 fn call(
     domain: &mut Domain,
     env: &Env<Config>,
@@ -619,6 +623,7 @@ fn call(
             Write::Update { .. } => crate::store::fits(repository, env.limits.limits.name_bytes).is_ok(),
             Write::Copy { .. } => false,
             Write::DeleteRepository
+            | Write::Cancel { .. }
             | Write::Rerun { .. }
             | Write::SetProtection { .. }
             | Write::CreateIssue { .. }
@@ -769,6 +774,7 @@ fn execute(domain: &mut Domain, env: &Env<Config>, user: u64, repository: &[u8],
             Write::Dispatch { workflow, branch, inputs } => {
                 crate::dispatch::dispatch(domain, env, id, user, workflow, branch, inputs)
             }
+            Write::Cancel { run } => crate::dispatch::cancel(domain, id, user, run),
             Write::Rerun { job } => crate::dispatch::rerun(domain, env, id, user, job),
             Write::PutPage { name, content } => wiki::put(domain, env, id, user, name, content),
             Write::DeletePage { name } => wiki::delete(domain, env, id, user, &name),
