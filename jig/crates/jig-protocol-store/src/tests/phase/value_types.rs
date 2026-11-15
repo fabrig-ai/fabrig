@@ -224,6 +224,7 @@ fn written_jobs_name_a_registered_type_and_its_ranges() {
     for owner in [Owner::Application, Owner::Jig] {
         let base = family(owner);
         let job = Job {
+            counts: &[],
             name: "convert",
             keys: base.types[0].keys,
             converts: Some(Converts { family: base.name, value_type: 0, from: [0; 32] }),

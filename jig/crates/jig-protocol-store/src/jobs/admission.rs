@@ -14,12 +14,31 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
                     return Err(refusal);
                 }
             }
-            if !ranges(set, job) || !converts(set, job) {
+            if !counts(job) || !ranges(set, job) || !converts(set, job) {
                 return Err(refusal);
             }
         }
     }
     Ok(())
+}
+fn counts(job: &Job) -> bool {
+    if job.counts.len() > 16 {
+        return false;
+    }
+    for (index, name) in job.counts.iter().enumerate() {
+        if name.is_empty() || name.len() > 32 {
+            return false;
+        }
+        for byte in name.bytes() {
+            if !byte.is_ascii_alphanumeric() && byte != b'-' {
+                return false;
+            }
+        }
+        if job.counts.get(..index).expect("earlier count names").contains(name) {
+            return false;
+        }
+    }
+    true
 }
 fn ranges(set: &PatchSet, job: &Job) -> bool {
     let mut through: Option<&[u8]> = None;

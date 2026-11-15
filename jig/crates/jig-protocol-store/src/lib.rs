@@ -23,7 +23,9 @@ pub mod host;
 pub mod intervals;
 pub mod jobs;
 mod loads;
-pub use jobs::{Converts, Job, JobAnswer, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange};
+pub use jobs::{
+    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange,
+};
 mod open;
 mod pages;
 mod patch_set;
