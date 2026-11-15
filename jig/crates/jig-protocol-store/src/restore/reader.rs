@@ -211,6 +211,8 @@ pub(crate) fn joined(event: Option<skein_kv::Event>) -> Result<Option<Box<[u8]>>
             skein_kv::Event::Opened { .. }
             | skein_kv::Event::Committed { .. }
             | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. },

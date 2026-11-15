@@ -448,6 +448,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     chunk: 4_582_951,
     // The revision envelope, including what its items replaced, fits with its key.
     page: skein_kv::Page { rows: 2, bytes: 4_582_931 },
+    record: 4_582_931,
+    log: 1 << 40,
+    logs: 16,
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

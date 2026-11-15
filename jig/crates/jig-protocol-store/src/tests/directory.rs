@@ -67,7 +67,8 @@ fn scripted(store: &mut Store, below: &mut Below) -> Box<[Event]> {
         | file::Request::Sync { .. }
         | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
-        | file::Request::Remove { .. } => panic!("unexpected startup request for {owner:?}"),
+        | file::Request::Remove { .. }
+        | file::Request::RemoveIn { .. } => panic!("unexpected startup request for {owner:?}"),
     };
     let arrived = Arrived { event, fd: Some(Fd::new(4)) };
     let io = match driver {

@@ -112,6 +112,9 @@ const STORE: skein_kv::Limits = skein_kv::Limits {
     snapshot_after: 268_435_456,
     chunk: 268_437_555,
     page: skein_kv::Page { rows: 2, bytes: 268_437_535 },
+    record: 1,
+    log: 1 << 40,
+    logs: 16,
     deadline: skein_lib::Duration::from_nanos(1_000_000_000),
 };
 

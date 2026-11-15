@@ -26,6 +26,8 @@ pub struct World {
     pub asked_bytes: u64,
     /// The largest `max` of a `ReadAt` the store sent below.
     pub asked_most: u32,
+    pub file_requests: Vec<String>,
+    log_prefix: Option<Box<[u8]>>,
     file_events: Queue<file::Event>,
     subs: Queue<Submit>,
     completions: Queue<Complete>,
@@ -55,7 +57,13 @@ impl World {
         let pid = sim.spawn_process();
         let root = sim.root(pid, Handle::new(handle.raw()));
         let Limits { chunk, deadline, .. } = limits;
-        let file_limits = FileLimits { files: 8, read: chunk, entries: 1024, whole: chunk, timeout: deadline };
+        let file_limits = FileLimits {
+            files: 8 + limits.logs,
+            read: chunk.max(limits.record + 17),
+            entries: 1024,
+            whole: chunk,
+            timeout: deadline,
+        };
         World {
             machine,
             sim,
@@ -70,10 +78,38 @@ impl World {
             asked_reads: 0,
             asked_bytes: 0,
             asked_most: 0,
+            file_requests: Vec::new(),
+            log_prefix: None,
             file_events: Queue::with_capacity(128),
             subs: Queue::with_capacity(128),
             completions: Queue::with_capacity(128),
         }
+    }
+
+    pub fn logs(&mut self, prefix: &[u8]) {
+        self.log_prefix = Some(Box::from(prefix));
+        self.store.logs(skein_kv::LogRule { prefix: Box::from(prefix) });
+    }
+
+    pub fn file(&mut self, path: &[u8]) -> Option<Box<[u8]>> {
+        let root = self.machine.reopen_root(0);
+        let result = self.machine.open(root, path, How::ReadNoFollow);
+        let bytes = result.ok().map(|file| {
+            let len = u32::try_from(self.machine.stat(file).size).expect("test file size");
+            let bytes = self.machine.read(file, 0, len).expect("file reads").into_boxed_slice();
+            self.machine.close(file);
+            bytes
+        });
+        self.machine.close(root);
+        bytes
+    }
+    pub fn overwrite(&mut self, path: &[u8], at: u64, bytes: &[u8]) {
+        let root = self.machine.reopen_root(0);
+        let file = self.machine.open(root, path, How::WriteNoFollow).expect("file exists");
+        self.machine.write(file, at, bytes).expect("overwrite");
+        self.machine.sync(file);
+        self.machine.close(file);
+        self.machine.close(root);
     }
 
     pub fn request(&mut self, request: Request) {
@@ -129,6 +165,7 @@ impl World {
         if self.io.takes()
             && let Some(request) = self.below.pop()
         {
+            self.file_requests.push(format!("{request:?}"));
             if let file::Request::ReadAt { max, .. } = &request {
                 self.asked_reads += 1;
                 self.asked_bytes += u64::from(*max);
@@ -166,6 +203,9 @@ impl World {
         self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.io = FileIo::with_limits(&self.file_limits);
         self.store = Store::new(&self.env.limits);
+        if let Some(prefix) = &self.log_prefix {
+            self.store.logs(skein_kv::LogRule { prefix: prefix.clone() });
+        }
         self.above = Queue::with_capacity(128);
         self.below = Queue::with_capacity(128);
         self.file_events = Queue::with_capacity(128);
@@ -175,6 +215,9 @@ impl World {
 
     pub fn reopen(&mut self) {
         self.store = Store::new(&self.env.limits);
+        if let Some(prefix) = &self.log_prefix {
+            self.store.logs(skein_kv::LogRule { prefix: prefix.clone() });
+        }
         self.io = FileIo::with_limits(&self.file_limits);
         self.request(Request::Open { owner: Token::new(1), root: self.root });
     }

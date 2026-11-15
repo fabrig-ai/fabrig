@@ -56,7 +56,9 @@ fn seen(request: &file::Request) -> Seen {
         file::Request::Store { path, bytes, expected, .. } => {
             Seen::Store { path: path.clone(), bytes: bytes.clone(), expected: *expected }
         }
-        file::Request::Remove { name, directory, .. } => Seen::Remove { name: name.clone(), directory: *directory },
+        file::Request::Remove { name, directory, .. } | file::Request::RemoveIn { name, directory, .. } => {
+            Seen::Remove { name: name.clone(), directory: *directory }
+        }
         file::Request::SyncDirectory { .. } => Seen::Sync,
         file::Request::Close { .. } => Seen::Close,
         file::Request::Create { .. }

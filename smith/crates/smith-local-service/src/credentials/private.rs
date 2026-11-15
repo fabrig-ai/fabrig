@@ -146,7 +146,8 @@ fn owner(request: &file::Request) -> Token {
         | file::Request::Load { owner, .. }
         | file::Request::Store { owner, .. }
         | file::Request::Close { owner, .. }
-        | file::Request::Remove { owner, .. } => *owner,
+        | file::Request::Remove { owner, .. }
+        | file::Request::RemoveIn { owner, .. } => *owner,
         _ => unreachable!("private keeper file vocabulary"),
     }
 }

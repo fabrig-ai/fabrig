@@ -171,6 +171,8 @@ pub(crate) fn terminal(event: Option<skein_kv::Event>) -> Result<pages::Page, Fa
             skein_kv::Event::Opened { .. }
             | skein_kv::Event::Committed { .. }
             | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Got { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. },

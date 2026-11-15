@@ -240,6 +240,7 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
 fn append(ops: &mut List<skein_kv::Op>, op: skein_kv::Op, bytes: &mut u64, limit: u32) -> Result<(), CommitCheck> {
     let key = u32::try_from(op.key().len()).ok().ok_or(CommitCheck::Bytes)?;
     let size = match &op {
+        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => return Err(CommitCheck::Bytes),
         skein_kv::Op::Put { key: _, value } => {
             skein_kv::put_bytes(key, u32::try_from(value.len()).ok().ok_or(CommitCheck::Bytes)?)
                 .ok_or(CommitCheck::Bytes)?

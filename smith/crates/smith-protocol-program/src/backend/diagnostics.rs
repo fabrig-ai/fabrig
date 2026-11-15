@@ -68,6 +68,7 @@ impl core::fmt::Debug for Below {
                     | file::Request::HardLink { .. }
                     | file::Request::Rename { .. }
                     | file::Request::Remove { .. }
+                    | file::Request::RemoveIn { .. }
                     | file::Request::List { .. }
                     | file::Request::ListPage { .. } => 0,
                 },

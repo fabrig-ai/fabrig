@@ -129,10 +129,9 @@ pub(super) fn fire_ready(
     dir.at(Phase::SnapIo { log })
 }
 
-fn idle(store: &Store, mut dir: Dir, log: Log, env: &Env<Limits>, below: &mut Queue<file::Request>) -> State {
+fn idle(store: &mut Store, mut dir: Dir, log: Log, env: &Env<Limits>, below: &mut Queue<file::Request>) -> State {
     if dir.close_owner.is_some() {
-        below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
-        dir.at(Phase::Closing)
+        super::close_ready(store, dir, log, env, below)
     } else if dir.log_bytes >= env.limits.snapshot_bound(store.map.live()) {
         dir.compaction = Compaction::Due { start: store.last.checked_add(1).expect("commit number did not overflow") };
         below.push(file::Request::Close { owner: IO_OWNER, file: log.file });

@@ -223,7 +223,7 @@ fn trace(driver: usize, request: &file::Request) -> Trace {
         file::Request::Store { path, .. } => Trace::Store(path.clone()),
         file::Request::Load { path, .. } => Trace::Load(path.clone()),
         file::Request::Cut { .. } => Trace::Cut,
-        file::Request::Remove { name, .. } => Trace::Remove(name.clone()),
+        file::Request::Remove { name, .. } | file::Request::RemoveIn { name, .. } => Trace::Remove(name.clone()),
         _ => Trace::Other,
     }
 }

@@ -19,6 +19,9 @@ fn limits() -> Limits {
         snapshot_after: 16_777_216,
         chunk: 1024,
         page: Page { rows: 16, bytes: 1024 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     }
 }
@@ -59,6 +62,7 @@ fn commit_with_context(
     );
     for op in ops {
         match op {
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
             Op::Put { key, value } => {
                 model.insert(key, value);
             }
@@ -289,6 +293,7 @@ fn a_crash_in_a_snapshot_leaves_no_segment_behind() {
                 world.files().keys().collect::<Vec<_>>()
             );
             match op {
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                 Op::Put { key, value } => {
                     model.insert(key, value);
                 }

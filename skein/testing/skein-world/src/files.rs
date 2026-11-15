@@ -205,6 +205,7 @@ fn owner_of(request: &Request) -> Token {
         | Request::HardLink { owner, .. }
         | Request::Rename { owner, .. }
         | Request::Remove { owner, .. }
+        | Request::RemoveIn { owner, .. }
         | Request::ListPage { owner, .. }
         | Request::List { owner, .. } => *owner,
     }

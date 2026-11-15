@@ -121,7 +121,9 @@ impl Layer {
             file::Request::OpenDirectory { owner, .. } => file::Event::Opened { owner, file: Token::new(88), len: 0 },
             file::Request::ListPage { owner, .. } => file::Event::Listed { owner, entries: Box::new([]) },
             file::Request::Close { owner, .. } => file::Event::Closed { owner },
-            file::Request::Remove { owner, .. } => file::Event::Removed { owner },
+            file::Request::Remove { owner, .. } | file::Request::RemoveIn { owner, .. } => {
+                file::Event::Removed { owner }
+            }
             file::Request::Lock { .. }
             | file::Request::OpenPrivate { .. }
             | file::Request::Create { .. }

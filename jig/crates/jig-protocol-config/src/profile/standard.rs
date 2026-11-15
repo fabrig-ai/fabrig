@@ -239,6 +239,8 @@ const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     snapshot_after: 1_707_136_650,
     chunk: 100_883_595,
     page: skein_kv::Page { rows: 2, bytes: 100_883_575 },
+    record: 100_883_575,
+    logs: 64,
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

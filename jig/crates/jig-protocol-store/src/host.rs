@@ -613,7 +613,13 @@ impl Drivers {
 }
 fn handles(limits: &crate::Limits) -> u32 {
     // A rehearsal's patch also holds the source deployment and transcript roots.
-    limits.files.checked_add(4).expect("store file handles fit").max(crate::generations::COPY_HANDLES)
+    limits
+        .files
+        .checked_add(4)
+        .expect("store file handles fit")
+        .max(crate::generations::COPY_HANDLES)
+        .checked_add(limits.store.logs.max(limits.secrets.logs))
+        .expect("payload file handles fit")
 }
 /// Largest positioned read admitted by the store.
 #[must_use]
@@ -639,7 +645,8 @@ pub fn check_read_page(limits: &crate::Limits) -> Option<()> {
 }
 fn driver(limits: &crate::Limits) -> Driver {
     let files = handles(limits);
-    let read = max_read(limits);
+    let read =
+        max_read(limits).max(limits.store.record.saturating_add(17)).max(limits.secrets.record.saturating_add(17));
     let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.

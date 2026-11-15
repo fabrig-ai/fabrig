@@ -256,6 +256,9 @@ pub fn limits() -> Limits {
         snapshot_after: 1_073_741_824,
         chunk: 2_098_196,
         page: skein_kv::Page { rows: 2, bytes: 2_098_176 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     };
     let sizes =
