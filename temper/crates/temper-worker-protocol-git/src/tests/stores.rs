@@ -374,9 +374,44 @@ fn a_failed_store_clone_discards_making_and_keeps_its_classified_fault() {
     );
     assert_eq!(s.done(), None);
     s.complete_ok();
-    let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault: git::Fault::Refused, .. })) = s.done() else {
+    let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault: git::Fault::Refused, diagnostic })) = s.done()
+    else {
         panic!("clone's authentication fault survives discard")
     };
+    assert_eq!(diagnostic.command(), Some(b"clone".as_slice()), "discard keeps the invocation that failed");
+}
+
+/// temper/docs/design/protocol/git.md, section 6: install is a file task, not Version.
+#[test]
+fn a_deadline_during_store_install_names_install() {
+    let mut s = Started::new();
+    request(&mut s, store_op(None), true);
+    assert_eq!(s.file_operation(), store_open());
+    s.complete_err(Error::NotFound);
+    s.file_operation();
+    s.complete_ok();
+    invocation(
+        &mut s,
+        &Command::Store { directory: Box::from(b"1000".as_slice()), remote: Box::from(fixtures::REMOTE) },
+        b"making",
+        true,
+        true,
+        b"",
+    );
+    let Op::Rename { .. } = s.file_operation() else { panic!("install queued") };
+    s.fire(fixtures::DEADLINE);
+    assert_eq!(s.done(), None, "settle the file task before answering");
+    s.complete_ok();
+    assert_eq!(
+        s.done(),
+        Some((
+            fixtures::OWNER,
+            git::Done::FailedWithOutput {
+                fault: git::Fault::TimedOut,
+                diagnostic: git::PushDiagnostic::empty().named(b"install"),
+            }
+        ))
+    );
 }
 #[test]
 fn a_missing_store_checks_its_item_program_before_cloning_and_discards_on_a_bad_version() {
