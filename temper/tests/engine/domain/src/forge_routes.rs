@@ -2063,6 +2063,12 @@ impl World {
         self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
         self.restart_same();
     }
+    /// Restart with a project's new landing configuration, retaining only durable rows.
+    pub fn restart_with_project_landing(&mut self, project: u32, landing: engine::ProjectLanding) {
+        self.restart_config.landings.insert(project, landing).expect("project landing");
+        self.restart_same();
+    }
+
     pub fn restart_same(&mut self) {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }

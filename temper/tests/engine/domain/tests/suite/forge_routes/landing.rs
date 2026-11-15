@@ -959,6 +959,9 @@ mod merge_drill;
 #[path = "landing_wait_drill.rs"]
 mod wait_drill;
 
+#[path = "landing_go_live.rs"]
+mod go_live;
+
 #[test]
 fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
     use forge_top::history as h;
