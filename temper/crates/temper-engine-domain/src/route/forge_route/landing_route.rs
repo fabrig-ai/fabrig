@@ -207,7 +207,8 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
     if let Some(index) = selection.hold.first() {
         let unit = units.get(skein_lib::usize_of(*index)).expect("selected unit");
         let words = domain.forge.unit_words(&unit.changes);
-        super::holds::hold(domain, unit.task, &words);
+        let first = unit.changes.first().copied().unwrap_or(unit.task);
+        super::holds::hold(domain, first, &words);
         return true;
     }
     let mut members = List::with_capacity(env.limits.forge.landing_members);

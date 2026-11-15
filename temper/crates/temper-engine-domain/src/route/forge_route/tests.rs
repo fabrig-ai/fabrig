@@ -5083,28 +5083,56 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
 }
 #[test]
-fn a_unit_holds_its_change_task_and_a_release_refuses_it_again() {
+fn either_train_holds_the_units_first_change_in_dependency_order() {
+    use super::tasks;
+    for first in [7, 8] {
+        let (mut domain, env) = train_root(true);
+        super::start_landing(&mut domain, &env, first);
+        judge_trains(&mut domain, &env);
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("train C{first} must hold upstream C8"); };
+        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle), "the other member is not held too");
+        let revision = domain.core.tasks.task(8).unwrap().revisions.hold;
+        for other in [7, 8] {
+            super::start_landing(&mut domain, &env, other);
+            judge_trains(&mut domain, &env);
+        }
+        assert_eq!(domain.core.tasks.task(8).unwrap().revisions.hold, revision);
+        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
+        domain.work.push(super::Work::Tasks(tasks::Event::Release {
+            reply_to: super::super::internal(u64::MAX),
+            by: tasks::Party::Deployment { project: 1 },
+            operation: tasks::Release { task: 8, again: None, message: None },
+        }));
+        judge_trains(&mut domain, &env);
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("released unit must be held again"); };
+        assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision);
+        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
+    }
+}
+
+#[test]
+fn a_unit_holds_its_first_dependency_and_a_release_refuses_it_again() {
     use super::{Work, tasks};
     let (mut domain, env) = train_root(true);
     judge_trains(&mut domain, &env);
     for task in [7, 8] {
         assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
     }
-    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(7).unwrap().phase else {
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(8).unwrap().phase else {
         panic!("unit hold")
     };
     assert_eq!(*why, tasks::Hold::Procedure);
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert!(words.starts_with(b"unit of 2 changes: C8, C7: a unit across repositories"));
     assert!(skein_lib::bytes::find(words, b"merge-queue.md, 13)").is_some());
-    let revision = domain.core.tasks.task(7).unwrap().revisions.hold;
+    let revision = domain.core.tasks.task(8).unwrap().revisions.hold;
     domain.work.push(Work::Tasks(tasks::Event::Release {
         reply_to: super::super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: 1 },
-        operation: tasks::Release { task: 7, again: None, message: None },
+        operation: tasks::Release { task: 8, again: None, message: None },
     }));
     judge_trains(&mut domain, &env);
-    let tasks::Phase::Held { .. } = domain.core.tasks.task(7).unwrap().phase else { panic!("held again") };
-    assert!(domain.core.tasks.task(7).unwrap().revisions.hold > revision, "released, then held anew");
+    let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("held again") };
+    assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision, "released, then held anew");
     assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
 }
