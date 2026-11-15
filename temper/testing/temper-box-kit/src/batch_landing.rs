@@ -245,8 +245,69 @@ fn gate_runs(forge: &Throwaway) -> Result<Vec<Value>, String> {
     })
 }
 
-/// Fixture admission is checked without starting the owned forge or a process story.
+/// Harness contracts checked without starting the owned forge or a process story.
 pub mod tests {
+    pub fn held_turn_releases_repeat_until_the_observed_phase_changes() {
+        use super::Phase;
+        // The first two polls can precede the latch's held turn. With no
+        // proving landing read, the third poll must still release the latch.
+        for _ in 0..3 {
+            assert_eq!(Phase::Batch.releases(), &[b"batch-ready".as_slice()]);
+        }
+        // Reading the proving landing moves the green story to Fourth.
+        assert_eq!(Phase::Fourth.releases(), &[b"batch-fourth".as_slice(), b"batch-reviews".as_slice()]);
+        assert_eq!(Phase::Fourth.releases(), &[b"batch-fourth".as_slice(), b"batch-reviews".as_slice()]);
+        // Reading the fourth change ready moves to Next; neither held turn
+        // needs another release. The narrowed story leaves Batch for Search.
+        let none: &[&[u8]] = &[];
+        assert_eq!(Phase::Next.releases(), none);
+        assert_eq!(Phase::Search(super::narrowed::Step::One).releases(), none);
+    }
+
+    pub fn repeated_releases_name_no_later_scripted_hold() {
+        use super::{Line, Story};
+        let api = "127.0.0.1:3000".parse().expect("fixture forge");
+        for story in [Story::Green, Story::Narrowed] {
+            let scripts = super::scripted_batch(
+                super::super::forgejo::native_scripts(b"hello", api, 1, b"README").into_vec(),
+                1,
+                story,
+            );
+            for name in [b"batch-ready".as_slice(), b"batch-fourth", b"batch-owner", b"batch-reviews", b"batch-repair"]
+            {
+                let count = scripts
+                    .iter()
+                    .flat_map(|script| &script.turns)
+                    .flat_map(|turn| &turn.lines)
+                    .filter_map(|line| if let Line::Pieces { pieces } = line { Some(pieces) } else { None })
+                    .flatten()
+                    .filter(|piece| piece.hold.as_deref() == Some(name))
+                    .count();
+                let expected = match (story, name) {
+                    (Story::Green, b"batch-repair") | (Story::Narrowed, b"batch-fourth") => 0,
+                    _ => 1,
+                };
+                assert_eq!(count, expected, "one scripted hold for {}", String::from_utf8_lossy(name));
+            }
+        }
+    }
+
+    pub fn the_poll_period_starts_when_the_sample_ends() {
+        use super::{Duration, Time};
+        let time = std::cell::Cell::new(Time::from_nanos(1_000_000_000));
+        let poll = super::poll_after_sample(
+            || {
+                // A probe can take longer than the period while the world
+                // drives neither the fake model nor serve's pipes.
+                time.set(time.get().saturating_add(Duration::from_secs(2)));
+                Ok(())
+            },
+            || time.get(),
+        )
+        .expect("sample");
+        assert_eq!(poll, Time::from_nanos(3_250_000_000));
+    }
+
     pub fn gate_receipt_waits_for_an_unpublished_status_context() {
         use serde_json::json;
         assert_eq!(super::narrowed::gate_status(&json!({"statuses":null}), "failure"), Ok(false));
@@ -342,6 +403,32 @@ enum Phase {
     Ending,
     Search(narrowed::Step),
 }
+impl Phase {
+    // These names occur at one turn each; reviews share a name only across
+    // independent review calls. No later turn reuses a released hold.
+    fn releases(self) -> &'static [&'static [u8]] {
+        match self {
+            Self::Gates => &[b"batch-reviews"],
+            Self::Batch => &[b"batch-ready"],
+            Self::Fourth => &[b"batch-fourth", b"batch-reviews"],
+            Self::Ending => &[b"batch-owner"],
+            Self::Changes
+            | Self::Panels
+            | Self::Reviews
+            | Self::Keeping
+            | Self::Next
+            | Self::Landed
+            | Self::Search(_) => &[],
+        }
+    }
+}
+
+// A synchronous probe must leave the hosts a full poll period to progress.
+fn poll_after_sample(sample: impl FnOnce() -> Result<(), String>, now: impl FnOnce() -> Time) -> Result<Time, String> {
+    sample()?;
+    Ok(now().saturating_add(Duration::from_millis(250)))
+}
+
 #[derive(Clone, Copy)]
 enum PeerStop {
     Waiting,
@@ -362,6 +449,7 @@ struct Judge<'a> {
     story: Story,
     probes: Vec<u64>,
     peer_stop: PeerStop,
+    manual_merges: Value,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
@@ -605,6 +693,36 @@ impl Judge<'_> {
 
         Ok(())
     }
+    fn next_failure_state(&self) -> Result<Value, String> {
+        let first = self.first.as_ref().ok_or(String::from("first proof"))?;
+        let task = first.panel["task"].as_u64().ok_or(String::from("landing task"))?;
+        let panel = landing(self.root, task)?;
+        let mut member_states = Vec::new();
+        for member in members(&panel)? {
+            let task = member["change"].as_u64().ok_or(String::from("member change"))?;
+            let change = change(self.root, task)?;
+            let number = member["pull"]["number"].as_u64().ok_or(String::from("member pull"))?;
+            let pull = get(self.forge, &format!("pulls/{number}"));
+            member_states.push(json!({"change":task,"step":change["step"],
+                "landed":member["landed"],"prefix":member["candidate"],"head":member["head"],
+                "pull":{"merged":pull["merged"],"merge_commit_sha":pull["merge_commit_sha"],"head":pull["head"]["sha"]}}));
+        }
+        let number = panel["round"]["pull"]["number"].as_u64().ok_or(String::from("round pull"))?;
+        let pull = get(self.forge, &format!("pulls/{number}"));
+        let runs: Vec<_> = gate_runs(self.forge)?
+            .iter()
+            .map(|run| json!({"id":run["id"],"sha":run["commit_sha"],"status":run["status"]}))
+            .collect();
+        let fourth_proof = self.proof(Some(first.run), &[FOURTH]).map(|proof| proof.map(|proof| proof.run));
+        Ok(json!({"first_landed":format!("{:?}",self.landed(first)),
+            "fourth_proof":format!("{fourth_proof:?}"),
+            "first":{"phase":panel["phase"],"round":panel["round"],"members":member_states,
+                "pull":{"merged":pull["merged"],"head":pull["head"]["sha"]},
+                "main":main(self.forge)?,"candidate":candidate(&first.panel)?},
+            "fourth":{"waiting":self.barrier.waiting(Some(first.run)),"runs":runs,
+                "landings":landings(self.root)?["landings"],"step":change(self.root,FOURTH)?["step"]}}))
+    }
+
     fn landed(&self, proof: &Proof) -> Result<bool, String> {
         Ok({
             let panel = landing(self.root, proof.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
@@ -741,7 +859,6 @@ impl Judge<'_> {
                 }
             }
             Phase::Gates => {
-                release(procs, b"batch-reviews")?;
                 if CHANGES.into_iter().try_fold(true, |all, task| {
                     if !all {
                         return Ok(false);
@@ -754,7 +871,6 @@ impl Judge<'_> {
                             "assertion failed: landings(self.root)?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
                         ));
                     }
-                    release(procs, b"batch-ready")?;
                     self.phase = Phase::Batch;
                 }
             }
@@ -766,7 +882,6 @@ impl Judge<'_> {
                     self.first = Some(proof);
                     match self.story {
                         Story::Green => {
-                            release(procs, b"batch-fourth")?;
                             self.phase = Phase::Fourth;
                         }
                         Story::Narrowed => {
@@ -777,7 +892,6 @@ impl Judge<'_> {
                 }
             }
             Phase::Fourth => {
-                release(procs, b"batch-reviews")?;
                 let fourth = change(self.root, FOURTH)?;
                 if fourth["step"] == "ready" {
                     let first = self.first.as_ref().ok_or(String::from("first proof"))?;
@@ -906,18 +1020,21 @@ impl Judge<'_> {
                             }
                         }
                     }
-                    release(procs, b"batch-owner")?;
                     self.phase = Phase::Ending;
                 }
             }
             Phase::Search(step) => self.search(step, procs)?,
             Phase::Ending => {
-                release(procs, b"batch-owner")?;
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
                 if person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
                     self.stop(procs)?;
                 }
             }
+        }
+        // A release sent before its stream reaches the hold is forgotten.
+        // Repeat for the phase whose durable read still awaits its effect.
+        for name in self.phase.releases() {
+            release(procs, name)?;
         }
 
         Ok(())
@@ -954,15 +1071,20 @@ impl Referee<Process> for Judge<'_> {
                 }
             }
             if !self.chat.stopping() && now >= self.poll {
-                self.poll = now.saturating_add(Duration::from_millis(250));
-                let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
-                if person.finished {
-                    let before = self.phase;
-                    self.sample(procs)?;
-                    if before != self.phase {
-                        eprintln!("batch phase {:?} at {now:?}", self.phase);
-                    }
-                }
+                self.poll = poll_after_sample(
+                    || {
+                        let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
+                        if person.finished {
+                            let before = self.phase;
+                            self.sample(procs)?;
+                            if before != self.phase {
+                                eprintln!("batch phase {:?} at {now:?}", self.phase);
+                            }
+                        }
+                        Ok(())
+                    },
+                    || Clock::new().now().now,
+                )?;
             }
 
             Ok(())
@@ -986,7 +1108,40 @@ impl Referee<Process> for Judge<'_> {
         {
             self.peer_stop = PeerStop::Due(now);
         }
-        self.chat.watch(now, procs)
+        self.chat.watch(now, procs).map_err(|why| {
+            let mut nonempty = Vec::new();
+            let mut holds = Vec::new();
+            for proc in procs {
+                let name = match proc {
+                    Process::Binary(_) => "serve",
+                    Process::Person(_) => "person",
+                    Process::Calls(_) => "ctl",
+                    Process::Peer(peer) => {
+                        for name in ["batch-ready", "batch-fourth", "batch-reviews", "batch-owner", "batch-repair"] {
+                            if peer.is_held(name.as_bytes()) {
+                                holds.push(name);
+                            }
+                        }
+                        "model"
+                    }
+                    Process::Stdout(_) => "stdout",
+                    Process::Issuer(_) => "issuer",
+                    Process::Visitor(_) => "visitor",
+                };
+                if !proc.is_empty() {
+                    nonempty.push(name);
+                }
+            }
+            let next = if self.phase == Phase::Next {
+                format!("; Next reads: {:?}", self.next_failure_state())
+            } else {
+                String::new()
+            };
+            format!(
+                "{why}; batch {:?}: nonempty hosts {nonempty:?}, open holds {holds:?}; manual merge setting {}{next}",
+                self.phase, self.manual_merges
+            )
+        })
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
@@ -1039,6 +1194,10 @@ pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
 
 fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
     forge.detect_manual_merges();
+    let repository = get(forge, "");
+    let manual_merges = json!({"autodetect_manual_merge":repository["autodetect_manual_merge"],
+        "allow_manual_merge":repository["allow_manual_merge"]});
+    eprintln!("batch manual merge setting {manual_merges}");
     let peer = peer(root, forge, story);
     peer.configure(root);
     let clock = Clock::new();
@@ -1069,6 +1228,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         story,
         probes: Vec::new(),
         peer_stop: PeerStop::Waiting,
+        manual_merges,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {

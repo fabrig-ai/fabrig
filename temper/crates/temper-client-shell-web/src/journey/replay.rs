@@ -155,6 +155,7 @@ impl Replay {
             Line::Due => Report::Due,
             Line::TabRefused => Report::TabRefused,
             Line::Place(path) => Report::Place { path: path.clone() },
+            Line::Returned(path) => Report::Returned { path: path.clone() },
             Line::Heard(heard) => Report::Heard(clone_heard(heard)),
             Line::Act { act, event, .. } => Report::Act {
                 node: super::giving(&self.host, act, event)

@@ -571,6 +571,27 @@ fn a_key_lands_on_accounts_with_its_line_and_chat_link() {
     );
 }
 #[test]
+fn returning_to_kept_accounts_draws_without_the_added_line() {
+    let (mut root, _) = flow_fixture(d::WayKind::Key);
+    let mut view = fixtures::view();
+    press(
+        &mut view,
+        &mut root,
+        Role::TextField,
+        b"Key (pasted once)",
+        Act::Input { value: Box::from(b"private-once".as_slice()) },
+    );
+    let attempt = sent(&mut root, M::Submit { name: [1; 16] });
+    answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
+    let tree = fixtures::build(&mut view, &root);
+    assert!(String::from_utf8(fixtures::text(tree).into_vec()).unwrap().contains("Added your"));
+    fixtures::root_event(&mut root, d::Event::Returned { place: d::Place::Address(d::Address::Accounts) });
+    let tree = fixtures::build(&mut view, &root);
+    let text = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
+    assert!(text.contains("Accounts"));
+    assert!(!text.contains("Added your"));
+}
+#[test]
 fn an_anthropic_key_lands_on_accounts_with_its_brand() {
     let mut root = plans_root();
     fixtures::root_event(

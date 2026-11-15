@@ -41,6 +41,21 @@ fn gate_receipt_waits_for_an_unpublished_status_context() {
 }
 
 #[test]
+fn held_turn_releases_repeat_until_the_observed_phase_changes() {
+    support::batch_landing::tests::held_turn_releases_repeat_until_the_observed_phase_changes();
+}
+
+#[test]
+fn repeated_releases_name_no_later_scripted_hold() {
+    support::batch_landing::tests::repeated_releases_name_no_later_scripted_hold();
+}
+
+#[test]
+fn the_poll_period_starts_when_the_sample_ends() {
+    support::batch_landing::tests::the_poll_period_starts_when_the_sample_ends();
+}
+
+#[test]
 fn the_scripted_batch_fits_its_budget_and_call() {
     support::batch_landing::tests::the_scripted_batch_fits_its_budget_and_call();
 }

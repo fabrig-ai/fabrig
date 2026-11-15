@@ -625,7 +625,7 @@ impl Throwaway {
         let response = self
             .instance
             .exchange(&Outgoing::get(
-                &format!("/api/v1/repos/{org}/{name}/{suffix}"),
+                format!("/api/v1/repos/{org}/{name}/{suffix}").trim_end_matches('/'),
                 Some(&self.instance.admin().token),
             ))
             .expect("elsewhere repository answer");

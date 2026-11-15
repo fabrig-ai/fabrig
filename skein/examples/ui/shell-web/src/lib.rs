@@ -44,6 +44,7 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Carried),
     Place(Box<[u8]>),
+    Returned(Box<[u8]>),
 }
 struct Shell {
     state: State,
@@ -134,7 +135,7 @@ pub fn start() {
         facts.primary,
     )));
     let dom = Dom::new(mount, &page, &inbox, Report::Act, &[grow::new]);
-    let history = history::web::History::new(Rc::clone(&inbox), Report::Place);
+    let history = history::web::History::new(Rc::clone(&inbox), Report::Place, Report::Returned);
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
     let title = title::web::Title::default();
     let mut shell = Shell {
@@ -165,7 +166,7 @@ impl Shell {
                     self.timer.fired();
                     Some(ViewReport::Due)
                 }
-                Report::Place(path) => Some(ViewReport::Place(places::parse(&path))),
+                Report::Place(path) | Report::Returned(path) => Some(ViewReport::Place(places::parse(&path))),
                 Report::Act(node, act) => self.view.act(node, act).map(ViewReport::Act),
                 Report::Fetch(fetch::Report::Answered { exchange, status, body, headers: _ }) => {
                     Some(ViewReport::Answered { exchange, status, body })

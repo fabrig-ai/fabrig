@@ -51,6 +51,7 @@ pub enum Report {
     Copied(clipboard::Report),
     Screen(screen::Report),
     Place(Box<[u8]>),
+    Returned(Box<[u8]>),
     Frame(Control),
     World(platform::worker::Heard),
 }
@@ -195,7 +196,7 @@ fn start_signed_in(settings: internal::Internal) {
     night(&document, host.night());
     let page = Rc::new(RefCell::new(host::page(&host.bounds.tree, facts.primary)));
     let dom = Dom::new(mount, &page, &inbox, Report::Act, &[]);
-    let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place));
+    let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place, Report::Returned));
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
     let mut shell = Shell {
         host,
@@ -347,6 +348,7 @@ impl<P: ShellPlatform> Shell<P> {
             Report::Screen(report) => host::Report::Screen(report),
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
+            Report::Returned(path) => host::Report::Returned { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
             Report::Copied(report) => host::Report::Copied {
                 token: report.token,

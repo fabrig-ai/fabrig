@@ -17,6 +17,7 @@ enum Input {
     Act(NodeId, Act),
     Fetch(fetch::Report),
     Place(Box<[u8]>),
+    Returned(Box<[u8]>),
     Visible(bool),
 }
 struct Shell {
@@ -48,7 +49,7 @@ pub(crate) fn start(path: &[u8]) {
     let page = Rc::new(RefCell::new(crate::host::page(&host.bounds, facts.primary)));
     let dom = Dom::new(document.get_element_by_id("app").expect("bundle mount"), &page, &inbox, Input::Act, &[]);
     let fetch = fetch::web::Fetch::new(crate::limits::EXCHANGES, Rc::clone(&inbox), Input::Fetch);
-    let history = history::web::History::new(Rc::clone(&inbox), Input::Place);
+    let history = history::web::History::new(Rc::clone(&inbox), Input::Place, Input::Returned);
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Input::Due);
     let listener_inbox = Rc::clone(&inbox);
     let listener = Closure::<dyn Fn()>::new(move || {
@@ -78,6 +79,7 @@ impl Shell {
                 Input::Act(node, act) => Report::Act { node, act },
                 Input::Fetch(report) => Report::Heard(adapter::fetched(report)),
                 Input::Place(path) => Report::Place { path },
+                Input::Returned(path) => Report::Returned { path },
                 Input::Visible(visible) => Report::Visible { visible },
             };
             let previous: Vec<_> = self.host.tickets.keys().copied().collect();
