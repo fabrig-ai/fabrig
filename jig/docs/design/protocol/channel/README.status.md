@@ -1,8 +1,10 @@
 # channel: status
 
-2026-11-12. Where jig's code lags or departs from [README.md](README.md).
+2026-11-15. Where jig's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 11: the engine's machine world's fixtures prepare once what doesn't change: its schema, channel limits and the statement's kept wires are built for each scripted worker (`jig/tests/engine-workers/src/fixtures.rs`). [in flight: change 3660]
+- **Not yet:** 11: the worker's machine world's fixtures prepare once what doesn't change: its schema, channel limits, kept wires and agreement are built for each scripted engine and world (`jig/tests/worker-link/src/fixtures.rs`). [in flight: change 3661]
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.
 
 
