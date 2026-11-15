@@ -1,10 +1,12 @@
 # view: status
 
-2026-11-13. Where the tree's code lags or departs from [view.md](view.md).
+2026-11-15. Where the tree's code lags or departs from [view.md](view.md).
 
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
+- **Not yet:** 3: the rail's link state as one word at the right of its first row over 760 pixels, "Behind" in place of "Live"; `temper.css` hides the live link's region [in flight: change 3618].
+- **Not yet:** 3, *All projects*: in one project, the switcher naming it, its row pressed, on a page across projects; it names "All projects" there [in flight: change 3619].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
