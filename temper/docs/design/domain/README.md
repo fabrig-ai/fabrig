@@ -212,7 +212,7 @@ Each document lists its own; the ones that reach across:
 
 - what temper's root keeps between steps, and the forge's work it does
   that jig's connectors do themselves (root.md, section 12);
-- an assignment naming the head its push must find (`worker/checkouts.md`, section 1);
+- an assignment naming the head its push must find (`worker/checkouts.md`, section 2);
 - a person's approval posted on the forge as the person (`../README.md`,
   section 8; forge/README.md, section 11);
 
