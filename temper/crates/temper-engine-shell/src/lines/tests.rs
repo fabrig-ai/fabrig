@@ -1,6 +1,40 @@
 use super::*;
 
 #[test]
+fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
+    use jig_protocol_store::{JobCount, Owner};
+    for (binary, shown) in [("temper-box", "temper-box"), ("temper-engine", "temper-engine"), ("temper", "temper-box")]
+    {
+        for (counts, suffix) in [
+            (vec![], ""),
+            (
+                vec![
+                    JobCount { name: "dropped".into(), count: 5 },
+                    JobCount { name: "BranchHead".into(), count: 1 },
+                    JobCount { name: "PullState".into(), count: 2 },
+                    JobCount { name: "Ci".into(), count: 0 },
+                ],
+                "; dropped 5, BranchHead 1, PullState 2, Ci 0",
+            ),
+        ] {
+            assert_eq!(
+                note_line(
+                    binary,
+                    temper_engine_service::Note::Ran {
+                        of: Owner::Application,
+                        job: "deleted-repository-forge-rows".into(),
+                        rows: 812,
+                        commits: 2,
+                        counts: counts.into_boxed_slice(),
+                    }
+                ),
+                format!("{shown} serve: ran temper deleted-repository-forge-rows: 812 rows in 2 commits{suffix}\n")
+            );
+        }
+    }
+}
+
+#[test]
 fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
     use jig_protocol_worker_wire::Agreed;
     let wires = skein_lib::List::from_boxed(Box::new([

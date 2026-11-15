@@ -8,7 +8,7 @@ use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchS
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
 pub const PATCH_SET: PatchSet = PatchSet {
-    jobs: &[Job { name: "change-parts", keys: &[KeyRange { from: &[12], to: &[13] }], converts: None }],
+    jobs: &[Job { counts: &[], name: "change-parts", keys: &[KeyRange { from: &[12], to: &[13] }], converts: None }],
     owner: Owner::Application,
     name: "temper",
     patches: crate::patches::PATCHES,

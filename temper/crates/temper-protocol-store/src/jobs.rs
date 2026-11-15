@@ -50,7 +50,7 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if through.is_none() {
                 return Err(refusal(Some(row.key.clone()), "change parts exceed the job edge"));
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         }
         bytes = cost.expect("cost checked");
         for write in row_writes {
@@ -58,7 +58,7 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         through = Some(row.key.clone());
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 
 fn legacy(key: &[u8], bytes: &[u8]) -> Option<ChangeRow> {

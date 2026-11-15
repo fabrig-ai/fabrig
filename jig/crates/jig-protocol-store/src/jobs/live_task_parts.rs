@@ -31,7 +31,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
                 if through.is_none() {
                     return Err(refusal(Some(row.key.clone()), "live parts exceed commit edge"));
                 }
-                return Ok(JobAnswer { writes: writes.into_boxed(), through });
+                return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
             }
             bytes = total;
             for write in pair {
@@ -40,7 +40,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         through = Some(row.key.clone());
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 
 fn refusal(key: Option<Box<[u8]>>, why: &str) -> JobRefusal {
