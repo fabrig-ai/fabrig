@@ -9,7 +9,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::Outcome;
 use skein_json::writer::Encoder;
-use temper_client_domain::forge::{
+use temper_client_domain_forge::forge::{
     playground::{self as demo, StartAnswer, StartFailure},
     words,
 };

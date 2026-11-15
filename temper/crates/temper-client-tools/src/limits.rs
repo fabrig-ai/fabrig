@@ -1,7 +1,7 @@
 //! The tools' preset and host bounds (client/ctl/README.md, 9).
 pub use crate::jig::call::{KEY_BYTES, MOVED_BYTES};
 use skein_lib::{Duration, RequestLimits};
-use temper_client_domain as client;
+use temper_client_domain_forge as client;
 pub const ROWS: u32 = 32;
 pub const TEXT: u32 = 81_920;
 /// The client's text and turn text; jig's wire caps these at 65,536 (`task_text_words`).

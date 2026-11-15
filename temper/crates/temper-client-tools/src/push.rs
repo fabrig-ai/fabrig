@@ -19,7 +19,7 @@ use skein_lib::{
     Env, Queue, Reader,
     base64::{self, Alphabet},
 };
-use temper_client_domain::{forge, owner::Owner};
+use temper_client_domain_forge::{forge, owner::Owner};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const LIST: Tool = Tool {

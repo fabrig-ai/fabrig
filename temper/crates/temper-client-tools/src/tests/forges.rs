@@ -5,7 +5,7 @@ use crate::{
 };
 use jig_client::{self as client, contract as c};
 use skein_lib::{Duration, List};
-use temper_client_domain::forge::{
+use temper_client_domain_forge::forge::{
     self,
     forges::{Connection as C, Kind, Mode, Offer, Row, Step},
 };
