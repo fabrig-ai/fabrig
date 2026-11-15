@@ -1221,3 +1221,6 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
 mod delivery_restart;
 #[path = "landing_stale_round.rs"]
 mod stale_round;
+
+#[path = "landing_copied.rs"]
+mod copied;

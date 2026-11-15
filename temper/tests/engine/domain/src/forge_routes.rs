@@ -228,6 +228,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// The peer's pull bodies may exceed the issue-projection bound in landing stories.
+    pub forge_body_bytes: Option<u32>,
     /// Saved and delivered producer branches may coexist with landing branches.
     pub forge_branches: Option<u32>,
     /// CI contexts whose real fake-forge jobs run at every pushed head.
@@ -353,6 +355,17 @@ impl World {
         model: &engine::Model,
         limits: &engine::Limits,
     ) -> Self {
+        Self::configured_stock_turn_with(defaults, model, limits, StoryLimits::default())
+    }
+
+    /// Stock landing stories with scenario-specific peer bounds and batch size.
+    #[must_use]
+    pub fn configured_stock_turn_with(
+        defaults: &jig_domain_core::settings::Defaults,
+        model: &engine::Model,
+        limits: &engine::Limits,
+        timing: StoryLimits,
+    ) -> Self {
         Self::configured_settings(
             true,
             true,
@@ -360,7 +373,7 @@ impl World {
             1000,
             paths::Gate { agent: true, ..paths::Gate::default() },
             None,
-            &StoryLimits { turn: true, ..StoryLimits::default() },
+            &StoryLimits { turn: true, ..timing },
             Some((defaults, model, Some(limits))),
             &[],
         )
@@ -453,6 +466,7 @@ impl World {
             forge_charter,
             applications,
             forge_commits: _,
+            forge_body_bytes: _,
             forge_branches: _,
             ci_contexts: _,
             kinds,
@@ -1167,6 +1181,9 @@ impl World {
             fake_config.limits.body_bytes = limits.forge.issue_policy.body_bytes;
             fake_config.limits.title_bytes = limits.forge.issue_policy.title_bytes;
             fake_config.limits.comments = limits.forge.issue_policy.milestones;
+        }
+        if let Some(bytes) = timing.forge_body_bytes {
+            fake_config.limits.body_bytes = bytes;
         }
         if turn {
             fake_config.limits.branches = fake_config.limits.branches.max(2 * u32::from(timing.batch.unwrap_or(1)) + 2);
