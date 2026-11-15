@@ -713,6 +713,7 @@ impl Host {
             tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
                 let words = skein_lib::bytes::concat(&[command.name(), b" "]);
                 self.composer_words(words);
+                self.focus.caret = u32::try_from(self.words().len()).expect("command name fits the box");
                 self.tell(Told::Cleared);
             }
             tui::Own::Brief => {
@@ -826,6 +827,9 @@ impl Host {
             self.notice(tui::Notice::SigningIn);
             return;
         }
+        if self.bare_own() {
+            return;
+        }
         self.tell(Told::NotOpened { address: None });
         self.tell(Told::Send);
         let project = self
@@ -918,6 +922,17 @@ impl Host {
             self.act(Act::StartChat);
         }
         self.tell(Told::Cleared);
+    }
+
+    fn bare_own(&self) -> bool {
+        tui::offered_own(&self.root, self.state()).iter().any(|command| match command {
+            tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
+                self.words().strip_prefix(command.name()).filter(|rest| !rest.is_empty()).is_some_and(|rest| {
+                    core::str::from_utf8(rest).is_ok_and(|rest| rest.chars().all(char::is_whitespace))
+                })
+            }
+            tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open => false,
+        })
     }
 
     fn launchpad_words(&mut self) -> bool {
