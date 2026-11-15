@@ -117,9 +117,10 @@ key's first field after the family's tag:
   none }`. A task's first record with neither puts `HistoryLog { record:
   none }`, so that each task with a history log has its row.
 - **An erase of a log-held key** is an erase row in the task's record:
-  the rows before it in the log no longer hold the key. Only a forgotten
-  task's record is erased so (`retention.md`, 6.4, below 9); the walks
-  that end a task's history erase none (9).
+  the rows before it in the log no longer hold the key. A forgotten
+  task's record is erased so (`retention.md`, 6.4, below 9), and so are
+  the rows the walks that end a task's history erase before its drop
+  (9).
 - **`Write::DropHistory { task }`** drops the task's history log
   (`Op::Drop`) and erases its `00 0a` row. A commit that drops a log
   and writes one of its keys fails `Check(Capacity)`: a writer's fault.
@@ -259,13 +260,14 @@ as it is read (temper's `draft/store-shape.md`, section 3):
   turns log and any transcript file (5).
 - **The full record** (`retention.md`, 6.2), **a deleted project's
   task** (`README.md`, 6.1) and **a forgotten task's remains**
-  (`retention.md`, 6.4): the walk reads a task's log-held rows through
-  the view where it needs them (the activity lines that name replies'
-  updates) and erases none of them; `Write::DropHistory` goes in the
-  decision that erases what the walk keeps last: the task's ended record
-  for the first two, its summary for the remains. A forgotten task's
-  record is erased at once by its forgetting, as an erase row (3), so
-  nothing reads it from then on.
+  (`retention.md`, 6.4): the walk reads and erases a task's rows a page
+  at a time as it always has, through the view, each erase of a
+  log-held row an erase row of its log (3), the activity lines naming
+  the replies' updates it erases with them; `Write::DropHistory` goes
+  in the decision that erases what the walk keeps last: the task's ended
+  record for the first two, its summary for the remains. A forgotten
+  task's record is erased at once by its forgetting, as an erase row (3),
+  so nothing reads it from then on.
 - **A project's deletion finds its ended tasks by their summaries**
   (`tasks.summaries`, written for every ended task since S6), not by
   walking ended records, which no read walks across tasks.
@@ -302,3 +304,7 @@ as it is read (temper's `draft/store-shape.md`, section 3):
 - **A rehearsal's copy** grows with the logs; linking them, with a copy
   made only of a log the rehearsal appends to, would spare it.
 - **The logs' bytes in the census** (skein's `data/kv.md`, section 12).
+- **The walks' erase rows:** a walk that ends a task's history erases
+  its log-held rows one by one before the log goes whole, so the log
+  grows by an erase row per row first. Leaving them would need the
+  domain to know which of its families a log holds.

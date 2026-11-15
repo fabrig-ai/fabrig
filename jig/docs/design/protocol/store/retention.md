@@ -191,9 +191,9 @@ fields and nothing more.
   keys by task joins both. The families keyed by something other than
   the task (decided person proposals, their decisions, parties'
   updates) are not scanned: a task's rows in them are erased by key.
-  Rows its history log holds (`logs.md`, 2) are read where a line names
-  an update, and erased none of them: the log goes whole with the
-  record (below).
+  Rows its history log holds (`logs.md`, 2) are read and erased through
+  the store's view as any others, each erase a row of the log, which
+  then goes whole with the record (below).
 - **Then, in one decision:** its transcript dropped (again, harmlessly,
   if the turns stage ran), its result's index row and its result's
   update, its live and ended read positions with the people child's

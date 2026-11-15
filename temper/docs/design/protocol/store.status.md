@@ -1,7 +1,8 @@
 # store: status
 
-2026-11-14. Where temper's code lags or departs from [store.md](store.md).
+2026-11-15. Where temper's code lags or departs from [store.md](store.md).
 
+- **Not yet:** 4: the words of the payload logs' refusals (`Record`, `Log`, `Logs`) are not built. [in flight: change 3537]
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].

@@ -382,7 +382,9 @@ section 2).
   page at a time and removes each log's file whose extent row the map
   lacks, syncing each directory it removed from. A crash between a
   drop's commit and the removal leaves such a file; so does a crash
-  after a log's first frames were synced and before their commit.
+  after a log's first frames were synced and before their commit. A
+  store given no log rule keeps no logs and leaves its `logs/` as it
+  finds it.
 - **A file of two names.** The store writes a log only at or past its
   own extent, so a log file another store's root also names (jig's
   generations link them, its `protocol/store/opening.md`, 2) reads
