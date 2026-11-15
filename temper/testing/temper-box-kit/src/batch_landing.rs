@@ -1013,7 +1013,7 @@ impl Referee<Process> for Judge<'_> {
                 }
             }
             if !self.chat.stopping() && now >= self.poll {
-                self.poll = now.saturating_add(Duration::from_millis(250));
+                self.poll = now.saturating_add(Duration::from_secs(1));
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
                 if person.finished {
                     if !self.drive_reads(procs)? {

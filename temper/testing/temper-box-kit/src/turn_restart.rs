@@ -74,13 +74,15 @@ pub fn configure(root: &Path, repository: u64) {
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
+pub(super) const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
+
 /// Staging's deployment limits, shared by the owned turn drills.
 /// temper/docs/design/protocol/configuration/limits.md.
 pub fn staging_limits(value: &mut Value) {
     value["engine"]["limits"]["profile"] = "standard".into();
     value["application"]["limits"]["profile"] = "standard".into();
     value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 63_740.into();
-    value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = 300_000.into();
+    value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = STAGING_LIFETIME.as_millis().into();
     value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 63_738.into();
     value["application"]["limits"]["overrides"]["forge_component.body_bytes"] = 127_497.into();
     value["application"]["limits"]["overrides"]["forge.client.answer_bytes"] = 1_048_576.into();
@@ -449,7 +451,7 @@ impl Referee<Process> for Judge<'_> {
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
                 let Some(Process::Calls(calls)) = procs.get(2) else { return Err(String::from("turn settings setup")) };
                 if calls.ends().len() < SETUP_CALLS {
-                    self.poll = now.saturating_add(Duration::from_millis(250));
+                    self.poll = now.saturating_add(Duration::from_secs(1));
                     return Ok(());
                 }
                 self.chat.act(now, procs);
@@ -471,7 +473,7 @@ impl Referee<Process> for Judge<'_> {
                 self.stalled(procs, &figures)?;
             }
             if !self.chat.stopping() && now >= self.poll {
-                self.poll = now.saturating_add(Duration::from_millis(250));
+                self.poll = now.saturating_add(Duration::from_secs(1));
                 // A listener may draw another port on restart. Let the native
                 // client keep that address before ctl loads its client directory.
                 let settled = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
