@@ -3,10 +3,6 @@
 2026-11-14. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
 
-- **Not yet:** the whole document: the newer-build box story waits for
-  an agent running the installed `bin/temper-box`, not the worker's pin
-  of it, and judges a process that exited before its executable was
-  read. [in flight: change 3220]
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in
   `bin/temper-box/tests/suite/box_lifetime.rs` are registered in the
   process binary and compiled, but have no runtime result in that tier
