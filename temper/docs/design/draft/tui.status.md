@@ -1,6 +1,6 @@
 # tui: status
 
-2026-11-11. Where the design lags or departs from [tui.md](tui.md).
+2026-11-15. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
   `../client/tui/pages/design-session.md`, 1, as `surfaces.md`, 11.2
@@ -150,5 +150,11 @@
     `me`, the box's start steps on a first run's welcome stand on the
     quiet line, a group starting is the box's state, and lending the
     terminal clears it first (`../client/tui/box.md`).
+  - 3, the user's request `tui-21` of 2026-11-15, after `temper box`'s
+    try of that day (emacs vterm, 150 by 39): the status line starts with
+    the link's state, "● Live", at its first column on every screen, the
+    project, the model and effort after it, where this section lists the
+    project, the account, then the link's state
+    (`../client/tui/pages/README.md`, *The link's state*).
 - **Open:**
   - 3: a need from elsewhere on a chat, the web's hand-off and a checkout's project, refined on recorded frames as the launchpad and a chat were.

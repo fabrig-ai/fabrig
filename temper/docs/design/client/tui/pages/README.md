@@ -9,7 +9,7 @@ has one (`design-session.md`, section 1); and a talk with a standing role,
 the root at `Talk { project, task }`, drawn as a chat under a head of its
 own (`talk.md`, section 1). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
-`tui-bottom`, spread: what closes the TUI, and the link's state. The
+`tui-bottom`, spread: the link's state, and what closes the TUI. The
 launchpad opens with the header, two lines, the mark, the build and the
 place (`README.md`, section 3, below). The
 launchpad and a chat share their foot: the box, and under it the quiet
@@ -57,11 +57,18 @@ the foot and the commands (`../box.md`).
   words and the terminal's own phrases ("/ for commands", "✦", "❯").
   Its other words are its own phrases, under an owner of its own
   (skein's `ui/README.md`, section 9).
-- **The link's state** is the bottom row's last child, a status in the
-  view's words after the TUI's own `●`: "Live" once `me` is read on a
-  live link, "Connecting" while it starts or before `me`, "Offline",
-  "Signed out", "Out of date", each in its token's paint (`../theme.md`). On the
-  launchpad and a chat it ends the quiet line.
+- **The link's state** stands in one place on every screen, the bottom
+  row's first words, at its first column: a status in the view's words
+  after the TUI's own `●`, "Live" once `me` is read on a live link,
+  "Connecting" while it starts or before `me`, "Offline", "Signed out",
+  "Out of date", each in its token's paint (`../theme.md`). On the
+  sign-in screen it is the row's left half, what closes the TUI its
+  right; on every other screen it begins the quiet line, Live included
+  (section 1, *The quiet line*). The user's request `tui-21` of
+  2026-11-15, after the state stood wherever the words before it ended:
+  at the row's start on the welcome, after the project and the model on
+  the launchpad, and only while not Live in a design session and on a
+  talk.
 
 - `sign-in.md`: signing in and renewing from the engine's link.
 - `launchpad.md`: the launchpad, its rows and walking what needs you.
@@ -150,16 +157,26 @@ chat, the running line above them.
 - **The quiet line,** the region `tui-bottom`, spread, as the sign-in's
   bottom row (`../../../draft/surfaces.md`, 11.1: the project, the model and
   effort, the link's state, and "N need you · n to walk"):
-  - *at its left,* the project's name (`tui-hint`), " · ", the picker's
-    closed line, "Claude Opus `../../pages/accounts.md`, 2 · high" (`shared::closed_line`,
-    `tui-hint`), " · ", then "●" and the link's state in its token's
-    paint (`README.md`, *The link's state*); with no picker (no project, no
-    usable account) the closed line and its " · " are left out, and with
-    no project the project and its " · " too; in a design session, the
-    project's name, " · ", "drafter" (`tui-hint`), " · " and the closed
-    line, the link's state after them only while it is not Live (`design-session.md`, section 1, *The quiet line*);
-    on a talk, the project's name, " · " and the role's (`talk.md`,
-    section 1, *The quiet line*);
+  - *at its left,* first, at the row's first column, "●" and the link's
+    state in its token's paint (`README.md`, *The link's state*), on every
+    screen and in every state, Live included: the welcome, the starting
+    screen, the launchpad, a chat, a design session and a talk alike;
+    then, each after " · ", the project's name (`tui-hint`) and the
+    picker's closed line, the model and its effort (`shared::closed_line`,
+    `tui-hint`); with no picker (no project, no usable account) the
+    closed line and its " · " are left out, and with no project the
+    project and its " · " too; in a design session, the project's name,
+    "drafter" (`tui-hint`) and the closed line (`design-session.md`,
+    section 1, *The quiet line*); on a talk, the project's name and the
+    role's (`talk.md`, section 1, *The quiet line*). So the launchpad's
+    reads "● Live · Hello · Claude Opus 5.5 · high", and the welcome's
+    "● Live" alone. The state's words keep their own width, unpadded:
+    "Connecting" turning into "Live" moves the words after it once, at
+    the start, and the "●" never moves (the request left padding to the
+    designer: padding "Live" to "Out of date" would leave seven blank
+    columns on the line read most). The row's left edge stays put as
+    the window is resized; its right end, where the right half stands,
+    moves with the width;
   - *at its right,* each left out when absent, " · " between two (`tui-faint`):
     in front of a box, on the welcome until the TUI is signed in, the
     box's start (`../box.md`, *The box's stages*), then its state and
@@ -184,9 +201,11 @@ chat, the running line above them.
   and its " · ", on a chat the pane's goal part and then its Ctrl-P
   words, each with its " · " (`design-session.md`, section 1), then the closed line
   and its " · ", and skein cuts what
-  still does not fit from the left half's end; the rule above a chat's
+  still does not fit from the left half's end, so the link's state, at
+  its start, stands until the window is narrower than it; the rule above a chat's
   box leaves out the place, then the project (`chat.md`, section 1, *The rule above
-  the box*). A notice goes before the line's own words (*The notice*).
+  the box*). A notice goes after the link's state, before the line's
+  other words (*The notice*).
 - **The notice,** the user's request of 2026-11-09: a one-line notice
   of the TUI's, at the right end of the quiet line, never in the
   conversation. It is the place the box's state uses in front (`../box.md`),
@@ -211,9 +230,10 @@ chat, the running line above them.
     leave it standing.
   - *A narrow window:* where the quiet line's left half, two spaces, the
     notice and its padding are wider than the window's columns, the
-    notice goes before the line's own words: the notice first, at the
-    row's start, then " · " and the left half, which skein cuts from its
-    end.
+    notice goes after the link's state, before the line's other words:
+    "●" and the state first, at the row's start, then " · ", the notice,
+    and " · " and the rest of the left half, which skein cuts from its
+    end: "● Live · Theme: dark. · Hello · Claude Opus 5.5 · high".
   - *Not a notice:* a note of more than a line stays in the
     conversation, `/help`'s and `/log`'s among them, and so do `/brief`'s
     note, `/open`'s "Open ADDRESS in your browser.", which holds an
