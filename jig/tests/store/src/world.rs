@@ -144,7 +144,8 @@ fn file_heap(event: &file::Event) -> u64 {
 fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 3], FileLimits) {
     let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
     jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
-    let files = FileLimits { files: 8, read: limits.store.chunk, entries: 32, whole, timeout: limits.store.deadline };
+    // A rehearsal's patch holds deployment/scratch/transcript roots, three directory pairs, and two copy files.
+    let files = FileLimits { files: 11, read: limits.store.chunk, entries: 32, whole, timeout: limits.store.deadline };
     let drivers = std::array::from_fn(|_| {
         let mut io = FileIo::with_limits(&files).with_effective_user(0);
         assert_eq!(io.adopt_root(root), Some(Token::new(1)));
