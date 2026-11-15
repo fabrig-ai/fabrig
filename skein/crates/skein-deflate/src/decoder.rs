@@ -304,4 +304,3 @@ fn codes(input: &mut Input, data: &[u8], out: &mut List<u8>, literals: &Code, di
     }
     None
 }
-

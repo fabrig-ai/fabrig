@@ -33,7 +33,7 @@ fn generated_streams_decode_or_refuse_without_growing_the_output() {
         if seed % 4 == 0 {
             input = round_trip(&input);
             if rng.chance(500) {
-                let at = usize::try_from(rng.below(u64::try_from(input.len()).unwrap())).unwrap();
+                let at = usize::try_from(rng.below(skein_lib::len_u64(input.len()))).unwrap();
                 input[at] ^= 1 << rng.below(8);
             }
         }

@@ -23,7 +23,6 @@ impl Input<'_> {
         }
         value
     }
-
 }
 
 /// A canonical Huffman code (RFC 1951, 3.2.2), for decoding: how many codes
@@ -198,4 +197,3 @@ fn a_code_past_its_limits_is_refused() {
     assert_eq!(gzip::huffman(&[1; 29], 15, &mut codes), None, "a code for each count");
     assert_eq!(gzip::huffman(&[1; 30], 4, &mut codes), None, "30 symbols in four bits");
 }
-
