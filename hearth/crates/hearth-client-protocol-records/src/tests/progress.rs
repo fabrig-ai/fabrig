@@ -34,6 +34,8 @@ const ERRORS: &[(Form, StoreLimit, u32, &[u8])] = &[
     (Form::Text, StoreLimit::Resolutions, 3, b"the store /store is full: 3 resolutions\n"),
     (Form::Text, StoreLimit::Layers, 4, b"the store /store is full: 4 layers\n"),
     (Form::JsonLines, StoreLimit::CacheFiles, 2, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"cache_files\",\"most\":2,\"class\":\"operational\"}\n"),
+    (Form::JsonLines, StoreLimit::Resolutions, 3, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"resolutions\",\"most\":3,\"class\":\"operational\"}\n"),
+    (Form::JsonLines, StoreLimit::Layers, 4, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"layers\",\"most\":4,\"class\":\"operational\"}\n"),
 ];
 #[test]
 fn the_store_error_names_the_store_and_the_limit() {

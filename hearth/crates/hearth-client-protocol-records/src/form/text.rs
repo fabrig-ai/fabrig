@@ -162,7 +162,7 @@ fn render(lines: &mut Lines, record: &Record, after: Option<Type>) {
             if after.is_some() && after != Some(Type::Error) {
                 lines.put(b"\n");
             }
-            full.text(lines);
+            crate::errors::store_full_text(full, lines);
         }
         Record::Startup(startup) => startup.text(lines),
         Record::Terminal(terminal) => {

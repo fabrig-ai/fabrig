@@ -1,5 +1,5 @@
 use super::fixtures::{at, declaration};
-use crate::{Declared, Error, Expected, Fault, Object, Required, declaration::Number, schema::Form};
+use crate::{Declared, Decode, Error, Expected, Fault, Object, Required, declaration::Number, schema::Form};
 const PARAMS: &[u8] = b"{\"settings\": {\"params\": {\n  \"type\": {\"map\": {\"object\": {\n    \"param\": {\"type\": \"string\", \"doc\": \"One parameter.\"},\n    \"order\": {\"type\": \"int\", \"min\": 0, \"max\": 999, \"default\": 500, \"doc\": \"Its place.\"}}}},\n  \"default\": {}, \"doc\": \"Parameters, by name.\"}}}";
 #[test]
 fn nested_types_are_laid_out_each_before_its_elements() {
@@ -83,7 +83,11 @@ const A_TYPE_NAME_6_1_LACKS_IS_REFUSED_AT_ITS_STRING: &[(&[u8], crate::Position,
 #[test]
 fn a_type_name_6_1_lacks_is_refused_at_its_string() {
     for &(input, at, expected) in A_TYPE_NAME_6_1_LACKS_IS_REFUSED_AT_ITS_STRING {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -110,7 +114,11 @@ const A_SETTING_OR_FIELD_NAME_OUT_OF_2_4S_FORM_IS_REFUSED_AT_ITS_KEY: &[(&[u8], 
 #[test]
 fn a_setting_or_field_name_out_of_2_4s_form_is_refused_at_its_key() {
     for &(input, at, expected) in A_SETTING_OR_FIELD_NAME_OUT_OF_2_4S_FORM_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -121,7 +129,11 @@ const A_SPEC_WITHOUT_TYPE_OR_DOC_IS_REFUSED_AT_ITS_BRACE: &[(&[u8], crate::Posit
 #[test]
 fn a_spec_without_type_or_doc_is_refused_at_its_brace() {
     for &(input, at, expected) in A_SPEC_WITHOUT_TYPE_OR_DOC_IS_REFUSED_AT_ITS_BRACE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -132,7 +144,11 @@ const A_SPEC_DOC_OF_TWO_LINES_OR_201_BYTES_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], cr
 #[test]
 fn a_spec_doc_of_two_lines_or_201_bytes_is_refused_at_its_value() {
     for &(input, at, expected) in A_SPEC_DOC_OF_TWO_LINES_OR_201_BYTES_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -157,7 +173,11 @@ const A_SPEC_VALUE_OF_ANOTHER_FORM_IS_REFUSED_AT_IT: &[(&[u8], crate::Position, 
 #[test]
 fn a_spec_value_of_another_form_is_refused_at_it() {
     for &(input, at, expected) in A_SPEC_VALUE_OF_ANOTHER_FORM_IS_REFUSED_AT_IT {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -176,7 +196,11 @@ const OPTIONAL_BESIDE_A_DEFAULT_IS_REFUSED_AT_ITS_KEY: &[(&[u8], crate::Position
 #[test]
 fn optional_beside_a_default_is_refused_at_its_key() {
     for &(input, at, expected) in OPTIONAL_BESIDE_A_DEFAULT_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -188,7 +212,11 @@ const BOUNDS_ON_A_TYPE_THEY_DO_NOT_BOUND_ARE_REFUSED_AT_THEIR_KEY: &[(&[u8], cra
 #[test]
 fn bounds_on_a_type_they_do_not_bound_are_refused_at_their_key() {
     for &(input, at, expected) in BOUNDS_ON_A_TYPE_THEY_DO_NOT_BOUND_ARE_REFUSED_AT_THEIR_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -199,7 +227,11 @@ const MIN_ABOVE_MAX_IS_REFUSED_AT_MIN_S_VALUE: &[(&[u8], crate::Position, Declar
 #[test]
 fn min_above_max_is_refused_at_min_s_value() {
     for &(input, at, expected) in MIN_ABOVE_MAX_IS_REFUSED_AT_MIN_S_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -210,7 +242,11 @@ const AN_ENUM_WITH_NO_VALUE_OR_ONE_TWICE_IS_REFUSED: &[(&[u8], crate::Position, 
 #[test]
 fn an_enum_with_no_value_or_one_twice_is_refused() {
     for &(input, at, expected) in AN_ENUM_WITH_NO_VALUE_OR_ONE_TWICE_IS_REFUSED {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -230,7 +266,11 @@ const A_TYPE_OBJECT_OF_NO_KEY_OR_MORE_THAN_ONE_IS_REFUSED: &[(&[u8], crate::Posi
 #[test]
 fn a_type_object_of_no_key_or_more_than_one_is_refused() {
     for &(input, at, expected) in A_TYPE_OBJECT_OF_NO_KEY_OR_MORE_THAN_ONE_IS_REFUSED {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -241,7 +281,11 @@ const A_NEGATIVE_MAX_LENGTH_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], crate::Position, 
 #[test]
 fn a_negative_max_length_is_refused_at_its_value() {
     for &(input, at, expected) in A_NEGATIVE_MAX_LENGTH_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -256,7 +300,11 @@ const A_SPEC_UNKNOWN_KEY_IS_REFUSED_AT_ITS_KEY: &[(&[u8], crate::Position, Decla
 #[test]
 fn a_spec_unknown_key_is_refused_at_its_key() {
     for &(input, at, expected) in A_SPEC_UNKNOWN_KEY_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -265,7 +313,7 @@ fn the_513th_setting_is_refused_at_its_key() {
     let input = super::fixtures::settings(513);
     assert_eq!(
         declaration(&input),
-        Err(Error { at: at(16909, 1, 16910), fault: Fault::Declaration(Declared::Settings) })
+        Err(Error { at: at(16909, 1, 16910), fault: Fault::Decode(Decode::Declaration(Declared::Settings)) })
     );
 }
 
@@ -292,7 +340,11 @@ const AN_EXPORT_WHOSE_TYPE_HOLDS_SECRET_IS_REFUSED_AT_THAT_TYPE: &[(&[u8], crate
 #[test]
 fn an_export_whose_type_holds_secret_is_refused_at_that_type() {
     for &(input, at, expected) in AN_EXPORT_WHOSE_TYPE_HOLDS_SECRET_IS_REFUSED_AT_THAT_TYPE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -304,7 +356,11 @@ const AN_EXPORT_WITHOUT_TYPE_DOC_OR_VALUE_IS_REFUSED_AT_ITS_BRACE: &[(&[u8], cra
 #[test]
 fn an_export_without_type_doc_or_value_is_refused_at_its_brace() {
     for &(input, at, expected) in AN_EXPORT_WITHOUT_TYPE_DOC_OR_VALUE_IS_REFUSED_AT_ITS_BRACE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -323,7 +379,11 @@ const AN_EXPORT_KEY_ONLY_A_SETTING_TAKES_IS_REFUSED_AT_IT: &[(&[u8], crate::Posi
 #[test]
 fn an_export_key_only_a_setting_takes_is_refused_at_it() {
     for &(input, at, expected) in AN_EXPORT_KEY_ONLY_A_SETTING_TAKES_IS_REFUSED_AT_IT {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -335,6 +395,10 @@ const AN_EXPORT_NAME_OUT_OF_FORM_IS_REFUSED_AT_ITS_KEY: &[(&[u8], crate::Positio
 #[test]
 fn an_export_name_out_of_form_is_refused_at_its_key() {
     for &(input, at, expected) in AN_EXPORT_NAME_OUT_OF_FORM_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }

@@ -55,6 +55,14 @@ fn store_bytes() {
             ),
         ),
         (
+            store(StoreFault::Full { limit: StoreLimit::CacheFiles, most: 2 }),
+            "the store /store is full: 2 cache files\n",
+            concat!(
+                r#"{"record":"error","kind":"store","store":"/store","limit":"cache_files","most":2,"class":"operational"}"#,
+                "\n"
+            ),
+        ),
+        (
             Record::StoreFull(crate::progress::StoreFull {
                 store: copy_of(b"/store"),
                 limit: crate::progress::StoreLimit::Layers,
@@ -63,6 +71,30 @@ fn store_bytes() {
             "the store /store is full: 4 layers\n",
             concat!(
                 r#"{"record":"error","kind":"store","store":"/store","limit":"layers","most":4,"class":"operational"}"#,
+                "\n"
+            ),
+        ),
+        (
+            Record::StoreFull(crate::progress::StoreFull {
+                store: copy_of(b"/store"),
+                limit: crate::progress::StoreLimit::Resolutions,
+                most: 3,
+            }),
+            "the store /store is full: 3 resolutions\n",
+            concat!(
+                r#"{"record":"error","kind":"store","store":"/store","limit":"resolutions","most":3,"class":"operational"}"#,
+                "\n"
+            ),
+        ),
+        (
+            Record::StoreFull(crate::progress::StoreFull {
+                store: copy_of(b"/store"),
+                limit: crate::progress::StoreLimit::CacheFiles,
+                most: 2,
+            }),
+            "the store /store is full: 2 cache files\n",
+            concat!(
+                r#"{"record":"error","kind":"store","store":"/store","limit":"cache_files","most":2,"class":"operational"}"#,
                 "\n"
             ),
         ),
