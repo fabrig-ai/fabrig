@@ -27,7 +27,7 @@ fn kv_limits() -> skein_kv::Limits {
         snapshot_after: 134_217_728,
         chunk: 16_778_260,
         page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
-        record: 1,
+        record: 16_777_216,
         log: 1 << 40,
         logs: 16,
         deadline: Duration::from_nanos(1_000_000_000),
@@ -44,6 +44,7 @@ pub fn limits() -> Limits {
         queue: 2,
         files: 2,
         reads: 4,
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }

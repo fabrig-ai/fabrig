@@ -198,14 +198,14 @@ fn a_later_row_past_the_bound_cuts_the_page_before_it() {
 
 #[test]
 fn task_scopes_share_their_joined_owner() {
-    let mut store = child_store();
     for scope in [
         reads::Scope::Task { task: CHILD },
         reads::Scope::PersonTask { task: CHILD },
         reads::Scope::Result { task: CHILD },
     ] {
-        let result = load(&mut store, fixtures::read(ALICE, scope));
-        assert_eq!(one_row(&result).value, fixtures::ended_of(CHILD, tasks::Party::Task(GOAL)));
+        let mut store = child_store();
+        let result = super::history_logs::same(&mut store, &[CHILD, GOAL], fixtures::read(ALICE, scope));
+        assert_eq!(one_row(&result).related, Some(fixtures::terminal(CHILD, 1)));
     }
 }
 
@@ -349,7 +349,7 @@ fn a_party_proposal_joins_its_kept_decision() {
 #[test]
 fn a_task_proposal_reads_its_proposers_history_row_by_key() {
     let mut store = history_store();
-    let result = load(&mut store, proposal_range(PROPOSAL));
+    let result = super::history_logs::same(&mut store, &[CHILD], proposal_range(PROPOSAL));
     assert_eq!(one_row(&result).value, fixtures::history_with_proposal(CHILD, 3, PROPOSAL));
 }
 
@@ -363,14 +363,14 @@ fn an_escalation_reads_the_decision_its_task_names() {
 #[test]
 fn an_escalation_joins_its_hold_row_by_position() {
     let mut store = escalation_store();
-    let result = load(&mut store, escalation_range());
+    let result = super::history_logs::same(&mut store, &[CHILD], escalation_range());
     assert_eq!(one_row(&result).related, Some(fixtures::hold_row(CHILD, 13)));
 }
 
 #[test]
 fn a_question_joins_the_line_that_answers_it() {
     let mut store = question_store();
-    let result = load(&mut store, question_range(QUESTION));
+    let result = super::history_logs::same(&mut store, &[CHILD, GRANDCHILD], question_range(QUESTION));
     assert_eq!(one_row(&result).related, Some(fixtures::answer_line(GRANDCHILD, 11, QUESTION)));
 }
 
@@ -393,7 +393,7 @@ fn a_reply_reads_its_notified_line_by_key() {
         Box::new([fixtures::header(2), fixtures::save(fixtures::notified_line(CHILD, QUESTION_POSITION, ALICE))]),
     );
     let range = fixtures::read(ALICE, reads::Scope::Reply { task: CHILD, activity: QUESTION_POSITION });
-    let result = load(&mut store, range);
+    let result = super::history_logs::same(&mut store, &[CHILD, GOAL], range);
     assert_eq!(one_row(&result).value, fixtures::notified_line(CHILD, 7, ALICE));
 }
 
@@ -688,7 +688,7 @@ fn a_tasks_history_joins_changes_then_attempts_then_holds() {
         ]),
     );
     let range = fixtures::read(ALICE, reads::Scope::History { task: CHILD, subtree: false });
-    let (rows, next) = page(load(&mut store, range));
+    let (rows, next) = page(super::history_logs::same(&mut store, &[CHILD, GOAL], range));
     assert_eq!(
         values(&rows).as_ref(),
         [fixtures::history(CHILD, 3), fixtures::attempt_row(CHILD, 2), fixtures::hold_row(CHILD, 1)]

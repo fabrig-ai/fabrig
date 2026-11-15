@@ -234,19 +234,9 @@ pub(crate) fn get_open(store: &mut Store, owner: Token, key: Box<[u8]>) -> Resul
     get_row(store, owner, key, true)
 }
 
-fn get_row(store: &mut Store, owner: Token, key: Box<[u8]>, opening: bool) -> Result<Option<Box<[u8]>>, OpenRefusal> {
+fn get_row(store: &mut Store, _owner: Token, key: Box<[u8]>, opening: bool) -> Result<Option<Box<[u8]>>, OpenRefusal> {
     let site = if opening { Some(restore::site(store, &key)) } else { None };
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    skein_kv::down(
-        &mut store.stores.store,
-        &crate::memory_env(store.limits.store),
-        skein_kv::Request::Get { owner, key: key.clone() },
-        &mut above,
-        &mut below,
-    );
-    assert!(below.is_empty(), "a memory get issues no file operation");
-    match restore::reader::joined(above.pop()) {
+    match crate::view::get(store, key.clone()) {
         Ok(mut value) => {
             if let Some(value) = &mut value {
                 crate::registry::read(store, &key, value);

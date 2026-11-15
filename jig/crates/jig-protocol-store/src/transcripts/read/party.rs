@@ -8,6 +8,9 @@ pub(crate) fn start(
     above: &mut Queue<Event>,
     below: &mut Below,
 ) -> Result<Option<jig_domain_core_vocabulary::reads::Loaded>, reads::Failure> {
+    if crate::view::missing(store) {
+        return Ok(Some(reads::empty()));
+    }
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
         return Ok(Some(jig_domain_core_vocabulary::reads::Loaded::Busy));

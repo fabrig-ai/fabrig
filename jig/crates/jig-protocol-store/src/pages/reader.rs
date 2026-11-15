@@ -145,13 +145,18 @@ fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32, mapped: b
     skein_kv::down(
         target,
         &crate::memory_env(limits),
-        skein_kv::Request::Load { owner: Token::new(0), range, max: skein_kv::Page { rows, bytes: limits.page.bytes } },
+        skein_kv::Request::Load {
+            owner: Token::new(0),
+            range: range.clone(),
+            max: skein_kv::Page { rows, bytes: limits.page.bytes },
+        },
         &mut above,
         &mut below,
     );
     assert!(below.is_empty(), "memory pages issue no files");
     let mut page = terminal(above.pop())?;
     if mapped && map == KeptMap::Store {
+        page = crate::view::overlay(store, &range, page, rows)?;
         for row in &mut page.rows {
             crate::registry::read(store, &row.key, &mut row.value);
         }
