@@ -279,6 +279,16 @@ fn the_coordinator_prioritizes_relayed_questions() {
 }
 
 #[test]
+fn the_coordinator_uses_existing_prerequisites_instead_of_promising_word_later() {
+    let engine = engine(&generated());
+    let coordinator = engine.charters.iter().find(|charter| charter.number == 5).unwrap();
+    let part = coordinator.parts.iter().find(|part| part.on.contains(jig_domain_tasks::Reasons::QUESTION)).unwrap();
+    let words = core::str::from_utf8(&part.instructions).unwrap();
+    assert!(words.contains("use the change that carries it, a sibling change of the goal's among them, or make one"));
+    assert!(words.contains("Never answer with a promise to send word later"));
+}
+
+#[test]
 fn the_coordinators_charter_makes_no_landing_or_close_out() {
     let set = crate::stock::charter_set();
     assert!(set.common.unwrap().contains("No agent merges or lands."));
