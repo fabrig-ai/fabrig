@@ -1,7 +1,10 @@
 # goal: status
 
-2026-11-11. Where the tree's code lags or departs from [goal.md](goal.md).
+2026-11-15. Where the tree's code lags or departs from [goal.md](goal.md).
 
+- **Not yet:** 2, *A task's state*: a task kept by its own question shows
+  "waiting on news", not "waiting on an answer to its question N"
+  [in flight: change 3449].
 - **Not yet:** 3, *From a landed draft*: no landed draft opens the sheet,
   and no `started` is sent [in flight: change 664].
 - **Departs:** 3: a party whose `me` gives the project no creating bound still
