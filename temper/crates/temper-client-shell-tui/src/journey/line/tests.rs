@@ -62,6 +62,8 @@ fn records_have_their_exact_text_and_round_trip() {
         ),
         (Line::Address(bytes(b"localhost:8367")), b"address \"localhost:8367\"\n"),
         (Line::Background(Rgb { red: 0, green: 43, blue: 255 }), b"background 0 43 255\n"),
+        (Line::Plain, b"plain\n"),
+        (Line::Version(bytes(b"0.0.0 (b948f40d6df1)")), b"version \"0.0.0 (b948f40d6df1)\"\n"),
         (Line::Local, b"local\n"),
         (Line::Front, b"front\n"),
         (Line::BoxLine(bytes(b"log recent")), b"box-line \"log recent\"\n"),

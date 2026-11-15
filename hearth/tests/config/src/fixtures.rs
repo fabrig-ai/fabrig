@@ -1,6 +1,6 @@
 //! Shared input builders and sweep observations.
 use crate::world::{Outcome, Run, Settings};
-use hearth_protocol_config::{Fault, json::Waiting, limits::Limits};
+use hearth_protocol_config::{Decode, Fault, json::Waiting, limits::Limits};
 #[derive(Default, Debug)]
 pub struct Seen {
     bits: u32,
@@ -13,14 +13,14 @@ impl Seen {
             Some(Outcome::Failed(error)) => match error.fault {
                 Fault::Json(_) => 1,
                 Fault::Stream(_) => 1 << 1,
-                Fault::NotObject => 1 << 2,
+                Fault::Decode(Decode::NotObject) => 1 << 2,
                 Fault::Duplicate { .. } => 1 << 3,
-                Fault::NotInteger => 1 << 4,
-                Fault::Range => 1 << 5,
-                Fault::Nul => 1 << 6,
-                Fault::Keys => 1 << 7,
-                Fault::Note => 1 << 8,
-                Fault::Shape(_) | Fault::Declaration(_) => panic!("shape is above the machine"),
+                Fault::Decode(Decode::NotInteger) => 1 << 4,
+                Fault::Decode(Decode::Range) => 1 << 5,
+                Fault::Decode(Decode::Nul) => 1 << 6,
+                Fault::Decode(Decode::Keys) => 1 << 7,
+                Fault::Decode(Decode::Note) => 1 << 8,
+                Fault::Decode(_) => panic!("document and declaration faults are above the machine"),
             },
             None => 0,
         };

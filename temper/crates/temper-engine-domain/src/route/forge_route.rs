@@ -5119,8 +5119,13 @@ pub(crate) fn outputs(
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
             forge::Request::Save { record, release, read_afresh } => {
                 // Both opening and finding a pull save the change with its number.
-                if let forge::Stored::Change(row) = &record {
-                    watch_change(domain, env, row);
+                if let forge::Stored::ChangeHot(hot) = &record
+                    && let Some(mut row) = domain.forge.change(hot.task).cloned()
+                {
+                    // The watch follows this save's progress, not a later save in the turn.
+                    row.pull = hot.pull;
+                    row.change.last_head = hot.change.last_head;
+                    watch_change(domain, env, &row);
                 }
                 if let Some(name) = read_afresh
                     && let Some(resource) = hub_name(domain.config.forge_connector, &name, &env.limits.tasks)

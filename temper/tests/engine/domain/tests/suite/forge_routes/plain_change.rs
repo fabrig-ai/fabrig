@@ -24,7 +24,7 @@ fn a_chats_plain_change_request_calls_change() {
         .values()
         .find_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == change_task => Some(row.branch.clone()),
+                forge_top::Stored::ChangeCold(row) if row.task == change_task => Some(row.branch.clone()),
                 _ => None,
             },
             Record::Core(_) => None,

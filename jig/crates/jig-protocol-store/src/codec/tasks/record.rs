@@ -679,3 +679,442 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     };
     Ok(record)
 }
+
+// Live parts (jig/docs/design/protocol/store/parts.md, 2).
+pub fn live_cold(
+    spec: &domain::Spec,
+    contract: &domain::Contract,
+    authority: &domain::Authority,
+    instructions: &Option<Box<[u8]>>,
+    limits: &wire::Limits,
+    moved: Option<&[u64; 64]>,
+) -> Result<wire::LiveCold, wire::Problem> {
+    wire::LiveCold::new(
+        limits,
+        wire::LiveColdParts {
+            spec: value::spec(spec, limits)?,
+            contract: value::contract(contract, limits)?,
+            authority: value::authority(authority, limits, moved)?,
+            instructions: instructions.clone(),
+        },
+    )
+}
+
+#[expect(clippy::too_many_lines, reason = "exhaustive placement of every task field before encoding its hot part")]
+pub fn live_hot(
+    source: &domain::TaskRecord,
+    limits: &wire::Limits,
+    moved: Option<&[u64; 64]>,
+) -> Result<wire::LiveHot, wire::Problem> {
+    let domain::TaskRecord {
+        talk,
+        session,
+        activation_open,
+        closer,
+        reasons,
+        offered,
+        placed,
+        settings,
+        label,
+        flags,
+        last_activity,
+        ended_below,
+        ended_delegates,
+        question_lines,
+        hold,
+        proposal_rows,
+        instructions: _,
+        llm,
+        kept_account,
+        refused,
+        grace,
+        revisions,
+        created_at,
+        changed,
+        phase_since,
+        run_since,
+        retry_notice,
+        ended_at,
+        revision,
+        milestone,
+        activity,
+        open_attempt,
+        due_reason,
+        narrowing,
+        llm_changed,
+        result_position,
+        last_reply,
+        replies,
+        escalation,
+        proposal,
+        result_proposal,
+        number,
+        project,
+        requester,
+        run_spent,
+        run_reserved,
+        root,
+        depth,
+        executor,
+        taken_by,
+        person_answer,
+        person_wait,
+        recurring,
+        tracked,
+        spec: _,
+        contract: _,
+        authority: _,
+        numbers,
+        funder,
+        dependencies,
+        started_from,
+        added,
+        waiting_on,
+        holdings,
+        holds_taken,
+        hold_wait_since,
+        hold_bound_since,
+        delegates,
+        result_followups,
+        references,
+        questions,
+        subscriptions,
+        wake,
+        turn,
+        last_message,
+        inbox,
+        saved,
+        ever_turned,
+        made,
+        attempt,
+        last_answer,
+        tries,
+        invalid_result,
+        refusals,
+        phase,
+        room_wait,
+        asked_requester,
+        question_woken,
+    } = source;
+    let history = wire::HotHistory::new(
+        limits,
+        wire::HotHistoryParts {
+            last_activity: last_activity.as_nanos(),
+            ended_below: index::endings(ended_below, limits)?,
+            ended_delegates: index::endings(ended_delegates, limits)?,
+            question_lines: hot_question_lines(question_lines, limits)?,
+            hold: *hold,
+            placed: *placed,
+            proposal_rows: hot_proposal_rows(proposal_rows, limits)?,
+            refused: phase::references(refused, limits.hot_history_refused, wire::Path::HotHistoryRefused, limits)?,
+            grace: optional_grace(grace.as_ref(), limits)?,
+            settings: wire::SettingsRevision::new(
+                limits,
+                wire::SettingsRevisionParts { task: settings.task, run: settings.run },
+            )?,
+            revisions: phase::revisions(revisions, limits)?,
+            created_at: created_at.as_nanos(),
+            changed: changed.as_nanos(),
+            phase_since: phase_since.as_nanos(),
+            run_since: value::wall(*run_since),
+            retry_notice: optional_retry_notice(retry_notice.as_ref(), limits)?,
+            ended_at: value::wall(*ended_at),
+            revision: *revision,
+        },
+    )?;
+    let run = wire::TaskRun::new(
+        limits,
+        wire::TaskRunParts {
+            milestone: *milestone,
+            activity: *activity,
+            open_attempt: super::lifecycle::open(open_attempt.as_ref(), limits)?,
+            due_reason: value::why(*due_reason, limits)?,
+            reasons: reasons.0,
+            offered: offered.0,
+            narrowing: *narrowing,
+            llm_changed: *llm_changed,
+            result_position: *result_position,
+            last_reply: *last_reply,
+            replies: self::replies(replies, limits)?,
+            escalation: state::escalation(escalation, limits)?,
+            proposal: optional_proposal(proposal.as_deref(), limits, moved)?,
+            result_proposal: *result_proposal,
+            number: *number,
+            project: *project,
+            requester: value::party(requester, limits)?,
+            run_spent: *run_spent,
+            run_reserved: *run_reserved,
+        },
+    )?;
+    let definition = wire::HotDefinition::new(
+        limits,
+        wire::HotDefinitionParts {
+            label: *label,
+            flags: phase::flags(*flags, limits)?,
+            root: *root,
+            depth: *depth,
+            executor: value::executor(*executor, limits)?,
+            llm: value::llm(llm.as_ref(), limits)?,
+            kept_account: *kept_account,
+            taken_by: *taken_by,
+            person_answer: optional_person_answer(person_answer.as_ref(), limits)?,
+            person_wait: optional_person_wait(person_wait.as_ref(), limits)?,
+            recurring: optional_recurring(recurring.as_deref(), limits, moved)?,
+            tracked: *tracked,
+            numbers: phase::numbers(numbers, limits)?,
+            funder: value::funder(*funder, limits)?,
+            dependencies: phase::references(
+                dependencies,
+                limits.hot_definition_dependencies,
+                wire::Path::HotDefinitionDependencies,
+                limits,
+            )?,
+            waiting_on: phase::references(
+                waiting_on,
+                limits.hot_definition_waiting_on,
+                wire::Path::HotDefinitionWaitingOn,
+                limits,
+            )?,
+            added: hot_added(added, limits)?,
+        },
+    )?;
+    let interests = wire::TaskInterests::new(
+        limits,
+        wire::TaskInterestsParts {
+            holdings: self::holdings(holdings, limits)?,
+            holds_taken: *holds_taken,
+            hold_wait_since: value::wall(*hold_wait_since),
+            hold_bound_since: value::wall(*hold_bound_since),
+            delegates: self::delegates(delegates, limits)?,
+            result_followups: self::result_followups(result_followups, limits)?,
+            references: self::references(references, limits)?,
+            subscriptions: self::subscriptions(subscriptions, limits)?,
+            wake: phase::wake(wake, limits)?,
+            turn: *turn,
+            last_message: *last_message,
+            inbox: self::inbox(inbox, questions, limits)?,
+            saved: self::saved(saved, limits)?,
+            ever_turned: wire::TranscriptState::new(limits, wire::TranscriptStateParts { ever_turned: *ever_turned })?,
+            made: *made,
+        },
+    )?;
+    let outcome = wire::TaskOutcome::new(
+        limits,
+        wire::TaskOutcomeParts {
+            attempt: *attempt,
+            last_answer: *last_answer,
+            tries: value::tries(tries, limits)?,
+            invalid_result: optional_invalid(*invalid_result),
+            refusals: *refusals,
+            phase: phase::phase(phase, limits)?,
+            room_wait: self::room_wait(*room_wait, limits)?,
+        },
+    )?;
+    wire::LiveHot::new(
+        limits,
+        wire::LiveHotParts {
+            talk: match *talk {
+                Some(talk) => Some(wire::Talk::new(
+                    limits,
+                    wire::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
+                )?),
+                None => None,
+            },
+            activation_open: *activation_open,
+            session: match *session {
+                Some(session) => Some(wire::Session::new(
+                    limits,
+                    wire::SessionParts {
+                        first: session.first,
+                        reasons: session.reasons.0,
+                        last: session.last.as_nanos(),
+                    },
+                )?),
+                None => None,
+            },
+            closer: *closer,
+            asked_requester: *asked_requester,
+            question_woken: *question_woken,
+            history,
+            run,
+            definition,
+            started_from: phase::references(
+                started_from,
+                limits.live_hot_started_from,
+                wire::Path::LiveHotStartedFrom,
+                limits,
+            )?,
+            interests,
+            outcome,
+        },
+    )
+}
+
+fn hot_question_lines(
+    source: &[domain::QuestionLine],
+    limits: &wire::Limits,
+) -> Result<List<wire::QuestionLine>, wire::Problem> {
+    let mut members = List::with_capacity(limits.hot_history_question_lines);
+    for member in source {
+        let member = index::question_line(member, limits)?;
+        if members.push(member).is_err() {
+            return Err(problem(wire::Path::HotHistoryQuestionLines));
+        }
+    }
+    Ok(members)
+}
+fn hot_proposal_rows(
+    source: &[domain::ProposalRow],
+    limits: &wire::Limits,
+) -> Result<List<wire::ProposalRow>, wire::Problem> {
+    let mut members = List::with_capacity(limits.hot_history_proposal_rows);
+    for member in source {
+        let member = index::proposal_row(member, limits)?;
+        if members.push(member).is_err() {
+            return Err(problem(wire::Path::HotHistoryProposalRows));
+        }
+    }
+    Ok(members)
+}
+fn hot_added(source: &[domain::Added], limits: &wire::Limits) -> Result<List<wire::Added>, wire::Problem> {
+    let mut rows = List::with_capacity(limits.hot_definition_added);
+    for row in source {
+        let row = wire::Added::new(
+            limits,
+            wire::AddedParts { task: row.task, at: row.at.as_nanos(), by: value::party(&row.by, limits)? },
+        )?;
+        if rows.push(row).is_err() {
+            return Err(problem(wire::Path::HotDefinitionAdded));
+        }
+    }
+    Ok(rows)
+}
+
+/// Join all stored fields before translating the whole record (protocol/store/parts.md, 2).
+#[expect(clippy::too_many_lines, reason = "every hot and cold field is named in the whole record join")]
+pub fn join(
+    hot: wire::LiveHot,
+    cold: wire::LiveCold,
+    limits: &wire::Limits,
+) -> Result<wire::TaskRecord, wire::Problem> {
+    let wire::LiveHotParts {
+        activation_open,
+        session,
+        closer,
+        history,
+        run,
+        definition,
+        started_from,
+        interests,
+        outcome,
+        asked_requester,
+        question_woken,
+        talk,
+    } = hot.into_parts();
+    let wire::LiveColdParts { spec, contract, authority, instructions } = cold.into_parts();
+    let wire::HotHistoryParts {
+        last_activity,
+        ended_below,
+        ended_delegates,
+        question_lines,
+        hold,
+        placed,
+        proposal_rows,
+        refused,
+        grace,
+        settings,
+        revisions,
+        created_at,
+        changed,
+        phase_since,
+        run_since,
+        retry_notice,
+        ended_at,
+        revision,
+    } = history.into_parts();
+    let history = wire::TaskHistory::new(
+        limits,
+        wire::TaskHistoryParts {
+            last_activity,
+            ended_below,
+            ended_delegates,
+            question_lines,
+            hold,
+            placed,
+            proposal_rows,
+            instructions,
+            refused,
+            grace,
+            settings,
+            revisions,
+            created_at,
+            changed,
+            phase_since,
+            run_since,
+            retry_notice,
+            ended_at,
+            revision,
+        },
+    )?;
+    let wire::HotDefinitionParts {
+        label,
+        flags,
+        root,
+        depth,
+        executor,
+        llm,
+        kept_account,
+        taken_by,
+        person_answer,
+        person_wait,
+        recurring,
+        tracked,
+        numbers,
+        funder,
+        dependencies,
+        waiting_on,
+        added,
+    } = definition.into_parts();
+    let definition = wire::TaskDefinition::new(
+        limits,
+        wire::TaskDefinitionParts {
+            label,
+            flags,
+            root,
+            depth,
+            executor,
+            llm,
+            kept_account,
+            taken_by,
+            person_answer,
+            person_wait,
+            recurring,
+            tracked,
+            spec,
+            contract,
+            authority,
+            numbers,
+            funder,
+            dependencies,
+            waiting_on,
+            added,
+        },
+    )?;
+    let record = wire::BeforeTalk::new(
+        limits,
+        wire::BeforeTalkParts {
+            activation_open,
+            session,
+            closer,
+            history,
+            run,
+            definition,
+            started_from,
+            interests,
+            outcome,
+            asked_requester,
+            question_woken,
+        },
+    )?;
+    wire::TaskRecord::new(limits, wire::TaskRecordParts { record, talk })
+}

@@ -1,6 +1,6 @@
 use super::fixtures::declaration;
 use crate::{
-    Declared, Error, Expected, Fault, Object, Position,
+    Declared, Decode, Error, Expected, Fault, Object, Position,
     entries::{Literal, Map, Name, Takes},
 };
 
@@ -67,6 +67,61 @@ fn every_map_of_m1_takes_entries() {
     }
 }
 
+const MAP_FIELD_TYPES: &[(&[u8], Map, Name, Takes)] = &[
+    (br#"{"packages":{"entry":{"component":"x"}}}"#, Map::Packages, Name::Component, Takes::Text),
+    (br#"{"preseeds":{"entry":{"type":"x"}}}"#, Map::Preseeds, Name::Type, Takes::Text),
+    (br#"{"cmdline":{"entry":{"order":3}}}"#, Map::Cmdline, Name::Order, Takes::Int),
+    (br#"{"files":{"entry":{"directory":true}}}"#, Map::Files, Name::Directory, Takes::Bool),
+    (br#"{"users":{"entry":{"subordinate":{"base":1,"count":2}}}}"#, Map::Users, Name::Subordinate, Takes::Range),
+    (br#"{"groups":{"entry":{"gid":3}}}"#, Map::Groups, Name::Gid, Takes::Int),
+    (br#"{"presets":{"entry":{"action":"x"}}}"#, Map::Presets, Name::Action, Takes::Text),
+    (br#"{"tmpfiles":{"entry":{"age":"x"}}}"#, Map::Tmpfiles, Name::Age, Takes::Text),
+    (br#"{"data":{"entry":{"class":"x"}}}"#, Map::Data, Name::Class, Takes::Text),
+    (br#"{"secrets":{"entry":{"path":"x"}}}"#, Map::Secrets, Name::Path, Takes::Text),
+    (br#"{"identity":{"entry":{"public_path":"x"}}}"#, Map::Identity, Name::PublicPath, Takes::Text),
+    (br#"{"software":{"entry":{"strip":3}}}"#, Map::Software, Name::Strip, Takes::Int),
+    (br#"{"live":{"entry":{"paths":["x"]}}}"#, Map::Live, Name::Paths, Takes::Strings),
+];
+#[test]
+fn each_map_decodes_a_field_with_its_name_and_type() {
+    for &(input, expected_map, name, takes) in MAP_FIELD_TYPES {
+        let declaration = declaration(input).expect("accepted field");
+        let [map] = &declaration.entries[..] else { panic!("one map") };
+        let [entry] = &map.entries[..] else { panic!("one entry") };
+        let [field] = &entry.fields[..] else { panic!("one field") };
+        assert_eq!((map.map, field.name), (expected_map, name), "{input:?}");
+        let observed = match &field.value {
+            Literal::Text(text) => {
+                assert_eq!(&*text.text, b"x", "{input:?}");
+                Takes::Text
+            }
+            Literal::Int(number) => {
+                assert_eq!(number.value, 3, "{input:?}");
+                Takes::Int
+            }
+            Literal::Bool { value, .. } => {
+                assert!(*value, "{input:?}");
+                Takes::Bool
+            }
+            Literal::Strings { each, .. } => {
+                let [text] = &each[..] else { panic!("one string") };
+                assert_eq!(&*text.text, b"x", "{input:?}");
+                Takes::Strings
+            }
+            Literal::Range { fields, .. } => {
+                assert_eq!(fields.len(), 2);
+                for (field, expected) in fields.iter().zip([(Name::Base, 1), (Name::Count, 2)]) {
+                    let Literal::Int(number) = &field.value else { panic!("integer range field") };
+                    assert_eq!((field.name, number.value), expected, "{input:?}");
+                }
+                Takes::Range
+            }
+            Literal::Plain(_) | Literal::Typed(_) => panic!("literal field"),
+        };
+        assert_eq!(observed, takes, "{input:?}");
+    }
+}
+
 const A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Position, Declared)] = &[
     (
         br#"{"packages":{"pkg":{"mode":"0640"}}}"#,
@@ -79,6 +134,11 @@ const A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Position, Declared)
         Declared::Unknown { of: Object::Entry(Map::Initramfs) },
     ),
     (
+        br#"{"groups":{"entry":{"colour":"x"}}}"#,
+        Position { offset: 20, line: 1, column: 21 },
+        Declared::Unknown { of: Object::Entry(Map::Groups) },
+    ),
+    (
         br#"{"users":{"user":{"subordinate":{"size":2}}}}"#,
         Position { offset: 33, line: 1, column: 34 },
         Declared::Unknown { of: Object::Range },
@@ -87,11 +147,20 @@ const A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Position, Declared)
 #[test]
 fn a_field_its_map_lacks_is_refused_at_its_key() {
     for &(input, at, expected) in A_FIELD_ITS_MAP_LACKS_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
 const A_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Position, Declared)] = &[
+    (
+        br#"{"cmdline":{"entry":{"order":true}}}"#,
+        Position { offset: 29, line: 1, column: 30 },
+        Declared::Wrong { expected: Expected::Field(Takes::Int) },
+    ),
     (
         br#"{"files":{"/etc/file":{"mode":640}}}"#,
         Position { offset: 30, line: 1, column: 31 },
@@ -141,7 +210,11 @@ const A_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Position, Decla
 #[test]
 fn a_field_of_another_form_is_refused_at_its_value() {
     for &(input, at, expected) in A_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -160,7 +233,11 @@ const AN_ENTRY_OR_A_MAP_THAT_IS_NOT_AN_OBJECT_IS_REFUSED_AT_ITS_VALUE: &[(&[u8],
 #[test]
 fn an_entry_or_a_map_that_is_not_an_object_is_refused_at_its_value() {
     for &(input, at, expected) in AN_ENTRY_OR_A_MAP_THAT_IS_NOT_AN_OBJECT_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -168,13 +245,17 @@ fn an_entry_or_a_map_that_is_not_an_object_is_refused_at_its_value() {
 fn a_download_s_artifact_is_refused_at_its_key_until_m6() {
     assert_eq!(
         declaration(br#"{"software":{"stoa":{"artifact":1}}}"#),
-        Err(Error { at: Position { offset: 21, line: 1, column: 22 }, fault: Fault::Declaration(Declared::Later) })
+        Err(Error {
+            at: Position { offset: 21, line: 1, column: 22 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Later))
+        })
     );
 }
 
 type ScalarCase = (&'static [u8], Option<i64>, Option<&'static [u8]>, Position);
 const SCALARS: &[ScalarCase] = &[
     (br#"{"users":{"user":{"uid":59999}}}"#, Some(59999), None, Position { offset: 24, line: 1, column: 25 }),
+    (br#"{"users":{"user":{"uid":"3"}}}"#, None, Some(b"3"), Position { offset: 24, line: 1, column: 25 }),
     (
         br#"{"users":{"user":{"uid":"{{ value.uid }}"}}}"#,
         None,

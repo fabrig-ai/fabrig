@@ -17,14 +17,8 @@ fn world(producer: u32) -> World {
     )
 }
 
-fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    match world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) {
-        Some(Record::Forge { row }) => match row.as_ref() {
-            forge_top::Stored::Change(row) => row,
-            _ => panic!("change row"),
-        },
-        _ => panic!("durable change"),
-    }
+fn row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn revision(world: &World) -> u32 {

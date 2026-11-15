@@ -89,7 +89,7 @@ fn ranges(store: &Store, range: Restore) -> Result<Box<[skein_kv::Range]>, Failu
     }
 }
 
-pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) -> Result<(Row, u64), Failure> {
+pub(crate) fn decode_row(store: &mut Store, row: skein_kv::Row, source: &RowSite) -> Result<(Row, u64), Failure> {
     if let Some(key) = keys::of_application(&row.key) {
         let key_bytes = len_u64(key.len());
         let value_bytes = len_u64(row.value.len());
@@ -99,6 +99,9 @@ pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) ->
         return Ok((Row::Application { key: Box::from(key), value: row.value }, size));
     }
     let key = keys::decode(&row.key).ok_or(Failure::at(Cause::Decode(DecodeFailure::Key), source.clone()))?;
+    if let Key::Tasks(tasks::Key::Live(number)) = key {
+        return live(store, number, &row.value, source);
+    }
     let record = decode_value(store, &key, &row.value);
     let record = match record {
         Ok(record) => record,
@@ -106,6 +109,24 @@ pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) ->
     };
     let size = len_u64(row.value.len());
     Ok((Row::Jig(record), size))
+}
+
+fn live(store: &mut Store, number: u64, hot: &[u8], source: &RowSite) -> Result<(Row, u64), Failure> {
+    let cold_key = Key::Tasks(tasks::Key::LiveCold(number));
+    let cold_key = keys::encode(&cold_key, store.limits.store.key)
+        .ok_or(Failure::at(Cause::Decode(DecodeFailure::Key), source.clone()))?;
+    let cold = crate::open::get(store, Token::new(0), cold_key)
+        .or(Err(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone())))?
+        .ok_or(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone()))?;
+    let record = codec::tasks::decode_live(hot, &cold, &store.codec_limits.tasks, &store.names)
+        .or(Err(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone())))?;
+    if record.key() != tasks::Key::Live(number) {
+        return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), source.clone()));
+    }
+    let size = len_u64(hot.len())
+        .checked_add(len_u64(cold.len()))
+        .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::JoinedBytes), source.clone()))?;
+    Ok((Row::Jig(Record::Tasks(record)), size))
 }
 
 fn decode_value(store: &Store, key: &Key, value: &[u8]) -> Result<Record, DecodeFailure> {

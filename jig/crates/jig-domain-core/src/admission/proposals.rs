@@ -459,6 +459,7 @@ pub(crate) fn decision_record(row: &tasks::Stored, at: Wall) -> Option<ProposalD
         | tasks::Stored::Pool(_)
         | tasks::Stored::ClosedLedger(_)
         | tasks::Stored::PlacedHold(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::Milestone(_)

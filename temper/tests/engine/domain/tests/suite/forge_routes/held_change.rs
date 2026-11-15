@@ -8,12 +8,8 @@ const CHAT_AND_PRODUCER: usize = 2;
 const STEPS: u32 = 200; // The world's durable-round-trip allowance.
 const REASON: &[u8] = b"the repository has no search UI; no files changed";
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn delegate_count(world: &World, task: u64) -> usize {

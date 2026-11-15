@@ -1,5 +1,5 @@
-╭─ temper · Hello ──── 127.0.0.1:8367 ─╮
-╰──────────────────────────────────────╯
+ ▄█▀▀   temper
+▄█▄█▄█  127.0.0.1:8367
 
  Start
    /draft    a design session that ends
@@ -11,22 +11,24 @@
 ────────────────────────────────────────
  Unknown command /qiut · /help lists
 --
-aaabbbbbbaaacccccaaaaaaddddddddddddddaaa
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.abbb...cccccc..........................
+aadddd..eeeeeeeeeeeeee..................
 ........................................
 .ccccc..................................
-...ccccccccccdddddddddddddddddddddddddd.
-...ddddddddddddddddddddd................
-...ccccccccccdddddddddddddddddddddddddd.
-...dddddddd.............................
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee...
+...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeee.
+...eeeeeeeeeeeeeeeeeeeee................
+...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeee.
+...eeeeeeee.............................
+ffffffffffffffffffffffffffffffffffffffff
+ggffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffff
+.gggggggggggggggggggggggggggggggggggg...
 --
-a: fore #6A655C
-b: fore #E08A68 bold
+a: fore #1B76FD
+b: fore #00C4FE
 c: bold
-d: fore #9A9388
-e: fore #E08A68
+d: fore #8E2CF8
+e: fore #9A9388
+f: fore #6A655C
+g: fore #E08A68
 cursor 9 2

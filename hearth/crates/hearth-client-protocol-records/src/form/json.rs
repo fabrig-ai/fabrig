@@ -82,7 +82,7 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
             Record::Layer(layer) => layer.json(json),
             Record::Failed(failed) => (*failed).json(json),
             Record::Error(error) => crate::errors::json(error, json),
-            Record::StoreFull(full) => full.json(json),
+            Record::StoreFull(full) => crate::errors::store_full_json(full, json),
             Record::Startup(startup) => startup.json(json),
             Record::Terminal(terminal) => {
                 field(json, b"record", b"outcome");

@@ -62,7 +62,18 @@ pub(crate) fn walk_stored(
     after: Option<&Cursor>,
     rows: u32,
 ) -> Result<pages::Walked, Failure> {
-    walk_values(store, KeptMap::Store, intervals, after, rows, false)
+    walk_stored_map(store, KeptMap::Store, intervals, after, rows)
+}
+
+/// Rehearsals decode each stored layout, so neither map crosses the serving read edge.
+pub(crate) fn walk_stored_map(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Result<pages::Walked, Failure> {
+    walk_values(store, map, intervals, after, rows, false)
 }
 
 fn walk_values(

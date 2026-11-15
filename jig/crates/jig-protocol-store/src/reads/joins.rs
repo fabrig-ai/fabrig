@@ -11,6 +11,7 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
         core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) => Some(task),
         core::Record::Tasks(
             tasks::Stored::PlacedHold(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -211,6 +212,10 @@ mod tests {
             let mut spent = Spent { rows: 1, bytes: u64::MAX, joins: LOOKUP_JOINS };
             let Ok(found) = owner(&mut store, number, &mut spent) else { panic!("lookup fits one join: {number}") };
             assert_eq!(found.is_some(), present, "owner {number}");
+            if let Some(found) = found {
+                let record = if number == LIVE { fixtures::live_task(number) } else { fixtures::ended_task(number) };
+                assert_eq!(Some(found.as_ref()), super::as_task(&record), "owner joined whole");
+            }
             assert_eq!(spent.joins, 0, "owner {number}");
         }
     }

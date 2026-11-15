@@ -210,7 +210,7 @@ pub fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
         let registered = world
             .store
             .rows
-            .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::Change(task)));
+            .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::ChangeHot(task)));
         assert_eq!(printed.status, if change && !registered { 2 } else { 0 });
         let bytes = [printed.stdout.as_ref(), printed.stderr.as_ref()].concat();
         let text = std::str::from_utf8(&bytes).expect("ctl output");
@@ -225,7 +225,7 @@ fn panel(world: &mut World, watch: skein_lib::Token, record: &client::Family) ->
     if !world
         .store
         .rows
-        .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::Change(subject.task())))
+        .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::ChangeHot(subject.task())))
     {
         return client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Unknown } };
     }

@@ -36,7 +36,7 @@ fn check_lazy(holds: bool, why: impl FnOnce() -> String) -> Result<(), Violation
 }
 fn ci_repair(record: &root::Record) -> bool {
     let root::Record::Forge { row } = record else { return false };
-    let forge::Stored::Change(change) = row.as_ref() else { return false };
+    let forge::Stored::ChangeHot(change) = row.as_ref() else { return false };
     matches!(
         change.delegate,
         Some((_, temper_engine_domain_forge_change::Delegate::Repair(temper_engine_domain_forge_change::Repair::Ci)))
@@ -759,7 +759,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
     world.drain()?;
     for _ in 0..40 {
         if world.peers.story.is_some() && world.store.rows.values().any(|record|
-            matches!(record,root::Record::Forge {row} if matches!(row.as_ref(),forge::Stored::Change(change) if change.pull.is_some()))) {
+            matches!(record,root::Record::Forge {row} if matches!(row.as_ref(),forge::Stored::ChangeHot(change) if change.pull.is_some()))) {
             break;
         }
         if world.systems.delayed_merge() {

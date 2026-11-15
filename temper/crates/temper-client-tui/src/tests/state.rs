@@ -436,8 +436,19 @@ fn the_front_states_steps_are_its_table() {
     }
     let rows: &[(&str, &[Told], FrontFacts<'_>)] = &[
         ("initial", &[], (false, None, &[], BoxState::Running, false, false, 0)),
-        ("front", &[Told::Front], (true, None, &[], BoxState::Running, false, false, 1)),
-        ("same front", &[Told::Front, Told::Front], (true, None, &[], BoxState::Running, false, false, 1)),
+        (
+            "front",
+            &[Told::Front { set_up: false, box_log: Box::default() }],
+            (true, None, &[], BoxState::Running, false, false, 1),
+        ),
+        (
+            "same front",
+            &[
+                Told::Front { set_up: false, box_log: Box::default() },
+                Told::Front { set_up: false, box_log: Box::default() },
+            ],
+            (true, None, &[], BoxState::Running, false, false, 1),
+        ),
         (
             "the printed link",
             core::slice::from_ref(&link),
@@ -506,7 +517,7 @@ fn the_front_states_steps_are_its_table() {
             tui.step(told.clone());
         }
         let mut log = skein_lib::List::with_capacity(50);
-        for entry in tui.box_log() {
+        for entry in tui.box_lines() {
             log.push(entry).unwrap();
         }
         let found = (
@@ -523,6 +534,59 @@ fn the_front_states_steps_are_its_table() {
         }
     }
     assert!(failures.is_empty(), "front state rows: {failures:?}");
+}
+
+#[test]
+fn starting_groups_are_unique_bounded_and_cleared_in_order() {
+    use crate::{BoxLine, BoxState};
+    let mut tui = Tui::new(f::ADDRESS);
+    assert_eq!(crate::limits::STARTING, 4);
+    for (bytes, expected) in [
+        (b"starting Forgejo".as_slice(), Some(b"Forgejo".as_slice())),
+        (b"starting Forgejo", Some(b"Forgejo")),
+        (b"starting Playground", Some(b"Forgejo")),
+        (b"starting Third", Some(b"Forgejo")),
+        (b"starting Fourth", Some(b"Forgejo")),
+        (b"starting Fifth", Some(b"Forgejo")),
+        (b"dormant missing", Some(b"Forgejo")),
+        (b"started Playground", Some(b"Forgejo")),
+        (b"started Forgejo", Some(b"Third")),
+        (b"dormant Third", Some(b"Fourth")),
+        (b"started Fourth", None),
+        (b"starting Fifth", Some(b"Fifth")),
+        (b"dormant Fifth", None),
+    ] {
+        tui.step(Told::BoxLine { line: BoxLine::read(bytes).expect("group line") });
+        let expected = match expected {
+            Some(name) => BoxState::Starting { name },
+            None => BoxState::Running,
+        };
+        assert_eq!(tui.box_state(), expected, "{bytes:?}");
+    }
+}
+
+#[test]
+fn starting_groups_yield_to_box_states_in_order() {
+    use crate::{BoxEnd, BoxLine, BoxStage, BoxState};
+    use skein_lib::bytes::copy_of;
+    let mut tui = Tui::new(f::ADDRESS);
+    let end = BoxEnd::Exited { code: 1 };
+    for (told, expected) in [
+        (
+            Told::BoxLine { line: BoxLine::Starting { name: copy_of(b"Forgejo") } },
+            BoxState::Starting { name: b"Forgejo" },
+        ),
+        (
+            Told::BoxLine { line: BoxLine::Restarting { step: copy_of(b"serve") } },
+            BoxState::Restarting { step: b"serve" },
+        ),
+        (Told::Stage { stage: BoxStage::Stopping }, BoxState::Stopping),
+        (Told::Stage { stage: BoxStage::Ended { end } }, BoxState::Stopped { end }),
+        (Told::BoxLine { line: BoxLine::GaveUp { step: copy_of(b"serve") } }, BoxState::GaveUp { step: b"serve" }),
+    ] {
+        tui.step(told);
+        assert_eq!(tui.box_state(), expected);
+    }
 }
 
 // Walk (by key, taken, shown object, shown other), brief, opener, revision.
@@ -681,7 +745,7 @@ fn the_box_stages_and_terminal_precedence_hold() {
         ended.clone(),
     ];
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     for (index, stage) in stages.iter().enumerate() {
         tui.step(Told::Stage { stage: stage.clone() });
         assert_eq!(tui.box_stage(), stage);
@@ -727,7 +791,7 @@ fn the_box_stages_and_terminal_precedence_hold() {
         ),
     ] {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Front);
+        tui.step(Told::Front { set_up: false, box_log: Box::default() });
         for told in steps {
             tui.step(told.clone());
         }

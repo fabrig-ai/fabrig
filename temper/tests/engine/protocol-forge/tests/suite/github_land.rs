@@ -65,7 +65,7 @@ fn enroll(world: &mut Protocol) {
 }
 
 fn name_pull(world: &mut Protocol) {
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51)) else {
+    let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("durable change")
     };
     // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2: post-pull cases require the confirmed opening.
@@ -148,7 +148,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
     let mut named_pull = false;
     while world.wall() <= deadline {
         if !named_pull
-            && let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51))
+            && let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51))
             && row.pull.is_some()
         {
             name_pull(world);
@@ -273,7 +273,7 @@ fn failed_ci_requests_repair_without_merge() {
         }
     }
     assert!(repaired, "QA: failed CI must delegate a CI repair");
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51)) else {
+    let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("durable change")
     };
     assert_eq!(row.change.repairs, 1);
@@ -406,7 +406,7 @@ fn ruleset_refuses_merge_without_landing() {
         }
     }
     assert!(held, "QA: ruleset refusal must hold the change");
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51)) else {
+    let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("held change");
     };
     assert!(
@@ -441,7 +441,7 @@ fn conflicting_update(world: &mut Protocol) -> u64 {
     assert!(world.requests().any(|(_, line)| line.starts_with(b"PUT /repos/acme/widgets/pulls/1/update-branch ")));
     assert_eq!(world.writes(), 2, "opening and refused update only");
     assert_eq!(world.tally().routes.get(&Route::Merge), None);
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51)) else {
+    let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("durable conflicting change")
     };
     assert_eq!(row.change.resolutions, 1);

@@ -296,3 +296,35 @@ fn link_preserves_committed_waiting_escalations() {
         assert_eq!(restored.core.start_failure(), None);
     }
 }
+
+#[test]
+fn a_lone_change_part_stops_the_root_as_an_unreadable_row_before_linking() {
+    let (mut d, env) = super::resume::at_phase(false, jig_domain_core::start::Phase::Link);
+    let task = 12;
+    d.work.push(Work::Forge(forge::Event::Restore {
+        record: forge::Stored::ChangeCold(Box::new(forge::ChangeCold {
+            task,
+            repository: skein_forge::api::Repository { forge: 1, repository: 999 },
+            branch: b"temper/12".as_slice().into(),
+            base: b"main".as_slice().into(),
+            goal: None,
+            base_repair: false,
+            producing_charter: 2,
+            review_charter: 4,
+            producing_llm: None,
+            review_llm: None,
+            repairs: None,
+            catch_up: None,
+            close: None,
+            title: b"change".as_slice().into(),
+            body: Box::new([]),
+            follows: None,
+            report: Box::new([]),
+        })),
+    }));
+    d.work.push(Work::ForgeRestored);
+    let mut decision = crate::Decision::decide(&mut d.journal, &env.limits.journal);
+    crate::route::route_into(&mut d, &env, &mut decision);
+    assert_eq!(d.start_stop(), Some(crate::StartStop::ForgeRow(forge::Key::ChangeCold(task))));
+    assert!(!d.ready());
+}
