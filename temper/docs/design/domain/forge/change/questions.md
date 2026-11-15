@@ -105,13 +105,25 @@ stored setting naming it is refused, not read, naming the setting
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
   widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`)
-  or make a new change and add it as the change's dependency; its
-  answer then says so.
-- **Held until its dependencies land.** An answer the change takes
-  while its task is kept by a pending dependency is held on its record
-  and relayed at the first step at which none is pending, the
-  dependency having ended done or been amended away; a requester that
-  adds a dependency as it answers so makes the work wait for it.
+  or make a new change and add it as the change's dependency, which
+  orders the change's merge after it (below); its answer then says so.
+- **Relayed at once, kept or not.** An answer the change takes is
+  relayed at that step whether or not its task is kept by a pending
+  dependency, so a producer started early beside its dependencies goes
+  on at once. The dependencies order the merge alone: nothing merges
+  before they land (`README.md`, 2, step 7; jig's `domain/connectors.md`,
+  4.1). A dependency the requester adds as it answers orders the merge
+  after it, and holds no answer: a requester whose answer needs that
+  dependency's work answers once it has landed, and the producer's next
+  run then starts from the landing branch's tip, which holds it
+  (*The next producer merges the landing tip first*, below).
+- **Held only for message room.** An answer is held on its record
+  (where it stands: its answer held) only while the step that takes it
+  has no message room left for it (below), and relayed at the next step
+  that has room, after a restart too: a change whose record holds a
+  held answer has its next step due at once. Keptness is no reason to
+  hold one. The record's form is unchanged, so an answer an earlier
+  build held for a dependency is relayed by the same rule.
 - **An asker that ends first** (cancelled, or its run failing for good:
   its own `finish` parks it) ends its questions: an answer to a
   question passed up for it is taken and dropped, the change's history
@@ -129,7 +141,7 @@ stored setting naming it is refused, not read, naming the setting
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; asked of the
-  requester; its answer held for dependencies), and the questions
+  requester; its answer held for message room), and the questions
   taken against its bound, are kept on its record, so that a restart
   resumes each where it stood (`../README.md`, section 9), and shown on its panel
   (`README.md`, 5; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
@@ -200,7 +212,7 @@ early, by these rules:
   nothing new adds no commit, and the head its run reported stays the
   change's. One with nothing pushed or saved starts from the landing
   branch's tip, which now holds its dependencies' work. So a producer
-  going on after an answer that added a dependency, or after an
+  going on after an answer given once a prerequisite landed, or after an
   amendment naming a revision of the design that landed into the
   branch, works on the branch as it now stands, as one into main is
   brought up to date by the forge's update (`../README.md`, section 6).

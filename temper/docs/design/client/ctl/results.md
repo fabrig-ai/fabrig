@@ -64,7 +64,11 @@ digest: task 7c1e09a2b44f0d13
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
 - **`waiting on:`** prints jig's word for what the task waits on (jig's
-  `client/domain/client/helpers.md`), or the party and what it must answer. A
+  `client/domain/client/helpers.md`), or the party and what it must answer.
+  A task kept by its own question to the task that requested it prints
+  jig's `Waiting for an answer to its question N`, and `--json`'s
+  `waits_on` is `{"question": {"number": N}}`, as a wait on dependencies
+  is an object named for its kind (jig's `domain/engine/views.md`, 3). A
   held task that awaits nothing else prints its hold, where `Nothing
   awaited` would read as if nothing were wrong; one that awaits anything
   else prints that. The hold prints as `held` alone (the user, 2026-11-06):
