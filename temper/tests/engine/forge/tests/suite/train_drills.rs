@@ -1,10 +1,11 @@
 //! Independent branch trains against the fake forge (temper/docs/design/domain/landing.md, 9, 15, 16).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
+use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
-    World,
+    World, changes,
     landings::{self, Trains},
     translate,
 };
@@ -14,6 +15,94 @@ fn branch(world: &mut World, name: &[u8]) {
         world.external(raw::Op::Git(raw::Git::Create { branch: name.into(), commit: world.branch(b"main") }), 1),
         raw::Answer::Branch(raw::Created::Created)
     );
+}
+
+#[test]
+fn drill_17_an_outside_push_during_proof_restacks_and_reproves_the_same_member() {
+    let mut workflow = super::landing_batches::workflow(false);
+    workflow.latency_min = skein_lib::Duration::from_secs(60);
+    workflow.latency_max = workflow.latency_min;
+    let mut world = landings::turn_in(World::batch_turn(17, Some(workflow)));
+    assert!(world.project_landing(
+        landings::PROJECT,
+        change::Way::Turn,
+        Box::new([top::RepositoryGates {
+            repository: temper_engine_forge_world::REPO,
+            tiers: Box::new([]),
+            gates: Box::new([landing::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+            }]),
+        }])
+    ));
+    ready(&mut world, 51, b"main");
+    let since = world.change(51).change.ready_since;
+    let mut trains = Trains::default();
+    trains.judge(&mut world);
+    let landing = task(&world, 51);
+    let mut dispatched = false;
+    for entry in 100..160 {
+        if matches!(landings::step_landing(&mut world, landing, entry), landing::Decision::Dispatch { .. }) {
+            dispatched = true;
+            break;
+        }
+    }
+    assert!(dispatched);
+    let old = world.landing(landing).landing.members[0].candidate.expect("first candidate");
+    let raw::Answer::Runs(runs) =
+        world.inspect(&raw::Read::Runs { workflow: None, commit: None, number: None, page: 1, limit: 8 })
+    else {
+        panic!("runs")
+    };
+    assert_eq!(runs.len(), 1);
+    assert_ne!(runs[0].state, raw::RunState::Completed);
+    ready(&mut world, 52, b"main");
+    world.push_file(b"main", b"docs/note", b"hand delivered documentation");
+    let outside = world.branch(b"main");
+    trains.judge(&mut world);
+    assert_eq!(world.change(52).change.landing, None);
+    landings::drive_landing(&mut world, landing);
+    let row = world.landing(landing);
+    let member = &row.landing.members[0];
+    assert_eq!(row.landing.phase, landing::Phase::Landed);
+    assert_eq!(row.landing.preparation, 2);
+    assert_eq!(row.landing.stale_proofs, 1);
+    assert_ne!(member.candidate, Some(old));
+    assert_eq!(member.base, Some(translate::commit(outside)));
+    assert_eq!(world.change(51).change.ready_since, since);
+    assert_eq!(translate::commit(world.branch(b"main")), member.landed.expect("landed candidate"));
+    assert_eq!(world.change(52).change.landing, None);
+    let raw::Answer::Commits { commits } =
+        world.inspect(&raw::Read::Commits { before: outside, after: world.branch(b"main") })
+    else {
+        panic!("new main")
+    };
+    assert_eq!(commits.len(), 2); // The delivered member and its merge onto the outside push.
+    let candidate = commits.iter().find(|commit| commit.id == world.branch(b"main")).expect("candidate");
+    assert_eq!(candidate.parents[0], outside);
+    let calls = world.take_calls();
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(), 2);
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|op| matches!(op, api::Op::Write(api::Write::Merge { how: api::MergeHow::FastForwardOnly, .. })))
+            .count(),
+        1
+    );
+    let receipts =
+        world
+            .stored()
+            .iter()
+            .filter_map(|(_, record)| {
+                if let top::Stored::Receipt { key, receipt } = record { Some((key.key, receipt)) } else { None }
+            })
+            .collect::<Vec<_>>();
+    assert_eq!(receipts.len(), 2);
+    assert!(receipts.iter().all(|(_, receipt)| receipt.passed));
+    assert_ne!(receipts[0].0, receipts[1].0);
 }
 
 fn ready(world: &mut World, task: u64, destination: &[u8]) {
