@@ -950,6 +950,9 @@ mod messages;
 #[path = "landing_news.rs"]
 mod news;
 
+#[path = "landing_trains.rs"]
+mod trains;
+
 #[test]
 fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
     use forge_top::history as h;
