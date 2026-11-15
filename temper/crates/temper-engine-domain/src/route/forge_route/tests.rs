@@ -1631,11 +1631,21 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
     }
     let ci = ci.expect("CI section");
     let pull = pull.expect("pull section");
+    let why = super::forge_change::Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+    };
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let instructions = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
     let mut charter = run::Charter {
         mode: run::Mode::Finite,
         resume: false,
         waiting: Duration::ZERO,
-        instructions: b"Repair the failed landing check.".as_slice().into(),
+        instructions: instructions.clone(),
         brief,
         conventions: None,
         grants: run::charter::Grants {
@@ -1667,6 +1677,10 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
     temper_protocol_brief::fit_brief_bytes(&mut charter, bound);
     assert!(charter.owned_bytes().unwrap() <= bound);
     assert_eq!(charter.brief.sections.len(), 8, "no section is omitted");
+    assert_eq!(charter.instructions, instructions);
+    assert!(
+        skein_lib::bytes::find(&charter.instructions, b"Failed test: test skein-lib::suite fuzzy::a (fuzzy)").is_some()
+    );
     for section in &charter.brief.sections {
         match section.title.as_ref() {
             b"CI" => assert!(section.text == ci, "the failed step and log end survive charter fitting whole"),
@@ -2190,7 +2204,7 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
         &commit_text(&red),
         b", base ",
         &commit_text(&green),
-        b": https://forge.example/o/r/actions/runs/998\nFailed job: gate: read_job head=",
+        b": https://forge.example/o/r/actions/runs/998\nFailed tests: not known (the gate names no report)\nFailed job: gate: read_job head=",
         &commit_text(&red),
         b" run=4211 job=9001 attempt=1",
     ]);
@@ -2218,6 +2232,7 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
 
 fn repair_failure(prefix: [u8; 32], base: Option<[u8; 32]>) -> super::forge::LandingFailure {
     super::forge::LandingFailure {
+        report: super::forge::ReceiptReport::Unset,
         gate: b"gate".as_slice().into(),
         run: super::forge::ReceiptRun {
             id: 4211,
@@ -2253,12 +2268,14 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
         skein_lib::bytes::concat(&[b"\nFailed job: lint: read_job head=", &prefix, b" run=4211 job=9002 attempt=3"]);
     let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
     let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
-    let full = skein_lib::bytes::concat(&[&required, &gate, &job, &lint]);
+    let report = b"\nFailed tests: not known (the gate names no report)";
+    let full = skein_lib::bytes::concat(&[&required, &gate, report, &job, &lint]);
     assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
     for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
         let expected = skein_lib::bytes::concat(&[
             &required,
             &gate,
+            report,
             kept,
             b"\n[",
             skein_lib::Decimal::of(omitted).as_bytes(),
@@ -5520,4 +5537,59 @@ fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
     check(&mut domain, &row, Preparation::Idle);
     row.landing.preparation = 2;
     check(&mut domain, &row, Preparation::Absent);
+}
+
+fn report_tests() -> super::forge::ReceiptReport {
+    super::forge::ReceiptReport::Tests(Box::new([
+        super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
+        super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
+    ]))
+}
+
+#[test]
+fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
+    use super::forge_change::{Below, Landed, Repair};
+    use skein_lib::bytes::{concat, find};
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(Below {
+            green: SHA256,
+            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
+        }),
+    };
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    let tests =
+        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
+    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
+    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
+    let job_at = find(&whole, b"\nFailed job: gate: read_job head=").unwrap();
+    assert!(run_at < tests_at && tests_at < job_at);
+    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
+    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
+    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
+    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
+    let marker = b"\n[2 more failed tests and jobs: read_checks names them]";
+    let bound = u32::try_from(
+        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
+    )
+    .unwrap();
+    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
+    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
+    for (report, line) in [
+        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
+        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
+        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
+    ] {
+        failure.report = report;
+        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+        let at = find(&words, line).unwrap();
+        assert!(find(&words[..at], b"\nGate run:").is_some());
+        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
+    }
 }

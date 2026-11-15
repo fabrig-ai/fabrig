@@ -429,6 +429,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             key: [9; 32],
         },
         receipt: forge::Receipt {
+            report: forge::ReceiptReport::Unset,
             base: None,
             jobs: Box::new([]),
             logs: Box::new([]),

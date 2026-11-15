@@ -223,6 +223,7 @@ fn a_failed_dispatch_still_expires_after_restart() {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
         }]),
     ));
@@ -373,6 +374,7 @@ fn a_moving_base_reruns_only_the_gate_that_reads_it() {
         ignored: Box::new([b"docs".as_slice().into()]),
         blocking: true,
         base: false,
+        report: None,
     };
     assert!(world.project_landing(
         landings::PROJECT,

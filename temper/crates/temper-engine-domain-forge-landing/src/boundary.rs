@@ -32,6 +32,15 @@ pub struct Gate {
     pub blocking: bool,
     /// Include the round’s base in the key and dispatch inputs.
     pub base: bool,
+    pub report: Option<GateReport>,
+}
+
+/// A failed gate's report and fuzzy case-name prefix (domain/landing.md, 13.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct GateReport {
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub fuzzy: Option<Box<[u8]>>,
 }
 
 /// The project's landing settings needed by the policy.

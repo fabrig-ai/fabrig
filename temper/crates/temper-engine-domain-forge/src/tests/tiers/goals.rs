@@ -163,6 +163,7 @@ fn kept_result(d: &mut Domain, failing: p::Failures, number: u64, tip: api::Comm
     row.branch = TierBranch::Absent;
     row.flight = None;
     row.result = Some(Receipt {
+        report: ReceiptReport::Unset,
         base: None,
         jobs: Box::new([]),
         logs: Box::new([]),
@@ -503,6 +504,7 @@ fn a_goal_run_dispatches_even_with_a_receipt_for_its_tip() {
             record: Stored::Receipt {
                 key: ReceiptKey { project: 5, repository: REPO, check: Check::Tier(TIER.into()), key: NEXT_TIP },
                 receipt: Receipt {
+                    report: ReceiptReport::Unset,
                     base: None,
                     jobs: Box::new([]),
                     logs: Box::new([]),

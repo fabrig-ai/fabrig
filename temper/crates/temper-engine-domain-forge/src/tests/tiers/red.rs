@@ -33,6 +33,7 @@ fn pending(landings: Box<[p::Landing]>, part: p::Part, failing: p::Failures) -> 
     run.part = part;
     kept.branch = TierBranch::Absent;
     kept.result = Some(Receipt {
+        report: ReceiptReport::Unset,
         base: None,
         jobs: Box::new([]),
         logs: Box::new([]),

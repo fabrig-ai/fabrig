@@ -2,7 +2,7 @@
 use crate::domain::{child, emit, keep_entry};
 use crate::{
     Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
-    ReceiptRun, RepositoryGates, Request, Stored, runs,
+    ReceiptReport, ReceiptRun, RepositoryGates, Request, Stored, runs,
 };
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -107,7 +107,13 @@ enum Stage {
         key: ReceiptKey,
         pages: u32,
     },
+    FailedReport {
+        key: ReceiptKey,
+        run: api::Run,
+        report: policy::GateReport,
+    },
     FailedJobs {
+        report: ReceiptReport,
         key: ReceiptKey,
         run: api::Run,
         next: u32,
@@ -1323,6 +1329,7 @@ fn advance(
                 | Stage::StallRun
                 | Stage::StallJobs
                 | Stage::Run { .. }
+                | Stage::FailedReport { .. }
                 | Stage::FailedJobs { .. }
                 | Stage::Tree { .. } => {
                     unreachable!("member stage")
@@ -1390,7 +1397,11 @@ fn advance(
             }
             next_member(d, env, owner, p, &row, index, out);
         }
-        Stage::FailedJobs { key, run, next, words } => {
+        Stage::FailedReport { key, run, report } => {
+            let report = receipt_report(&report, env, answer);
+            failed_jobs(d, env, owner, p, key, run, report, 0, Box::new([]), out);
+        }
+        Stage::FailedJobs { key, run, report, next, words } => {
             let mut log = List::with_capacity(8192);
             append_words(&mut log, &words);
             match answer {
@@ -1409,7 +1420,7 @@ fn advance(
                 }
                 Ok(_) | Err(_) => append_words(&mut log, b"[job log could not be read]\n"),
             }
-            failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
+            failed_jobs(d, env, owner, p, key, run, report, next, log.into_boxed(), out);
         }
         Stage::Round { member, stage, candidate } => {
             round_read(d, env, owner, p, &row, member, stage, candidate, answer, out);
@@ -1467,10 +1478,11 @@ fn advance(
                     policy::Verdict::Passed | policy::Verdict::Failed => {
                         let run = ended.run.expect("a verdict has a run");
                         if ended.outcome == policy::Verdict::Failed {
-                            failed_jobs(d, env, owner, p, key, run, 0, Box::new([]), out);
+                            failed_report(d, env, owner, p, key, run, out);
                             return;
                         }
                         let receipt = Receipt {
+                            report: ReceiptReport::Unset,
                             base: None,
                             jobs: Box::new([]),
                             logs: Box::new([]),
@@ -4087,6 +4099,7 @@ impl Domain {
         Some(crate::LandingFailure {
             gate: gate.into(),
             run: receipt.run.clone(),
+            report: receipt.report.clone(),
             prefix: receipt.candidate,
             base: receipt.base,
             jobs: receipt.jobs.clone(),
@@ -4489,6 +4502,67 @@ fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     }
 }
 
+/// A report read is evidence, never a second verdict on a failed gate (domain/landing.md, 7.3).
+fn failed_report(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut pending: Pending,
+    key: ReceiptKey,
+    run: api::Run,
+    out: &mut Queue<Request>,
+) {
+    let mut report = None;
+    for gate in d.landing.gates(key.project, key.repository) {
+        if key.check == Check::Gate(gate.name.clone()) {
+            report.clone_from(&gate.report);
+            break;
+        }
+    }
+    if let Some(report) = report {
+        if let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact.clone(), report.format, env) {
+            pending.stage = Stage::FailedReport { key: key.clone(), run, report };
+            ask(d, env, owner, pending, key.repository, read, out);
+            return;
+        }
+        failed_jobs(d, env, owner, pending, key, run, ReceiptReport::Unread, 0, Box::new([]), out);
+    } else {
+        failed_jobs(d, env, owner, pending, key, run, ReceiptReport::Unset, 0, Box::new([]), out);
+    }
+}
+
+fn receipt_report(
+    report: &policy::GateReport,
+    env: &Env<Limits>,
+    answer: Result<api::Answer, api::Error>,
+) -> ReceiptReport {
+    use temper_engine_domain_forge_tiers::{Limits, NamedFailures, named_report};
+    let limits = Limits {
+        failing_tests: env.limits.tiers.failing_tests.min(1024),
+        test_id_bytes: env.limits.tiers.test_id_bytes.min(4096),
+    };
+    let parsed = match answer {
+        Ok(api::Answer::File { truncated: true, .. }) => Ok(NamedFailures::Many),
+        Ok(api::Answer::File { bytes, .. }) => named_report(report.format, &bytes, &limits),
+        Ok(_) | Err(_) => return ReceiptReport::Unread,
+    };
+    match parsed {
+        Err(_) => ReceiptReport::Unread,
+        Ok(NamedFailures::Many) => ReceiptReport::Many { bound: limits.failing_tests },
+        Ok(NamedFailures::Tests(tests)) => {
+            let mut kept = List::with_capacity(limits.failing_tests);
+            for test in tests {
+                let fuzzy = match &report.fuzzy {
+                    Some(prefix) => test.name.starts_with(prefix),
+                    None => false,
+                };
+                kept.push(crate::ReceiptTest { key: test.key, fuzzy }).expect("bounded report");
+            }
+            ReceiptReport::Tests(kept.into_boxed())
+        }
+    }
+}
+
 /// Snapshot each failed job before publishing the failed receipt (domain/landing.md, 7.3).
 #[expect(clippy::too_many_arguments, reason = "one coherent failed run and its bounded log cursor")]
 fn failed_jobs(
@@ -4498,6 +4572,7 @@ fn failed_jobs(
     mut p: Pending,
     key: ReceiptKey,
     run: api::Run,
+    report: ReceiptReport,
     next: u32,
     words: Box<[u8]>,
     out: &mut Queue<Request>,
@@ -4543,6 +4618,7 @@ fn failed_jobs(
         p.stage = Stage::FailedJobs {
             key: key.clone(),
             run,
+            report,
             next: index.checked_add(1).expect("bounded jobs"),
             words: log.into_boxed(),
         };
@@ -4554,6 +4630,7 @@ fn failed_jobs(
         crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
     save(d, row, out);
     let receipt = Receipt {
+        report,
         base: Some(base),
         jobs: receipt_jobs(&run.jobs),
         logs: row_logs,

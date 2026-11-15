@@ -25,6 +25,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([tier.clone()]),
         },
@@ -236,6 +237,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
                         ignored: Box::new([]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: tiers.into_boxed(),
                 }]),
@@ -1753,6 +1755,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                     ignored: Box::new([b"dir/skip".as_slice().into()]),
                     blocking: true,
                     base: false,
+                    report: None,
                 }])
             }]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
@@ -1967,7 +1970,8 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                     workflow: b"gate.yml".as_slice().into(),
                     ignored: Box::new([]),
                     blocking: true,
-                    base: false
+                    base: false,
+                    report: None,
                 }]),
                 tiers: Box::new([]),
             }]),
@@ -2148,6 +2152,7 @@ fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([])
         }]),
@@ -2264,4 +2269,192 @@ fn failed_receipt_jobs_keep_ids_attempts_and_bounded_names_in_run_order() {
         assert_eq!(job.attempt, u32::try_from(index).unwrap() + 3);
         assert_eq!(job.name.as_ref(), &[b'x'; 256]);
     }
+}
+
+#[test]
+fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
+    use skein_forge::api::{self, Answer};
+    use temper_engine_domain_forge_tiers::Format;
+    let xml = br#"<testsuite name="skein-lib::suite"><testcase name="fuzzy::a" classname="skein-lib::suite"><failure/></testcase><testcase name="b" classname="skein-lib::suite"><failure/></testcase></testsuite>"#;
+    let tests = ReceiptReport::Tests(Box::new([
+        ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
+        ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
+    ]));
+    let mut lines = skein_lib::List::with_capacity(1024);
+    for n in 0..=LIMITS.tiers.failing_tests {
+        for part in [b"test binary fuzzy::".as_slice(), skein_lib::Decimal::of(u64::from(n)).as_bytes(), b"\n"] {
+            for byte in part {
+                lines.push(*byte).unwrap();
+            }
+        }
+    }
+    for (format, bytes, truncated, error, expected) in [
+        (Format::Junit, xml.as_slice(), false, None, tests),
+        (
+            Format::Lines,
+            b"test binary fuzzy::a\ntest binary b\n".as_slice(),
+            false,
+            None,
+            ReceiptReport::Tests(Box::new([
+                ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
+                ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
+            ])),
+        ),
+        (Format::Lines, lines.as_slice(), false, None, ReceiptReport::Many { bound: LIMITS.tiers.failing_tests }),
+        (Format::Junit, b"cut".as_slice(), true, None, ReceiptReport::Many { bound: LIMITS.tiers.failing_tests }),
+        (Format::Junit, b"not XML".as_slice(), false, None, ReceiptReport::Unread),
+        (Format::Junit, b"".as_slice(), false, Some(api::Error::Missing), ReceiptReport::Unread),
+    ] {
+        let (mut d, key, run) = reporting_failed_gate(format);
+        let mut reads = 0_u32;
+        let mut jobs = 0_u32;
+        let mut decided = false;
+        for _ in 0..12_u32 {
+            let (call, op) = fixtures::next_call(&mut d);
+            let answer = match op {
+                api::Op::Read(api::Read::Branch { branch }) => {
+                    Ok(Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD }))
+                }
+                api::Op::Read(api::Read::Commits { .. }) => Ok(Answer::Commits { commits: Box::new([]), more: false }),
+                api::Op::Read(api::Read::Pull { .. }) => Ok(Answer::Pull(fixtures::open_pull())),
+                api::Op::Read(api::Read::Reviews { .. }) => {
+                    Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false })
+                }
+                api::Op::Read(api::Read::Runs { .. }) => {
+                    Ok(Answer::Runs { runs: Box::new([run.clone()]), more: false })
+                }
+                api::Op::Read(api::Read::Run { run: id }) => {
+                    assert_eq!(id, run.id);
+                    Ok(Answer::Run(run.clone()))
+                }
+                api::Op::Read(api::Read::Artifact { run: id, name, .. }) => {
+                    assert_eq!((id, name.as_ref()), (run.id, b"report".as_slice()));
+                    assert!(d.receipt(&key).is_none(), "receipt waits for the report");
+                    reads += 1;
+                    match error {
+                        Some(error) => Err(error),
+                        None => Ok(Answer::File {
+                            head: fixtures::HEAD,
+                            path: b"report.xml".as_slice().into(),
+                            bytes: bytes.into(),
+                            truncated,
+                        }),
+                    }
+                }
+                api::Op::Read(api::Read::Job { attempt, .. }) => {
+                    assert_eq!((attempt.head, attempt.run, attempt.job), (run.commit, run.id, 9));
+                    assert!(d.receipt(&key).is_none(), "receipt also waits for the job");
+                    jobs += 1;
+                    Err(api::Error::Missing)
+                }
+                api::Op::Read(_) | api::Op::Write(_) => panic!("unexpected failed gate read {op:?}"),
+            };
+            for request in fixtures::answer(&mut d, call, answer) {
+                assert!(!matches!(request, Request::Refused { .. }), "a report never faults the run");
+                if let Request::LandingDecision { decision, .. } = request {
+                    assert!(reads > 0, "gather decided before reading the failed run report: {decision:?}");
+                    assert!(
+                        !matches!(decision, policy::Decision::Retry { .. } | policy::Decision::Hold(_)),
+                        "a report cannot retry or hold a failed gate: {decision:?}"
+                    );
+                    decided = true;
+                }
+            }
+            if decided {
+                break;
+            }
+        }
+        assert!(decided);
+        assert_eq!((reads, jobs), (1, 1));
+        let receipt = d.receipt(&key).expect("failed receipt");
+        assert!(!receipt.passed);
+        assert_eq!(receipt.report, expected);
+        assert_eq!(receipt.failures, None, "tiers' failures are untouched");
+        assert_eq!((receipt.run.id, receipt.base, receipt.jobs[0].job), (run.id, Some(fixtures::BASE), 9));
+        assert!(!d.landing.flights.contains_key(&key), "no retry for a missing report");
+    }
+}
+
+fn reporting_failed_gate(
+    format: temper_engine_domain_forge_tiers::Format,
+) -> (Domain, ReceiptKey, skein_forge::api::Run) {
+    use skein_forge::api::{self, Conclusion, RunState};
+    const KEY: policy::Key = [7; 32];
+    let mut d = connected_member_landing();
+    let after = d.after_landing(5).unwrap();
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            tiers: Box::new([]),
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: Some(GateReport {
+                    artifact: b"report".as_slice().into(),
+                    format,
+                    fuzzy: Some(b"fuzzy::".as_slice().into())
+                }),
+            }]),
+        }]),
+        policy::Project::DEFAULT,
+        after
+    ));
+    d.landing.rows.get_mut(&61).unwrap().landing.members[0].gates = Box::new([policy::GateProof {
+        proof: policy::Proof::Keyed { key: KEY },
+        posted: policy::Posted::Nothing,
+        faults: 0,
+    }]);
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY };
+    d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, KEY)).unwrap();
+    let mut flight = runs::follow();
+    flight.task = 61;
+    flight.commit = fixtures::HEAD;
+    d.landing.flights.insert(key.clone(), flight).unwrap();
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    let run = api::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: api::Event::Dispatch,
+        actor: *d.writers.get(&REPO.forge).unwrap(),
+        state: RunState::Completed,
+        conclusion: Some(Conclusion::Failure),
+        url: b"https://forge/run/7".as_slice().into(),
+        created: Time::from_nanos(20),
+        jobs: Box::new([api::RunJob {
+            id: 9,
+            attempt: 2,
+            name: b"test".as_slice().into(),
+            state: RunState::Completed,
+            conclusion: Some(Conclusion::Failure),
+            steps: 3,
+            step: Some(api::Step { number: 1, name: b"tests".as_slice().into() }),
+        }]),
+    };
+    (d, key, run)
 }

@@ -417,6 +417,7 @@ fn finish(
 ) {
     let run = follow.run.as_ref().expect("terminal dispatched run");
     let receipt = Receipt {
+        report: crate::ReceiptReport::Unset,
         base: None,
         jobs: Box::new([]),
         passed: failures.is_none(),

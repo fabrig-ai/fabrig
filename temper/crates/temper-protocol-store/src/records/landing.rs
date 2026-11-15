@@ -528,9 +528,52 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
         },
     )
     .expect(FITS);
-    let receipt = encode_receipt_value(receipt);
-    w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
+    w::ReceiptRow::new(
+        &w::CEILINGS,
+        w::ReceiptRowParts { report: encode_report(&receipt.report), key, receipt: encode_receipt_value(receipt) },
+    )
+    .expect(FITS)
 }
+fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
+    match report {
+        top::ReceiptReport::Unset => w::ReceiptReport::Unset,
+        top::ReceiptReport::Unread => w::ReceiptReport::Unread,
+        top::ReceiptReport::Many { bound } => w::ReceiptReport::Many(
+            w::ReceiptMany::new(&w::CEILINGS, w::ReceiptManyParts { bound: *bound }).expect(FITS),
+        ),
+        top::ReceiptReport::Tests(tests) => {
+            let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
+            for test in tests {
+                kept.push(
+                    w::ReceiptTest::new(&w::CEILINGS, w::ReceiptTestParts { key: test.key.clone(), fuzzy: test.fuzzy })
+                        .expect(FITS),
+                )
+                .expect(FITS);
+            }
+            w::ReceiptReport::Tests(
+                w::ReceiptTests::new(&w::CEILINGS, w::ReceiptTestsParts { tests: kept }).expect(FITS),
+            )
+        }
+    }
+}
+fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
+    match report {
+        w::ReceiptReport::Unset => top::ReceiptReport::Unset,
+        w::ReceiptReport::Unread => top::ReceiptReport::Unread,
+        w::ReceiptReport::Many(many) => top::ReceiptReport::Many { bound: many.into_parts().bound },
+        w::ReceiptReport::Tests(tests) => {
+            let tests = tests.into_parts().tests;
+            let mut kept = List::with_capacity(tests.len());
+            for test in tests.into_boxed() {
+                let w::ReceiptTestParts { key, fuzzy } = test.into_parts();
+                kept.push(top::ReceiptTest { key, fuzzy }).expect(FITS);
+            }
+            top::ReceiptReport::Tests(kept.into_boxed())
+        }
+    }
+}
+
+// Gate reports belong to ReceiptRow, not the value a tier result embeds.
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     let run = w::ReceiptRun::new(
         &w::CEILINGS,
@@ -566,15 +609,17 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
 }
 
 pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
-    let w::ReceiptRowParts { key, receipt } = row.into_parts();
+    let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
     let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
     let check = match check_name {
         w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
         w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
     };
+    let mut receipt = decode_receipt_value(receipt)?;
+    receipt.report = decode_report(report);
     Ok(top::Stored::Receipt {
         key: top::ReceiptKey { project, repository: names::decode_repository(repository), check, key },
-        receipt: decode_receipt_value(receipt)?,
+        receipt,
     })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
@@ -586,6 +631,7 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
         kept.push(top::ReceiptJob { job, attempt, name }).expect(FITS);
     }
     Ok(top::Receipt {
+        report: top::ReceiptReport::Unset,
         base,
         jobs: kept.into_boxed(),
         logs,

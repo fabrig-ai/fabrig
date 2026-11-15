@@ -4141,8 +4141,7 @@ fn repair_failure_lines(
         return None;
     }
     append(&mut words, &gate);
-    let mut jobs = List::with_capacity(16);
-    let mut total = 0_u32;
+    let mut lines = report_lines(&failure.report);
     for job in &failure.jobs {
         let line = skein_lib::bytes::concat(&[
             b"\nFailed job: ",
@@ -4156,11 +4155,14 @@ fn repair_failure_lines(
             b" attempt=",
             skein_lib::Decimal::of(u64::from(job.attempt)).as_bytes(),
         ]);
-        total = total.checked_add(u32::try_from(line.len()).ok()?)?;
-        jobs.push(line).expect("receipt jobs bounded");
+        lines.push(line).expect("receipt tests and jobs bounded");
     }
-    let mut left = jobs.len();
-    for line in jobs.into_boxed() {
+    let mut total = 0_u32;
+    for line in &lines {
+        total = total.checked_add(u32::try_from(line.len()).ok()?)?;
+    }
+    let mut left = lines.len();
+    for line in lines.into_boxed() {
         if total > words.room() {
             let after = left.checked_sub(1)?;
             let marker = failed_jobs_overflow(after);
@@ -4179,6 +4181,33 @@ fn repair_failure_lines(
         left = left.checked_sub(1)?;
     }
     Some(words.into_boxed())
+}
+
+fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
+    let mut lines = List::with_capacity(1040);
+    match report {
+        forge::ReceiptReport::Unset => lines
+            .push(Box::from(b"\nFailed tests: not known (the gate names no report)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Unread => lines
+            .push(Box::from(b"\nFailed tests: not known (its report could not be read)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Many { bound } => lines
+            .push(skein_lib::bytes::concat(&[
+                b"\nFailed tests: more than ",
+                skein_lib::Decimal::of(u64::from(*bound)).as_bytes(),
+            ]))
+            .expect("one report line"),
+        forge::ReceiptReport::Tests(tests) => {
+            for test in tests {
+                let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
+                lines
+                    .push(skein_lib::bytes::concat(&[b"\nFailed test: ", &test.key, b" (", profile, b")"]))
+                    .expect("receipt tests bounded");
+            }
+        }
+    }
+    lines
 }
 
 fn failed_jobs_overflow(left: u32) -> Box<[u8]> {

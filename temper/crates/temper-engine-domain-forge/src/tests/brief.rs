@@ -1189,6 +1189,7 @@ fn kept_candidate_failure(d: &mut Domain) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
         }]),
         policy::Project::DEFAULT,
@@ -1211,6 +1212,7 @@ fn kept_candidate_failure(d: &mut Domain) {
                     key: [7; 32],
                 },
                 receipt: Receipt {
+                    report: ReceiptReport::Unset,
                     base: None,
                     jobs: Box::new([]),
                     logs: b"receipt's failed step and log\n".as_slice().into(),
@@ -2338,6 +2340,7 @@ fn landing_failure_pins_the_candidate_or_the_kept_rounds_run() {
     receipt.base = Some(fixtures::BASE);
     receipt.jobs = Box::new([ReceiptJob { job: 9001, attempt: 2, name: b"gate".as_slice().into() }]);
     let expected = LandingFailure {
+        report: ReceiptReport::Unset,
         gate: b"gate".as_slice().into(),
         run: receipt.run.clone(),
         prefix: receipt.candidate,

@@ -330,6 +330,7 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
                         key: [3; 32],
                     },
                     receipt: d::Receipt {
+                        report: temper_engine_domain_forge::ReceiptReport::Unset,
                         base: None,
                         jobs: Box::new([]),
                         logs: Box::new([]),

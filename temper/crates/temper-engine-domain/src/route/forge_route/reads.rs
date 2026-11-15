@@ -212,6 +212,7 @@ mod tests {
     #[test]
     fn gate_jobs_reserve_rows_and_report_displaced_forge_checks() {
         let failure = forge::LandingFailure {
+            report: forge::ReceiptReport::Unset,
             gate: b"gate".as_slice().into(),
             run: forge::ReceiptRun { id: 11, number: 3, url: b"https://forge.example/run/3".as_slice().into() },
             prefix: [7; 32],

@@ -830,6 +830,7 @@ impl World {
                                             ignored: Box::new([b"docs".as_slice().into()]),
                                             blocking: true,
                                             base: false,
+                                            report: None,
                                         }])
                                     } else {
                                         Box::new([])

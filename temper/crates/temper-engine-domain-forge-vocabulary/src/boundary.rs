@@ -1460,6 +1460,7 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    pub report: ReceiptReport,
     pub base: Option<skein_forge::api::Commit>,
     pub jobs: Box<[ReceiptJob]>,
     /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
@@ -1470,6 +1471,20 @@ pub struct Receipt {
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
 }
+/// Failed tests retained independently of a tier's failures (domain/landing.md, 7.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ReceiptReport {
+    Unset,
+    Unread,
+    Many { bound: u32 },
+    Tests(Box<[ReceiptTest]>),
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ReceiptTest {
+    pub key: Box<[u8]>,
+    pub fuzzy: bool,
+}
+
 /// A failed gate job, retained for `read_job` (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptJob {
@@ -1480,6 +1495,7 @@ pub struct ReceiptJob {
 /// The pinned failure used by a landing repair (domain/forge/change/repairs.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingFailure {
+    pub report: ReceiptReport,
     pub gate: Box<[u8]>,
     pub run: ReceiptRun,
     pub prefix: skein_forge::api::Commit,
@@ -2525,6 +2541,10 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a save carries the receipt and its gate report; requests retain their inline boundary"
+)]
 pub enum Request {
     LoadHistory {
         load: u64,

@@ -388,6 +388,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                         ignored: Box::new([]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -433,6 +434,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] },
             Receipt {
+                report: ReceiptReport::Unset,
                 base: None,
                 jobs: Box::new([]),
                 logs: Box::new([]),
@@ -827,6 +829,7 @@ fn maximal_proofs(d: &mut Domain) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             })
             .expect("gate");
         d.landing
@@ -834,6 +837,7 @@ fn maximal_proofs(d: &mut Domain) {
             .insert(
                 ReceiptKey { project: 5, repository: REPO, check: Check::Gate(name), key: [7; 32] },
                 Receipt {
+                    report: ReceiptReport::Unset,
                     base: None,
                     jobs: Box::new([]),
                     logs: Box::new([]),

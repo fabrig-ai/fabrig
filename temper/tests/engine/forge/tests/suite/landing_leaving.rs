@@ -57,6 +57,7 @@ fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bo
             ignored: Box::new([b"file".as_slice().into()]),
             blocking: false,
             base: false,
+            report: None,
         });
     }
     gates.push(landing::Gate {
@@ -65,6 +66,7 @@ fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bo
         ignored: Box::new([b"docs".as_slice().into()]),
         blocking: true,
         base: false,
+        report: None,
     });
     assert!(world.project_landing(
         PROJECT,
