@@ -1312,6 +1312,12 @@ impl ChangeRow {
     }
 }
 impl ChangeRow {
+    /// Its facts are frozen from the step that ends it (domain/forge/keeping-up.md, 3).
+    #[must_use]
+    pub fn frozen(&self) -> bool {
+        self.ending.is_some() || self.terminal()
+    }
+
     /// The pull a judgement delegate reads; every other state keeps the change's pull.
     #[must_use]
     pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {
@@ -2224,6 +2230,10 @@ pub enum Event {
     },
     /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
     DropChange {
+        task: u64,
+    },
+    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/README.md, 7).
+    DropErased {
         task: u64,
     },
     /// Register one activated change task with its held branch.

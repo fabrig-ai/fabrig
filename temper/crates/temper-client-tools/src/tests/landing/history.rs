@@ -325,3 +325,67 @@ fn history_ended_kind_names_and_nullable_page_fields_are_stable() {
     assert_eq!(json["events"][1]["what"]["kind"], "round-ended");
     assert_eq!(json["events"][1]["what"]["cause"], "cut");
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary Rust checks of text and JSON at the client boundary"
+)]
+fn job_attempt_outcomes_and_failure_classes_render_in_text_and_json() {
+    let mut cases = vec![
+        (w::HistoryJobOutcome::Done, "done", None),
+        (w::HistoryJobOutcome::Conflict, "conflict", None),
+        (w::HistoryJobOutcome::Timeout, "timeout", None),
+        (w::HistoryJobOutcome::Cancelled, "cancelled", None),
+        (w::HistoryJobOutcome::Lost, "lost", None),
+    ];
+    for (class, name) in [
+        (w::HistoryJobFailure::Unprepared, "unprepared"),
+        (w::HistoryJobFailure::Run, "run"),
+        (w::HistoryJobFailure::Result, "result"),
+        (w::HistoryJobFailure::Unstarted, "unstarted"),
+        (w::HistoryJobFailure::Undelivered, "undelivered"),
+        (w::HistoryJobFailure::Unknown, "unknown"),
+    ] {
+        cases.push((
+            w::HistoryJobOutcome::Failed(
+                w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class }).unwrap(),
+            ),
+            "failed",
+            Some(name),
+        ));
+    }
+    for (outcome, name, class) in cases {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(&["landing", "history", "--project", "1"]), json, None);
+            let what = w::HistoryWhat::JobEnded(
+                w::HistoryJobEnded::new(
+                    &w::CEILINGS,
+                    w::HistoryJobEndedParts { job: w::HistoryJob::Merge, outcome: outcome.clone() },
+                )
+                .unwrap(),
+            );
+            serve(&mut root, call, page(List::from_boxed(Box::new([event(1, what)])), None));
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 0);
+            if json {
+                let value: serde_json::Value = serde_json::from_slice(&answer.stdout).unwrap();
+                let what = &value["events"][0]["what"];
+                assert_eq!(what["kind"], "job-ended");
+                assert_eq!(what["job"], "merge");
+                assert_eq!(what["outcome"], name);
+                match class {
+                    Some(class) => assert_eq!(what["class"], class),
+                    None => assert!(what.get("class").is_none()),
+                }
+            } else {
+                let class = class.map_or(String::new(), |class| format!(" class {class}"));
+                let expected = format!(" job merge outcome {name}{class}\nend\n");
+                assert!(answer.stdout.ends_with(expected.as_bytes()), "{:?}", answer.stdout);
+            }
+        }
+    }
+}

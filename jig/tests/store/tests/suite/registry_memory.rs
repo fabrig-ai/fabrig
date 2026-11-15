@@ -72,7 +72,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
 fn seeded(sets: PatchSets) -> Vec<Item> {
     let mut world = World::unopened(7);
     world.patch_sets(sets);
-    assert_eq!(world.open(), Some(0));
+    assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world
         .contents()

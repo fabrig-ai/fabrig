@@ -67,6 +67,7 @@ fn a_task_with_live_delegates_and_no_entries_waits_on_its_delegates() {
 fn a_question_to_the_requester_names_that_party_and_one_entry() {
     let (mut core, limits) = pair();
     let mut parent = core.tasks.task(1).unwrap().clone();
+    parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
     parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
@@ -99,6 +100,7 @@ fn a_question_to_the_requester_names_that_party_and_one_entry() {
 fn the_oldest_of_two_waiting_entries_names_whom() {
     let (mut core, limits) = pair();
     let mut parent = core.tasks.task(1).unwrap().clone();
+    parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
     parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
@@ -235,4 +237,78 @@ fn a_kept_idle_row_waits_on_dependencies_before_delegates_and_cuts_oldest_first(
     assert_eq!(count, 2);
     row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
     assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Nothing);
+}
+
+fn own_credit(row: &tasks::TaskRecord, number: u64) -> tasks::QuestionCredit {
+    tasks::QuestionCredit { number, answerer: row.requester, asked: row.requester, line: row.activity }
+}
+
+#[test]
+fn an_idle_task_waits_on_its_oldest_own_question_before_dependencies_and_delegates() {
+    let (mut core, limits) = pair();
+    let delegate = new_row(&core, 3, tasks::Funder::Task(2), None);
+    make_batch(&mut core, &limits, tasks::Party::Task(2), Box::new([delegate]));
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.waiting_on = Box::new([1]);
+    row.questions = Box::new([own_credit(&row, 9), own_credit(&row, 7)]);
+    assert_eq!(tasks::own_question(&row), Some(7));
+    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Question { number: 7 });
+    row.waiting_on = Box::new([]);
+    row.delegates = Box::new([]);
+    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Question { number: 7 });
+    row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
+    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Nothing);
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.questions = Box::new([]);
+    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::News);
+}
+
+#[test]
+fn asking_and_answering_an_own_question_change_the_task_document_wait() {
+    let (mut core, limits) = pair();
+    let parent = core.tasks.task(1).unwrap().clone();
+    let ledger = *core.tasks.funding(tasks::Funder::Period { project: 1, period: 1 }).unwrap();
+    let mut child = core.tasks.task(2).unwrap().clone();
+    child.phase = tasks::Phase::Active(tasks::Active::Idle);
+    restore(&mut core, &limits, Box::new([parent, child]));
+    send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    let document_wait =
+        |core: &Core| task_from_row(core, &limits, 1, core.tasks.task(2).unwrap(), Wall::EPOCH).unwrap().waits_on;
+    assert_eq!(document_wait(&core), WaitsOn::News);
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::Tasks(tasks::Event::Message {
+            reply_to: ReplyTo::new(Token::new(90)),
+            project: 1,
+            operation: tasks::Message { task: 1, word: question(7, 10) },
+        }),
+    );
+    assert!(!core.tasks.task(2).unwrap().questions.is_empty(), "{out:?}");
+    assert_eq!(document_wait(&core), WaitsOn::Question { number: 7 });
+    drop(watch_outputs(
+        &mut core,
+        &limits,
+        Event::Tasks(tasks::Event::Message {
+            reply_to: ReplyTo::new(Token::new(91)),
+            project: 1,
+            operation: tasks::Message {
+                task: 2,
+                word: tasks::Word {
+                    number: 8,
+                    from: tasks::Party::Task(1),
+                    kind: tasks::MessageKind::Answer { question: 7 },
+                    words: b"Use this form".as_slice().into(),
+                    at: Wall::from_nanos(11),
+                    hits: 1,
+                    eligible: true,
+                },
+            },
+        }),
+    ));
+    assert!(core.tasks.task(2).unwrap().questions.is_empty());
+    assert_eq!(document_wait(&core), WaitsOn::Nothing, "the answer wakes the next run");
 }

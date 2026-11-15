@@ -76,6 +76,7 @@ impl Story {
         let mut row = reads::Row {
             value: turn,
             owner: Some(Box::new(owner)),
+            summary: None,
             ancestors: Box::new([]),
             related: None,
             unjoined: None,

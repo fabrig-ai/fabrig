@@ -1,9 +1,10 @@
-╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 4 changes landed across two projects. One thing needs you.                   │
-│ shop: Coupons are two of three in. Hello: csv-export is two of three tasks   │
-│ in; one waits on you.                                                        │
-│                                   written by the status agent 08:00 · /brief │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper
+▄█▄█▄█  127.0.0.1:8367
+
+ 4 changes landed across two projects. One thing needs you.
+ shop: Coupons are two of three in. Hello: csv-export is two of three tasks in;
+ one waits on you.
+                                     written by the status agent 08:00 · /brief
 
  Where you left off
    shop    Away mode, a chat · today 08:12 · waiting on you            /chats 1
@@ -17,41 +18,42 @@
    /change   one change, run as Hello's way says
    /ask      Ask temper
 
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
  Hello · Claude Opus 5.5 · high · ● Live                1 needs you · n to walk
 --
-aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
-a..............................................................................a
-a..............................................................................a
-a..............................................................................a
-a...................................dddddddddddddddddddddddddddddddddddddddddd.a
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.abbb...cccccc..................................................................
+aadddd..eeeeeeeeeeeeee..........................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+.....................................eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.
 ................................................................................
 .cccccccccccccccccc.............................................................
-...cccccccc.........ddddddddddddddddddddddddddddddddddddddd............dddddddd.
-...cccccccc..........dddddddddddddddddddddddddddddddd...........................
+...cccccccc.........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee............eeeeeeee.
+...cccccccc..........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee...........................
 ................................................................................
 .ccccccccc......................................................................
-...e.cccccccc...............................ddddddddddddddddddd....dddddddddddd.
+...f.cccccccc...............................eeeeeeeeeeeeeeeeeee....eeeeeeeeeeee.
 ................................................................................
 .ccccc..........................................................................
-...ccccccccccdddddddddddddddddddddddddddddddddddddddddddddddd...................
-...ccccccccccddddddddddddddddddddddddddddddddddd................................
-...ccccccccccdddddddddd.........................................................
+...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee...................
+...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee................................
+...cccccccccceeeeeeeeee.........................................................
 ................................................................................
-................................................................................
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..............................
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.dddddaaaddddddddddddddddddddddaaaffffff................eeeeeeeeeeeaaaddddddddd.
+gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+ffgggggggggggggggggggggggggggggggggggggggggggggggg..............................
+gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+.eeeeegggeeeeeeeeeeeeeeeeeeeeeeggghhhhhh................fffffffffffgggeeeeeeeee.
 --
-a: fore #B5AEA3
-b: fore #B8664E bold
+a: fore #1B76FD
+b: fore #00C4FE
 c: bold
-d: fore #7A736A
-e: fore #B8664E
-f: fore #3F7D4E
+d: fore #8E2CF8
+e: fore #7A736A
+f: fore #B8664E
+g: fore #B5AEA3
+h: fore #3F7D4E
 cursor 21 2

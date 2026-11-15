@@ -1165,3 +1165,20 @@ fn person_answers_read_as_named_bounded_lines() {
         assert!(rendered.ends_with(&format!("see: {following}\n")), "{address}: {rendered}");
     }
 }
+
+#[test]
+fn a_persons_task_names_its_own_question_after_its_phase() {
+    let mut task = row();
+    task.waits_on = d::WaitsOn::Question { number: 7 };
+    let answer =
+        SeeAnswer::Person(Box::new(SeePerson { read: SeeRead::Tasks { tasks: tasks_page(&[task]) }, names: names() }));
+    let (bytes, error) =
+        crate::see_answer(b"tasks", 0, &answer, &catalogue(), 20_000, crate::ForgeReadBounds::STOCK).into_parts();
+    assert!(!error);
+    let expected = b"working, waiting for an answer to its question 7";
+    let mut found = false;
+    for part in bytes.windows(expected.len()) {
+        found |= part == expected;
+    }
+    assert!(found, "{bytes:?}");
+}

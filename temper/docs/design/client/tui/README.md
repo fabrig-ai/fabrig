@@ -203,6 +203,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
       pub kept: Vec<jig_client::Record>,              // the small store's records, `theme` among them (6.15)
       pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
       pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in's, for this address
+      pub plain: bool,                                // a terminal that draws no mark (`pages/README.md`, 3)
+      pub version: Box<[u8]>,                         // the build, as `temper --version` prints it after "temper "
   }
   pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
       Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
@@ -234,7 +236,12 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), whether it
   is on a box (2, *On a box*), the small
   store's records and the credential as the native shell loaded them,
-  and the note as the binary read it for this address (2); `Local`,
+  the note as the binary read it for this address (2), whether the
+  terminal draws the header's mark, `plain` where `TERM_PROGRAM` is
+  `Apple_Terminal`, and the build the header names, `temper-version`'s
+  version and commit as `temper --version` prints them after "temper ",
+  "0.0.0 (b948f40d6df1)", which the binary hands down, since no library
+  links `temper-version` (`pages/README.md`, 3); `Local`,
   the engine's link file read for the duty `local`, its bytes or none;
   `Due`, the root's
   deadline reached; `Key`, one key as skein's decoder made it (skein's

@@ -239,6 +239,14 @@ section 3):
     a role. It names whom the oldest such entry waits for, a party or a
     role, and how many wait;
   - *nothing,* when it is working: its run live and not waiting;
+  - *its question,* when it is active and kept by its own unanswered
+    question to its requester (../tasks/lifecycle.md, 8), which no
+    entry for a party covers since its requester is a task: the number
+    of the oldest such question, the one the keep names. It comes
+    before its dependencies and its delegates, since its requester's
+    answer is what moves it, and an idle task kept so is never shown as
+    waiting for news. A question asked or answered commits on the
+    asking task, so its watches are marked as its other waits' are;
   - *its dependencies,* when it is kept (../tasks/lifecycle.md, 8): the pending
     ones, the oldest first, and how many;
   - *its delegates,* when it has live delegates;

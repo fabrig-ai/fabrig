@@ -525,3 +525,18 @@ fn long_text_bounds_survive_wire_narrowing_and_document_translation() {
         }
     }
 }
+
+#[test]
+fn a_task_waiting_on_its_question_round_trips_through_the_wire_and_link() {
+    let limits = fixtures::limits();
+    let mut parts = fixtures::task_record().into_parts();
+    parts.waits_on =
+        w::WaitsOn::Question(w::WaitsOnQuestion::new(&w::CEILINGS, w::WaitsOnQuestionParts { number: 7 }).unwrap());
+    let record = w::Task::new(&w::CEILINGS, parts).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    let bytes = bytes.finish();
+    let record = w::Task::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let task = documents::task(record, &limits).unwrap();
+    assert_eq!(task.waits_on, c::WaitsOn::Question { number: 7 });
+}

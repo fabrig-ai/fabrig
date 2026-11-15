@@ -86,7 +86,7 @@ pub fn forgets(owner: &Owner, reading: Reading) -> Option<u64> {
 }
 
 /// Erase the owner and its result/index rows in the mark's decision.
-pub(crate) fn forget(core: &mut Core, work: &mut Queue<Work>, owner: &Owner) -> Queue<crate::Request> {
+pub(crate) fn forget(core: &mut Core, now: Wall, work: &mut Queue<Work>, owner: &Owner) -> Queue<crate::Request> {
     let mut out = Queue::uncapped();
     if core.people.ready() && owner.result_position <= core.counters.deployment().messages {
         let party = owner.party;
@@ -99,6 +99,10 @@ pub(crate) fn forget(core: &mut Core, work: &mut Queue<Work>, owner: &Owner) -> 
         for key in record_keys(owner).into_boxed() {
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(key))));
         }
+        // Its remains go at the next pass (protocol/store/retention.md, 6.4).
+        out.push(crate::Request::Write(crate::Write::Save(crate::Record::Tasks(tasks::Stored::Retention(
+            tasks::RetentionRow { stage: tasks::RetentionStage::Forgotten, since: now, number: owner.task },
+        )))));
         for &connector in core.connectors.as_ref() {
             out.push(crate::Request::Ask {
                 connector,

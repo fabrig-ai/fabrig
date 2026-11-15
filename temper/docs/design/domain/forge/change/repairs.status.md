@@ -8,7 +8,7 @@
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
 - **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).
-- **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`).
+- **Not yet:** "A release", under `turn`: `waiting_producer` prepares the released head against the saved main tip. Its fresh snapshot carries the pull's base tip, which can be a goal branch, not main; a fresh main tip is not at hand at this decision (`temper-engine-domain-forge-change/src/domain.rs`, `waiting_producer`; `temper-engine-domain-forge/src/domain.rs`, `step_read`).
 
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`).
 
@@ -74,16 +74,6 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
-  - the whole document: a released resolution or merge job that failed holds again, where the
-    section has a resolution asked afresh: `released_state`
-    (`temper-engine-domain-forge-change/src/domain.rs`) keeps `Resolving {
-    requested: true }`, the row keeps the failed status
-    (`temper-engine-domain-forge/src/domain.rs`, `change_standing`), and
-    `delegated` reads it, so no fresh task is made. A failed producer and a failed
-    repair take `requested: false`. This is from reading: no test or story
-    releases a failed resolution. The `producer-failure` plan, whose request asks
-    after a failure's shape and not its release, pins only its hold
-    (`failed_repairs_and_resolutions_do_not_take_a_pushed_head`).
   - the whole document: a green head ending a repair has no story for a repair waiting for an
     answer to its question (none asks from a repair), a repair finding nothing
     to do (`NoChange`, read as failed), or a task closing or held with its

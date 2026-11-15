@@ -121,9 +121,42 @@ impl World {
         note: Option<Note>,
         front: bool,
     ) -> Self {
+        Self::front_configured(
+            refuse,
+            approval,
+            opener,
+            outcome,
+            record,
+            scheme,
+            link,
+            notes,
+            note,
+            front,
+            Config::calm(),
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::fn_params_excessive_bools,
+        reason = "the simulated front varies settings and terminal buffer size independently"
+    )]
+    fn front_configured(
+        refuse: bool,
+        approval: bool,
+        opener: bool,
+        outcome: Outcome,
+        record: Recording,
+        scheme: Option<Scheme>,
+        link: Option<&[u8]>,
+        notes: bool,
+        note: Option<Note>,
+        front: bool,
+        config: Config,
+    ) -> Self {
         let mut files = Machine::for_user(USER);
         let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
-        let mut sim = Sim::new(SEED, Config::calm());
+        let mut sim = Sim::new(SEED, config);
         let pid = sim.spawn_process();
         let recording = (record == Recording::Root).then(|| {
             let fd = files.open(root, b".", skein_fake_machine::How::Directory).expect("recording root");
@@ -148,6 +181,7 @@ impl World {
         let settings = Settings {
             record: recording,
             front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
+                set_up: false,
                 executable: b"/bin/temper".as_slice().into(),
                 directories: temper_shell::directories::Directories {
                     config: b"/config".as_slice().into(),
@@ -166,6 +200,8 @@ impl World {
             directory: b"tui".as_slice().into(),
             address: if front { b"127.0.0.1:9000" } else { b"127.0.0.1:8367" }.as_slice().into(),
             scheme,
+            plain: false,
+            version: Box::default(),
             boxed: true,
             link_file: link.map(Into::into),
             note,
@@ -341,7 +377,7 @@ impl World {
                     );
                     let leave =
                         self.bytes.windows(LEAVE.len()).rposition(|bytes| bytes == LEAVE).expect("left before spawn");
-                    assert_eq!(self.bytes.get(leave + LEAVE.len()..).expect("after LEAVE"), b"temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.\n", "line and LF immediately after LEAVE, before spawn");
+                    assert_eq!(self.bytes.get(leave + LEAVE.len()..).expect("after LEAVE"), b"\x1b[H\x1b[2Jtemper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.\n", "clear, line and LF immediately after LEAVE, before spawn");
                 } else if spawn.program.as_ref() == b"/bin/browser" {
                     self.spawns += 1;
                     assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
@@ -551,7 +587,7 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
-    link_answer: Option<jig_client_protocol_wire::v23::SignInAnswer>,
+    link_answer: Option<jig_client_protocol_wire::v24::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
     terminal_watch: Option<u64>,
@@ -705,7 +741,7 @@ impl Engine {
     }
 
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
-        use jig_client_protocol_wire::v23 as w;
+        use jig_client_protocol_wire::v24 as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
         if open.subject().owner() == &w::Owner::Jig {
             let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
@@ -751,7 +787,7 @@ impl Engine {
     }
 }
 fn approval_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v23 as w;
+    use jig_client_protocol_wire::v24 as w;
     let answer = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -803,7 +839,11 @@ fn approval_open_is_carried_and_closing_waits_for_no_opener() {
 
 impl World {
     fn loan() -> Self {
-        let mut world = Self::front_options(
+        Self::loan_with_buffer(u32::try_from(ROOM).expect("terminal buffer size"))
+    }
+
+    fn loan_with_buffer(buffer: u32) -> Self {
+        let mut world = Self::front_configured(
             false,
             true,
             false,
@@ -814,13 +854,14 @@ impl World {
             false,
             None,
             true,
+            Config { buffer, ..Config::calm() },
         );
         world.settle();
         world
     }
 
     fn lend(&mut self, name: &[u8], cancelled: bool) {
-        use jig_client_protocol_wire::v23 as w;
+        use jig_client_protocol_wire::v24 as w;
         self.login_name = name.into();
         let engine = self.engine.as_mut().expect("engine");
         let login = w::TerminalLogin::new(
@@ -1243,7 +1284,7 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
 }
 
 fn sign_in_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v23 as w;
+    use jig_client_protocol_wire::v24 as w;
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -1262,7 +1303,7 @@ fn sign_in_response() -> Box<[u8]> {
 }
 
 fn hello_event() -> Box<[u8]> {
-    use jig_client_protocol_wire::v23 as w;
+    use jig_client_protocol_wire::v24 as w;
     use skein_lib::List;
     let limits = &w::CEILINGS;
     let mut served = List::with_capacity(1);
@@ -1286,7 +1327,7 @@ fn hello_event() -> Box<[u8]> {
     sse(&hello)
 }
 fn me_event(watch: u64) -> Box<[u8]> {
-    use jig_client_protocol_wire::v23 as w;
+    use jig_client_protocol_wire::v24 as w;
     let limits = &w::CEILINGS;
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
@@ -1319,8 +1360,8 @@ fn me_event(watch: u64) -> Box<[u8]> {
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }
 
-fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v23::DeliveryValue) -> Box<[u8]> {
-    use jig_client_protocol_wire::v23 as w;
+fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v24::DeliveryValue) -> Box<[u8]> {
+    use jig_client_protocol_wire::v24 as w;
     use skein_lib::Writer;
     let limits = &w::CEILINGS;
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("document size"));
@@ -1335,7 +1376,7 @@ fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v23::DeliveryVal
     sse(&delivery)
 }
 
-fn sse(event: &jig_client_protocol_wire::v23::StreamEvent) -> Box<[u8]> {
+fn sse(event: &jig_client_protocol_wire::v24::StreamEvent) -> Box<[u8]> {
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -1365,12 +1406,13 @@ fn http_response(body: &[u8]) -> Box<[u8]> {
 fn a_loan_runs_only_the_found_box_with_inherited_descriptors_and_resumes() {
     use jig_client::contract::LoginExit;
     use temper_client_shell_tui::journey::Line;
-    for (name, end, exit) in [
-        (b"work".as_slice(), Exit::Code(0), LoginExit::Exited { code: 0 }),
-        (b"-", Exit::Code(23), LoginExit::Exited { code: 23 }),
-        (b"abcdefghijklmnopqrstuvwxyz01234-", Exit::Signal(2), LoginExit::Killed { signal: 2 }),
+    // The 64-byte terminal buffer forces Lending::written to finish a short write before the spawn.
+    for (name, end, exit, buffer) in [
+        (b"work".as_slice(), Exit::Code(0), LoginExit::Exited { code: 0 }, 65_536),
+        (b"-", Exit::Code(23), LoginExit::Exited { code: 23 }, 64),
+        (b"abcdefghijklmnopqrstuvwxyz01234-", Exit::Signal(2), LoginExit::Killed { signal: 2 }, 65_536),
     ] {
-        let mut world = World::loan();
+        let mut world = World::loan_with_buffer(buffer);
         world.lend(name, false);
         assert_eq!(world.login_spawns, 1);
         let lent = world.bytes.len();
@@ -1645,7 +1687,7 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     world.files.write(file, 0, LOCAL_LINK).expect("file's link");
     world.files.close(file);
     world.files.close(root);
-    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v23::SignInAnswer::LinkUsed);
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v24::SignInAnswer::LinkUsed);
     world.horizon = Time::ZERO;
     world.settle();
     world.box_child().write(4, b"restarting forge\nlog split");

@@ -1,6 +1,8 @@
 //! Task and funding addresses (protocol/store/README.md, section 4.1).
-use jig_domain_tasks::{Funder, Key, Newest, UpdateObject};
+use jig_domain_tasks::{Funder, Key, Newest, RetentionStage, UpdateObject};
 use skein_kv::{KeyReader, KeyWriter};
+use skein_lib::Wall;
+#[expect(clippy::too_many_lines, reason = "one arm per durable tasks key keeps their tags together")]
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
         Key::Attempt { task, attempt } => {
@@ -12,6 +14,22 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.tag(23);
             writer.u64(*task);
             writer.u64(*position);
+        }
+        Key::Summary(task) => {
+            writer.tag(30);
+            writer.u64(*task);
+        }
+        Key::Retention { stage, since, number } => {
+            writer.tag(31);
+            writer.tag(match stage {
+                RetentionStage::Turns => 0,
+                RetentionStage::Record => 1,
+                RetentionStage::Summary => 2,
+                RetentionStage::Forgotten => 3,
+                RetentionStage::Proposal => 4,
+            });
+            writer.u64(since.as_nanos());
+            writer.u64(*number);
         }
         Key::LiveCold(task) => {
             writer.tag(24);
@@ -104,6 +122,19 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
     Some(match reader.tag()? {
+        30 => Key::Summary(reader.u64()?),
+        31 => Key::Retention {
+            stage: match reader.tag()? {
+                0 => RetentionStage::Turns,
+                1 => RetentionStage::Record,
+                2 => RetentionStage::Summary,
+                3 => RetentionStage::Forgotten,
+                4 => RetentionStage::Proposal,
+                _ => return None,
+            },
+            since: Wall::from_nanos(reader.u64()?),
+            number: reader.u64()?,
+        },
         24 => Key::LiveCold(reader.u64()?),
         21 => Key::PlacedHold(reader.u64()?),
         22 => Key::Attempt { task: reader.u64()?, attempt: reader.u64()? },

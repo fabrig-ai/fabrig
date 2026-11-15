@@ -132,10 +132,43 @@ of a forge is its records (`engine.md`, 1), never the component's state.
 
 Held by skein's `forge/github.md`: the dialect's paths, headers, paging,
 validators, pauses and failures, each a named fact (skein's `forge/github.md`, section 13). Of it,
-temper sets one thing, where a job log may be read from:
+temper sets where GitHub's names are resolved, and where a job log may
+be read from:
 
+- **GitHub's names are resolved while the engine serves, never
+  before,** and only once a kept forge needs them: GitHub's API host,
+  the machine's GitHub place's (../configuration/engine.md) or
+  `api.github.com`, and the job logs' results hosts below. A deployment
+  that keeps no forge on GitHub's place, one with Forgejo alone, looks
+  none of them up, and no start waits on a lookup of GitHub's. The
+  shell hands the engine GitHub's place unresolved: the runtime's API
+  address, and each results origin's, is the placeholder
+  `127.0.0.1:0` a held forge has (../setup/init.md, 3), which the engine
+  replaces as each resolves and never hands to a socket. The binary's
+  `names` stage (../README.md, 6.1) resolves at most one of them a
+  pass, through the machine's resolver and with no network probe, the
+  API host before any results host, so a pass holds at most one
+  lookup. A name that does not resolve is named in the log and never
+  refuses startup.
+- **GitHub's API host** is wanted once a forge whose API names it is
+  kept: a GitHub forge restored at start or made by `Connect`
+  (`engine.md`, 2), matched to the machine's GitHub place by its TLS
+  server name, as the routing matches it. It is resolved once for the
+  run, in the first pass that serves with such a forge kept; one the
+  machine gives as an address needs none. Until it is answered, the
+  forge waits: it is added to the component and the setup host with
+  the placeholder, as a held forge is (../setup/init.md, 3); its connect
+  from the records and each setup run asked for it wait, and none of
+  them is answered unreachable; and it does not hold the start's
+  serving (../README.md, 6.2). Resolved, each forge on that host is
+  added again with the address, as a forge resolved at start is, and
+  what waited goes on; a forge kept later takes the address at once.
+  Not resolved, each is held for the run as a forge whose name a start
+  did not resolve (../setup/init.md, 3): its connect is answered
+  unreachable, as is each run that waited, naming the host, and a forge
+  kept later on that host is held at once.
 - **A job log's redirect** is followed only to an origin its forge's
-  kind names, resolved at start: at most `forges.log_origins` entries,
+  kind names: at most `forges.log_origins` entries,
   each an origin, `https`, or `http` to a loopback host alone, matched
   as skein's component matches a redirect's (scheme, host in ASCII
   case, port; skein's `forge/connection.md`, 4.5). GitHub's names the
@@ -143,13 +176,25 @@ temper sets one thing, where a job log may be read from:
   through `productionresultssa19.blob.core.windows.net`, over TLS on
   port 443, when the machine names no GitHub of its own; a GitHub the
   machine names (../configuration/engine.md) and a Forgejo name none.
-  The shell resolves them before serving, with no network probe. An
-  unresolved host is skipped and named once in the log, and never
-  refuses startup. If none resolves, or the kind names none, no job log
-  is fetched; a check's failure is then shown without its log.
+  They are wanted once GitHub's API host has resolved and a kept forge
+  takes them, a GitHub forge with no origins of its own, and are
+  resolved one a pass, in that order; none is tried when the API host
+  did not resolve. The routing hands each one resolved to every kept
+  forge that takes them (skein's `forge/connection.md`, 3.1, `LogOrigin`),
+  and a forge kept or added again later takes those resolved by then.
+  An unresolved host is skipped and named once in the log,
+  `temper-box serve: GitHub log origin https://HOST:443: unresolved;
+  skipped`, and, the last tried with none resolved, `temper-box serve:
+  GitHub log origins: none resolved; no job log will be fetched` (each
+  under the binary's own name). A job log whose origin is not resolved
+  yet, or was skipped, is not fetched, nor any when none resolves or
+  the kind names none; a check's failure is then shown without its log.
 - **A redirect to any other origin** is answered `Refused`, and the
   component's `Fact::Origin` names that origin once for each connect
-  (`engine.md`, 4). The routing keeps it per forge in memory, at most
+  (`engine.md`, 4). One of GitHub's results hosts, not resolved yet or
+  skipped, is no other origin: the routing neither keeps nor logs its
+  `Fact::Origin`, the names stage's line naming a skipped one. The
+  routing keeps each other origin per forge in memory, at most
   `forge_component.log_origins` of them, and forgets them at the forge's
   next connect. The latest distinct origin appears in that forge's row
   diagnostic (../../client/forge/README.md, the deployment's page), when no connect
@@ -664,9 +709,17 @@ temper's part:
   (`forge/github.md`; `skein/docs/design/forge/setup/README.md`, GitHub's plans). temper's:
   - **A job log's origin learned at runtime.** Default: the kind's
     list; an origin outside it is named by `Fact::Origin`, and its log
-    is not fetched (2.6). A member naming more origins, later. DNS
-    resolution while serving remains later: skein's loop has no
-    resolver.
+    is not fetched (2.6). A member naming more origins, later. A lookup
+    off the loop waits for skein's DNS client (skein's
+    `runtime/io/README.md`, section 3): until then each of GitHub's
+    names holds its pass in the `names` stage (2.6).
+  - **A job log read before its origin resolves.** Default: not
+    fetched, the check's failure shown without its log (2.6), for the
+    seconds after a GitHub forge is kept while its results hosts resolve.
+    A redirect whose origin is listed but not yet resolved could hold
+    its call for the lookup instead, and only the origins GitHub uses
+    would then be looked up: a skein addition to `forge/connection.md`,
+    4.5.
   - **A Forgejo secret with no listener.** Default: handed none, the
     forge polls alone, named once in the log (section 4).
   - **Rows of a forge with no record.** Default: left as they are,

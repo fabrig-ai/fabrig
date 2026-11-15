@@ -17,11 +17,12 @@ the recording (`../../../draft/tui.md`, section 5).
 Illustrative, a person in two projects, Hello and shop:
 
 ```
-╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 4 changes landed across two projects. Two things need you.                   │
-│ Hello: CSV export is in review. shop: Coupons are two of three in.           │
-│                                   written by the status agent 07:42 · /brief │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  127.0.0.1:8367
+
+ 4 changes landed across two projects. Two things need you.
+ Hello: CSV export is in review. shop: Coupons are two of three in.
+                                   written by the status agent 07:42 · /brief
 
  Where you left off
    Hello   Away mode, a chat · today 08:12 · waiting on you            /chats 1
@@ -41,17 +42,22 @@ Illustrative, a person in two projects, Hello and shop:
  Hello · Claude Opus 5.5 · high · ● Live                 2 need you · n to walk
 ```
 
-- **Its parts, in order:** the header (3); then the sections
-  (`tui-spaced`, a blank row between two, and one between the header's
-  frame and the first): Where you left off (4), Needs you (5), Team on
-  PROJECT (7) and Start (7); then the notes (7); then the foot (`README.md`, *The foot*).
+- **Its parts, in order:** the header (`README.md`, 3); then the
+  sections (`tui-spaced`, a blank row between two, and one between the
+  header and the first): the headline (3), Where you left off (4), Needs
+  you (5), Team on PROJECT (7) and Start (7); then the notes (7); then
+  the foot (`README.md`, *The foot*).
 - **Where it departs from its mockups,** each for a reason: the brief is
   one a project, joined, not one across projects written per person
   (`../../../draft/surfaces.md`, 15, its default; `../../pages/home.md`, 1, *Home on All
-  projects*), and so the header holds Home on All projects' headline over
+  projects*), and so the headline section holds Home on All projects' headline over
   the joined briefs, and `/brief` the briefs whole (3), since the engine
   keeps a sentence and a lede for each project and no more
-  (`../../../domain/forge/attention.md`, 3); a chat's row ends with `/chats
+  (`../../../domain/forge/attention.md`, 3); the header is two lines,
+  the mark, the build and the place, and names no project (`README.md`,
+  3), where the mockups frame the project and the deployment, the
+  project named on the quiet line: the user's request `tui-14` of
+  2026-11-15; a chat's row ends with `/chats
   N`, numbering the rows as the open question's default numbers
   `/chats`' list (`../../../draft/surfaces.md`, 15), where the mockups draw
   `/chats` once, on the first row (`../../../draft/surfaces.status.md`); what
@@ -69,8 +75,8 @@ Illustrative, a person in two projects, Hello and shop:
 
 ## 2. Its reads, across the person's projects
 
-- **Its project:** the root's, `Home { project }`. The header's title,
-  Start, the box and the quiet line are that project's: the box asks
+- **Its project:** the root's, `Home { project }`. Start, the box and
+  the quiet line are that project's: the box asks
   Ask temper in it with Home's composer and picker (`../../pages/home.md`, 1,
   *In the TUI*), and `/change` starts its chat. The brief, Where you
   left off and Needs you are the person's, across their projects, as
@@ -157,14 +163,13 @@ Illustrative, a person in two projects, Hello and shop:
 - **Each drawn at the next frame after it changes;** the TUI derives
   none of them again.
 
-## 3. The header
+## 3. The headline
 
-The region `tui-top`, framed, its level-1 heading in its border:
-"temper" (`tui-title`), " · " (`tui-faint`) and the project's name
-(`tui-name`); and, at the border's end, `HOST:PORT` (`tui-address`,
-aligned to the end), which skein leaves out first where the border lacks
-the room for both (skein's `../ui/screen.md`, 5.2). Under its frame, a blank
-row before the first section. Inside it:
+The launchpad's first section, under the header (`README.md`, 3), with
+no head: what the framed header held inside it before the user's request
+`tui-14` of 2026-11-15, its parts in this order, each left out when
+absent, and the section left out when none is drawn. The project's name
+is the quiet line's, and the address the header's second line.
 
 - *Home on All projects' headline,* once the inbox has answered: its
   landed sentence across projects and its needs sentence
@@ -172,7 +177,7 @@ row before the first section. Inside it:
   Two things need you.", one paragraph, never a brief's sentence, since
   across projects the headline is code's; before any project's status is
   shown, the needs sentence alone. While the inbox has not answered,
-  nothing under the title (`../../pages/README.md`: no page claims empty
+  nothing (`../../pages/README.md`: no page claims empty
   before its read answers).
 - *with a brief new to the person* in any project (`all_home::brief`):
   the joined briefs, newest first, at most four, one paragraph

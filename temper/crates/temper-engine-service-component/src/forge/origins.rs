@@ -65,6 +65,13 @@ pub(crate) fn refused(engine: &mut crate::engine::Engine, forge: u16, origin: Or
     if engine.workers.forges.get(forge).is_none() {
         return;
     }
+    if let Some(github) = &engine.forge.github {
+        for entry in &github.log_origins {
+            if entry.address == skein_io::Addr::Ip(super::HELD_ADDRESS) && entry.origin.same(&origin) {
+                return;
+            }
+        }
+    }
     if engine.forge.origins.note(forge, &origin) {
         engine.notes.push(crate::Note::ForgeOrigin { number: forge, origin });
     }

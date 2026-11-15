@@ -69,6 +69,24 @@ fn cursor_keys() -> Box<[Key]> {
 }
 
 #[test]
+fn restart_live_ranges_admit_neither_summaries_nor_retention_rows() {
+    use jig_domain_tasks::{Key as TaskKey, RetentionStage as Stage};
+    for key in [
+        TaskKey::Summary(0),
+        TaskKey::Summary(u64::MAX),
+        TaskKey::Retention { stage: Stage::Turns, since: skein_lib::Wall::EPOCH, number: 0 },
+        TaskKey::Retention { stage: Stage::Proposal, since: skein_lib::Wall::from_nanos(u64::MAX), number: u64::MAX },
+    ] {
+        assert!(!key.live());
+        let key = Key::Tasks(key);
+        for range in RestoreRange::LIVE {
+            assert!(!range.admits(&key));
+            assert!(!fixtures::within(&intervals::restore(&range), &key_bytes(&key)));
+        }
+    }
+}
+
+#[test]
 fn each_restart_range_holds_the_keys_it_admits_and_no_others() {
     for key in cursor_keys() {
         let bytes = key_bytes(&key);

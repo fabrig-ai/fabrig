@@ -83,7 +83,7 @@ pub(super) fn deadline(d: &Domain) -> Option<Wall> {
     let mut next: Option<Wall> = None;
     for (task, session) in &d.read_sessions {
         let Some(row) = d.changes.get(task) else { continue };
-        if !session.started || session.exempt || row.terminal() {
+        if !session.started || session.exempt || row.frozen() {
             continue;
         }
         if let change::State::Held { .. } = row.change.state {
@@ -106,7 +106,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
     for task in due.into_boxed() {
         let Some(row) = d.changes.get(&task) else { continue };
-        if row.terminal() {
+        if row.frozen() {
             d.read_sessions.remove(&task);
             if let Some(owner) = step_owner(d, task) {
                 d.steps.remove(&owner);

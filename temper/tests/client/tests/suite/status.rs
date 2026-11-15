@@ -88,7 +88,7 @@ impl Story {
         self.pump();
         for _ in 0..LANDING_ROUNDS {
             self.front.approve_status_landing(goal);
-            self.after(Duration::from_millis(10));
+            self.after(self.front.engine.env.limits.forge.client.poll);
             if self.front.engine.task(goal).is_none() {
                 let Record::Forge { row } = self
                     .front

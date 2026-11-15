@@ -1,7 +1,9 @@
 # pages: status
 
-2026-11-13. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 1, *The notice*: no group started's notice [in flight:
+  change 3434].
 - **Not yet:** 2, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
   `../../../../help/reference/commands.md` and held by `temper-box-shell`'s

@@ -256,6 +256,13 @@ The client holds the resources the owner names, and nothing else.
   a restart therefore repeats no deletion drift. A branch that reappears
   is observed under the same drift rules. Releasing a branch (`taken`
   false) reads it afresh.
+- **A fence.** The owner may fence a resource it watches (`Fence {
+  resource }`): the answer of a keep read of that resource sent before
+  the fence reports nothing when it comes, neither `Changed` nor
+  `Drift`, and its kept state is not moved by it; the resource is read
+  afresh, at `hinted`. An owner fences what a decision of its must not
+  see from before it, such as a release of a held task's work. A fence
+  lives in memory alone: a restart sends no read from before it.
 - **News.** `Changed { resource, result }` carries the item with its new
   comments (a page at a time, `more`), the pull request, the new reviews,
   or the tip. A comment or review is delivered once for each id and

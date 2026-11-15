@@ -24,6 +24,9 @@ pub struct Commit<'a> {
 pub enum Write<'a> {
     Save(&'a core::Record),
     Erase(core::Key),
+    DropTranscript {
+        task: u64,
+    },
     Other,
     /// A bulk mutation whose individual core keys are not listed.
     Refresh,

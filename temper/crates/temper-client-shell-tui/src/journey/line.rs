@@ -13,9 +13,13 @@ pub enum Line {
     Clocks { now: Time, wall: Wall },
     Screen { size: Size, scheme: Option<Scheme> },
     Background(Rgb),
+    Plain,
+    Version(Box<[u8]>),
     Address(Box<[u8]>),
     Local,
     Front,
+    SetUp,
+    BoxLog(Box<[u8]>),
     Box,
     Stored { key: Box<[u8]>, bytes: Box<[u8]> },
     Credential(Box<[u8]>),
@@ -163,8 +167,10 @@ impl Line {
                 w.number(u64::from(rgb.green));
                 w.number(u64::from(rgb.blue));
             }
-            Self::BoxLine(bytes)
+            Self::BoxLog(bytes)
+            | Self::BoxLine(bytes)
             | Self::BoxStage(bytes)
+            | Self::Version(bytes)
             | Self::Address(bytes)
             | Self::Credential(bytes)
             | Self::Erase(bytes)
@@ -174,7 +180,9 @@ impl Line {
                 w.bytes(key);
                 w.bytes(bytes);
             }
-            Self::Front
+            Self::Plain
+            | Self::Front
+            | Self::SetUp
             | Self::Unlend
             | Self::Local
             | Self::Box
@@ -251,12 +259,16 @@ impl Line {
             Self::Address(_) => "address",
             Self::Local => "local",
             Self::Front => "front",
+            Self::SetUp => "set-up",
+            Self::BoxLog(_) => "box-log",
             Self::BoxLine(_) => "box-line",
             Self::BoxStage(_) => "box-stage",
             Self::StopBox => "stop-box",
             Self::StopBoxAgain => "stop-box-again",
             Self::Box => "box",
             Self::Background(_) => "background",
+            Self::Plain => "plain",
+            Self::Version(_) => "version",
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
             Self::Note(_) => "note",
@@ -620,6 +632,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
                 _ => return Err("unknown scheme"),
             },
         },
+        b"plain" => Line::Plain,
+        b"version" => Line::Version(r.bytes()?),
         b"background" => Line::Background(Rgb {
             red: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
             green: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
@@ -627,6 +641,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         }),
         b"local" => Line::Local,
         b"front" => Line::Front,
+        b"set-up" => Line::SetUp,
+        b"box-log" => Line::BoxLog(r.bytes()?),
         b"lent" => Line::Lent { number: r.count()?, exit: r.login_exit()? },
         b"lend" => Line::Lend { number: r.count()?, name: r.bytes()? },
         b"unlend" => Line::Unlend,

@@ -1,9 +1,10 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:35053 ─╮
-│ One thing needs you.                                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper 0.0.0 (6049f628d3c2-dirty)
+▄█▄█▄█  127.0.0.1:35495
+
+ One thing needs you.
 
  Where you left off
-   Hello   Add a CSV export to the report, a chat · today 23:39 ·…     /chats 1
+   Hello   Add a CSV export to the report, a chat · today 04:04 ·…     /chats 1
 
  Needs you
    ? Hello   Add a CSV export to the report: csv-export: comma…    n walks them
@@ -12,7 +13,6 @@
    /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯
 ────────────────────────────────────────────────────────────────────────────────

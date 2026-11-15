@@ -8,13 +8,16 @@ use temper_engine_domain_forge as forge;
 /// The user agent every forge request carries; a test pins it.
 pub const USER_AGENT: &str = "temper/0.0.0";
 const WORD: &[u8] = b"temper";
-/// A forge's endpoint and TLS transport, supplied by the shell; an unresolved host uses loopback port zero.
+/// A forge's endpoint and TLS transport (protocol/forge/README.md, 2.6).
+/// For GitHub, `address == HELD_ADDRESS` (127.0.0.1:0) means the API host is unresolved.
+/// A log origin's `Addr::Ip(HELD_ADDRESS)` likewise awaits resolution while serving;
+/// the engine replaces these placeholders in order and never hands one to a socket.
 #[derive(Debug)]
 pub struct ForgeRuntime {
     pub number: u16,
     pub address: core::net::SocketAddr,
     pub transport: skein_forge_connection::settings::Transport,
-    /// The kind's default job-log origins, resolved by the shell before serving.
+    /// The kind's default job-log origins, in resolution order.
     pub log_origins: List<skein_forge_connection::settings::LogOrigin>,
 }
 /// Pair the configuration and shell endpoints by forge number.

@@ -2370,6 +2370,21 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
 }
 
 // Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+fn change_unpinned(domain: &Domain, task: u64) -> bool {
+    if !domain.forge.droppable(task) && !domain.forge.droppable_last(task) {
+        return false;
+    }
+    let row = domain.forge.change(task).expect("droppable change");
+    let goal = match row.goal {
+        Some(goal) => Some(goal),
+        None => tracked_ancestor(domain, tasks::Party::Task(task)),
+    };
+    match goal {
+        Some(goal) => domain.core.tasks.task(goal).is_none(),
+        None => true,
+    }
+}
+
 fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<forge::Request>) {
     let tasks = domain.forge.change_tasks();
     if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
@@ -2379,17 +2394,7 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     let mut oldest_last = None;
     for number in tasks {
         let settled = domain.forge.droppable(number);
-        if !settled && !domain.forge.droppable_last(number) {
-            continue;
-        }
-        let row = domain.forge.change(number).expect("enumerated change");
-        let goal = match row.goal {
-            Some(goal) => Some(goal),
-            None => tracked_ancestor(domain, tasks::Party::Task(number)),
-        };
-        if let Some(goal) = goal
-            && domain.core.tasks.task(goal).is_some()
-        {
+        if !change_unpinned(domain, number) {
             continue;
         }
         let slot = if settled { &mut oldest } else { &mut oldest_last };
@@ -2578,6 +2583,7 @@ pub(super) fn start_recovered_change(
                     gates,
                     clean: Box::new([]),
                     gate_failures: Box::new([]),
+                    released_resolution: false,
                     released: None,
                     repairs: 0,
                     resolutions: 0,
@@ -2670,6 +2676,9 @@ pub(super) fn start_recovered_change(
             .forge_delegating
             .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
             .expect("one released relay per change step");
+        let record = domain.core.tasks.task(task).expect("released change");
+        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
@@ -2680,6 +2689,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
+        // A retired delegate's inbox terminal is not fresh evidence (change/repairs.md, A release).
+        let Some((current, _)) = domain.forge.change(task).expect("registered change").delegate else { continue };
+        if child != current {
+            continue;
+        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
@@ -4710,6 +4724,7 @@ fn delegate_change_step(
         return;
     }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
             env,
@@ -6104,6 +6119,17 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Unname { task } => {
             if number == domain.config.forge_connector {
+                // Drop with the task's record, even with free room (domain/forge/change/README.md, 7).
+                if change_unpinned(domain, task) {
+                    let mut out = Queue::uncapped();
+                    forge::step(
+                        &mut domain.forge,
+                        &env.with(env.limits.forge),
+                        forge::Event::DropErased { task },
+                        &mut out,
+                    );
+                    outputs(domain, env, decision, &mut out);
+                }
                 domain.work.push(Work::Forge(forge::Event::Unnamed { task }));
             }
         }

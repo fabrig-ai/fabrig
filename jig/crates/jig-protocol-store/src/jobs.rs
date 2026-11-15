@@ -88,6 +88,12 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "charter-versions" {
         return charter_versions::page(page);
     }
+    if job == "retention-rows" {
+        return retention::rows(page);
+    }
+    if job == "retention-proposals" {
+        return retention::proposals(page);
+    }
     if job == "milestones" {
         return milestones::page(page);
     }
@@ -104,6 +110,7 @@ mod charter_versions;
 mod live_task_parts;
 mod milestones;
 mod projection_parts;
+mod retention;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

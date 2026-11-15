@@ -576,3 +576,9 @@ pub fn chip_heap_bound(limits: &DocumentLimits) -> Option<u64> {
 pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
     small::chip_from_row(limits, row)
 }
+
+/// A list-only chip from retained summary facts (protocol/store/retention.md, 7).
+#[must_use]
+pub fn chip_from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> Chip {
+    small::chip_from_summary(limits, summary)
+}

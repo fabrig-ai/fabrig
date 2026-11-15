@@ -10,6 +10,8 @@ the root at `Talk { project, task }`, drawn as a chat under a head of its
 own (`talk.md`, section 1). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: what closes the TUI, and the link's state. The
+launchpad opens with the header, two lines, the mark, the build and the
+place (`README.md`, section 3, below). The
 launchpad and a chat share their foot: the box, and under it the quiet
 line or a list (`README.md`, section 1, below). The launchpad and a chat are drawn
 from the user's hand-made frames of the look request `tui-launchpad`
@@ -17,8 +19,9 @@ from the user's hand-made frames of the look request `tui-launchpad`
 browser's chat terminal's (`../../pages/chat/terminal.md`, 1), and a chat reads
 as `../../../draft/chat-reading.md` says. Every frame below is illustrative:
 its words and look are refined on the recording (`../../../draft/tui.md`,
-section 5). In front of a box, the welcome stands in the no-project
-launchpad's place, the playground's project says so, Ctrl+C and
+section 5). In front of a box, the starting screen stands until the
+TUI has read `me` on a box set up before, the welcome in the no-project
+launchpad's place, both under the header, the playground's project says so, Ctrl+C and
 `/quit` ask first while work runs, and the box's state and `/log` join
 the foot and the commands (`../box.md`).
 
@@ -158,7 +161,9 @@ chat, the running line above them.
     on a talk, the project's name, " · " and the role's (`talk.md`,
     section 1, *The quiet line*);
   - *at its right,* each left out when absent, " · " between two (`tui-faint`):
-    in front of a box its state and "playground" (`../box.md`); "paused · a
+    in front of a box, on the welcome until the TUI is signed in, the
+    box's start (`../box.md`, *The box's stages*), then its state and
+    "playground" (`../box.md`); "paused · a
     message resumes it" on a chat the person paused (`tui-hint`); on a
     chat whose draft can show, the pane's parts (`design-session.md`, section 1,
     *The quiet line*); on a talk with the person's talk open, its length
@@ -173,8 +178,8 @@ chat, the running line above them.
     (*The notice*).
 
   The chat's spend is the browser's alone.
-- **A narrow terminal:** the header's address goes first (above); then,
-  where the quiet line's two halves, two spaces between them and its
+- **A narrow terminal:** the header's lines are cut at their ends
+  (section 3); then, where the quiet line's two halves, two spaces between them and its
   padding are wider than the window's columns, it leaves out "n to walk"
   and its " · ", on a chat the pane's goal part and then its Ctrl-P
   words, each with its " · " (`design-session.md`, section 1), then the closed line
@@ -192,13 +197,14 @@ chat, the running line above them.
     sign-in lands*); the theme taken's (section 2, *`/theme`*); a goal
     proposed's (`design-session.md`, section 1, *`/goal`*); a talk left's
     (`talk.md`, section 1, *Leaving*); a role not found's and a word filed's
-    (section 2, *`/talk`* and *`/tell`*). Its words are
+    (section 2, *`/talk`* and *`/tell`*); in front, a box's group
+    started, "Forgejo started" (`../box.md`, *The box's state*). Its words are
     the TUI's own (`tui-signal`).
-  - *Where:* the quiet line's right half, alone: the box's state,
-    "playground", "paused · a message resumes it", the count and "n to
+  - *Where:* the quiet line's right half, alone: the box's start, its
+    state, "playground", "paused · a message resumes it", the count and "n to
     walk" give way to it for its time, then stand again. It stands on
-    the launchpad, the welcome and a chat alike, and on the sign-in
-    screen not at all.
+    the launchpad, the welcome, the starting screen and a chat alike,
+    and on the sign-in screen not at all.
   - *How long:* 6 seconds, a newer one replacing it, timed by the host's
     dues (`../README.md`, 3, *The notice's time*); a send, a key or another screen
     leave it standing.
@@ -424,3 +430,84 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     hold it.
   - *The browser's terminal's* `/theme` is the root's and flips, as
     before (`../../pages/chat/terminal.md`, 1).
+
+## 3. The header
+
+The user's request `tui-14` of 2026-11-15, after pi's: two lines at
+the top of the launchpad and, in front of a box, of the welcome and the
+starting screen (`../box.md`), where those drew the framed region
+`tui-top`; then a blank row. Illustrative, in front, at 150 by 39, and
+out of front:
+
+```
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  temper box · a whole deployment on this machine
+```
+
+```
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  127.0.0.1:8367
+```
+
+- **The region** `tui-header` (`../theme.md`, *Its regions*): at the
+  top, its two lines, no border and no padding, so that the mark starts
+  at the window's first column; a blank row under it, before the body's
+  first section. It holds nothing but the mark and its two lines: no
+  project, no state, no notice.
+- **The mark,** fabrig.ai's factory, its smoke, chimney and sawtooth
+  roof: six cells by two lines, in half blocks as pi draws its logo,
+  each cell two square pixels, the upper and the lower. Its pixels, six
+  by four, top to bottom, `C` cyan `#00C4FE` (`tui-mark-cyan`), `B`
+  blue `#1B76FD` (`tui-mark-blue`), `V` violet `#8E2CF8`
+  (`tui-mark-violet`), `.` none:
+
+  ```
+  ..CCC.
+  .BC...
+  .B.V.V
+  BBVVVV
+  ```
+
+  A cell with no pixel is a space; with both of one colour, `█` in it;
+  with the upper alone, `▀`, and with the lower alone, `▄`, in its
+  colour; with two colours, `▀` in the upper's on the lower's as its
+  background, which no cell of this mark has. Its rows are so ` ▄█▀▀ `,
+  blue, cyan, cyan and cyan, and `▄█▄█▄█`, blue, blue and violet four
+  times. Its colours are the brand's, the same in both themes, drawn at
+  the terminal's depth (`../theme.md`, *The colours' depth*).
+- **A terminal that can't draw it:** Apple's Terminal, where pi falls
+  back too, its block elements drawn with gaps between rows: the binary
+  reads `TERM_PROGRAM`, and `Apple_Terminal` there is `Start.plain`
+  (`../README.md`, 3). With it the mark and the two cells after it are
+  left out, and the two lines start one column in, as the body's
+  sections do: the word "temper" alone stands where the mark was.
+- **Its first line,** two cells after the mark: "temper" (`tui-name`),
+  then a space and the build as `temper --version` prints it after
+  "temper ", its version and commit, "0.0.0 (b948f40d6df1)"
+  (`tui-hint`): `Start.version`. An empty one, a recording's from
+  before it, draws "temper" alone.
+- **Its second line,** under the first's start: in front of a box,
+  "temper box" (`tui-name`; the view's word, `../../pages/welcome.md`,
+  1, *Its frame*), " · " (`tui-faint`) and "a whole deployment on this
+  machine" (`tui-hint`), the TUI's own words, where the browser's
+  welcome keeps "on this machine, to try it" (the user's word);
+  elsewhere, the address the TUI is on, `HOST:PORT` (`tui-hint`).
+- **What the framed top held** goes under it: on the launchpad, the
+  headline, the briefs and their byline, "Connecting to HOST:PORT", out
+  of date, a sign-in not kept and the playground's banner, its first
+  section (`launchpad.md`, 3); on the welcome, out of date, its first
+  section (`../box.md`, *The welcome*). The project's name and
+  "playground" are the quiet line's alone (section 1, *The quiet line*;
+  `../box.md`).
+- **Narrow:** a line wider than the window is cut at its end by skein
+  (skein's `ui/screen.md`, 5.2); the mark is never left out for the
+  width.
+- **Not the header:** the sign-in screen keeps its framed top, which
+  holds its form, and a talk its framed head, which holds the role
+  (`talk.md`, section 1); a chat has no header. The request named the
+  welcome and the launchpad, and neither of those two holds what the
+  header holds.
+- **Its tests:** rows of the view for the mark's cells and tokens, the
+  plain start, the two places and an empty version; golden frames at 80
+  by 24, dark and light, of the launchpad and the welcome with it, and
+  at 150 by 39 of the welcome in front, the request's frame.

@@ -144,6 +144,8 @@ fn facts(rows: &BTreeMap<root::Key, root::Record>) -> (BTreeSet<CardKey>, WordIm
                 | tasks::Stored::Hold(_)
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)
+                | tasks::Stored::Summary(_)
+                | tasks::Stored::Retention(_)
                 | tasks::Stored::LiveCold { .. }
                 | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)

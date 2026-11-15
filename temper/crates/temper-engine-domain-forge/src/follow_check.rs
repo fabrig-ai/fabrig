@@ -560,7 +560,7 @@ pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
     if let api::Change::Commit(commit) = hint.change {
         for (_, row) in &d.changes {
             if row.repository == hint.repository
-                && !row.terminal()
+                && !row.frozen()
                 && let Some(check) = &row.follow_check
                 && check.head == commit
                 && check.held.is_none()

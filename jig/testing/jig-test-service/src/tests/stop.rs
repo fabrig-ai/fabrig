@@ -178,7 +178,8 @@ fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
     let mut driven = fixtures::Driven::started(&fixtures::engine_document());
     let engine = fixtures::engine(&mut driven.service);
     engine.values.accounts.expire(EXPIRE_VALUES);
-    let due = engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("sign-in timer");
+    let due = engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("core timer");
+    let people_due = engine.domain.core().people.next_deadline().expect("sign-in timer");
     let live = due.saturating_add(LIVE_GAP);
     let value = jig_protocol_accounts::table::Value {
         token: Secret::new(fixtures::TOKEN.into()),
@@ -190,7 +191,7 @@ fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
     assert_eq!(engine.next_deadline(), Some(due));
     engine.step(root::Event::Stop);
     assert!(engine.domain.stopping());
-    assert_eq!(engine.domain.core().people.next_deadline(), Some(due), "paused timers keep their values");
+    assert_eq!(engine.domain.core().people.next_deadline(), Some(people_due), "paused timers keep their values");
     assert_eq!(engine.next_deadline(), Some(live), "only a live timer asks the service to fire");
 }
 

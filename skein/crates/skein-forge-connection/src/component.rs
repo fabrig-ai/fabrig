@@ -243,6 +243,7 @@ impl Component {
                     | Request::Remove { .. }
                     | Request::Connect { .. }
                     | Request::Installations { .. }
+                    | Request::LogOrigin { .. }
                     | Request::RefusedHint(_)
                     | Request::Refused(_)
                     | Request::Returned(_)
@@ -264,6 +265,10 @@ impl Component {
             }
             Request::Connect { forge, access } => {
                 self.connect(env, forge, access, up, io);
+                self.drive(env, up, io);
+            }
+            Request::LogOrigin { forge, origin } => {
+                self.log_origin(env, forge, origin);
                 self.drive(env, up, io);
             }
             Request::Installations { forge, accepted } => {

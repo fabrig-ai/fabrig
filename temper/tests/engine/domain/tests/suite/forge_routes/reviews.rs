@@ -494,6 +494,13 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
     let (mut world, reviewer, head) = review_read_budget(2, 0);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"other", b"base moved", 1)
         .expect("wake the live review's change");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+            key: None,
+        },
+    })));
     let step = hold_step_commits(&mut world);
     let completions = occupy_read_capacity(&mut world);
     let before = world.answers.len();

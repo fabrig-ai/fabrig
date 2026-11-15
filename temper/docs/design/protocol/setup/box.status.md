@@ -1,6 +1,6 @@
 # box: status
 
-2026-11-12. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
 
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a

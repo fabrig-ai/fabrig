@@ -1,4 +1,5 @@
 //! The forge component's boundary to the engine (protocol/README.md, 4).
+pub(crate) mod github;
 pub(crate) mod gone;
 pub(crate) mod origins;
 pub(crate) mod records;
@@ -10,10 +11,11 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 pub use temper_engine_service_vocabulary::forge::*;
 
-/// The address of a forge whose host name doesn't resolve (protocol/setup/init.md, 3). skein's
-/// forge connection and setup host refuse an in-process address, so a held forge keeps its
-/// entries with this one: loopback port 0, which no listener can hold. No socket ever sees it:
-/// `forge::connect` and the setup gate refuse a held forge before either component is asked.
+/// The address reserved for a waiting or unreachable host (protocol/forge/README.md, 2.6;
+/// protocol/setup/init.md, 3). skein's forge connection and setup host refuse an in-process
+/// address, so the forge keeps its entries with loopback port 0, which no listener can hold.
+/// No socket ever sees it: connect and setup wait for GitHub's API answer, or refuse a held
+/// forge, before either component is asked.
 pub const HELD_ADDRESS: core::net::SocketAddr =
     core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 0));
 /// Limits shared with the domain client and io.
@@ -57,6 +59,9 @@ pub(crate) struct Layer {
     pub(crate) origins: origins::Origins,
     pub(crate) endpoints: Map<u16, skein_forge_connection::settings::Forge>,
     pub(crate) github: Option<ForgeRuntime>,
+    pub(crate) github_api: github::Api,
+    pub(crate) github_waiting: Map<u16, github::Waiting>,
+    pub(crate) github_origins_tried: u32,
     pub(crate) log_origin_limit: u32,
     pub(crate) roots: Option<skein_tls::Config>,
     pub(crate) webhooks: bool,
@@ -70,6 +75,8 @@ pub(crate) struct Layer {
     pub(crate) starts: List<(u16, skein_forge_connection::Access)>,
     #[cfg(test)]
     pub(crate) accepted: List<(u16, Box<[u64]>)>,
+    #[cfg(test)]
+    pub(crate) log_origins: List<(u16, skein_forge_connection::settings::LogOrigin)>,
     #[cfg(test)]
     pub(crate) returned: u32,
 }
@@ -120,6 +127,9 @@ impl Layer {
             origins: origins::Origins::new(limits.forges, limits.log_origins),
             endpoints,
             github: None,
+            github_api: github::Api::Pending,
+            github_waiting: Map::with_capacity(limits.forges),
+            github_origins_tried: 0,
             log_origin_limit: limits.log_origins,
             roots,
             webhooks: settings.webhooks.is_some(),
@@ -140,6 +150,8 @@ impl Layer {
             #[cfg(test)]
             accepted: List::with_capacity(limits.forges),
             #[cfg(test)]
+            log_origins: List::uncapped(),
+            #[cfg(test)]
             returned: 0,
         })
     }
@@ -152,6 +164,7 @@ impl Layer {
         }
         if let skein_forge_connection::Request::Connect { forge, .. } = &request {
             assert!(!self.held.contains_key(forge), "temper gates unresolved connects");
+            assert!(!self.github_waiting.contains_key(forge), "temper waits for GitHub's API host");
             self.origins.clear(*forge);
         }
         if let skein_forge_connection::Request::Remove { forge } = &request {
@@ -171,6 +184,10 @@ impl Layer {
         #[cfg(test)]
         if let skein_forge_connection::Request::Installations { forge, accepted } = &request {
             self.accepted.push((*forge, accepted.clone())).expect("test accepted");
+        }
+        #[cfg(test)]
+        if let skein_forge_connection::Request::LogOrigin { forge, origin } = &request {
+            self.log_origins.push((*forge, origin.clone())).expect("test log origins");
         }
         self.component.down(&self.env, request, &mut self.above, &mut self.io);
     }
@@ -222,11 +239,18 @@ pub(crate) enum Start {
     /// An adoption's fresh access.
     Adopted(skein_forge_connection::Access),
 }
-/// Every forge connect enters here. A held forge is refused first, naming its host, and
-/// nothing reaches skein's connection; otherwise the start goes down, or the reason it
-/// can't is noted.
+/// Every forge connect enters here. GitHub's waiting forge waits without a note; a held
+/// forge is refused naming its host, and nothing reaches skein's connection. Otherwise
+/// the start goes down, or the reason it can't is noted.
 pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16, start: Result<Start, crate::NotConnected>) {
     if engine.domain.forge_ended(number) {
+        return;
+    }
+    if let Some(waiting) = engine.forge.github_waiting.get_mut(&number) {
+        match start {
+            Ok(Start::Adopted(access)) => waiting.adopted = Some(access),
+            Ok(Start::Restored(_)) | Err(_) => {}
+        }
         return;
     }
     if let Some(host) = engine.forge.unreachable(number) {
