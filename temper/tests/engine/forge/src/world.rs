@@ -232,6 +232,51 @@ impl World {
             4,
         )
     }
+    /// Three simultaneous trains, with one spare branch per prepared member.
+    #[must_use]
+    pub fn parallel_trains() -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.statuses = 8;
+        let mut world = Self::configured_repositories(
+            13,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            None,
+            config,
+            None,
+            4,
+        );
+        world.env.limits.landings = 3;
+        world.restart();
+        world
+    }
+    /// The search's five-unit example retains the initial and probe statuses together.
+    #[must_use]
+    pub fn search_turn(seed: u64, workflow: raw::Workflow) -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.statuses = 16;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            Some(workflow),
+            config,
+            None,
+            5,
+        )
+    }
     pub fn project_landing(
         &mut self,
         project: u32,

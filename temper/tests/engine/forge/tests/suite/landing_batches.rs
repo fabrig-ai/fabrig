@@ -263,6 +263,65 @@ fn a_prepare_conflict_names_its_member_and_tells_branch_from_member() {
         }
     }
 }
+
+#[test]
+fn drill_9_an_earlier_conflict_keeps_first_place_then_resolves_only_against_the_branch() {
+    let mut world = landings::turn_in(World::batch_turn(9, None));
+    world.batch(3);
+    for (task, path, content) in
+        [(51, b"shared".as_slice(), b"first".as_slice()), (52, b"shared", b"second"), (53, b"safe", b"third")]
+    {
+        let branch = format!("temper/c{task}");
+        world.produce_file(branch.as_bytes(), path, content);
+        landings::ready_change(&mut world, task, branch.as_bytes());
+    }
+    let since = world.change(52).change.ready_since;
+    let mut trains = Trains::default();
+    trains.judge(&mut world);
+    start_prepare(&mut world);
+    world.prepare_subset(LANDING, false, &[0, 2]);
+    let report = br#"{"conflicts":[{"member":2,"with":"member","files":["shared"],"cut":false}]}"#;
+    let mut news = heard(landing::Preparation::Idle, report);
+    news.outcomes = top::preparation::outcomes(report, 3).expect("earlier conflict");
+    assert_eq!(
+        landings::step_landing_heard(&mut world, LANDING, 200, news),
+        landing::Decision::Leave { member: 1, why: landing::Leave::EarlierConflict }
+    );
+    assert_eq!(world.landing(LANDING).asks[1], None, "no resolution against another member");
+    landings::drive_landing(&mut world, LANDING);
+    assert_eq!(world.change(52).change.resolutions, 0);
+    assert_eq!(world.change(52).change.ready_since, since);
+    assert!(matches!(world.change(52).change.state, change::State::Ready { .. }));
+    assert!(world.landing(LANDING).landing.members[0].landed.is_some());
+    world.batch(1);
+    // A later change has a smaller task number; the kept ready time wins.
+    landings::ready_on(&mut world, 50, b"temper/later", b"main");
+    assert!(world.change(50).change.ready_since > since);
+    trains.judge(&mut world);
+    let next = world.change(52).change.landing.expect("first in the next landing");
+    assert_eq!(world.change(50).change.landing, None);
+    assert_eq!(world.landing(next).landing.members[0].change, 52);
+    let mut preparing = false;
+    for entry in 300..320 {
+        if matches!(landings::step_landing_raw(&mut world, next, entry), landing::Decision::Prepare { .. }) {
+            preparing = true;
+            break;
+        }
+    }
+    assert!(preparing);
+    let main = translate::commit(world.branch(b"main"));
+    let report = br#"{"conflicts":[{"member":1,"with":"branch","files":["shared"],"cut":false}]}"#;
+    let mut news = heard(landing::Preparation::Idle, report);
+    news.outcomes = top::preparation::outcomes(report, 1).expect("branch conflict");
+    assert_eq!(
+        landings::step_landing_heard(&mut world, next, 400, news),
+        landing::Decision::Leave { member: 0, why: landing::Leave::Conflict }
+    );
+    landings::drive_landing(&mut world, next);
+    assert_eq!(world.change(52).change.resolutions, 1);
+    assert!(matches!(world.change(52).change.state, change::State::Resolving { base, .. } if base == main));
+    assert_eq!(world.change(52).change.ready_since, since);
+}
 #[test]
 fn a_top_head_move_opens_from_the_kept_top_without_another_job() {
     let mut world = batch(3);
