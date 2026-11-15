@@ -204,6 +204,47 @@ fn readback_exposes_extra_missing_and_altered_actual_rows() {
 }
 
 #[test]
+fn history_readback_discovers_logs_and_survives_a_memory_restart() {
+    let mut store = snapshot_store();
+    let histories: Vec<_> = [1, 2]
+        .into_iter()
+        .flat_map(|task| {
+            (1..=3).map(move |attempt| {
+                root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Attempt(
+                    jig_domain_tasks::AttemptRow {
+                        task,
+                        attempt,
+                        claimed: Some(skein_lib::Wall::EPOCH),
+                        started: None,
+                        ended: None,
+                        end: None,
+                        phases: None,
+                    },
+                )))
+            })
+        })
+        .collect();
+    store.seed(histories.into_boxed_slice());
+    let expected = store.rows.clone();
+    let inventory = store.retained().expect("inventory");
+    assert!(inventory.keys().all(|key| jig_protocol_store::keys::logged(key).is_none()));
+    assert_eq!(store.readback().expect("history through view"), expected);
+    store.crash(CRASH_SEED).expect("restart with logs");
+    assert_eq!(store.readback().expect("restarted history"), expected);
+    let number = store.applied + 1;
+    component_commit(
+        &mut store,
+        number,
+        Box::new([jig_protocol_store::Write::Erase(core::Key::Tasks(jig_domain_tasks::Key::Attempt {
+            task: 1,
+            attempt: 1,
+        }))]),
+    );
+    assert_ne!(store.readback().expect("erased history"), expected, "readback never fills from the mirror");
+    assert_eq!(store.rows, expected);
+}
+
+#[test]
 fn readback_rejects_unknown_actual_key() {
     let mut store = snapshot_store();
     component_commit(

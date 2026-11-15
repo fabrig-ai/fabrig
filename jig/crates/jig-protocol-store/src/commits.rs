@@ -8,19 +8,18 @@ pub(crate) fn submit(
     store: &mut Store,
     env: &skein_lib::Env<crate::Limits>,
     number: u64,
-    mut ops: Box<[skein_kv::Op]>,
+    ops: Box<[skein_kv::Op]>,
     above: &mut Queue<Event>,
     below: &mut crate::Below,
 ) {
-    for op in &mut ops {
-        if let skein_kv::Op::Put { key, value } = op
-            && store.registry.write(key, value).is_err()
-        {
+    let ops = match prepare(store, ops) {
+        Ok(ops) => ops,
+        Err(check) => {
             store.phase = crate::Phase::Stopped;
-            crate::transcripts::failed(store, Some(number), CommitFailure::Check(CommitCheck::Encoding), above);
+            crate::transcripts::failed(store, Some(number), CommitFailure::Check(check), above);
             return;
         }
-    }
+    };
     let kv_env = crate::directory::env(store, env, false);
     let mut events = Queue::uncapped();
     skein_kv::down(
@@ -32,6 +31,21 @@ pub(crate) fn submit(
     );
     crate::directory::events_up(store, false, &mut events, above, below);
 }
+fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
+    let mut ops = unique(ops, store.limits.store.ops).ok_or(CommitCheck::Capacity)?;
+    for op in &mut ops {
+        if let skein_kv::Op::Put { key, value } = op {
+            store.registry.write(key, value).or(Err(CommitCheck::Encoding))?;
+        }
+    }
+    if crate::logs::write::enabled(store, &ops)? {
+        ops = crate::logs::write::route(store, ops)?;
+        store.history_routing = true;
+    }
+    crate::logs::write::bounds(store, &ops)?;
+    Ok(ops)
+}
+
 #[derive(Debug)]
 pub(crate) enum Refusal {
     Check(CommitCheck),
@@ -261,6 +275,10 @@ fn unique(ops: Box<[skein_kv::Op]>, capacity: u32) -> Option<Box<[skein_kv::Op]>
     let mut positions = Map::with_capacity(capacity);
     let mut kept = List::with_capacity(capacity);
     for op in ops {
+        if let skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } = &op {
+            kept.push(op).ok()?;
+            continue;
+        }
         if let Some(position) = positions.get(op.key()).copied() {
             *kept.get_mut(position).expect("each indexed operation has its first slot") = op;
         } else {

@@ -32,6 +32,7 @@ mod live_task_parts;
 mod milestones;
 mod projection_parts;
 mod registry;
+mod task_logs;
 mod value_types;
 
 const CHUNK: u32 = 4096;

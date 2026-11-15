@@ -193,10 +193,24 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
         Io::Secrets(arrived) => (arrived, true),
         Io::Transcripts(arrived) => return file_up(store, env, arrived, false, above, below),
     };
-    // KV recovery probes for logs that need not exist. Other file faults,
-    // including closing faults, refuse patching.
+    // KV recovery probes missing files; job commits also create payload logs.
+    // Their expected NotFound/Exists terminals belong to KV's state machine.
+    let job = match directory::patching(store) {
+        Some(Patching::Jobs(_)) => true,
+        Some(
+            Patching::Closing { .. }
+            | Patching::Dropping(_)
+            | Patching::Copying(_)
+            | Patching::Mapping { .. }
+            | Patching::Recovering { .. }
+            | Patching::Walking(_)
+            | Patching::Sealing { .. }
+            | Patching::Checking(_),
+        )
+        | None => false,
+    };
     if let file::Event::Failed { error, .. } = &arrived.event
-        && (*error != Error::NotFound || arrived.event.owner() == OWNER || !recovering(store))
+        && (arrived.event.owner() == OWNER || (!job && (*error != Error::NotFound || !recovering(store))))
     {
         return refuse(store, above);
     }

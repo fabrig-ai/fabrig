@@ -184,10 +184,11 @@ impl Store {
                 files: self
                     .files
                     .iter()
-                    .filter(|(path, _)| path.starts_with(b"transcripts/"))
+                    .filter(|(path, _)| path.starts_with(b"transcripts/") || super::history::is_payload(path))
                     .map(|(path, bytes)| (path.clone(), bytes.clone()))
                     .collect(),
                 restoring: true,
+                active: self.active.clone(),
                 layouts: source_layouts,
                 ..Store::default()
             };

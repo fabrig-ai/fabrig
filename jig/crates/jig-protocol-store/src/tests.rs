@@ -10,6 +10,7 @@ mod frames;
 mod generations;
 mod gets;
 mod history_logs;
+mod history_writes;
 mod intervals;
 mod keys;
 mod live_parts;

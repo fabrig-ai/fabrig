@@ -11,6 +11,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     }
+    store.history_routing = false;
     crate::rehearsal::announce(store, above);
     if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);

@@ -72,13 +72,15 @@ pub(super) fn transcripts(directory: &Path, store: &mut crate::referee::Store) {
     let modes = std::fs::read_to_string(directory.join("modes.txt")).expect("kept modes");
     for line in modes.lines() {
         let path = line.split(' ').nth(3).expect("manifest path");
-        let Some(relative) = path.strip_prefix("state/transcripts/") else { continue };
+        let Some(relative) = path.strip_prefix("state/") else { continue };
+        if !(relative.starts_with("transcripts/")
+            || (relative.starts_with("generations/") && relative.contains("/store/logs/")))
+        {
+            continue;
+        }
         let host = host_path(directory, path);
         if host.is_file() {
-            store.transcript_file(
-                format!("transcripts/{relative}").into_bytes(),
-                std::fs::read(host).expect("kept transcript"),
-            );
+            store.history_file(relative.as_bytes().to_vec(), std::fs::read(host).expect("kept payload"));
         }
     }
 }

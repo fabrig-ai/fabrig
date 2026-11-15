@@ -103,6 +103,9 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "projection-parts" {
         return projection_parts::page(page);
     }
+    if job == "task-logs" {
+        return task_logs::page(page);
+    }
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
 
@@ -111,6 +114,7 @@ mod live_task_parts;
 mod milestones;
 mod projection_parts;
 mod retention;
+pub(crate) mod task_logs;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

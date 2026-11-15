@@ -1,5 +1,6 @@
 //! Durability observations from real file completions, independent of the service.
 mod generations;
+mod history;
 mod layouts;
 pub(crate) mod snapshots;
 #[cfg(test)]
@@ -49,6 +50,7 @@ pub enum Observed {
     Snapshot(Vec<u8>),
     Pending { path: Vec<u8>, bytes: Vec<u8> },
     Renamed { from: Vec<u8>, to: Vec<u8> },
+    Linked { from: Vec<u8>, to: Vec<u8> },
 }
 #[derive(Default)]
 pub struct Capture {
@@ -111,6 +113,11 @@ impl Capture {
                     self.events.push(Observed::Renamed { from, to });
                 }
             }
+            (Op::HardLink { from_dir, from, to_dir, to }, Ok(Done::Nothing)) => {
+                if let (Some(from), Some(to)) = (self.named(*from_dir, from), self.named(*to_dir, to)) {
+                    self.events.push(Observed::Linked { from, to });
+                }
+            }
             (Op::Sync { fd }, Ok(Done::Nothing)) => {
                 if let Some(path) = self.path(*fd) {
                     self.events.push(Observed::Sync(path.to_vec()));
@@ -144,6 +151,9 @@ impl Store {
     pub(crate) fn transcript_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
         self.files.insert(path, bytes);
     }
+    pub(crate) fn history_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
+        self.files.insert(path, bytes);
+    }
     pub(crate) fn recovering(&mut self) {
         self.observed_through = self.applied;
         self.observed_lengths = self.lengths.clone();
@@ -161,7 +171,9 @@ impl Store {
         self.deferred = None;
         self.applied = 0;
         self.lengths.clear();
-        self.files.retain(|path, _| !in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/")));
+        self.files.retain(|path, _| {
+            history::is_payload(path) || !in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/"))
+        });
         self.validated.clear();
         self.pending.clear();
         self.recovered.clear();
@@ -207,6 +219,11 @@ impl Store {
                             .collect::<Result<_, _>>();
                         self.layouts = layouts;
                         self.pending = pending?;
+                    }
+                }
+                Observed::Linked { from, to } => {
+                    if let Some(bytes) = self.files.get(&from).cloned() {
+                        self.files.insert(to, bytes);
                     }
                 }
                 Observed::Renamed { from, to } => {
@@ -358,7 +375,9 @@ impl Store {
         connector: &temper_protocol_store::Bounds,
     ) -> Result<Commit, String> {
         self.layouts.observe(&ops);
-        let ops = ops.into_vec();
+        let mut ops = ops.into_vec();
+        let history = self.histories(&ops)?;
+        ops.extend(history);
         let mut writes = Vec::new();
         let mut installation = None;
         let mut wires = false;

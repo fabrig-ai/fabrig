@@ -208,9 +208,15 @@ impl Store {
                 Reader::new(value).u64().ok_or_else(|| inventory(key, "log extent"))?;
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
-                    keys::Own::History { .. } => {
+                    keys::Own::History { task } => {
                         codec::component::HistoryLog::decode(value)
                             .map_err(|failure| inventory(key, format!("history log: {failure:?}")))?;
+                        for row in self.history(task)? {
+                            let row = root::Record::Core(row);
+                            if found.insert(row.key(), row).is_some() {
+                                return Err(inventory(key, "history and map keys are disjoint"));
+                            }
+                        }
                     }
                     keys::Own::TurnLog { .. } => {
                         codec::component::TurnLog::decode(value)
@@ -299,6 +305,53 @@ impl Store {
                 if found.insert(row.key(), row).is_some() {
                     return Err(inventory(&key, "unique transcript turn key"));
                 }
+            }
+        }
+        Ok(found)
+    }
+
+    /// Discover history from its map place, never from the typed mirror.
+    fn history(&mut self, task: u64) -> Result<Vec<core::Record>, ReadbackFinding> {
+        let mut found = Vec::new();
+        let mut after = None;
+        loop {
+            let event = self.readback_query(Request::Read {
+                owner: READER,
+                range: core::reads::Range {
+                    party: 0,
+                    scope: core::reads::Scope::TaskOwnRows { task },
+                    after,
+                    backwards: false,
+                    rows: self.component_limits.store.page.rows,
+                    bytes: u64::from(self.component_limits.store.page.bytes),
+                },
+            })?;
+            let Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. } = event else {
+                return Err(ReadbackFinding::Inventory {
+                    key: None,
+                    reason: format!("complete history read: {event:?}"),
+                });
+            };
+            for row in rows {
+                let key = keys::encode(&row.value.key(), self.component_limits.store.key).expect("history key");
+                if keys::logged(&key) == Some(task) {
+                    found.push(row.value);
+                }
+            }
+            if next.is_none() {
+                break;
+            }
+            after = next;
+        }
+        let event = self.readback_query(Request::Get {
+            owner: READER,
+            key: Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::Ended(task))),
+        })?;
+        match event {
+            Event::Got { row: Some(protocol::Row::Jig(row)), .. } => found.push(row),
+            Event::Got { row: None, .. } => {}
+            other => {
+                return Err(ReadbackFinding::Inventory { key: None, reason: format!("ended history get: {other:?}") });
             }
         }
         Ok(found)

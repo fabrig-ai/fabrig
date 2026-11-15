@@ -29,6 +29,12 @@ impl Image {
             {
                 store.transcript_file(item.path.clone(), bytes.clone());
             }
+            if item.path.starts_with(b"generations/")
+                && item.path.windows(12).any(|part| part == b"/store/logs/")
+                && let Made::File(bytes) = &item.made
+            {
+                store.history_file(item.path.clone(), bytes.clone());
+            }
         }
         disk
     }
