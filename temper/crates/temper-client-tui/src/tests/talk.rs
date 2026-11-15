@@ -63,7 +63,8 @@ fn the_talk_head_conversation_and_quiet_line_follow_its_facts() {
             },
             "{case}"
         );
-        assert!(part.state.is_empty(), "Live is quiet");
+        assert_eq!(part.state.as_ref(), "● Live".as_bytes());
+        assert_eq!(part.style, crate::look::LIVE);
         assert!(part.closed.is_none(), "no model picker");
         let placeholder = core::str::from_utf8(&part.composer.as_ref().unwrap().placeholder).unwrap();
         assert_eq!(
@@ -87,9 +88,10 @@ fn the_talk_head_conversation_and_quiet_line_follow_its_facts() {
         assert_eq!(shown.contains("Its Now, 06:58:"), now, "{case}: {shown}");
         assert!(!shown.contains("Earlier activity") || case == "unknown cost", "{case}: {shown}");
         assert_eq!(shown.contains("Fine. From now on"), conversation, "{case}: {shown}");
-        assert!(view.tree().nodes().iter().any(
-            |node| node.role == Role::Status && f::text(view.tree(), node).as_ref() == "Hello · Porter".as_bytes()
-        ));
+        let (left, right) = f::bottom_halves(view.tree());
+        assert_eq!(f::text(view.tree(), left).as_ref(), "● Live · Hello · Porter".as_bytes());
+        assert_eq!(f::text(view.tree(), right).as_ref(), part.talk_session.as_deref().unwrap_or_default());
+        assert_eq!(f::find(view.tree(), Role::Text, "● Live".as_bytes()).styles.as_slice(), &[crate::look::LIVE]);
         assert_eq!(crate::escape(&view), Some(Event::Leave));
         assert_eq!(
             crate::offered(&root, &f::words()).as_ref(),

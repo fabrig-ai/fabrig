@@ -221,11 +221,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             None => None,
         },
         rule,
-        state: if (session || talking.is_some()) && root.client().link().state == Link::Live {
-            Box::default()
-        } else {
-            words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))])
-        },
+        state: words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]),
         style,
         composer: if signing_in {
             None
@@ -431,16 +427,10 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let drafter = words.say(Word::Drafter, &[]);
     let mut left_width = width(&part.state);
     if let Some(name) = &part.talk_name {
-        left_width = left_width.saturating_add(width(name));
-        if !part.state.is_empty() {
-            left_width = left_width.saturating_add(width(&separator));
-        }
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(name));
     }
     if part.session {
-        left_width = left_width.saturating_add(width(&drafter));
-        if !part.state.is_empty() {
-            left_width = left_width.saturating_add(width(&separator));
-        }
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&drafter));
     }
     if let Some(project) = &part.project {
         left_width = left_width.saturating_add(width(project)).saturating_add(width(&separator));
@@ -475,34 +465,26 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     b.open(Role::ContentInfo);
     b.region(look::BOTTOM);
     b.open(Role::Status);
+    text(b, Role::Text, &part.state, Some(part.style));
     if narrow_notice {
-        text(b, Role::Text, part.notice.as_deref().expect("narrow notice is present"), Some(look::SIGNAL));
         text(b, Role::Text, &separator, Some(look::FAINT));
+        text(b, Role::Text, part.notice.as_deref().expect("narrow notice is present"), Some(look::SIGNAL));
     }
     if let Some(project) = &part.project {
-        text(b, Role::Text, project, Some(look::HINT));
         text(b, Role::Text, &separator, Some(look::FAINT));
+        text(b, Role::Text, project, Some(look::HINT));
     }
     if let Some(name) = &part.talk_name {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, name, Some(look::HINT));
-        if !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
     }
     if part.session {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, &drafter, Some(look::HINT));
-        if closed || !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
     }
     if closed {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, part.closed.as_deref().expect("closed line is present"), Some(look::HINT));
-        if !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
-    }
-    if !part.state.is_empty() {
-        text(b, Role::Text, &part.state, Some(part.style));
     }
     b.close();
     b.open(Role::Paragraph);
@@ -532,8 +514,8 @@ pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Bind
     let Some(composer) = &part.composer else {
         b.open(Role::ContentInfo);
         b.region(look::BOTTOM);
-        text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
         text(b, Role::Status, &part.state, Some(part.style));
+        text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
         b.close();
         return None;
     };

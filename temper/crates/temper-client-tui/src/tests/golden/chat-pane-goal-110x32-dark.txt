@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- cowsql · drafter · Opus 5.5 · xhigh    pane: half · Ctrl-P widens · goal Farewell line for… · /open opens it
+ ● Live · cowsql · drafter · Opus 5.5 · xhigh                                      pane: half · Ctrl-P widens
 --
 abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc.dddddddddddddd.......................................
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbc......................................................
@@ -62,7 +62,7 @@ e......................................................c........................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddcccdddddddddddffffffffffccc
 ee............................................................................................................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-.ffffffcccfffffffcccffffffffffffffff....fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.
+.ggggggcccffffffcccfffffffcccffffffffffffffff......................................ffffffffffffffffffffffffff.
 --
 a: fore #9A9388 back #2D2C2A
 b: back #2D2C2A
@@ -70,4 +70,5 @@ c: fore #6A655C
 d: bold
 e: fore #E08A68
 f: fore #9A9388
+g: fore #8FC28F
 cursor 29 3
