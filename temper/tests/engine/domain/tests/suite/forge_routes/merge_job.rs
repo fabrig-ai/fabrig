@@ -16,6 +16,10 @@ mod history;
 mod producer;
 
 pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
+    world_with_spec(up_to_date, kind, authority, None)
+}
+
+fn world_with_spec(up_to_date: bool, kind: bool, authority: bool, spec_bytes: Option<u32>) -> World {
     World::configured_limits(
         true,
         true,
@@ -23,7 +27,7 @@ pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits { merge_kind: kind, merge_authority: authority, ..StoryLimits::default() },
+        StoryLimits { merge_kind: kind, merge_authority: authority, spec_bytes, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         sets: Box::new([]),
@@ -193,23 +197,24 @@ fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
 #[test]
 fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
     const LEFT: &[u8] = b"{\"left\":[\"file\"]}";
-    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let (mut world, task, head, base) =
+        pushed_change_in(world_with_spec(false, true, true, Some(4096)).with_merge_job(COMMAND), true, GOAL);
     let job = next_job(&mut world, task, false);
     check_job(&world, task, &job, head, base);
     finish_job(&mut world, &job, LEFT);
     let resolution = super::reviews::next_assignment(&mut world, 2);
     let words = &live_task(&world, resolution.task).spec.words;
     assert_preserving_resolution(words);
-    assert!(
-        words.ends_with(
-            format!(
-                "\n\nThe merge job settled what the project's merge command knows and left the rest:\n{}",
-                core::str::from_utf8(LEFT).expect("result text")
-            )
-            .as_bytes()
+    assert!(contains(
+        words,
+        format!(
+            "\n\nThe merge job settled what the project's merge command knows and left the rest:\n{}",
+            core::str::from_utf8(LEFT).expect("result text")
         )
-    );
+        .as_bytes()
+    ));
     assert_eq!(change_row(&world, task).change.resolutions, 1);
+    assert!(words.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
     assert!(change_row(&world, task).merge_result.is_none(), "making the resolution consumes the account");
     let merged = push_merge(&mut world, task, head, base);
     finish_resolution(&mut world, &resolution);
@@ -224,7 +229,7 @@ fn assert_preserving_resolution(words: &[u8]) {
         "Preserve the requested change",
         "unrelated content already landed on the base",
         "both independent appended lines and existing blank lines",
-        "Do not remove content to make a check pass",
+        "and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.",
         "The worker commits and pushes the resolved merge",
     ] {
         assert!(text.contains(expected), "{text}");
