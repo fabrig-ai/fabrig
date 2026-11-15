@@ -3356,7 +3356,7 @@ pub(crate) fn change_advanced(
         | change::Decision::CancelProducer
         | change::Decision::CancelGates { .. }
         | change::Decision::CancelRepair { .. }
-        | change::Decision::CancelResolution { .. }
+        | change::Decision::CancelMovedDelegate { .. }
         | change::Decision::EndHold
         | change::Decision::Ready
         | change::Decision::RepairEnded { .. }

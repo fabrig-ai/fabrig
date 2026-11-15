@@ -412,3 +412,106 @@ fn drill_12_three_squashes_into_a_goal_then_its_gated_merge_into_main() {
     goal_landing::assert_goal_holds(&world, goal.task, &branch);
     world.close();
 }
+
+#[test]
+fn a_goal_train_moving_the_head_ends_an_unstarted_landing_repair_and_lands_afresh() {
+    use temper_engine_domain_forge_change::{Delegate, Repair, State};
+    let (mut world, goal, branch) = goal_world_with(&StoryLimits {
+        turn: true,
+        batch: Some(4),
+        landing_members: Some(4),
+        slots: Some(3),
+        tasks: Some(12),
+        spec_bytes: Some(2048),
+        inbox_messages: Some(16),
+        dispatch_tests: Some(b"failures"),
+        ..StoryLimits::default()
+    });
+    let (first, producer) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 101, b"failures");
+    finish_child(&mut world, &producer, b"Break the landing gate");
+    await_change(&mut world, first);
+    let old = goal_branch::branch_tip(&mut world, &branch);
+    // The child is ready to land while the main landing proves.
+    let (child, producer) = goal_landing::producing_into_goal(&mut world, &goal, &branch, 102, b"failures");
+    let child_branch = goal_landing::row(&world, child).branch.clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &child_branch, b"failures", b"", 1)
+        .expect("child removes the failing test ids");
+    world.fail_brief_reads = Some((true, false, api::Error::NotConnected));
+    let answer = goal_landing::mine(&mut world, &goal, 103, br#"{"words":"Land the goal","branch":"mine"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("main change: {answer:?}") };
+    let whole = made[0].task;
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if matches!(goal_landing::row(&world, whole).delegate, Some((_, Delegate::Repair(Repair::LandingAt { .. })))) {
+            break;
+        }
+    }
+    let row = goal_landing::row(&world, whole);
+    let (repair, Delegate::Repair(Repair::LandingAt { candidate: failed, .. })) = row.delegate.unwrap_or_else(|| {
+        panic!("landing repair: {row:?}; landings {:?}; jobs {:?}", landing_rows(&world), world.jobs)
+    }) else {
+        panic!("landing repair: {row:?}")
+    };
+    let old_landing = landing_rows(&world)
+        .into_iter()
+        .find(|row| row.landing.members.iter().any(|member| member.change == whole))
+        .expect("failed main landing")
+        .landing
+        .task;
+    assert_eq!(row.change.last_head, Some(translate::commit(old)));
+    assert_eq!(live_task(&world, repair).attempt, 0, "repair has not started");
+    assert!(!world.assigned.iter().any(|run| run.task == repair));
+    finish_child(&mut world, &producer, b"Repair the gate through the goal train");
+    await_change(&mut world, child);
+    let head = goal_branch::branch_tip(&mut world, &branch);
+    world.fail_brief_reads = None;
+    assert_ne!(head, old);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        assert!(!matches!(goal_landing::row(&world, whole).change.state, State::Held { .. }));
+        if goal_landing::ended(&world, repair).is_some() {
+            break;
+        }
+    }
+    let ended = goal_landing::ended(&world, repair).expect("moved head ends the idle repair");
+    let expected = format!(
+        "the change's head moved to {}",
+        String::from_utf8_lossy(&engine::commit_text(&translate::commit(head)))
+    );
+    assert!(
+        matches!(&ended.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) if reason.as_ref() == expected.as_bytes()),
+        "{:?}",
+        ended.phase
+    );
+    assert!(!world.assigned.iter().any(|run| run.task == repair), "cancelled without starting a run");
+    await_change(&mut world, whole);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if landing_rows(&world).iter().any(|row| {
+            row.landing.task != old_landing
+                && row.landing.members.iter().any(|member| member.change == whole)
+                && row.landing.phase == forge_top::LandingPhase::Landed
+        }) {
+            break;
+        }
+    }
+    let row = goal_landing::row(&world, whole);
+    assert_eq!(row.change.last_head, Some(translate::commit(head)));
+    assert_eq!(row.drift, None);
+    assert_eq!(row.change.repairs, 1);
+    let fresh = landing_rows(&world)
+        .into_iter()
+        .find(|row| row.landing.task != old_landing && row.landing.members.iter().any(|member| member.change == whole))
+        .expect("reformed main landing");
+    assert_eq!(fresh.landing.phase, forge_top::LandingPhase::Landed);
+    let candidate = fresh.landing.members[0].candidate.expect("fresh candidate");
+    assert_ne!(candidate, failed);
+    assert_eq!(fresh.landing.members[0].head, Some(translate::commit(head)));
+    assert!(world.writes.iter().any(
+        |write| matches!(write, api::Write::Dispatch { branch, .. } if *branch == fresh.landing.members[0].branch)
+    ));
+    let main = goal_branch::branch_tip(&mut world, b"main");
+    assert_eq!(world.fake.object(main).expect("main merge").merge_parent, Some(head));
+    goal_landing::finish_goal(&mut world, &goal);
+    world.close();
+}

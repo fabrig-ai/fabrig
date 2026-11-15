@@ -395,6 +395,26 @@
   resolution whose run is in progress holds the writer slot, so the
   change decides nothing on its head until that run's push or end
   (`README.md`, 3).
+
+  The same rule ends a repair of a landing gate's failure, a CI failure,
+  or CI failing after a clean update: its brief pins the failure at the
+  last head, so a move leaves its work unjudged at the new head. At
+  repairing, with that repair live but no run in progress (made and not
+  yet started, between its tries, or held), its branch's writer slot
+  free, and a branch read at another head, the change cancels the repair
+  at that step with `the change's head moved to HEAD`, whoever moved it,
+  a goal's landing into its branch included. It waits for the repair's
+  terminal and decides afresh as once its producer ends, reading its
+  branch, base and pull and keeping the head it reads; the cancelled
+  repair's status causes no hold. Its counts remain spent. The new head
+  is checked again and, if ready, forms a fresh landing whose gates
+  prove its new candidate. A repair whose run is in progress keeps the
+  writer slot as a resolution's does. A run claiming that slot while a
+  change's read is in progress makes that read see it as running too,
+  so an older read cannot end the repair on its own delivered head.
+  A change already held for another writer's drift keeps that hold and
+  its repair's brief as it stands (the open question below).
+
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine/briefs.md`, 1.1):
 

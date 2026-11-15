@@ -4530,10 +4530,12 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
-fn cancel_change_resolution(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+fn cancel_moved_change_delegate(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
     let child = match domain.forge.change(task) {
         Some(row) => match row.delegate {
-            Some((child, forge_change::Delegate::Resolve { .. })) if domain.core.tasks.task(child).is_some() => {
+            Some((child, forge_change::Delegate::Resolve { .. } | forge_change::Delegate::Repair(_)))
+                if domain.core.tasks.task(child).is_some() =>
+            {
                 Some(child)
             }
             Some((
@@ -4865,7 +4867,7 @@ fn change_decision_from_read(
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
-        forge_change::Decision::CancelResolution { head } => cancel_change_resolution(domain, task, head),
+        forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
         forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
@@ -5631,7 +5633,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::CancelRepair { .. }
-                | forge_change::Decision::CancelResolution { .. }
+                | forge_change::Decision::CancelMovedDelegate { .. }
                 | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair

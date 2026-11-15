@@ -137,7 +137,7 @@ pub struct World {
     period_budget: u64,
     pub fail_job_reads: bool,
     comparisons_too_large: bool,
-    /// Refuse the named section reads while a CI repair is preparing.
+    /// Refuse the named section reads while a repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
     /// Refuse pull file sides at the client answer bound.
@@ -151,7 +151,7 @@ pub struct World {
     pub review_files_delay: Option<Duration>,
     /// Delay each failed job's log independently of checks and pull reads.
     pub job_read_delay: Option<Duration>,
-    /// Delay checks only while a CI repair is preparing, not while discovering its failure.
+    /// Delay checks only while a repair is preparing, not while discovering its failure.
     pub repair_checks_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
@@ -206,6 +206,8 @@ pub struct StoryLimits {
     pub omit_landing_grant: Option<u16>,
     pub refuse_prepare: bool,
     pub dispatch_passes: Option<u32>,
+    /// A dispatch fails the test ids listed in this file at its candidate.
+    pub dispatch_tests: Option<&'static [u8]>,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
@@ -461,6 +463,7 @@ impl World {
             omit_landing_grant,
             refuse_prepare,
             dispatch_passes: _,
+            dispatch_tests: _,
             landing_members,
             batch,
             slots,
@@ -1186,7 +1189,7 @@ impl World {
                         latency_max: Duration::from_secs(1),
                         silent: 0,
                         passes: timing.dispatch_passes.unwrap_or(1000),
-                        cue: None,
+                        cue: timing.dispatch_tests.map(|path| raw::Cue::Tests { path: path.into() }),
                     }])
                 } else {
                     Box::new([])
@@ -2276,17 +2279,17 @@ impl World {
                     }
                     // Nonparticipating keep-up reads Item after u64::MAX. The change
                     // finishes its fresh Checks before its repair enters Preparing.
-                    let preparing_ci = (self.fail_brief_reads.is_some()
+                    let preparing_repair = (self.fail_brief_reads.is_some()
                         || self.slow_brief_reads
                         || self.repair_checks_delay.is_some())
                         && self.store.rows.values().any(|row| {
                             matches!(row,
                             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                                if row.spec.words.starts_with(b"Repair CI at ")
+                                if row.spec.words.starts_with(b"Repair ")
                                     && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
                         });
                     if let Some((pull, checks, error)) = self.fail_brief_reads
-                        && preparing_ci
+                        && preparing_repair
                         && ((pull
                             && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
                             || (checks
@@ -2371,7 +2374,7 @@ impl World {
                             None
                         };
                     let slow = (self.slow_brief_reads
-                        && preparing_ci
+                        && preparing_repair
                         && matches!(
                             op,
                             skein_forge::api::Op::Read(
@@ -2393,7 +2396,7 @@ impl World {
                         };
                     let ci_delay = match &op {
                         skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }) => self.job_read_delay,
-                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_ci => {
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_repair => {
                             self.repair_checks_delay
                         }
                         _ => None,

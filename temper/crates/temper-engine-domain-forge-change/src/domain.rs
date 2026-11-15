@@ -114,8 +114,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.writer_taken && !start_conflicted {
         return waiting_on_agent(next, facts, standing, now, limits);
     }
-    if let State::Resolving { requested: true, base } = next.state
-        && let Some(Delegate::Resolve { .. }) = facts.delegate
+    if let Some(base) = moved_delegate_base(&next, facts)
         && standing.delegate_live
         && !standing.delegate_running
         && !facts.writer_taken
@@ -128,7 +127,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         next.state = State::WaitingProducer { base };
         next.since = now;
         next.owns_turn = false;
-        return Stepped { change: next, decision: Decision::CancelResolution { head } };
+        return Stepped { change: next, decision: Decision::CancelMovedDelegate { head } };
     }
     if let Some(why) = facts.drift {
         return hold(next, why);
@@ -182,6 +181,44 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         }
     }
     advance_phase(change, next, facts, standing, now, limits)
+}
+
+// Resolutions and landing or CI repairs end at a moved head
+// (temper/docs/design/domain/forge/change/repairs.md, A resolution's moved head).
+fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
+    match &change.state {
+        State::Resolving { requested: true, base } if facts.delegate == Some(Delegate::Resolve { base: *base }) => {
+            Some(*base)
+        }
+        State::Repairing { requested: true, why } if facts.delegate == Some(Delegate::Repair(*why)) => match why {
+            Repair::Ci | Repair::Semantic | Repair::Landing { .. } | Repair::LandingAt { .. } => Some(facts.base_tip),
+            Repair::Gate(_) | Repair::Review { .. } => None,
+        },
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::WaitingProducer { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::NoChange { .. }
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::Ended => None,
+    }
 }
 
 /// Only before its turn may a contained head end with no change (domain/forge/change/README.md, 2).

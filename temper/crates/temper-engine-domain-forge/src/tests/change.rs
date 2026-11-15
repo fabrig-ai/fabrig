@@ -2896,3 +2896,60 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
         assert_eq!(d.steps.len(), 1);
     }
 }
+
+#[test]
+fn a_repair_claiming_during_a_change_read_keeps_its_own_delivery() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as c;
+    let state = c::State::Repairing { requested: true, why: c::Repair::Ci };
+    let mut d = delegate_waiting(state.clone(), c::Delegate::Repair(c::Repair::Ci));
+    let mut row = d.change(fixtures::CHANGE).expect("repairing change").clone();
+    row.title = b"Small fix".as_slice().into();
+    row.pull = Some(1);
+    row.delegate_status = c::Status::Unknown;
+    outputs(&mut d, Event::Change { row });
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+    };
+    outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
+    outputs(&mut d, waiting_step(true, false));
+    // The branch read predates the repair's run and its push.
+    let (call, _) = fixtures::next_call(&mut d);
+    outputs(
+        &mut d,
+        Event::Claim {
+            task: 52,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            designs: Box::new([]),
+            holders: Box::new([fixtures::CHANGE]),
+        },
+    );
+    let pushed = [9; 32];
+    outputs(&mut d, Event::Answered { task: 52, attempt: 1, pushed: Box::new([(name, pushed, true)]) });
+    fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::HEAD)));
+    for _ in 0_u32..16 {
+        if d.steps.is_empty() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { .. }) => Answer::Commit(fixtures::BASE),
+            Op::Read(Read::Pull { .. } | Read::PullFor { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, ahead: 0, behind: 1, files: Box::new([]), changed: 0 }
+            }
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(_) | Op::Write(_) => panic!("change read: {op:?}"),
+        };
+        fixtures::answer(&mut d, call, Ok(answer));
+    }
+    assert!(d.steps.is_empty(), "the old read completed");
+    let row = d.change(fixtures::CHANGE).expect("repairing change");
+    assert_eq!(row.change.state, state, "an old read cannot cancel the repair's own delivery");
+    assert_eq!(row.change.last_head, Some(pushed));
+}

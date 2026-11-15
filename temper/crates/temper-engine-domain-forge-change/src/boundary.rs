@@ -530,8 +530,8 @@ pub enum Decision {
     CancelProducer,
     /// Cancel the live CI repair: CI passed at this head and no run is in progress (8.4).
     CancelRepair { head: Commit },
-    /// Cancel an idle resolution whose pinned change head moved (repairs.md, A resolution's moved head).
-    CancelResolution { head: Commit },
+    /// Cancel an idle resolution or landing or CI repair whose pin moved (repairs.md, A resolution's moved head).
+    CancelMovedDelegate { head: Commit },
     /// A CI repair ended at this green head. The top records it and steps on (8.4).
     RepairEnded { head: Commit },
     /// The change's CI hold ended; the root releases its task as the deployment's (8.4).

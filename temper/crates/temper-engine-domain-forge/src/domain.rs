@@ -2950,6 +2950,18 @@ fn claim(
             child(d, env, skein_forge_client::Event::Writer { resource, taken: true }, out);
         }
     }
+    // A read begun while the delegate was idle must see a run that claims
+    // before it finishes (temper/docs/design/domain/forge/change/repairs.md, A resolution's moved head).
+    for (_, row) in &d.changes {
+        if let Some((delegate, _)) = row.delegate
+            && delegate == task
+            && let Some(owner) = step_owner(d, row.task)
+            && let Some(pending) = d.steps.get_mut(&owner)
+        {
+            pending.heard.delegate_running = true;
+            break;
+        }
+    }
 }
 
 fn answered(
@@ -5471,7 +5483,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
             | change::Decision::CancelRepair { .. }
-            | change::Decision::CancelResolution { .. }
+            | change::Decision::CancelMovedDelegate { .. }
             | change::Decision::EndHold
             | change::Decision::Ready
             | change::Decision::QueueRepair
