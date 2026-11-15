@@ -2,8 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 6.2: a failed receipt keeps no base and no failed job's id, attempt or name [in flight: change 4027].
-- **Not yet:** 7.3: a failed run's report is not read, and a gate's `report` (13.1) is no setting [in flight: change 4029].
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch

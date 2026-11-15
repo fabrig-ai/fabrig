@@ -2,10 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "A repair": only a semantic repair's brief places its reason's section before its pull section; every other repair's places it after, so the charter's fit cuts the reason first (`temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 4026].
-- **Not yet:** "A landing's repair": the words carry no `Gate run` or `Failed job` line [in flight: change 4027].
-- **Not yet:** "A landing's repair": no `Failed test` or `Failed tests` line [in flight: change 4029].
-- **Not yet:** "A landing's repair": `read_checks` answers a landing repair the forge's checks alone, never its gate's run [in flight: change 4028].
 
 
 
