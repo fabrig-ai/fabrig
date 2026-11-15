@@ -518,6 +518,7 @@ Drafts:
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
+- [`draft/probes-by-test.md`](draft/probes-by-test.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
