@@ -250,8 +250,7 @@ impl Joined {
             name: fixtures::WORKER_A.into(),
             digest: skein_io::digest::digest(fixtures::SECRET_A),
         }]);
-        let (engine_wires, worker_wires) =
-            wires.unwrap_or_else(|| (jig_protocol_worker_wire::spoken(), jig_protocol_worker_wire::spoken()));
+        let (engine_wires, worker_wires) = wires.unwrap_or_else(|| (fixtures::spoken(), fixtures::spoken()));
         Self {
             engine: engine::Component::new(
                 &engine_limits,
