@@ -11,6 +11,10 @@ use skein_ui_screen_terminal::Key;
 use temper_client_tui::{Note, Scheme};
 
 /// The start's facts, in the file's order.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "recording keeps the seam's independent local, box, front and setup facts"
+)]
 pub struct Facts {
     pub seed: u64,
     pub now: Time,
@@ -21,6 +25,8 @@ pub struct Facts {
     pub address: Box<[u8]>,
     pub local: bool,
     pub front: bool,
+    pub set_up: bool,
+    pub box_log: Box<[u8]>,
     pub boxed: bool,
     pub note: Option<Note>,
     pub kept: Vec<jig_client::Record>,
@@ -40,6 +46,8 @@ impl Facts {
             local: self.local,
             note: self.note,
             front: self.front,
+            set_up: self.set_up,
+            box_log: self.box_log.clone(),
             kept: self.kept.clone(),
             credential: self.credential.clone(),
         });
@@ -77,11 +85,17 @@ impl Recorder {
         if facts.local {
             this.keep(&Line::Local);
         }
+        if facts.boxed {
+            this.keep(&Line::Box);
+        }
         if facts.front {
             this.keep(&Line::Front);
         }
-        if facts.boxed {
-            this.keep(&Line::Box);
+        if facts.set_up {
+            this.keep(&Line::SetUp);
+        }
+        if !facts.box_log.is_empty() {
+            this.keep(&Line::BoxLog(facts.box_log.clone()));
         }
         for record in &facts.kept {
             this.keep(&Line::Stored { key: record.key.clone(), bytes: record.bytes.clone() });
@@ -280,6 +294,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Box
         | Line::Address(_)
         | Line::Front
+        | Line::SetUp
+        | Line::BoxLog(_)
         | Line::BoxLine(_)
         | Line::BoxStage(_)
         | Line::Lent { .. }

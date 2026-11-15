@@ -75,6 +75,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         }
         Line::Found(bytes) => bytes.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Lend { name: bytes, .. }
+        | Line::BoxLog(bytes)
         | Line::BoxLine(bytes)
         | Line::BoxStage(bytes)
         | Line::Address(bytes)
@@ -83,6 +84,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Mark(print) | Line::End(print) => print.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Journey { .. }
         | Line::Front
+        | Line::SetUp
         | Line::Local
         | Line::Noted(_)
         | Line::Note(_)
@@ -159,7 +161,9 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             Line::Found(None)
             | Line::Journey { .. }
             | Line::Front
+            | Line::SetUp
             | Line::BoxStage(_)
+            | Line::BoxLog(_)
             | Line::Local
             | Line::Noted(_)
             | Line::Note(_)

@@ -150,6 +150,8 @@ impl Tui {
         tui.report(
             world,
             Report::Start(Start {
+                set_up: false,
+                box_log: Box::default(),
                 front,
                 local,
                 note,
