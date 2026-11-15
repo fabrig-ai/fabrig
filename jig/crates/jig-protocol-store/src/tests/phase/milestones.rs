@@ -65,8 +65,8 @@ fn milestones_open_folds_ended_and_live_tasks_in_pages_marks_done_and_never_reru
                         assert!(answer.writes.is_empty());
                     }
                 } else {
-                    assert_eq!(job.as_ref(), "charter-versions");
-                    assert!(page.end);
+                    assert!(["charter-versions", "live-task-parts", "projection-parts"].contains(&job.as_ref()));
+                    assert!(page.end && page.rows.is_empty());
                 }
                 events.extend(disk.request(&mut current, Request::Job { owner, answer: Ok(answer) }));
             }

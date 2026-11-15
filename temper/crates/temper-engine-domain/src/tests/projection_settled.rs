@@ -100,20 +100,29 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     let task = domain.core.tasks.task(goal).unwrap().clone();
     let funding = *domain.core.tasks.funding(task.funder).unwrap();
     let records = [
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::GoalWords {
+            goal,
+            task: goal,
+            words: projection.words.clone(),
+        }))),
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::TaskWords {
+            goal,
+            task: goal,
+            words: projection.words.clone(),
+        }))),
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(task)))),
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(funding))),
-        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Goal {
-            goal: projection,
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::GoalHot {
+            goal: projection.hot(),
             pending: Box::new([domain.config.forge_connector]),
             changed: false,
             fed_at: None,
         }))),
-        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Task {
+        crate::Record::Core(core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::TaskHot {
             goal,
-            task: core::ProjectionTask {
+            task: core::ProjectionTaskHot {
                 number: goal,
                 requester: tasks::Party::Deployment { project: 1 },
-                words: b"live goal".as_slice().into(),
                 phase: tasks::Phase::Waiting,
             },
         }))),
@@ -121,7 +130,12 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
     let mut out = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
-    for key in [core::ProjectionKey::Task { goal, task: goal }, core::ProjectionKey::Goal(goal)] {
+    for key in [
+        core::ProjectionKey::TaskWords { goal, task: goal },
+        core::ProjectionKey::Task { goal, task: goal },
+        core::ProjectionKey::GoalWords(goal),
+        core::ProjectionKey::Goal(goal),
+    ] {
         let Some(core::Request::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(received))))) =
             out.pop()
         else {

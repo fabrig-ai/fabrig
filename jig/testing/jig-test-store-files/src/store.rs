@@ -434,6 +434,24 @@ impl Store {
         let number = self.applied.checked_add(1).expect("bounded fixture commit");
         header.commits = number;
         let mut writes: Vec<_> = rows.into_vec().into_iter().map(root::Write::Save).collect();
+        let mut parts = Vec::new();
+        for write in &writes {
+            if let root::Write::Save(root::Record::Core(jig_domain_core::Record::Tasks(
+                jig_domain_tasks::Stored::Live(row),
+            ))) = write
+            {
+                parts.push(root::Write::Save(root::Record::Core(jig_domain_core::Record::Tasks(
+                    jig_domain_tasks::Stored::LiveCold {
+                        number: row.number,
+                        spec: Box::new(row.spec.clone()),
+                        contract: row.contract.clone(),
+                        authority: row.authority.clone(),
+                        instructions: row.instructions.clone(),
+                    },
+                ))));
+            }
+        }
+        writes.extend(parts);
         writes.push(root::Write::Save(root::Record::Core(jig_domain_core::Record::Core(
             jig_domain_core::CoreRecord::Deployment(header),
         ))));

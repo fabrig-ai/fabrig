@@ -12,6 +12,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             core::CoreKey::Deployment => {}
             core::CoreKey::Projection(key) => match key {
                 core::ProjectionKey::Goal(task)
+                | core::ProjectionKey::GoalWords(task)
+                | core::ProjectionKey::TaskWords { task, .. }
                 | core::ProjectionKey::Task { task, .. }
                 | core::ProjectionKey::Lifecycle { task, .. }
                 | core::ProjectionKey::Revision { task, .. } => name.task = Some(*task),
@@ -34,7 +36,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             },
         },
         core::Key::Tasks(key) => match key {
-            tasks::Key::Live(task)
+            tasks::Key::LiveCold(task)
+            | tasks::Key::Live(task)
             | tasks::Key::Ended(task)
             | tasks::Key::Stub(task)
             | tasks::Key::History { task, .. }
@@ -143,7 +146,8 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 tasks::Writer::Run { task, .. } => name.task = Some(task),
                 tasks::Writer::Effect { .. } => {}
             },
-            tasks::Stored::Update(_)
+            tasks::Stored::LiveCold { .. }
+            | tasks::Stored::Update(_)
             | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)
             | tasks::Stored::EndedDelegate(_)

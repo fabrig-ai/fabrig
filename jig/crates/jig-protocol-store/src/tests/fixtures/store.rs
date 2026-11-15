@@ -140,7 +140,7 @@ pub fn opened_with_budget(budget: u64) -> Store {
 }
 
 pub fn commit(number: u64, writes: Box<[Write]>) -> Request {
-    Request::Commit { number, writes }
+    Request::Commit { number, writes: whole_tasks(writes) }
 }
 
 pub fn header(commits: u64) -> Write {
@@ -176,7 +176,16 @@ pub const PROJECT: u32 = 3;
 
 pub fn committed(store: &mut Store, writes: Box<[Write]>) {
     let number = store.stores.store.last().checked_add(1).expect("fixture next commit");
+    let mut extra = 0_u32;
+    for write in &writes {
+        if let Write::Save(Record::Tasks(jig_domain_tasks::Stored::Live(_))) = write {
+            extra = extra.checked_add(1).unwrap();
+        }
+    }
+    let allowance = store.limits.commits.writes;
+    store.limits.commits.writes = allowance.checked_add(extra).unwrap();
     let events = run(store, commit(number, writes));
+    store.limits.commits.writes = allowance;
     let [Event::Committed { number: found, .. }] = &*events else {
         panic!("fixture commit fits: {events:?}");
     };
@@ -195,6 +204,28 @@ pub fn live_task(number: u64) -> Record {
     let mut row = task_record();
     row.number = number;
     Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row)))
+}
+
+pub fn cold_task(row: &jig_domain_tasks::TaskRecord) -> Record {
+    Record::Tasks(jig_domain_tasks::Stored::LiveCold {
+        number: row.number,
+        spec: Box::new(row.spec.clone()),
+        contract: row.contract.clone(),
+        authority: row.authority.clone(),
+        instructions: row.instructions.clone(),
+    })
+}
+
+/// Fixture callers save whole tasks; production callers name each part explicitly.
+fn whole_tasks(writes: Box<[Write]>) -> Box<[Write]> {
+    let mut complete = List::uncapped();
+    for write in writes {
+        if let Write::Save(Record::Tasks(jig_domain_tasks::Stored::Live(row))) = &write {
+            complete.push(save(cold_task(row))).expect("fixture writes");
+        }
+        complete.push(write).expect("fixture writes");
+    }
+    complete.into_boxed()
 }
 
 pub fn ended_task(number: u64) -> Record {

@@ -91,7 +91,7 @@ fn every_record_save_marks_its_change_after_the_save() {
     let requests = outputs(&mut d, Event::Change { row: row.clone() });
     let mut saves = 0_usize;
     for (index, request) in requests.iter().enumerate() {
-        if let Request::Save { record: Stored::Change(saved), .. } = request {
+        if let Request::Save { record: Stored::ChangeHot(saved), .. } = request {
             saves += 1;
             assert_eq!(saved.task, row.task);
             assert_eq!(requests.get(index + 1), Some(&Request::Marked { tasks: Box::new([row.task]) }));
@@ -176,7 +176,7 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
     assert_eq!(
         got.last_chunk::<2>().expect("queue save follows its history"),
         &[
-            Request::Save { record: Stored::Change(Box::new(expected)), release: None, read_afresh: None },
+            Request::Save { record: Stored::ChangeHot(Box::new(expected.split().1)), release: None, read_afresh: None },
             Request::Marked { tasks: Box::new([51, changes_subject(5), status_subject(5), APPROVALS_SUBJECT, 52]) },
         ]
     );
@@ -265,7 +265,7 @@ fn a_fresh_ci_read_marks_a_changed_verdict_and_restart_forgets_it() {
     let (mut d, _) = fixtures::opening();
     fixtures::missing_pull(&mut d);
     let got = fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
-    let [Request::Save { record: Stored::Change(saved), .. }, Request::Marked { tasks }] = got.as_ref() else {
+    let [Request::Save { record: Stored::ChangeHot(saved), .. }, Request::Marked { tasks }] = got.as_ref() else {
         panic!("observed contexts saved, panel marked: {got:?}")
     };
     assert_eq!(saved.result.checks.bytes.as_ref(), b"ci pending");
@@ -314,7 +314,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
         step(&mut d, &environment, Event::Restore { record: Stored::Change(Box::new(queued(task, 0, 95))) }, &mut out);
     }
     d.priority(&environment, u64::from(CHANGES), -10, &mut out);
-    let Some(Request::Save { record: Stored::Change(row), .. }) = out.pop() else { panic!("priority saved") };
+    let Some(Request::Save { record: Stored::ChangeHot(row), .. }) = out.pop() else { panic!("priority saved") };
     assert_eq!(row.priority, -10_i32);
     let Some(Request::Marked { tasks }) = out.pop() else { panic!("priority marked") };
     let mut expected = skein_lib::List::with_capacity(MARKED);
@@ -389,7 +389,7 @@ fn ending_a_change_saves_its_last_ci_with_its_history() {
     );
     let mut records = skein_lib::List::with_capacity(LIMITS.changes);
     for request in requests {
-        if let Request::Save { record: Stored::Change(row), .. } = request {
+        if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
             records.push(row).expect("fixture changes fit");
         }
     }
@@ -399,7 +399,10 @@ fn ending_a_change_saves_its_last_ci_with_its_history() {
         assert_eq!(saved.ci, Some(read));
     }
     let saved = records.as_slice().last().expect("finish saved");
-    assert_eq!(panel(&with_row(*saved.clone())).ci, change::Status::Failed);
+    assert_eq!(
+        panel(&with_row(ChangeRow::join(d.change_cold.get(&saved.task).unwrap().clone(), *saved.clone()))).ci,
+        change::Status::Failed
+    );
 }
 
 /// The parent commits every save; replaying them in order restores each key's

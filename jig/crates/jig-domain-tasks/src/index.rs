@@ -137,6 +137,8 @@ pub enum Key {
         task: u64,
         position: u64,
     },
+    /// The live task's spec, contract, authority and instructions.
+    LiveCold(u64),
 }
 
 impl Key {
@@ -151,7 +153,8 @@ impl Key {
             | Self::Writer(_)
             | Self::Pool(_)
             | Self::PersonProposal(_) => true,
-            Self::Ended(_)
+            Self::LiveCold(_)
+            | Self::Ended(_)
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)
             | Self::History { .. }

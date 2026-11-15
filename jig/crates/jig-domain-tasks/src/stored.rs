@@ -86,7 +86,8 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         Stored::Writer(slot) => crate::writers::restore(domain, limits, slot)?,
         Stored::Pool(row) => crate::holds::restore_pool(domain, limits, row)?,
         Stored::Ledger(record) => crate::funders::restore_funding(domain, record)?,
-        Stored::Update(_)
+        Stored::LiveCold { .. }
+        | Stored::Update(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
         | Stored::EndedDelegate(_)
@@ -114,7 +115,8 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
         | crate::Key::Pool(_)
         | crate::Key::PersonProposal(_)
         | crate::Key::PlacedHold(_) => None,
-        crate::Key::Ended(_)
+        crate::Key::LiveCold(_)
+        | crate::Key::Ended(_)
         | crate::Key::ClosedLedger(_)
         | crate::Key::DecidedProposal(_)
         | crate::Key::History { .. }

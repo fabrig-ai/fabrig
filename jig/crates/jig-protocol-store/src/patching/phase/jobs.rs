@@ -266,8 +266,8 @@ fn consumed(owner: Owner, rows: &[pages::WalkRow], through: Option<Box<[u8]>>) -
         }
     }
 }
-fn size(op: &skein_kv::Op) -> Option<u64> {
-    let key = u32::try_from(op.key().len()).ok()?;
+fn size(op: &skein_kv::Op, key: &[u8]) -> Option<u64> {
+    let key = u32::try_from(key.len()).ok()?;
     Some(u64::from(match op {
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
@@ -277,7 +277,7 @@ fn room(store: &Store, of: Owner, job: &Job) -> Option<JobRoom> {
     let writes = store.limits.commits.writes.min(store.limits.store.ops).checked_sub(1)?;
     // A u64's largest encoding bounds the done row at any commit number.
     let done = crate::jobs::kept::operation(store, of, job, u64::MAX)?;
-    let reserved = u64::from(skein_kv::FRAME_BYTES).checked_add(size(&done)?)?;
+    let reserved = u64::from(skein_kv::FRAME_BYTES).checked_add(size(&done, done.key())?)?;
     let mut bytes = u64::from(store.limits.store.commit).checked_sub(reserved)?;
     if of == Owner::Application {
         // JobWrite::bytes counts relative keys. Each whole key adds one tag.
@@ -293,15 +293,12 @@ fn operations(
     number: u64,
     end: bool,
 ) -> Result<Box<[skein_kv::Op]>, JobRefusal> {
-    let bound = invalid(None, "job answer is past the store commit edge");
-    let count = len_u64(writes.len()).checked_add(1).ok_or(bound)?;
-    if count > u64::from(store.limits.commits.writes.min(store.limits.store.ops)) {
+    let room = room(store, of, job).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
+    if len_u64(writes.len()) > u64::from(room.writes) {
         return Err(invalid(None, "job answer is past the store commit edge"));
     }
     let done = crate::jobs::kept::operation(store, of, job, number).ok_or(invalid(None, "job row does not fit"))?;
-    let mut bytes = u64::from(skein_kv::FRAME_BYTES)
-        .checked_add(size(&done).ok_or(invalid(None, "job row does not fit"))?)
-        .ok_or(invalid(None, "job row does not fit"))?;
+    let mut bytes = 0_u64;
     let mut ops = List::with_capacity(store.limits.store.ops);
     for write in writes {
         let op = match write {
@@ -317,12 +314,12 @@ fn operations(
                 skein_kv::Op::Erase { key: whole }
             }
         };
-        bytes = bytes
-            .checked_add(size(&op).ok_or(invalid(None, "job write does not fit"))?)
-            .ok_or(invalid(None, "job write does not fit"))?;
+        let key = relative(of, op.key()).ok_or(invalid(None, "job key has no owner"))?;
+        let size = size(&op, key).ok_or(invalid(None, "job write does not fit"))?;
+        bytes = bytes.checked_add(size).ok_or(invalid(None, "job write does not fit"))?;
         ops.push(op).expect("answer count checked");
     }
-    if bytes > u64::from(store.limits.store.commit) {
+    if bytes > room.bytes {
         return Err(invalid(None, "job answer is past the store commit byte bound"));
     }
     if end {

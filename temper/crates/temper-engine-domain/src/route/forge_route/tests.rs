@@ -1671,8 +1671,17 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     for pull in [None, Some(23)] {
         let mut row = change_row(pull);
         row.change.last_head = Some([1; 32]);
+        let mut held = row.clone();
+        held.pull = Some(24);
+        held.change.last_head = None;
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(held)) },
+            &mut out,
+        );
         out.push(forge::Request::Save {
-            record: forge::Stored::Change(Box::new(row)),
+            record: forge::Stored::ChangeHot(Box::new(row.split().1)),
             release: None,
             read_afresh: None,
         });

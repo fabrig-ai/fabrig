@@ -33,11 +33,13 @@ pub fn own(rng: &mut Rng) -> Own {
 pub fn core_key(rng: &mut Rng) -> CoreKey {
     match rng.below(15) {
         0 => CoreKey::Deployment,
-        1 => CoreKey::Projection(match rng.below(4) {
+        1 => CoreKey::Projection(match rng.below(6) {
             0 => ProjectionKey::Goal(number(rng)),
             1 => ProjectionKey::Task { goal: number(rng), task: number(rng) },
             2 => ProjectionKey::Lifecycle { goal: number(rng), task: number(rng), position: number(rng) },
-            _ => ProjectionKey::Revision { goal: number(rng), task: number(rng), revision: number(rng) },
+            3 => ProjectionKey::Revision { goal: number(rng), task: number(rng), revision: number(rng) },
+            4 => ProjectionKey::GoalWords(number(rng)),
+            _ => ProjectionKey::TaskWords { goal: number(rng), task: number(rng) },
         }),
         2 => CoreKey::RunProof(number(rng)),
         3 => CoreKey::Call(core::CallKey {
@@ -136,7 +138,8 @@ pub fn funder(rng: &mut Rng) -> jig_domain_tasks::Funder {
 }
 pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
     use jig_domain_tasks::{Key, Newest, UpdateObject};
-    match rng.below(24) {
+    match rng.below(25) {
+        24 => Key::LiveCold(number(rng)),
         21 => Key::PlacedHold(number(rng)),
         22 => Key::Attempt { task: number(rng), attempt: number(rng) },
         23 => Key::Hold { task: number(rng), position: number(rng) },

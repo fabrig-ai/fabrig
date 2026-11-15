@@ -330,7 +330,15 @@ fn saved_tasks(row: &jig_domain_tasks::Stored) -> Result<jig_domain_tasks::Store
     let bytes =
         crate::codec::tasks::encode(row, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
             .expect("within its limits");
-    crate::codec::tasks::decode(&bytes, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    if let jig_domain_tasks::Stored::Live(row) = row {
+        let cold = crate::codec::encode(&fixtures::cold_task(row), &fixtures::codec_limits(), &names).unwrap();
+        return crate::codec::tasks::decode_live(&bytes, &cold, &limits, &names);
+    }
+    if let jig_domain_tasks::Stored::LiveCold { number, .. } = row {
+        return crate::codec::tasks::decode_cold(*number, &bytes, &limits, &names);
+    }
+    crate::codec::tasks::decode(&bytes, &limits, &names)
 }
 fn a_period_ledger_reads_back_as_it_was_saved() {
     let row = jig_domain_tasks::Stored::Ledger(fixtures::task_funding());
@@ -1376,7 +1384,14 @@ fn canonical_tasks_context_reindexes_live_recurring_proposals_and_history() {
         assert_eq!(wire.models().len(), 2);
         assert_eq!(wire.models().get(0).unwrap().value(), b"a");
         assert_eq!(wire.models().get(1).unwrap().value(), b"z");
-        assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
+        let decoded = if let t::Stored::Live(task) = &row {
+            let jig_domain_core_vocabulary::Record::Tasks(cold) = fixtures::cold_task(task) else { unreachable!() };
+            let cold = crate::codec::tasks::encode(&cold, &limits, &names).unwrap();
+            crate::codec::tasks::decode_live(&bytes, &cold, &limits, &names)
+        } else {
+            crate::codec::tasks::decode(&bytes, &limits, &names)
+        };
+        assert_eq!(decoded, Ok(row));
     }
 }
 

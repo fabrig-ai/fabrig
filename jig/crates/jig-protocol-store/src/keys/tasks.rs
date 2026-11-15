@@ -13,6 +13,10 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.u64(*task);
             writer.u64(*position);
         }
+        Key::LiveCold(task) => {
+            writer.tag(24);
+            writer.u64(*task);
+        }
         Key::PlacedHold(hold) => {
             writer.tag(21);
             writer.u64(*hold);
@@ -100,6 +104,7 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
     Some(match reader.tag()? {
+        24 => Key::LiveCold(reader.u64()?),
         21 => Key::PlacedHold(reader.u64()?),
         22 => Key::Attempt { task: reader.u64()?, attempt: reader.u64()? },
         23 => Key::Hold { task: reader.u64()?, position: reader.u64()? },
