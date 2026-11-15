@@ -1,6 +1,5 @@
-use crate::{
-    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind, WorkFilter,
-    address::{Address, Filter, Kind, Place, parse, print},
+use crate::address::{
+    Address, ChatsFilter, Filter, GoalsFilter, Kind, ModelWay, Place, Step, WayKind, WorkFilter, parse, print,
 };
 
 #[test]
@@ -309,7 +308,7 @@ fn incomplete_or_unreadable_way_fields_are_dropped() {
 
 #[test]
 fn connect_forge_prints_and_parses_its_choice() {
-    use crate::Choice;
+    use crate::address::Choice;
     for (forge, path) in [
         (None, b"/forges/connect".as_slice()),
         (Some(Choice::Forge(3)), b"/forges/connect?forge=3"),
@@ -336,19 +335,19 @@ fn a_forge_choice_it_cannot_read_opens_choose() {
     }
     assert_eq!(
         parse(b"/forges/connect?forge=3&forge=4&x=1"),
-        Place::Address(Address::ConnectForge { forge: Some(crate::Choice::Forge(3)) })
+        Place::Address(Address::ConnectForge { forge: Some(crate::address::Choice::Forge(3)) })
     );
     assert_eq!(
         parse(b"/forges/connect?forge=&forge=3"),
-        Place::Address(Address::ConnectForge { forge: Some(crate::Choice::Forge(3)) })
+        Place::Address(Address::ConnectForge { forge: Some(crate::address::Choice::Forge(3)) })
     );
     assert_eq!(parse(b"/forges/3/github/setup"), Place::Missing);
 }
 #[test]
 fn the_welcomes_forge_step_carries_its_choice() {
     for (forge, path) in [
-        (Some(crate::Choice::Forge(3)), b"/welcome?at=forge&forge=3".as_slice()),
-        (Some(crate::Choice::Elsewhere), b"/welcome?at=forge&forge=elsewhere"),
+        (Some(crate::address::Choice::Forge(3)), b"/welcome?at=forge&forge=3".as_slice()),
+        (Some(crate::address::Choice::Elsewhere), b"/welcome?at=forge&forge=elsewhere"),
         (None, b"/welcome?at=forge"),
     ] {
         let address = Address::Welcome { step: Step::Forge { forge } };
@@ -386,7 +385,7 @@ fn a_return_source_is_printed_and_read_only_on_a_sign_in_way() {
 
 #[test]
 fn chats_filters_and_new_chat_round_trip() {
-    use crate::ChatsFilter as Chats;
+    use crate::address::ChatsFilter as Chats;
     let cases: &[(Address, &[u8])] = &[
         (Address::Chats { filter: Chats::All }, b"/chats"),
         (Address::Chats { filter: Chats::Live }, b"/chats?state=live"),

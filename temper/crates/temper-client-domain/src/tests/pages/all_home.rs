@@ -21,7 +21,7 @@ fn name(project: u32) -> Box<[u8]> {
     bytes::concat(&[b"Project ", Decimal::of(u64::from(project)).as_bytes()])
 }
 fn shown(project: u32, landed: u64, seen: u64, previous: Option<u64>, last: Option<u64>) -> Project {
-    let mut document = crate::tests::status::document(landed, seen, None).into_parts();
+    let mut document = crate::tests::fixtures::status::document(landed, seen, None).into_parts();
     document.project = project;
     document.previous = previous;
     document.last_landed = last;
@@ -115,7 +115,7 @@ fn intro_counts_only_shown_projects_since_their_looks() {
     }
 }
 fn with_brief(project: u32, landed: u64, seen: u64, previous: Option<u64>, at: u64) -> Project {
-    let mut document = crate::tests::status::document(landed, seen, Some(landed)).into_parts();
+    let mut document = crate::tests::fixtures::status::document(landed, seen, Some(landed)).into_parts();
     document.project = project;
     document.previous = previous;
     let mut brief = document.brief.unwrap().into_parts();
@@ -366,7 +366,7 @@ impl Across {
         })
     }
     fn status(&mut self, project: u32, previous: u64) {
-        let mut document = crate::tests::status::document(3, 1, Some(3)).into_parts();
+        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3)).into_parts();
         document.project = project;
         document.previous = Some(previous);
         self.family(

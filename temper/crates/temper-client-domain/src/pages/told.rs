@@ -487,5 +487,5 @@ pub fn label(ua: &[u8]) -> Box<[u8]> {
 }
 
 #[cfg(test)]
-#[path = "../tests/pages/told.rs"]
+#[path = "../pages_tests/told.rs"]
 mod tests;

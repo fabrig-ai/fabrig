@@ -1,5 +1,5 @@
 use super::fixtures::{self, chat as f};
-use crate::pages::delegation::{self, Facts, Kind, Said, State};
+use crate::delegation::{self, Facts, Kind, Said, State};
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 const MERGE: &[u8] = b"abcdef0123456789abcdef0123456789abcdef0123";

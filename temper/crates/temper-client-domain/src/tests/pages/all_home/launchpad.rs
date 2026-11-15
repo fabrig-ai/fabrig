@@ -260,7 +260,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
     assert!(looks(&fixture.settle()).is_empty(), "no second look");
     assert!(looks(&fixture.frame(&[FIRST, SECOND, THIRD])).is_empty(), "reconfiguration keeps looks");
     for (project, at) in [(FIRST, 10), (SECOND, 20), (THIRD, 30)] {
-        let mut document = crate::tests::status::document(3, 1, Some(3)).into_parts();
+        let mut document = crate::tests::fixtures::status::document(3, 1, Some(3)).into_parts();
         document.project = project;
         document.previous = Some(5);
         if project == THIRD {

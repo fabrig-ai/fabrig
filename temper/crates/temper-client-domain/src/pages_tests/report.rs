@@ -1,5 +1,5 @@
+use super::fixtures::chat::document_text;
 use crate::pages::report::{self, Report};
-use crate::tests::fixtures::chat::document_text;
 use jig_client::contract::{self as c, Read};
 use skein_lib::{List, Wall};
 

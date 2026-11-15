@@ -4,7 +4,7 @@
     reason = "step tests use ordinary Rust for assertions and fixture selection"
 )]
 use super::*;
-use crate::{forge, tests::fixtures};
+use crate::{forge, forge_tests::fixtures};
 use forge::forges::{Account, Adoption, Installation, Offer, StartsWith};
 use skein_lib::Env;
 

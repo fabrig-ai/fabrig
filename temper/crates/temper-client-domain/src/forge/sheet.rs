@@ -1247,5 +1247,5 @@ fn connect_refused(why: w::ForgeRefusal) -> Refused {
 }
 
 #[cfg(test)]
-#[path = "../tests/sheet.rs"]
+#[path = "../forge_tests/sheet.rs"]
 mod tests;
