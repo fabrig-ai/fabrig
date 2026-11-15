@@ -2806,6 +2806,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 if member.landed.is_none()
                     && row.asks.get(index).cloned().flatten().is_none()
                     && let Some(change) = d.changes.get_mut(&member.change)
+                    && change.change.landing == Some(p.task)
                 {
                     change.change.landing = None;
                     let saved = change.clone();
@@ -2933,6 +2934,13 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         && let policy::Decision::Prepare { .. } = decision
     {
         policy::Decision::None
+    } else {
+        decision
+    };
+    // A terminal round still owns its dispatched runs until their receipts
+    // settle the outbox (domain/landing.md, 7.1), while its members are free to land again.
+    let decision = if decision == policy::Decision::Finish && following(d, p.task) {
+        policy::Decision::Wait { until: Some(poll_at(d, env, p.task)) }
     } else {
         decision
     };
@@ -3768,6 +3776,15 @@ fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Qu
     true
 }
 
+fn following(d: &Domain, task: u64) -> bool {
+    for (_, flight) in &d.landing.flights {
+        if flight.task == task {
+            return true;
+        }
+    }
+    false
+}
+
 /// Startup's fresh-read wake may precede task activation; rebuild the poll after settlement
 /// (domain/landing.md, 12; domain/root.md, 8.1).
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
@@ -3781,6 +3798,10 @@ pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
                 let until = poll_at(d, env, *task);
                 d.landing.due.insert(*task, until).expect("one poll per live landing");
             }
+            policy::Phase::Landed if following(d, *task) => {
+                let until = poll_at(d, env, *task);
+                d.landing.due.insert(*task, until).expect("one poll per following landing");
+            }
             policy::Phase::Held { .. } | policy::Phase::Landed | policy::Phase::Cancelled => {}
         }
     }
@@ -3789,7 +3810,9 @@ pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
 pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut tasks = List::with_capacity(env.limits.landings);
     for (task, row) in &d.landing.rows {
-        if row.landing.phase != policy::Phase::Landed && row.landing.phase != policy::Phase::Cancelled {
+        if (row.landing.phase != policy::Phase::Landed && row.landing.phase != policy::Phase::Cancelled)
+            || (row.landing.phase == policy::Phase::Landed && following(d, *task))
+        {
             tasks.push(*task).expect("bounded landings");
         }
     }
