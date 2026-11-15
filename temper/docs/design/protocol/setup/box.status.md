@@ -3,8 +3,6 @@
 2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
 
 
-- **Not yet:** 6, *The box's lines*: no `starting NAME`, `started NAME`
-  or `dormant NAME` line on fd 4 [in flight: change 3423].
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever
   the variable says. `crates/temper-box-shell/src/fake_backends.rs`, `run`, parses

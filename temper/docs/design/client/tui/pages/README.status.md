@@ -2,10 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3: no header; the launchpad keeps its framed `tui-top`
-  [in flight: change 3431].
-- **Not yet:** 1, *The quiet line*: in front, no box's start at its
-  right on the welcome [in flight: change 3432].
 - **Not yet:** 1, *The notice*: no group started's notice [in flight:
   change 3434].
 - **Not yet:** 2, *`/quit`*: the commands reference's notes for bare
