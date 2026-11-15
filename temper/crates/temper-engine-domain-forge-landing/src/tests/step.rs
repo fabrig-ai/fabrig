@@ -1143,3 +1143,20 @@ fn a_prepare_finishing_on_a_stale_base_closes_before_proof() {
     f.preparation = crate::Preparation::Running;
     assert_eq!(decide(&finished.landing, &f).decision, Decision::Wait { until: None });
 }
+
+#[test]
+fn cleanup_does_not_restore_a_departed_members_unrecorded_prefix() {
+    let (mut landing, mut f) = stacked(3);
+    landing.members[1].candidate = None;
+    landing.members[1].combined = None;
+    landing.members[1].left = Some(crate::Leave::Cancelled);
+    landing.members[1].leave_told = true;
+    landing.round.ending = Some(crate::RoundEnd::Leave);
+    landing.round.changed = Some(2);
+    f.closed = Status::Passed;
+    f.members[2].deleted = Status::Passed;
+    let closed = decide(&landing, &f);
+    assert!(closed.landing.round.ending.is_none());
+    assert_eq!(closed.landing.members[1].candidate, None);
+    assert_eq!(closed.landing.members[1].combined, None);
+}

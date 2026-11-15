@@ -533,7 +533,8 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
         return wait(landing, None);
     }
     for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
-        if member.candidate.is_none()
+        if active(member)
+            && member.candidate.is_none()
             && let Some((candidate, combined)) = fresh.candidate
         {
             member.candidate = Some(candidate);
