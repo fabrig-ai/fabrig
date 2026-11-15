@@ -8,3 +8,6 @@ link exchange. Without `secret`, or at a different route, no link is taken.
 The shell's table covers these cases; cookie fallback remains deferred in
 section 16.
 
+- **Not yet:** 9: the reference shell takes a kept page's return as the
+  page resumed, with no step of its presentation's [in flight: change 3636]
+
