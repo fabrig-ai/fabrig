@@ -3,8 +3,6 @@
 2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 
-- **Not yet:** 5: a dependent may start early from a save's head
-  [in flight: change 4064].
 - **Not yet:** 5: a save's head found by the read that frees the attempt's
   writer, its answer reporting no push, is saved as the branch's head but not
   recorded in the change (`temper-engine-domain-forge/src/domain.rs`,
