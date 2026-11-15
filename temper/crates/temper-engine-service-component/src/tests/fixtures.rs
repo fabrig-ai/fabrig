@@ -817,6 +817,7 @@ fn start_configured(
 pub mod bundle;
 mod checks;
 mod clients;
+pub mod directory;
 pub mod http;
 mod server;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};

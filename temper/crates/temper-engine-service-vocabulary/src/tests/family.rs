@@ -4831,9 +4831,9 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
     });
     let bytes = family::document(document, &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes };
-    let got = temper_client_domain::forge::changes::panel(
+    let got = temper_client_domain_forge::forge::changes::panel(
         &record,
-        temper_client_domain::forge::Limits { field_bytes: 256, checks: 8 },
+        temper_client_domain_forge::forge::Limits { field_bytes: 256, checks: 8 },
     )
     .unwrap();
     for rows in [got.landed(), got.landed_default()] {

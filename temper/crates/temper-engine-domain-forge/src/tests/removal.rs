@@ -353,6 +353,9 @@ fn a_restart_resends_only_the_unanswered_steps() {
                 expected.push(Request::BoxRemove { forge: 1 }).unwrap();
             }
             expected.push(Request::RestartDone { stage: RestartStage::Restored }).unwrap();
+            if secrets_erased && box_removed {
+                expected.push(Request::Erase { key: Key::Forge(1) }).unwrap();
+            }
             assert_eq!(sent.as_ref(), expected.as_slice());
             assert!(d.forge_ended(1));
         }
@@ -664,13 +667,19 @@ fn removal_keeps_retained_change_history_reconcilable() {
     let mut row = fixtures::opening_row();
     row.pending = None;
     outputs(&mut d, Event::Change { row });
-    remove(&mut d, 1, Some(PartyRole::Owner));
+    let retired = remove(&mut d, 1, Some(PartyRole::Owner));
     outputs(&mut d, Event::SecretsErased { forge: 1 });
     outputs(&mut d, Event::BoxRemoved { forge: 1 });
-    let history = Stored::Change(Box::new(d.change(51).unwrap().clone()));
+    assert!(d.change(51).is_none(), "repository release erases the change panel's parts");
+    let mut history = None;
+    for request in retired {
+        if let Request::Save { record: row @ Stored::HistoryEvent(_), .. } = request {
+            history = Some(row);
+        }
+    }
     assert!(
-        crate::reconcile::references_resolve(&d, &LIMITS, &history, &[]),
-        "the retained change panel must restore after its repository is erased"
+        crate::reconcile::references_resolve(&d, &LIMITS, &history.expect("ending records history"), &[]),
+        "landing history names its released repository by value"
     );
 }
 

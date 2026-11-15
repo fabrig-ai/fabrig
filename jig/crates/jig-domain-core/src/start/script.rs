@@ -67,6 +67,9 @@ impl Core {
                     return Action::Refused(failure);
                 }
                 self.start_projections_link();
+                if self.start_failure().is_none() {
+                    self.start_projections_repair(out);
+                }
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
                     return Action::Refused(failure);

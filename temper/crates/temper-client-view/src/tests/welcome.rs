@@ -1662,13 +1662,10 @@ fn the_setup_card_names_supported_models_for_every_provider_catalogue() {
 }
 
 #[test]
-fn welcomes_five_steps_use_the_owned_pins_without_a_future_login() {
-    for (pins, runner, fetching, fetched) in [
-        (true, true, "Fetching Forgejo 17.0.0 and its runner 11.2.1", "Fetched Forgejo 17.0.0 and its runner 11.2.1"),
-        (true, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
-        (false, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
-    ] {
-        for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
+fn welcomes_five_steps_name_no_version_or_future_login() {
+    for (pins, runner) in [(true, true), (false, false)] {
+        for (step, expected) in [(w::SetUpStep::Fetch, "Fetching Forgejo"), (w::SetUpStep::Prepare, "Fetched Forgejo")]
+        {
             let connection = w::Connection::SettingUp(
                 w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
             );
@@ -1677,7 +1674,7 @@ fn welcomes_five_steps_use_the_owned_pins_without_a_future_login() {
             for view in [f::page_view(&root), f::browser_page_view(&root)] {
                 forge::words_in_order(
                     view.tree(),
-                    &[expected, "Preparing", "Starting Forgejo and its runner", "Connecting", "Making"],
+                    &[expected, "Preparing Forgejo", "Starting Forgejo", "Connecting as temper", "Making"],
                 );
                 assert!(!String::from_utf8_lossy(&f::main_text(view.tree())).contains(" sam"));
             }

@@ -159,6 +159,19 @@ def select(data, changed, always):
     return sorted(changed_packages), sorted(tests)
 
 
+def boundary(data, always) -> list[str]:
+    """A, the boundary packages for every selected delivery (section 3)."""
+    packages = members(data)
+    names = {'fabrig-boundary'}
+    for line in always.splitlines():
+        fields = line.split('#', 1)[0].split()
+        if len(fields) == 1:
+            names.add(fields[0])
+    for name in sorted(names - packages.keys()):
+        print(f'pre-pr: boundary package {name}: not a workspace member, skipped', flush=True)
+    return sorted(names & packages.keys())
+
+
 def lines(root, name):
     path = root / name
     return [line.split('#', 1)[0].strip() for line in path.read_text().splitlines()
@@ -378,17 +391,19 @@ def build_test_binaries(binaries, root, env):
     return 0, []
 
 
-def one_process(packages, root, env, reds=(), rerun=0, outcomes=None):
+def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default'):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
+    check_name = 'tests' if profile == 'default' else 'fuzzy tests'
+    suffix = '' if profile == 'default' else ' fuzzy'
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
-        directory = Path(directory) / 'tests'
+        directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
         arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory),
-                     'default'] + package_args(packages) + ['--no-tests=warn']
+                     profile] + package_args(packages) + ['--no-tests=warn']
         code, log = run(arguments, root, env, stdout=True)
         if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
-            return code, [failure('build', 'no tests ran\n' + log)], None
+            return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
         if code not in (0, 100):
-            return code, [failure('check one-process', f'exit {code}\n' + log)], None
+            return code, [failure('check one-process' + suffix, f'exit {code}\n' + log)], None
         starved = None
         source = 'run.json'
         try:
@@ -413,7 +428,7 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None):
                 observed[binary, name] = test
                 count += outcome in ('starved', 'cancelled')
             if state['starved'] or count:
-                starved = (f'pre-pr: tests starved: {count} starved or cancelled, '
+                starved = (f'pre-pr: {check_name} starved: {count} starved or cancelled, '
                            f'{len(results["unobserved"])} unobserved, a warning '
                            '(skein/docs/foundation/testing-strategy.md, 8.1)')
                 print(starved, flush=True)
@@ -442,9 +457,9 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None):
                     package = binary.split('::', 1)[0]
                     errors.append(failure(f'test {binary} {name}', output, (binary, name), package))
         except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
-            return code or 1, [failure('check one-process', f'{source}: {error}\n' + log)], starved
+            return code or 1, [failure('check one-process' + suffix, f'{source}: {error}\n' + log)], starved
         if not errors:
-            errors.append(failure('check one-process', 'exit 100 without JUnit failures\n' + log))
+            errors.append(failure('check one-process' + suffix, 'exit 100 without JUnit failures\n' + log))
         inherited(reds, errors)
         tests_again(errors, observed, rerun, directory, root, env)
         return code, errors, starved
@@ -708,7 +723,7 @@ def timed(name, action, pending=None):
         failed = bool(result)
     seconds = time.monotonic() - start
     if failed and pending is not None:
-        pending[name] = seconds
+        pending[name] = (seconds, result[1] if isinstance(result, tuple) else result)
     else:
         status = 'failed' if failed else 'passed'
         if isinstance(result, tuple) and result[1] and isinstance(result[1], list):
@@ -718,7 +733,7 @@ def timed(name, action, pending=None):
     return result
 
 
-def summary(base_id, lints, tests, errors, reason, failures_tail, starved=None):
+def summary(base_id, lints, tests, errors, reason, failures_tail, starved=()):
     """Keep the first failure whole and count what the host's tail cannot hold."""
     refused = any(not settled(e) for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
@@ -727,8 +742,7 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=None):
     header += (f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
                f'{counts["inherited"]} inherited; {failures_tail}\n')
     sets = f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
-    if starved:
-        sets += starved + '\n'
+    sets += ''.join(line + '\n' for line in starved)
     if reason:
         sets += tail(reason)
     new, flakes, inherited_errors = failure_groups(errors)
@@ -765,7 +779,7 @@ def main():
     base_id, why = base(root, env)
     errors = []
     lints, tests = [], []
-    starved = None
+    starved = []
     outcomes = {}
 
     def conclude():
@@ -803,10 +817,9 @@ def main():
                     paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
                 docs = any(documentation(path) for path in paths)
                 try:
-                    # Plain documentation needs neither Cargo nor package selection.
                     empty = {'packages': [], 'workspace_members': []}
                     selected = code_inputs(paths, empty, root)
-                    if selected or any(not documentation(path) for path in paths):
+                    if docs or selected or any(not documentation(path) for path in paths):
                         data = metadata(root, private)
                         selected = code_inputs(paths, data, root)
                 except (OSError, ValueError, RuntimeError) as error:
@@ -814,7 +827,7 @@ def main():
                 code_checks = bool(selected)
                 kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
                 if code_checks:
-                    print(f'pre-pr: {kind}: format, counted baselines, clippy, focused tests '
+                    print(f'pre-pr: {kind}: format, counted baselines, clippy, focused and fuzzy tests '
                           f'(code input {selected[0]!r})', flush=True)
                 if docs:
                     path = next(path for path in paths if documentation(path))
@@ -832,7 +845,16 @@ def main():
                     return [failure('format', str(error))]
 
             inventory = {}
-            if code_checks:
+            if base_id and data is not None and (code_checks or docs):
+                always = root / '.config/gate/always.txt'
+                always = always.read_text() if always.exists() else ''
+                lints, tests = select(data, {root / p: p for p in selected}, always) if code_checks else ([], [])
+                if code_checks and not lints and not tests:
+                    print('pre-pr: no package changed', flush=True)
+                packages = boundary(data, always)
+                print('pre-pr: boundary tests: ' + (' '.join(packages) or 'none'), flush=True)
+                tests = sorted(set(tests) | set(packages))
+            if tests or (code_checks and not base_id):
                 try:
                     if data is None:
                         data = metadata(root, private)
@@ -847,23 +869,20 @@ def main():
                 for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
                     _, found = timed('old-forms ' + name, lambda: baselines(name, root, private), pending)
                     errors += found
-                if base_id and data is not None:
-                    always = root / '.config/gate/always.txt'
-                    lints, tests = select(data, {root / p: p for p in selected},
-                                          always.read_text() if always.exists() else '')
-                    if not lints and not tests:
-                        print('pre-pr: no package changed', flush=True)
-                    if lints:
-                        _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
-                        errors += found
-                    binaries = [binary for name in tests for binary in inventory.get(name, [])]
-                    build_code = 0
-                    if binaries:
-                        build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
-                        errors += found
-                    if tests and not build_code:
-                        _, found, starved = timed('tests', lambda: one_process(tests, root, env, reds, rerun, outcomes), pending)
-                        errors += found
+                if lints:
+                    _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
+                    errors += found
+            binaries = [binary for name in tests for binary in inventory.get(name, [])]
+            build_code = 0
+            if binaries:
+                build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
+                errors += found
+            if tests and not build_code:
+                for profile, name in (('default', 'tests'), ('fuzzy', 'fuzzy tests')):
+                    _, found, warning = timed(name, lambda: one_process(tests, root, env, reds, rerun, outcomes, profile), pending)
+                    errors += found
+                    if warning:
+                        starved.append(warning)
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
                 errors += found
@@ -871,16 +890,7 @@ def main():
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
             if base_id and count_errors:
                 why = judge_base(base_id, git_dir, count_errors, root, env)
-            for name, seconds in pending.items():
-                if name == 'clippy':
-                    prefixes = ('clippy ', 'check clippy')
-                elif name == 'test binaries':
-                    prefixes = ('build',)
-                elif name == 'tests':
-                    prefixes = ('test ', 'build', 'check one-process')
-                else:
-                    prefixes = (name,)
-                found = [e for e in errors if e['name'].startswith(prefixes)]
+            for name, (seconds, found) in pending.items():
                 status = 'inherited' if found and all(settled(e) for e in found) else 'failed'
                 print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
             verdict = conclude()

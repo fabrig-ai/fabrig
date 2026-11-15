@@ -91,7 +91,7 @@ pub(crate) fn switcher(
         builder.open(Role::Disclosure);
         builder.style(crate::look::PROJECTS);
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
-        let across = rail::across(root);
+        let across = rail::across(root) && parts.all_projects;
         builder.name(&if across { words.say(crate::words::Word::AllProjects, &[]) } else { name });
         builder.open(Role::Slot);
         builder.style(crate::look::PROJECTS_MENU);

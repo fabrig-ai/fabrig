@@ -16,7 +16,7 @@ use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
-    path::Path,
+    path::{Path, PathBuf},
 };
 use temper_client_shell_tui::journey::{self, WalkStep};
 use temper_client_shell_web::journey::SetupStep;
@@ -28,6 +28,49 @@ mod tests;
 const HORIZON: Duration = Duration::from_secs(600);
 const BOUND: Duration = Duration::from_secs(30);
 const POLL: Duration = Duration::from_millis(50);
+
+// An attempt has one run; ignore temporaries and every other TUI file.
+fn recording_file(directory: &Path) -> std::io::Result<Option<PathBuf>> {
+    let entries = match fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(why) => return Err(why),
+    };
+    let mut found = None;
+    for entry in entries {
+        let entry = entry?;
+        if recording_name(entry.file_name().as_bytes()) && entry.file_type()?.is_file() {
+            if found.is_some() {
+                return Err(std::io::Error::other("more than one run recording"));
+            }
+            found = Some(entry.path());
+        }
+    }
+    Ok(found)
+}
+
+fn recording_name(name: &[u8]) -> bool {
+    let Some(time) = name.strip_prefix(b"recording-") else { return false };
+    if time.len() != 16 || time.get(8) != Some(&b'T') || time.get(15) != Some(&b'Z') {
+        return false;
+    }
+    let number = |range| {
+        let text = core::str::from_utf8(time.get(range)?).ok()?;
+        text.bytes().all(|byte| byte.is_ascii_digit()).then(|| text.parse::<u32>().ok()).flatten()
+    };
+    let date = number(0..4).zip(number(4..6)).zip(number(6..8));
+    let clock = number(9..11).zip(number(11..13)).zip(number(13..15));
+    let (Some(((year, month), day)), Some(((hour, minute), second))) = (date, clock) else { return false };
+    skein_lib::Civil {
+        year,
+        month: u8::try_from(month).expect("two decimal digits"),
+        day: u8::try_from(day).expect("two decimal digits"),
+    }
+    .valid()
+        && hour < 24
+        && minute < 60
+        && second < 60
+}
 
 /// A complete TUI walk and its browser setup, validated before starting children.
 #[derive(Debug)]
@@ -254,8 +297,10 @@ impl<'a> Walker<'a> {
         self.terminal.as_mut().expect("TUI started before walking")
     }
     fn save(&mut self) -> Result<(), Refusal> {
-        let path = self.paths.scratch.join("state/temper/tui/recording");
-        let earlier = optional_file(&path).map_err(|_| self.fail("cannot observe recording before save"))?;
+        let directory = self.paths.scratch.join("state/temper/tui");
+        let earlier = recording_file(&directory)
+            .and_then(|path| path.map(|path| optional_file(&path)).transpose().map(Option::flatten))
+            .map_err(|_| self.fail("cannot observe recording before save"))?;
         self.terminal().write(key_bytes(&Key::Alt('S')));
         self.phase = Phase::Save { earlier };
         Ok(())
@@ -382,10 +427,13 @@ impl<'a> Walker<'a> {
                 WalkStep::See(_) | WalkStep::Approve | WalkStep::End => self.save()?,
             },
             Phase::Save { earlier } => {
-                let path = self.paths.scratch.join("state/temper/tui/recording");
-                if let Some(save) =
-                    replaced(&path, earlier.as_ref()).map_err(|_| self.fail("cannot read replaced recording"))?
-                {
+                let directory = self.paths.scratch.join("state/temper/tui");
+                let save = recording_file(&directory)
+                    .and_then(|path| {
+                        path.map(|path| replaced(&path, earlier.as_ref())).transpose().map(Option::flatten)
+                    })
+                    .map_err(|_| self.fail("cannot read replaced recording"))?;
+                if let Some(save) = save {
                     match self.steps.get(self.at).expect("saving a walk step") {
                         WalkStep::See(text) => {
                             if journey::shows(&save, text).map_err(|why| self.save_refusal(why))? {

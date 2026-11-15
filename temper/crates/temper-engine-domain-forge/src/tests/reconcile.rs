@@ -118,7 +118,7 @@ fn owner_rows() -> [Stored; 7] {
         release(),
     ]
 }
-fn repository_rows(repository: skein_forge::api::Repository) -> [Stored; 7] {
+pub(crate) fn repository_rows(repository: skein_forge::api::Repository) -> [Stored; 7] {
     let mut name = branch();
     name.forge = repository.forge;
     name.repository = repository.repository;
@@ -357,7 +357,7 @@ fn a_flight_on_a_live_forge_requires_its_entrys_task() {
 }
 
 // Empty restored tasks use the core's small task fixture limits; no charter is needed.
-pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
+pub(crate) fn empty_tasks() -> jig_domain_tasks::Domain {
     use jig_domain_tasks as tasks;
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let limits = tasks::Limits {

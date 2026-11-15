@@ -824,7 +824,7 @@ fn carried_pem() -> (Secret, Secret) {
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, der, &mut writer).unwrap();
     writer.put(b"\n-----END RSA PRIVATE KEY-----\n").unwrap();
     let pem = Secret::new(writer.finish());
-    let bundle = temper_client_domain::forge::forges::pasted_app_key(pem.expose()).unwrap();
+    let bundle = temper_client_domain_forge::forge::forges::pasted_app_key(pem.expose()).unwrap();
     (pem, bundle)
 }
 fn paste_start(service: &mut crate::Service, bundle: Secret, digest: [u8; 32]) {

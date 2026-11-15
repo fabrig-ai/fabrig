@@ -116,7 +116,7 @@ fn receipt_key(d: &Domain, row: &ChangeRow) -> ReceiptKey {
 }
 fn inputs(check: &FollowCheck) -> Box<[api::Input]> {
     let mut inputs = List::with_capacity(3);
-    for input in crate::landing::inputs(check.head, check.key.expect("computed key"), None) {
+    for input in crate::landing::inputs(check.head, check.key.expect("computed key"), None, false) {
         inputs.push(input).expect("two check inputs");
     }
     inputs

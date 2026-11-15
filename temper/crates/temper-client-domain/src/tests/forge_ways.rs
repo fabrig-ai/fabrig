@@ -734,9 +734,18 @@ fn proposal_cards(key: u64, kind: u32) -> List<crate::pages::inbox::Card> {
 fn proposal_read(root: &mut Domain, key: u64) -> Queue<forge::Request> {
     proposal_read_kind(root, key, 7)
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "map lends each card read value without a list (client/domain-crates.md, 3.1)"
+)]
 fn proposal_read_kind(root: &mut Domain, key: u64, kind: u32) -> Queue<forge::Request> {
     let mut out = Queue::uncapped();
-    ways::proposals(&mut root.forge, Some(&proposal_cards(key, kind)), f::limits().forge, &mut out);
+    ways::proposals(
+        &mut root.forge,
+        &mut proposal_cards(key, kind).iter().map(|card| card.page.as_ref()),
+        f::limits().forge,
+        &mut out,
+    );
     out
 }
 fn proposal_handle(out: &Queue<forge::Request>, key: u64) -> jig_client::Handle {
@@ -792,6 +801,10 @@ fn proposal_told(root: &mut Domain, told: Told) {
     ways::told(&mut root.forge, skein_lib::Time::ZERO, &root.client, &told, f::limits().forge, &mut out);
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "map lends each card read value without a list (client/domain-crates.md, 3.1)"
+)]
 fn a_proposals_items_are_read_once_and_bounded() {
     let mut f = fixture();
     let handle = proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
@@ -823,11 +836,11 @@ fn a_proposals_items_are_read_once_and_bounded() {
         }),
     })));
     let mut out = Queue::uncapped();
-    ways::proposals(&mut f.root.forge, Some(&ended), f::limits().forge, &mut out);
+    ways::proposals(&mut f.root.forge, &mut ended.iter().map(|card| card.page.as_ref()), f::limits().forge, &mut out);
     assert!(out.is_empty(), "decided proposals ask nothing");
     proposal_told(&mut f.root, Told::Link { link: Link::Offline });
     proposal_told(&mut f.root, Told::Link { link: Link::Live });
-    ways::proposals(&mut f.root.forge, Some(&ended), f::limits().forge, &mut out);
+    ways::proposals(&mut f.root.forge, &mut ended.iter().map(|card| card.page.as_ref()), f::limits().forge, &mut out);
     assert!(out.is_empty(), "a decided proposal is not read after reconnection");
     assert_eq!(
         f.root.forge.proposed(PROPOSAL),

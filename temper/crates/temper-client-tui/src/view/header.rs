@@ -30,10 +30,12 @@ pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], ad
     let v = Some(look::MARK_VIOLET);
     b.open(Role::Region);
     b.region(look::HEADER);
+    text(b, Role::Paragraph, b"", None);
+    // A spread region with one child keeps the line's start and cuts its end.
+    b.open(Role::Region);
+    b.region(look::HEADER_LINE);
     b.open(Role::Paragraph);
-    if plain {
-        text(b, Role::Text, b" ", None);
-    } else {
+    if !plain {
         mark(b, [None, None, c, c, c, None], [None, blue, c, None, None, None]);
     }
     text(b, Role::Text, &words.say(Word::Title, &[]), Some(look::NAME));
@@ -41,10 +43,11 @@ pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], ad
         text(b, Role::Text, &concat(&[b" ", version]), Some(look::HINT));
     }
     b.close();
+    b.close();
+    b.open(Role::Region);
+    b.region(look::HEADER_LINE);
     b.open(Role::Paragraph);
-    if plain {
-        text(b, Role::Text, b" ", None);
-    } else {
+    if !plain {
         mark(b, [None, blue, None, v, None, v], [blue, blue, v, v, v, v]);
     }
     if front {
@@ -54,6 +57,7 @@ pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], ad
     } else {
         text(b, Role::Text, address, Some(look::HINT));
     }
+    b.close();
     b.close();
     b.close();
 }

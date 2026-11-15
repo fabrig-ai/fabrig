@@ -92,7 +92,9 @@ active generation or its previous.
 
 At the binary's levels, the open reads the registry and plans its
 layouts (`layouts.md`, 5.3), refusing a layout it cannot read before
-anything is written. With nothing to write (`layouts.md`, 5.5), it goes
+anything is written. It reads it only once the format row's versions
+are those its levels want (`records.md`, 3): a store at another version
+is refused first. With nothing to write (`layouts.md`, 5.5), it goes
 on with the rest of step 2 (the run proofs' cuts, the installation's
 identifier), its read edge converting each value (`layouts.md`, 4).
 Behind them, or with something to write, it upgrades in a new

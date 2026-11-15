@@ -78,7 +78,7 @@ fn failed_steps(tree: &Tree) {
                 .collect::<String>()
         })
         .filter(|line| {
-            ["Fetched Forgejo", "Preparing:", "Starting Forgejo", "Connecting as temper", "Making acme/shop"]
+            ["Fetched Forgejo", "Preparing Forgejo", "Starting Forgejo", "Connecting as temper", "Making acme/shop"]
                 .iter()
                 .any(|prefix| line.contains(prefix))
         })

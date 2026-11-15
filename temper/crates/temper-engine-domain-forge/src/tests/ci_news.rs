@@ -24,6 +24,7 @@ fn rows(ends: usize, pending: bool) -> Box<[Status]> {
 }
 fn world(head: Commit) -> (Domain, Env<Limits>) {
     let mut d = fixtures::connected_domain();
+    crate::tests::outputs(&mut d, Event::Restore { record: crate::Stored::Repository(crate::tests::adopted()) });
     let mut e = crate::tests::env();
     e.limits.client.hinted = Duration::from_secs(1);
     e.limits.client.poll = Duration::from_secs(5);

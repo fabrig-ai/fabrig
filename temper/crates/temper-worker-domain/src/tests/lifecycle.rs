@@ -137,10 +137,11 @@ fn assignments_the_hub_refuses_leave_room_for_one_in_the_same_iteration() {
 #[test]
 fn acknowledged_answers_free_their_workspace_items() {
     let mut h = Harness::new();
+    h.env.limits.host.detail_bytes = 4096;
     let unprepared = host::Failure::Unprepared(host::Preparation::Transient);
     let ending = host::Ending::Failed {
         failure: unprepared,
-        detail: b"store: Unreachable".as_slice().into(),
+        detail: b"store: Unreachable (workspace 0, repository 0 app, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms)".as_slice().into(),
         work: host::Work { left: None, saved: None },
         model: None,
     };

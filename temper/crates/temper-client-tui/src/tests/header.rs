@@ -18,6 +18,7 @@ fn row(frame: &Frame, number: u16) -> Box<[u8]> {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks the header's rows, cells, tokens and plain fallback")]
 fn the_header_names_only_the_build_and_place() {
     let root = super::launchpad::home(Some(true), &[]);
     for (front, plain, version) in [
@@ -45,21 +46,22 @@ fn the_header_names_only_the_build_and_place() {
         let header = header.unwrap();
         let start = f::index(tree, header.id);
         let nodes = &tree.nodes()[start..start + usize::try_from(header.size).unwrap()];
-        let mut lines = List::with_capacity(2);
+        let mut lines = List::with_capacity(3);
         for node in nodes {
             if node.role == Role::Paragraph {
                 lines.push(node).unwrap();
             }
         }
-        assert_eq!(lines.len(), 2);
-        let prefix = if plain { " " } else { " ▄█▀▀   " };
+        assert_eq!(lines.len(), 3);
+        assert_eq!(f::text(tree, lines.get(0).unwrap()).as_ref(), b"");
+        let prefix = if plain { "" } else { " ▄█▀▀   " };
         let build = if version.is_empty() { "" } else { " 0.0.0 (b948f40d6df1)" };
         let first = concat(&[prefix.as_bytes(), b"temper", build.as_bytes()]);
-        let prefix = if plain { " " } else { "▄█▄█▄█  " };
+        let prefix = if plain { "" } else { "▄█▄█▄█  " };
         let place = if front { "temper box · a whole deployment on this machine" } else { "127.0.0.1:8367" };
         let second = concat(&[prefix.as_bytes(), place.as_bytes()]);
-        assert_eq!(f::text(tree, lines.get(0).unwrap()).as_ref(), first.as_ref());
-        assert_eq!(f::text(tree, lines.get(1).unwrap()).as_ref(), second.as_ref());
+        assert_eq!(f::text(tree, lines.get(1).unwrap()).as_ref(), first.as_ref());
+        assert_eq!(f::text(tree, lines.get(2).unwrap()).as_ref(), second.as_ref());
         let name = f::find(tree, Role::Text, b"temper");
         assert_eq!(name.styles.as_slice(), &[look::NAME]);
         if !version.is_empty() {
@@ -114,10 +116,35 @@ fn the_header_names_only_the_build_and_place() {
             let size = Size { columns: 80, rows: 24 };
             let mut frame = Frame::new(size);
             render(tree, &crate::theme(scheme, None), size, &mut Focus::default(), &mut frame);
-            assert_eq!(row(&frame, 0), first);
-            assert_eq!(row(&frame, 1), second);
-            assert_eq!(row(&frame, 2).as_ref(), b"");
+            assert_eq!(row(&frame, 0).as_ref(), b"");
+            assert_eq!(row(&frame, 1), concat(&[b" ", &first]));
+            assert_eq!(row(&frame, 2), concat(&[b" ", &second]));
+            assert_eq!(row(&frame, 3).as_ref(), b"");
         }
+    }
+}
+
+#[test]
+fn the_narrow_header_cuts_the_ends_not_the_mark() {
+    let root = super::launchpad::home(None, &[]);
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.header(false, VERSION.into());
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    for columns in [10, 20] {
+        let size = Size { columns, rows: 24 };
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
+        assert_eq!(row(&frame, 0).as_ref(), b"");
+        for (number, expected) in [(1, "  ▄█▀▀   temper 0.0.0 (b948f40d6df1)"), (2, " ▄█▄█▄█  127.0.0.1:8367")]
+        {
+            let cells = frame.row(number).unwrap();
+            for (cell, glyph) in cells.iter().take(usize::from(columns - 1)).zip(expected.chars()) {
+                assert_eq!(cell.glyph, glyph);
+            }
+            assert_eq!(cells.last().unwrap().glyph, ' ');
+        }
+        assert_eq!(row(&frame, 3).as_ref(), b"");
     }
 }
 
@@ -135,20 +162,29 @@ fn the_welcome_uses_the_header_and_spaces_its_link() {
     let size = Size { columns: 150, rows: 39 };
     let mut frame = Frame::new(size);
     render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
-    assert_eq!(row(&frame, 0).as_ref(), " ▄█▀▀   temper 0.0.0 (b948f40d6df1)".as_bytes());
-    assert_eq!(row(&frame, 1).as_ref(), "▄█▄█▄█  temper box · a whole deployment on this machine".as_bytes());
-    assert_eq!(row(&frame, 2).as_ref(), b"");
-    let mut link = None;
-    for number in 0..size.rows {
-        if row(&frame, number).as_ref() == b"   http://127.0.0.1:8367/link" {
-            link = Some(number);
-        }
+    for (number, expected) in [
+        "",
+        "  ▄█▀▀   temper 0.0.0 (b948f40d6df1)",
+        " ▄█▄█▄█  temper box · a whole deployment on this machine",
+        "",
+        " Welcome. Set temper up in your browser: open this link on this machine.",
+        "",
+        " http://127.0.0.1:8367/link",
+        "",
+        " It signs you in as this temper's owner, once, within 2 hours.",
+        "",
+        " In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(row(&frame, u16::try_from(number).unwrap()).as_ref(), expected.as_bytes());
     }
-    let link = link.unwrap();
-    assert_eq!(row(&frame, link - 1).as_ref(), b"");
-    assert_eq!(row(&frame, link + 1).as_ref(), b"");
-    assert!(row(&frame, link - 2).starts_with(b" Welcome. Set temper up"));
-    assert!(row(&frame, link + 2).starts_with(b"   It signs you in"));
+    assert_eq!(f::find(view.tree(), Role::Text, b"In the browser").styles.as_slice(), &[look::HEAD]);
+    assert_eq!(
+        f::find(view.tree(), Role::Text, "1 Welcome · 2 Forge · 3 Model · 4 Ready".as_bytes()).styles.as_slice(),
+        &[look::HINT]
+    );
 }
 
 #[test]

@@ -19,6 +19,17 @@ pub const fn owner(of: Owner) -> &'static str {
     }
 }
 
+/// A job's declared counts, including the separator when it counts anything.
+pub(crate) fn job_counts(counts: &[jig_protocol_store::JobCount]) -> String {
+    let mut text = String::new();
+    let mut separator = "; ";
+    for count in counts {
+        write!(text, "{separator}{} {}", count.name, count.count).expect("string write");
+        separator = ", ";
+    }
+    text
+}
+
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
 #[expect(
@@ -48,11 +59,12 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
                 place(&mut text, at);
             }
-            Event::Ran { of, job, rows, commits, .. } => {
+            Event::Ran { of, job, rows, commits, counts, .. } => {
                 writeln!(
                     text,
-                    "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits; time unavailable",
-                    owner(*of)
+                    "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits{}; time unavailable",
+                    owner(*of),
+                    job_counts(counts)
                 )
                 .expect("string write");
             }
@@ -294,6 +306,43 @@ mod tests {
             restored: false,
             done: true,
             open_failure: None,
+        }
+    }
+    #[test]
+    fn ran_report_counts_precede_time_or_leave_the_line_unchanged() {
+        use jig_protocol_store::JobCount;
+        let dirs = Directories {
+            config: b"/config".as_slice().into(),
+            data: b"/data".as_slice().into(),
+            cache: b"/cache".as_slice().into(),
+            origins: [skein_shell::Origin::Flag; 3],
+        };
+        for (counts, suffix) in [
+            (vec![], ""),
+            (
+                vec![JobCount { name: "dropped".into(), count: 5 }, JobCount { name: "PullState".into(), count: 5 }],
+                "; dropped 5, PullState 5",
+            ),
+        ] {
+            let (text, _) = lines(
+                "temper-box",
+                &report(Event::Ran {
+                    owner: Token::new(1),
+                    of: Owner::Application,
+                    job: "deleted-repository-forge-rows".into(),
+                    rows: 812,
+                    commits: 2,
+                    counts: counts.into_boxed_slice(),
+                }),
+                &dirs,
+                b"/backup",
+            );
+            assert_eq!(
+                text.lines().next().unwrap(),
+                format!(
+                    "temper-box upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits{suffix}; time unavailable"
+                )
+            );
         }
     }
     #[test]

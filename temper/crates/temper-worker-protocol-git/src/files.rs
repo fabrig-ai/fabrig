@@ -31,6 +31,8 @@ impl Directories {
 }
 #[derive(Debug)]
 pub(crate) struct Task {
+    /// The sequence's file task (temper/docs/design/protocol/git.md, section 6).
+    pub word: Option<&'static [u8]>,
     pub pending: Token,
     pub phase: Phase,
 }
@@ -130,29 +132,42 @@ fn count(result: Result<kernel::Done, Error>) -> Result<u32, Error> {
 }
 impl Task {
     pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Reds(reds::Files::new(directory, content, marker, rerun)) }
+        Task {
+            word: Some(b"reds"),
+            pending: Token::new(0),
+            phase: Phase::Reds(reds::Files::new(directory, content, marker, rerun)),
+        }
     }
     pub fn results(directory: Box<[u8]>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
+        Task { word: Some(b"results"), pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
     }
     pub fn layout() -> Task {
-        Task { pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
+        Task { word: None, pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
     }
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
+        Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
     }
     pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
+        Task { word: Some(b"store"), pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Store(Store::install(store, directory, done)) }
+        Task {
+            word: Some(b"install"),
+            pending: Token::new(0),
+            phase: Phase::Store(Store::install(store, directory, done)),
+        }
     }
     pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>) -> Task {
-        Task { pending: Token::new(0), phase: Phase::Alternates(Alternates::new(at, store, remote)) }
+        Task {
+            word: Some(b"alternates"),
+            pending: Token::new(0),
+            phase: Phase::Alternates(Alternates::new(at, store, remote)),
+        }
     }
     pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>) -> Task {
         let marked = List::with_capacity(u32::try_from(files.len()).expect("validated conflict count"));
         Task {
+            word: Some(b"scan"),
             pending: Token::new(0),
             phase: Phase::Scan(Scan {
                 files,
@@ -169,6 +184,7 @@ impl Task {
     }
     pub fn sweep() -> Task {
         Task {
+            word: None,
             pending: Token::new(0),
             phase: Phase::Sweep(Sweep {
                 phase: SweepPhase::OpenTrash,
@@ -180,7 +196,7 @@ impl Task {
         }
     }
     pub fn closing() -> Task {
-        Task { pending: Token::new(0), phase: Phase::Closing }
+        Task { word: None, pending: Token::new(0), phase: Phase::Closing }
     }
     pub fn first(&mut self, dirs: &mut Directories, settings: &Settings) -> Action {
         match &mut self.phase {

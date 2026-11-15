@@ -171,7 +171,8 @@ fn its_repositorys_removal_erases_the_log() {
         if forget {
             step(&mut d, &env(), Event::ForgetAdoption { repository: REPO, restore: None }, &mut out);
         } else {
-            assert!(erase_removed_repositories(&mut d, REPO.forge, &mut out));
+            assert!(erase_removed_repositories(&mut d, &env(), REPO.forge, &mut out));
+            release::first_page(&mut d, &env(), &mut out);
         }
         assert!(contains(&out, &Request::Erase { key: Key::Repository(REPO) }));
         assert!(contains(&out, &Request::Erase { key: Key::LandingLog { repository: REPO } }));

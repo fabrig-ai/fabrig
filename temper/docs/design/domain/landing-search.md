@@ -68,15 +68,34 @@ top dispatches, reads and writes for it as for the round's top.
   receipt holds by it; a key in flight is waited for; otherwise the
   gate's workflow is dispatched on the branch in the landing of the
   boundary's member, whose head is its prefix, with `temper_commit` the
-  prefix, `temper_key` its key and, for a gate that reads the base,
-  `temper_base` the round's base. Each gate's status,
+  prefix, `temper_key` its key, `temper_probe` `yes` and, for a gate
+  that reads the base, `temper_base` the round's base. `temper_probe`
+  tells the gate's workflow that only red or green is asked, so that it
+  may stop at its first red (`landing.md`, 7.1); the round's top is
+  given none. Each gate's status,
   `temper/gate/<name>`, goes on that prefix (`landing.md`, section 10).
   An advisory gate is the candidate's alone: no probe dispatches it.
+- **`temper_probe`'s reach:** the inputs are fixed at a key's first
+  dispatch, so a rerun or a dispatch afresh (`landing.md`, 7.4) sends
+  them again, and a key in flight from the top serves a probe as it is,
+  as one from a probe serves a later top. A follow's check
+  (`forge/follows.md`) and a tier (`after-landing.md`), whose own
+  searches are no landing's, are given none. A workflow that does not
+  declare it runs as before: temper sends it at every probe without
+  reading the workflow, since Forgejo takes only the inputs a workflow
+  declares, each from the dispatch or its default, and ignores the rest
+  (skein's `forge/forgejo.md`, 2, still lists a dispatch's inputs
+  reaching the run among what is to record). GitHub refuses an input
+  its workflow does not declare, and its turn is not built
+  (`landing.md`, section 8): it is GitHub's turn's to settle.
 - **Its verdict:** red at the first of its blocking gates with a failed
   receipt at that prefix, which makes r the boundary; green once every
   one has a passed receipt there, which makes g the boundary. A run
   still in flight once the verdict is taken goes on to its receipt and
-  moves no bound.
+  moves no bound. A probe's run that stopped at its first red is a
+  failed receipt under its key, as a top's is: it makes r the boundary,
+  and its failed steps and logs, what it reached, are the blamed unit's
+  repair's (section 7).
 - **One probe at a time,** as a train runs one proof at a time
   (`../draft/merge-queue.md`, section 6): the next is dispatched once
   the last has its verdict. A search makes at most `ceil(log2(n))`

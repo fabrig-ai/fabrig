@@ -125,7 +125,7 @@ fn loading_fixture(configured: bool) -> Ways {
         },
     );
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) });
-    let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
+    let wanted = pages::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out
         .iter()
         .find_map(|r| {

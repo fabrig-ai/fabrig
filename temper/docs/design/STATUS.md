@@ -23,6 +23,11 @@ A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
 (`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
+A failed workspace preparation says where and why: its detail names the
+worker, the workspace, the repository, the stage and git's command, with
+check out and clean told apart, and the operation's and the prepare's
+times, and the worker logs a line for it
+(`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -113,9 +118,10 @@ merge train with a branch per member, proved once at the top, and
 landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
-next round (`domain/landing-search.md`). Its behaviours are checked in
-the engine's worlds; the process tier keeps two stories on the fake
-forge and two on the owned Forgejo, run by choice
+next round, each probe's gates given `temper_probe` so that they may
+stop at their first red (`domain/landing-search.md`). Its behaviours are
+checked in the engine's worlds; the process tier keeps two stories on
+the fake forge and two on the owned Forgejo, run by choice
 (`testing/process-tier.md`); its staging walks follow landing
 (`draft/merge-queue.status.md`).
 
@@ -274,7 +280,14 @@ from the box's `starting`, `started` and `dormant` lines, a first run's
 start steps on the quiet line rather than in the welcome's body, a
 cleared screen when the terminal is lent to Claude Code's sign-in, and
 the TUI's two-line header after pi's, fabrig.ai's mark, the build and
-the place (`client/tui/pages/README.md`, 3).
+the place (`client/tui/pages/README.md`, 3). The requests `tui-15` to
+`tui-19` of the same day, goal 3597, add blank rows around temper's
+line when the terminal is lent, draw the header and the welcome as
+their mockups (a blank row on top, the mark at column 1, the link at
+"Welcome."'s column, "In the browser" on one line), put the caret after
+"/change " and start nothing on a command's name alone, go back to the
+launchpad once `/close` is done, and give each recording run its own
+file, the last ten kept (`client/tui/journeys.md`, 3.1).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
@@ -310,6 +323,13 @@ program-login` on the welcome's "Sign in to Claude Code", and the page
 follows the login to its end (`client/tui/box.status.md`,
 `client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
 
+A deleted project's repositories are released whole: each, through the
+one helper every path erasing a repository takes, goes with every
+record that names it, its reads, watches and pending work retired and
+its writes paged so that a restart part-way starts and resumes, while a
+context another project adopts stays (`domain/forge/adoption.md`, 1;
+`protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -320,6 +340,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
@@ -480,6 +501,7 @@ Drafts:
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/default-wall-230.md`](draft/default-wall-230.status.md)
+- [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/design-economy.md`](draft/design-economy.status.md)
@@ -505,6 +527,7 @@ Drafts:
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
@@ -514,6 +537,7 @@ Drafts:
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
+- [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)

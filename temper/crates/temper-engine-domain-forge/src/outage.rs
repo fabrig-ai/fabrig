@@ -417,3 +417,25 @@ pub(super) fn retire(d: &mut Domain, forge: u16) {
     active.away.remove(&forge);
     active.back.remove(&forge);
 }
+
+pub(super) fn release_repository(d: &mut Domain, repository: Repository) {
+    let Some(active) = &mut d.outage else { return };
+    let mut keys = skein_lib::List::with_capacity(active.reads.len());
+    for (key, row) in &active.reads {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = active.reads.remove(&key).expect("collected reads");
+    }
+    let mut calls = skein_lib::List::with_capacity(active.calls.len());
+    for (call, (owner, _)) in &active.calls {
+        if *owner == repository {
+            calls.push(*call).expect("bounded outage calls");
+        }
+    }
+    for call in calls.into_boxed() {
+        active.calls.remove(&call);
+    }
+}

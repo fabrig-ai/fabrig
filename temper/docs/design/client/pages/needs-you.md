@@ -664,3 +664,9 @@
   (`../../domain/forge/attention.md`, 3). Default: not drawn; the
   card says nothing of it, and the finding's issue carries its owner's
   answer.
+- **Across projects, in one project** (1, *Its intro* and an item's
+  "PROJECT ›"; the look request `one-project`, which settles the switcher
+  alone, `../view.md`, 3, *All projects*): on `/` with one project, the
+  kicker reads "Needs you · all projects" and each item "PROJECT ›",
+  though the switcher names the project. A look question for the user.
+  Default: as they are.

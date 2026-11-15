@@ -1,5 +1,5 @@
 use super::*;
-use temper_client_domain::forge;
+use temper_client_domain_forge::forge;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 /// One byte past the form bound must refuse a write rather than retain its default.
 pub(crate) const FIELD_OVERFLOW: u32 = 1;
@@ -12,7 +12,7 @@ const REPOSITORY: u32 = 7;
 /// These inputs alter the ask while keeping its already held name.
 pub(crate) const CHANGED_ADOPTION: &[&str] = &["--prefix", "other/"];
 pub(crate) fn forge_asker() -> client::Asker {
-    temper_client_domain::owner::Owner::Forge.asker()
+    temper_client_domain_forge::owner::Owner::Forge.asker()
 }
 pub(crate) fn adopt_root(extra: &[&str]) -> (Harness, u32) {
     let mut root = signed_in(PARTY);

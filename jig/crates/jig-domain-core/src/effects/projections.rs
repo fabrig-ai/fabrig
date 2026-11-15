@@ -29,7 +29,7 @@ pub struct Projection {
     pub fed_at: Option<u64>,
 }
 
-fn header(state: &Projection) -> ProjectionRecord {
+pub(crate) fn header(state: &Projection) -> ProjectionRecord {
     ProjectionRecord::GoalHot {
         goal: state.goal.hot(),
         pending: state.pending.clone(),
@@ -53,11 +53,28 @@ fn goal(row: &tasks::TaskRecord) -> ProjectionGoal {
 }
 
 pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, out: &mut Queue<Request>) {
-    let fresh = row.tracked.is_some() && !core.projections.contains_key(&row.number);
+    save_in(core, limits, row, row.number, out);
+    let mut requester = row.requester;
+    // Every enclosing tracked subtree receives the task, within its admitted depth.
+    for _ in 0..row.depth {
+        let parent = match requester {
+            tasks::Party::Task(parent) => parent,
+            tasks::Party::Person(_) | tasks::Party::Deployment { .. } => break,
+        };
+        let Some(ancestor) = core.tasks.task(parent) else { break };
+        requester = ancestor.requester;
+        if core.projections.contains_key(&parent) {
+            save_in(core, limits, row, parent, out);
+        }
+    }
+}
+
+fn save_in(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, number: u64, out: &mut Queue<Request>) {
+    let fresh = number == row.number && row.tracked.is_some() && !core.projections.contains_key(&number);
     if fresh {
         core.projections
             .insert(
-                row.number,
+                number,
                 Box::new(Projection {
                     goal: goal(row),
                     plan: Box::new([]),
@@ -69,12 +86,6 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
             )
             .expect("tracked projection room admitted");
     }
-    let number = if core.projections.contains_key(&row.number) {
-        row.number
-    } else {
-        let Some(number) = core.goal_of(row) else { return };
-        number
-    };
     let Some(state) = core.projections.get_mut(&number) else { return };
     let before = header(state);
     if row.number == number {
@@ -160,6 +171,21 @@ pub(crate) fn history(
         let goal = goal.clone();
         save(core, limits, &goal, out);
     }
+    let mut goals = List::with_capacity(core.projections.len());
+    for (number, state) in &core.projections {
+        for row in &state.plan {
+            if row.number == task {
+                goals.push(*number).expect("bounded enclosing projections");
+                break;
+            }
+        }
+    }
+    for number in &goals {
+        history_in(core, *number, milestone.clone(), out);
+    }
+}
+
+fn history_in(core: &mut Core, root: u64, milestone: ProjectionMilestone, out: &mut Queue<Request>) {
     let Some(state) = core.projections.get_mut(&root) else { return };
     let saved = milestone.clone();
     let count = u32::try_from(state.milestones.len()).expect("milestone count fits u32");

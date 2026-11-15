@@ -6,7 +6,7 @@ use skein_ui::{Node, Role, State as UiState};
 use skein_world::domain::Verdict;
 use temper_client_domain::{
     Action, Address, Event,
-    forge::stock_ways::{State, StockWays, WayAct},
+    pages::stock_ways::{State, StockWays, WayAct},
     pages::{Act, home},
 };
 use temper_client_view::look;

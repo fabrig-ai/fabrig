@@ -1514,8 +1514,8 @@
   function ownedProgress(f, { allDone = false, failedAt = null } = {}) {
     const order = ['fetching', 'preparing', 'starting', 'connecting', 'repository'];
     const current = allDone ? order.length : order.indexOf(failedAt || f.setup.step);
-    const lines = [esc(`${current > 0 ? 'Fetched' : 'Fetching'} Forgejo ${f.versions.forgejo} and its runner ${f.versions.runner}`), `Preparing: its database, temper’s admin, your account${future('login', esc(` ${f.person}`))}`, 'Starting Forgejo and its runner', 'Connecting as temper', esc(`Making ${f.setup.org}/${f.setup.repo}, and adopting it into ${f.setup.project}`)];
-    return fact('client/forge/deployment.md, Setting up: Row.connection (SettingUp.step, Connecting), Row.first.state, the adoption; Row.owned’s versions', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${line}</li>`).join('')}</ol>`);
+    const lines = [esc(`${current > 0 ? 'Fetched' : 'Fetching'} Forgejo`), 'Preparing Forgejo', 'Starting Forgejo', 'Connecting as temper', esc(`Making ${f.setup.org}/${f.setup.repo}, and adopting it into ${f.setup.project}`)];
+    return fact('client/forge/deployment.md, Setting up: Row.connection (SettingUp.step, Connecting), Row.first.state, the adoption', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${line}</li>`).join('')}</ol>`);
   }
   function forgeActs(f) {
     if (f.state === 'setting up') return `${ownedProgress(f)}<a class="text-link" href="${esc(u(`connect-forge.html?forge=${f.n}`))}">Open its set-up ›</a>`;

@@ -924,7 +924,7 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
         assert!(why.key.is_none());
         route::up(
             &mut routes,
-            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2 },
+            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2, counts: Box::new([]) },
             &mut out,
         );
         assert!(out.is_empty());

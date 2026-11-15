@@ -75,7 +75,7 @@ fn two_calls_in_flight_are_answered_each_under_its_own_number() {
 }
 #[test]
 fn an_unknown_asker_tells_no_child() {
-    for (asker, facts) in [(fixtures::UNKNOWN_ASKER, 1), (temper_client_domain::owner::Owner::Forge.asker(), 0)] {
+    for (asker, facts) in [(fixtures::UNKNOWN_ASKER, 1), (temper_client_domain_forge::owner::Owner::Forge.asker(), 0)] {
         let mut root = fixtures::signed_in(fixtures::PARTY);
         root.client(client::Event::Watch {
             handle: client::Handle { asker, number: 1 },

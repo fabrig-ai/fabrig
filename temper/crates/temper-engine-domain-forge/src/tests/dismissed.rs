@@ -195,12 +195,12 @@ fn erase_project_erases_every_fact() {
     assert_eq!(
         released.as_ref(),
         [
+            mark(),
             Request::Erase { key: Key::Dismissed { party: PARTY, what: PersonFact::ToBegin { project: 1 } } },
             Request::Erase { key: Key::Dismissed { party: PARTY, what: GOAL_FROM } },
             Request::Erase { key: Key::Dismissed { party: PARTY, what: first } },
             Request::Erase { key: Key::Dismissed { party: PARTY, what: other } },
             Request::Erase { key: Key::Dismissed { party: OTHER_PARTY, what: PersonFact::ToBegin { project: 1 } } },
-            mark(),
             Request::ProjectReleased { request: REQUEST },
         ]
     );

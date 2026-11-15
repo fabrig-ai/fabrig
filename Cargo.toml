@@ -342,6 +342,8 @@ members = [
     "temper/testing/temper-client-view-kit",
     "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
+    "temper/crates/temper-client-domain-forge",
+    "temper/crates/temper-client-domain-pages",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
@@ -729,6 +731,8 @@ temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
+temper-client-domain-forge = { path = "temper/crates/temper-client-domain-forge" }
+temper-client-domain-pages = { path = "temper/crates/temper-client-domain-pages" }
 temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }

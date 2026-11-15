@@ -106,8 +106,8 @@ fn reports_decode_only_within_the_engines_key_bounds_and_flake_ceilings() {
 #[test]
 fn reds_cross_v8_and_v9_but_results_and_kept_cannot_go_back() {
     let limits = fixtures::limits();
-    let mut application = crate::application(&limits).unwrap();
-    let bridge = application.bridges.get_mut(0).unwrap();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
     for (root, bytes) in [
         (b"Ask".as_slice(), crate::ask(&v1::Ask::Reds)),
         (

@@ -439,9 +439,13 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(&tool)
             )
         }
-        temper_engine_service::Note::Ran { of, job, rows, commits } => {
+        temper_engine_service::Note::Ran { of, job, rows, commits, counts } => {
             let binary = if binary == "temper" { "temper-box" } else { binary };
-            format!("{binary} serve: ran {} {job}: {rows} rows in {commits} commits\n", crate::upgrade::owner(of))
+            format!(
+                "{binary} serve: ran {} {job}: {rows} rows in {commits} commits{}\n",
+                crate::upgrade::owner(of),
+                crate::upgrade::job_counts(&counts)
+            )
         }
         temper_engine_service::Note::Patched { of, patch, counts } => {
             let binary = if binary == "temper" { "temper-box" } else { binary };
@@ -629,6 +633,7 @@ fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalD
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
 }
 
+// temper/docs/design/domain/worker/checkouts.md, 1.4: keep the fields at the detail's head.
 fn run_failure_line(
     binary: &str,
     task: u64,
@@ -637,7 +642,10 @@ fn run_failure_line(
     failure: jig_domain_host::Failure,
     detail: &[u8],
 ) -> String {
-    run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
+    run_detail_head_line(
+        format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "),
+        detail,
+    )
 }
 
 // temper/docs/design/domain/worker/jobs.md: the job's kind stays in the run line's detail.
@@ -666,10 +674,18 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
     }
 }
 
-fn run_detail_line(mut line: String, detail: &[u8]) -> String {
-    use std::fmt::Write as _;
+fn run_detail_head_line(line: String, detail: &[u8]) -> String {
+    escaped_detail_line(line, detail.get(..4096).unwrap_or(detail))
+}
+
+fn run_detail_line(line: String, detail: &[u8]) -> String {
     let from = detail.len().saturating_sub(4096);
-    for byte in detail.get(from..).expect("bounded diagnostic tail") {
+    escaped_detail_line(line, detail.get(from..).expect("bounded diagnostic tail"))
+}
+
+fn escaped_detail_line(mut line: String, detail: &[u8]) -> String {
+    use std::fmt::Write as _;
+    for byte in detail {
         for escaped in core::ascii::escape_default(*byte) {
             line.write_char(char::from(escaped)).expect("format escaped diagnostic");
         }

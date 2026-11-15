@@ -166,12 +166,17 @@ fn the_repository_program_is_checked_reused_or_absent() {
                     fixtures::OWNER,
                     git::Done::FailedWithOutput {
                         fault: git::Fault::Broken,
-                        diagnostic: git::PushDiagnostic::new(diagnostic, 0),
+                        diagnostic: git::PushDiagnostic::new(diagnostic, 0).named(if row.remote {
+                            b"fetch"
+                        } else {
+                            b"checkout"
+                        }),
                     }
                 )),
                 "{}",
                 row.name
             );
+            // The sequence's classifier returns output; Component::finish adds its command.
             // The same classifier result as an actual fatal exit, status 128.
             let Request::Io { op, .. } = request(None, row.remote) else { unreachable!("operation fixture") };
             let crate::sequence::Next::Run(command) = crate::sequence::first(&op) else { unreachable!() };

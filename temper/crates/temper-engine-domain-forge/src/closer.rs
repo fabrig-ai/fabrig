@@ -10,7 +10,7 @@ pub use temper_engine_domain_forge_vocabulary::closer::*;
 pub(crate) struct State {
     pub(crate) rows: Map<u64, CloserRow>,
     pub(crate) reads: Map<Token, Reading>,
-    pub(crate) selection_reads: Map<Token, u64>,
+    pub(crate) selection_reads: Map<Token, (u64, Repository)>,
     checked: Map<u64, (u64, Result<bool, Error>)>,
     waits: Map<u64, Duration>,
 }
@@ -89,7 +89,7 @@ fn discard_check(d: &mut Domain, task: u64) {
     }
     let mut owners = List::with_capacity(d.closing.selection_reads.len());
     for (owner, reading) in &d.closing.selection_reads {
-        if *reading == task {
+        if reading.0 == task {
             owners.push(*owner).expect("bounded selection reads");
         }
     }
@@ -309,7 +309,7 @@ pub(crate) fn read_selection(
     out: &mut Queue<Request>,
 ) {
     for (_, reading) in &d.closing.selection_reads {
-        if *reading == task {
+        if reading.0 == task {
             return;
         }
     }
@@ -317,7 +317,7 @@ pub(crate) fn read_selection(
     let Some(read) = temper_engine_domain_forge_closer::selection_read(&row.closer) else { return };
     d.sequence = d.sequence.checked_add(1).expect("closer read sequence");
     let owner = Token::new(d.sequence | (1_u64 << 62));
-    d.closing.selection_reads.insert(owner, task).expect("one selection read per closer");
+    d.closing.selection_reads.insert(owner, (task, repository)).expect("one selection read per closer");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 
@@ -327,7 +327,10 @@ pub(crate) fn selection_answered(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let Some(task) = d.closing.selection_reads.remove(&owner) else { return };
+    let Some((task, repository)) = d.closing.selection_reads.remove(&owner) else { return };
+    if !d.repositories.contains_key(&repository) {
+        return;
+    }
     let Some(mut row) = d.closing.rows.get(&task).cloned() else { return };
     if row.done {
         return;
@@ -335,4 +338,26 @@ pub(crate) fn selection_answered(
     temper_engine_domain_forge_closer::selection_answer(&mut row.closer, result);
     save(d, row, out);
     out.push(Request::CloserChecked { task });
+}
+
+pub(crate) fn release_repository(d: &mut Domain, repository: Repository) {
+    let mut keys = List::with_capacity(d.closing.reads.len());
+    for (key, row) in &d.closing.reads {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded closing.reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let row = d.closing.reads.remove(&key).expect("collected closing.reads");
+        discard_check(d, row.task);
+    }
+    let mut keys = List::with_capacity(d.closing.selection_reads.len());
+    for (key, row) in &d.closing.selection_reads {
+        if row.1 == repository {
+            keys.push(*key).expect("bounded closing.selection_reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.closing.selection_reads.remove(&key).expect("collected closing.selection_reads");
+    }
 }

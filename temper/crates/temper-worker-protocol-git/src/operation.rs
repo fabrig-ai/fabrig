@@ -20,6 +20,8 @@ pub(crate) struct Operation {
     pub(crate) op: Option<git::Op>,
     pub(crate) identity: Option<Identity>,
     pub(crate) command: Command,
+    /// The invocation or file task asked of io (temper/docs/design/protocol/git.md, section 6).
+    pub(crate) word: Option<&'static [u8]>,
     pub(crate) after_version: Option<Box<Command>>,
     pub(crate) stop: Option<git::Fault>,
     pub(crate) aborted: bool,
@@ -70,6 +72,7 @@ impl Operation {
             op,
             identity,
             command,
+            word: None,
             after_version: None,
             stop: None,
             aborted: false,
@@ -80,6 +83,7 @@ impl Operation {
     }
     pub fn spawn(&mut self, io_owner: Token, command: Command, settings: &Settings, out: &mut Outputs) {
         self.io_owner = io_owner;
+        self.word = Some(invocation::word(&command));
         self.command = command;
         self.phase = Phase::Spawning { failed: false };
         let (directory, kind) = if self.command == Command::Version {
@@ -116,6 +120,31 @@ impl Operation {
                 },
             },
         );
+    }
+    /// Name an unnamed failure before it leaves its invocation or task
+    /// (temper/docs/design/protocol/git.md, section 6).
+    pub fn named(&self, done: git::Done) -> git::Done {
+        let Some(word) = self.word else { return done };
+        match done {
+            git::Done::FailedWithOutput { fault, diagnostic } => git::Done::FailedWithOutput {
+                fault,
+                diagnostic: diagnostic.named(diagnostic.command().unwrap_or(word)),
+            },
+            other @ (git::Done::Results { .. }
+            | git::Done::Paths { .. }
+            | git::Done::Looked { .. }
+            | git::Done::IsAncestor { .. }
+            | git::Done::Brings { .. }
+            | git::Done::Merged
+            | git::Done::Conflicted { .. }
+            | git::Done::Succeeded
+            | git::Done::Fetched { .. }
+            | git::Done::Committed { .. }
+            | git::Done::Unchanged
+            | git::Done::Exists
+            | git::Done::Rejected
+            | git::Done::Failed { .. }) => other,
+        }
     }
     pub fn program<'a>(&'a self, settings: &'a Settings) -> Option<&'a [u8]> {
         if let Some(op) = &self.op

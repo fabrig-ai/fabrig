@@ -217,39 +217,33 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
         notes: foot::read_notes(root, tui, words),
     }
 }
-fn indented(b: &mut Builder, words: &[u8], style: Option<Style>) {
-    b.open(Role::Description);
-    text(b, Role::Paragraph, words, style);
-    b.close();
-}
 fn before(b: &mut Builder, part: &Welcome, words: &Words) {
     text(b, Role::Paragraph, &words.say(Word::WelcomeOpen, &[]), None);
     if let Some(link) = &part.printed {
-        indented(b, link, None);
-        indented(b, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
+        text(b, Role::Paragraph, link, None);
+        text(b, Role::Paragraph, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
     } else if let Some((line, style)) = &part.failed {
-        indented(b, line, Some(*style));
+        text(b, Role::Paragraph, line, Some(*style));
         if let Some(hint) = &part.failed_hint {
-            indented(b, hint, Some(look::HINT));
+            text(b, Role::Paragraph, hint, Some(look::HINT));
         }
     } else {
-        indented(b, &words.say(Word::LinkPending, &[]), Some(look::HINT));
-        indented(b, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
+        text(b, Role::Paragraph, &words.say(Word::LinkPending, &[]), Some(look::HINT));
+        text(b, Role::Paragraph, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
     }
-    b.open(Role::Region);
-    text(b, Role::Paragraph, &words.say(Word::InTheBrowser, &[]), Some(look::HEAD));
-    b.open(Role::Description);
     b.open(Role::Paragraph);
+    text(b, Role::Text, &words.say(Word::InTheBrowser, &[]), Some(look::HEAD));
+    text(b, Role::Text, b"  ", None);
+    b.open(Role::Text);
     b.style(look::HINT);
     let mut separator = false;
     for step in &part.steps {
         if separator {
-            b.text(Run::Plain, &words.say(Word::Separator, &[]));
+            b.run(Run::Plain, &words.say(Word::Separator, &[]));
         }
-        b.text(Run::Plain, &step.words);
+        b.run(Run::Plain, &step.words);
         separator = true;
     }
-    b.close();
     b.close();
     b.close();
 }

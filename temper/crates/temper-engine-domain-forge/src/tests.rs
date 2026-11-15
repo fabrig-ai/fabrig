@@ -34,14 +34,14 @@ mod making;
 mod panel;
 mod playground;
 mod projection;
-mod reconcile;
-mod records;
+pub(crate) mod reconcile;
+pub(crate) mod records;
 pub(crate) mod reds;
 mod refusals;
 mod release;
 mod removal;
 mod requires;
-mod restore_fit;
+pub(crate) mod restore_fit;
 mod runs;
 mod saved_close;
 mod settings;
@@ -58,7 +58,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
-const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
+pub(crate) const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     pending: 4,
     calls: 2,
     rate: 100,
@@ -85,7 +85,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     fallback: Duration::ZERO,
     facts: 16,
 };
-const LIMITS: Limits = Limits {
+pub(crate) const LIMITS: Limits = Limits {
     forges: 4,
     repositories: 2,
     tasks: 8,
@@ -387,7 +387,7 @@ pub(crate) fn adopted() -> Repository {
     }
 }
 /// A commit status write: a set, made without a find.
-fn status(number: u64, task: u64) -> skein_forge_client::Entry {
+pub(crate) fn status(number: u64, task: u64) -> skein_forge_client::Entry {
     skein_forge_client::Entry {
         number,
         task,

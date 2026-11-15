@@ -220,6 +220,7 @@ impl World {
                     },
                 });
             }
+            Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }

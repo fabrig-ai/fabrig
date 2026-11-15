@@ -141,5 +141,5 @@ fn running_playground_pages_list_the_scripted_facts_without_offering_to_add_anyt
     go(&mut front, &mut root, Address::Accounts);
     assert!(has(&root, Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes()));
     go(&mut front, &mut root, Address::Forges);
-    assert!(d::forge::listed::playground(root.person()).is_some());
+    assert!(d::forge::listed::playground(root.person().forge()).is_some());
 }
