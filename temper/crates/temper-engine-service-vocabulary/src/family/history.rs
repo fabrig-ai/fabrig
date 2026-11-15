@@ -35,11 +35,25 @@ fn encode_job(value: d::Job) -> w::HistoryJob {
         d::Job::Merge => w::HistoryJob::Merge,
     }
 }
+fn encode_job_failure(value: d::JobFailure) -> w::HistoryJobFailure {
+    match value {
+        d::JobFailure::Unprepared => w::HistoryJobFailure::Unprepared,
+        d::JobFailure::Run => w::HistoryJobFailure::Run,
+        d::JobFailure::Result => w::HistoryJobFailure::Result,
+        d::JobFailure::Unstarted => w::HistoryJobFailure::Unstarted,
+        d::JobFailure::Undelivered => w::HistoryJobFailure::Undelivered,
+        d::JobFailure::Unknown => w::HistoryJobFailure::Unknown,
+    }
+}
 fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
         d::JobOutcome::Done => w::HistoryJobOutcome::Done,
         d::JobOutcome::Conflict => w::HistoryJobOutcome::Conflict,
-        d::JobOutcome::Failed => w::HistoryJobOutcome::Failed,
+        d::JobOutcome::Failed { class } => w::HistoryJobOutcome::Failed(w::HistoryJobFailed::new(
+            &w::CEILINGS, w::HistoryJobFailedParts { class: encode_job_failure(class) },
+        ).expect(FITS)),
+        d::JobOutcome::Timeout => w::HistoryJobOutcome::Timeout,
+        d::JobOutcome::Cancelled => w::HistoryJobOutcome::Cancelled,
         d::JobOutcome::Lost => w::HistoryJobOutcome::Lost,
     }
 }

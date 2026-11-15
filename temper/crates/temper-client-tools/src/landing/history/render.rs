@@ -419,11 +419,23 @@ fn job(value: &w::HistoryJob) -> &'static [u8] {
         w::HistoryJob::Merge => b"merge",
     }
 }
+fn job_failure(value: &w::HistoryJobFailure) -> &'static [u8] {
+    match value {
+        w::HistoryJobFailure::Unprepared => b"unprepared",
+        w::HistoryJobFailure::Run => b"run",
+        w::HistoryJobFailure::Result => b"result",
+        w::HistoryJobFailure::Unstarted => b"unstarted",
+        w::HistoryJobFailure::Undelivered => b"undelivered",
+        w::HistoryJobFailure::Unknown => b"unknown",
+    }
+}
 fn job_outcome(value: &w::HistoryJobOutcome) -> &'static [u8] {
     match value {
         w::HistoryJobOutcome::Done => b"done",
         w::HistoryJobOutcome::Conflict => b"conflict",
-        w::HistoryJobOutcome::Failed => b"failed",
+        w::HistoryJobOutcome::Failed(_) => b"failed",
+        w::HistoryJobOutcome::Timeout => b"timeout",
+        w::HistoryJobOutcome::Cancelled => b"cancelled",
         w::HistoryJobOutcome::Lost => b"lost",
     }
 }
@@ -549,6 +561,11 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
         w::HistoryWhat::JobEnded(value) => {
             out.word(b"job", job(value.job()));
             out.word(b"outcome", job_outcome(value.outcome()));
+            match value.outcome() {
+                w::HistoryJobOutcome::Failed(value) => out.word(b"class", job_failure(value.class())),
+                w::HistoryJobOutcome::Done | w::HistoryJobOutcome::Conflict | w::HistoryJobOutcome::Lost
+                | w::HistoryJobOutcome::Timeout | w::HistoryJobOutcome::Cancelled => {},
+            }
         }
         w::HistoryWhat::Conflict(value) => {
             out.word(b"with", with(value.with()));

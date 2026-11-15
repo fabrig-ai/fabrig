@@ -113,7 +113,7 @@ fn history_records_round_trip_every_kind_and_interval() {
         check(Stored::HistoryEvent(event(What::Updated { outcome })));
     }
     for job in [Job::Prepare, Job::Merge] {
-        for outcome in [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Failed, JobOutcome::Lost] {
+        for outcome in [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Failed { class: JobFailure::Unknown }, JobOutcome::Lost] {
             check(Stored::HistoryEvent(event(What::JobEnded { job, outcome })));
         }
     }

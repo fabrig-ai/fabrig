@@ -12,6 +12,8 @@ const STEPS: u32 = 200;
 
 #[path = "merge_job/producer.rs"]
 mod producer;
+#[path = "merge_job/history.rs"]
+mod history;
 
 pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
     World::configured_limits(
