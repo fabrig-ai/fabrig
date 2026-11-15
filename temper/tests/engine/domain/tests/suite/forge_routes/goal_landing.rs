@@ -30,12 +30,8 @@ pub(super) fn mine(world: &mut World, run: &engine::Assignment, call: u64, input
     world.answers.get(before).cloned()
 }
 
-pub(super) fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("registered change {task}")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub(super) fn row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 pub(super) fn assert_goal_holds(world: &World, goal: u64, branch: &[u8]) {
@@ -289,7 +285,7 @@ fn refused(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8],
             matches!(
                 key,
                 Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(_) | tasks::Key::Ended(_)))
-                    | Key::Forge(forge_top::Key::Change(_))
+                    | Key::Forge(forge_top::Key::ChangeHot(_))
             )
         })
         .cloned()
@@ -307,7 +303,7 @@ fn refused(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8],
             .filter(|key| matches!(
                 key,
                 Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(_) | tasks::Key::Ended(_)))
-                    | Key::Forge(forge_top::Key::Change(_))
+                    | Key::Forge(forge_top::Key::ChangeHot(_))
             ))
             .cloned()
             .collect::<Vec<_>>(),

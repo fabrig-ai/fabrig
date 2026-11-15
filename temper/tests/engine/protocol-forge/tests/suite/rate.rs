@@ -322,11 +322,14 @@ fn pending_changes_installation_requests_per_hour() {
         assert_eq!(world.writes(), 0, "all fixture pulls stay open; pending CI admits no writes");
         for index in 0..count {
             let task = 51 + u64::try_from(index).expect("task index");
-            let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {
+            let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(task)) else {
                 panic!("active change retained")
             };
             assert!(matches!(row.change.state, change::State::Checking { .. }));
-            let head = world.branch(&row.branch);
+            let Some(forge::Stored::ChangeCold(cold)) = world.stored().get(&forge::Key::ChangeCold(task)) else {
+                panic!("cold change")
+            };
+            let head = world.branch(&cold.branch);
             assert!(world.observations().iter().any(|o| matches!(o,
                 Observation::Reported { commit, state: raw::Check::Pending, .. } if *commit == head
             )));
@@ -453,7 +456,7 @@ fn busy(moving: bool) {
         assert_eq!(exact.2, skein_lib::len_u64(issued.len()));
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {
-            if let forge::Stored::Change(row) = stored {
+            if let forge::Stored::ChangeHot(row) = stored {
                 assert!(matches!(row.change.state, change::State::Checking { .. } | change::State::Gating { .. }));
             }
         }

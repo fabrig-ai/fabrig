@@ -72,6 +72,16 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(total)
         }
         Stored::Live(task) | Stored::Ended(task) => task_bytes(task),
+        Stored::LiveCold { spec, contract, authority, instructions, .. } => {
+            let mut total = bytes(size_of::<Spec>())?
+                .checked_add(spec_bytes(spec)?)?
+                .checked_add(contract_bytes(contract)?)?
+                .checked_add(authority_bytes(authority)?)?;
+            if let Some(instructions) = instructions {
+                total = total.checked_add(bytes(instructions.len())?)?;
+            }
+            Some(total)
+        }
         Stored::Attempt(_)
         | Stored::Result(_)
         | Stored::EndedByParty(_)

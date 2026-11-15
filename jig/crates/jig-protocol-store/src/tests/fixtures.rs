@@ -762,10 +762,10 @@ pub use reads::{
     with_proposal_rows, with_question_lines,
 };
 pub use store::{
-    ALICE, ENDED, LIVE, OTHER_DEPLOYMENT, PROJECT, ROOT, answer, below, call, codec_limits, commit, committed,
-    directory, ended_task, env, format_put, get_kv, header, header_put, header_record, history, installation_put,
-    layouts_put, live_task, notes_entry, notes_line, opened, opened_with_budget, over, person, plant, result_index,
-    run, run_proof, save, sign_in_secret, stores, turn, window_turn,
+    ALICE, ENDED, LIVE, OTHER_DEPLOYMENT, PROJECT, ROOT, answer, below, call, codec_limits, cold_task, commit,
+    committed, directory, ended_task, env, format_put, get_kv, header, header_put, header_record, history,
+    installation_put, layouts_put, live_task, notes_entry, notes_line, opened, opened_with_budget, over, person, plant,
+    result_index, run, run_proof, save, sign_in_secret, stores, turn, window_turn,
 };
 
 pub use store::limits as store_limits;

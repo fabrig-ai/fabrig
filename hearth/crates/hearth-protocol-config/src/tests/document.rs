@@ -1,6 +1,6 @@
 use super::fixtures::{STOA, document, only};
 use crate::{
-    Fault, Field, Position, Shape,
+    Decode, Fault, Field, Position,
     document::{Firmware, Members, On, Placement, Runs},
     json::{Entry, Kind, Value},
 };
@@ -41,7 +41,7 @@ fn a_task_value_neither_object_nor_null_is_refused_naming_the_task() {
     for input in CASES {
         let error = document(input).expect_err("settings");
         assert_eq!(error.at, Position { offset: 8, line: 1, column: 9 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Settings { task: b"core".as_slice().into() }));
+        assert_eq!(error.fault, Fault::Decode(Decode::Settings { task: b"core".as_slice().into() }));
     }
 }
 #[test]
@@ -50,7 +50,7 @@ fn a_key_that_is_no_task_name_is_refused_at_the_key() {
     for input in CASES {
         let error = document(input).expect_err("name");
         assert_eq!(error.at, Position { offset: 1, line: 1, column: 2 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Name));
+        assert_eq!(error.fault, Fault::Decode(Decode::Name));
     }
 }
 
@@ -116,26 +116,26 @@ fn a_placement_field_m1_lacks_is_refused_at_its_key() {
     for &(input, expected) in CASES {
         let error = document(input).expect_err("M1 field");
         assert_eq!(error.at, Position { offset: 14, line: 1, column: 15 });
-        let Fault::Shape(Shape::Unknown { field }) = error.fault else { panic!("unknown field: {error:?}") };
+        let Fault::Decode(Decode::Unknown { field }) = error.fault else { panic!("unknown field: {error:?}") };
         assert_eq!(field.as_ref(), expected, "{input:?}");
     }
 }
 const FIRMWARE_OR_HARDWARE_ON_A_CONTAINER_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Fault)] = &[
     (
         br#"{"placement":{"firmware":"bios","kind":"container","on":"x"}}"#,
-        Fault::Shape(Shape::Misplaced { field: Field::Firmware }),
+        Fault::Decode(Decode::Misplaced { field: Field::Firmware }),
     ),
     (
         br#"{"placement":{"hardware":"provider-b","kind":"container","on":"x"}}"#,
-        Fault::Shape(Shape::Misplaced { field: Field::Hardware }),
+        Fault::Decode(Decode::Misplaced { field: Field::Hardware }),
     ),
     (
         br#"{"placement":{"firmware":null,"kind":"container","on":"x"}}"#,
-        Fault::Shape(Shape::Misplaced { field: Field::Firmware }),
+        Fault::Decode(Decode::Misplaced { field: Field::Firmware }),
     ),
     (
         br#"{"placement":{"hardware":null,"kind":"container","on":"x"}}"#,
-        Fault::Shape(Shape::Misplaced { field: Field::Hardware }),
+        Fault::Decode(Decode::Misplaced { field: Field::Hardware }),
     ),
 ];
 #[test]
@@ -155,28 +155,28 @@ fn on_for_anything_but_a_container_is_refused_at_its_key() {
     for input in CASES {
         let error = document(input).expect_err("host only for a container");
         assert_eq!(error.at, Position { offset: 14, line: 1, column: 15 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Misplaced { field: Field::On }), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Misplaced { field: Field::On }), "{input:?}");
     }
 }
 const A_KIND_OR_FIRMWARE_NOT_LISTED_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Fault, Position)] = &[
     (
         br#"{"placement":{"kind":"bare"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Kind }),
+        Fault::Decode(Decode::Wrong { field: Field::Kind }),
         Position { offset: 21, line: 1, column: 22 },
     ),
     (
         br#"{"placement":{"kind":"VM"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Kind }),
+        Fault::Decode(Decode::Wrong { field: Field::Kind }),
         Position { offset: 21, line: 1, column: 22 },
     ),
     (
         br#"{"placement":{"firmware":"uefi","kind":"vm","hardware":"provider-b"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Firmware }),
+        Fault::Decode(Decode::Wrong { field: Field::Firmware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
     (
         br#"{"placement":{"firmware":"BIOS","kind":"metal","hardware":"7th-gen"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Firmware }),
+        Fault::Decode(Decode::Wrong { field: Field::Firmware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
 ];
@@ -192,7 +192,7 @@ fn a_kind_or_firmware_not_listed_is_refused_at_its_value() {
 fn a_null_placement_is_refused_at_its_value() {
     let error = document(br#"{"placement":null}"#).expect_err("never a removal");
     assert_eq!(error.at, Position { offset: 13, line: 1, column: 14 });
-    assert_eq!(error.fault, Fault::Shape(Shape::Placement));
+    assert_eq!(error.fault, Fault::Decode(Decode::Placement));
 }
 #[test]
 fn a_nonobject_placement_is_refused_at_its_value() {
@@ -201,33 +201,33 @@ fn a_nonobject_placement_is_refused_at_its_value() {
     for input in CASES {
         let error = document(input).expect_err("object");
         assert_eq!(error.at, Position { offset: 13, line: 1, column: 14 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Placement), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Placement), "{input:?}");
     }
 }
 const A_PLACEMENT_FIELD_OF_THE_WRONG_TYPE_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Fault, Position)] = &[
     (
         br#"{"placement":{"kind":1}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Kind }),
+        Fault::Decode(Decode::Wrong { field: Field::Kind }),
         Position { offset: 21, line: 1, column: 22 },
     ),
     (
         br#"{"placement":{"firmware":null,"kind":"vm","hardware":"provider-b"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Firmware }),
+        Fault::Decode(Decode::Wrong { field: Field::Firmware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
     (
         br#"{"placement":{"hardware":{},"kind":"metal","firmware":"efi"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Hardware }),
+        Fault::Decode(Decode::Wrong { field: Field::Hardware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
     (
         br#"{"placement":{"on":false,"kind":"container"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::On }),
+        Fault::Decode(Decode::Wrong { field: Field::On }),
         Position { offset: 19, line: 1, column: 20 },
     ),
     (
         br#"{"placement":{"mutable":0,"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
-        Fault::Shape(Shape::Wrong { field: Field::Mutable }),
+        Fault::Decode(Decode::Wrong { field: Field::Mutable }),
         Position { offset: 24, line: 1, column: 25 },
     ),
 ];
@@ -240,18 +240,18 @@ fn a_placement_field_of_the_wrong_type_is_refused_at_its_value() {
     }
 }
 const A_PLACEMENT_MISSING_WHAT_ITS_KIND_NEEDS_IS_REFUSED_AT_ITS_BRACE: &[(&[u8], Fault)] = &[
-    (br#"{"placement":{}}"#, Fault::Shape(Shape::Missing { field: Field::Kind })),
+    (br#"{"placement":{}}"#, Fault::Decode(Decode::Missing { field: Field::Kind })),
     (
         br#"{"placement":{"kind":"vm","hardware":"provider-b"}}"#,
-        Fault::Shape(Shape::Missing { field: Field::Firmware }),
+        Fault::Decode(Decode::Missing { field: Field::Firmware }),
     ),
-    (br#"{"placement":{"kind":"metal","firmware":"efi"}}"#, Fault::Shape(Shape::Missing { field: Field::Hardware })),
-    (br#"{"placement":{"kind":"vm","firmware":"bios"}}"#, Fault::Shape(Shape::Missing { field: Field::Hardware })),
+    (br#"{"placement":{"kind":"metal","firmware":"efi"}}"#, Fault::Decode(Decode::Missing { field: Field::Hardware })),
+    (br#"{"placement":{"kind":"vm","firmware":"bios"}}"#, Fault::Decode(Decode::Missing { field: Field::Hardware })),
     (
         br#"{"placement":{"kind":"metal","hardware":"7th-gen"}}"#,
-        Fault::Shape(Shape::Missing { field: Field::Firmware }),
+        Fault::Decode(Decode::Missing { field: Field::Firmware }),
     ),
-    (br#"{"placement":{"kind":"container"}}"#, Fault::Shape(Shape::Missing { field: Field::On })),
+    (br#"{"placement":{"kind":"container"}}"#, Fault::Decode(Decode::Missing { field: Field::On })),
 ];
 #[test]
 fn a_placement_missing_what_its_kind_needs_is_refused_at_its_brace() {
@@ -313,7 +313,7 @@ fn a_member_name_out_of_form_is_refused_at_its_key() {
     for input in CASES {
         let error = document(input).expect_err("member name");
         assert_eq!(error.at, Position { offset: 12, line: 1, column: 13 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Member), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Member), "{input:?}");
     }
 }
 #[test]
@@ -322,7 +322,7 @@ fn members_inside_a_member_are_refused_at_the_key() {
     for input in CASES {
         let error = document(input).expect_err("no nested members");
         assert_eq!(error.at, Position { offset: 17, line: 1, column: 18 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Member), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Member), "{input:?}");
     }
 }
 #[test]
@@ -336,7 +336,7 @@ fn a_member_s_value_neither_object_nor_null_is_refused() {
     for input in CASES {
         let error = document(input).expect_err("member layer or null");
         assert_eq!(error.at, Position { offset: 16, line: 1, column: 17 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Members), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Members), "{input:?}");
     }
 }
 #[test]
@@ -351,7 +351,7 @@ fn members_that_are_not_an_object_are_refused_at_the_value() {
     for input in CASES {
         let error = document(input).expect_err("members object");
         assert_eq!(error.at, Position { offset: 11, line: 1, column: 12 });
-        assert_eq!(error.fault, Fault::Shape(Shape::Members), "{input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::Members), "{input:?}");
     }
 }
 #[test]
@@ -415,6 +415,6 @@ fn a_null_inside_a_list_is_refused_at_the_null() {
     for (row, (input, at)) in LIST_NULLS.iter().enumerate() {
         let error = document(input).expect_err("null below a list");
         assert_eq!(error.at, *at, "row {row}: {input:?}");
-        assert_eq!(error.fault, Fault::Shape(Shape::ListNull), "row {row}: {input:?}");
+        assert_eq!(error.fault, Fault::Decode(Decode::ListNull), "row {row}: {input:?}");
     }
 }

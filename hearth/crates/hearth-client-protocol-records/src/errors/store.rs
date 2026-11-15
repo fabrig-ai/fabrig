@@ -1,5 +1,6 @@
 use super::{Encoder, Lines, field};
-use hearth_domain_render_vocabulary::errors::{Step, StoreError, StoreFault, StoreLimit};
+use crate::progress::StoreLimit;
+use hearth_domain_render_vocabulary::errors::{Step, StoreError, StoreFault, StoreLimit as RenderLimit};
 
 pub(super) fn step_name(item: Step) -> &'static [u8] {
     match item {
@@ -12,20 +13,46 @@ pub(super) fn step_name(item: Step) -> &'static [u8] {
     }
 }
 
-pub(super) fn store_error_text(item: &StoreError, lines: &mut Lines) {
-    lines.put(b"the store ");
-    lines.put(&item.store);
-    match item.fault {
-        StoreFault::Full { limit, most } => {
-            lines.put(b" is full: ");
-            lines.decimal(u64::from(most));
-            lines.put(match limit {
-                StoreLimit::Resolutions => b" resolutions",
+fn full_limit(limit: RenderLimit) -> StoreLimit {
+    match limit {
+        RenderLimit::Resolutions => StoreLimit::Resolutions,
+        RenderLimit::CacheFiles => StoreLimit::CacheFiles,
+    }
+}
 
-                StoreLimit::CacheFiles => b" cache files",
-            });
-        }
+pub(super) fn full_text(store: &[u8], limit: StoreLimit, most: u32, lines: &mut Lines) {
+    lines.put(b"the store ");
+    lines.put(store);
+    lines.put(b" is full: ");
+    lines.decimal(u64::from(most));
+    lines.put(match limit {
+        StoreLimit::Resolutions => b" resolutions",
+        StoreLimit::Layers => b" layers",
+        StoreLimit::CacheFiles => b" cache files",
+    });
+}
+
+pub(super) fn full_json(store: &[u8], limit: StoreLimit, most: u32, json: &mut Encoder) {
+    field(json, b"store", store);
+    field(
+        json,
+        b"limit",
+        match limit {
+            StoreLimit::Resolutions => b"resolutions",
+            StoreLimit::Layers => b"layers",
+            StoreLimit::CacheFiles => b"cache_files",
+        },
+    );
+    json.key(b"most");
+    json.unsigned(u64::from(most));
+}
+
+pub(super) fn store_error_text(item: &StoreError, lines: &mut Lines) {
+    match item.fault {
+        StoreFault::Full { limit, most } => full_text(&item.store, full_limit(limit), most, lines),
         StoreFault::Failed { step } => {
+            lines.put(b"the store ");
+            lines.put(&item.store);
             lines.put(b": its ");
             lines.put(step_name(step));
             lines.put(b" failed");
@@ -33,21 +60,11 @@ pub(super) fn store_error_text(item: &StoreError, lines: &mut Lines) {
     }
 }
 pub(super) fn store_error_json(item: &StoreError, json: &mut Encoder) {
-    field(json, b"store", &item.store);
     match item.fault {
-        StoreFault::Full { limit, most } => {
-            field(
-                json,
-                b"limit",
-                match limit {
-                    StoreLimit::Resolutions => b"resolutions",
-
-                    StoreLimit::CacheFiles => b"cache_files",
-                },
-            );
-            json.key(b"most");
-            json.unsigned(u64::from(most));
+        StoreFault::Full { limit, most } => full_json(&item.store, full_limit(limit), most, json),
+        StoreFault::Failed { step } => {
+            field(json, b"store", &item.store);
+            field(json, b"step", step_name(step));
         }
-        StoreFault::Failed { step } => field(json, b"step", step_name(step)),
     }
 }

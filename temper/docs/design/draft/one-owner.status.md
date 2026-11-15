@@ -1,6 +1,6 @@
 # one-owner: status
 
-2026-11-14. Where the design lags or departs from [one-owner.md](one-owner.md).
+2026-11-15. Where the design lags or departs from [one-owner.md](one-owner.md).
 
 - **Design lags:** none.
 - **Design departs:**

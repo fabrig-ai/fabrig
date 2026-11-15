@@ -343,16 +343,16 @@ impl World {
         self.merge_job.as_ref().expect("merge story")
     }
 
-    fn merge_change(&self) -> &temper_engine_domain_forge::ChangeRow {
+    fn merge_change(&self) -> temper_engine_domain_forge::ChangeRow {
         self.store
             .rows
             .values()
             .find_map(|row| match row {
                 engine::Record::Forge { row } => match row.as_ref() {
-                    temper_engine_domain_forge::Stored::Change(row) => {
+                    temper_engine_domain_forge::Stored::ChangeCold(row) => {
                         let target =
                             if self.merge_story().row == Row::Clean { row.catch_up.is_some() } else { row.task == 2 };
-                        target.then_some(row)
+                        if target { self.store.change(row.task) } else { None }
                     }
                     _ => None,
                 },

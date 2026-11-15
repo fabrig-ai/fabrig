@@ -161,6 +161,63 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
     }
     panic!("jobs did not end")
 }
+fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -> JobAnswer {
+    // Unregistered keys keep value decoding out of this commit-edge test.
+    let mut writes: Vec<JobWrite> = (0..page.room.writes + extra_writes)
+        .map(|index| {
+            let relative = format!("e/{index}").into_bytes();
+            let key = if of == Owner::Jig { [b"\x02".as_slice(), &relative].concat() } else { relative };
+            JobWrite::Put { key: key.into(), value: Box::new([0]) }
+        })
+        .collect();
+    let bytes: u64 = writes.iter().map(JobWrite::bytes).sum();
+    let JobWrite::Put { value, .. } = &mut writes[0] else { unreachable!() };
+    *value = vec![0; usize::try_from(1 + page.room.bytes + u64::from(extra_bytes) - bytes).unwrap()].into();
+    assert_eq!(writes.iter().map(JobWrite::bytes).sum::<u64>(), page.room.bytes + u64::from(extra_bytes));
+    JobAnswer { writes: writes.into_boxed_slice(), through: None }
+}
+#[test]
+fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
+    const JIG_ONLY: PatchSets = PatchSets { sets: &[BASE.sets[0], PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
+    const APP_ONLY: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
+    let baseline = fixture_baseline(None);
+    for (of, sets) in [(Owner::Jig, JIG_ONLY), (Owner::Application, APP_ONLY)] {
+        for (extra_writes, extra_bytes) in [(1, 0), (0, 1)] {
+            let mut disk = Disk::new(&baseline);
+            let before = snapshot(&mut disk);
+            let mut store = store(&disk, sets);
+            store.limits.commits.writes = 8;
+            store.limits.store.ops = 16;
+            store.limits.store.commit = 1024;
+            let (owner, found, job, mut page) = page(disk.open(&mut store));
+            assert_eq!(found, of);
+            for _ in 0_u32..10 {
+                if page.end {
+                    break;
+                }
+                let events = disk.request(
+                    &mut store,
+                    Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+                );
+                let (_, _, _, next) = self::page(events);
+                page = next;
+            }
+            assert!(page.end && page.rows.is_empty());
+            let response = edge_answer(&page, of, extra_writes, extra_bytes);
+            let events = disk.request(&mut store, Request::Job { owner, answer: Ok(response) });
+            let [Event::OpenRefused { why: OpenRefusal::Job { owner: refused, job: name, why, .. }, .. }] =
+                events.as_ref()
+            else {
+                panic!("room refusal: {events:?}")
+            };
+            assert_eq!(*refused, of);
+            assert_eq!(name, &job);
+            assert!(why.contains(if extra_writes > 0 { "commit edge" } else { "commit byte bound" }));
+            assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+            assert_eq!(snapshot(&mut disk), before);
+        }
+    }
+}
 #[test]
 fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() {
     assert_eq!(JobWrite::Put { key: Box::new([1, 2, 3]), value: Box::new([4, 5, 6, 7]) }.bytes(), 16);

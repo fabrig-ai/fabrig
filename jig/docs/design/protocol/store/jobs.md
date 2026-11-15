@@ -55,9 +55,11 @@ pub struct Converts {
   the map, never the secrets' store; a written job's family a registered
   family of the set and its value type one of that family's, its ranges
   that value type's.
-- **jig's jobs:** `charter-versions`, a written job (4), and
+- **jig's jobs:** `charter-versions`, a written job (4);
   `milestones`, which folds the tasks' milestones into their attempts
-  and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4).
+  and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4);
+  and `live-task-parts` and `projection-parts`, which put a store's whole
+  live tasks and projection rows into their parts (`parts.md`, 4).
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one

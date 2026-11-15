@@ -64,7 +64,7 @@ fn await_end(world: &mut World, task: u64) {
 }
 
 fn change_keys(world: &World) -> Vec<Key> {
-    world.store.rows.keys().filter(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))).cloned().collect()
+    world.store.rows.keys().filter(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))).cloned().collect()
 }
 
 fn assert_design_first_recipe() {

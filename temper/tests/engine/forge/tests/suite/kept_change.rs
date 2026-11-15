@@ -30,8 +30,8 @@ fn step(world: &mut World, task: u64, entry: u64, kept: bool) -> change::Decisio
     changes::change_step_task(world, task, entry, change::Status::Unknown, Box::new([]), false, kept)
 }
 
-fn row(world: &World, task: u64) -> &forge::ChangeRow {
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {
+fn row(world: &World, task: u64) -> &forge::ChangeHot {
+    let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(task)) else {
         panic!("change {task} remains durable")
     };
     row

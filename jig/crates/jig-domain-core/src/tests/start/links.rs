@@ -617,24 +617,19 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
         let (mut core, env) = loaded();
         let ended = tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) });
         for row in [
-            crate::ProjectionRecord::Goal {
-                goal: crate::ProjectionGoal {
-                    number: 1,
-                    project: 1,
-                    priority: 1,
-                    words: Box::new([]),
-                    phase: ended.clone(),
-                },
+            crate::ProjectionRecord::GoalWords { goal: 1, task: 1, words: Box::new([]) },
+            crate::ProjectionRecord::TaskWords { goal: 1, task: 2, words: Box::new([]) },
+            crate::ProjectionRecord::GoalHot {
+                goal: crate::ProjectionGoalHot { number: 1, project: 1, priority: 1, phase: ended.clone() },
                 pending: Box::new([]),
                 changed: false,
                 fed_at: None,
             },
-            crate::ProjectionRecord::Task {
+            crate::ProjectionRecord::TaskHot {
                 goal: 1,
-                task: crate::ProjectionTask {
+                task: crate::ProjectionTaskHot {
                     number: 2,
                     requester: tasks::Party::Task(1),
-                    words: Box::new([]),
                     phase: if live { tasks::Phase::Waiting } else { ended },
                 },
             },

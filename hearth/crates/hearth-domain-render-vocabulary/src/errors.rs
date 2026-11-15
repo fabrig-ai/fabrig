@@ -38,6 +38,43 @@ pub enum Kind {
     Tool(Tool),
     Composition(Composition),
 }
+impl Kind {
+    #[must_use]
+    pub fn tool(&self) -> Option<&Tool> {
+        match self {
+            Self::Tool(tool) => Some(tool),
+            Self::Reserved(_)
+            | Self::Exported(_)
+            | Self::Ids(_)
+            | Self::Resolution(_)
+            | Self::Guard(_)
+            | Self::Collision(_)
+            | Self::Store(_)
+            | Self::Evaluation(_)
+            | Self::Schema(_)
+            | Self::Decode(_)
+            | Self::Repository(_)
+            | Self::Composition(_) => None,
+        }
+    }
+    pub fn store_mut(&mut self) -> Option<&mut StoreError> {
+        match self {
+            Self::Store(error) => Some(error),
+            Self::Reserved(_)
+            | Self::Exported(_)
+            | Self::Ids(_)
+            | Self::Resolution(_)
+            | Self::Guard(_)
+            | Self::Collision(_)
+            | Self::Evaluation(_)
+            | Self::Schema(_)
+            | Self::Decode(_)
+            | Self::Repository(_)
+            | Self::Tool(_)
+            | Self::Composition(_) => None,
+        }
+    }
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Decode {
     Syntax(Syntax),

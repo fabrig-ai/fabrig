@@ -238,6 +238,7 @@ impl World {
                     )
                     | jig_domain_core::Record::Tasks(
                         tasks::Stored::Ended(_)
+                        | tasks::Stored::LiveCold { .. }
                         | tasks::Stored::Stub(_)
                         | tasks::Stored::Ledger(_)
                         | tasks::Stored::Writer(_)

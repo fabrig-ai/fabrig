@@ -1,7 +1,7 @@
 //! One owned tree from tokenizer demands (hearth/docs/design/protocol/format/README.md, 2.2;
 //! hearth/docs/design/domain/render/README.md, 3.1).
 use crate::{
-    Error, Fault, Position,
+    Decode, Error, Fault, Position,
     limits::{self, Limits},
 };
 use alloc::boxed::Box;
@@ -173,7 +173,7 @@ fn drive(decoder: &mut Decoder, env: &Env<Limits>, above: &mut Queue<Event>, bel
 }
 fn accept(decoder: &mut Decoder, limits: &Limits, token: Token, at: Position) -> Result<(), Error> {
     if decoder.open.is_empty() && decoder.root.is_none() && token != Token::ObjectStart {
-        return Err(Error { at, fault: Fault::NotObject });
+        return Err(Error { at, fault: Fault::Decode(Decode::NotObject) });
     }
     match decoder.open.top() {
         Some(Frame::Object { key: Some(key), .. }) if &**key == b"_note" => match &token {
@@ -186,7 +186,7 @@ fn accept(decoder: &mut Decoder, limits: &Limits, token: Token, at: Position) ->
             | Token::Number(_)
             | Token::True
             | Token::False
-            | Token::Null => return Err(Error { at, fault: Fault::Note }),
+            | Token::Null => return Err(Error { at, fault: Fault::Decode(Decode::Note) }),
         },
         Some(Frame::Object { .. } | Frame::Array { .. }) | None => {}
     }
@@ -212,7 +212,7 @@ fn accept(decoder: &mut Decoder, limits: &Limits, token: Token, at: Position) ->
         Token::False => Kind::Bool(false),
         Token::String(text) => {
             if text.contains(&0) {
-                return Err(Error { at, fault: Fault::Nul });
+                return Err(Error { at, fault: Fault::Decode(Decode::Nul) });
             }
             Kind::String(text)
         }
@@ -225,7 +225,7 @@ fn accept(decoder: &mut Decoder, limits: &Limits, token: Token, at: Position) ->
 }
 fn key_read(decoder: &mut Decoder, key: Box<[u8]>, at: Position) -> Result<(), Error> {
     if key.contains(&0) {
-        return Err(Error { at, fault: Fault::Nul });
+        return Err(Error { at, fault: Fault::Decode(Decode::Nul) });
     }
     match decoder.open.top_mut().expect("keys belong to an object") {
         Frame::Object { entries, key: pending, .. } => {
@@ -234,7 +234,7 @@ fn key_read(decoder: &mut Decoder, key: Box<[u8]>, at: Position) -> Result<(), E
             }
             let stored = key.clone();
             if entries.insert(stored, Held { at, value: None }).is_err() {
-                return Err(Error { at, fault: Fault::Keys });
+                return Err(Error { at, fault: Fault::Decode(Decode::Keys) });
             }
             *pending = Some(key);
         }
@@ -245,7 +245,7 @@ fn key_read(decoder: &mut Decoder, key: Box<[u8]>, at: Position) -> Result<(), E
 fn integer(text: &[u8]) -> Result<i64, Fault> {
     for byte in text {
         if *byte == b'.' || *byte == b'e' || *byte == b'E' {
-            return Err(Fault::NotInteger);
+            return Err(Fault::Decode(Decode::NotInteger));
         }
     }
     let negative = text.first() == Some(&b'-');
@@ -253,8 +253,9 @@ fn integer(text: &[u8]) -> Result<i64, Fault> {
     let mut value = 0_i64;
     for digit in digits {
         let digit = i64::from(digit.checked_sub(b'0').expect("validated number digit"));
-        let shifted = value.checked_mul(10).ok_or(Fault::Range)?;
-        value = if negative { shifted.checked_sub(digit) } else { shifted.checked_add(digit) }.ok_or(Fault::Range)?;
+        let shifted = value.checked_mul(10).ok_or(Fault::Decode(Decode::Range))?;
+        value = if negative { shifted.checked_sub(digit) } else { shifted.checked_add(digit) }
+            .ok_or(Fault::Decode(Decode::Range))?;
     }
     Ok(value)
 }
@@ -267,7 +268,7 @@ fn place(decoder: &mut Decoder, value: Value) -> Result<(), Error> {
                 match value.kind {
                     Kind::String(_) => return Ok(()),
                     Kind::Null | Kind::Bool(_) | Kind::Int(_) | Kind::List(_) | Kind::Map(_) => {
-                        return Err(Error { at: value.at, fault: Fault::Note });
+                        return Err(Error { at: value.at, fault: Fault::Decode(Decode::Note) });
                     }
                 }
             }

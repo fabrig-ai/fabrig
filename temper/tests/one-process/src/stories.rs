@@ -322,7 +322,7 @@ pub(crate) fn change_held(rows: &BTreeMap<root::Key, root::Record>) -> bool {
             if matches!(task.executor, jig_domain_tasks::Executor::Procedure { .. })
                 && matches!(task.phase, jig_domain_tasks::Phase::Held { why: jig_domain_tasks::Hold::Budget, .. })
     )).count() == 1 && rows.values().any(|row| matches!(row,
-        root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(change)
+        root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(change)
             if !change.change.gates.is_empty() && change.change.last_head.is_some())
     ))
 }

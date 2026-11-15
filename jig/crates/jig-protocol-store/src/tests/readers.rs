@@ -153,7 +153,8 @@ fn restore_walk_reports_real_refusal_and_cursor_arithmetic() {
 fn restore_live_pages_keep_varied_families_in_walk_order() {
     let person = fixtures::person(ALICE);
     let task = fixtures::live_task(ENDED);
-    let mut store = raw_store(&[put(person.clone()), put(task.clone())]);
+    let Record::Tasks(jig_domain_tasks::Stored::Live(row)) = &task else { panic!("live fixture") };
+    let mut store = raw_store(&[put(person.clone()), put(task.clone()), put(fixtures::cold_task(row))]);
     let mut after = None;
     let mut records = List::with_capacity(ROWS);
     loop {

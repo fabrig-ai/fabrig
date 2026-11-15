@@ -267,6 +267,7 @@ fn the_store_files_kit_uses_only_the_store_and_foundation() {
             "jig-test-connector",
             "jig-protocol-store",
             "jig-domain-core",
+            "jig-domain-tasks",
             "skein-lib",
             "skein-io",
             "skein-kv",

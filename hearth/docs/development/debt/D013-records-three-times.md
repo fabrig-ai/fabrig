@@ -46,8 +46,10 @@ The copies kept have work of their own:
   (`hearth/docs/design/client/README.md`, 3.2).
 - The tools' and store's vocabularies still have their translations:
   instruction sequences, bounded requests and outputs, the listing's object
-  id printed as hex, and store answers. Config faults are refused or supplied
-  with limits (`hearth/docs/design/domain/render/README.md`, 5.1).
+  id printed as hex, and store answers. Config's `Fault` adds the tokenizer's
+  faults, translated with the document limit; a read's stream fault, refused;
+  and a duplicate key's first byte offset
+  (`hearth/docs/design/domain/render/README.md`, 5.1).
 
 Nobody has examined `hearth-domain-tree/src/vocabulary.rs` against
 `hearth-protocol-tree/src/tree.rs` for the rule; that area remains open.

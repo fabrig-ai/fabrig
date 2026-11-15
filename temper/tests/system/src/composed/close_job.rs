@@ -216,10 +216,12 @@ impl World {
         }
     }
 
-    fn close_change(&self) -> Option<&temper_engine_domain_forge::ChangeRow> {
+    fn close_change(&self) -> Option<temper_engine_domain_forge::ChangeRow> {
         self.store.rows.values().find_map(|row| match row {
             engine::Record::Forge { row } => match row.as_ref() {
-                temper_engine_domain_forge::Stored::Change(row) if row.close.is_some() => Some(row.as_ref()),
+                temper_engine_domain_forge::Stored::ChangeCold(row) if row.close.is_some() => {
+                    self.store.change(row.task)
+                }
                 _ => None,
             },
             engine::Record::Core(_) => None,

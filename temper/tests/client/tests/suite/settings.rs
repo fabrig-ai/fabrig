@@ -266,7 +266,7 @@ fn a_projects_questions_set_on_the_tab_reach_its_next_change() {
         .values()
         .find_map(|record| {
             if let engine::Record::Forge { row } = record
-                && let temper_engine_domain_forge::Stored::Change(row) = row.as_ref()
+                && let temper_engine_domain_forge::Stored::ChangeHot(row) = row.as_ref()
                 && row.task == change.task
             {
                 Some(row.clone())
