@@ -377,7 +377,7 @@ impl World {
                     );
                     let leave =
                         self.bytes.windows(LEAVE.len()).rposition(|bytes| bytes == LEAVE).expect("left before spawn");
-                    assert_eq!(self.bytes.get(leave + LEAVE.len()..).expect("after LEAVE"), b"\x1b[H\x1b[2Jtemper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.\n", "clear, line and LF immediately after LEAVE, before spawn");
+                    assert_eq!(self.bytes.get(leave + LEAVE.len()..).expect("after LEAVE"), b"\x1b[H\x1b[2J\ntemper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.\n\n", "clear, LF, line and two LFs immediately after LEAVE, before spawn");
                 } else if spawn.program.as_ref() == b"/bin/browser" {
                     self.spawns += 1;
                     assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
@@ -1432,6 +1432,7 @@ fn a_loan_runs_only_the_found_box_with_inherited_descriptors_and_resumes() {
         assert!(lines.contains(&Line::BoxLine(b"log heard while lent".as_slice().into())));
         assert!(!world.run.is_empty());
         world.end_loan_world();
+        assert!(!world.bytes.windows(b"\x1b[3J".len()).any(|part| part == b"\x1b[3J"), "scrollback is never erased");
     }
 }
 
