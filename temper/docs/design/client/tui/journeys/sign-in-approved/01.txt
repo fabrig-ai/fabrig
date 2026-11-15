@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:33369                                     │
+│ Sign in this terminal to 127.0.0.1:35917                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ FMMB-FPRC, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:33369/terminal?code=FMMB-FPRC                  │
+│ VZWL-HHQV, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:35917/terminal?code=VZWL-HHQV                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:33369/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:35917/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

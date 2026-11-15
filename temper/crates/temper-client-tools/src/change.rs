@@ -960,6 +960,7 @@ fn repair(step: &w::Step) -> Option<&'static [u8]> {
         w::Step::Repairing(repair) => Some(match repair.reason() {
             w::Reason::Ci => b"ci",
             w::Reason::Gate(_) => b"gate",
+            w::Reason::Landing(_) => b"landing",
             w::Reason::Semantic => b"semantic",
             w::Reason::Review => b"review",
         }),

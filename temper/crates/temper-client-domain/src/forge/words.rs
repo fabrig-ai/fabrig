@@ -862,9 +862,10 @@ pub enum ChangeWord {
     SearchGreen,
     SearchRed,
     LeftBlamed,
+    RepairLanding,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 135] = [
+pub const CHANGES: [ChangeRow; 136] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -1004,6 +1005,7 @@ pub const CHANGES: [ChangeRow; 135] = [
     (ChangeWord::SearchGreen, &[b"Search: green member ", b" at ", b""], &[Number, Name]),
     (ChangeWord::SearchRed, &[b"Search: red member ", b" at ", b""], &[Number, Name]),
     (ChangeWord::LeftBlamed, &[b"Left: blamed by gate ", b", red at ", b", green at ", b""], &[Number, Name, Name]),
+    (ChangeWord::RepairLanding, &[b"Repairing: landing gate ", b" failed."], &[Number]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1118,6 +1120,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Period
         | ChangeWord::RepairCi
         | ChangeWord::RepairGate
+        | ChangeWord::RepairLanding
         | ChangeWord::RepairSemantic
         | ChangeWord::RepairReview
         | ChangeWord::LandingLine

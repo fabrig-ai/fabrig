@@ -182,8 +182,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        // The stock chat amendment holds every declared grant and executor.
-        ("people.amendment_bytes", 1210),
+        // The stock chat amendment holds every declared grant and executor with the longest offered cue.
+        ("people.amendment_bytes", 1218),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),

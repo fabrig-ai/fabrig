@@ -694,7 +694,11 @@ The default, for a project with no prepare command:
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch.
+  each train they touch. Changes made ready by one event (a dependency
+  they share ending, one decision's gates) are waiting together:
+  forming is judged once the readiness that event makes due has
+  settled, so they form one landing, never the first alone, and no
+  timer or delay stands in for that settling.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and

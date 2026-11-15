@@ -36,6 +36,11 @@ fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
 }
 
 #[test]
+fn gate_receipt_waits_for_an_unpublished_status_context() {
+    support::batch_landing::tests::gate_receipt_waits_for_an_unpublished_status_context();
+}
+
+#[test]
 fn the_scripted_batch_fits_its_budget_and_call() {
     support::batch_landing::tests::the_scripted_batch_fits_its_budget_and_call();
 }
@@ -136,6 +141,11 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
     }
     scratch.remove();
+}
+
+#[test]
+fn turn_configuration_declares_the_prepare_job() {
+    support::turn_restart::tests::turn_configuration_declares_the_prepare_job();
 }
 
 #[test]

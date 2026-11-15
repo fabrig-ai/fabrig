@@ -897,8 +897,11 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                             w::Reason::Gate(w::GateReason::new(limits, w::GateReasonParts { gate }).ok()?)
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
-                        // landing.md 3: the top's task
-                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
+                        change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {
+                            w::Reason::Landing(
+                                w::GateReason::new(limits, w::GateReasonParts { gate: u64::from(gate) }).ok()?,
+                            )
+                        }
                     },
                 },
             )
