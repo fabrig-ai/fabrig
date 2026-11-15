@@ -1707,6 +1707,26 @@ fn explained(fault: Fault) -> Landing {
 }
 
 #[test]
+fn push_diagnostic_constructors_name_no_command() {
+    assert_eq!(crate::git::PushDiagnostic::new(b"fatal: x", 3).command(), None);
+    assert_eq!(crate::git::PushDiagnostic::empty().command(), None);
+}
+
+#[test]
+fn named_push_diagnostic_keeps_output_and_cut() {
+    let diagnostic = crate::git::PushDiagnostic::new(b"fatal: x", 3).named(b"clean");
+    assert_eq!(diagnostic.command(), Some(b"clean".as_slice()));
+    assert_eq!(diagnostic.output(), b"fatal: x");
+    assert_eq!(diagnostic.cut(), 3);
+}
+
+#[test]
+fn push_diagnostic_command_distinguishes_equality() {
+    let diagnostic = crate::git::PushDiagnostic::new(b"fatal: x", 3);
+    assert_ne!(diagnostic.named(b"checkout"), diagnostic.named(b"clean"));
+}
+
+#[test]
 fn failed_git_output_is_bounded_and_survives_push_verification() {
     let prefix = [b'x'; crate::git::PushDiagnostic::CAPACITY + 32];
     let suffix = b"connection reset after sending commit";
