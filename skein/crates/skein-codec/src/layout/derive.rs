@@ -1,7 +1,9 @@
 //! Reach worklists and retained level conversions (data/codec/layouts.md, 2).
-use super::{Field, Inner, Kind, Node, Plan, Read, ReadKind, Source, Underived, Variant, Why, add};
+use super::{Dropped, Field, Inner, Kind, Node, Plan, Read, ReadKind, Source, Underived, Variant, Why, add};
 use crate::patch::{Comparison, Target, compare_held, compare_types, payload_matches};
-use crate::schema::{DeclIx, FieldIx, Held, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx};
+use crate::schema::{
+    DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
+};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -39,8 +41,15 @@ struct Pair {
     new: u32,
     matching: List<Option<DeclIx>>,
 }
+#[derive(Clone, Copy)]
+pub(super) enum Policy {
+    Strict,
+    RefuseDrops,
+}
+
 struct Builder {
     plan: Plan,
+    policy: Policy,
     keys: List<Key>,
     places: List<Place>,
     read_keys: List<Location>,
@@ -177,6 +186,28 @@ impl Builder {
         slot.empty = empty(text(news, key.new.text), key.new.at);
         Ok(())
     }
+    #[expect(clippy::disallowed_methods, reason = "schema parser has validated these ASCII names")]
+    fn drop_variant(&mut self, old: &Schema, place: Place) -> Result<Variant, Underived> {
+        match self.policy {
+            Policy::Strict => Err(place.error(Why::VariantDropped)),
+            Policy::RefuseDrops => {
+                let index = u16::try_from(self.plan.dropped.len()).expect("declaration bound fits u16");
+                let names = Dropped {
+                    enumeration: Box::from(
+                        core::str::from_utf8(old.spelled(place.decl)).expect("schema names are ASCII"),
+                    ),
+                    variant: Box::from(
+                        core::str::from_utf8(old.spelled(place.part.expect("dropped variant name")))
+                            .expect("schema names are ASCII"),
+                    ),
+                };
+                if self.plan.dropped.push(names).is_err() {
+                    return Err(place.error(Why::Deep));
+                }
+                Ok(Variant::Dropped(index))
+            }
+        }
+    }
     fn declaration(
         &mut self,
         olds: &[&Schema],
@@ -249,10 +280,13 @@ impl Builder {
                             break;
                         }
                     }
-                    let dest = found.ok_or(
-                        Place { decl: old.declaration(a).name, part: Some(old.variant(source).name), old: true }
-                            .error(Why::VariantDropped),
-                    )?;
+                    let dropped =
+                        Place { decl: old.declaration(a).name, part: Some(old.variant(source).name), old: true };
+                    let Some(dest) = found else {
+                        let variant = self.drop_variant(old, dropped)?;
+                        variants.push(Some(variant)).expect("one slot per old tag");
+                        continue;
+                    };
                     let part = Place { part: Some(new.variant(dest).name), ..place };
                     if key.new.variant.is_some() && key.new.variant != Some(dest) {
                         return Err(part.error(Why::Root));
@@ -269,7 +303,7 @@ impl Builder {
                     };
                     let tag = dest.index().checked_sub(bf.index()).expect("variant of new enum");
                     variants
-                        .push(Some(Variant {
+                        .push(Some(Variant::Kept {
                             tag: u8::try_from(tag).expect("schema tag fits"),
                             payload,
                             in_place: tag == offset,
@@ -638,6 +672,7 @@ pub(super) fn plan(
     new: &Schema,
     new_root: Root,
     new_held: &[&Schema],
+    policy: Policy,
 ) -> Result<Plan, Underived> {
     let decl =
         if new_root.decl.index() < new.declarations() { new.declaration(new_root.decl).name } else { new.family() };
@@ -670,6 +705,7 @@ pub(super) fn plan(
         plan: Plan {
             nodes: List::uncapped(),
             reads: List::uncapped(),
+            dropped: List::with_capacity(MAX_DECLARATIONS),
             root: 0,
             depth: 0,
             fields: 0,
@@ -677,6 +713,7 @@ pub(super) fn plan(
             old_head: headed,
             tag: root_tag(old, old_root),
         },
+        policy,
         keys: List::uncapped(),
         places: List::uncapped(),
         read_keys: List::uncapped(),
@@ -828,7 +865,6 @@ fn read_facts(plan: &Plan, at: u32) -> Option<(u32, u32)> {
     };
     Some((depth, minimum))
 }
-#[expect(clippy::manual_flatten, reason = "explicit variants retain the sparse broad-root table")]
 fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
     let node = plan.node(at);
     let mut depth = plan.read(node.read).depth;
@@ -896,15 +932,19 @@ fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
         Kind::Enum(variants) => {
             let mut keeps = true;
             for variant in variants {
-                if let Some(variant) = variant {
-                    keeps &= variant.in_place;
-                    if let Some(child) = variant.payload {
-                        let child = plan.node(child);
-                        if child.depth == 0 {
-                            return None;
+                match variant {
+                    None => {}
+                    Some(Variant::Dropped(_)) => keeps = false,
+                    Some(Variant::Kept { in_place, payload, .. }) => {
+                        keeps &= in_place;
+                        if let Some(child) = payload {
+                            let child = plan.node(*child);
+                            if child.depth == 0 {
+                                return None;
+                            }
+                            depth = depth.max(add(1, child.depth));
+                            keeps &= child.keeps;
                         }
-                        depth = depth.max(add(1, child.depth));
-                        keeps &= child.keeps;
                     }
                 }
             }

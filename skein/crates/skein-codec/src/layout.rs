@@ -1,4 +1,5 @@
-//! Derived byte passes between two layouts (data/codec/layouts.md, 1–5).
+//! Derived byte passes between two layouts, strict or refusing dropped variants per value
+//! (skein/docs/design/data/codec/layouts.md, 1–5).
 
 use crate::schema::{Root, Schema, Span};
 use alloc::boxed::Box;
@@ -44,6 +45,8 @@ pub enum Misconverted {
     Bound,
     Trailing,
     Room,
+    /// A refused variant's index in `Plan::dropped`.
+    Dropped(u16),
 }
 
 /// Owned tables, with no reference to either text.
@@ -51,6 +54,7 @@ pub enum Misconverted {
 pub struct Plan {
     nodes: List<Node>,
     reads: List<Read>,
+    dropped: List<Dropped>,
     root: u32,
     depth: u32,
     fields: u32,
@@ -101,10 +105,15 @@ enum Source {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Variant {
-    tag: u8,
-    payload: Option<u32>,
-    in_place: bool,
+enum Variant {
+    Kept { tag: u8, payload: Option<u32>, in_place: bool },
+    Dropped(u16),
+}
+
+#[derive(Clone, Debug)]
+struct Dropped {
+    enumeration: Box<str>,
+    variant: Box<str>,
 }
 
 #[derive(Clone, Debug)]
@@ -199,7 +208,34 @@ impl Plan {
         new_root: Root,
         new_held: &[&Schema],
     ) -> Result<Plan, Underived> {
-        derive::plan(old, old_root, old_held, new, new_root, new_held)
+        derive::plan(old, old_root, old_held, new, new_root, new_held, derive::Policy::Strict)
+    }
+
+    /// Plans the reach with dropped variants refused per value
+    /// (skein/docs/design/data/codec/layouts.md, 2).
+    /// Refuses with `Why::Deep` past `schema::MAX_DECLARATIONS` dropped names.
+    pub fn derive_dropping(
+        old: &Schema,
+        old_root: Root,
+        old_held: &[&Schema],
+        new: &Schema,
+        new_root: Root,
+        new_held: &[&Schema],
+    ) -> Result<Plan, Underived> {
+        derive::plan(old, old_root, old_held, new, new_root, new_held, derive::Policy::RefuseDrops)
+    }
+
+    /// Whether the plan refuses at least one dropped variant.
+    #[must_use]
+    pub fn drops(&self) -> bool {
+        !self.dropped.is_empty()
+    }
+
+    /// A refused variant's enumeration and variant names in the old text.
+    #[must_use]
+    pub fn dropped(&self, index: u16) -> Option<(&str, &str)> {
+        let names = self.dropped.get(u32::from(index))?;
+        Some((&names.enumeration, &names.variant))
     }
 
     /// Every old value already has the new bytes, apart from its root head.

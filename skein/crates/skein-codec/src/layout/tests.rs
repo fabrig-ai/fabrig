@@ -77,6 +77,108 @@ fn appended_variants_keep_inserted_tags_move_and_drops_are_written() {
 }
 
 #[test]
+fn dropping_whole_enum_refuses_before_between_and_after_kept_variants() {
+    let old = schema("record A { x: u8 } enum V { a: A b: A c: A }", 1);
+    for (variants, dropped, kept) in [
+        ("b: A c: A", "a", &[(1, 0), (2, 1)][..]),
+        ("a: A c: A", "b", &[(0, 0), (2, 1)][..]),
+        ("a: A b: A", "c", &[(0, 0), (1, 1)][..]),
+    ] {
+        let new = schema(&format!("record A {{ x: u8 }} enum W was V {{ {variants} }}"), 2);
+        let old_root = old.root(b"V", None).expect("whole old enum");
+        let new_root = new.root(b"W", None).expect("whole new enum");
+        let strict = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect_err("variant dropped");
+        assert_eq!(strict.why, Why::VariantDropped);
+        assert!(strict.old);
+        assert_eq!(old.spelled(strict.decl), b"V");
+        assert_eq!(old.spelled(strict.part.expect("variant")), dropped.as_bytes());
+        let p = Plan::derive_dropping(&old, old_root, &[], &new, new_root, &[]).expect("drops refused per value");
+        assert!(p.drops());
+        assert!(!p.keeps());
+        for &(from, to) in kept {
+            check(&p, &[from, 7], &[to, 7], false);
+        }
+        let tag = match dropped {
+            "a" => 0,
+            "b" => 1,
+            "c" => 2,
+            _ => unreachable!("fixture name"),
+        };
+        check_dropped(&p, &[tag, 7], &[], ("V", dropped));
+        // Dispatch refuses the tag before reading or writing the dropped payload.
+        check_dropped(&p, &[tag], &[], ("V", dropped));
+        assert_eq!(p.dropped(1), None);
+        assert_eq!(p.dropped(u16::MAX), None);
+        let mut work = Workspace::new();
+        assert!(work.fit(&p));
+        assert_eq!(p.convert(&[3, 7], &mut Buffer::with_capacity(16), &mut work), Err(Misconverted::Tag));
+    }
+}
+
+fn check_dropped(p: &Plan, wire: &[u8], prefix: &[u8], names: (&str, &str)) {
+    let mut work = Workspace::new();
+    assert!(work.fit(p));
+    let mut out = Buffer::with_capacity(64);
+    let allocations = skein_heap::Span::start();
+    let converted = p.convert(wire, &mut out, &mut work);
+    assert_eq!(allocations.made(), 0, "a refused pass allocates nothing");
+    let index = match converted {
+        Err(Misconverted::Dropped(index)) => index,
+        other => panic!("expected dropped variant, got {other:?}"),
+    };
+    assert_eq!(p.dropped(index), Some(names));
+    assert_eq!(out.as_slice(), prefix, "no dropped tag or payload was written");
+}
+
+#[test]
+fn nested_drops_prevent_copying_otherwise_kept_record_spans() {
+    let old = schema("enum V { a b c } record Inner { v: V } record R { pad: u8 inner: Inner }", 1);
+    let new = schema("enum V { a } record Inner { v: V } record R { pad: u8 inner: Inner }", 2);
+    let strict =
+        Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("nested variant dropped");
+    assert_eq!(strict.why, Why::VariantDropped);
+    let p = Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[])
+        .expect("nested drop refused per value");
+    // The plan owns its names, not spans borrowed from the schemas.
+    drop(old);
+    drop(new);
+    assert!(p.drops());
+    check(&p, &[9, 0], &[9, 0], false);
+    check_dropped(&p, &[9, 1], &[9], ("V", "b"));
+    check_dropped(&p, &[9, 2], &[9], ("V", "c"));
+    assert_eq!(p.dropped(2), None);
+}
+
+#[test]
+fn dropping_still_refuses_fields_without_defaults() {
+    let old = schema("enum V { a b } record R { v: V }", 1);
+    let new = schema("enum V { a } record R { v: V added: u8 }", 2);
+    let strict = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("missing default");
+    let dropping = Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[])
+        .expect_err("missing default even when drops allowed");
+    assert_eq!(dropping, strict);
+    assert_eq!(dropping.why, Why::NoDefault);
+}
+
+#[test]
+fn dropping_without_drops_matches_strict_keeps_and_conversion() {
+    let old = schema("versioned record R { x: u8 }", 1);
+    for (body, expected) in
+        [("versioned record R { x: u8 }", &[0, 2, 7][..]), ("versioned record R { x: u16 }", &[0, 2, 0, 7][..])]
+    {
+        let new = schema(body, 2);
+        let strict = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("strict");
+        let dropping =
+            Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("no drops");
+        assert!(!dropping.drops());
+        assert_eq!(dropping.dropped(0), None);
+        assert_eq!(dropping.workspace_bound(), strict.workspace_bound());
+        check(&strict, &[0, 1, 7], expected, strict.keeps());
+        check(&dropping, &[0, 1, 7], expected, strict.keeps());
+    }
+}
+
+#[test]
 fn integers_widen_but_do_not_narrow() {
     check(&plan("record R { a: u8 }", "record R { a: u32 }"), &[5], &[0, 0, 0, 5], false);
     refused("record R { a: u32 }", "record R { a: u8 }", Why::Retyped, Some(b"a"), false);
@@ -145,6 +247,10 @@ fn broad_root_ignores_siblings_but_not_its_tag_or_tail() {
     let moved = schema("record A { x: u8 } enum E { c a: A } versioned record R { value: E models: list 2 u8 }", 2);
     let p =
         Plan::derive(&old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[]).expect("tag derived");
+    check(&p, &[0, 1, 0, 5, 0, 0, 0, 0], &[0, 2, 1, 5, 0, 0, 0, 0], false);
+    let p = Plan::derive_dropping(&old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[])
+        .expect("siblings outside reach are not drops");
+    assert!(!p.drops());
     check(&p, &[0, 1, 0, 5, 0, 0, 0, 0], &[0, 2, 1, 5, 0, 0, 0, 0], false);
     let mut work = Workspace::new();
     assert!(work.fit(&p));
