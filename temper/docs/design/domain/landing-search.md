@@ -287,9 +287,10 @@ own cases and its fuzzy stories:
 - **the fallback gone:** no change marked to land alone, and a batch
   forming whole after a red.
 
-In the process tier, the story of a red narrowed
-(`../testing/process-tier.md`), written and compiled, run in that tier
-after landing.
+On the owned Forgejo, by choice, the story of a red narrowed, trimmed
+to its probes' dispatch-only runs and a merged pull's head as Forgejo
+keeps it (`../testing/process-tier.md`), run by name, in no budgeted
+run.
 
 ## 11. Later
 

@@ -1038,7 +1038,8 @@ forge's world holds:
 - **a real failure** repairs the member, which leaves, and only its
   changed keys run in its next landing;
 - **a runner's fault** is rerun, never repaired, and past its bound
-  holds the landing; a run past `gate_timeout` holds it;
+  holds the landing; a run cancelled by a person is dispatched afresh
+  at its key and candidate; a run past `gate_timeout` holds it;
 - **a stale base as prepare ends or at the turn** ends the round, every
   member stacked again once on the new base, and the next round lands;
   a released prepare's prefixes are cleaned before that new job, including
@@ -1051,6 +1052,13 @@ forge's world holds:
 - **on the fake GitHub:** a repository without `Always` refused,
   naming the bypass and how a person grants it; a required merge queue
   refused.
+
+The domain's stories add, through its root: a restart in each phase,
+the prepare job living on its worker; `batch` raised at a restart; a
+saved delivery across its worker's loss beside a proving landing; going
+live by `turn` with running work's settings kept (13); a copied policy's
+ceilings on the shipped capacities; a goal's delivery leaving its
+landing mid-proof, or sharing its run.
 
 ## 17. Open questions
 
