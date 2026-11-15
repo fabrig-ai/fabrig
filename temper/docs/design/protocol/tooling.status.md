@@ -10,6 +10,12 @@
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
   `conflict_files` is no limit, on `files`, `settled` or `left`.
+- **Not yet:** 4.1: the reference's merge command lists the paths it
+  leaves, with no record of their kind, side or commit, and cuts its
+  result by path with `"more": N` (`tools/merge/merge.py`) [in flight: change 3703].
+- **Not yet:** 4.1: the configuration reference's merge command section
+  gives the result as paths alone (`merge_command`;
+  `temper/docs/help/reference/configuration.md`) [in flight: change 3705].
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
