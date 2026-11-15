@@ -69,3 +69,6 @@ it; no browser has painted one on record.
 - **Not yet:** 5: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
+- **Not yet:** 7, *A page the browser kept*: the history part listens to `popstate`
+  alone, so a page resumed from the back-forward cache reports no return.
+  [in flight: change 3585]
