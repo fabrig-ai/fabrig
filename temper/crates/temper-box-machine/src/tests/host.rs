@@ -59,6 +59,174 @@ fn front_harness_buffer(steps: &[Step], parent: Option<u32>, buffer: u32) -> Har
         },
     )
 }
+fn group_front_harness(steps: temper_forge_setup::Steps, items: &[skein_fake_machine::Item], front: bool) -> Harness {
+    Harness::with_terminal(
+        steps,
+        items,
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            parent: None,
+            link_form: crate::terminal::LinkForm::Bare,
+            log_lines: Box::new([]),
+            first_link: Some(crate::host::FirstLink {
+                url: bytes::copy_of(FIRST_URL),
+                secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+                local: front.then_some(skein_lib::Secret::new(bytes::copy_of(LOCAL_SECRET))),
+            }),
+            front: front.then_some(skein_lib::Secret::new(bytes::copy_of(LOCAL_URL))),
+            after_block: Box::new([]),
+        },
+    )
+}
+fn assert_group_front(h: &mut Harness, enabled: bool, expected: &[u8]) {
+    h.run_until_idle();
+    if enabled {
+        let fd = h.front_pipes.unwrap()[2];
+        let output = h.sim.peer_drain(h.pid, fd, 16_384);
+        let mut states = List::uncapped();
+        for line in output.split_inclusive(|byte| *byte == b'\n') {
+            if !line.starts_with(b"log ") && !line.starts_with(b"link ") {
+                states.push(line).unwrap();
+            }
+        }
+        assert_eq!(crate::lines::joined(states.as_slice()).as_ref(), expected);
+        assert!(h.stdout().is_empty());
+        assert!(h.stderr().is_empty());
+    } else {
+        assert!(h.front_pipes.is_none(), "without --front no fd 4 writer is adopted");
+    }
+}
+
+#[test]
+fn a_restored_owned_groups_front_waits_for_its_readiness_answer() {
+    use super::fixtures::call;
+    use skein_fake_machine::Item;
+    use skein_io::kernel::{Fd, Op};
+    use temper_forge_setup::{Stage, machine::BoxKind};
+    for front in [true, false] {
+        let address = ([127, 0, 0, 1], 8200).into();
+        let mut steps = grouped_steps();
+        let group = steps.asked.get_mut(0).unwrap();
+        group.kind = Some(BoxKind::Owned);
+        group.steps = Box::new([(
+            Stage::Run,
+            long(b"forgejo 3", &[b"never"]).with_ready(address).listening(Box::new([address])),
+        )]);
+        let items = [
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/3", b"owned\n"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/started/3", b""),
+        ];
+        let mut h = group_front_harness(steps, &items, front);
+        assert_group_front(&mut h, front, b"starting Forgejo\n");
+        assert!(h.log().ends_with(b"00:00:00Z Forge 3 (Forgejo): starting\n"));
+        assert_eq!(h.spawn_times(b"serve").len(), 0, "the restored group precedes serve");
+        let child = h.hosted.get(h.child_index(b"forgejo 3")).unwrap().pid;
+        let Ok(Done::Accepted { fd, .. }) = call(&mut h.sim, child, Op::Accept { fd: Fd::new(3) }).result else {
+            panic!("the readiness connection queued on Forgejo's listener")
+        };
+        assert_eq!(
+            call(&mut h.sim, child, Op::Send { fd, bytes: bytes::copy_of(b"HTTP/1.1 200 OK\r\n"), from: 0 }).result,
+            Ok(Done::Count(17))
+        );
+        assert_group_front(&mut h, front, b"started Forgejo\n");
+        assert!(h.log().ends_with(b"00:00:00Z Forge 3 (Forgejo): started\n00:00:00Z Starting serve\n"));
+        assert_eq!(call(&mut h.sim, child, Op::Close { fd }).result, Ok(Done::Nothing));
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_front_settled(&h);
+    }
+}
+
+#[test]
+fn asked_groups_tell_the_front_start_and_closed_stop_or_removal() {
+    use temper_forge_setup::machine::BoxKind;
+    for (kind, ask, name, label) in [
+        (BoxKind::Owned, b"start 17 owned\n".as_slice(), b"Forgejo".as_slice(), b"Forge 17 (Forgejo)".as_slice()),
+        (BoxKind::Fake, b"start 17 fake\n".as_slice(), b"Playground".as_slice(), b"Playground".as_slice()),
+    ] {
+        for front in [true, false] {
+            for command in [b"stop 17\n".as_slice(), b"remove 17\n".as_slice()] {
+                let mut steps = super::fixtures::kind_steps();
+                let group = steps.asked.get_mut(0).unwrap();
+                group.kind = Some(kind);
+                group.label = bytes::copy_of(label);
+                let mut h = group_front_harness(steps, &[], front);
+                assert_group_front(&mut h, front, b"");
+                let before = h.log().len();
+                h.hold_spawn = Some(bytes::copy_of(b"fake-forge"));
+                h.ask(ask);
+                assert_group_front(&mut h, front, &crate::lines::joined(&[b"starting ", name, b"\n"]));
+                assert!(h.held_spawn.is_some(), "the group has not started yet");
+                assert!(!h.reply_bytes().ends_with(b"started 17\n"));
+                assert_eq!(
+                    h.log().get(before..).unwrap(),
+                    crate::lines::joined(&[b"00:00:00Z ", label, b": starting\n"]).as_ref()
+                );
+                h.release_spawn();
+                assert_group_front(&mut h, front, &crate::lines::joined(&[b"started ", name, b"\n"]));
+                assert!(h.reply_bytes().ends_with(b"started 17\n"));
+                assert_eq!(
+                    h.log().get(before..).unwrap(),
+                    crate::lines::joined(&[b"00:00:00Z ", label, b": starting\n00:00:00Z ", label, b": started\n",])
+                        .as_ref()
+                );
+                let before = h.log().len();
+                h.ask(command);
+                assert_group_front(&mut h, front, b"");
+                assert_eq!(h.log().len(), before, "stop is not logged before the steps close");
+                finish_child(&mut h, b"fake-forge", 0);
+                assert_group_front(&mut h, front, &crate::lines::joined(&[b"dormant ", name, b"\n"]));
+                assert_eq!(
+                    h.log().get(before..).unwrap(),
+                    crate::lines::joined(&[b"00:00:00Z ", label, b": stopped\n"]).as_ref()
+                );
+                assert!(h.reply_bytes().ends_with(if command == b"stop 17\n" {
+                    b"stopped 17\n"
+                } else {
+                    b"removed 17\n"
+                }));
+                h.terminate();
+                assert_eq!(h.run_to_end(), Exit::Code(0));
+                assert_front_settled(&h);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_failed_start_tells_the_front_the_group_is_dormant_not_started() {
+    use temper_forge_setup::{Stage, machine::BoxKind};
+    for front in [true, false] {
+        let mut steps = grouped_steps();
+        let group = steps.asked.get_mut(0).unwrap();
+        group.kind = Some(BoxKind::Owned);
+        group.steps = Box::new([(Stage::Prepare, once(b"prepare", &[b"exit", b"7"]))]);
+        let mut h = group_front_harness(steps, &[], front);
+        assert_group_front(&mut h, front, b"");
+        h.ask(b"start 3 owned\n");
+        assert_group_front(&mut h, front, b"starting Forgejo\ndormant Forgejo\n");
+        assert!(h.reply_bytes().ends_with(b"failed 3 prepare-3 exited 7\n"));
+        assert!(!Harness::contains(&h.log(), b": started\n"));
+        assert!(Harness::contains(&h.log(), b"00:00:00Z Forge 3 (Forgejo): starting\n"));
+        let failure = b"00:00:00Z Forge 3 (Forgejo): failed, prepare-3 exited 7\n";
+        if front {
+            assert!(Harness::contains(&h.log(), failure));
+        } else {
+            assert!(Harness::contains(&h.stderr(), failure));
+            assert!(!Harness::contains(&h.log(), failure));
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_front_settled(&h);
+    }
+}
+
 fn child_processes(h: &Harness) -> List<skein_io::kernel::Fd> {
     let mut children = List::with_capacity(64);
     for entry in h.sim.trace() {
