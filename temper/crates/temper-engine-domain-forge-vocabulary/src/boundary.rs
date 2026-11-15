@@ -2541,10 +2541,6 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "a save carries the receipt and its gate report; requests retain their inline boundary"
-)]
 pub enum Request {
     LoadHistory {
         load: u64,

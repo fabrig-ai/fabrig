@@ -319,6 +319,7 @@ fn repair() -> forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some([1; 32]),
+            last_checked: None,
         },
         pull: Some(7),
         pending: None,

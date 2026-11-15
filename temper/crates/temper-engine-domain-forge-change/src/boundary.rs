@@ -241,16 +241,16 @@ pub struct Pending {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PendingKind {
-    /// A change into the same repository and landing branch: its pushed head, if any, and
+    /// A change into the same repository and landing branch: its last checked head, if any, and
     /// whether it is itself kept by a pending dependency.
-    Change { head: Option<Commit>, kept: bool },
+    Change { checked: Option<Commit>, kept: bool },
     /// A change into another repository: it orders the landings alone.
     Elsewhere,
     /// Anything else: no head to start from, so the producer waits for it to be done.
     Other,
 }
 
-/// One dependency's pushed head a producer started from.
+/// One dependency's checked head a producer started from.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct StartedFrom {
     pub task: u64,
@@ -294,6 +294,8 @@ pub struct Change {
     pub ready_since: Option<Wall>,
     pub owns_turn: bool,
     pub last_head: Option<Commit>,
+    /// The last delegate push whose checks passed (questions.md, 1, A checked head).
+    pub last_checked: Option<Commit>,
 }
 
 /// Observed state of the change's pull request.

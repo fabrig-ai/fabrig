@@ -289,6 +289,42 @@ fn the_coordinator_uses_existing_prerequisites_instead_of_promising_word_later()
 }
 
 #[test]
+fn the_designer_allows_early_starts_but_orders_landings() {
+    let words = crate::stock::charter_set().designer.unwrap();
+    assert!(!words.contains("it starts the moment they have all landed"));
+    assert!(!words.contains("c3 starts once both land"));
+    assert!(words.contains(
+        "With `after`, a change may\n  start from dependencies' checked work before they land, but lands after them"
+    ));
+    assert!(words.contains("c3 may start from their checked work, but lands after both"));
+    assert!(words.contains("If it needs the earlier wave's landed result, not just checked work"));
+    assert!(words.contains("its spec says what to check first, and to ask if it doesn't hold"));
+}
+
+#[test]
+fn the_implementer_leaves_failures_in_work_it_started_from() {
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("`[Started from change N at <commit>, not landed]`\n  names a dependency's work and head"));
+    assert!(words.contains("Failures there belong to it: don't fix or\n  record them as reds"));
+    assert!(words.contains("If delivery passes, list them under `## Left`; if refused"));
+    assert!(words.contains("`save`, then ask, naming the change and commit"));
+}
+
+#[test]
+fn the_coordinator_waits_for_started_from_dependencies_before_answering() {
+    let engine = engine(&generated());
+    let coordinator = engine.charters.iter().find(|charter| charter.number == 5).unwrap();
+    let part = coordinator.parts.iter().find(|part| part.on.contains(jig_domain_tasks::Reasons::QUESTION)).unwrap();
+    let words = core::str::from_utf8(&part.instructions).unwrap();
+    assert!(words.contains("`after` permits starting from checked, unlanded work,\n  named by `[Started from …]`"));
+    assert!(words.contains("Failures there belong to that dependency, not a red\n  to record"));
+    assert!(words.contains("If delivery passes, answer: leave it under `## Left`"));
+    assert!(words.contains("If refused,\n  `subscribe` to the dependency; answer only once it lands"));
+    assert!(words.contains("The engine relays your\n  answer at once to the producer that started from it"));
+    assert!(words.contains("its next run first merges\n  g's landing tip, then delivers"));
+}
+
+#[test]
 fn the_coordinators_charter_makes_no_landing_or_close_out() {
     let set = crate::stock::charter_set();
     assert!(set.common.unwrap().contains("No agent merges or lands."));

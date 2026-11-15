@@ -144,6 +144,7 @@ pub fn opening_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
+            last_checked: None,
         },
         pull: None,
         pending: Some(OPEN),
