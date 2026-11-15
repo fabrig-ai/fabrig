@@ -158,6 +158,7 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let change = crate::v25::Row::decode(&crate::v25::CEILINGS, &mut Reader::new(value)).unwrap();
     let crate::v25::Value::Change(change) = change.into_parts().value else { panic!("change row") };
     assert_eq!(change.task_release(), &None);
+    assert!(!change.change().released_resolution());
     let events = disk.request(
         &mut current,
         Request::Get {
@@ -177,14 +178,12 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     disk.restart();
 
     let mut map = disk.map(2);
-    for (family, number, id, key, kept) in
-        [("temper-store", 12, 25, tagged_change, false), ("jig-store-tasks", 0, 13, task_key, true)]
-    {
+    for (family, number, id, key) in [("temper-store", 12, 25, tagged_change), ("jig-store-tasks", 0, 13, task_key)] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let family = SETS.sets.iter().flat_map(|s| s.families).find(|f| f.name == family).unwrap();
-        let schema_text = if kept { family.texts.last().copied().unwrap() } else { family.current };
+        let schema_text = family.texts.last().copied().unwrap();
         let schema = skein_codec::schema::parse(schema_text.as_bytes()).unwrap();
         let ty = family.types.iter().find(|t| t.number == number).unwrap();
         let expected = schema

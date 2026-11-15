@@ -565,14 +565,8 @@ fn a_released_resolution_without_a_delegate_uses_the_fresh_head_and_base() {
             Decision::Delegate(Delegate::Resolve { base: MERGE }),
         ),
     ] {
-        let fresh = Facts {
-            delegate: None,
-            branch: Some(NEW),
-            base_tip: MERGE,
-            mergeable,
-            merge_job: true,
-            ..facts.clone()
-        };
+        let fresh =
+            Facts { delegate: None, branch: Some(NEW), base_tip: MERGE, mergeable, merge_job: true, ..facts.clone() };
         let reset = step(&released(&held, at(3)), &fresh, &heard(), at(3), &LIMITS);
         let next = step(&reset.change, &fresh, &heard(), at(4), &LIMITS);
         assert_eq!(next.change.last_head, Some(NEW));

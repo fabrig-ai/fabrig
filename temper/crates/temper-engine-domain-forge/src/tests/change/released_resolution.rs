@@ -19,19 +19,14 @@ fn failed(kind: Delegate) -> Domain {
     row.delegate_status = Status::Failed;
     row.producer_failure = Some(b"refused at the saved head".as_slice().into());
     row.merge_result = Some(b"old result".as_slice().into());
-    row.change.state = State::Held {
-        was: Box::new(State::Resolving { requested: true, base: fixtures::BASE }),
-        why: Cause::Failed,
-    };
+    row.change.state =
+        State::Held { was: Box::new(State::Resolving { requested: true, base: fixtures::BASE }), why: Cause::Failed };
     outputs(&mut d, Event::Change { row });
     d
 }
 
 fn release(d: &mut Domain, revision: u64) -> Box<[Request]> {
-    outputs(d, Event::ReleaseChange {
-        task: fixtures::CHANGE,
-        release: Some(TaskRelease { revision, at: env().wall }),
-    })
+    outputs(d, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(TaskRelease { revision, at: env().wall }) })
 }
 
 #[test]
@@ -40,6 +35,7 @@ fn a_release_at_or_below_the_consumed_revision_changes_nothing() {
     release(&mut d, 3);
     let mut row = d.change(fixtures::CHANGE).unwrap().clone();
     row.change.state = State::Held { was: Box::new(row.change.state.clone()), why: Cause::Resolutions };
+    row.change.released = None;
     row.change.resolutions = 2;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
     for revision in [3, 2] {
@@ -55,6 +51,7 @@ fn a_repeated_released_step_cannot_lift_a_later_hold() {
     outputs(&mut d, waiting_step(false, true));
     let mut row = d.change(fixtures::CHANGE).unwrap().clone();
     row.change.state = State::Held { was: Box::new(row.change.state.clone()), why: Cause::Resolutions };
+    row.change.released = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
     outputs(&mut d, waiting_step(false, true));
     assert_eq!(d.change(fixtures::CHANGE), Some(&row));
@@ -62,8 +59,26 @@ fn a_repeated_released_step_cannot_lift_a_later_hold() {
 
 #[test]
 fn a_failed_delegates_terminal_and_words_are_retired_across_restore() {
-    for kind in [Delegate::Resolve { base: fixtures::BASE }, Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) }] {
+    for kind in [
+        Delegate::Resolve { base: fixtures::BASE },
+        Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) },
+    ] {
         let mut d = failed(kind);
+        let ended = d.change(fixtures::CHANGE).unwrap().clone();
+        outputs(
+            &mut d,
+            Event::DelegateResult {
+                task: fixtures::CHANGE,
+                child: CHILD,
+                ended_at: None,
+                status: Status::Passed,
+                no_change: false,
+                failed: false,
+                cancelled: false,
+                words: b"duplicate result".as_slice().into(),
+            },
+        );
+        assert_eq!(d.change(fixtures::CHANGE), Some(&ended), "a terminal is taken once, merge jobs included");
         release(&mut d, 1);
         let released = d.change(fixtures::CHANGE).unwrap().clone();
         assert_eq!(released.delegate, None, "no archived terminal can be loaded");
@@ -77,10 +92,19 @@ fn a_failed_delegates_terminal_and_words_are_retired_across_restore() {
         outputs(&mut restored, Event::ReadAfresh);
         outputs(&mut restored, Event::SettleOutbox);
         for domain in [&mut d, &mut restored] {
-            outputs(domain, Event::DelegateResult {
-                task: fixtures::CHANGE, child: CHILD, ended_at: None, status: Status::Failed,
-                no_change: false, failed: true, cancelled: false, words: b"refused at the saved head".as_slice().into(),
-            });
+            outputs(
+                domain,
+                Event::DelegateResult {
+                    task: fixtures::CHANGE,
+                    child: CHILD,
+                    ended_at: None,
+                    status: Status::Failed,
+                    no_change: false,
+                    failed: true,
+                    cancelled: false,
+                    words: b"refused at the saved head".as_slice().into(),
+                },
+            );
             assert_eq!(domain.change(fixtures::CHANGE), Some(&released));
             gather(domain, FRESH);
             assert_eq!(domain.change(fixtures::CHANGE).unwrap().change.state, State::Checking { head: FRESH });
@@ -99,9 +123,10 @@ fn a_refused_replacement_resolution_can_be_released_again() {
     let mut d = failed(kind);
     release(&mut d, 1);
     outputs(&mut d, Event::DelegateAdmissionRefused { task: fixtures::CHANGE, kind });
-    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.state, State::Held {
-        was: Box::new(State::Resolving { requested: false, base: fixtures::BASE }), why: Cause::Failed,
-    });
+    assert_eq!(
+        d.change(fixtures::CHANGE).unwrap().change.state,
+        State::Held { was: Box::new(State::Resolving { requested: false, base: fixtures::BASE }), why: Cause::Failed }
+    );
     release(&mut d, 2);
     gather(&mut d, FRESH);
     assert_eq!(d.change(fixtures::CHANGE).unwrap().change.state, State::Checking { head: FRESH });
@@ -111,30 +136,54 @@ fn gather(d: &mut Domain, head: [u8; 32]) -> bool {
     use skein_forge::api::{Answer, Check, Ci, Op, Read};
     outputs(d, waiting_step(false, false));
     let mut baseline = false;
-    for _ in 0..16 {
-        if d.steps.is_empty() { return baseline; }
+    for _ in 0_u32..16 {
+        if d.steps.is_empty() {
+            return baseline;
+        }
         let calls = ready(d);
         let mut answered = false;
         for request in calls {
             let Request::Call { call, op: Op::Read(read), .. } = request else { continue };
             answered = true;
             let answer = match read {
-                Read::Branch { branch } => Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { head }),
+                Read::Branch { branch } => {
+                    Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { head })
+                }
                 Read::Pull { .. } | Read::PullFor { .. } => {
                     let mut pull = fixtures::open_pull();
                     pull.commit = head;
                     pull.ci = Ci::Pending;
                     Answer::Pull(pull)
                 }
-                Read::Checks { commit } => fixtures::checks(if commit == head { Check::Pending } else { Check::Passed }),
+                Read::Checks { commit } => {
+                    fixtures::checks(if commit == head { Check::Pending } else { Check::Passed })
+                }
                 Read::Commits { .. } => Answer::Commits { commits: Box::new([]), more: false },
                 Read::Reviews { .. } => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
-                Read::Compare { before, after } => Answer::Compare { before, after, files: Box::new([]), ahead: 1, behind: 0, changed: 1 },
+                Read::Compare { before, after } => {
+                    Answer::Compare { before, after, files: Box::new([]), ahead: 1, behind: 0, changed: 1 }
+                }
                 Read::File { .. } => {
                     fixtures::answer(d, call, Err(skein_forge::api::Error::Missing));
                     continue;
                 }
-                other => panic!("release gather: {other:?}"),
+                other @ (Read::Locate { .. }
+                | Read::Items { .. }
+                | Read::Item { .. }
+                | Read::Statuses { .. }
+                | Read::Remarks { .. }
+                | Read::Branches { .. }
+                | Read::PullFiles { .. }
+                | Read::Job { .. }
+                | Read::JobState { .. }
+                | Read::Protection { .. }
+                | Read::Settings
+                | Read::Collaborators { .. }
+                | Read::Permission { .. }
+                | Read::Runs { .. }
+                | Read::Run { .. }
+                | Read::Tree { .. }
+                | Read::Artifact { .. }) => panic!("release gather: {other:?}"),
             };
             for request in fixtures::answer(d, call, Ok(answer)) {
                 if let Request::Save { record: Stored::Client(skein_forge_client::Stored::Live(row)), .. } = request {
@@ -150,16 +199,35 @@ fn gather(d: &mut Domain, head: [u8; 32]) -> bool {
 #[test]
 fn a_failed_resolutions_release_takes_the_clients_drift_baseline() {
     let mut d = failed(Delegate::Resolve { base: fixtures::BASE });
-    let name = Name { forge: REPO.forge, repository: REPO.repository,
-        what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])) };
-    outputs(&mut d, Event::Restore { record: Stored::Hold(Hold {
-        name: name.clone(), task: fixtures::CHANGE, writer: None, design_writers: Box::new([]), drift: None,
-    }) });
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+    };
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: name.clone(),
+                task: fixtures::CHANGE,
+                writer: None,
+                design_writers: Box::new([]),
+                drift: None,
+            }),
+        },
+    );
     outputs(&mut d, Event::Names { task: fixtures::CHANGE, resources: Box::new([name.clone()]) });
     fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)));
-    outputs(&mut d, Event::Client(skein_forge_client::Event::Pushed {
-        resource: skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Branch(b"temper/51".as_slice().into()) }, commit: fixtures::HEAD,
-    }));
+    outputs(
+        &mut d,
+        Event::Client(skein_forge_client::Event::Pushed {
+            resource: skein_forge_client::Resource {
+                repository: REPO,
+                what: skein_forge_client::What::Branch(b"temper/51".as_slice().into()),
+            },
+            commit: fixtures::HEAD,
+        }),
+    );
     release(&mut d, 1);
     assert!(gather(&mut d, FRESH), "the fresh head becomes the client's pushed baseline");
     assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_head, Some(FRESH), "{:?}", d.change(fixtures::CHANGE));

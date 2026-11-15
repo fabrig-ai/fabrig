@@ -2054,7 +2054,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 None => false,
             };
             if take {
-                if let Some(row) = d.changes.get_mut(&task) && release.is_some() {
+                if let Some(row) = d.changes.get_mut(&task)
+                    && release.is_some()
+                {
                     row.task_release = release;
                 }
                 release_change(d, env, task, out);
@@ -3667,7 +3669,8 @@ fn delegate_admission_refused(
     row.change.state = unasked(row, kind);
     match kind {
         change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => {
-            row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+            row.change.state =
+                change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
         }
         change::Delegate::Produce
         | change::Delegate::Close
@@ -4195,7 +4198,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     heard.start_conflict = d.start_conflict(task);
     heard.review_request = d.review_requests.get(&task).copied();
     if heard.released {
-        if let Some(row) = d.changes.get(&task) && row.task_release.is_none() && matches_held(&row.change.state) {
+        if let Some(row) = d.changes.get(&task)
+            && row.task_release.is_none()
+            && matches_held(&row.change.state)
+        {
             release_change(d, env, task, out);
         }
         heard.released = false;
@@ -6419,6 +6425,26 @@ fn accept_released_branch(
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
+/// Removing the durable delegate reference retires its terminal from recovery
+/// (temper/docs/design/domain/forge/change/repairs.md, A release).
+fn retire_failed_delegate(row: &mut ChangeRow) {
+    if row.delegate_status != change::Status::Failed {
+        return;
+    }
+    match row.delegate {
+        // A close job's own release still reads its kept result.
+        Some((_, change::Delegate::Close)) => return,
+        Some((_, change::Delegate::Resolve { .. } | change::Delegate::Merge { .. })) => {
+            row.change.released_resolution = true;
+        }
+        Some((_, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. })) | None => {}
+    }
+    row.delegate = None;
+    row.delegate_status = change::Status::Unknown;
+    row.producer_failure = None;
+    row.merge_result = None;
+}
+
 /// Released updates and re-runs drop failed results, retaining conflicts
 /// (temper/docs/design/domain/forge/README.md, 6, and change/README.md, 2, step 3).
 fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
@@ -6433,23 +6459,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         return;
     };
     let before = crate::panel::ready(row);
-    if row.delegate_status == change::Status::Failed {
-        match row.delegate {
-            Some((_, change::Delegate::Resolve { .. } | change::Delegate::Merge { .. })) => row.change.released_resolution = true,
-            Some((_, change::Delegate::Produce | change::Delegate::Close | change::Delegate::Repair(_) | change::Delegate::Gate { .. })) | None => {}
-        }
-        // Removing the durable delegate reference retires its terminal from recovery.
-        // A close job's own release still reads its kept result (change/repairs.md).
-        match row.delegate {
-            Some((_, change::Delegate::Close)) => {}
-            Some((_, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } | change::Delegate::Gate { .. })) | None => {
-                row.delegate = None;
-                row.delegate_status = change::Status::Unknown;
-                row.producer_failure = None;
-                row.merge_result = None;
-            }
-        }
-    }
+    retire_failed_delegate(row);
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;
     row.change = released;
@@ -6518,7 +6528,36 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         // A poll may finish before the procedure's fresh snapshot does.
         accept_released_branch(d, env, &mut saved, head, out);
     }
+    fence_release_reads(d, env, &saved, out);
     fresh_release_reads(d, env, &saved, out);
+}
+
+// The change fences its branch and pull, not its shared base (keeping-up.md, 3).
+fn fence_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: &mut Queue<Request>) {
+    child(
+        d,
+        env,
+        skein_forge_client::Event::Fence {
+            resource: skein_forge_client::Resource {
+                repository: row.repository,
+                what: skein_forge_client::What::Branch(row.branch.clone()),
+            },
+        },
+        out,
+    );
+    if let Some(number) = row.pull {
+        child(
+            d,
+            env,
+            skein_forge_client::Event::Fence {
+                resource: skein_forge_client::Resource {
+                    repository: row.repository,
+                    what: skein_forge_client::What::Pull(number),
+                },
+            },
+            out,
+        );
+    }
 }
 
 // A release cannot join an in-flight observation from before it. Hints fence

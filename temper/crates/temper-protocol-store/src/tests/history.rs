@@ -1,6 +1,6 @@
 //! History records and the v20 patch (landing-history.md, 2, 4 and 7).
 use super::{
-    catch_up::{kept_golden, kept_schema, kept_value, patched},
+    catch_up::{current_layout, kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
 use crate::{keys, records, v25};
@@ -183,6 +183,7 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         b"ChangeRow",
         patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
     );
+    let bytes = current_layout(b"ChangeRow", bytes);
     let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());

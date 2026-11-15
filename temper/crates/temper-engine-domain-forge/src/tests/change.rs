@@ -1,6 +1,7 @@
 use super::*;
 
 mod empty_repair;
+mod fence;
 mod released_resolution;
 
 #[test]
