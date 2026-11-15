@@ -919,6 +919,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,
             last_head: Some([15; 32]),
+            last_checked: None,
         },
         pull: Some(16),
         pending: Some(17),

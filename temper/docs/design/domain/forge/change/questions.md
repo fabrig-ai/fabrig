@@ -270,7 +270,8 @@ What follows holds under either question route.
   change (jig's `domain/tasks/changes.md`), by whoever may amend it,
   taken at a step while the change has a live producer whose spec words
   are not those the change would give a new producer now (`README.md`,
-  2, step 1: its words, then its scope), amends that producer in the
+  2, step 1: its words, then its scope, with *Early starts*' lines
+  after their first line), amends that producer in the
   same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
   with those words, naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
@@ -342,8 +343,7 @@ early, by these rules:
 
 - **When.** At producing, with no head of its own pushed, once each
   pending dependency that is a change into the same repository and
-  landing branch has a pushed head (its branch's head as the forge last
-  read it, `../keeping-up.md`, 2), and none of them is itself kept by a pending dependency.
+  landing branch has a checked head (below), and none of them is itself kept by a pending dependency.
   One level only: a dependency kept by its own question alone does not
   block. A pending dependency that is a change into another repository
   orders the landings alone (`../../landing.md`, 4.1): the producer neither
@@ -352,11 +352,64 @@ early, by these rules:
   to start from, and the producer waits for it to be done. While the
   change waits so, at producing with no producer, its stall does not
   count.
+- **A checked head.** A change keeps on its record its last checked
+  head, `last_checked`: the last head one of its delegates (its
+  producer, a repair or a resolution) pushed to its branch with its
+  checks passed, as that delegate's answer reports it (the worker's
+  `Landed.checked`, heard by the forge as `Pushed.checked`). A
+  producer's result is such a push, since a change contract's finish
+  checks and delivers (smith's `domain/run.md`, 8.5). An unchecked save
+  (`../../agent/README.md`, section 5) never sets it, and a push made
+  after the last checked one leaves it where it was, so a branch whose
+  tip is a save keeps the checked head below it. A head found only by
+  the read that frees a lost attempt's writer (`README.md`, 2, step 1)
+  says nothing of checks and sets it neither. A report of a checked
+  push sets it whether or not the change's head moved with it. A
+  dependency's last checked head, never its branch's tip, is the head
+  an early start counts and merges: the root gives each pending
+  dependency's as `PendingKind::Change { checked, kept }`
+  (`temper-engine-domain-forge-change`), and the change's start
+  (`producer_start`) and the forge's read of its landing base for that
+  start (`early_base`) both decide on that one fact, so they agree. A
+  change's last checked head moving wakes its dependents' steps, as its
+  branch's head observed does. It is stored with the change, so it
+  holds across a restart. Why: on 2026-11-14 two changes started early
+  from a sibling's save made before its question, and for an hour met
+  that unfinished work's failures, asked about them and worked on a base
+  that kept moving until the sibling landed
+  (`../../../draft/early-start-checked.md`). A checked push is work its
+  producer offered; a save is work in progress.
 - **From what.** Its producer's workspace starts from the landing
-  branch's tip with those heads merged into it, one by one in the order
-  of the change's dependencies (`../../worker/checkouts.md`). The change
-  keeps each head it started from, with its dependency, and marks those
-  dependencies started from (jig's `domain/connectors.md`, 6.1).
+  branch's tip with those last checked heads merged into it, one by one
+  in the order of the change's dependencies (`../../worker/checkouts.md`).
+  The change keeps each head it started from, with its dependency
+  (`StartedFrom`), and marks those dependencies started from (jig's
+  `domain/connectors.md`, 6.1). The checkout's selection names those
+  recorded commits, never a branch's tip read afresh.
+- **It is told.** The early producer's words carry one line per
+  dependency it started from, in the order of its record:
+  `[Started from change N at <commit>, not landed]`, N the dependency's
+  task number and `<commit>` the head it started from, spelled as git
+  spells it (`../../agent/README.md`, section 5). They are fixed facts,
+  as a brief's `[This task: N]` is; what a producer and its requester do
+  with them is the stock implementer's and coordinator's charters'
+  (`temper/docs/charters/stock/`). They follow the first line of the
+  change's words, so the producer's task keeps that line as its title,
+  and a brief cut from its end (jig's `domain/engine/briefs.md`, 1)
+  reaches them last. They are required words: when the spec's bound
+  (beside its base and branch) can't hold the change's words, the lines
+  and the scope, the scope gives way first; when it still can't hold
+  the lines whole, they are cut from their end to the room left and
+  marked `…`, never left out. For example, a change whose words are
+  `Fix the parser`, a line break and its sections, started from
+  dependency 12 at a SHA-1 head, gives its producer `Fix the parser`, a
+  line break, `[Started from change 12 at <the head's 40 digits>, not
+  landed]`, a line break, then its sections and its scope as before.
+  Only a spec whose change's words alone fill its bound leaves them no
+  room. They are made with
+  the producer's words, so an amendment that renders them again keeps
+  them, and a resumed run keeps its spec; a producer made once the early
+  start is spent, or with no dependency started from, has none.
 - **A conflict refuses it.** A head that does not merge cleanly fails
   the producer's preparation as a conflict naming it (`../../worker/checkouts.md`
   ). The change cancels that producer, its early start spent,

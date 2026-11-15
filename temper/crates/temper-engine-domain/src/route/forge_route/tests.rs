@@ -15,6 +15,77 @@ const COMMITS: &[([u8; 32], &[u8])] = &[
     (SHA256, b"abababababababababababababababababababababababababababababababab"),
 ];
 
+const START_LINES: &[u8] = b"[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at abababababababababababababababababababababababababababababababab, not landed]\n";
+
+fn started_heads() -> Box<[super::forge_change::StartedFrom]> {
+    Box::new([
+        super::forge_change::StartedFrom { task: 12, head: SHA1 },
+        super::forge_change::StartedFrom { task: 13, head: SHA256 },
+    ])
+}
+
+fn producer_words(words: &[u8], early: &super::forge_change::Early, room: usize) -> Box<[u8]> {
+    let base = b"main";
+    let branch = b"temper/change";
+    super::produce_words(
+        words,
+        super::started_from(early),
+        base,
+        branch,
+        u32::try_from(room.checked_add(base.len()).unwrap().checked_add(branch.len()).unwrap()).unwrap(),
+    )
+}
+
+fn word_parts(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut words = super::List::uncapped();
+    for part in parts {
+        super::append(&mut words, part);
+    }
+    words.into_boxed()
+}
+
+#[test]
+fn producer_words_without_started_dependencies_stay_byte_for_byte() {
+    use super::forge_change::Early;
+    let words = b"Fix the parser\n## Goal\n...";
+    let scoped = word_parts(&[words.as_slice(), b"\n\n", super::PRODUCE_SCOPE]);
+    for early in [Early::None, Early::Started(Box::new([])), Early::Spent(started_heads())] {
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), words);
+    }
+}
+
+#[test]
+fn producer_start_lines_follow_the_title_in_record_order_and_precede_the_optional_scope() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let required = word_parts(&[b"Fix the parser\n", START_LINES, rest]);
+        let scoped = word_parts(&[required.as_ref(), b"\n\n", super::PRODUCE_SCOPE]);
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), required.as_ref());
+        assert_eq!(producer_words(words, &early, required.len()).as_ref(), required.as_ref());
+    }
+}
+
+#[test]
+fn producer_start_lines_are_cut_from_the_end_without_cutting_change_words() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let cut = "[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at …\n".as_bytes();
+        let expected = word_parts(&[b"Fix the parser\n", cut, rest]);
+        assert_eq!(producer_words(words, &early, expected.len()).as_ref(), expected.as_ref());
+        let minimum = word_parts(&[b"Fix the parser\n", "…\n".as_bytes(), rest]);
+        assert_eq!(producer_words(words, &early, minimum.len()).as_ref(), minimum.as_ref());
+        assert_eq!(producer_words(words, &early, words.len()).as_ref(), words);
+    }
+}
+
 #[test]
 fn commit_text_uses_lowercase_digits_at_the_identifier_width() {
     for (commit, digits) in COMMITS {
@@ -1246,6 +1317,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         pull,
         pending: None,
@@ -4267,7 +4339,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
     use skein_lib::Queue;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap().clone();
-    for (registered, repository, base, executor, head, kept, expected) in [
+    for (registered, repository, base, executor, checked, kept, expected) in [
         (
             true,
             3,
@@ -4275,7 +4347,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             Some(SHA1),
             false,
-            change::PendingKind::Change { head: Some(SHA1), kept: false },
+            change::PendingKind::Change { checked: Some(SHA1), kept: false },
         ),
         (
             true,
@@ -4284,7 +4356,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             true,
-            change::PendingKind::Change { head: None, kept: true },
+            change::PendingKind::Change { checked: None, kept: true },
         ),
         (
             true,
@@ -4320,7 +4392,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             false,
-            change::PendingKind::Change { head: None, kept: false },
+            change::PendingKind::Change { checked: None, kept: false },
         ),
     ] {
         let (mut domain, env) = two_forges();
@@ -4358,6 +4430,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         upstream.repository.forge = repository;
         upstream.base = base.into();
         upstream.branch = b"temper/8".as_slice().into();
+        upstream.change.last_checked = checked;
         if registered {
             forge::step(
                 &mut domain.forge,
@@ -4366,7 +4439,8 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
                 &mut Queue::uncapped(),
             );
         }
-        if let Some(commit) = head {
+        {
+            let commit = [9; 32];
             forge::step(
                 &mut domain.forge,
                 &forge_env,
@@ -4466,7 +4540,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     upstream.task = 8;
     upstream.change.task = 8;
     upstream.branch = b"temper/8".as_slice().into();
-    for row in [change_row(None), upstream] {
+    for row in [change_row(None), upstream.clone()] {
         forge::step(
             &mut domain.forge,
             &forge_env,
@@ -4479,7 +4553,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     let forge::Event::StepChange { pending, .. } = stale else { panic!("change step") };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: None, kept: false } }]
     );
     forge::step(
         &mut domain.forge,
@@ -4491,20 +4565,27 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
                     repository: 1,
                     what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
                 },
-                commit: SHA1,
+                commit: [9; 32],
                 owned: true,
             }),
         },
         &mut Queue::uncapped(),
     );
-    // A head notification must update the outstanding step, not send an idle-only wake.
+    upstream.change.last_checked = Some(SHA1);
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(upstream)) },
+        &mut Queue::uncapped(),
+    );
+    // A checked-head notification must update the outstanding step, not send an idle-only wake.
     forge_request(&mut domain, &env, forge::Request::StepDependents { task: 8 });
     let Some(Work::Forge(forge::Event::StepChange { task: 7, pending, .. })) = domain.work.pop() else {
         panic!("a dependency wake refreshes the already-due step");
     };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: Some(SHA1), kept: false } }]
     );
     assert!(domain.work.is_empty());
 }

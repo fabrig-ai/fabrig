@@ -2592,6 +2592,7 @@ pub(super) fn start_recovered_change(
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
+                    last_checked: None,
                 },
                 pull: None,
                 pending: None,
@@ -4141,7 +4142,7 @@ fn blamed_repair_words(
 
 fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::ChangeRow) -> Option<Box<[u8]>> {
     let words = &domain.core.tasks.task(task)?.spec.words;
-    Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
+    Some(produce_words(words, started_from(&row.change.early), &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
 fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
@@ -4155,18 +4156,66 @@ fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32)
     forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }
 
-fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
+fn started_from(early: &forge_change::Early) -> &[forge_change::StartedFrom] {
+    match early {
+        forge_change::Early::Started(heads) => heads,
+        forge_change::Early::None | forge_change::Early::Spent(_) => &[],
+    }
+}
+
+/// Early-start facts follow the title; the scope gives way before them
+/// (temper/docs/design/domain/forge/change/questions.md, 1, Early starts).
+fn produce_words(
+    words: &[u8],
+    heads: &[forge_change::StartedFrom],
+    base: &[u8],
+    branch: &[u8],
+    bound: u32,
+) -> Box<[u8]> {
     let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
-    let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
-    let length = title.len().saturating_add(2).saturating_add(PRODUCE_SCOPE.len());
-    if length > room {
-        return title.into();
+    let mut lines = List::uncapped();
+    for head in heads {
+        if !lines.is_empty() {
+            append(&mut lines, b"\n");
+        }
+        append(&mut lines, b"[Started from change ");
+        append(&mut lines, skein_lib::Decimal::of(head.task).as_bytes());
+        append(&mut lines, b" at ");
+        append(&mut lines, &commit_text(&head.head));
+        append(&mut lines, b", not landed]");
     }
-    let mut writer = skein_lib::Writer::new(length);
-    for part in parts {
-        writer.put(part).expect("measured brief");
+    let mut first_break = None;
+    for (index, byte) in words.iter().enumerate() {
+        if *byte == b'\n' {
+            first_break = Some(index);
+            break;
+        }
     }
-    writer.finish()
+    let (first, rest) = words.split_at_checked(first_break.unwrap_or(words.len())).expect("first break within words");
+    // The existing first line break belongs to the change's words. A one-line
+    // change needs both the break before the facts and their final break.
+    let separators = if rest.is_empty() { 2 } else { 1 };
+    let lines =
+        forge::text::fit(lines.as_slice(), room.saturating_sub(words.len()).saturating_sub(separators), "…".as_bytes());
+    let mut rendered = List::uncapped();
+    if lines.is_empty() {
+        append(&mut rendered, words);
+    } else {
+        append(&mut rendered, first);
+        append(&mut rendered, b"\n");
+        append(&mut rendered, &lines);
+        if rest.is_empty() {
+            append(&mut rendered, b"\n");
+        } else {
+            append(&mut rendered, rest);
+        }
+    }
+    let length = rendered.as_slice().len().saturating_add(2).saturating_add(PRODUCE_SCOPE.len());
+    if length <= room {
+        append(&mut rendered, b"\n\n");
+        append(&mut rendered, PRODUCE_SCOPE);
+    }
+    rendered.into_boxed()
 }
 
 /// Keep the decision's messages first, then fill its remaining room with inbox replies.

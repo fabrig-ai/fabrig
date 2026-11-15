@@ -1,5 +1,5 @@
 //! A live delegate's wait and the result it delivers (temper/docs/design/domain/forge/change/repairs.md).
-use super::early_start::{goal_world, make, observe_push, push, stop};
+use super::early_start::{goal_world, make, observe_push, push, report_checked_push, stop};
 use super::questions::{finish_producing, next_producer, row};
 use super::*;
 use temper_engine_domain_forge_change::State;
@@ -28,8 +28,8 @@ fn a_live_producer_past_the_stall_delivers_its_change() {
                 world.tick();
             }
             assert_eq!(row(&world, change).change.state, State::Producing { requested: false });
-            push(&mut world, &producer, main, b"dependency");
-            observe_push(&mut world, &producer);
+            let commit = push(&mut world, &producer, main, b"dependency");
+            report_checked_push(&mut world, &producer, commit);
         }
         let producer = next_producer(&mut world, change);
         observe_push(&mut world, &producer);

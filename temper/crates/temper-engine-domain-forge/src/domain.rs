@@ -3088,7 +3088,7 @@ fn answered(
                     if recorded {
                         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
                     }
-                    record_delegate_head(d, env, task, name, *commit, out);
+                    record_delegate_head(d, env, task, name, *commit, *checked, out);
                     crate::change_history::delivered(d, env.wall, task, name, *commit, *checked, out);
                     child(
                         d,
@@ -3112,6 +3112,7 @@ fn record_delegate_head(
     task: u64,
     name: &Name,
     commit: skein_forge::api::Commit,
+    checked: bool,
     out: &mut Queue<Request>,
 ) {
     let mut pushed = None;
@@ -3121,10 +3122,13 @@ fn record_delegate_head(
             && row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.branch)
-            && row.change.last_head != Some(commit)
+            && (row.change.last_head != Some(commit) || (checked && row.change.last_checked != Some(commit)))
         {
             let mut row = row.clone();
             row.change.last_head = Some(commit);
+            if checked {
+                row.change.last_checked = Some(commit);
+            }
             pushed = Some(row);
             break;
         }
@@ -3134,6 +3138,11 @@ fn record_delegate_head(
             let mut event = crate::change_history::step(d, &row, crate::history::What::Pushed);
             event.head = Some(commit);
             crate::change_history::write(d, env.wall, &mut row, event, out);
+        }
+        // A checked report can add an early-start fact without moving the branch tip.
+        let previous = d.changes.get(&row.task).expect("retained change").change.last_checked;
+        if checked {
+            wake_head_dependents(d, name, previous, commit);
         }
         d.changes.insert(row.task, row.clone()).expect("reported head belongs to a retained change");
         save_change(d, out, row);
@@ -3258,7 +3267,7 @@ fn lost_read(
             && row.drift.is_none()
             && let Some(commit) = superseded_head(&pending, result)
         {
-            record_delegate_head(d, env, pending.task, &pending.name, commit, out);
+            record_delegate_head(d, env, pending.task, &pending.name, commit, false, out);
         }
         return;
     }
@@ -3389,7 +3398,7 @@ fn lost_read(
         if recorded {
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
         }
-        record_delegate_head(d, env, pending.task, &pending.name, commit, out);
+        record_delegate_head(d, env, pending.task, &pending.name, commit, false, out);
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
     let taken = branch_written(d, &pending.name, None);
@@ -4535,7 +4544,7 @@ fn branch_sent(d: &mut Domain, task: u64, producer: change::Status) {
 fn early_base(pending: &PendingStep) -> bool {
     for dependency in &pending.pending {
         match dependency.kind {
-            change::PendingKind::Change { head: Some(_), kept: false } | change::PendingKind::Elsewhere => {}
+            change::PendingKind::Change { checked: Some(_), kept: false } | change::PendingKind::Elsewhere => {}
             change::PendingKind::Change { .. } | change::PendingKind::Other => return false,
         }
     }

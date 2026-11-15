@@ -46,6 +46,7 @@ fn change(state: State) -> Change {
         ready_since: None,
         owns_turn: false,
         last_head: Some(HEAD),
+        last_checked: None,
     }
 }
 fn facts() -> Facts {
@@ -1770,7 +1771,7 @@ fn pending_facts(pending: Box<[Pending]>) -> Facts {
 #[test]
 fn a_follow_change_waits_for_every_dependency_without_starting_from_it() {
     let c = change(State::Producing { requested: false });
-    for kind in [PendingKind::Change { head: Some(HEAD), kept: false }, PendingKind::Elsewhere] {
+    for kind in [PendingKind::Change { checked: Some(HEAD), kept: false }, PendingKind::Elsewhere] {
         let mut f = pending_facts(Box::new([Pending { task: 11, kind }]));
         f.follows = true;
         let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
@@ -1786,9 +1787,10 @@ fn a_follow_change_waits_for_every_dependency_without_starting_from_it() {
 }
 
 #[test]
-fn a_change_with_a_pending_change_without_a_head_waits_with_no_stall() {
+fn a_change_with_a_pending_change_without_a_checked_head_waits_with_no_stall() {
     let c = change(State::Producing { requested: false });
-    let mut f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: None, kept: false } }]));
+    let mut f =
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { checked: None, kept: false } }]));
     let waiting = decide(&c, &f, &heard());
     assert_eq!(waiting.decision, Decision::Wait { until: None });
     assert_eq!(waiting.change.state, State::Producing { requested: false });
@@ -1796,9 +1798,10 @@ fn a_change_with_a_pending_change_without_a_head_waits_with_no_stall() {
     let waiting = step(&waiting.change, &f, &heard(), at(60), &LIMITS);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
     assert_eq!(waiting.change.state, State::Producing { requested: false });
-    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]);
+    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } }]);
     let started = step(&waiting.change, &f, &heard(), at(61), &LIMITS);
     assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(started.change.early, Early::Started(Box::new([StartedFrom { task: 11, head: HEAD }])));
     assert_eq!(started.change.since, at(61));
     assert_eq!(step(&started.change, &f, &heard(), at(62), &LIMITS).decision, Decision::Wait { until: None });
 }
@@ -1854,9 +1857,9 @@ fn dependencies_finishing_before_an_early_start_leave_a_fresh_producer_stall() {
 fn a_change_whose_pending_changes_have_heads_starts_early_from_them() {
     let c = change(State::Producing { requested: false });
     let f = pending_facts(Box::new([
-        Pending { task: 19, kind: PendingKind::Change { head: Some(NEW), kept: false } },
+        Pending { task: 19, kind: PendingKind::Change { checked: Some(NEW), kept: false } },
         Pending { task: 12, kind: PendingKind::Elsewhere },
-        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
+        Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } },
     ]));
     let started = step(&c, &f, &heard(), at(60), &LIMITS);
     assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
@@ -1879,8 +1882,8 @@ fn a_change_whose_pending_changes_have_heads_starts_early_from_them() {
 fn a_pending_dependency_kept_by_its_own_dependency_blocks_the_early_start() {
     let c = change(State::Producing { requested: false });
     let f = pending_facts(Box::new([
-        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
-        Pending { task: 12, kind: PendingKind::Change { head: Some(NEW), kept: true } },
+        Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } },
+        Pending { task: 12, kind: PendingKind::Change { checked: Some(NEW), kept: true } },
     ]));
     let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
@@ -1892,7 +1895,7 @@ fn a_pending_dependency_kept_by_its_own_dependency_blocks_the_early_start() {
 fn a_pending_other_dependency_blocks_the_early_start() {
     let c = change(State::Producing { requested: false });
     let f = pending_facts(Box::new([
-        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
+        Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } },
         Pending { task: 12, kind: PendingKind::Other },
     ]));
     let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
@@ -1915,7 +1918,7 @@ fn only_elsewhere_dependencies_start_the_producer_with_no_heads() {
 fn a_conflicting_early_start_cancels_its_producer_and_waits() {
     let c = change(State::Producing { requested: false });
     let mut f =
-        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } }]));
     let started = decide(&c, &f, &heard());
     let mut h = Heard { start_conflict: Some(HEAD), ..heard() };
     f.writer_taken = true;
@@ -1927,7 +1930,7 @@ fn a_conflicting_early_start_cancels_its_producer_and_waits() {
     assert_eq!(waiting.decision, Decision::Wait { until: None });
     f.pending = Box::new([]);
     assert_eq!(step(&waiting.change, &f, &h, at(61), &LIMITS).decision, Decision::Wait { until: None });
-    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(NEW), kept: false } }]);
+    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { checked: Some(NEW), kept: false } }]);
     f.writer_taken = false;
     h.start_conflict = None;
     h.delegate = Status::Failed;
@@ -1945,7 +1948,7 @@ fn a_conflicting_early_start_cancels_its_producer_and_waits() {
 fn a_failed_early_producer_holds_nothing_and_the_next_waits_for_the_dependencies() {
     let c = change(State::Producing { requested: false });
     let mut f =
-        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { checked: Some(HEAD), kept: false } }]));
     let started = decide(&c, &f, &heard());
     f.branch = Some(NEW);
     let h = Heard { delegate: Status::Failed, ..heard() };
@@ -1976,7 +1979,8 @@ fn a_failed_early_producer_holds_nothing_and_the_next_waits_for_the_dependencies
 fn a_change_never_starts_early_twice() {
     let mut c = change(State::Producing { requested: false });
     c.early = Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }]));
-    let f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(NEW), kept: false } }]));
+    let f =
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { checked: Some(NEW), kept: false } }]));
     let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
     assert_eq!(waiting.change.state, State::Producing { requested: false });
