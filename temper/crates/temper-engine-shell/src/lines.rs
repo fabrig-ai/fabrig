@@ -575,6 +575,15 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("{binary} serve: forge {number}: not connected: {why}\n")
         }
 
+        temper_engine_service::Note::GitHubLogOriginUnresolved { host } => {
+            format!(
+                "{binary} serve: GitHub log origin https://{}:443: unresolved; skipped\n",
+                String::from_utf8_lossy(&host)
+            )
+        }
+        temper_engine_service::Note::GitHubLogOriginsUnresolved => {
+            format!("{binary} serve: GitHub log origins: none resolved; no job log will be fetched\n")
+        }
         temper_engine_service::Note::ForgeSignIn { number, client, why } => {
             use temper_engine_service::clients::forge_sign_in::Unserved;
             let why = match why {

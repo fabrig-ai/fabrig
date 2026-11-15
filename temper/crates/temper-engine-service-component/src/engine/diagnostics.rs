@@ -21,7 +21,7 @@ impl Engine {
             setup: effects && self.setup.work_pending(now),
             setup_lifecycle: effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4,
             store: self.store.work_pending(now),
-            forge: effects && self.forge.work_pending(now),
+            forge: effects && (self.forge.work_pending(now) || self.unresolved_github().is_some()),
             workers: active && self.workers.host.work_pending(now),
             accounts: effects
                 && match &self.accounts {
