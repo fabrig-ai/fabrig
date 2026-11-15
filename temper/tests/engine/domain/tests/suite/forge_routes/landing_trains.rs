@@ -177,17 +177,174 @@ fn await_change(world: &mut World, change: u64) {
 }
 
 fn finish_child(world: &mut World, producer: &engine::Assignment, title: &[u8]) {
+    let tasks::Contract::Change { connector, .. } = live_task(world, producer.task).contract else {
+        panic!("producer contract")
+    };
     goal_landing::finish_run(
         world,
         producer,
         tasks::TaskResult::Change {
             title: tasks::ChangeTitle::new(title.into()),
-            connector: 0,
+            connector,
             kind: 2,
             resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
             words: b"A change for the goal.\n\nFurther detail.".as_slice().into(),
         },
     );
+}
+
+fn narrow(authority: &mut authority::Authority) {
+    authority.grants = authority.grants.iter().filter(|grant| grant.kind != 15).cloned().collect();
+    authority.delegation.kinds =
+        authority.delegation.kinds.iter().filter(|kind| **kind != authority::Executor::Job(1)).cloned().collect();
+}
+
+fn narrow_policy(policy: &mut jig_domain_core::ConfiguredPolicy) {
+    narrow(&mut policy.policy.ceiling);
+    policy.policy.projections = policy.policy.projections.iter().filter(|grant| grant.kind != 15).cloned().collect();
+    for role in &mut policy.policy.roles {
+        narrow(&mut role.authority);
+    }
+}
+
+fn settings_revision(world: &World) -> u32 {
+    temper_engine_domain_world::kinds::revision(&world.store.rows)
+}
+
+fn reviewed_change(world: &mut World, change: u64) {
+    let mut reviewed = Vec::new();
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if let Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. })) =
+            goal_landing::row(world, change).delegate
+            && !reviewed.contains(&task)
+            && let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned()
+        {
+            reviewed.push(task);
+            reviews::finish_review(
+                world,
+                &run,
+                tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+            );
+        }
+        if goal_landing::ended(world, change).is_some() {
+            assert!(
+                matches!(
+                    goal_landing::row(world, change).change.state,
+                    temper_engine_domain_forge_change::State::Landed { .. }
+                ),
+                "{:?}",
+                goal_landing::row(world, change)
+            );
+            return;
+        }
+    }
+    panic!("reviewed change did not end: {:?}; landings {:?}", goal_landing::row(world, change), landing_rows(world));
+}
+
+#[test]
+fn drill_15_an_owner_widens_its_own_project_roles_for_template_four_goal_trains() {
+    use jig_domain_core::settings as s;
+    let broad = goal_branch::stock_defaults();
+    let mut defaults = goal_branch::stock_defaults();
+    narrow(&mut defaults.rules.ceiling);
+    narrow_policy(defaults.policies.get_mut(&1).expect("policy 1"));
+    let mut own = broad.policies.get(&1).expect("policy 1").clone();
+    own.permissions[0].role = 2;
+    own.policy.roles.iter_mut().find(|role| role.number == 1).expect("member role").requests = authority::Requests(185);
+    assert_ne!(own, *broad.policies.get(&1).expect("policy 1"));
+    let mut initial = own.clone();
+    narrow_policy(&mut initial);
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    limits.documents.lines = 8;
+    let mut world = World::configured_stock_turn(&defaults, &stock::box_model(), &limits)
+        .with_project_policy(initial)
+        .with_settings_owner(&forge_top::user_key(1, 7));
+    world.adopt();
+    let mut hello = hello_prepare(3);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("hello")
+    };
+    worker.bounds = jig_test_profile::fixtures::bounds();
+    worker.bounds.turns = 800;
+    worker.bounds.time = Duration::from_secs(28_800);
+    let model = stock::box_model();
+    worker.bounds.endpoints = Box::new([jig_domain_link::EndpointBound {
+        endpoint: model.endpoint,
+        window: model.window,
+        output: model.output,
+    }]);
+    world.send(hello);
+    let template = broad.templates.iter().find(|template| template.number == 4).expect("goal template");
+    let request = goal_branch::stock_request(&world, template);
+    let goal = assigned_chat(&mut world, 92, request);
+    assert_eq!(goal.charter, 5);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    let prior = settings_revision(&world);
+    assert_eq!(live_task(&world, goal.task).settings.task, prior);
+    world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+        kinds: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(950)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [95; 16],
+        digest: [95; 32],
+        change: Box::new(s::Change {
+            against: prior,
+            running: s::Running::Stays,
+            items: Box::new([
+                s::Item { setting: s::Setting::Rules, edit: s::Edit::Set(s::Value::Rules(Box::new(broad.rules))) },
+                s::Item {
+                    setting: s::Setting::Policy(1),
+                    edit: s::Edit::Set(s::Value::Policy(Box::new(broad.policies.get(&1).expect("policy 1").clone()))),
+                },
+                s::Item {
+                    setting: s::Setting::ProjectPolicy { project: 1 },
+                    edit: s::Edit::Set(s::Value::Policy(Box::new(own.clone()))),
+                },
+            ]),
+        }),
+    }));
+    world.until(Until::Ready);
+    assert_eq!(settings_revision(&world), prior + 1, "one owner act: {:?}", world.web_replies);
+    assert_eq!(live_task(&world, goal.task).settings.task, prior, "running stays");
+    assert_eq!(live_task(&world, goal.task).settings.run, Some(prior));
+    let Some(Record::Core(jig_domain_core::Record::People(people::Stored::Policy { value, .. }))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(1))))
+    else {
+        panic!("project policy")
+    };
+    assert_eq!(value.permissions, own.permissions);
+    assert_eq!(value.roles.iter().find(|role| role.number == 1).expect("own member").requests, 185);
+    for number in 1..=2 {
+        let (change, producer) = goal_landing::producing_into_goal(
+            &mut world,
+            &goal,
+            &branch,
+            100 + number,
+            format!("file{number}").as_bytes(),
+        );
+        finish_child(&mut world, &producer, b"Template goal change");
+        reviewed_change(&mut world, change);
+    }
+    let answer = goal_landing::mine(&mut world, &goal, 110, br#"{"words":"Land the template goal","branch":"mine"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("whole goal: {answer:?}") };
+    reviewed_change(&mut world, made[0].task);
+    for _ in 0..PAIR_TICKS {
+        if landing_rows(&world).iter().all(|row| row.landing.phase == forge_top::LandingPhase::Landed) {
+            break;
+        }
+        world.tick();
+    }
+    let rows = landing_rows(&world);
+    assert_eq!(rows.len(), 3);
+    assert!(rows.iter().all(|row| row.landing.members.len() == 1));
+    assert_eq!(rows.iter().filter(|row| row.landing.branch == branch).count(), 2);
+    assert_eq!(rows.iter().filter(|row| row.landing.branch.as_ref() == b"main").count(), 1);
+    assert!(rows.iter().all(|row| row.landing.phase == forge_top::LandingPhase::Landed), "{rows:?}");
+    goal_landing::finish_goal(&mut world, &goal);
+    world.close();
 }
 
 fn assert_pull(world: &mut World, change: u64, commit: u64) {

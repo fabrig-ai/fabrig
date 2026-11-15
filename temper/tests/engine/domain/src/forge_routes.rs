@@ -335,6 +335,50 @@ impl World {
         )
     }
 
+    /// Stock templates and policies with a scripted landing train.
+    #[must_use]
+    pub fn configured_stock_turn(
+        defaults: &jig_domain_core::settings::Defaults,
+        model: &engine::Model,
+        limits: &engine::Limits,
+    ) -> Self {
+        Self::configured_settings(
+            true,
+            true,
+            false,
+            1000,
+            paths::Gate { agent: true, ..paths::Gate::default() },
+            None,
+            &StoryLimits { turn: true, ..StoryLimits::default() },
+            Some((defaults, model, Some(limits))),
+            &[],
+        )
+    }
+
+    /// Keep the project's roles distinct from its policy template before bootstrap.
+    #[must_use]
+    pub fn with_project_policy(mut self, policy: jig_domain_core::ConfiguredPolicy) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.core.seed_projects[0].policy = policy;
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("project policy");
+        self
+    }
+
+    /// Branch and pull holds for the world's changes and all four batch prefixes.
+    #[must_use]
+    pub fn with_forge_holds(mut self, holds: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.holds = holds;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("hold room");
+        self
+    }
+
     #[must_use]
     pub fn configured_limits(
         with_read: bool,

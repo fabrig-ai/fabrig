@@ -35,7 +35,7 @@ pub(super) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     )
 }
 
-fn stock_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
+pub(super) fn stock_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
     let people::Ask::Create { project, mut batch } = world.chat(1, b"TEXT") else { panic!("goal batch") };
     let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("coordinator charter") };
     let tasks::Contract::Report { words } = template.contract else { panic!("goal report") };
