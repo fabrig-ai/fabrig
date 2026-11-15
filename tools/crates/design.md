@@ -7,7 +7,8 @@ finds test code that two test binaries of one package compile, which moves to a 
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
 its check of the draft's section 7 (features, codec crates) to section 3. The one-version check of
 section 3.2 comes from `temper/docs/design/draft/gate-compile.md`, 4.2 and 7, milestone C2 of its
-execution file.
+execution file. Section 3's one walk per binary comes from `temper/docs/design/draft/focused-pyramid.md`, 5,
+milestone K14 of its execution file.
 
 ## 1. In one page
 
@@ -113,6 +114,24 @@ crate into line removes its exception, as `skein/docs/foundation/cli.md`, 9 has 
 The checks share one reader of the metadata and of module trees by section 2's rules:
 `fabrig-boundary`'s library, `tests/boundary/src/lib.rs`, which each check's test binary depends
 on. It holds no tests of its own (section 3.2); the reader's tests stay in `sizes.rs`.
+
+**One walk per binary.** A check reads each source it needs once in a run, and every rule and
+every target that needs that source takes it from the one read (`temper/docs/design/draft/focused-pyramid.md`,
+5). The runner gives each test its own process, so a run is one test's: what is shared is
+shared within the test that reads the tree.
+
+- **Module trees:** a reader that keeps each file's scan for its run, so the trees of several test
+  binaries that reach one file read and scan it once. A file's children depend on whether it is a
+  target's root and on its package (section 2.1), so a file reached both as a root and as a module,
+  or from two packages, keeps a scan for each. `shared_test_code.rs` reads every target's tree
+  through one such reader, and its findings are those of section 3.2, unchanged. `module_tree`
+  stays the one-tree form, which `sizes.rs` reads, one tree per library.
+- **Tracked sources:** `skein_worlds.rs` lists the tracked Rust sources once, with `git ls-files`,
+  and reads each once; its seam rule and its `#[path]` rule take their text from that read, and a
+  source either rule parses is parsed once (`skein/docs/design/testing/README.md`, 6).
+- **Its count:** each walk counts what it read, and parsed where it parses, and the check's test
+  prints the count, as `cli_names.rs` prints the files it read: a fixture pins that a shared source
+  is read once.
 
 ### 3.1 Sizes
 
