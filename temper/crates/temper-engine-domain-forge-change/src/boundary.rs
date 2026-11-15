@@ -163,6 +163,8 @@ pub enum Hold {
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum State {
+    /// Make the kept pushed head ours (temper/docs/design/domain/forge/change/opened.md, 4).
+    Taking { requested: bool },
     /// A producing delegate has yet to push the branch.
     Producing { requested: bool },
     /// A pushed branch needs a pull request.
@@ -359,6 +361,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
+    pub taken: Option<Commit>,
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
     pub fault: Fault,
     /// A failed check at `ci.head` names a job read at that head, and the change's forge writes a re-run.
@@ -518,6 +522,8 @@ pub enum Effect {
 /// What the top does with the procedure's one decision.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
+    /// Taking refused its source; the top keeps its failure words (opened.md, 4).
+    Failed,
     /// Nothing is due in this snapshot.
     None,
     /// Wait for a fact or deadline to change.

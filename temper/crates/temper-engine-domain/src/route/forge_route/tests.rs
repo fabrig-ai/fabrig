@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 mod reds;
 mod room;
 mod settling;
+mod taking;
 
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -1216,6 +1217,8 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

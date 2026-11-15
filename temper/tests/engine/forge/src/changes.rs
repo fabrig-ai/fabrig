@@ -7,6 +7,8 @@ use temper_engine_domain_forge_change as change;
 #[must_use]
 pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

@@ -28,6 +28,7 @@ mod replay;
 mod rules_by_path;
 mod settle;
 mod simulation;
+mod taking;
 mod tiers;
 mod train_drills;
 mod trains;

@@ -991,9 +991,18 @@ pub struct TaskRelease {
     pub at: skein_lib::Wall,
 }
 
+/// A pushed branch selected once (temper/docs/design/domain/forge/change/opened.md, 3.1 and 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeSource {
+    pub branch: Box<[u8]>,
+    pub at: Option<skein_forge::api::Commit>,
+}
+
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub source: Option<ChangeSource>,
+    pub kept: Option<skein_forge::api::Commit>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1063,6 +1072,7 @@ pub struct ChangeRow {
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCold {
+    pub source: Option<ChangeSource>,
     pub task: u64,
     pub repository: skein_forge::api::Repository,
     pub branch: Box<[u8]>,
@@ -1084,6 +1094,7 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub kept: Option<skein_forge::api::Commit>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1117,6 +1128,8 @@ impl ChangeRow {
     #[must_use]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            source,
+            kept,
             task_release,
             job,
             signed,
@@ -1163,6 +1176,7 @@ impl ChangeRow {
         } = self;
         (
             ChangeCold {
+                source,
                 task,
                 repository,
                 branch,
@@ -1182,6 +1196,7 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                kept,
                 task_release,
                 job,
                 signed,
@@ -1216,6 +1231,7 @@ impl ChangeRow {
     #[must_use]
     pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
         let ChangeCold {
+            source,
             task: cold_task,
             repository,
             branch,
@@ -1235,6 +1251,7 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            kept,
             task_release,
             job,
             signed,
@@ -1265,6 +1282,8 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            source,
+            kept,
             task_release,
             job,
             signed,
@@ -1337,7 +1356,8 @@ impl ChangeRow {
             | change::State::Uncleared { .. }
             | change::State::NoChange { .. }
             | change::State::Ended => true,
-            change::State::Producing { .. }
+            change::State::Taking { .. }
+            | change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }

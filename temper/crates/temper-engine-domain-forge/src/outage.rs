@@ -140,6 +140,13 @@ pub(super) fn observed(d: &mut Domain, env: &Env<Limits>, forge: u16, unavailabl
 }
 
 fn riding(d: &Domain, owner: Token) -> bool {
+    // Taking spends its own stall even during an outage (change/opened.md, 4).
+    if let Some(pending) = d.steps.get(&owner)
+        && let Some(row) = d.changes.get(&pending.task)
+        && super::taking::active(&row.change.state)
+    {
+        return false;
+    }
     d.steps.contains_key(&owner)
         || d.lost.contains_key(&owner)
         || d.pending_ci.contains_key(&owner)
@@ -281,6 +288,12 @@ pub(super) fn outcome(
     outcome: Outcome,
     out: &mut Queue<Request>,
 ) -> bool {
+    if let Some(entry) = d.entries.get(&number)
+        && let Some(row) = d.changes.get(&entry.entry.task)
+        && super::taking::active(&row.change.state)
+    {
+        return false;
+    }
     if outcome == Outcome::Failed(Error::Unavailable) || outcome == Outcome::Failed(Error::Timeout) {
         activate(d, &env.limits);
     }

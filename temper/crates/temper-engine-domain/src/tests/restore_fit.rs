@@ -303,6 +303,7 @@ fn a_lone_change_part_stops_the_root_as_an_unreadable_row_before_linking() {
     let task = 12;
     d.work.push(Work::Forge(forge::Event::Restore {
         record: forge::Stored::ChangeCold(Box::new(forge::ChangeCold {
+            source: None,
             task,
             repository: skein_forge::api::Repository { forge: 1, repository: 999 },
             branch: b"temper/12".as_slice().into(),

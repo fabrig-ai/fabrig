@@ -724,7 +724,8 @@ fn unstarted(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return true };
     match &row.change.state {
         State::Producing { requested } => !requested,
-        State::Opening { .. }
+        State::Taking { .. }
+        | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
         | State::Checking { .. }

@@ -10,7 +10,8 @@ impl Domain {
         let Some(row) = self.changes.get(&task) else { return false };
         match row.change.state {
             change::State::Ended | change::State::Cleared { .. } | change::State::NoChange { .. } => {}
-            change::State::Producing { .. }
+            change::State::Taking { .. }
+            | change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
@@ -44,6 +45,7 @@ impl Domain {
             change::State::Ended
             | change::State::Cleared { .. }
             | change::State::NoChange { .. }
+            | change::State::Taking { .. }
             | change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }

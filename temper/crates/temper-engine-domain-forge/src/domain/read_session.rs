@@ -61,7 +61,8 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) 
         exempt |= outage::reading(d, owner);
     }
     if !d.read_sessions.contains_key(&pending.task) {
-        restart(d, env, pending.task, env.wall);
+        let since = if let change::State::Taking { .. } = row.change.state { row.change.since } else { env.wall };
+        restart(d, env, pending.task, since);
     }
     let session = d.read_sessions.get_mut(&pending.task).expect("known gather clock");
     if session.exempt && !exempt && !session.ended {

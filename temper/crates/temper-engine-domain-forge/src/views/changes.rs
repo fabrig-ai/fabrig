@@ -271,7 +271,8 @@ fn ready_since(row: &ChangeRow) -> Wall {
         | State::Updating { ready_since, .. }
         | State::Ready { ready_since, .. }
         | State::Preparing { ready_since, .. } => ready_since,
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }

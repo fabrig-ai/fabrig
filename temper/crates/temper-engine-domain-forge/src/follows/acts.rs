@@ -151,6 +151,7 @@ pub(crate) fn asked(
 fn produced(state: &temper_engine_domain_forge_change::State) -> bool {
     use temper_engine_domain_forge_change::State;
     match state {
+        State::Taking { .. } => false,
         State::Producing { requested } => *requested,
         State::Opening { .. }
         | State::Recreating { .. }

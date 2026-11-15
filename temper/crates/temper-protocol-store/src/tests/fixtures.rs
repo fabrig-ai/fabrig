@@ -883,6 +883,8 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        source: None,
+        kept: None,
         task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
         job: None,
         signed: Box::new([]),
@@ -966,8 +968,9 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
-    let mut states = List::with_capacity(24);
+    let mut states = List::with_capacity(25);
     for state in [
+        State::Taking { requested: true },
         State::Producing { requested: true },
         State::Opening { requested: false },
         State::Recreating { head: [1; 32] },

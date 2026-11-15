@@ -1259,7 +1259,8 @@ fn goal_priorities(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed) 
             | forge_change::State::Uncleared { .. }
             | forge_change::State::NoChange { .. }
             | forge_change::State::Ended => continue,
-            forge_change::State::Producing { .. }
+            forge_change::State::Taking { .. }
+            | forge_change::State::Producing { .. }
             | forge_change::State::Opening { .. }
             | forge_change::State::Recreating { .. }
             | forge_change::State::Reopening { .. }
@@ -2242,7 +2243,8 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         | forge_change::State::Uncleared { .. }
         | forge_change::State::NoChange { .. }
         | forge_change::State::Ended => return,
-        forge_change::State::Producing { .. }
+        forge_change::State::Taking { .. }
+        | forge_change::State::Producing { .. }
         | forge_change::State::Opening { .. }
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
@@ -2270,7 +2272,7 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
     let mut title = None;
     for parameter in parameters {
         match parameter {
-            tasks::Parameter::Bytes { name: 3, .. } => handed = true,
+            tasks::Parameter::Bytes { name: 3 | 19, .. } => handed = true,
             tasks::Parameter::Bytes { name: 10, value } => title = Some(value.as_ref()),
             tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
         }
@@ -2437,6 +2439,7 @@ pub(super) fn start_recovered_change(
     let mut follows = None;
     let mut catch_up = None;
     let mut close = None;
+    let mut source = None;
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -2477,6 +2480,10 @@ pub(super) fn start_recovered_change(
                 }
                 repairs = Some(commit);
             }
+            tasks::Parameter::Bytes { name: 19, value } => {
+                let Some(value) = change_source(value, env.limits.forge.name_bytes) else { return false };
+                source = Some(value);
+            }
             tasks::Parameter::Bytes { name: 18, value } => {
                 let Some(value) = change_follows(value, env.limits.forge.follow_merge) else { return false };
                 follows = Some(value);
@@ -2492,6 +2499,11 @@ pub(super) fn start_recovered_change(
                 return false;
             }
         }
+    }
+    if source.is_some()
+        && (branch.is_some() || requester_branch || catch_up.is_some() || close.is_some() || follows.is_some())
+    {
+        return false;
     }
     if domain.forge.change(task).is_none()
         && let Some(follows) = &follows
@@ -2548,6 +2560,8 @@ pub(super) fn start_recovered_change(
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                kept: None,
+                source: source.clone(),
                 task_release: None,
                 job: None,
                 signed: Box::new([]),
@@ -2575,7 +2589,9 @@ pub(super) fn start_recovered_change(
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
-                    state: if requester_branch {
+                    state: if source.is_some() {
+                        forge_change::State::Taking { requested: false }
+                    } else if requester_branch {
                         forge_change::State::Opening { requested: false }
                     } else {
                         forge_change::State::Producing { requested: false }
@@ -4391,7 +4407,8 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         forge_change::State::Repairing { .. }
         | forge_change::State::WaitingProducer { .. }
         | forge_change::State::Resolving { .. } => (tasks::Hold::Procedure, false),
-        forge_change::State::Opening { .. }
+        forge_change::State::Taking { .. }
+        | forge_change::State::Opening { .. }
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
         | forge_change::State::Checking { .. }
@@ -4898,6 +4915,11 @@ fn change_decision_from_read(
     domain.forge.offered_change(task);
     let mut again = false;
     let decision = match choice {
+        forge_change::Decision::Failed => {
+            let row = domain.forge.change(task).expect("failed taking row");
+            let Some(forge::Ending::Failed { line }) = &row.ending else { unreachable!("taking retains its failure") };
+            ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Failure { reason: line.clone() }))
+        }
         forge_change::Decision::Finish { .. } if change_has_live_delegates(domain, task) => {
             domain.forge.wait_change(&super::environment_forge(env), task, None);
             cancel_completed_change(domain, env, task, b"its change landed")
@@ -5682,7 +5704,8 @@ pub(crate) fn outputs(
                         }
                     }
                 }
-                forge_change::Decision::None
+                forge_change::Decision::Failed
+                | forge_change::Decision::None
                 | forge_change::Decision::CancelProducer
                 | forge_change::Decision::Wait { .. }
                 | forge_change::Decision::Delegate(_)
@@ -6393,8 +6416,25 @@ fn change_follows(text: &[u8], limit: u32) -> Option<forge::ChangeFollows> {
     Some(forge::ChangeFollows { follow, commits: commits.into_boxed() })
 }
 
-/// Parameter 16 uses the forge's padded commit and lowercase spelling
-/// (temper/docs/design/domain/forge/change/README.md, 1).
+/// The source parameter (temper/docs/design/domain/forge/change/opened.md, 3.1).
+fn change_source(text: &[u8], limit: u32) -> Option<forge::ChangeSource> {
+    let mut last_colon = None;
+    for (index, byte) in text.iter().enumerate() {
+        if *byte == b':' {
+            last_colon = Some(index);
+        }
+    }
+    let (branch, at) = match last_colon {
+        Some(colon) => (text.get(..colon)?, Some(catch_up_commit(text.get(colon.checked_add(1)?..)?)?)),
+        None => (text, None),
+    };
+    if branch.len() > skein_lib::usize_of(limit) || branch.contains(&b':') {
+        return None;
+    }
+    branch_parts(branch, limit)?;
+    Some(forge::ChangeSource { branch: Box::from(branch), at })
+}
+
 fn catch_up_commit(text: &[u8]) -> Option<[u8; 32]> {
     if text.len() != 40 && text.len() != 64 {
         return None;

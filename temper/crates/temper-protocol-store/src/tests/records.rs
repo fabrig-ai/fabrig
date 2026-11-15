@@ -2847,6 +2847,10 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
     let mut random = Rng::new(0x12_2f_30);
     for state in fixtures::change_states().into_boxed() {
         let mut row = fixtures::change_row(state);
+        if let temper_engine_domain_forge_change::State::Taking { .. } = row.change.state {
+            row.source = Some(forge::ChangeSource { branch: b"docs/x".as_slice().into(), at: Some([4; 32]) });
+            row.kept = Some([4; 32]);
+        }
         row.task = random.next_u64();
         row.change.task = row.task;
         row.priority =

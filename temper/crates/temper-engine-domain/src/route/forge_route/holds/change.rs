@@ -11,6 +11,18 @@ pub(in super::super) fn account(
 ) -> Option<Box<[u8]>> {
     let row = domain.forge.change(task)?;
     let change::State::Held { was, .. } = &row.change.state else { return None };
+    if let change::State::Taking { .. } = was.as_ref()
+        && (why == change::Hold::Stalled || why == change::Hold::Failed)
+    {
+        if let Some(account) = &row.effect_account {
+            return Some(account.words.clone());
+        }
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, b"taking ");
+        append(&mut words, &row.source.as_ref()?.branch);
+        append(&mut words, b": waiting for forge");
+        return Some(words.into_boxed());
+    }
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
     if why == change::Hold::BranchMoved {
         let name = super::super::topic_name(
@@ -21,7 +33,7 @@ pub(in super::super) fn account(
             Some(read) => read.head,
             None => domain.forge.branch_head(&name),
         };
-        let mut expected = expected_head(was).or(row.change.last_head);
+        let mut expected = expected_head(was).or(row.change.last_head).or(row.kept);
         if let Some(hold) = domain.forge.hold(&name)
             && let Some(forge::Drift {
                 change: forge::DriftChange::Branch { expected: before, observed: found }, ..
@@ -125,7 +137,8 @@ fn expected_head(state: &change::State) -> Option<[u8; 32]> {
         | change::State::Landing { head } => Some(*head),
         change::State::Updating { from, .. } | change::State::Preparing { from, .. } => Some(*from),
         change::State::Held { was, .. } => expected_head(was),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Reopening { .. }
         | change::State::WaitingProducer { .. }
@@ -151,6 +164,7 @@ fn head(words: &mut List<u8>, commit: Option<&[u8; 32]>) {
 
 fn step_name(state: &change::State) -> &'static [u8] {
     match state {
+        change::State::Taking { .. } => b"taking",
         change::State::Producing { .. } => b"producing",
         change::State::Opening { .. } => b"opening",
         change::State::Recreating { .. } => b"recreating",
@@ -187,7 +201,8 @@ fn waiting_on_reads(words: &mut List<u8>, state: &change::State, row: &forge::Ch
         | change::State::Updating { .. }
         | change::State::Landing { .. } => waiting(words, state, row),
         change::State::Held { was, .. } => waiting_on_reads(words, was, row),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Judging { .. }
@@ -241,6 +256,7 @@ fn waiting(words: &mut List<u8>, state: &change::State, row: &forge::ChangeRow) 
         }
         change::State::Recreating { .. } => append(words, b"its branch to be recreated"),
         change::State::Reopening { .. } => append(words, b"its pull request to reopen"),
+        change::State::Taking { .. } => append(words, b"its source read or branch make"),
         change::State::Producing { .. } => append(words, b"its producer's head and result"),
         change::State::WaitingProducer { .. } => append(words, b"its producer to settle"),
         change::State::Resolving { .. } => append(words, b"its resolution's head and result"),

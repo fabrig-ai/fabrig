@@ -10,6 +10,8 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -919,6 +921,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         world.event(top::Event::Committed { entry });
                     }
                     match decision {
+                        change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
                         change::Decision::Finish { .. } => finished = true,

@@ -125,6 +125,7 @@ mod follows;
 mod history_reads;
 
 struct ReadScript {
+    branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
@@ -584,6 +585,10 @@ impl World {
                 <= u64::from(self.env.limits.client.answer_bytes)
     }
 
+    pub fn script_branch_error(&mut self, branch: &[u8], error: Option<skein_forge::api::Error>) {
+        self.read_script.branch_error = error.map(|error| (branch.into(), error));
+    }
+
     /// Script each ancestry range's terminal result until the script is cleared.
     pub fn script_ancestry(&mut self, result: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>) {
         self.read_script.ancestry = result;
@@ -762,6 +767,7 @@ impl World {
             pull_snapshot: None,
             held_compares: None,
             read_script: ReadScript {
+                branch_error: None,
                 ancestry: None,
                 comparisons_too_large: false,
                 files_excess: None,
@@ -1033,6 +1039,10 @@ impl World {
 
     /// Set the project's CI rule for a landing branch through durable settings.
     pub fn landing_ci(&mut self, branch: &[u8], required: bool) {
+        self.landing_requirements(branch, required, false);
+    }
+
+    pub fn landing_requirements(&mut self, branch: &[u8], ci: bool, up_to_date: bool) {
         let item = top::settings::Asked {
             kind: top::settings::Kind::ProjectRules.number(),
             scope: 5,
@@ -1048,8 +1058,8 @@ impl World {
                         last: top::GateLast::Exact(branch.into()),
                     },
                     enforce: true,
-                    ci: required,
-                    up_to_date: false,
+                    ci,
+                    up_to_date,
                     gates: Box::new([]),
                     approvals: Box::new([]),
                 }),
@@ -1816,6 +1826,11 @@ impl World {
         op: &skein_forge::api::Op,
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch })
+                if self.read_script.branch_error.as_ref().is_some_and(|(named, _)| named == branch) =>
+            {
+                Some(Err(self.read_script.branch_error.as_ref().expect("scripted branch error").1))
+            }
             skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
                 if self.read_script.files_excess.is_some()
                     && self.read_script.files_page.is_none_or(|refused| refused == *page) =>

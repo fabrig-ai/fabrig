@@ -290,6 +290,30 @@ impl Trains {
                 for (number, index) in selection.take.iter().enumerate() {
                     for change in &units[*index as usize].changes {
                         let mut member = landing_row(world.change(*change)).landing.members[0].clone();
+                        let gates = if world
+                            .top
+                            .repository(repository)
+                            .expect("adopted train repository")
+                            .settings
+                            .default_branch
+                            == row.landing.branch
+                        {
+                            world
+                                .top
+                                .repository_gates(PROJECT, repository)
+                                .map_or(0, |configured| configured.gates.len())
+                        } else {
+                            0
+                        };
+                        member.gates = vec![
+                            landing::GateProof {
+                                proof: landing::Proof::Unkeyed,
+                                posted: landing::Posted::Nothing,
+                                faults: 0
+                            };
+                            gates
+                        ]
+                        .into_boxed_slice();
                         member.unit = u16::try_from(number).expect("unit count");
                         member.branch = if members.is_empty() {
                             row.landing.round.branch.clone()

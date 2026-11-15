@@ -265,6 +265,7 @@ pub struct Limits {
     pub change_row_report: u32,
     pub change_row_close_some: u32,
     pub change_row_merge_result_some: u32,
+    pub change_source_branch: u32,
     pub change_cold_branch: u32,
     pub change_cold_base: u32,
     pub change_cold_title: u32,
@@ -569,6 +570,7 @@ pub const CEILINGS: Limits = Limits {
     change_row_report: 1_048_576,
     change_row_close_some: 16_384,
     change_row_merge_result_some: 512,
+    change_source_branch: 4_096,
     change_cold_branch: 4_096,
     change_cold_base: 4_096,
     change_cold_title: 1_048_576,
@@ -613,7 +615,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 300] = [
+pub const LIMIT_NAMES: [&str; 301] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -873,6 +875,7 @@ pub const LIMIT_NAMES: [&str; 300] = [
     "change_row_report",
     "change_row_close_some",
     "change_row_merge_result_some",
+    "change_source_branch",
     "change_cold_branch",
     "change_cold_base",
     "change_cold_title",
@@ -919,7 +922,7 @@ pub const LIMIT_NAMES: [&str; 300] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 300] {
+    pub fn values(&self) -> [u32; 301] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
             self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
@@ -953,12 +956,12 @@ impl Limits {
             self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips, self.follow_row_questions,
             self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_row_signed, self.change_row_repair_tasks,
             self.change_row_resolution_tasks, self.change_row_branch, self.change_row_base, self.change_row_title, self.change_row_body, self.change_row_verdicts, self.change_row_gate_remarks, self.change_row_producer_failure_some,
-            self.change_row_report, self.change_row_close_some, self.change_row_merge_result_some, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report,
-            self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some,
-            self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some,
-            self.red_key, self.red_head, self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words,
-            self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body,
-            self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
+            self.change_row_report, self.change_row_close_some, self.change_row_merge_result_some, self.change_source_branch, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body,
+            self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some,
+            self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some,
+            self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name,
+            self.area_words, self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title,
+            self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -4104,6 +4107,14 @@ pub enum Path {
     FindingsTopicTail,
     /// The tag of `Topic`.
     TopicTag,
+    /// The `branch` field of `ChangeSource`.
+    ChangeSourceBranch,
+    /// The `at` field of `ChangeSource`.
+    ChangeSourceAt,
+    /// Bytes after `ChangeSource`.
+    ChangeSourceTail,
+    /// The `source` field of `ChangeCold`.
+    ChangeColdSource,
     /// The `goal` field of `ChangeCold`.
     ChangeColdGoal,
     /// The `task` field of `ChangeCold`.
@@ -4140,6 +4151,8 @@ pub enum Path {
     ChangeColdClose,
     /// Bytes after `ChangeCold`.
     ChangeColdTail,
+    /// The `kept` field of `ChangeHot`.
+    ChangeHotKept,
     /// The `task_release` field of `ChangeHot`.
     ChangeHotTaskRelease,
     /// The `job` field of `ChangeHot`.
@@ -4736,6 +4749,7 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.change_row_report > CEILINGS.change_row_report { return Err(Problem { path: Path::ChangeRowReport, reason: skein_codec::Reason::Bound }); }
     if limits.change_row_close_some > CEILINGS.change_row_close_some { return Err(Problem { path: Path::ChangeRowClose, reason: skein_codec::Reason::Bound }); }
     if limits.change_row_merge_result_some > CEILINGS.change_row_merge_result_some { return Err(Problem { path: Path::ChangeRowMergeResult, reason: skein_codec::Reason::Bound }); }
+    if limits.change_source_branch > CEILINGS.change_source_branch { return Err(Problem { path: Path::ChangeSourceBranch, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_branch > CEILINGS.change_cold_branch { return Err(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_base > CEILINGS.change_cold_base { return Err(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_title > CEILINGS.change_cold_title { return Err(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Bound }); }
@@ -4746,11 +4760,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.change_hot_repair_tasks > CEILINGS.change_hot_repair_tasks { return Err(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_resolution_tasks > CEILINGS.change_hot_resolution_tasks { return Err(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_verdicts > CEILINGS.change_hot_verdicts { return Err(Problem { path: Path::ChangeHotVerdicts, reason: skein_codec::Reason::Bound }); }
-    if limits.change_hot_gate_remarks > CEILINGS.change_hot_gate_remarks { return Err(Problem { path: Path::ChangeHotGateRemarks, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.change_hot_gate_remarks > CEILINGS.change_hot_gate_remarks { return Err(Problem { path: Path::ChangeHotGateRemarks, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_producer_failure_some > CEILINGS.change_hot_producer_failure_some { return Err(Problem { path: Path::ChangeHotProducerFailure, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_merge_result_some > CEILINGS.change_hot_merge_result_some { return Err(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Bound }); }
     if limits.subscriber_goal_tasks_some > CEILINGS.subscriber_goal_tasks_some { return Err(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Bound }); }
@@ -11841,6 +11855,8 @@ pub enum ChangeLive {
     WaitingProducer(WaitingProducer),
     /// `judging` carrying `Judging`.
     Judging(Judging),
+    /// `taking` carrying `Producing`.
+    Taking(Producing),
 }
 
 impl ChangeLive {
@@ -11856,7 +11872,7 @@ impl ChangeLive {
             Self::Repairing(record) => Repairing::check(record, limits),
             Self::NoChange(record) => NoChange::check(record, limits),
             Self::Judging(record) => Judging::check(record, limits),
-            Self::Producing(_) | Self::Opening(_) | Self::Recreating(_) | Self::Reopening(_) | Self::Checking(_) | Self::Queued(_) | Self::First(_) | Self::Updating(_) | Self::Resolving(_) | Self::Landing(_) | Self::Landed(_) | Self::Ended | Self::CancellingGates(_) | Self::Ready(_) | Self::Preparing(_) | Self::Red(_) | Self::Cleared(_) | Self::Uncleared(_) | Self::WaitingProducer(_) => Ok(()),
+            Self::Producing(_) | Self::Opening(_) | Self::Recreating(_) | Self::Reopening(_) | Self::Checking(_) | Self::Queued(_) | Self::First(_) | Self::Updating(_) | Self::Resolving(_) | Self::Landing(_) | Self::Landed(_) | Self::Ended | Self::CancellingGates(_) | Self::Ready(_) | Self::Preparing(_) | Self::Red(_) | Self::Cleared(_) | Self::Uncleared(_) | Self::WaitingProducer(_) | Self::Taking(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -24801,9 +24817,54 @@ impl Topic {
     }
 }
 
+/// Movable fields of `ChangeSource`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeSourceParts {
+    /// The `branch` field.
+    pub branch: Box<[u8]>,
+    /// The `at` field.
+    pub at: Option<[u8; 32]>,
+}
+
+/// `ChangeSource` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeSource {
+    branch: Box<[u8]>,
+    at: Option<[u8; 32]>,
+}
+
+impl ChangeSource {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ChangeSourceParts) -> Result<Self, Problem> {
+        let ChangeSourceParts { branch, at } = parts;
+        let value = Self { branch, at };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `branch` field.
+    #[must_use]
+    pub fn branch(&self) -> &[u8] { &self.branch }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> &Option<[u8; 32]> { &self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ChangeSourceParts { ChangeSourceParts { branch: self.branch, at: self.at } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.branch.len() > usize::try_from(limits.change_source_branch.min(CEILINGS.change_source_branch)).expect("u32 fits usize") { return Err(Problem { path: Path::ChangeSourceBranch, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `ChangeCold`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeColdParts {
+    /// The `source` field.
+    pub source: Option<ChangeSource>,
     /// The `goal` field.
     pub goal: Option<u64>,
     /// The `task` field.
@@ -24843,6 +24904,7 @@ pub struct ChangeColdParts {
 /// `ChangeCold` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeCold {
+    source: Option<ChangeSource>,
     goal: Option<u64>,
     task: u64,
     repository: Repository,
@@ -24865,11 +24927,15 @@ pub struct ChangeCold {
 impl ChangeCold {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeColdParts) -> Result<Self, Problem> {
-        let ChangeColdParts { goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
-        let value = Self { goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
+        let ChangeColdParts { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
+        let value = Self { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `source` field.
+    #[must_use]
+    pub fn source(&self) -> &Option<ChangeSource> { &self.source }
 
     /// Reads the `goal` field.
     #[must_use]
@@ -24941,9 +25007,12 @@ impl ChangeCold {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
+    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { source: self.source, goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.source.as_ref() {
+        some_0.check(limits)?;
+        }
         if self.branch.len() > usize::try_from(limits.change_cold_branch.min(CEILINGS.change_cold_branch)).expect("u32 fits usize") { return Err(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Bound }); }
         if self.base.len() > usize::try_from(limits.change_cold_base.min(CEILINGS.change_cold_base)).expect("u32 fits usize") { return Err(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Bound }); }
         if self.title.len() > usize::try_from(limits.change_cold_title.min(CEILINGS.change_cold_title)).expect("u32 fits usize") { return Err(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Bound }); }
@@ -24966,6 +25035,8 @@ impl ChangeCold {
 /// Movable fields of `ChangeHot`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHotParts {
+    /// The `kept` field.
+    pub kept: Option<[u8; 32]>,
     /// The `task_release` field.
     pub task_release: Option<TaskRelease>,
     /// The `job` field.
@@ -25025,6 +25096,7 @@ pub struct ChangeHotParts {
 /// `ChangeHot` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
+    kept: Option<[u8; 32]>,
     task_release: Option<TaskRelease>,
     job: Option<HistoryJobRecord>,
     signed: List<SignOff>,
@@ -25057,11 +25129,15 @@ pub struct ChangeHot {
 impl ChangeHot {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeHotParts) -> Result<Self, Problem> {
-        let ChangeHotParts { task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
-        let value = Self { task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
+        let ChangeHotParts { kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
+        let value = Self { kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `kept` field.
+    #[must_use]
+    pub fn kept(&self) -> &Option<[u8; 32]> { &self.kept }
 
     /// Reads the `task_release` field.
     #[must_use]
@@ -25173,7 +25249,7 @@ impl ChangeHot {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
+    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { kept: self.kept, task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.job.as_ref() {
@@ -34083,7 +34159,7 @@ impl ChangeLive {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Producing(record) | Self::Opening(record) => 1_u32.checked_add(Producing::measure(record)).expect("schema ceilings fit u32"),
+            Self::Producing(record) | Self::Opening(record) | Self::Taking(record) => 1_u32.checked_add(Producing::measure(record)).expect("schema ceilings fit u32"),
             Self::Recreating(record) | Self::Checking(record) | Self::Landing(record) | Self::CancellingGates(record) => 1_u32.checked_add(ChangeHead::measure(record)).expect("schema ceilings fit u32"),
             Self::Reopening(record) => 1_u32.checked_add(Reopening::measure(record)).expect("schema ceilings fit u32"),
             Self::Gating(record) => 1_u32.checked_add(Gating::measure(record)).expect("schema ceilings fit u32"),
@@ -34127,6 +34203,7 @@ impl ChangeLive {
             Self::Uncleared(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
             Self::WaitingProducer(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
             Self::Judging(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::Taking(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -34164,6 +34241,7 @@ impl ChangeLive {
             20 => Self::Uncleared(MergeChange::decode_from(limits, reader)?),
             21 => Self::WaitingProducer(WaitingProducer::decode_from(limits, reader)?),
             22 => Self::Judging(Judging::decode_from(limits, reader)?),
+            23 => Self::Taking(Producing::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ChangeLiveTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -47923,11 +48001,62 @@ impl Topic {
     }
 }
 
+impl ChangeSource {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_branch = &self.branch;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_at = &self.at;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_at.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_branch = &self.branch;
+        writer.put(&u32::try_from(field_branch.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_branch.as_ref())?;
+        let field_at = &self.at;
+        match field_at {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ChangeSourceTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.change_source_branch.min(CEILINGS.change_source_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeSourceBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeSourceBranch, reason: skein_codec::Reason::Short })?) };
+        let decoded_at = match reader.u8().ok_or(Problem { path: Path::ChangeSourceAt, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeSourceAt, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeSourceAt, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { branch: decoded_branch, at: decoded_at })
+    }
+}
+
 impl ChangeCold {
     /// Measures this record's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_source = &self.source;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_source {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_goal = &self.goal;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_goal.is_some() {
@@ -47989,6 +48118,14 @@ impl ChangeCold {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_source = &self.source;
+        match field_source {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_goal = &self.goal;
         match field_goal {
             Some(some_0) => {
@@ -48082,6 +48219,7 @@ impl ChangeCold {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeSource::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Tag }) };
         let decoded_goal = match reader.u8().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Tag }) };
         let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeColdTask, reason: skein_codec::Reason::Short })?;
         let decoded_repository = Repository::decode_from(limits, reader)?;
@@ -48099,7 +48237,7 @@ impl ChangeCold {
         let decoded_follows = match reader.u8().ok_or(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeFollows::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Tag }) };
         let decoded_catch_up = match reader.u8().ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Tag }) };
         let decoded_close = match reader.u8().ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_cold_close_some.min(CEILINGS.change_cold_close_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdClose, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
+        Ok(Self { source: decoded_source, goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
     }
 }
 
@@ -48129,6 +48267,7 @@ impl ChangeHot {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_kept = match reader.u8().ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Tag }) };
         let decoded_task_release = match reader.u8().ok_or(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TaskRelease::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Tag }) };
         let decoded_job = match reader.u8().ok_or(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HistoryJobRecord::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Tag }) };
         let decoded_signed = { let count = match skein_codec::read_count(reader, limits.change_hot_signed.min(CEILINGS.change_hot_signed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotSigned, reason }), }; if count > reader.remaining() / 48 { return Err(Problem { path: Path::ChangeHotSigned, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = SignOff::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
@@ -48156,13 +48295,18 @@ impl ChangeHot {
         let decoded_follow_check = match reader.u8().ok_or(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowCheckProgress::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Tag }) };
         let decoded_merge_result = match reader.u8().ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_hot_merge_result_some.min(CEILINGS.change_hot_merge_result_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeHotMergeResult, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Tag }) };
         let decoded_history = match reader.u8().ok_or(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHistory::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
+        Ok(Self { kept: decoded_kept, task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
     }
 }
 
 
 impl ChangeHot {
     fn measure_0(&self, mut size: u32) -> u32 {
+        let field_kept = &self.kept;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_kept.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         let field_task_release = &self.task_release;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_task_release.is_some() {
@@ -48228,18 +48372,18 @@ impl ChangeHot {
         if let Some(some_0) = field_drift {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
-        let field_queue_repair = &self.queue_repair;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_queue_repair.is_some() {
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
         size
     }
 }
 
 impl ChangeHot {
     fn measure_1(&self, mut size: u32) -> u32 {
+        let field_queue_repair = &self.queue_repair;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_queue_repair.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(4).expect("schema ceilings fit u32");
         let field_effect_account = &self.effect_account;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_effect_account {
@@ -48275,6 +48419,14 @@ impl ChangeHot {
 
 impl ChangeHot {
     fn encode_0(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_kept = &self.kept;
+        match field_kept {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_task_release = &self.task_release;
         match field_task_release {
             Some(some_0) => {
@@ -48338,6 +48490,12 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_pending = &self.pending;
         match field_pending {
             Some(some_0) => {
@@ -48346,12 +48504,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_effect = &self.effect;
         field_effect.encode(writer)?;
         let field_delegate = &self.delegate;
@@ -48419,6 +48571,12 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_merge_result = &self.merge_result;
         match field_merge_result {
             Some(some_0) => {
@@ -48428,12 +48586,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_history = &self.history;
         match field_history {
             Some(some_0) => {
@@ -55257,6 +55409,7 @@ impl ChangeLive {
         biggest = biggest.max(NoChange::encoded_bound_within(limits)?).max(LandedChange::encoded_bound_within(limits)?);
         biggest = biggest.max(MergeChange::encoded_bound_within(limits)?).max(MergeChange::encoded_bound_within(limits)?);
         biggest = biggest.max(WaitingProducer::encoded_bound_within(limits)?).max(Judging::encoded_bound_within(limits)?);
+        biggest = biggest.max(Producing::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -55280,6 +55433,7 @@ impl ChangeLive {
         biggest = biggest.max(NoChange::decoded_bound_within(limits)?).max(LandedChange::decoded_bound_within(limits)?);
         biggest = biggest.max(MergeChange::decoded_bound_within(limits)?).max(MergeChange::decoded_bound_within(limits)?);
         biggest = biggest.max(WaitingProducer::decoded_bound_within(limits)?).max(Judging::decoded_bound_within(limits)?);
+        biggest = biggest.max(Producing::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -63746,7 +63900,7 @@ impl Topic {
     }
 }
 
-impl ChangeCold {
+impl ChangeSource {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -63756,15 +63910,7 @@ impl ChangeCold {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
-        size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?.checked_add(1_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
-        size = size.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
-        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_source_branch))?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -63777,15 +63923,51 @@ impl ChangeCold {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.change_source_branch))?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ChangeCold {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(ChangeSource::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(8_u64)?.checked_add(Repository::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?;
+        size = size.checked_add(1_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(ChangeSource::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Repository::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.change_cold_branch))?.checked_add(u64::from(limits.change_cold_base))?;
+        heap = heap.checked_add(u64::from(limits.change_cold_title))?.checked_add(u64::from(limits.change_cold_body))?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_branch))?;
-        heap = heap.checked_add(u64::from(limits.change_cold_base))?.checked_add(u64::from(limits.change_cold_title))?;
-        heap = heap.checked_add(u64::from(limits.change_cold_body))?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.change_cold_report))?.checked_add(0_u64)?;
-        heap = heap.checked_add(ChangeFollows::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(u64::from(limits.change_cold_close_some))?;
+        heap = heap.checked_add(0_u64)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_report))?;
+        heap = heap.checked_add(0_u64)?.checked_add(ChangeFollows::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.change_cold_close_some))?;
         heap.checked_add(0)
     }
 }
@@ -63800,20 +63982,20 @@ impl ChangeHot {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(TaskRelease::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeEnding::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(8_u64)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(8_u64)?)?)?;
-        size = size.checked_add(ChangeResult::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(Change::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(ChangeCi::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(EffectResult::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(DelegateRef::encoded_bound_within(limits)?)?)?.checked_add(ChangeStatus::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(EffectAccount::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_producer_failure_some))?)?)?.checked_add(Questions::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(FollowCheckProgress::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_merge_result_some))?)?)?;
-        size = size.checked_add(1_u64.checked_add(ChangeHistory::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(TaskRelease::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeEnding::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(8_u64)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(8_u64)?)?)?.checked_add(ChangeResult::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(Change::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(ChangeCi::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(EffectResult::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(DelegateRef::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(ChangeStatus::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64.checked_add(EffectAccount::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_producer_failure_some))?)?)?;
+        size = size.checked_add(Questions::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(FollowCheckProgress::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_merge_result_some))?)?)?.checked_add(1_u64.checked_add(ChangeHistory::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -63826,20 +64008,20 @@ impl ChangeHot {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(TaskRelease::decoded_bound_within(limits)?)?.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(List::<SignOff>::price(limits.change_hot_signed)?.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeEnding::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(List::<u64>::price(limits.change_hot_repair_tasks)?.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(0_u64)?)?)?.checked_add(List::<u64>::price(limits.change_hot_resolution_tasks)?.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(0_u64)?)?)?;
-        heap = heap.checked_add(ChangeResult::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Change::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(ChangeCi::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(EffectResult::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(DelegateRef::decoded_bound_within(limits)?)?.checked_add(ChangeStatus::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(List::<GateReport>::price(limits.change_hot_verdicts)?.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::decoded_bound_within(limits)?)?)?)?.checked_add(List::<GateRemark>::price(limits.change_hot_gate_remarks)?.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(ChangeHold::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(EffectAccount::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.change_hot_producer_failure_some))?.checked_add(Questions::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(FollowCheckProgress::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_hot_merge_result_some))?;
-        heap = heap.checked_add(ChangeHistory::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(TaskRelease::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?.checked_add(List::<SignOff>::price(limits.change_hot_signed)?.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(ChangeEnding::decoded_bound_within(limits)?)?.checked_add(List::<u64>::price(limits.change_hot_repair_tasks)?.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(0_u64)?)?)?;
+        heap = heap.checked_add(List::<u64>::price(limits.change_hot_resolution_tasks)?.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(0_u64)?)?)?.checked_add(ChangeResult::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Change::decoded_bound_within(limits)?)?.checked_add(ChangeCi::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(EffectResult::decoded_bound_within(limits)?)?.checked_add(DelegateRef::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ChangeStatus::decoded_bound_within(limits)?)?.checked_add(List::<GateReport>::price(limits.change_hot_verdicts)?.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(List::<GateRemark>::price(limits.change_hot_gate_remarks)?.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeHold::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(EffectAccount::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_hot_producer_failure_some))?;
+        heap = heap.checked_add(Questions::decoded_bound_within(limits)?)?.checked_add(FollowCheckProgress::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.change_hot_merge_result_some))?.checked_add(ChangeHistory::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -65670,11 +65852,12 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ChangeRow::encoded_bound_within(limits)?);
     biggest = biggest.max(FindingsTopic::encoded_bound_within(limits)?);
     biggest = biggest.max(Topic::encoded_bound_within(limits)?);
-    biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?);
+    biggest = biggest.max(ChangeSource::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeHot::encoded_bound_within(limits)?);
     biggest = biggest.max(Subscriber::encoded_bound_within(limits)?);
     biggest = biggest.max(FindingCount::encoded_bound_within(limits)?);
@@ -66203,11 +66386,12 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ChangeRow::decoded_bound_within(limits)?);
     biggest = biggest.max(FindingsTopic::decoded_bound_within(limits)?);
     biggest = biggest.max(Topic::decoded_bound_within(limits)?);
-    biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?);
+    biggest = biggest.max(ChangeSource::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeHot::decoded_bound_within(limits)?);
     biggest = biggest.max(Subscriber::decoded_bound_within(limits)?);
     biggest = biggest.max(FindingCount::decoded_bound_within(limits)?);

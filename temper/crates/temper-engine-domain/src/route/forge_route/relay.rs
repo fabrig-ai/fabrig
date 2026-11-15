@@ -571,7 +571,8 @@ fn asking_delegate(delegate: Option<(u64, change::Delegate)>, target: u64) -> bo
 pub(super) fn questions_held(state: &change::State) -> bool {
     match state {
         change::State::Held { why, .. } => *why == change::Hold::Questions,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }

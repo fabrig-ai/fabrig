@@ -486,7 +486,8 @@ pub(super) fn read_failed(
                 None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
             },
         ),
-        StepStage::StallChecks
+        StepStage::Taking
+        | StepStage::StallChecks
         | StepStage::StallJobs
         | StepStage::Ci
         | StepStage::Run(_)

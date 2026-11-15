@@ -220,7 +220,8 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
             line: c::first_line(row.producer_failure.as_deref().unwrap_or(b"change ended without an ending account"))
                 .into(),
         }),
-        super::forge_change::State::Producing { .. }
+        super::forge_change::State::Taking { .. }
+        | super::forge_change::State::Producing { .. }
         | super::forge_change::State::Opening { .. }
         | super::forge_change::State::Recreating { .. }
         | super::forge_change::State::Reopening { .. }
@@ -544,7 +545,8 @@ fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
         forge::Ending::NoChange => {
             let words = match &row.change.state {
                 super::forge_change::State::NoChange { words } => words.as_ref(),
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }
@@ -622,7 +624,8 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                     repairs: row.repair_tasks.clone(),
                     resolutions: row.resolution_tasks.clone(),
                 },
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }

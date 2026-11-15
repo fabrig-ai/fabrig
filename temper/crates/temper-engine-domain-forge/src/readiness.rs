@@ -12,7 +12,8 @@ pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
         return;
     }
     match row.change.state {
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -87,7 +88,8 @@ fn ended(state: &c::State) -> Option<h::Ending> {
     match state {
         c::State::Ended => Some(h::Ending::Cancelled),
         c::State::NoChange { .. } => Some(h::Ending::NoChange),
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -184,7 +186,8 @@ fn line(row: &ChangeRow) -> bool {
         c::State::Updating { .. } | c::State::Landing { .. } | c::State::Checking { .. } | c::State::Gating { .. } => {
             row.change.owns_turn
         }
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -205,7 +208,8 @@ fn line(row: &ChangeRow) -> bool {
 fn hold(state: &c::State) -> Option<c::Hold> {
     match state {
         c::State::Held { why, .. } => Some(*why),
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -234,7 +238,8 @@ fn hold(state: &c::State) -> Option<c::Hold> {
 fn first(state: &c::State) -> bool {
     match state {
         c::State::First { .. } => true,
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -298,7 +303,8 @@ fn why(row: &ChangeRow, facts: Option<&c::Facts>, approval: bool) -> h::Unready 
     }
     match row.change.state {
         c::State::Resolving { .. } | c::State::WaitingProducer { .. } => h::Unready::Conflict,
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }
@@ -500,7 +506,8 @@ fn queue(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, in_line: bool, 
         let cause = match row.change.state {
             c::State::Resolving { .. } | c::State::WaitingProducer { .. } => h::Departure::Conflict,
             c::State::Repairing { .. } => h::Departure::Repair,
-            c::State::Producing { .. }
+            c::State::Taking { .. }
+            | c::State::Producing { .. }
             | c::State::Opening { .. }
             | c::State::Recreating { .. }
             | c::State::Reopening { .. }

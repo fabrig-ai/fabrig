@@ -155,6 +155,7 @@ pub(crate) fn cap(
         | change::Decision::QueueRepair
         | change::Decision::Finish { .. }
         | change::Decision::Cancel
+        | change::Decision::Failed
         | change::Decision::NoChange
         | change::Decision::Hold(_) => decision,
     }

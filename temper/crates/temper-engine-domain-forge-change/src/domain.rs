@@ -148,7 +148,8 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             | State::Queued { head, .. }
             | State::First { head, .. }
             | State::Ready { head, .. } => (Some(*head), false),
-            State::Producing { .. }
+            State::Taking { .. }
+            | State::Producing { .. }
             | State::Recreating { .. }
             | State::Reopening { .. }
             | State::CancellingGates { .. }
@@ -198,7 +199,8 @@ fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
             | Repair::Gate(_)
             | Repair::Review { .. } => Some(facts.base_tip),
         },
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
@@ -228,7 +230,8 @@ fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
 /// Only before its turn may a contained head end with no change (domain/forge/change/README.md, 2).
 fn head_may_end(state: &State) -> bool {
     match state {
-        State::Held { .. }
+        State::Taking { .. }
+        | State::Held { .. }
         | State::Updating { .. }
         | State::Preparing { .. }
         | State::First { .. }
@@ -282,6 +285,7 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
         State::NoChange { .. } => Decision::NoChange,
         State::Ended => Decision::Cancel,
         State::Held { .. }
+        | State::Taking { .. }
         | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
@@ -337,6 +341,7 @@ fn advance_phase(
     limits: &Limits,
 ) -> Stepped {
     match &change.state {
+        State::Taking { .. } => taking(next, facts, standing, now, limits),
         State::Producing { requested } => producing(next, *requested, facts, standing, now, limits),
         State::Opening { requested } => opening(next, *requested, facts, standing, now, limits),
         State::Recreating { head } => recreating(next, *head, facts, now, limits),
@@ -385,7 +390,8 @@ fn advance_phase(
 fn closed_pull_holds(state: &State) -> bool {
     match state {
         State::Reopening { .. } | State::Recreating { .. } => false,
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Checking { .. }
         | State::Judging { .. }
@@ -456,7 +462,8 @@ pub fn released(change: &Change, now: Wall) -> Change {
             next.since = now;
             next.owns_turn = false;
         }
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
@@ -486,7 +493,8 @@ pub fn released(change: &Change, now: Wall) -> Change {
 fn resolving_state(state: &State) -> bool {
     match state {
         State::Resolving { .. } => true,
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
@@ -625,6 +633,7 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
         // A release decides from branch, base and pull, not the ended resolution's
         // status (temper/docs/design/domain/forge/change/repairs.md, A release).
         State::Resolving { base, .. } if why == Hold::Failed => State::WaitingProducer { base: *base },
+        State::Taking { .. } => State::Taking { requested: false },
         State::Producing { requested: true } if why == Hold::Failed => State::Producing { requested: false },
         State::Repairing { why: repair, .. } if why == Hold::Failed => {
             State::Repairing { requested: false, why: *repair }
@@ -692,6 +701,30 @@ fn hold(mut change: Change, why: Hold) -> Stepped {
     }
     change.state = State::Held { was: Box::new(change.state.clone()), why };
     Stepped { change, decision: Decision::Hold(why) }
+}
+
+// Taking makes only the head the connector kept (temper/docs/design/domain/forge/change/opened.md, 4).
+fn taking(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+    let Some(head) = facts.taken else { return waiting(change, facts, now, limits) };
+    if let Some(observed) = facts.branch {
+        if observed != head {
+            return hold(change, Hold::BranchMoved);
+        }
+        if standing.effect != EffectResult::Pending {
+            change.last_head = Some(head);
+            change.state = State::Opening { requested: false };
+            change.since = now;
+            return Stepped { change, decision: Decision::None };
+        }
+    }
+    match standing.effect {
+        EffectResult::Pending => waiting(change, facts, now, limits),
+        EffectResult::Failed | EffectResult::Conflict => hold(change, Hold::Failed),
+        EffectResult::None | EffectResult::Made => {
+            change.state = State::Taking { requested: true };
+            Stepped { change, decision: Decision::Effect(Effect::CreateBranch { head }) }
+        }
+    }
 }
 
 fn producing(
@@ -1489,7 +1522,8 @@ fn ci_state(state: &State) -> bool {
     match state {
         State::Repairing { why, .. } => ci_reason(*why),
         State::Checking { .. } | State::CancellingGates { .. } => true,
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
@@ -1657,7 +1691,8 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     let (current, asked) = match &change.state {
         State::Gating { head, asked } => (*head, asked),
         State::Judging { target, asked, .. } => (target.prefix, asked),
-        State::Producing { .. }
+        State::Taking { .. }
+        | State::Producing { .. }
         | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
