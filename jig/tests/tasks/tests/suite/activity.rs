@@ -25,6 +25,8 @@ fn lines(world: &World, task: u64) -> Vec<ActivityLine> {
             | Stored::LiveCold { .. }
             | Stored::Stub(_)
             | Stored::Milestone(_)
+            | Stored::Attempt(_)
+            | Stored::Hold(_)
             | Stored::History(_)
             | Stored::PlacedHold(_)
             | Stored::PersonProposal(_) => None,

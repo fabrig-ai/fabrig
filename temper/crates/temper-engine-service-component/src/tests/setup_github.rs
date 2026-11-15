@@ -243,7 +243,7 @@ fn paste_success(service: &mut crate::Service, face: &mut Face) {
 }
 
 fn http_owner() -> (Box<crate::Service>, Box<[u8]>) {
-    use jig_client_protocol_wire::v22 as j;
+    use jig_client_protocol_wire::v23 as j;
     let mut service = owner_service();
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
@@ -265,7 +265,7 @@ fn http_paste_with_policy(
     app: u64,
     read_only: Option<bool>,
 ) -> w::Outcome {
-    use jig_client_protocol_wire::v22 as j;
+    use jig_client_protocol_wire::v23 as j;
     let (_, bundle) = carried_pem();
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;

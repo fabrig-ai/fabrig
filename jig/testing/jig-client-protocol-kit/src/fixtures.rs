@@ -70,7 +70,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: 22, last: 22 },
+            Served { family: None, first: 23, last: 23 },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
         providers: jig_client_kit::test::list([0]),
@@ -135,7 +135,7 @@ pub fn engine_limits() -> Limits {
         exchanges: 8,
         exchanges_per_client: 4,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v22::CEILINGS,
+        wire: jig_client_protocol_wire::v23::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -293,8 +293,9 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task's closer and optional session each occupy 32 bytes in the task owner.
 // The optional talk occupies another 32 bytes in the task owner.
 // The question wake watermark occupies eight bytes in the task owner.
+// The task owner's open attempt occupies 56 inline bytes.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2721;
+pub const TURN_OVERLAP_BYTES: u64 = 2777;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

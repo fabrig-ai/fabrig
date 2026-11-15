@@ -141,20 +141,12 @@ fn two_mets_merge_after_a_dependency_is_removed_then_readded_before_claim() {
     amend(&mut world, &[DEPENDENCY]);
     assert_eq!(world.record(KEPT).phase, Phase::Active(Active::Idle));
     world.activations.remove(&KEPT);
+    let before_met = world.record(KEPT).milestone;
     done(&mut world, DEPENDENCY);
+    assert_eq!(world.record(KEPT).milestone, before_met + 1, "one wake after the kept interval");
     met(&world, DEPENDENCY, false, Party::Task(DEPENDENCY), 2);
     assert_eq!(world.record(KEPT).phase, Phase::Active(Active::Due));
     assert!(world.activations.contains(&KEPT));
-    let wakes = world
-        .records
-        .values()
-        .filter(|row| {
-            matches!(row,
-                tasks::Stored::Milestone(line) if line.task == KEPT && line.phase == Phase::Active(Active::Due)
-            )
-        })
-        .count();
-    assert_eq!(wakes, 3, "initial activation and one wake after each kept interval");
 }
 
 #[test]

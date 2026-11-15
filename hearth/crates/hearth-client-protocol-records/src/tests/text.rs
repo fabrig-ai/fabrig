@@ -3,11 +3,13 @@ use crate::{
     form::{self, Form, Refusal},
     limits,
     outcome::Outcome,
-    parts::config::{Node, TreeEntry},
     records::{Record, Terminal, Type},
 };
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::parts::config::{Node, TreeEntry};
 use skein_lib::bytes::copy_of;
+
 #[test]
 fn a_spec_prints_its_meta_and_config_as_render_md_shows() {
     let printed = form::print(Form::Text, &Record::Spec(fixtures::x1_prod()), None, &limits::SHIPPED);
@@ -20,7 +22,7 @@ fn a_spec_prints_its_meta_and_config_as_render_md_shows() {
 #[test]
 fn a_digest_prints_its_first_twelve_lowercase_hex_digits() {
     let mut spec = fixtures::x1_prod();
-    spec.digest = fixtures::digest([0xab, 0xcd, 0xef, 0x01, 0x23, 0x45]);
+    spec.digest = hearth_lib::encode::Digest(fixtures::digest([0xab, 0xcd, 0xef, 0x01, 0x23, 0x45]));
     let printed = fixtures::packages_text(spec);
     assert!(skein_lib::bytes::find(&printed, b"spec         abcdef012345\n").is_some(), "twelve lowercase digits");
 }
@@ -107,7 +109,9 @@ fn a_known_resolution_prints_the_keys_line_last() {
 fn a_needed_resolution_prints_no_keys_line() {
     let spec = fixtures::with_resolution(
         fixtures::x1_prod(),
-        crate::records::Resolution::Needed { key: fixtures::digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2]) },
+        render::keys::Resolution::Needed {
+            key: hearth_lib::encode::Digest(fixtures::digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2])),
+        },
     );
     let printed = form::print(Form::Text, &Record::Spec(spec), None, &limits::SHIPPED);
     assert_eq!(printed.as_deref(), Ok(fixtures::X1_PROD_TEXT.as_bytes()), "needed resolution adds no keys line");

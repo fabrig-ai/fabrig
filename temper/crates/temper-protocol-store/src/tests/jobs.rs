@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{jobs, keys, records};
-use jig_protocol_store::{JobEdge, JobPage, JobRow, JobWrite};
+use jig_protocol_store::{JobPage, JobRoom, JobRow, JobWrite};
 use temper_engine_domain_forge_vocabulary::{ChangeRow, Key, Stored};
 
 fn row(task: u64) -> JobRow {
@@ -13,7 +13,7 @@ fn row(task: u64) -> JobRow {
     }
 }
 fn page(rows: Box<[JobRow]>, writes: u32, bytes: u32) -> JobPage {
-    JobPage { end: rows.is_empty(), rows, layout: None, edge: JobEdge { writes, bytes } }
+    JobPage { end: rows.is_empty(), rows, layout: None, room: JobRoom { writes, bytes: u64::from(bytes) } }
 }
 
 #[test]

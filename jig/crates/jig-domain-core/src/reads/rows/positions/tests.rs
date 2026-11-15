@@ -47,10 +47,10 @@ fn result_row(owner: &tasks::TaskRecord) -> Row {
 
 fn subtree_rows(owner: &tasks::TaskRecord) -> Box<[Row]> {
     let root = stored_row(
-        Record::Tasks(tasks::Stored::Milestone(tasks::Milestone {
+        Record::Tasks(tasks::Stored::Hold(tasks::HoldRow {
             task: 1,
             position: 2,
-            phase: tasks::Phase::Waiting,
+            held: tasks::Held { was: tasks::Was::Waiting, why: tasks::Hold::Stopped, source: None },
             at: Wall::EPOCH,
         })),
         Some(owner.clone()),
@@ -72,7 +72,19 @@ fn subtree_rows(owner: &tasks::TaskRecord) -> Box<[Row]> {
         Some(child),
     );
     row.ancestors = Box::new([1]);
-    Box::new([root, row])
+    let attempt = stored_row(
+        Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            task: 1,
+            attempt: 3,
+            claimed: Some(Wall::from_nanos(5)),
+            started: None,
+            ended: None,
+            end: None,
+            phases: None,
+        })),
+        Some(owner.clone()),
+    );
+    Box::new([attempt, root, row])
 }
 
 #[test]
@@ -209,7 +221,11 @@ fn a_subtree_history_page_moves_from_one_task_to_the_next() {
     let next = reads::row_key(rows.last().unwrap()).unwrap();
     let answer = reads::rows::from_store(&core, &limits, &range(scope.clone()), rows, Some(next.clone()), Wall::EPOCH);
     let Answer::Page(page) = answer else { panic!("task-by-task history accepted") };
-    assert_eq!(page.rows.len(), 2);
+    assert_eq!(page.rows.len(), 3);
+    let reads::PageRow::Attempt(attempt) = page.rows.get(0).unwrap() else { panic!("attempt before hold") };
+    assert_eq!(attempt.claimed, Some(Wall::from_nanos(5)));
+    let reads::PageRow::Hold(hold) = page.rows.get(1).unwrap() else { panic!("hold after attempt") };
+    assert_eq!(hold.position, 2);
     assert_eq!(page.next, Some(Cursor::Store { scope, after: Some(next) }));
 }
 
@@ -219,7 +235,7 @@ fn subtree_history_does_not_return_to_a_task_already_examined() {
     let scope = Scope::History { task: 1, subtree: true };
     let rows = subtree_rows(core.tasks.task(1).unwrap());
     let owner = core.tasks.task(1).unwrap();
-    let mut repeated = skein_lib::List::with_capacity(3);
+    let mut repeated = skein_lib::List::with_capacity(4);
     for row in rows {
         repeated.push(row).unwrap();
     }

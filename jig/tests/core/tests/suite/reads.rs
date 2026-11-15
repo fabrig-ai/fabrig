@@ -608,7 +608,8 @@ fn subtree_history(world: &mut jig_core_world::world::World, task: u64) -> Vec<(
         for row in &page.rows {
             match row {
                 reads::PageRow::History(line) => rows.push((0, line.task, line.revision)),
-                reads::PageRow::Milestone(line) => rows.push((1, line.task, line.position)),
+                reads::PageRow::Attempt(line) => rows.push((1, line.task, line.attempt)),
+                reads::PageRow::Hold(line) => rows.push((2, line.task, line.position)),
                 reads::PageRow::EndedDelegate(_)
                 | reads::PageRow::Activity { .. }
                 | reads::PageRow::Inbox(_)
@@ -634,7 +635,7 @@ fn a_subtree_history_reads_each_delegates_rows_found_by_index() {
     let rows = subtree_history(&mut world, goal);
     assert!(rows.iter().any(|row| row.1 == goal));
     assert!(rows.iter().any(|row| row.1 == delegate));
-    assert_eq!(&rows[..2], &[(0, goal, 1), (1, goal, 1)]);
+    assert_eq!(&rows[..2], &[(0, goal, 1), (1, goal, 2)]);
     let mut members: Vec<_> = rows.iter().map(|row| row.1).collect();
     members.dedup();
     assert_eq!(members, [goal, delegate]);

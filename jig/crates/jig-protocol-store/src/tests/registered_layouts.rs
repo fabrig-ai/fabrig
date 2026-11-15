@@ -28,7 +28,8 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
             let old_root = old.root(ty.root.as_bytes(), variant);
             let new_root = new.root(ty.root.as_bytes(), variant).unwrap();
             let Some(old_root) = old_root else {
-                assert_eq!((family.name, ty.number), ("jig-store-tasks", 19));
+                assert_eq!(family.name, "jig-store-tasks");
+                assert!([19, 20, 21].contains(&ty.number), "only new value types have no kept layout");
                 added += 1;
                 continue;
             };
@@ -38,5 +39,5 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
         }
     }
     assert_ne!(types, 0);
-    assert_eq!(added, 1);
+    assert_eq!(added, 3);
 }

@@ -1,5 +1,6 @@
 //! Durability observations from real file completions, independent of the service.
 mod generations;
+mod layouts;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -32,6 +33,7 @@ pub struct Store {
     validated: BTreeMap<Vec<u8>, usize>,
     lengths: BTreeMap<u64, u64>,
     generations: BTreeMap<Vec<u8>, generations::Generation>,
+    layouts: layouts::Layouts,
     active: Option<Vec<u8>>,
     deferred: Option<Vec<u8>>,
     pub(crate) levels: Option<codec::component::Levels>,
@@ -197,11 +199,14 @@ impl Store {
                 }
                 Observed::Pending { path, bytes } => {
                     if self.deferred.is_none() && self.is_active(&path) {
-                        self.pending = frames(&bytes, self.applied)
+                        let layouts = self.layouts.clone();
+                        let pending = frames(&bytes, self.applied)
                             .0
                             .into_iter()
                             .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
-                            .collect::<Result<_, _>>()?;
+                            .collect::<Result<_, _>>();
+                        self.layouts = layouts;
+                        self.pending = pending?;
                     }
                 }
                 Observed::Renamed { from, to } => {
@@ -307,7 +312,7 @@ impl Store {
         self.applied = commit.number;
     }
     fn decode(
-        &self,
+        &mut self,
         key: &core::Key,
         value: &[u8],
         ops: &[skein_kv::Op],
@@ -323,7 +328,9 @@ impl Store {
         let mut cold = None;
         for op in ops {
             match op {
-                skein_kv::Op::Put { key, value } if *key == raw => cold = Some(value.clone()),
+                skein_kv::Op::Put { key, value } if *key == raw => {
+                    cold = Some(self.layouts.serving(key, value.clone()).ok()?);
+                }
                 skein_kv::Op::Erase { key } if *key == raw => return None,
                 skein_kv::Op::Put { .. } | skein_kv::Op::Erase { .. } => {}
             }
@@ -335,19 +342,19 @@ impl Store {
             };
             cold = codec::encode(record, limits, names);
         }
-        let mut cold = cold?;
-        cold.get_mut(..2)?.copy_from_slice(&13_u16.to_be_bytes());
+        let cold = cold?;
         Some(core::Record::Tasks(codec::tasks::decode_live(value, &cold, &limits.tasks, names).ok()?))
     }
 
     fn commit(
-        &self,
+        &mut self,
         number: u64,
         ops: Box<[skein_kv::Op]>,
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
     ) -> Result<Commit, String> {
+        self.layouts.observe(&ops);
         let ops = ops.into_vec();
         let mut writes = Vec::new();
         let mut installation = None;
@@ -355,28 +362,11 @@ impl Store {
         for op in &ops {
             match op {
                 skein_kv::Op::Put { key, value } => {
-                    let mut value = value.clone();
+                    let value = self.layouts.serving(key, value.clone())?;
                     if let Some(key) = keys::decode(key) {
-                        // The charter-version job stores layout 4; the domain
-                        // referee reads its unchanged family-version head.
-                        if matches!(key, core::Key::Core(core::CoreKey::Settings(core::settings::Key::Charter { .. })))
-                            && value.starts_with(&[0, 4])
-                        {
-                            value[..2].copy_from_slice(&3_u16.to_be_bytes());
-                        }
-                        // Observed task puts carry registered layout ids; their payloads are at this binary's layout.
-                        if let core::Key::Tasks(_) = key
-                            && let Some(head) = value.get_mut(..2)
-                        {
-                            head.copy_from_slice(&13_u16.to_be_bytes());
-                        }
-                        let row = self.decode(&key, &value, &ops, limits, names).ok_or_else(|| {
-                            if matches!(key, core::Key::Tasks(_)) {
-                                format!("real stored task row {key:?} decodes, head {:?}", value.get(..2))
-                            } else {
-                                String::from("real stored row decodes")
-                            }
-                        })?;
+                        let row = self
+                            .decode(&key, &value, &ops, limits, names)
+                            .ok_or_else(|| String::from("real stored row decodes"))?;
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                             history: true,
                             revision,

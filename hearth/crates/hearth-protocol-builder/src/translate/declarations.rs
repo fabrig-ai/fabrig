@@ -153,7 +153,7 @@ pub fn entries(
     for written in entries {
         translated.push(entry(written, limits)?).expect("entry count");
     }
-    Ok(target::Entries { map: super::errors::declaration_map(map), at: position(at), entries: translated.into_boxed() })
+    Ok(target::Entries { map, at: position(at), entries: translated.into_boxed() })
 }
 pub fn entry(
     written: config::entries::Entry,
@@ -213,7 +213,7 @@ pub fn field(
     limits: &hearth_protocol_template::limits::Limits,
 ) -> Result<target::Field, Refusal> {
     let config::entries::Field { name, at, value } = written;
-    Ok(target::Field { name: self::name(name), at: position(at), value: literal(value, limits)? })
+    Ok(target::Field { name, at: position(at), value: literal(value, limits)? })
 }
 pub fn literal(
     written: config::entries::Literal,
@@ -239,48 +239,6 @@ pub fn literal(
         }
     }
 }
-#[must_use]
-pub fn name(name: config::entries::Name) -> target::Name {
-    match name {
-        config::entries::Name::Action => target::Name::Action,
-        config::entries::Name::Age => target::Name::Age,
-        config::entries::Name::Algorithm => target::Name::Algorithm,
-        config::entries::Name::Argument => target::Name::Argument,
-        config::entries::Name::Base => target::Name::Base,
-        config::entries::Name::Class => target::Name::Class,
-        config::entries::Name::Component => target::Name::Component,
-        config::entries::Name::Copy => target::Name::Copy,
-        config::entries::Name::Count => target::Name::Count,
-        config::entries::Name::Directory => target::Name::Directory,
-        config::entries::Name::From => target::Name::From,
-        config::entries::Name::Gecos => target::Name::Gecos,
-        config::entries::Name::Gid => target::Name::Gid,
-        config::entries::Name::Group => target::Name::Group,
-        config::entries::Name::Groups => target::Name::Groups,
-        config::entries::Name::Home => target::Name::Home,
-        config::entries::Name::Kind => target::Name::Kind,
-        config::entries::Name::Link => target::Name::Link,
-        config::entries::Name::Mode => target::Name::Mode,
-        config::entries::Name::Order => target::Name::Order,
-        config::entries::Name::Owner => target::Name::Owner,
-        config::entries::Name::Param => target::Name::Param,
-        config::entries::Name::Password => target::Name::Password,
-        config::entries::Name::Path => target::Name::Path,
-        config::entries::Name::Paths => target::Name::Paths,
-        config::entries::Name::PublicPath => target::Name::PublicPath,
-        config::entries::Name::Sha256 => target::Name::Sha256,
-        config::entries::Name::Shell => target::Name::Shell,
-        config::entries::Name::Strip => target::Name::Strip,
-        config::entries::Name::Subordinate => target::Name::Subordinate,
-        config::entries::Name::Template => target::Name::Template,
-        config::entries::Name::Type => target::Name::Type,
-        config::entries::Name::Uid => target::Name::Uid,
-        config::entries::Name::Unit => target::Name::Unit,
-        config::entries::Name::Unpack => target::Name::Unpack,
-        config::entries::Name::Url => target::Name::Url,
-        config::entries::Name::Value => target::Name::Value,
-    }
-}
 
 pub fn export(
     written: config::schema::Export,
@@ -293,10 +251,6 @@ pub fn export(
 fn scripts(scripts: Box<[config::declaration::Script]>) -> Box<[target::Script]> {
     let mut translated = List::with_capacity(u32::try_from(scripts.len()).expect("declaration bound"));
     for config::declaration::Script { fragment, at, order } in scripts {
-        let fragment = match fragment {
-            config::declaration::Fragment::Customize => target::Fragment::Customize,
-            config::declaration::Fragment::Software => target::Fragment::Software,
-        };
         translated.push(target::Script { fragment, at: position(at), order }).expect("declaration bound");
     }
     translated.into_boxed()

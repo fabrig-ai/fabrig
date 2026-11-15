@@ -1,4 +1,7 @@
-use crate::{errors::Repository, form::Form, tests::fixtures};
+use crate::{form::Form, tests::fixtures};
+use hearth_domain_render_vocabulary as render;
+use render::errors::Repository;
+
 const TEMPLATES: &[(Repository, &str, &str)] = &[
     (
         Repository::NoScript,

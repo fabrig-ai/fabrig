@@ -4,6 +4,7 @@ use crate::{
     revision::{Document, Entry, Oid, Position},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::vocabulary::{Class, Outcome};
 pub use hearth_lib::encode::Digest;
 use skein_lib::Token;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -155,25 +156,6 @@ pub enum Decoded {
     Document(Document),
     Declaration(crate::revision::declaration::Declaration),
     Refused { at: Position, fault: crate::errors::Decode, also: Option<Position> },
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Class {
-    Configuration,
-    Operational,
-}
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Outcome {
-    Usage,
-    Failed,
-    TryAgain,
-    Negative,
-    Done,
-}
-impl Outcome {
-    #[must_use]
-    pub fn worst(self, other: Outcome) -> Outcome {
-        core::cmp::min(self, other)
-    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

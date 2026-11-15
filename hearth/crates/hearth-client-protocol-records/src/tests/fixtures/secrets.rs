@@ -1,5 +1,7 @@
-use crate::parts::secrets::{Algorithm, Identity, IdentityKind, Password, SecretFile, Secrets};
+use hearth_domain_render_vocabulary as render;
+use render::parts::secrets::{Algorithm, Identity, IdentityKind, Password, SecretFile, Secrets};
 use skein_lib::bytes::copy_of;
+
 pub fn secret_record(algorithm: Algorithm) -> Secrets {
     Secrets {
         files: Box::new([SecretFile {
@@ -23,9 +25,9 @@ pub fn secret_record(algorithm: Algorithm) -> Secrets {
 }
 pub fn secret_spec() -> crate::records::Record {
     let mut spec = super::x1_prod();
-    spec.parts = Box::new([crate::records::Part {
-        digest: [0; 32],
-        record: crate::records::PartRecord::Secrets(secret_record(Algorithm::Ed25519)),
+    spec.parts = Box::new([render::parts::Part {
+        digest: hearth_lib::encode::Digest([0; 32]),
+        record: render::parts::PartRecord::Secrets(secret_record(Algorithm::Ed25519)),
     }]);
     crate::records::Record::Spec(spec)
 }

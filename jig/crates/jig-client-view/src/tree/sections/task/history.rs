@@ -27,9 +27,14 @@ pub(super) fn history(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bin
                 crate::tree::fragments::history::render(b, row, words, bindings, client.client.domain_limits().rows);
                 task_link(b, row.task, words, bindings);
             }
-            HistoryRow::Milestone(row) => {
+            HistoryRow::Attempt(row) => {
+                b.key(skein_ui::Key { owner: crate::Owner::Jig.opaque(), kind: 43, a: row.task, b: row.attempt });
+                crate::tree::fragments::lifecycle::attempt(b, row, words);
+                task_link(b, row.task, words, bindings);
+            }
+            HistoryRow::Hold(row) => {
                 b.key(skein_ui::Key { owner: crate::Owner::Jig.opaque(), kind: 42, a: row.task, b: row.position });
-                crate::tree::fragments::milestone::render(b, row, client, words, bindings);
+                crate::tree::fragments::lifecycle::hold(b, row, client, words, bindings);
                 task_link(b, row.task, words, bindings);
             }
         }

@@ -1,13 +1,12 @@
-use crate::{
-    parts::config::*,
-    records::Record,
-    records::{Part, PartRecord},
-};
+use crate::records::Record;
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::parts::{Part, PartRecord, config::*};
+
 pub fn accounts_spec() -> Record {
     let mut spec = super::x1_prod();
     spec.parts = Box::new([Part {
-        digest: [0; 32],
+        digest: hearth_lib::encode::Digest([0; 32]),
         record: PartRecord::Config(Config {
             presets: Box::new([]),
             tmpfiles: Box::new([]),
@@ -27,7 +26,14 @@ pub fn accounts_spec() -> Record {
     Record::Spec(spec)
 }
 pub fn accounts_change() -> Record {
-    use crate::diff::{Change, ConfigChange, GroupKeyed, MemberChange, PartChange, Rebuild, TargetChange, UserKeyed};
+    use render::diff::Change;
+    use render::diff::PartChange;
+    use render::diff::Rebuild;
+    use render::diff::TargetChange;
+    use render::parts::config::Change as ConfigChange;
+    use render::parts::config::GroupKeyed;
+    use render::parts::config::MemberChange;
+    use render::parts::config::UserKeyed;
     Record::Change(Change {
         target: b"x1-prod".as_slice().into(),
         change: TargetChange::Changed {

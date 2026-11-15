@@ -5,6 +5,7 @@ use crate::{
     names,
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::revision::{Firmware, Runs};
 use skein_lib::List;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Document {
@@ -174,17 +175,6 @@ pub struct Placement {
     pub hardware: Option<Box<[u8]>>,
     pub on: Option<On>,
     pub mutable: bool,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Runs {
-    Metal,
-    Vm,
-    Container,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Firmware {
-    Efi,
-    Bios,
 }
 /// A container's host, as written, at the target value.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

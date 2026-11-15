@@ -22,11 +22,23 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         return Err(refusal(None, "invalid charter-version layout"));
     };
     let mut writes = List::uncapped();
+    let mut bytes = 0_u64;
+    let mut through = None;
     for row in &page.rows {
         let Some(value) = convert(&schema, &row.value) else {
             return Err(refusal(Some(row.key.clone()), "neither kept charter-version form"));
         };
-        writes.push(JobWrite::Put { key: row.key.clone(), value }).expect("uncapped job writes");
+        let write = JobWrite::Put { key: row.key.clone(), value };
+        let total = bytes.saturating_add(write.bytes());
+        if writes.len() == page.room.writes || total > page.room.bytes {
+            if writes.is_empty() {
+                return Err(refusal(Some(row.key.clone()), "room cannot hold one charter version"));
+            }
+            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+        }
+        bytes = total;
+        through = Some(row.key.clone());
+        writes.push(write).expect("uncapped job writes");
     }
     Ok(JobAnswer { writes: writes.into_boxed(), through: None })
 }

@@ -59,7 +59,7 @@ it, and a hot part holding the rest.
 | Part | Key | Value | Holds |
 |---|---|---|---|
 | hot | `01 01 00 <task>`, the live key as before | `Row`'s variant `live_hot`: `LiveHot` | every field of the live task's record but the cold part's |
-| cold | `01 01 16 <task>` | `Row`'s variant `live_cold`: `LiveCold` | `spec`, `contract`, `authority` and `instructions` |
+| cold | `01 01 18 <task>` | `Row`'s variant `live_cold`: `LiveCold` | `spec`, `contract`, `authority` and `instructions` |
 
 ```
 # The live task's part that changes, at its live key (parts.md, 2).
@@ -67,15 +67,15 @@ record LiveHot { activation_open: bool session: option Session closer: option u6
 # TaskHistory without instructions; TaskDefinition without spec, contract and authority.
 record HotHistory { ... }
 record HotDefinition { ... }
-# The live task's part an act changes, at 01 01 16 (parts.md, 2).
+# The live task's part an act changes, at 01 01 18 (parts.md, 2).
 record LiveCold { spec: Spec contract: Contract authority: Authority instructions: option bytes 524288 }
 ```
 
 - **Value types** (`layouts.md`, 2): the live key's range stays value
   type 0, the tasks' `Row` whole, which now holds `live_hot` there.
-  `01 01 16` is value type 19, `Row`'s variant `live_cold`, over
-  `[01 01 16, 01 02)`; placed holds narrow to `[01 01 15, 01 01 16)`.
-  The census names `01 01 16` `tasks.live-cold`. `Row`'s `Value` gains
+  `01 01 18` is value type 21, `Row`'s variant `live_cold`, over
+  `[01 01 18, 01 02)`; task holds narrow to `[01 01 17, 01 01 18)`.
+  The census names `01 01 18` `tasks.live-cold`. `Row`'s `Value` gains
   `live_hot` and `live_cold` after its last variant. `live` and
   `live_talk` stay declared, read by the job (4) alone.
 - **The ended record stays whole,** `ended_talk` at `01 01 06 <task>`:
@@ -101,7 +101,7 @@ record LiveCold { spec: Spec contract: Contract authority: Authority instruction
   (`loads.md`, 2); at each hot row the reader gets the task's cold row by
   a point read, as the ended joins get theirs, and hands `Stored::Live`
   whole. A live task's point read and the owner joins (`loads.md`, 3) do
-  the same. `01 01 16` is in no restart range and no page walks it.
+  the same. `01 01 18` is in no restart range and no page walks it.
 - **Models:** each part is a `Row` with its own `models`, the names its
   own value's selectors use.
 
@@ -149,7 +149,7 @@ when they land:
 
 | Job | Walks | Writes for each row |
 |---|---|---|
-| `live-task-parts` | `[01 01 00, 01 01 01)` | a live task held whole (`live`, `live_talk`): its hot part at its key and its cold part at `01 01 16 <task>` |
+| `live-task-parts` | `[01 01 00, 01 01 01)` | a live task held whole (`live`, `live_talk`): its hot part at its key and its cold part at `01 01 18 <task>` |
 | `projection-parts` | `[01 00 01 00, 01 00 01 02)` | a header or plan row held whole (`goal`, `task`): its hot row at its key and its words at sub 04 or 05 |
 
 - **Its pages** come through the read edge (`jobs.md`, 3), so each row is

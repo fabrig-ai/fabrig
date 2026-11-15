@@ -1,30 +1,5 @@
 use alloc::boxed::Box;
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Group {
-    pub name: Box<[u8]>,
-    pub kind: GroupKind,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum GroupKind {
-    Sysusers { gid: Option<u32> },
-    Package,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct User {
-    pub name: Box<[u8]>,
-    pub kind: UserKind,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum UserKind {
-    Sysusers { uid: Option<u32>, group: Box<[u8]>, gecos: Box<[u8]>, home: Box<[u8]>, shell: Box<[u8]> },
-    Package,
-}
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Member {
-    pub user: Box<[u8]>,
-    pub group: Box<[u8]>,
-}
+pub use hearth_domain_render_vocabulary::parts::config::{Group, GroupKind, Member, User, UserKind};
 
 use super::Config;
 use crate::{entries::Expansion, errors::Error, kinds::users, revision::declaration::Map};
@@ -92,26 +67,7 @@ pub(super) fn encode(config: &Config, record: &mut hearth_lib::encode::Encoder) 
         record.bytes(&member.user);
     }
 }
-impl GroupKind {
-    fn encode(&self, record: &mut hearth_lib::encode::Encoder) {
-        match self {
-            Self::Package => {
-                record.map(1);
-                record.key(b"kind");
-                record.bytes(b"package");
-            }
-            Self::Sysusers { gid } => {
-                record.map(if gid.is_some() { 2 } else { 1 });
-                if let Some(gid) = gid {
-                    record.key(b"gid");
-                    record.uint(u64::from(*gid));
-                }
-                record.key(b"kind");
-                record.bytes(b"sysusers");
-            }
-        }
-    }
-}
+
 pub(super) fn encode_users(config: &Config, record: &mut hearth_lib::encode::Encoder) {
     record.key(b"users");
     record.map(u64::try_from(config.users.len()).expect("entry count"));

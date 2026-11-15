@@ -1,4 +1,6 @@
-use crate::errors::{Class, Collision, Error, Kind, Place, Position, Subject};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Class, Collision, Error, Kind, Place, Subject};
+use render::revision::Position;
 use skein_lib::bytes::copy_of;
 pub fn path_collision() -> Error {
     Error {
@@ -21,7 +23,7 @@ pub const COLLISION_UID: u32 = 1_000;
 pub fn shared_uid_collision() -> Error {
     let mut error = path_collision();
     error.kind = Kind::Collision(Collision::Shared {
-        id: crate::errors::Id::Uid,
+        id: render::errors::Id::Uid,
         value: COLLISION_UID,
         first: copy_of(b"alice"),
         second: copy_of(b"ci"),

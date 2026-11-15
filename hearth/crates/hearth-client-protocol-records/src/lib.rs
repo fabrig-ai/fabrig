@@ -4,11 +4,11 @@
 extern crate alloc;
 pub mod build;
 pub mod diff;
-pub mod errors;
+mod errors;
 pub mod form;
 pub mod limits;
 pub mod outcome;
-pub mod parts;
+mod parts;
 pub mod printer;
 pub mod progress;
 pub mod records;

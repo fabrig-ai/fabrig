@@ -15,7 +15,8 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         };
         if let Converted::Parts(hot, words) = parts {
             let next = parts_size(&hot, &words, bytes);
-            let fits = within(writes.len().checked_add(2), page.edge.writes) && within(next, page.edge.bytes);
+            let fits = within(writes.len().checked_add(2), page.room.writes)
+                && within(next, u32::try_from(page.room.bytes).unwrap_or(u32::MAX));
             if !fits {
                 if through.is_none() {
                     return Err(refusal(&row.key, "projection parts exceed job edge"));

@@ -31,7 +31,9 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
                 size = size.checked_add(put).ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
             }
             let total = bytes.checked_add(size).ok_or(refusal(Some(row.key.clone()), "live parts size overflow"))?;
-            if writes.len().checked_add(2).expect("bounded job writes") > page.edge.writes || total > page.edge.bytes {
+            if writes.len().checked_add(2).expect("bounded job writes") > page.room.writes
+                || u64::from(total) > page.room.bytes
+            {
                 if through.is_none() {
                     return Err(refusal(Some(row.key.clone()), "live parts exceed commit edge"));
                 }
@@ -68,7 +70,9 @@ fn split(row: &super::JobRow) -> Option<Converted> {
         wire::Value::LiveHot(hot) => return (hot.run().number() == number).then_some(Converted::Passed),
         wire::Value::Live(record) => tasks::record::read_before_talk(record, &wire::CEILINGS).ok()?,
         wire::Value::LiveTalk(record) => tasks::record::read_task_record(record, &wire::CEILINGS).ok()?,
-        wire::Value::Ledger(_)
+        wire::Value::Attempt(_)
+        | wire::Value::Hold(_)
+        | wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)

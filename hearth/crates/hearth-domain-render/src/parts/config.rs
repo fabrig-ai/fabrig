@@ -1,32 +1,16 @@
 //! The static file tree's canonical record (hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::revision::Mode;
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::config::{
+    Change, Config, EntryChange, GroupKeyed, LineKeyed, MemberChange, Node, PresetKeyed, ScriptsChange, Sizes,
+    TreeEntry, UserKeyed,
+};
 use hearth_lib::{
     encode::{Digest, Encoder},
     hash::H,
 };
 use skein_lib::{Joined, List, Map, bytes};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Config {
-    pub presets: Box<[Preset]>,
-    pub tmpfiles: Box<[Tmpfile]>,
-    pub scripts: Box<[Script]>,
-    pub groups: Box<[Group]>,
-    pub users: Box<[User]>,
-    pub members: Box<[Member]>,
-    pub tree: Box<[TreeEntry]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TreeEntry {
-    pub path: Box<[u8]>,
-    pub node: Node,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Node {
-    Link { target: Box<[u8]>, owner: Box<[u8]>, group: Box<[u8]> },
-    Directory { mode: u16, owner: Box<[u8]>, group: Box<[u8]> },
-    File { content_digest: Digest, mode: u16, owner: Box<[u8]>, group: Box<[u8]> },
-}
+
 #[must_use]
 pub fn file(path: &[u8], mode: Mode, content_digest: Digest) -> TreeEntry {
     TreeEntry {
@@ -101,23 +85,6 @@ fn absolute(path: &[u8]) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Paths changed in byte order (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub presets: Box<[PresetKeyed]>,
-    pub tmpfiles: Box<[LineKeyed]>,
-    pub scripts: Option<ScriptsChange>,
-    pub groups: Box<[GroupKeyed]>,
-    pub users: Box<[UserKeyed]>,
-    pub members: Box<[MemberChange]>,
-    pub tree: Box<[EntryChange]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum EntryChange {
-    Added { path: Box<[u8]>, node: Node },
-    Removed { path: Box<[u8]>, node: Node },
-    Changed { path: Box<[u8]>, before: Node, after: Node, sizes: Option<Sizes>, hunks: Option<crate::diff::Hunks> },
-}
 #[must_use]
 pub(crate) fn change(before: Option<&Config>, after: Option<&Config>) -> Change {
     let scripts = directives_changes::scripts(before, after);
@@ -165,36 +132,29 @@ pub(crate) fn change(before: Option<&Config>, after: Option<&Config>) -> Change 
     Change { presets, tmpfiles, scripts, groups, users, members, tree }
 }
 
-/// File sizes before and after (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Sizes {
-    pub before: u64,
-    pub after: u64,
-}
-impl EntryChange {
-    pub(crate) fn pair(
-        &mut self,
-        before_sizes: &crate::call::Sizes,
-        after_sizes: &crate::call::Sizes,
-        max: u32,
-    ) -> Option<(Digest, Digest)> {
-        match self {
-            Self::Changed {
-                before: Node::File { content_digest: before, .. },
-                after: Node::File { content_digest: after, .. },
-                sizes,
-                ..
-            } => {
-                let pair = Sizes { before: *before_sizes.get(before)?, after: *after_sizes.get(after)? };
-                *sizes = Some(pair);
-                if before != after && pair.before < u64::from(max) && pair.after < u64::from(max) {
-                    Some((*before, *after))
-                } else {
-                    None
-                }
+/// Retain cached file sizes and select differing files below the hunk limit.
+pub fn pair(
+    change: &mut EntryChange,
+    before_sizes: &crate::call::Sizes,
+    after_sizes: &crate::call::Sizes,
+    max: u32,
+) -> Option<(Digest, Digest)> {
+    match change {
+        EntryChange::Changed {
+            before: Node::File { content_digest: before, .. },
+            after: Node::File { content_digest: after, .. },
+            sizes,
+            ..
+        } => {
+            let pair = Sizes { before: *before_sizes.get(before)?, after: *after_sizes.get(after)? };
+            *sizes = Some(pair);
+            if before != after && pair.before < u64::from(max) && pair.after < u64::from(max) {
+                Some((*before, *after))
+            } else {
+                None
             }
-            Self::Added { .. } | Self::Removed { .. } | Self::Changed { .. } => None,
         }
+        EntryChange::Added { .. } | EntryChange::Removed { .. } | EntryChange::Changed { .. } => None,
     }
 }
 
@@ -211,51 +171,10 @@ pub use accounts::{Group, GroupKind, Member, User, UserKind};
 pub(crate) use accounts::build as accounts;
 pub(crate) use accounts::rows as account_rows;
 
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum GroupKeyed {
-    Added { key: Box<[u8]>, value: GroupKind },
-    Removed { key: Box<[u8]>, value: GroupKind },
-    Changed { key: Box<[u8]>, before: GroupKind, after: GroupKind },
-}
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum UserKeyed {
-    Added { key: Box<[u8]>, value: UserKind },
-    Removed { key: Box<[u8]>, value: UserKind },
-    Changed { key: Box<[u8]>, before: UserKind, after: UserKind },
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum MemberChange {
-    Added(Member),
-    Removed(Member),
-}
-
 mod changes;
 
 mod directives;
 pub(crate) use directives::encode_scripts;
 pub use directives::{Action, Line, LineKind, Preset, Script, Tmpfile};
-
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum PresetKeyed {
-    Added { key: Box<[u8]>, value: Action },
-    Removed { key: Box<[u8]>, value: Action },
-    Changed { key: Box<[u8]>, before: Action, after: Action },
-}
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum LineKeyed {
-    Added { key: Box<[u8]>, value: Line },
-    Removed { key: Box<[u8]>, value: Line },
-    Changed { key: Box<[u8]>, before: Line, after: Line },
-}
-/// Scripts before and after (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ScriptsChange {
-    pub before: Box<[Script]>,
-    pub after: Box<[Script]>,
-}
 
 mod directives_changes;

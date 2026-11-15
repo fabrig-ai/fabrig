@@ -64,7 +64,7 @@ fn making_claiming_and_ending_put_only_their_parts_and_reads_join_whole() {
         wire::Value::LiveCold(_) => true,
         _ => false,
     });
-    assert_eq!(raw(tasks::Key::LiveCold(7)).as_ref(), &[1, 1, 22, 0, 0, 0, 0, 0, 0, 0, 7]);
+    assert_eq!(raw(tasks::Key::LiveCold(7)).as_ref(), &[1, 1, 24, 0, 0, 0, 0, 0, 0, 0, 7]);
     fixtures::plant(&mut store.stores, &made);
     let before_cold = fixtures::get_kv(&mut store, &raw(tasks::Key::LiveCold(7)));
     row.attempt = 8;

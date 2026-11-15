@@ -61,7 +61,7 @@ fn before() -> PatchSet {
             let types = family
                 .types
                 .iter()
-                .filter(|ty| ty.number != 19)
+                .filter(|ty| ty.number < 19)
                 .map(|ty| {
                     if ty.number == 18 {
                         crate::ValueType { keys: &[crate::KeyRange { from: &[1, 1, 21], to: &[1, 2] }], ..*ty }
@@ -127,8 +127,8 @@ fn whole_live_tasks_open_in_parts_in_bounded_pages_and_never_run_the_job_again()
                             .unwrap()
                     })
                     .sum();
-                assert!(bytes <= page.edge.bytes);
-                assert!(u32::try_from(answer.writes.len()).unwrap() <= page.edge.writes);
+                assert!(u64::from(bytes) <= page.room.bytes);
+                assert!(u32::try_from(answer.writes.len()).unwrap() <= page.room.writes);
                 if page.rows.len() > 1 {
                     assert!(answer.through.is_some());
                     let tight = crate::JobPage {
@@ -139,7 +139,7 @@ fn whole_live_tasks_open_in_parts_in_bounded_pages_and_never_run_the_job_again()
                             .collect(),
                         end: false,
                         layout: None,
-                        edge: crate::JobEdge { writes: 128, bytes },
+                        room: crate::JobRoom { writes: 128, bytes: u64::from(bytes) },
                     };
                     let tight_answer = crate::jobs::page(&job, &tight).unwrap();
                     assert_eq!(tight_answer.writes.len(), 2, "byte edge consumes one whole row");
@@ -174,7 +174,7 @@ fn whole_live_tasks_open_in_parts_in_bounded_pages_and_never_run_the_job_again()
             rows: Box::new([crate::JobRow { key: key(expected), value: bytes }]),
             end: false,
             layout: None,
-            edge: crate::JobEdge { writes: 0, bytes: 0 },
+            room: crate::JobRoom { writes: 0, bytes: 0 },
         };
         assert!(crate::jobs::page("live-task-parts", &page).unwrap().writes.is_empty(), "hot rows pass without writes");
     }
