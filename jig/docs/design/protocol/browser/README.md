@@ -530,6 +530,13 @@ What is jig's:
   a path; an address a step shows is a new entry, or takes the current
   one's place, as the step says; back and forward are a place gone to,
   as a path; a path opened directly starts the application at it.
+- **A page the browser kept** returns to its entry (skein's
+  `ui/web/README.md`, section 7), and the reference shell takes the
+  return as the page resumed as it was: the presentation hears no step
+  and the page draws again. Nothing leaves the page and its handles hold
+  (`../../client/domain/view-state.md`, section 2), so a request still
+  pending on it is answered on the page that asked it, as for a person
+  who stayed; a page loaded anew keeps no intent (section 4 there).
 
 ## 10. Transport and the small store
 

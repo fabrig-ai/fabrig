@@ -28,6 +28,9 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::StopBoundPassed { abandoned } => {
             format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
         }
+        service::Note::Unprepared { run, attempt, failure, detail } => {
+            run_detail_line(format!("{binary} worker: run {run} attempt {attempt} failed {failure:?}: "), &detail)
+        }
         service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
             let verb = verb.escape_ascii();
             let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");

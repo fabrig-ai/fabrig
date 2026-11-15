@@ -585,10 +585,12 @@ component instead (`elements.md`, 1).
   application anew at its path or, where the browser kept the page
   (its back-forward cache: `pageshow` with `persisted`), resumes it as
   it was. The history part reports that resumption as one step of its
-  own, a return to the entry's path, distinct from a place gone to:
-  the application takes it as the person leaving the place and coming
-  back, drops what it drops when the person leaves a place, and the
-  page draws again. A page the browser did not keep reports nothing.
+  own, a return to the entry's path, distinct from a place gone to,
+  and the page draws again. What a return drops is the application's:
+  one takes it as the person leaving the place and coming back, and
+  drops what it drops when the person leaves a place; another takes it
+  as the page resumed, its work in flight still the page's. A page the
+  browser did not keep reports nothing.
 
 ## 8. Fetch, the small store and the transport
 

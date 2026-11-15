@@ -171,6 +171,41 @@ fn words(out: &mut List<Box<[u8]>>, bytes: &[&[u8]]) {
     }
 }
 
+/// Git's subcommand as argv names it (temper/docs/design/protocol/git.md, section 6).
+pub(crate) const fn word(command: &Command) -> &'static [u8] {
+    match command {
+        Command::Reds(check) => match check {
+            crate::reds::CheckCommand::Pin
+            | crate::reds::CheckCommand::Merge
+            | crate::reds::CheckCommand::Path { .. } => b"rev-parse",
+            crate::reds::CheckCommand::Base { .. } | crate::reds::CheckCommand::Ancestor { .. } => b"merge-base",
+        },
+        Command::SnapshotHead => b"log",
+        Command::SnapshotMerge { .. } | Command::Format => b"rev-parse",
+        Command::SnapshotFetch { .. } | Command::Fetch { .. } => b"fetch",
+        Command::SnapshotReachable { .. } => b"for-each-ref",
+        Command::SnapshotReset { .. } => b"reset",
+        Command::Version => b"version",
+        Command::Origin { .. } => b"config",
+        Command::Clone { .. } => b"init",
+        Command::Remote { .. } => b"remote",
+        Command::Store { .. } => b"clone",
+        Command::UpdateRef { .. } => b"update-ref",
+        Command::Create { .. } | Command::Push { .. } => b"push",
+        Command::CheckOut { .. } => b"checkout",
+        Command::Clean => b"clean",
+        Command::Merge { .. } => b"merge",
+        Command::DiffPaths { .. } => b"diff-tree",
+        Command::Unmerged => b"diff-files",
+        Command::Add => b"add",
+        Command::DiffIndex { .. } => b"diff-index",
+        Command::WriteTree => b"write-tree",
+        Command::CommitTree { .. } => b"commit-tree",
+        Command::MergeBases { .. } | Command::IsAncestor { .. } => b"merge-base",
+        Command::BringsList { .. } => b"rev-list",
+    }
+}
+
 /// The vector after argv[0], which io supplies from the program's path.
 #[must_use]
 pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {

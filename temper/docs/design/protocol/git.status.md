@@ -1,6 +1,6 @@
 # git: status
 
-2026-11-12. Where temper's code lags or departs from [git.md](git.md).
+2026-11-15. Where temper's code lags or departs from [git.md](git.md).
 
 
 Section 4.7's delivery snapshot has no known implementation gap: it reads

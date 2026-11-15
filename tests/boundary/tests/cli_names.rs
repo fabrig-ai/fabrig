@@ -3,6 +3,8 @@
 //! in the set their names say. Tokens ending `_PATCH_SET` are Rust patch-set
 //! constants, not variables. Generated `patches/mod.rs` modules are not read;
 //! authored patch functions and context are. Every declaration is read or set outside docs.
+//! Each file is split into maximal ASCII words in one pass, looking each word up
+//! among the trees' prefixes and declared names (cli.md, 9, check 5).
 //! The document parser reads skein/docs/design/runtime/shell.md, 14.3's headings and
 //! `**Set:**` items alone; the meeting test checks its rendered form.
 
@@ -119,22 +121,6 @@ fn document_entries(text: &str) -> Result<Vec<(&str, &str)>, String> {
     Ok(entries)
 }
 
-fn word_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
-}
-
-/// Search the prefix with the library's byte search, then require maximal words.
-fn words_with<'a>(text: &'a str, prefix: &'a str) -> impl Iterator<Item = &'a str> {
-    text.match_indices(prefix).filter_map(move |(start, _)| {
-        if start > 0 && word_byte(text.as_bytes()[start - 1]) {
-            return None;
-        }
-        let rest = &text[start..];
-        let end = rest.bytes().take_while(|byte| word_byte(*byte)).count();
-        Some(&rest[..end])
-    })
-}
-
 fn named_tree<'a>(name: &str, trees: &[(&'a str, &str)]) -> Option<&'a str> {
     trees.iter().find_map(|(tree, prefix)| {
         let suffix = name.strip_prefix(prefix)?.strip_prefix('_')?;
@@ -177,17 +163,25 @@ impl Names {
     }
 
     fn file(&mut self, text: &str, trees: &[(&str, &str)], declared: &BTreeSet<&str>) {
-        for (_, prefix) in trees {
-            for word in words_with(text, prefix) {
-                if named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET") {
-                    self.tokens.insert(word.to_owned());
-                    self.used.insert(word.to_owned());
-                }
+        // Only words starting like a tree prefix or declaration need a lookup.
+        let mut initials = [false; 256];
+        for name in trees.iter().map(|(_, prefix)| *prefix).chain(declared.iter().copied()) {
+            if let Some(byte) = name.bytes().next() {
+                initials[usize::from(byte)] = true;
             }
         }
-        for name in declared {
-            if words_with(text, name).any(|word| word == *name) {
-                self.used.insert((*name).to_owned());
+        for word in text.as_bytes().split(|byte| !(byte.is_ascii_alphanumeric() || *byte == b'_')) {
+            let Some(first) = word.first() else { continue };
+            if !initials[usize::from(*first)] {
+                continue;
+            }
+            let word = std::str::from_utf8(word).expect("word bytes are ASCII");
+            let token = named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET");
+            if token && !self.tokens.contains(word) {
+                self.tokens.insert(word.to_owned());
+            }
+            if (token || declared.contains(word)) && !self.used.contains(word) {
+                self.used.insert(word.to_owned());
             }
         }
     }
@@ -372,6 +366,16 @@ fn names_are_judged() {
             "",
             vec!["HOST_HOME: declared, never read or set"],
         ),
+        (
+            "host maximal words",
+            "demo",
+            "### `HOST_HOME`\n- **Set:** public",
+            "xHOST_HOME HOST_HOMEx 1HOST_HOME",
+            vec!["HOST_HOME: declared, never read or set"],
+        ),
+        ("host after non-ASCII", "demo", "### `HOST_HOME`\n- **Set:** public", "éHOST_HOME", vec![]),
+        ("host at start", "demo", "### `HOST_HOME`\n- **Set:** public", "HOST_HOME rest", vec![]),
+        ("host punctuation", "demo", "### `HOST_HOME`\n- **Set:** public", "(HOST_HOME).", vec![]),
         ("duplicate use", "demo", "", "DEMO_CONFIG DEMO_CONFIG", vec!["DEMO_CONFIG"]),
     ] {
         let mut names = Names::default();
@@ -380,6 +384,61 @@ fn names_are_judged() {
         names.file(files, trees, &declared.iter().map(String::as_str).collect());
         assert_eq!(names.findings(trees), expected, "{label}");
     }
+}
+
+#[test]
+fn one_pass_matches_per_name_search() {
+    fn reference_file(names: &mut Names, text: &str, trees: &[(&str, &str)], declared: &BTreeSet<&str>) {
+        fn word_byte(byte: u8) -> bool {
+            byte.is_ascii_alphanumeric() || byte == b'_'
+        }
+
+        fn words_with<'a>(text: &'a str, prefix: &'a str) -> impl Iterator<Item = &'a str> {
+            text.match_indices(prefix).filter_map(move |(start, _)| {
+                if start > 0 && word_byte(text.as_bytes()[start - 1]) {
+                    return None;
+                }
+                let rest = &text[start..];
+                let end = rest.bytes().take_while(|byte| word_byte(*byte)).count();
+                Some(&rest[..end])
+            })
+        }
+
+        for (_, prefix) in trees {
+            for word in words_with(text, prefix) {
+                if named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET") {
+                    names.tokens.insert(word.to_owned());
+                    names.used.insert(word.to_owned());
+                }
+            }
+        }
+        for name in declared {
+            if words_with(text, name).any(|word| word == *name) {
+                names.used.insert((*name).to_owned());
+            }
+        }
+    }
+
+    fn compare(text: &str, remaining: usize, trees: &[(&str, &str)], declared: &BTreeSet<&str>) -> usize {
+        let mut names = Names::default();
+        names.file(text, trees, declared);
+        let mut reference = Names::default();
+        reference_file(&mut reference, text, trees, declared);
+        assert_eq!(names.tokens, reference.tokens, "tokens for {text:?}");
+        assert_eq!(names.used, reference.used, "used for {text:?}");
+
+        let mut count = 1;
+        if remaining > 0 {
+            for fragment in ["DEMO", "_", "DEMO_A", "HOST_HOME", "x", "1", " ", "é", "_PATCH_SET", "OTHER_2", "DEMO_"]
+            {
+                count += compare(&format!("{text}{fragment}"), remaining - 1, trees, declared);
+            }
+        }
+        count
+    }
+
+    let count = compare("", 3, &[("demo", "DEMO"), ("other", "OTHER")], &BTreeSet::from(["DEMO_A", "HOST_HOME"]));
+    eprintln!("Compared {count} texts.");
 }
 
 const DIRECTORIES: Settings = Settings {

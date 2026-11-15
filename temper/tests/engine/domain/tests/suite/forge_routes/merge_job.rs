@@ -23,7 +23,7 @@ pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits { merge_kind: kind, merge_authority: authority, ..StoryLimits::default() },
+        StoryLimits { merge_kind: kind, merge_authority: authority, spec_bytes: Some(2048), ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         sets: Box::new([]),
@@ -217,6 +217,35 @@ fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
     world.close();
 }
 
+/// temper/docs/design/domain/forge/change/repairs.md: a deleted file's record and rule reach the resolver together.
+#[test]
+fn a_file_deleted_on_the_base_reaches_the_resolution_with_its_deleting_commit() {
+    const LEFT: &[u8] = b"{\"settled\":[],\"left\":[{\"path\":\".temper/known-reds.md\",\"kind\":\"deleted\",\"by\":\"base\",\"commit\":\"0123456789ab\"}]}";
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let job = next_job(&mut world, task, false);
+    check_job(&world, task, &job, head, base);
+    finish_job(&mut world, &job, LEFT);
+    let resolution = super::reviews::next_assignment(&mut world, 2);
+    let words = &live_task(&world, resolution.task).spec.words;
+    assert_preserving_resolution(words);
+    let text = core::str::from_utf8(words).expect("resolution text");
+    assert!(text.contains("a file deleted on the base stays deleted unless the requested change needs it"));
+    assert!(text.contains("Read the commit that deleted a file before you restore anything"));
+    assert!(
+        words.ends_with(
+            format!(
+                "\n\nThe merge job settled what the project's merge command knows and left the rest:\n{}",
+                core::str::from_utf8(LEFT).expect("result text")
+            )
+            .as_bytes()
+        )
+    );
+    let merged = push_merge(&mut world, task, head, base);
+    finish_resolution(&mut world, &resolution);
+    landed(&mut world, task, merged);
+    world.close();
+}
+
 fn assert_preserving_resolution(words: &[u8]) {
     let text = core::str::from_utf8(words).expect("resolution text");
     assert!(text.starts_with("Resolve the merge conflict."));
@@ -224,7 +253,7 @@ fn assert_preserving_resolution(words: &[u8]) {
         "Preserve the requested change",
         "unrelated content already landed on the base",
         "both independent appended lines and existing blank lines",
-        "Do not remove content to make a check pass",
+        "Do not remove content just to make a check pass",
         "The worker commits and pushes the resolved merge",
     ] {
         assert!(text.contains(expected), "{text}");

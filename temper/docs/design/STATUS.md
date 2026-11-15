@@ -23,6 +23,11 @@ A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
 (`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
+A failed workspace preparation says where and why: its detail names the
+worker, the workspace, the repository, the stage and git's command, with
+check out and clean told apart, and the operation's and the prepare's
+times, and the worker logs a line for it
+(`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -502,6 +507,7 @@ Drafts:
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
