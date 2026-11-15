@@ -308,11 +308,13 @@ fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
         panic!("failed resolution holds its change task: {:?}", live_task(&world, task).phase)
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("resolution failure account") };
-    assert_eq!(words.as_ref(), REASON);
+    assert!(words.starts_with(format!("its resolution, task {}, failed for good: ", resolution.task).as_bytes()));
+    assert!(contains(words, REASON));
+    assert!(contains(words, b"release this change to read the branch and base afresh"));
     assert_eq!(live_task(&world, task).revisions.hold, 1, "the unfenced copy opens no second hold");
     assert!(live_task(&world, requester.task).inbox.iter().any(|word| word.from == tasks::Party::Task(task)
         && word.kind == tasks::MessageKind::Words
-        && word.words.as_ref() == REASON));
+        && contains(&word.words, REASON)));
     assert!(matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }));
     let resumed = super::reviews::next_assignment(&mut world, 3);
     assert_eq!(resumed.task, requester.task, "the failure wakes its requester");

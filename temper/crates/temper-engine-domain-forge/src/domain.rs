@@ -3868,6 +3868,10 @@ fn delegate_result(
     }
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
+    } else if (failed || (no_change && !ci_repair))
+        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
+    {
+        row.producer_failure = Some(account);
     }
     let mut saved = row.clone();
     if agent {
@@ -3947,6 +3951,55 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
             );
         }
     }
+}
+
+/// Keep a failed delegate's identity and ending after its live slot is cleared
+/// (temper/docs/design/domain/forge/change/repairs.md).
+fn failed_delegate_words(
+    row: &ChangeRow,
+    kind: change::Delegate,
+    child: u64,
+    no_change: bool,
+    words: &[u8],
+) -> Option<Box<[u8]>> {
+    let (name, recovery): (&[u8], &[u8]) = match kind {
+        // A producer's whole result already occupies the hold account's bound.
+        change::Delegate::Produce | change::Delegate::Close => return None,
+        change::Delegate::Repair(_) => (b"repair", b"ask for a fresh repair"),
+        change::Delegate::Resolve { .. } => (b"resolution", b"read the branch and base afresh"),
+        change::Delegate::Merge { .. } => (b"merge job", b"read the branch and base afresh"),
+        change::Delegate::Gate { .. } => {
+            let state =
+                if let change::State::Held { was, .. } = &row.change.state { was.as_ref() } else { &row.change.state };
+            let name: &[u8] = if let change::State::Judging { .. } = state { b"judgement" } else { b"review" };
+            (name, b"ask for a fresh review")
+        }
+    };
+    let number = skein_lib::Decimal::of(child);
+    let ending: &[u8] = if no_change { b"ended without making the required change" } else { b"failed for good" };
+    let reason: &[u8] = if words.is_empty() { b"gave no account" } else { words };
+    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), b", ", ending, b": ", reason];
+    let tail = [b"; resolve this failure, then release this change to ".as_slice(), recovery, b"; or cancel it"];
+    let mut tail_bytes = 0_usize;
+    for part in tail {
+        tail_bytes = tail_bytes.checked_add(part.len()).expect("bounded recovery words");
+    }
+    let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded delegate account");
+    }
+    let mut reason = skein_lib::Writer::new(length);
+    for part in parts {
+        reason.put(part).expect("measured delegate account");
+    }
+    let reason = crate::text::fit(&reason.finish(), bound.checked_sub(tail_bytes).expect("recovery fits hold"), b"...");
+    let mut account = skein_lib::Writer::new(reason.len().checked_add(tail_bytes).expect("bounded hold account"));
+    account.put(&reason).expect("bounded reason");
+    for part in tail {
+        account.put(part).expect("measured recovery words");
+    }
+    Some(account.finish())
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).

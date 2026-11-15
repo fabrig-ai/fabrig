@@ -781,7 +781,11 @@ impl World {
                         },
                         ci: true,
                         up_to_date: true,
-                        gates: Box::new([]),
+                        gates: if agent_gate || owner_gate {
+                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                        } else {
+                            Box::new([])
+                        },
                         approvals: Box::new([]),
                     };
                     if across {

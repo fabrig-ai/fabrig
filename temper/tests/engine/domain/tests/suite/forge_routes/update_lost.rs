@@ -220,7 +220,7 @@ fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
 }
 
 #[test]
-fn an_updates_hold_with_no_lost_write_says_as_it_did() {
+fn an_updates_hold_without_a_lost_write_names_the_spent_allowance() {
     let (mut world, goal, task, head, _, branch) = pending_update(None);
     let mut checked = translate::commit(head);
     for _ in 0..STEPS {
@@ -241,6 +241,12 @@ fn an_updates_hold_with_no_lost_write_says_as_it_did() {
     assert_eq!(update_writes(&world), usize::try_from(world.env.limits.forge.change_policy.updates).expect("bound"));
     assert!(change_row(&world, task).effect_account.is_none());
     let tasks::Phase::Held { source, .. } = &live_task(&world, task).phase else { panic!("updates hold") };
-    assert!(source.is_none(), "made updates leave the usual hold without an account");
+    let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("update bound account").as_ref() else {
+        panic!("update hold account")
+    };
+    assert!(contains(words, b"its branch update allowance is spent"));
+    let count = world.env.limits.forge.change_policy.updates;
+    assert!(contains(words, format!("{count} of {count} taken").as_bytes()));
+    assert!(contains(words, format!("task release {task} --hold").as_bytes()));
     stop(&mut world, &goal);
 }

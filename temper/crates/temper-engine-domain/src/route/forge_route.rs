@@ -4347,17 +4347,16 @@ fn authority_hold_message(
 fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
-    let category = match was.as_ref() {
-        forge_change::State::Producing { .. } => tasks::Hold::EffectFailed,
+    let (category, producing) = match was.as_ref() {
+        forge_change::State::Producing { .. } => (tasks::Hold::EffectFailed, true),
+        forge_change::State::Gating { .. } | forge_change::State::Judging { .. } => (tasks::Hold::EffectFailed, false),
         forge_change::State::Repairing { .. }
         | forge_change::State::WaitingProducer { .. }
-        | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
+        | forge_change::State::Resolving { .. } => (tasks::Hold::Procedure, false),
         forge_change::State::Opening { .. }
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
         | forge_change::State::Checking { .. }
-        | forge_change::State::Judging { .. }
-        | forge_change::State::Gating { .. }
         | forge_change::State::Ready { .. }
         | forge_change::State::Preparing { .. }
         | forge_change::State::CancellingGates { .. }
@@ -4374,11 +4373,11 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         | forge_change::State::Uncleared { .. } => return None,
     };
     match &row.producer_failure {
-        Some(words) => Some((category, words.clone())),
-        None if category == tasks::Hold::EffectFailed && row.delegate_status == forge_change::Status::Failed => {
+        Some(words) if !words.is_empty() => Some((category, words.clone())),
+        Some(_) | None if producing && row.delegate_status == forge_change::Status::Failed => {
             Some((category, Box::from(b"producer failed for good without an account".as_slice())))
         }
-        None => None,
+        Some(_) | None => None,
     }
 }
 
@@ -4444,6 +4443,7 @@ fn hold_change_decision(
     } else {
         None
     };
+    let change_hold = why;
     let updates = why == forge_change::Hold::Updates;
     let why = match why {
         forge_change::Hold::BranchMoved
@@ -4461,18 +4461,26 @@ fn hold_change_decision(
         | forge_change::Hold::Questions => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
-    let end = if let Some(words) = account {
+    let end = if let Some(words) = account
+        && !words.is_empty()
+    {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
     } else if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
         && (updates || row.effect == forge_change::EffectResult::Failed)
         && let Some(account) = &row.effect_account
+        && !account.words.is_empty()
     {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }
-    } else if let Some(message) = &message {
+    } else if let Some(message) = &message
+        && !message.words.is_empty()
+    {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, message.words.clone())) }
     } else {
-        StepEnd::Hold(why)
+        StepEnd::HoldFrom {
+            why,
+            source: Box::new(holds::source(domain, None, holds::change_fallback(domain, env, task, change_hold))),
+        }
     };
     let mut decision = ProcedureStep::new(end);
     if let Some(message) = message {

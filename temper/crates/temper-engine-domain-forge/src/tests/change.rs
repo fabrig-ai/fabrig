@@ -3078,3 +3078,73 @@ fn change_parts_restore_in_either_order_without_saves_and_orphans_name_the_prese
         }
     }
 }
+
+#[test]
+fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() {
+    use temper_engine_domain_forge_change as c;
+    let judging = c::State::Judging {
+        head: fixtures::HEAD,
+        ready_since: Wall::EPOCH,
+        asked: Box::new([1]),
+        target: c::Judgement {
+            landing: 60,
+            round: 1,
+            pull: 2,
+            branch: b"candidate".as_slice().into(),
+            base: b"main".as_slice().into(),
+            prefix: fixtures::HEAD,
+        },
+    };
+    for (state, kind, name) in [
+        (
+            c::State::Repairing { requested: true, why: c::Repair::Gate(1) },
+            c::Delegate::Repair(c::Repair::Gate(1)),
+            "repair",
+        ),
+        (
+            c::State::Resolving { requested: true, base: fixtures::BASE },
+            c::Delegate::Resolve { base: fixtures::BASE },
+            "resolution",
+        ),
+        (
+            c::State::Resolving { requested: true, base: fixtures::BASE },
+            c::Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) },
+            "merge job",
+        ),
+        (
+            c::State::Gating { head: fixtures::HEAD, asked: Box::new([1]) },
+            c::Delegate::Gate { number: 1, head: fixtures::HEAD },
+            "review",
+        ),
+        (judging, c::Delegate::Gate { number: 1, head: fixtures::HEAD }, "judgement"),
+    ] {
+        for reason in [b"the delegate cannot finish".as_slice(), b"".as_slice(), &[b'x'; 8192]] {
+            let mut d = delegate_waiting(state.clone(), kind);
+            outputs(
+                &mut d,
+                Event::DelegateResult {
+                    ended_at: None,
+                    task: fixtures::CHANGE,
+                    child: 52,
+                    status: c::Status::Failed,
+                    no_change: false,
+                    failed: true,
+                    cancelled: false,
+                    words: reason.into(),
+                },
+            );
+            let row = d.change(fixtures::CHANGE).expect("change");
+            let words = row.producer_failure.as_deref().expect("retained failed delegate");
+            assert!(words.len() <= usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).unwrap());
+            assert!(words.starts_with(format!("its {name}, task 52, failed for good:").as_bytes()));
+            assert!(skein_lib::bytes::find(words, b"release this change").is_some());
+            let expected =
+                if reason.is_empty() { b"gave no account".as_slice() } else { &reason[..reason.len().min(24)] };
+            assert!(skein_lib::bytes::find(words, expected).is_some());
+            let saved = row.clone();
+            let mut restored = fixtures::connected_domain();
+            outputs(&mut restored, Event::Restore { record: Stored::Change(Box::new(saved)) });
+            assert_eq!(restored.change(fixtures::CHANGE).unwrap().producer_failure.as_deref(), Some(words));
+        }
+    }
+}

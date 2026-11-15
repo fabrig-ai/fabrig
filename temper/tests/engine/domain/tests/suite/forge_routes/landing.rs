@@ -138,7 +138,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         && matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))));
 }
 
-fn hello_prepare(slots: u32) -> engine::Event {
+pub(super) fn hello_prepare(slots: u32) -> engine::Event {
     let mut event = protocol::hello_slots(Token::new(7), slots, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
