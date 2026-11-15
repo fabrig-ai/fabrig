@@ -503,7 +503,7 @@ impl Judge {
                         ))) { return Err(String::from("the engine read that running attempt's successful result")); }
                         bridged_readback(peers)?;
                         crate::across_versions::tasks(&self.store.borrow())?;
-                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("the bridged goal's change landed")); }
+                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("the bridged goal's change landed")); }
                         self.stage = Stage::Done;
                     } else if self.whole {
                         let saved: Value = serde_json::from_slice(
@@ -522,7 +522,7 @@ impl Judge {
                             .map_err(|why| format!("prior settings: {why:?}"))?;
                             temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), file, &prior);
                         }
-                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("earlier change landed")); }
+                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("earlier change landed")); }
                         self.queue(
                             caller,
                             &[

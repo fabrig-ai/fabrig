@@ -36,7 +36,17 @@ impl Referee {
             return Err(Violation("last acknowledged or a whole submitted prefix"));
         }
         let expected = model.prefixes.get(&restored.last).ok_or(Violation("recovery has a staged prefix"))?;
-        if restored.rows != expected.rows || restored.application != expected.application {
+        let mut live_rows = 0_usize;
+        for (key, row) in &expected.rows {
+            if matches!(key, core::Key::Tasks(jig_domain_tasks::Key::LiveCold(_))) {
+                continue;
+            }
+            live_rows += 1;
+            if restored.rows.get(key) != Some(row) {
+                return Err(Violation("all restored and loaded pages equal one whole model prefix"));
+            }
+        }
+        if restored.rows.len() != live_rows || restored.application != expected.application {
             return Err(Violation("all restored and loaded pages equal one whole model prefix"));
         }
         for (task, turns) in &expected.turns {

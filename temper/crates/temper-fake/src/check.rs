@@ -85,6 +85,8 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
     let count = u32::try_from(rows.len()).or(Err(Reason::StoreUnreadable))?;
     let mut repositories = Map::with_capacity(count);
     let mut changes = Map::with_capacity(count);
+    let mut cold = Map::with_capacity(count);
+    let mut hot = Map::with_capacity(count);
     let mut merges = List::with_capacity(count);
     let mut landed = List::with_capacity(count);
     let mut prefixes = Set::with_capacity(count);
@@ -112,6 +114,12 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
                             .expect("at most one repository per input row"),
                     );
                 }
+            }
+            d::Stored::ChangeCold(row) => {
+                cold.insert(row.task, *row).expect("input row count");
+            }
+            d::Stored::ChangeHot(row) => {
+                hot.insert(row.task, *row).expect("input row count");
             }
             d::Stored::Change(change) => {
                 drop(changes.insert(change.task, change).expect("at most one change per input row"));
@@ -184,6 +192,15 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Closer(_)
             | d::Stored::Verification(_) => {}
         }
+    }
+    while let Some((task, _)) = cold.first() {
+        let task = *task;
+        let row = cold.remove(&task).expect("pending cold part");
+        let other = hot.remove(&task).ok_or(Reason::StoreUnreadable)?;
+        changes.insert(task, Box::new(d::ChangeRow::join(row, other))).expect("input row count");
+    }
+    if !hot.is_empty() {
+        return Err(Reason::StoreUnreadable);
     }
     let client = client.ok_or(Reason::ClientUnknown)?;
     let mut complete = landed.len() < limits.landings;

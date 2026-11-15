@@ -131,7 +131,7 @@ pub(super) fn activity(
     Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if more { last } else { None } })
 }
 
-pub(super) fn decode(store: &Store, row: skein_kv::Row) -> Result<core::Record, Failure> {
+pub(super) fn decode(store: &mut Store, row: skein_kv::Row) -> Result<core::Record, Failure> {
     let (row, _bytes) = pages::decode(store, row).ok_or(Failure::Corrupt)?;
     match row {
         Row::Jig(record) => Ok(record),

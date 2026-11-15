@@ -399,6 +399,7 @@ impl Accounting {
                             | Stored::Ended(_)
                             | Stored::Summary(_)
                             | Stored::Retention(_)
+                            | Stored::LiveCold { .. }
                             | Stored::Stub(_)
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
@@ -456,6 +457,7 @@ impl Accounting {
                             | Stored::Ended(_)
                             | Stored::Summary(_)
                             | Stored::Retention(_)
+                            | Stored::LiveCold { .. }
                             | Stored::Stub(_)
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
@@ -533,6 +535,7 @@ impl Accounting {
                 | Stored::DecidedProposal(_)
                 | Stored::Summary(_)
                 | Stored::Retention(_)
+                | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)

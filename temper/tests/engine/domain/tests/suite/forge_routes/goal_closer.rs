@@ -258,7 +258,7 @@ pub(super) fn finish_close(world: &mut World, task: u64, branch: &[u8], job: &ho
 pub(super) fn wait_landing(world: &mut World, closer: u64) -> u64 {
     for _ in 0..STEPS {
         if let Some(task) = closer_row(world, closer).and_then(|row| row.closer.landing)
-            && world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(task)))
+            && world.store.rows.contains_key(&Key::Forge(forge_top::Key::ChangeHot(task)))
         {
             return task;
         }
@@ -999,7 +999,7 @@ fn a_cancelled_landing_release_makes_its_new_landing_at_the_moved_head() {
         world.tick();
         if let Some(new) = closer_row(&world, closer).and_then(|row| row.closer.landing)
             && new != landing
-            && world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(new)))
+            && world.store.rows.contains_key(&Key::Forge(forge_top::Key::ChangeHot(new)))
             && row(&world, new).change.last_head.is_some()
         {
             break;

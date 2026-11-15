@@ -84,16 +84,9 @@ fn proposal_bits(value: &d::Proposal) -> u64 {
 }
 fn referenced(row: &d::Stored) -> u64 {
     match row {
-        d::Stored::Live(row) | d::Stored::Ended(row) => {
-            let mut bits = authority_bits(&row.authority);
-            if let Some(proposal) = &row.proposal {
-                bits |= proposal_bits(proposal);
-            }
-            if let Some(recurring) = &row.recurring {
-                bits |= member_bits(&recurring.template.batch);
-            }
-            bits
-        }
+        d::Stored::Live(row) => hot_bits(row),
+        d::Stored::Ended(row) => hot_bits(row) | authority_bits(&row.authority),
+        d::Stored::LiveCold { authority, .. } => authority_bits(authority),
         d::Stored::PersonProposal(row) | d::Stored::DecidedProposal(row) => match &row.action {
             d::PersonAction::Settings { .. } => 0,
             d::PersonAction::Batch(batch) => member_bits(batch),
@@ -136,4 +129,15 @@ pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core_vocabula
             jig_domain_core_vocabulary::settings::model_bit(name.value(), names);
     }
     moved
+}
+
+fn hot_bits(row: &d::TaskRecord) -> u64 {
+    let mut bits = 0;
+    if let Some(proposal) = &row.proposal {
+        bits |= proposal_bits(proposal);
+    }
+    if let Some(recurring) = &row.recurring {
+        bits |= member_bits(&recurring.template.batch);
+    }
+    bits
 }

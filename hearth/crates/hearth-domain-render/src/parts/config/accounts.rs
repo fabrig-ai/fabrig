@@ -55,7 +55,7 @@ pub(super) fn encode(config: &Config, record: &mut hearth_lib::encode::Encoder) 
     record.map(u64::try_from(config.groups.len()).expect("entry count"));
     for group in &config.groups {
         record.key(&group.name);
-        group.kind.encode(record);
+        encode_group(&group.kind, record);
     }
     record.key(b"members");
     record.list(u64::try_from(config.members.len()).expect("member count"));
@@ -65,6 +65,25 @@ pub(super) fn encode(config: &Config, record: &mut hearth_lib::encode::Encoder) 
         record.bytes(&member.group);
         record.key(b"user");
         record.bytes(&member.user);
+    }
+}
+
+fn encode_group(kind: &GroupKind, record: &mut hearth_lib::encode::Encoder) {
+    match kind {
+        GroupKind::Package => {
+            record.map(1);
+            record.key(b"kind");
+            record.bytes(b"package");
+        }
+        GroupKind::Sysusers { gid } => {
+            record.map(if gid.is_some() { 2 } else { 1 });
+            if let Some(gid) = gid {
+                record.key(b"gid");
+                record.uint(u64::from(*gid));
+            }
+            record.key(b"kind");
+            record.bytes(b"sysusers");
+        }
     }
 }
 

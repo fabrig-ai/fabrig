@@ -110,7 +110,8 @@ fn unname_drops_only_its_finished_change_with_free_room_in_one_decision() {
         keep(&mut domain, &env, 9, change::State::Ended, 999);
         let other = domain.forge.change(9).unwrap().clone();
         let writes = unname(&mut domain, &env, 7);
-        assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(7)))));
+        assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(7)))));
+        assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeCold(7)))));
         assert_eq!(domain.forge.change_tasks().as_ref(), &[9]);
         assert_eq!(domain.forge.change(9), Some(&other));
     }
@@ -124,7 +125,8 @@ fn unname_keeps_a_live_goals_change_by_row_or_tracked_ancestor() {
         let row = domain.forge.change(FIRST).unwrap().clone();
         let writes = unname(&mut domain, &env, FIRST);
         assert_eq!(domain.forge.change(FIRST), Some(&row));
-        assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(FIRST)))));
+        assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(FIRST)))));
+        assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeCold(FIRST)))));
     }
 }
 
@@ -366,11 +368,11 @@ fn the_129th_change_replaces_the_oldest_ended_verifying_panel_in_one_decision() 
     else {
         panic!("one root decision")
     };
-    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(5)))));
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(5)))));
     let mut registered = false;
     for write in &writes {
         if let Write::Save(Record::Forge { row }) = write
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
         {
             registered |= row.task == context.task;
         }
@@ -394,11 +396,11 @@ fn the_129th_change_replaces_the_oldest_settled_panel_in_one_decision() {
     else {
         panic!("one root decision")
     };
-    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(FIRST)))));
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(FIRST)))));
     let mut registered = false;
     for write in &writes {
         if let Write::Save(Record::Forge { row }) = write
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
         {
             registered |= row.task == context.task;
         }

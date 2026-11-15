@@ -28,12 +28,8 @@ fn landing_world() -> (World, engine::Assignment, Box<[u8]>) {
     (world, goal, branch)
 }
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("registered change {task}")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn assert_landing_title(words: &str, first_line: Option<&[u8]>, title: &[u8]) {

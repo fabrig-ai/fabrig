@@ -88,6 +88,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         Stored::Ledger(record) => crate::funders::restore_funding(domain, record)?,
         Stored::Summary(_)
         | Stored::Retention(_)
+        | Stored::LiveCold { .. }
         | Stored::Update(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
@@ -118,6 +119,7 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
         | crate::Key::PlacedHold(_) => None,
         crate::Key::Summary(_)
         | crate::Key::Retention { .. }
+        | crate::Key::LiveCold(_)
         | crate::Key::Ended(_)
         | crate::Key::ClosedLedger(_)
         | crate::Key::DecidedProposal(_)

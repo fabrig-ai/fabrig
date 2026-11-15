@@ -12,6 +12,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             core::CoreKey::Deployment => {}
             core::CoreKey::Projection(key) => match key {
                 core::ProjectionKey::Goal(task)
+                | core::ProjectionKey::GoalWords(task)
+                | core::ProjectionKey::TaskWords { task, .. }
                 | core::ProjectionKey::Task { task, .. }
                 | core::ProjectionKey::Lifecycle { task, .. }
                 | core::ProjectionKey::Revision { task, .. } => name.task = Some(*task),
@@ -34,7 +36,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             },
         },
         core::Key::Tasks(key) => match key {
-            tasks::Key::Live(task)
+            tasks::Key::LiveCold(task)
+            | tasks::Key::Live(task)
             | tasks::Key::Ended(task)
             | tasks::Key::Stub(task)
             | tasks::Key::History { task, .. }
@@ -121,6 +124,7 @@ fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "every durable row's observable names share one exhaustive match")]
 fn record_names(record: &core::Record, name: &mut r::Naming) {
     match record {
         core::Record::Core(record) => match record {
@@ -147,6 +151,7 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
             },
             tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Update(_)
             | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)

@@ -215,6 +215,16 @@ it can be stored: the seed makes no row for it, and 5.2 registers its
 binary layout at its family's version. A census counting rows in such a
 type's key ranges refuses the open, `Set` with patch 0.
 
+A value type that the family's kept text at that version does not
+declare (its root, or its variant of a broad root, new since that text)
+has no seed row: no value of the store can be at a layout of it, since
+no binary before it wrote a key of its ranges. 5.2 registers its
+binary layout in the same commit, at the family's version as its id,
+as for any value type with no row. A store seeded and a binary that
+brings a new value type in one upgrade (temper's
+`draft/store-shape.execution.md`, S5 to S8, each adding one) therefore
+opens as a store seeded before it would.
+
 ### 5.2 The binary's layouts
 
 For each value type, its layout in `current`, with the binary's texts of
@@ -328,7 +338,14 @@ plan (`jobs.md`, 4).
   latest kept text derives to `current` (skein's `data/codec/layouts.md`),
   so a landing that changes a registered schema with no default or
   written job fails in its owner's focused suite, not at a deployment's
-  open.
+  open. A value type that text does not declare is new since it (5.1)
+  and has nothing to derive from; it is counted apart, and its root and
+  variant must resolve in `current`.
+- **A new value type at the seed,** a step test: a store at a fixture
+  family's last kept text, unseeded, opened by a binary whose `current`
+  adds a value type in a new key range, opens with no refusal; the seed
+  has no row for the new type, the registration adds its row at the
+  family's version, and a value put at its key reads back.
 
 ## 9. Open questions
 

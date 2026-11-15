@@ -40,18 +40,19 @@ pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
 }
 
 fn change(world: &World) -> forge_top::ChangeRow {
-    *world
+    let task = world
         .store
         .rows
         .values()
         .find_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) => Some(row.clone()),
+                forge_top::Stored::ChangeHot(row) => Some(row.task),
                 _ => None,
             },
             Record::Core(_) => None,
         })
-        .expect("registered change")
+        .expect("change task");
+    world.store.change(task).expect("durable change")
 }
 
 fn pending_change() -> (World, Box<[u8]>, u64) {

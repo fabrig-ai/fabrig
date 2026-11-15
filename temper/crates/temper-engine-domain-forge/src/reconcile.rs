@@ -141,6 +141,7 @@ impl Reconciliation {
             }
             // Change panels outlive tasks (temper/docs/design/domain/forge/change/README.md, 5).
             Stored::Change(row) => self.repository(RecordKind::Change, row.repository),
+            Stored::ChangeCold(row) => self.repository(RecordKind::Change, row.repository),
             Stored::Issue(row) => {
                 self.repository(RecordKind::Issue, row.repository)?;
                 let ending = match &row.desired {
@@ -176,7 +177,8 @@ impl Reconciliation {
             // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::HistoryProject(_)
+            Stored::ChangeHot(_)
+            | Stored::HistoryProject(_)
             | Stored::HistoryEvent(_)
             | Stored::HistoryChange(_)
             | Stored::HistoryLanding(_)

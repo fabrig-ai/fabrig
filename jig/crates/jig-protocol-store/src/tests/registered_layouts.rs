@@ -21,14 +21,16 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
     let old_held: Vec<_> = old.iter().collect();
     let new_held: Vec<_> = new.iter().collect();
     let mut types = 0_usize;
+    let mut added = 0_usize;
     for ((family, old), new) in families.iter().zip(&old).zip(&new) {
         for ty in family.types {
             let variant = ty.variant.map(str::as_bytes);
+            let old_root = old.root(ty.root.as_bytes(), variant);
             let new_root = new.root(ty.root.as_bytes(), variant).unwrap();
-            // Appended value types have no values at the kept layout.
-            let Some(old_root) = old.root(ty.root.as_bytes(), variant) else {
+            let Some(old_root) = old_root else {
                 assert_eq!(family.name, "jig-store-tasks");
-                assert!([Some("attempt"), Some("hold"), Some("summary"), Some("retention")].contains(&ty.variant));
+                assert!([19, 20, 21, 22, 23].contains(&ty.number), "only new value types have no kept layout");
+                added += 1;
                 continue;
             };
             let plan = skein_codec::layout::Plan::derive(old, old_root, &old_held, new, new_root, &new_held);
@@ -37,4 +39,5 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
         }
     }
     assert_ne!(types, 0);
+    assert_eq!(added, 5);
 }

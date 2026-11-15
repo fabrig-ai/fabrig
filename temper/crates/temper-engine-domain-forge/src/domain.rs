@@ -266,6 +266,10 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
+    /// The cold part last put, also held while restart collects the two parts.
+    pub(crate) change_cold: Map<u64, crate::ChangeCold>,
+    /// Progress parts awaiting the restore fit barrier.
+    pub(crate) change_hot: Map<u64, crate::ChangeHot>,
     pub(crate) steps: Map<Token, PendingStep>,
     pub(crate) stall_words: Map<u64, crate::stall::Report>,
     pub(crate) read_sessions: Map<u64, read_session::Session>,
@@ -908,6 +912,8 @@ impl Domain {
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
+            change_cold: Map::with_capacity(l.changes),
+            change_hot: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
             stall_words: Map::with_capacity(l.changes.checked_add(l.landings).expect("task bounds")),
             read_sessions: Map::with_capacity(l.changes),
@@ -4684,10 +4690,7 @@ fn step_read(
                     && row.result.checked(commit, &[], env.limits.client.answer_bytes)
                 {
                     let saved = row.clone();
-                    emit(
-                        out,
-                        Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
-                    );
+                    save_change_parts(d, out, saved);
                 }
                 if ci == skein_forge::api::Ci::Failed || result_rows {
                     // Repairs retain the contexts they observed, beside the pull verdict.
@@ -4717,10 +4720,7 @@ fn step_read(
                     && row.result.checked(head, &rows, env.limits.client.answer_bytes)
                 {
                     let saved = row.clone();
-                    emit(
-                        out,
-                        Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
-                    );
+                    save_change_parts(d, out, saved);
                 }
                 pending.failed = crate::change_ci::Failed::new(rows);
             }
@@ -8610,7 +8610,16 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             }
             d.closing.rows.insert(row.task, row).expect("restored closer room checked");
         }
+        Stored::ChangeCold(row) => {
+            d.change_cold.insert(row.task, *row).expect("restored cold change room checked");
+        }
+        Stored::ChangeHot(row) => {
+            d.change_due.insert(row.task, env.wall).expect("restored change wake room checked");
+            d.change_hot.insert(row.task, *row).expect("restored hot change room checked");
+        }
         Stored::Change(row) => {
+            let (cold, _) = row.clone().split();
+            d.change_cold.insert(row.task, cold).expect("restored change room checked");
             // Volatile waits are rebuilt by stepping every restored change (domain/forge/README.md, 9).
             d.change_due.insert(row.task, env.wall).expect("a wake per restored change");
             d.changes.insert(row.task, *row).expect("restored change within limits");
@@ -8630,6 +8639,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
 }
 
 fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
+    if d.unjoined_change().is_some() {
+        return;
+    }
     admission::restore_names(d, out);
     if d.fit_restored(&env.limits).is_err() {
         return;
@@ -8942,6 +8954,16 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     d.changes.get_mut(&row.task).expect("saved change is retained").ci = row.ci;
 }
 
+/// Remember the cold part last put: callers may already have replaced the in-memory row.
+pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, row: ChangeRow) {
+    let (cold, hot) = row.split();
+    if d.change_cold.get(&cold.task) != Some(&cold) {
+        d.change_cold.insert(cold.task, cold.clone()).expect("one cold part per change");
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::ChangeCold(Box::new(cold)) });
+    }
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::ChangeHot(Box::new(hot)) });
+}
+
 /// Every saved record invalidates its own panel (domain/forge/change/README.md, 5).
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
     if row.terminal() {
@@ -8963,7 +8985,7 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
         }
     }
     let tasks = tasks.into_boxed();
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
+    save_change_parts(d, out, row);
     emit(out, Request::Marked { tasks });
 }
 
@@ -9045,7 +9067,7 @@ fn save_queue_panel(
         previous = Some(next);
     }
     retain_terminal_ci(d, &mut row);
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
+    save_change_parts(d, out, row);
     emit(out, Request::Marked { tasks: tasks.into_boxed() });
 }
 

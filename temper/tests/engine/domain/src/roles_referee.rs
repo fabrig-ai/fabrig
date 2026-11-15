@@ -245,6 +245,7 @@ impl Referee {
                                 | tasks::Stored::Ended(_)
                                 | tasks::Stored::Summary(_)
                                 | tasks::Stored::Retention(_)
+                                | tasks::Stored::LiveCold { .. }
                                 | tasks::Stored::Stub(_)
                                 | tasks::Stored::Ledger(_)
                                 | tasks::Stored::Milestone(_)

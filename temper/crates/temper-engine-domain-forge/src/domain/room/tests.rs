@@ -56,7 +56,8 @@ fn only_settled_rows_with_finished_releases_can_be_dropped() {
         assert!(!d.droppable_last(fixtures::CHANGE));
         let out = dropped(&mut d, &env);
         assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
-        assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
+        assert_eq!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }), allowed);
+        assert_eq!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }), allowed);
     }
     let d = domain();
     assert!(!d.droppable(fixtures::CHANGE), "an unknown row is not droppable");
@@ -93,7 +94,8 @@ fn ended_verifying_rows_give_room_only_after_release() {
             );
             let out = dropped(&mut d, &env);
             assert_eq!(d.change(fixtures::CHANGE).is_none(), allowed);
-            assert_eq!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }), allowed);
+            assert_eq!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }), allowed);
+            assert_eq!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }), allowed);
         }
     }
     assert!(!domain().droppable_last(fixtures::CHANGE), "an unknown row cannot give room last");
@@ -150,7 +152,8 @@ fn a_root_selected_verifying_row_gives_room_beside_goal_pinned_settled_rows() {
         assert!(d.droppable_last(fixtures::CHANGE));
         assert!(d.droppable(52));
         let out = dropped(&mut d, &env);
-        assert!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }));
+        assert!(out.contains(&Request::Erase { key: Key::ChangeHot(fixtures::CHANGE) }));
+        assert!(out.contains(&Request::Erase { key: Key::ChangeCold(fixtures::CHANGE) }));
         assert!(d.change(fixtures::CHANGE).is_none());
         assert_eq!(d.change(52).unwrap().goal, Some(70), "the live goal's settled row stays");
         let (opening, _) = fixtures::opening();
@@ -336,7 +339,12 @@ fn erased_change_drops_its_passes_and_accounts_with_free_room() {
             erased.push(key).unwrap();
         }
     }
-    for key in [Key::Change(task), Key::Landed(fixtures::HEAD), Key::RedPass { change: task, key: pass.key }] {
+    for key in [
+        Key::ChangeHot(task),
+        Key::ChangeCold(task),
+        Key::Landed(fixtures::HEAD),
+        Key::RedPass { change: task, key: pass.key },
+    ] {
         assert!(erased.as_slice().contains(&key), "{key:?}");
     }
 }

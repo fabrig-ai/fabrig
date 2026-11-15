@@ -59,6 +59,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[1, 1, 21], "tasks.placed-holds"),
     (&[1, 1, 22], "tasks.attempts"),
     (&[1, 1, 23], "tasks.holds"),
+    (&[1, 1, 24], "tasks.live-cold"),
     (&[1, 1, 30], "tasks.summaries"),
     (&[1, 1, 31], "tasks.retention"),
     (&[1, 2, 0], "people.people"),

@@ -20,6 +20,7 @@ pub(crate) fn row_owner(row: &Row) -> Option<&tasks::TaskRecord> {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -126,6 +127,7 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Result(_)

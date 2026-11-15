@@ -97,11 +97,19 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "milestones" {
         return milestones::page(page);
     }
+    if job == "live-task-parts" {
+        return live_task_parts::page(page);
+    }
+    if job == "projection-parts" {
+        return projection_parts::page(page);
+    }
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
 
 mod charter_versions;
+mod live_task_parts;
 mod milestones;
+mod projection_parts;
 mod retention;
 
 pub(crate) mod admission;

@@ -469,6 +469,7 @@ fn person_row_project(row: &Row, project: u32) -> bool {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Result(_)
@@ -799,6 +800,7 @@ fn object(
                 | tasks::Stored::PlacedHold(_)
                 | tasks::Stored::Summary(_)
                 | tasks::Stored::Retention(_)
+                | tasks::Stored::LiveCold { .. }
                 | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)
                 | tasks::Stored::Writer(_)
@@ -1046,6 +1048,7 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                     | tasks::Stored::PlacedHold(_)
                     | tasks::Stored::Summary(_)
                     | tasks::Stored::Retention(_)
+                    | tasks::Stored::LiveCold { .. }
                     | tasks::Stored::Stub(_)
                     | tasks::Stored::Ledger(_)
                     | tasks::Stored::Writer(_)
@@ -1197,6 +1200,7 @@ fn inbox_selection_row(limits: &Limits, row: &Row) -> Result<Option<documents::I
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1252,6 +1256,7 @@ fn inbox_row(
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1541,6 +1546,7 @@ fn hold_record(record: &Record) -> Option<&tasks::HoldRow> {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1575,6 +1581,7 @@ fn activity_record(record: &Record) -> Option<&tasks::ActivityLine> {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -1661,6 +1668,7 @@ fn ledger(record: &Record) -> Option<&tasks::FundingRecord> {
             | tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
             | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Result(_)
@@ -1836,6 +1844,7 @@ fn key_kind(key: &Key) -> KeyKind {
             | tasks::Key::PlacedHold(_)
             | tasks::Key::Summary(_)
             | tasks::Key::Retention { .. }
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Writer(_)
             | tasks::Key::Pool(_)

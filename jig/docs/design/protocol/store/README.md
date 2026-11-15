@@ -46,6 +46,9 @@ section 11.
   anywhere leaves one whole generation active (`README.md`, section 2,
   and `opening.md`, section 2 to 4). Jobs at open walk the map for their
   owners when a binary needs it in another shape (`jobs.md`).
+- **Hot records apart from cold.** Live tasks and goals' projections
+  keep what an act changes rarely in rows of their own, so a write puts
+  what changed (`parts.md`).
 - **One decision, one commit, the same number.** Each of the root's
   commits is one skein-kv commit with the same number. Group commit folds
   bursts into one sync. A failed or refused commit stops the engine
@@ -358,9 +361,9 @@ child puts live first.
 | core | the deployment: its id, its numbers (the next project's among them, past every project seeded or made), the last commit | none: one row | at start |
 | core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
-| core | goals' projections (feed, plan rows, pending milestones), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
+| core | goals' projections (feed, plan rows, pending milestones, their words apart: `parts.md`, 3), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
 | core | turns (in transcripts' files, `transcripts.md`), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
-| tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
+| tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), each in a hot and a cold part (`parts.md`, 2), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
 | tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
 | tasks | ended tasks' summaries, and retention's rows, one per ended task or decided person proposal naming its next stage (`retention.md`, 3 and 4) | task; stage, since, number | on demand, by retention's passes |

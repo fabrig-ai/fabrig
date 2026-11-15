@@ -81,3 +81,45 @@ fn x_j2_j2_installs_at_x_j2() {
         b"/x.j2"
     );
 }
+
+#[test]
+fn the_config_record_encodes_each_group_kind() {
+    use crate::parts::config::{self, Config, Group, GroupKind};
+    use skein_lib::bytes::copy_of;
+
+    let config = Config {
+        groups: Box::new([
+            Group { name: copy_of(b"a"), kind: GroupKind::Package },
+            Group { name: copy_of(b"b"), kind: GroupKind::Sysusers { gid: Some(7) } },
+            Group { name: copy_of(b"c"), kind: GroupKind::Sysusers { gid: None } },
+        ]),
+        members: Box::new([]),
+        presets: Box::new([]),
+        scripts: Box::new([]),
+        tmpfiles: Box::new([]),
+        tree: Box::new([]),
+        users: Box::new([]),
+    };
+    let expected = fixtures::hex(concat!(
+        "070000000000000007",                               // config: seven fields
+        "04000000000000000667726f757073070000000000000003", // groups: three entries
+        "04000000000000000161",                             // a
+        "0700000000000000010400000000000000046b696e640400000000000000077061636b616765", // kind: package
+        "04000000000000000162",                             // b
+        "070000000000000002040000000000000003676964030000000000000007", // gid: 7
+        "0400000000000000046b696e640400000000000000087379737573657273", // kind: sysusers
+        "04000000000000000163",                             // c
+        "0700000000000000010400000000000000046b696e640400000000000000087379737573657273", // kind: sysusers
+        "0400000000000000076d656d62657273060000000000000000", // members: []
+        "04000000000000000770726573657473070000000000000000", // presets: {}
+        "04000000000000000773637269707473060000000000000000", // scripts: []
+        "040000000000000008746d7066696c6573070000000000000000", // tmpfiles: {}
+        "04000000000000000474726565070000000000000000",     // tree: {}
+        "0400000000000000057573657273070000000000000000",   // users: {}
+    ));
+    let mut measure = Encoder::measuring();
+    config::encode(&config, &mut measure);
+    let mut encoder = Encoder::writing(measure.measured());
+    config::encode(&config, &mut encoder);
+    assert_eq!(encoder.written(), expected, "groups keep their canonical maps in the config record");
+}

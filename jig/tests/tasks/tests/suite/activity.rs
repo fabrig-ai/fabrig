@@ -24,6 +24,7 @@ fn lines(world: &World, task: u64) -> Vec<ActivityLine> {
             | Stored::DecidedProposal(_)
             | Stored::Summary(_)
             | Stored::Retention(_)
+            | Stored::LiveCold { .. }
             | Stored::Stub(_)
             | Stored::Milestone(_)
             | Stored::Attempt(_)

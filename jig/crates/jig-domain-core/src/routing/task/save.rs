@@ -142,6 +142,7 @@ fn prepare_record(
         | tasks::Stored::Ledger(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_)
         | tasks::Stored::PersonProposal(_) => record,
     }
@@ -183,6 +184,7 @@ fn task_saved(
                 | tasks::Stored::PlacedHold(_)
                 | tasks::Stored::Summary(_)
                 | tasks::Stored::Retention(_)
+                | tasks::Stored::LiveCold { .. }
                 | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)
                 | tasks::Stored::Writer(_)
@@ -262,6 +264,7 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
         | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => {}
     }
 }
@@ -296,6 +299,7 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
         | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => None,
     }
 }
@@ -361,6 +365,7 @@ fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
         | tasks::Stored::Retention(_)
+        | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_) => {}
     }
 }

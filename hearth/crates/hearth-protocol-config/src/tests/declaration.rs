@@ -1,6 +1,6 @@
 use super::fixtures::{at, declaration, text};
 use crate::{
-    Declared, Error, Expected, Fault, Object, Position, Required,
+    Declared, Decode, Error, Expected, Fault, Object, Position, Required,
     declaration::{self, Fragment},
     json::{Kind, Value},
     limits::SHIPPED,
@@ -27,7 +27,7 @@ fn a_nonobject_root_is_refused_at_its_value() {
     let value = Value { at: input.at, kind: Kind::String(input.text) };
     assert_eq!(
         declaration::declaration(value, &SHIPPED),
-        Err(Error { at: Position { offset: 0, line: 1, column: 1 }, fault: Fault::NotObject })
+        Err(Error { at: Position { offset: 0, line: 1, column: 1 }, fault: Fault::Decode(Decode::NotObject) })
     );
 }
 #[test]
@@ -55,14 +55,20 @@ fn a_guard_hands_up_its_condition_and_message_as_text() {
 fn checks_are_refused_at_their_key_until_m5() {
     assert_eq!(
         declaration(br#"{"checks":5}"#),
-        Err(Error { at: Position { offset: 1, line: 1, column: 2 }, fault: Fault::Declaration(Declared::Later) })
+        Err(Error {
+            at: Position { offset: 1, line: 1, column: 2 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Later))
+        })
     );
 }
 #[test]
 fn a_script_5_8_does_not_name_is_refused_at_its_key() {
     assert_eq!(
         declaration(br#"{"scripts":{"build.sh":5}}"#),
-        Err(Error { at: Position { offset: 12, line: 1, column: 13 }, fault: Fault::Declaration(Declared::Name) })
+        Err(Error {
+            at: Position { offset: 12, line: 1, column: 13 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Name))
+        })
     );
 }
 #[test]
@@ -78,7 +84,10 @@ fn a_script_without_order_is_at_4_3s_default_500() {
 fn a_task_doc_of_two_lines_is_refused_at_its_value() {
     assert_eq!(
         declaration(br#"{"doc":"one\ntwo"}"#),
-        Err(Error { at: Position { offset: 7, line: 1, column: 8 }, fault: Fault::Declaration(Declared::Doc) })
+        Err(Error {
+            at: Position { offset: 7, line: 1, column: 8 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Doc))
+        })
     );
 }
 
@@ -89,7 +98,11 @@ const A_KEY_THE_DECLARATION_LACKS_IS_REFUSED_AT_THE_KEY: &[(&[u8], Position, Dec
 #[test]
 fn a_key_the_declaration_lacks_is_refused_at_the_key() {
     for &(input, at, expected) in A_KEY_THE_DECLARATION_LACKS_IS_REFUSED_AT_THE_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -113,7 +126,11 @@ const A_GUARD_WITHOUT_IF_OR_MESSAGE_IS_REFUSED_AT_ITS_BRACE: &[(&[u8], Position,
 #[test]
 fn a_guard_without_if_or_message_is_refused_at_its_brace() {
     for &(input, at, expected) in A_GUARD_WITHOUT_IF_OR_MESSAGE_IS_REFUSED_AT_ITS_BRACE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -125,7 +142,11 @@ const A_GUARD_NAMED_OUT_OF_FORM_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Position, Decla
 #[test]
 fn a_guard_named_out_of_form_is_refused_at_its_key() {
     for &(input, at, expected) in A_GUARD_NAMED_OUT_OF_FORM_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -136,7 +157,11 @@ const A_READ_S_TASK_OR_SETTING_OUT_OF_FORM_IS_REFUSED_AT_IT: &[(&[u8], Position,
 #[test]
 fn a_read_s_task_or_setting_out_of_form_is_refused_at_it() {
     for &(input, at, expected) in A_READ_S_TASK_OR_SETTING_OUT_OF_FORM_IS_REFUSED_AT_IT {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -149,7 +174,11 @@ const A_SCRIPT_ORDER_OUTSIDE_0_TO_999_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Positio
 #[test]
 fn a_script_order_outside_0_to_999_is_refused_at_its_value() {
     for &(input, at, expected) in A_SCRIPT_ORDER_OUTSIDE_0_TO_999_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -178,7 +207,11 @@ const A_PLAIN_OBJECT_FIELD_ITS_OBJECT_LACKS_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Pos
 #[test]
 fn a_plain_object_field_its_object_lacks_is_refused_at_its_key() {
     for &(input, at, expected) in A_PLAIN_OBJECT_FIELD_ITS_OBJECT_LACKS_IS_REFUSED_AT_ITS_KEY {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -234,7 +267,11 @@ const A_PLAIN_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Position,
 #[test]
 fn a_plain_field_of_another_form_is_refused_at_its_value() {
     for &(input, at, expected) in A_PLAIN_FIELD_OF_ANOTHER_FORM_IS_REFUSED_AT_ITS_VALUE {
-        assert_eq!(declaration(input), Err(Error { at, fault: Fault::Declaration(expected) }), "{input:?}");
+        assert_eq!(
+            declaration(input),
+            Err(Error { at, fault: Fault::Decode(Decode::Declaration(expected)) }),
+            "{input:?}"
+        );
     }
 }
 
@@ -252,7 +289,10 @@ fn a_script_order_is_an_integer_from_0_to_999() {
 fn the_first_fault_in_key_order_is_returned() {
     assert_eq!(
         declaration(br#"{"requires":{"bad-name":0},"doc":"a\nb"}"#),
-        Err(Error { at: Position { offset: 33, line: 1, column: 34 }, fault: Fault::Declaration(Declared::Doc) })
+        Err(Error {
+            at: Position { offset: 33, line: 1, column: 34 },
+            fault: Fault::Decode(Decode::Declaration(Declared::Doc))
+        })
     );
 }
 

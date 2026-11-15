@@ -207,6 +207,10 @@ impl World {
     /// Restore genuine held-chat rows and saved sessions through actual root
     /// startup pages; no direct child inputs are used
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "startup classifies all durable rows before constructing the roles world"
+    )]
     pub fn new(settings: Settings) -> World {
         let mut store = snapshot(settings);
         story_policy(&mut store, settings);
@@ -240,6 +244,7 @@ impl World {
                         tasks::Stored::Ended(_)
                         | tasks::Stored::Summary(_)
                         | tasks::Stored::Retention(_)
+                        | tasks::Stored::LiveCold { .. }
                         | tasks::Stored::Stub(_)
                         | tasks::Stored::Ledger(_)
                         | tasks::Stored::Writer(_)

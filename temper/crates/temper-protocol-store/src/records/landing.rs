@@ -428,7 +428,7 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     let w::LandingRunParts { id, attempt, ended } = run.into_parts();
     top::LandingRun { id, attempt, ended }
 }
-pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
+pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
     let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
     let w::LandingStateParts {
         task,
@@ -442,6 +442,9 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
         own_hold,
         last_left,
     } = landing.into_parts();
+    if phase.held().is_some() && own_hold.is_some() {
+        return Err(super::Undecodable::Malformed);
+    }
     let mut decoded_members = List::with_capacity(members.len());
     for member in members.into_boxed() {
         decoded_members.push(decode_member(member)).expect(FITS);
@@ -473,7 +476,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             })
             .expect(FITS);
     }
-    top::LandingRow {
+    Ok(top::LandingRow {
         job: super::history::decode_job_record(job),
         landing: d::Landing {
             last_left,
@@ -507,7 +510,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),
-    }
+    })
 }
 pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
     let (name, tier) = match &key.check {

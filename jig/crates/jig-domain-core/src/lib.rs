@@ -60,8 +60,9 @@ pub use crate::{
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         projections::{
-            MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone,
-            ProjectionRecord, ProjectionTask, finish_decision, projection_bytes, projection_record_bytes,
+            MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionGoalHot, ProjectionKey,
+            ProjectionMilestone, ProjectionRecord, ProjectionTask, ProjectionTaskHot, finish_decision,
+            projection_bytes, projection_record_bytes,
         },
     },
     funding::pools::CreateStart,
