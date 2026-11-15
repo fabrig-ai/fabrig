@@ -479,6 +479,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
+- [`draft/focused-pyramid.md`](draft/focused-pyramid.status.md)
 - [`draft/follows.md`](draft/follows.status.md)
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
