@@ -241,7 +241,14 @@ pub struct Parts<'a> {
 - **A test file goes whole to one piece:** one with a test that builds a `Domain` stays with the
   root. A test that builds a `Domain` only to borrow its client may take a client of its own, built
   as the root builds it (`jig_client::Client::unlinked` from the limits' client part), so that it
-  goes with what it tests; `pages/told.rs`'s does, since it is an inline module of a page (4.3).
+  goes with what it tests; `pages/told.rs`'s do, since it is an inline module of a page (4.3).
+- **But one test leaves its file:** `pages/told.rs`'s
+  `devices_are_own_scope_watched_only_while_the_page_is_open` signs in, steps a `Domain` through
+  its addresses and reads its requests, so it checks the root's routing to the page. It goes to the
+  root's tests, `src/tests/told.rs`, with its `event` and `up` helpers and a copy of the
+  `ENDPOINT` and `row()` it reads, its checks and name unchanged; the rest of the file goes with
+  the page. An inline module's file can't stay with the root, and a harness of `Pages` and a client
+  would check less.
 - **No piece's tests use a crate that depends on that piece,** which would give them two copies of
   its types.
 - **What each test checks stays,** and its name with it.
@@ -275,7 +282,12 @@ each stage a `#[cfg(test)]` module of the crate's root:
 - **Each stage has its `fixtures` module,** its trimmed copy (4.2).
 - **The inline test modules follow their files' pieces:** `forge/listed.rs`, `forge/making.rs` and
   `forge/sheet.rs` name their tests in `src/forge_tests/`, `pages/told.rs` in `src/pages_tests/`, by
-  `#[path]`.
+  `#[path]`. Their `super` is the library's module, so each names its stage's fixtures by one `use`
+  of `crate::forge_tests::fixtures` or `crate::pages_tests::fixtures`, the one path from the
+  crate's root a staged file holds; the move makes it `crate::tests::fixtures` (5). A second copy
+  of the fixtures inside each inline module was turned down: `#[path]` resolves a nested `mod` as a
+  `mod.rs` file's, which breaks the fixtures' own submodules, and each copy's unused builders are
+  dead code.
 
 ### 4.4 Data and paths
 
@@ -291,7 +303,8 @@ One change of moves, after the preparation (`crate-graph.md`, 5.3):
 - **Each file moved whole** to its piece, by 2.1 and 4.3, and not edited but where the build forces
   it, in a commit after the moves: a `mod` line naming a file now in another piece becoming its
   re-export, a visibility (2.4), what a newly public item's lints ask (`#[must_use]`, `Debug`), a
-  `#[path]` naming a staged file, and a crate-level `expect` its piece no longer meets.
+  `#[path]` naming a staged file, an inline test module's `use` of its stage's fixtures becoming
+  `crate::tests::fixtures` (4.3), and a crate-level `expect` its piece no longer meets.
 - **New files:** each piece's manifest and root; `temper-client-domain`'s root and manifest,
   re-exporting (2.4); the workspace's members and dependencies. Each piece takes
   `temper-client-domain`'s lint profile, by `tools/lints/lints.py --set`.
