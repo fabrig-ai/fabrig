@@ -907,6 +907,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             }]),
             clean: Box::new([[8; 32], [9; 32]]),
             gate_failures: Box::new([temper_engine_domain_forge_change::GateFailure { number: 7, count: 1 }]),
+            released_resolution: true,
             released: Some(Hold::Failed),
             repairs: 10,
             resolutions: 11,

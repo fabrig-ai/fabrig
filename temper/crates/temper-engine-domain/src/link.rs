@@ -869,6 +869,7 @@ mod tests {
                 }]),
                 clean: Box::new([]),
                 gate_failures: Box::new([]),
+                released_resolution: false,
                 released: None,
                 repairs: 0,
                 resolutions: 0,

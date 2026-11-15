@@ -37,6 +37,7 @@ fn change(state: State) -> Change {
         gates: Box::new([]),
         clean: Box::new([]),
         gate_failures: Box::new([]),
+        released_resolution: false,
         released: None,
         repairs: 0,
         resolutions: 0,
@@ -550,6 +551,35 @@ fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failu
         let pending = step(&replacement.change, &fresh, &heard(), at(5), &LIMITS);
         assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) }, "{terminal}");
         assert_eq!(pending.change.resolutions, 1, "{terminal}");
+    }
+}
+
+#[test]
+fn a_released_resolution_without_a_delegate_uses_the_fresh_head_and_base() {
+    let (held, facts, _) = failed_resolution(Delegate::Resolve { base: BASE });
+    for (mergeable, state, decision) in [
+        (Status::Passed, State::Checking { head: NEW }, Decision::None),
+        (
+            Status::Failed,
+            State::Resolving { requested: true, base: MERGE },
+            Decision::Delegate(Delegate::Resolve { base: MERGE }),
+        ),
+    ] {
+        let fresh = Facts {
+            delegate: None,
+            branch: Some(NEW),
+            base_tip: MERGE,
+            mergeable,
+            merge_job: true,
+            ..facts.clone()
+        };
+        let reset = step(&released(&held, at(3)), &fresh, &heard(), at(3), &LIMITS);
+        let next = step(&reset.change, &fresh, &heard(), at(4), &LIMITS);
+        assert_eq!(next.change.last_head, Some(NEW));
+        assert_eq!(next.change.state, state);
+        assert_eq!(next.decision, decision);
+        let pending = step(&next.change, &fresh, &heard(), at(5), &LIMITS);
+        assert!(!matches!(pending.decision, Decision::Delegate(Delegate::Resolve { .. } | Delegate::Merge { .. })));
     }
 }
 

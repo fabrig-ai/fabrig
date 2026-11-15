@@ -1,6 +1,7 @@
 use super::*;
 
 mod empty_repair;
+mod released_resolution;
 
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
