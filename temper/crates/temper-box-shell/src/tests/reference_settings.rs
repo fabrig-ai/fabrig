@@ -363,7 +363,7 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let fifteen = vec![
+    let sixteen = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(4),
@@ -374,13 +374,14 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] 
         Executor::Procedure(3),
         Executor::Procedure(4),
         Executor::Procedure(6),
+        Executor::Job(temper_engine_domain_forge::PREPARE_KIND),
         Executor::Job(3),
         Executor::Job(4),
         Executor::Role(0),
         Executor::Role(1),
         Executor::Role(2),
     ];
-    [fifteen]
+    [sixteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
@@ -400,7 +401,7 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     let mut rules = reference_rules(&current);
     for kinds in reference_delegations() {
         let count = u32::try_from(kinds.len()).expect("reference kind count");
-        assert_eq!(count, 15);
+        assert_eq!(count, 16);
         rules.ceiling.delegation.kinds = List::with_capacity(count);
         for kind in kinds {
             rules.ceiling.delegation.kinds.push(kind).expect("delegation count");
@@ -533,7 +534,7 @@ fn the_stock_settings_document_decodes_in_every_client() {
         "authority.executors":21,"tasks.executor_kinds":21,"tasks.charters":16
     }}));
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 20);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 21);
     let source = reads::SettingDocument {
         overlay: None,
         setting: settings::Setting::Rules,
@@ -559,11 +560,11 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
             .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
         let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
-        assert_eq!(rules.ceiling.delegation.kinds.len(), 20, "{name}");
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 21, "{name}");
         for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
             let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
             let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
-            assert_eq!(rules.ceiling.delegation.kinds.len(), 20);
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 21);
         }
     }
 }
