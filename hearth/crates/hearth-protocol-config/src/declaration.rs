@@ -1,6 +1,6 @@
 //! A task's fixed declaration shape (hearth/docs/design/protocol/format/tasks.md, 1, 8, 9, 13, hearth/docs/design/protocol/format/README.md, 5.4).
 use crate::{
-    Declared, Error, Expected, Fault, Object, Position, Required,
+    Declared, Decode, Error, Expected, Fault, Object, Position, Required,
     json::{Entry, Kind, Value},
     limits::Limits,
     names,
@@ -93,7 +93,7 @@ const KEYS: &[(&[u8], Key)] = &[
 ];
 pub fn declaration(value: Value, limits: &Limits) -> Result<Declaration, Error> {
     let Kind::Map(entries) = value.kind else {
-        return Err(Error { at: value.at, fault: Fault::NotObject });
+        return Err(Error { at: value.at, fault: Fault::Decode(Decode::NotObject) });
     };
     let mut declaration = Declaration {
         at: value.at,
@@ -147,7 +147,7 @@ pub fn declaration(value: Value, limits: &Limits) -> Result<Declaration, Error> 
     Ok(declaration)
 }
 pub(crate) fn fault(at: Position, declared: Declared) -> Error {
-    Error { at, fault: Fault::Declaration(declared) }
+    Error { at, fault: Fault::Decode(Decode::Declaration(declared)) }
 }
 pub(crate) fn wrong(at: Position, expected: Expected) -> Error {
     fault(at, Declared::Wrong { expected })

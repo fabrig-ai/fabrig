@@ -6,6 +6,23 @@ use render::errors::{Command, Ended};
 use skein_lib::bytes::copy_of;
 
 #[test]
+fn tool_tail_lines_are_indented_in_order() {
+    let error = super::plain(render::errors::Kind::Tool(render::errors::Tool {
+        command: Command::Mmdebstrap,
+        ended: Ended::Exit(1),
+        tail: Box::new([copy_of(b"a"), copy_of(b"b")]),
+    }));
+    assert_prints(
+        &error,
+        "mmdebstrap exited 1\n  a\n  b\n",
+        concat!(
+            r#"{"record":"error","kind":"tool","tool":{"command":"mmdebstrap","ended":{"code":1,"kind":"exit"},"tail":["a","b"]},"class":"configuration"}"#,
+            "\n"
+        ),
+    );
+}
+
+#[test]
 fn tool_bytes() {
     let cases = [
         (

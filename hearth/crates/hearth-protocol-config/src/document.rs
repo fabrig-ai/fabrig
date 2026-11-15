@@ -1,6 +1,6 @@
 //! Configuration layers (hearth/docs/design/protocol/format/README.md, 3.1 to 3.6).
 use crate::{
-    Error, Fault, Field, Position, Shape,
+    Decode, Error, Fault, Field, Position,
     json::{Entry, Kind, Value},
     names,
 };
@@ -29,7 +29,7 @@ pub fn document(value: Value) -> Result<Document, Error> {
     let entries = match value.kind {
         Kind::Map(entries) => entries,
         Kind::Null | Kind::Bool(_) | Kind::Int(_) | Kind::List(_) | Kind::String(_) => {
-            return Err(Error { at: value.at, fault: Fault::NotObject });
+            return Err(Error { at: value.at, fault: Fault::Decode(Decode::NotObject) });
         }
     };
     refuse_list_null(&entries)?;
@@ -96,7 +96,7 @@ fn refuse_list_null(entries: &[Entry]) -> Result<(), Error> {
     }
     // Maps are held in name order, so retain the earliest source position.
     match first {
-        Some(at) => Err(shape(at, Shape::ListNull)),
+        Some(at) => Err(decode(at, Decode::ListNull)),
         None => Ok(()),
     }
 }
@@ -116,15 +116,15 @@ fn read_field(entry: Entry, layer: &mut Layer, tasks: &mut List<Task>) -> Result
     match &*entry.key {
         b"debian" => layer.debian = Some(entry.value),
         b"placement" => layer.placement = Some(read_placement(entry.value)?),
-        b"members" => return Err(shape(entry.at, Shape::Member)),
+        b"members" => return Err(decode(entry.at, Decode::Member)),
         _ => {
             if !names::identifier(&entry.key) {
-                return Err(shape(entry.at, Shape::Name));
+                return Err(decode(entry.at, Decode::Name));
             }
             match &entry.value.kind {
                 Kind::Map(_) | Kind::Null => {}
                 Kind::Bool(_) | Kind::Int(_) | Kind::List(_) | Kind::String(_) => {
-                    return Err(shape(entry.value.at, Shape::Settings { task: entry.key }));
+                    return Err(decode(entry.value.at, Decode::Settings { task: entry.key }));
                 }
             }
             tasks.push(Task { name: entry.key, at: entry.at, value: entry.value }).expect("one task per entry");
@@ -147,18 +147,18 @@ pub struct Member {
 }
 fn read_members(value: Value) -> Result<Members, Error> {
     let Kind::Map(entries) = value.kind else {
-        return Err(shape(value.at, Shape::Members));
+        return Err(decode(value.at, Decode::Members));
     };
     let mut each = List::with_capacity(u32::try_from(entries.len()).expect("members bounded by u32"));
     for entry in entries {
         if !names::member(&entry.key) {
-            return Err(shape(entry.at, Shape::Member));
+            return Err(decode(entry.at, Decode::Member));
         }
         let layer = match entry.value.kind {
             Kind::Null => None,
             Kind::Map(entries) => Some(read_layer(entries)?),
             Kind::Bool(_) | Kind::Int(_) | Kind::List(_) | Kind::String(_) => {
-                return Err(shape(entry.value.at, Shape::Members));
+                return Err(decode(entry.value.at, Decode::Members));
             }
         };
         each.push(Member { name: entry.key, at: entry.at, layer }).expect("one member per entry");
@@ -182,14 +182,14 @@ pub struct On {
     pub target: Box<[u8]>,
     pub at: Position,
 }
-fn shape(at: Position, shape: Shape) -> Error {
-    Error { at, fault: Fault::Shape(shape) }
+fn decode(at: Position, fault: Decode) -> Error {
+    Error { at, fault: Fault::Decode(fault) }
 }
 fn text(value: Value, field: Field) -> Result<Box<[u8]>, Error> {
     match value.kind {
         Kind::String(text) => Ok(text),
         Kind::Null | Kind::Bool(_) | Kind::Int(_) | Kind::List(_) | Kind::Map(_) => {
-            Err(shape(value.at, Shape::Wrong { field }))
+            Err(decode(value.at, Decode::Wrong { field }))
         }
     }
 }
@@ -202,11 +202,11 @@ fn read_kind(value: &Value) -> Result<Runs, Error> {
             _ => {}
         }
     }
-    Err(shape(value.at, Shape::Wrong { field: Field::Kind }))
+    Err(decode(value.at, Decode::Wrong { field: Field::Kind }))
 }
 fn read_placement(value: Value) -> Result<Placement, Error> {
     let Kind::Map(entries) = value.kind else {
-        return Err(shape(value.at, Shape::Placement));
+        return Err(decode(value.at, Decode::Placement));
     };
     let mut kind = None;
     for entry in &entries {
@@ -214,7 +214,7 @@ fn read_placement(value: Value) -> Result<Placement, Error> {
             kind = Some(read_kind(&entry.value)?);
         }
     }
-    let kind = kind.ok_or(shape(value.at, Shape::Missing { field: Field::Kind }))?;
+    let kind = kind.ok_or(decode(value.at, Decode::Missing { field: Field::Kind }))?;
     let mut placement = Placement { at: value.at, kind, firmware: None, hardware: None, on: None, mutable: false };
     for entry in entries {
         let field = match &*entry.key {
@@ -223,12 +223,12 @@ fn read_placement(value: Value) -> Result<Placement, Error> {
             b"hardware" => Field::Hardware,
             b"on" => Field::On,
             b"mutable" if placement.kind != Runs::Container => Field::Mutable,
-            _ => return Err(shape(entry.at, Shape::Unknown { field: entry.key })),
+            _ => return Err(decode(entry.at, Decode::Unknown { field: entry.key })),
         };
         if (placement.kind == Runs::Container && (field == Field::Firmware || field == Field::Hardware))
             || (placement.kind != Runs::Container && field == Field::On)
         {
-            return Err(shape(entry.at, Shape::Misplaced { field }));
+            return Err(decode(entry.at, Decode::Misplaced { field }));
         }
         match field {
             Field::Firmware => {
@@ -236,14 +236,14 @@ fn read_placement(value: Value) -> Result<Placement, Error> {
                 placement.firmware = Some(match &*text(entry.value, field)? {
                     b"efi" => Firmware::Efi,
                     b"bios" => Firmware::Bios,
-                    _ => return Err(shape(at, Shape::Wrong { field })),
+                    _ => return Err(decode(at, Decode::Wrong { field })),
                 });
             }
             Field::Hardware => placement.hardware = Some(text(entry.value, field)?),
             Field::On => placement.on = Some(On { at: entry.value.at, target: text(entry.value, field)? }),
             Field::Mutable => {
                 let Kind::Bool(mutable) = entry.value.kind else {
-                    return Err(shape(entry.value.at, Shape::Wrong { field }));
+                    return Err(decode(entry.value.at, Decode::Wrong { field }));
                 };
                 placement.mutable = mutable;
             }
@@ -256,7 +256,7 @@ fn read_placement(value: Value) -> Result<Placement, Error> {
         (Field::On, placement.kind == Runs::Container && placement.on.is_none()),
     ] {
         if missing {
-            return Err(shape(value.at, Shape::Missing { field }));
+            return Err(decode(value.at, Decode::Missing { field }));
         }
     }
     Ok(placement)
