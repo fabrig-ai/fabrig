@@ -9,6 +9,8 @@
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 
+- **Not yet:** 2, *A change's two parts*: a change's `source`, its `kept` head and `ChangeLive`'s `taking` [in flight: change 4096].
+
 
 
 Section 2 has no known implementation gap in provider 0's subject.

@@ -4,6 +4,8 @@
 
 
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
+- **Not yet:** area 6: no `change open` tool [in flight: change 4107].
+- **Not yet:** area 6: `change show` prints no source and no step `taking` [in flight: change 4109].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names

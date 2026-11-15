@@ -1,10 +1,12 @@
 # tools: status
 
-2026-11-13. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-15. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
+
+- **Not yet:** 3: `change open`, absent from the table [in flight: change 4107].
 
 - **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6).
 
