@@ -483,6 +483,9 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
                 return done(landing, Decision::Hold(why));
             }
             crate::Preparation::Conflict => return leaving(landing, facts, position(index), crate::Leave::Conflict),
+            crate::Preparation::Idle if member.asked == Some(landing.preparation) && !found => {
+                return wait(landing, None);
+            }
             crate::Preparation::Idle | crate::Preparation::Failed => {}
         }
         for member in &mut landing.members {

@@ -1014,3 +1014,23 @@ fn a_probe_ending_after_its_round_only_makes_a_receipt_and_a_later_probe_uses_it
         3
     );
 }
+
+#[test]
+fn a_prepare_finishing_after_a_partial_read_takes_the_reported_suffix_once() {
+    let mut world = batch(3);
+    start_prepare(&mut world);
+    world.prepare_subset(LANDING, false, &[0]);
+    assert_eq!(
+        landings::step_landing_heard(&mut world, LANDING, 200, heard(landing::Preparation::Running, b"")),
+        landing::Decision::Wait { until: None }
+    );
+    assert!(world.landing(LANDING).landing.members[0].candidate.is_some());
+    world.prepare_landing(LANDING, false);
+    world.script_ancestry(Some(Err(api::Error::TooLarge(api::Excess::unnamed()))));
+    let report = br#"{"combined":[{"member":1,"by":"merge"},{"member":2,"by":"merge"},{"member":3,"by":"merge"}]}"#;
+    let mut news = heard(landing::Preparation::Idle, report);
+    news.outcomes = top::preparation::outcomes(report, 3).expect("success");
+    assert_eq!(landings::step_landing_heard(&mut world, LANDING, 201, news), landing::Decision::Open);
+    assert_eq!(world.landing(LANDING).landing.preparation, 1);
+    assert!(world.landing(LANDING).landing.members.iter().all(|member| member.candidate.is_some()));
+}

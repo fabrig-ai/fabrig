@@ -412,10 +412,17 @@ The default, for a project with no prepare command:
   1); a train into a repository's main, or into a branch no goal holds,
   has none. The job tells, from the upstream's tip the round read
   (5.1), given in its request (`worker/jobs.md`).
-- **Its outcome:** the round retains the job's report before reading
+- **Its outcome:** a successful report's `combined` member is taken at
+  the fresh tip of its branch, with the reported combination. The branch
+  is held exclusively for this round and delivery precedes the report;
+  an additional commit-range read cannot refuse that delivery. The round
+  retains each reported combination and conflict before reading
   its prefixes, so a read waiting for client room or a restart cannot
-  consume that report. The engine reads each member's branch afresh once
-  the job has ended. Its tip is the member's prefix when its parents
+  consume that report. A changed round discards the earlier round's
+  combinations while keeping departed members' conflict words.
+  The engine reads each member's branch afresh once the job has ended.
+  Without a successful report, its tip is recognized as the member's
+  prefix when its parents
   are the prefix below and the member's head, a merge, or the prefix
   below alone with the member's head in its `Head` trailer, a line of
   its message's last paragraph, a squash (skein's `Read::Commits`); the
@@ -432,9 +439,17 @@ The default, for a project with no prepare command:
   reads its members' branches: each prefix found there in order, each
   on the one below, for the round's base and that member's head, is
   taken, and a job is made only for the members above the last taken.
-  A job whose push finds a branch already there fails as undelivered,
-  and the read that follows takes what it finds; a failed job after
-  which the read takes no new prefix holds the landing.
+  Each unprepared suffix is delegated once: while its job has no
+  readable outcome, the landing waits for that job's retries, including
+  after restart. A failed prefix read is no evidence of an absent push.
+  A repeated job compares each rebuilt prefix's whole tree with the
+  existing branch, including Markdown paths, and checks that the existing
+  tip contains the prefix below and, for a merge, the member's head.
+  Where they agree it reuses that tip before stacking the next member,
+  so the chain keeps the earlier delivery's commits. A create refused
+  because that same tip is already there is verified by fetching it and
+  counts as delivered. A failed job after which the read takes no new
+  prefix holds the landing.
 - **Not drift:** the landing's branches are its own, written only by
   its jobs under its holds; no member's own branch is written.
 

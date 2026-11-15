@@ -1752,12 +1752,26 @@ fn round_read(
                     return;
                 }
             };
+            let combined = crate::preparation::combined(&row.landing.round.failure, index);
+            if chain && let Some(combined) = combined {
+                let Some(tip) = candidate else {
+                    wait(d, p.task, env, p.repository, out);
+                    return;
+                };
+                fact.candidate = Some((tip, combined));
+                round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
+                return;
+            }
             match candidate {
                 Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
                 None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
             }
         }
         RoundRead::Prefix(page) => {
+            if answer.is_err() {
+                wait(d, p.task, env, p.repository, out);
+                return;
+            }
             let mut merge = false;
             fact.candidate = None;
             if let Some(tip) = candidate
@@ -2255,6 +2269,10 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if prior.landing.round.ending.is_some() && row.landing.round.ending.is_none() {
+        row.landing.round.failure =
+            crate::preparation::next_round(&row.landing.round.failure, env.limits.landing_members);
+    }
     if row.landing.preparation != prior.landing.preparation {
         for (member, old) in row.landing.members.iter_mut().zip(&prior.landing.members) {
             if member.left.is_none() && old.landed.is_none() {

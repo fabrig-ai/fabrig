@@ -374,3 +374,82 @@ fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_s
     )));
     assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Write(_))));
 }
+
+#[test]
+fn a_successful_prepare_report_takes_its_branch_without_repeating_the_round() {
+    for squash in [false, true] {
+        let mut world = start(false);
+        let prefix = translate::commit(world.prepare_landing(LANDING, squash));
+        // A refused range is not evidence that this job's delivered branch is absent.
+        world.script_ancestry(Some(Err(api::Error::TooLarge(api::Excess::unnamed()))));
+        let report = if squash {
+            br#"{"combined":[{"member":1,"by":"squash"}]}"#.as_slice()
+        } else {
+            br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice()
+        };
+        let decision = landings::step_landing_heard(
+            &mut world,
+            LANDING,
+            102,
+            top::LandingHeard {
+                job: None,
+                outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                preparation: landing::Preparation::Idle,
+                failure: report.into(),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        );
+        assert_eq!(decision, landing::Decision::Open);
+        assert_eq!(world.landing(LANDING).landing.preparation, 1);
+        assert_eq!(world.landing(LANDING).landing.members[0].candidate, Some(prefix));
+        assert_eq!(
+            world.landing(LANDING).landing.members[0].combined,
+            Some(if squash { landing::Combine::Squash } else { landing::Combine::Merge })
+        );
+        world.script_ancestry(None);
+        world.restart();
+        landings::drive_landing(&mut world, LANDING);
+        assert_eq!(world.landing(LANDING).landing.members[0].landed, Some(prefix));
+    }
+}
+
+#[test]
+fn a_successful_prepare_report_is_forgotten_when_the_round_changes() {
+    let mut world = start(false);
+    world.prepare_landing(LANDING, false);
+    let report = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice();
+    assert_eq!(
+        landings::step_landing_heard(
+            &mut world,
+            LANDING,
+            102,
+            top::LandingHeard {
+                job: None,
+                outcomes: top::preparation::outcomes(report, 1).expect("successful report"),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                preparation: landing::Preparation::Idle,
+                failure: report.into(),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            }
+        ),
+        landing::Decision::Open
+    );
+    world.push_file(b"main", b"next-base", b"new base");
+    world.restart();
+    let mut prepared = false;
+    for entry in 103..130 {
+        if matches!(landings::step_landing_raw(&mut world, LANDING, entry), landing::Decision::Prepare { .. }) {
+            prepared = true;
+            break;
+        }
+    }
+    assert!(prepared, "a changed round needs its own prepare");
+    assert_eq!(world.landing(LANDING).landing.preparation, 2);
+}
