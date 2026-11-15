@@ -554,6 +554,10 @@ pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Q
 }
 
 /// Reconcile the session's reads with the open project and How work runs tab.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "map lends each card read value without a list (client/domain-crates.md, 3.1)"
+)]
 pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     let on_tab = match root.pages.address() {
@@ -601,7 +605,14 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         None
     };
     forge::ways::progress(&mut root.forge, env.now, root.pages.project(), shown, on_tab, env.limits.forge, &mut child);
-    forge::ways::proposals(&mut root.forge, root.pages.cards(), env.limits.forge, &mut child);
+    if let Some(cards) = root.pages.cards() {
+        forge::ways::proposals(
+            &mut root.forge,
+            &mut cards.iter().map(|card| card.page.as_ref()),
+            env.limits.forge,
+            &mut child,
+        );
+    }
     route_forge(root, env, &mut child, out);
 }
 fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {

@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State};
-use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays};
+use temper_client_domain::pages::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
 
 pub fn main(

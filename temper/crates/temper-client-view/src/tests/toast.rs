@@ -61,7 +61,7 @@ fn way_answer(kept: bool) -> d::Domain {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::domain_limits() };
     let mut out = Queue::uncapped();
     d::step(&mut root, &env, Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) }, &mut out);
-    let wanted = d::forge::stock_ways::watch(f::PROJECT, &env.limits.forge).unwrap();
+    let wanted = pages::stock_ways::watch(f::PROJECT, &env.limits.forge).unwrap();
     let mut watch = None;
     for request in &out {
         if let d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch: token, subject } } } =

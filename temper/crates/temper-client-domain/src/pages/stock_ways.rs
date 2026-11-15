@@ -1,5 +1,5 @@
 //! Ask temper's stock ways and immediate acts (temper/docs/design/client/forge/records.md and temper/docs/design/client/pages/settings.md, 2).
-use super::{Limits, wire_limits};
+use crate::forge::{Limits, wire_limits};
 use crate::{
     owner::Owner,
     pages::{Request, needs::Toasted},
@@ -286,7 +286,7 @@ impl StockWays {
         if self.act(index) != Some(act) {
             return;
         }
-        let Some(document) = client.document(super::ways::handle()) else { return };
+        let Some(document) = client.document(crate::forge::ways::handle()) else { return };
         if document.state == jig_client::State::Ended {
             return;
         }

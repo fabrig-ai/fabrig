@@ -15,6 +15,7 @@ pub mod asked;
 pub mod authorize;
 pub mod boundary;
 pub mod copy;
+pub mod delegation;
 pub mod domain;
 pub mod forge;
 pub mod key;
