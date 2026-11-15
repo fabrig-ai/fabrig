@@ -1105,6 +1105,7 @@ impl World {
                 | Stored::History(_)
                 | Stored::Live(_)
                 | Stored::Ended(_)
+                | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Ledger(_)
                 | Stored::Writer(_)
@@ -1129,6 +1130,7 @@ impl World {
                 Stored::Pool(row) => pools.push(row.clone()),
                 Stored::Writer(row) => writers.push(row.clone()),
                 Stored::Ended(_)
+                | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Ledger(_)
                 | Stored::ClosedLedger(_)
@@ -1203,6 +1205,7 @@ impl World {
             | Stored::Pool(_)
             | Stored::ClosedLedger(_)
             | Stored::DecidedProposal(_)
+            | Stored::LiveCold { .. }
             | Stored::Stub(_)
             | Stored::Ledger(_)
             | Stored::Activity(_)
@@ -1235,6 +1238,7 @@ impl World {
                 | Key::ClosedLedger(_)
                 | Key::DecidedProposal(_)
                 | Key::Ended(_)
+                | Key::LiveCold(_)
                 | Key::Stub(_)
                 | Key::Ledger(_)
                 | Key::Milestone { .. }
@@ -1339,6 +1343,7 @@ impl World {
                 | Stored::Pool(_)
                 | Stored::ClosedLedger(_)
                 | Stored::DecidedProposal(_)
+                | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
@@ -1454,6 +1459,16 @@ impl World {
         let rows = self.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
         for record in rows {
             self.send(Event::Restore { record });
+        }
+        for row in self.records.values() {
+            if let Stored::Live(expected) = row {
+                assert_eq!(
+                    self.domain.task(expected.number),
+                    Some(expected.as_ref()),
+                    "seed {}: restored live task",
+                    self.seed
+                );
+            }
         }
         self.send(Event::Check);
         self.send(Event::Restored);
@@ -1668,6 +1683,7 @@ fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
     match record {
         Stored::Live(record) => Some(record),
         Stored::Ended(_)
+        | Stored::LiveCold { .. }
         | Stored::Stub(_)
         | Stored::Ledger(_)
         | Stored::Writer(_)

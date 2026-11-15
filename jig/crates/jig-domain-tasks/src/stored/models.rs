@@ -43,6 +43,7 @@ impl crate::Stored {
                     members(&mut value.template.batch, moved);
                 }
             }
+            crate::Stored::LiveCold { authority: value, .. } => authority(value, moved),
             crate::Stored::PersonProposal(row) | crate::Stored::DecidedProposal(row) => match &mut row.action {
                 crate::PersonAction::Settings { .. } => {}
                 crate::PersonAction::Batch(batch) => members(batch, moved),

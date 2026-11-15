@@ -21,7 +21,7 @@ fn task(store: &Store, number: u64) -> Result<&TaskRecord, String> {
 fn producer(store: &Store) -> Option<u64> {
     store.rows.values().find_map(|row| match row {
         Row::Forge { row } => match row.as_ref() {
-            temper_engine_domain_forge::Stored::Change(change) => change.delegate.as_ref().map(|(task, _)| *task),
+            temper_engine_domain_forge::Stored::ChangeHot(change) => change.delegate.as_ref().map(|(task, _)| *task),
             _ => None,
         },
         Row::Core(_) => None,
@@ -31,7 +31,7 @@ fn producer(store: &Store) -> Option<u64> {
 fn counts(store: &Store, number: u64) -> Option<Counts> {
     store.rows.values().find_map(|row| match row {
         Row::Forge { row } => match row.as_ref() {
-            temper_engine_domain_forge::Stored::Change(row)
+            temper_engine_domain_forge::Stored::ChangeHot(row)
                 if row.delegate.as_ref().is_some_and(|(task, _)| *task == number) =>
             {
                 let change = &row.change;

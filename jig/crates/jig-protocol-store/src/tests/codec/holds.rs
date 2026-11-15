@@ -590,3 +590,29 @@ fn project_spend_answer_bytes_match_the_current_schema() {
     assert_eq!(codec::people::decode(&before, &limits, &[]), Ok(expected.clone()));
     assert_eq!(codec::people::encode(&expected, &limits, &[]).unwrap().as_ref(), before.as_ref());
 }
+
+#[test]
+fn hot_projection_phases_read_as_whole_held_records() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+    for row in [fixtures::core_rows::goal(), fixtures::core_rows::projection_task(t::Party::Task(11))] {
+        let expected = match &row {
+            c::ProjectionRecord::GoalHot { goal, .. } => goal.phase.clone(),
+            c::ProjectionRecord::TaskHot { task, .. } => task.phase.clone(),
+            c::ProjectionRecord::Milestone { .. }
+            | c::ProjectionRecord::GoalWords { .. }
+            | c::ProjectionRecord::TaskWords { .. } => unreachable!(),
+        };
+        let core::Value::Projection(value) = core_row(&c::CoreRecord::Projection(row), &limits) else { unreachable!() };
+        let phase = match value.into_parts().value {
+            core::ProjectionRecord::GoalHot(value) => value.into_parts().phase,
+            core::ProjectionRecord::TaskHot(value) => value.into_parts().phase,
+            core::ProjectionRecord::Goal(_)
+            | core::ProjectionRecord::Task(_)
+            | core::ProjectionRecord::Milestone(_)
+            | core::ProjectionRecord::GoalWords(_)
+            | core::ProjectionRecord::TaskWords(_) => unreachable!(),
+        };
+        let expected = Held::Phase(expected);
+        assert_eq!(expected.read(&phase.into_parts().value, &limits), expected);
+    }
+}

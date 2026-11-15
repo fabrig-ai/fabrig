@@ -710,7 +710,7 @@ fn history_driver() -> (Driver, [u64; 2]) {
     assert_eq!(before.record, after.record, "history is absent from the public projection");
     assert_eq!(before.tasks, after.tasks);
     writer.evict_history_change(CHANGE, 1);
-    assert!(!writer.stored().contains_key(&forge::Key::Change(CHANGE)), "the change row was evicted");
+    assert!(!writer.stored().contains_key(&forge::Key::ChangeHot(CHANGE)), "the change row was evicted");
     let rows: Vec<_> = writer
         .stored()
         .iter()
@@ -726,9 +726,12 @@ fn history_driver() -> (Driver, [u64; 2]) {
     let mut driver = driver();
     let member = driver.session();
     let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
-    driver.store.seed(rows.into_boxed_slice(), Box::new([root::Key::Forge(forge::Key::Change(CHANGE))]));
+    driver.store.seed(
+        rows.into_boxed_slice(),
+        Box::new([root::Key::Forge(forge::Key::ChangeHot(CHANGE)), root::Key::Forge(forge::Key::ChangeCold(CHANGE))]),
+    );
     let driver = restarted_panels(&mut driver);
-    assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::Change(CHANGE))));
+    assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::ChangeHot(CHANGE))));
     (driver, [member, outsider])
 }
 #[test]

@@ -954,7 +954,7 @@ fn a_landing_in_a_dependency_makes_no_task_or_change_in_the_dependent() {
             _ => None,
         })
         .collect();
-    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Follow(_) | forge_top::Stored::Change(_)))), "dependency makes no follow or change row");
+    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Follow(_) | forge_top::Stored::ChangeHot(_)))), "dependency makes no follow or change row");
     let parent = world.fake.branch(b"org/vsr", b"main").unwrap();
     let commit = fake::commit_tree(
         &mut world.fake,
@@ -993,11 +993,9 @@ fn a_landing_in_a_dependency_makes_no_task_or_change_in_the_dependent() {
         .collect();
     assert_eq!(tasks_after, tasks_before, "no task comes from a dependency's landing");
     assert!(
-        !world
-            .store
-            .rows
-            .values()
-            .any(|record| matches!(record, Record::Forge {row} if matches!(row.as_ref(),forge_top::Stored::Change(_))))
+        !world.store.rows.values().any(
+            |record| matches!(record, Record::Forge {row} if matches!(row.as_ref(),forge_top::Stored::ChangeHot(_)))
+        )
     );
     assert_eq!(revision(&world), against + 1);
     assert!(

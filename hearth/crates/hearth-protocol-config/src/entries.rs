@@ -41,111 +41,38 @@ pub enum Literal {
     Strings { at: Position, each: Box<[Text]> },
     Range { at: Position, fields: Box<[Field]> },
 }
-type FieldShape = (&'static [u8], Name, Takes);
-const FIELDS: &[(Map, &[FieldShape])] = &[
-    (Map::Packages, &[(b"component", Name::Component, Takes::Text)]),
-    (
-        Map::Preseeds,
-        &[
-            (b"type", Name::Type, Takes::Text),
-            (b"value", Name::Value, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-        ],
-    ),
+const FIELDS: &[(Map, &[Name])] = &[
+    (Map::Packages, &[Name::Component]),
+    (Map::Preseeds, &[Name::Type, Name::Value, Name::Owner]),
     (Map::Initramfs, &[]),
-    (Map::Cmdline, &[(b"param", Name::Param, Takes::Text), (b"order", Name::Order, Takes::Int)]),
-    (
-        Map::Files,
-        &[
-            (b"template", Name::Template, Takes::Text),
-            (b"copy", Name::Copy, Takes::Text),
-            (b"link", Name::Link, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-            (b"directory", Name::Directory, Takes::Bool),
-        ],
-    ),
+    (Map::Cmdline, &[Name::Param, Name::Order]),
+    (Map::Files, &[Name::Template, Name::Copy, Name::Link, Name::Mode, Name::Owner, Name::Group, Name::Directory]),
     (
         Map::Users,
         &[
-            (b"group", Name::Group, Takes::Text),
-            (b"gecos", Name::Gecos, Takes::Text),
-            (b"home", Name::Home, Takes::Text),
-            (b"shell", Name::Shell, Takes::Text),
-            (b"password", Name::Password, Takes::Text),
-            (b"from", Name::From, Takes::Text),
-            (b"uid", Name::Uid, Takes::Int),
-            (b"gid", Name::Gid, Takes::Int),
-            (b"groups", Name::Groups, Takes::Strings),
-            (b"subordinate", Name::Subordinate, Takes::Range),
+            Name::Group,
+            Name::Gecos,
+            Name::Home,
+            Name::Shell,
+            Name::Password,
+            Name::From,
+            Name::Uid,
+            Name::Gid,
+            Name::Groups,
+            Name::Subordinate,
         ],
     ),
-    (Map::Groups, &[(b"from", Name::From, Takes::Text), (b"gid", Name::Gid, Takes::Int)]),
-    (Map::Presets, &[(b"action", Name::Action, Takes::Text)]),
-    (
-        Map::Tmpfiles,
-        &[
-            (b"type", Name::Type, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-            (b"age", Name::Age, Takes::Text),
-            (b"argument", Name::Argument, Takes::Text),
-        ],
-    ),
-    (
-        Map::Data,
-        &[
-            (b"path", Name::Path, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-            (b"class", Name::Class, Takes::Text),
-        ],
-    ),
-    (
-        Map::Secrets,
-        &[
-            (b"path", Name::Path, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-        ],
-    ),
-    (
-        Map::Identity,
-        &[
-            (b"kind", Name::Kind, Takes::Text),
-            (b"algorithm", Name::Algorithm, Takes::Text),
-            (b"path", Name::Path, Takes::Text),
-            (b"public_path", Name::PublicPath, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-        ],
-    ),
+    (Map::Groups, &[Name::From, Name::Gid]),
+    (Map::Presets, &[Name::Action]),
+    (Map::Tmpfiles, &[Name::Type, Name::Mode, Name::Owner, Name::Group, Name::Age, Name::Argument]),
+    (Map::Data, &[Name::Path, Name::Mode, Name::Owner, Name::Group, Name::Class]),
+    (Map::Secrets, &[Name::Path, Name::Mode, Name::Owner, Name::Group]),
+    (Map::Identity, &[Name::Kind, Name::Algorithm, Name::Path, Name::PublicPath, Name::Mode, Name::Owner, Name::Group]),
     (
         Map::Software,
-        &[
-            (b"url", Name::Url, Takes::Text),
-            (b"sha256", Name::Sha256, Takes::Text),
-            (b"unpack", Name::Unpack, Takes::Text),
-            (b"path", Name::Path, Takes::Text),
-            (b"mode", Name::Mode, Takes::Text),
-            (b"owner", Name::Owner, Takes::Text),
-            (b"group", Name::Group, Takes::Text),
-            (b"strip", Name::Strip, Takes::Int),
-        ],
+        &[Name::Url, Name::Sha256, Name::Unpack, Name::Path, Name::Mode, Name::Owner, Name::Group, Name::Strip],
     ),
-    (
-        Map::Live,
-        &[
-            (b"unit", Name::Unit, Takes::Text),
-            (b"action", Name::Action, Takes::Text),
-            (b"paths", Name::Paths, Takes::Strings),
-        ],
-    ),
+    (Map::Live, &[Name::Unit, Name::Action, Name::Paths]),
 ];
 pub(crate) fn read(map: Map, at: Position, value: Value) -> Result<Entries, Error> {
     let entries = object(value)?;
@@ -182,10 +109,14 @@ fn shape(map: Map, key: &[u8]) -> Option<(Name, Takes)> {
         if which != map {
             continue;
         }
-        for &(field, name, takes) in fields {
-            if field == key {
-                return Some((name, takes));
-            }
+        return field_shape(fields, key);
+    }
+    None
+}
+fn field_shape(fields: &[Name], key: &[u8]) -> Option<(Name, Takes)> {
+    for &name in fields {
+        if name.key() == key {
+            return Some((name, name.takes()));
         }
     }
     None
@@ -199,12 +130,9 @@ fn literal(value: Value, takes: Takes, plain: bool) -> Result<Literal, Error> {
         Kind::Map(entries) => {
             let mut fields = List::with_capacity(u32::try_from(entries.len()).expect("document bounded by u32"));
             for entry in entries {
-                let name = match &*entry.key {
-                    b"base" => Name::Base,
-                    b"count" => Name::Count,
-                    _ => return Err(unknown(entry.at, Object::Range)),
-                };
-                let literal = scalar(entry.value, Takes::Int, false)?;
+                let (name, takes) =
+                    field_shape(&[Name::Base, Name::Count], &entry.key).ok_or(unknown(entry.at, Object::Range))?;
+                let literal = scalar(entry.value, takes, false)?;
                 fields.push(Field { name, at: entry.at, value: literal }).expect("one field per source entry");
             }
             Ok(Literal::Range { at: value.at, fields: fields.into_boxed() })

@@ -326,6 +326,14 @@ impl World {
     }
 
     pub fn commit(&mut self, writes: Box<[Write]>) -> Option<u64> {
+        let mut whole = Vec::new();
+        for write in writes {
+            if let Write::Save(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(row))) = &write {
+                whole.push(Write::Save(root::cold_task(row)));
+            }
+            whole.push(write);
+        }
+        let writes = whole.into_boxed_slice();
         let number = self.next;
         self.model.stage(number, &writes);
         self.operations = 0;

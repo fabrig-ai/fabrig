@@ -147,8 +147,8 @@ fn start_with(bound: Option<u32>, independent: bool) -> Story {
 pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..STEPS {
         world.tick();
-        if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change)))
-            && let forge_top::Stored::Change(row) = row.as_ref()
+        if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::ChangeHot(change)))
+            && let forge_top::Stored::ChangeHot(row) = row.as_ref()
             && let Some((task, temper_engine_domain_forge_change::Delegate::Produce)) = row.delegate
             && let Some(run) = world.assigned.iter().rev().find(|run| run.task == task)
         {

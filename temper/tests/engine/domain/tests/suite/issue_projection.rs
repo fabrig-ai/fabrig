@@ -472,7 +472,7 @@ fn a_pending_closing_projection_finishes_after_a_cold_restart() {
     for _ in 0..STEPS {
         let closing = matches!(world.store.rows.get(&key),
             Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
-                jig_domain_core::ProjectionRecord::Goal { pending, .. }
+                jig_domain_core::ProjectionRecord::GoalHot { pending, .. }
             )))) if !pending.is_empty()
         );
         if closing {
@@ -487,7 +487,7 @@ fn a_pending_closing_projection_finishes_after_a_cold_restart() {
     assert!(!world.held_write_answers.is_empty(), "real writer has an unanswered closing effect");
     assert!(issue(&world, goal.task).pending.is_some(), "closing writer remains pending");
     let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
-        jig_domain_core::ProjectionRecord::Goal { goal: retained, pending, .. },
+        jig_domain_core::ProjectionRecord::GoalHot { goal: retained, pending, .. },
     )))) = world.store.rows.get(&key)
     else {
         panic!("durable closing projection")

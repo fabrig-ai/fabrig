@@ -29,7 +29,7 @@ pub(crate) fn digest(config: &Config) -> Digest {
     encode(config, hash.values());
     hash.finish()
 }
-fn encode(config: &Config, record: &mut Encoder) {
+pub(crate) fn encode(config: &Config, record: &mut Encoder) {
     record.map(7);
     accounts::encode(config, record);
     directives::encode(config, record);

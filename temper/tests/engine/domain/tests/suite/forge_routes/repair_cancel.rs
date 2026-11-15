@@ -5,12 +5,8 @@ use temper_engine_domain_forge_change::{Hold, State};
 const STEPS: u32 = 200;
 const REASON: &[u8] = b"try a different approach";
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn change_task(world: &World, delegate: u64) -> u64 {

@@ -14,6 +14,77 @@ use skein_lib::{
 };
 
 #[test]
+fn a_store_error_names_the_store_in_the_answer() {
+    use crate::render::errors::{Class, Error, Kind, Step, StoreError, StoreFault};
+    use alloc::boxed::Box;
+
+    for (form, expected) in [
+        (Form::Text, "the store /store: its write failed\n"),
+        (
+            Form::JsonLines,
+            concat!(
+                "{\"record\":\"version\",\"client\":1}\n",
+                "{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"step\":\"write\",\"class\":\"operational\"}\n"
+            ),
+        ),
+    ] {
+        let mut layer = Layer::with_form(form, limits::SHIPPED);
+        layer.bind_output();
+        layer.client(Request::Answer(Answer::Error(Error {
+            kind: Kind::Store(StoreError { store: Box::new([]), fault: StoreFault::Failed { step: Step::Write } }),
+            class: Class::Operational,
+            side: None,
+            at: None,
+            also: None,
+            target: None,
+            task: None,
+        })));
+        let requests = layer.printed();
+        let [Down::Demand { .. }, Down::Send(bytes)] = requests.as_ref() else {
+            panic!("the error is printed");
+        };
+        assert_eq!(bytes.as_ref(), expected.as_bytes(), "{form:?}");
+    }
+}
+
+#[test]
+fn a_non_store_error_passes_through_unchanged() {
+    use crate::render::{
+        diff::Side,
+        errors::{Class, Error, Guard, Kind, Place},
+        revision::Position,
+    };
+    use skein_lib::bytes::copy_of;
+
+    let error = Error {
+        kind: Kind::Guard(Guard { name: copy_of(b"ready"), message: copy_of(b"not ready") }),
+        class: Class::Configuration,
+        side: Some(Side::To),
+        at: Some(Place { path: copy_of(b"tasks/check.json"), position: Some(Position { line: 2, column: 3 }) }),
+        also: Some(Place { path: copy_of(b"tasks/other.json"), position: None }),
+        target: Some(copy_of(b"host")),
+        task: Some(copy_of(b"check")),
+    };
+    for form in [Form::Text, Form::JsonLines] {
+        let expected = crate::records::form::print(
+            form,
+            &crate::records::records::Record::Error(error.clone()),
+            None,
+            &crate::records::limits::SHIPPED,
+        )
+        .expect("the error fits");
+        let mut layer = Layer::with_form(form, limits::SHIPPED);
+        layer.bind_output();
+        layer.client(Request::Answer(Answer::Error(error.clone())));
+        let requests = layer.printed();
+        let [Down::Demand { .. }, Down::Send(bytes)] = requests.as_ref() else {
+            panic!("the error is printed");
+        };
+        assert_eq!(bytes.as_ref(), expected.as_ref(), "{form:?}");
+    }
+}
+
+#[test]
 fn the_terminal_record_follows_the_last_spec_then_the_stream_finishes() {
     let mut layer = Layer::with_form(Form::JsonLines, limits::SHIPPED);
     layer.bind_output();

@@ -41,11 +41,17 @@ pub const ALL: [Story; 7] = [
 fn require(holds: bool, why: &str) -> Result<(), Violation> {
     if holds { Ok(()) } else { Err(Violation { promise: Promise::Lost, why: why.into() }) }
 }
-fn change_row(store: &Store) -> Option<&forge::ChangeRow> {
+fn change_row(store: &Store) -> Option<forge::ChangeRow> {
     store.rows.values().find_map(|record| {
         let root::Record::Forge { row } = record else { return None };
-        let forge::Stored::Change(change) = row.as_ref() else { return None };
-        Some(change.as_ref())
+        let forge::Stored::ChangeHot(change) = row.as_ref() else { return None };
+        let root::Record::Forge { row: cold } =
+            store.rows.get(&root::Key::Forge(forge::Key::ChangeCold(change.task)))?
+        else {
+            return None;
+        };
+        let forge::Stored::ChangeCold(cold) = cold.as_ref() else { return None };
+        Some(forge::ChangeRow::join(*cold.clone(), *change.clone()))
     })
 }
 pub(super) fn wait(world: &mut World, done: impl Fn(&World) -> bool) -> Result<(), Violation> {

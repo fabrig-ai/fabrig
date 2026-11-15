@@ -28,7 +28,9 @@ use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod charter_versions;
 mod jobs;
+mod live_task_parts;
 mod milestones;
+mod projection_parts;
 mod registry;
 mod value_types;
 
@@ -1820,6 +1822,8 @@ fn fresh_record(task: u64, crossed: bool) -> jig_domain_core_vocabulary::Record 
 fn fresh_baseline() -> Vec<Item> {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
+    // A whole task fixture saves its hot and cold parts beside the header, proof and turn.
+    store.limits.commits.writes = 5;
     store.patch_sets(FRESH_BEFORE);
     assert_opened(&disk.open(&mut store), 0);
     for task in 1..=FRESH_TASKS {

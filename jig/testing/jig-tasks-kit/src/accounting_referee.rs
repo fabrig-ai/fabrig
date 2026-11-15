@@ -397,6 +397,7 @@ impl Accounting {
                             | Stored::ClosedLedger(_)
                             | Stored::DecidedProposal(_)
                             | Stored::Ended(_)
+                            | Stored::LiveCold { .. }
                             | Stored::Stub(_)
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
@@ -452,6 +453,7 @@ impl Accounting {
                             | Stored::ClosedLedger(_)
                             | Stored::DecidedProposal(_)
                             | Stored::Ended(_)
+                            | Stored::LiveCold { .. }
                             | Stored::Stub(_)
                             | Stored::Ledger(_)
                             | Stored::Activity(_)
@@ -527,6 +529,7 @@ impl Accounting {
                 | Stored::Update(_)
                 | Stored::Pool(_)
                 | Stored::DecidedProposal(_)
+                | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)

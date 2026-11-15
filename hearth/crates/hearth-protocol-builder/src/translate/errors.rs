@@ -28,28 +28,10 @@ pub fn fault(
             tokenizer::Error::Stream(_) => return None,
         },
         config::Fault::Stream(_) => return None,
-        config::Fault::Declaration(value) => target::Decode::Declaration(value),
         config::Fault::Duplicate { key, first } => {
             return Some((target::Decode::Duplicate { key }, Some(super::documents::position(first))));
         }
-        config::Fault::NotObject => target::Decode::NotObject,
-        config::Fault::NotInteger => target::Decode::NotInteger,
-        config::Fault::Range => target::Decode::Range,
-        config::Fault::Nul => target::Decode::Nul,
-        config::Fault::Keys => target::Decode::Keys,
-        config::Fault::Note => target::Decode::Note,
-        config::Fault::Shape(shape) => match shape {
-            config::Shape::ListNull => target::Decode::ListNull,
-            config::Shape::Name => target::Decode::Name,
-            config::Shape::Placement => target::Decode::Placement,
-            config::Shape::Members => target::Decode::Members,
-            config::Shape::Member => target::Decode::Member,
-            config::Shape::Settings { task } => target::Decode::Settings { task },
-            config::Shape::Unknown { field } => target::Decode::Unknown { field },
-            config::Shape::Wrong { field } => target::Decode::Wrong { field },
-            config::Shape::Missing { field } => target::Decode::Missing { field },
-            config::Shape::Misplaced { field } => target::Decode::Misplaced { field },
-        },
+        config::Fault::Decode(decode) => decode,
     };
     Some((fault, None))
 }
