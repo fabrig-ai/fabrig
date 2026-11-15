@@ -173,7 +173,8 @@ baseline recounted, a generated file made again), with no model.
   does not produce a fresh file free of conflict markers leaves the
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged. Any
-  other conflicted file is left to the resolution: the reference keeps
+  other conflicted file is left to the resolution, a file one side
+  deleted or renamed among them: the reference keeps
   no list of known reds in its tree, a goal's reds being temper's
   records (`../domain/forge/reds.md`), so a conflicted list a branch
   still carries from before is left as any other.
@@ -181,17 +182,92 @@ baseline recounted, a generated file made again), with no model.
   unmerged: temper commits and delivers the merge (`../domain/worker/jobs.md`
   ). A file left unmerged or still marked fails the delivery, and
   the job with it.
-- **`result.json`, exit 3:** `{"settled": [PATH], "left": [PATH]}`:
-  nothing is committed or pushed, and the change makes a resolution in
-  a merge in progress of the same base, its words carrying this result
+- **`result.json`, exit 3:** `{"settled": [PATH], "left": [LEFT]}`,
+  each LEFT a file left unmerged, recorded with what each side did to it
+  (*A left file's record*, below): nothing is committed or pushed, and
+  the change makes a resolution in a merge in progress of the same
+  base, its words carrying this result
   (`../domain/forge/change/repairs.md`); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, as `prepare`'s. The bound is the merge kind's
   result bound, 512 bytes in the small profile (`../domain/worker/jobs.md`
-  ): a command lists the paths that fit, in index order, and adds
-  `"more": N`, the count of those it left out.
+  ): a command writes the records that fit whole and names what it
+  omitted (*Bounded whole*, below).
 - **Deterministic by contract,** as `prepare`: the same head and base
-  give the same tree.
+  give the same tree and the same result.
+
+**A left file's record** (`../draft/merge-deletions.md`, 1) is a JSON
+object of these members, in this order, each present only where its
+kind has it. The head is the branch merged into, the index's stage 2,
+and the base the commit merged in, stage 3; stage 1 is their merge
+base's. A side's history is its commits the other lacks: `BASE ^HEAD`
+for the base's, `HEAD ^BASE` for the head's.
+
+| Member | Value |
+|---|---|
+| `path` | the file's path as the index names it, a JSON string with ASCII output (`\n`, `\"`, `\uXXXX` escaped) |
+| `kind` | `modified`, `added`, `deleted`, `renamed` or `unknown` |
+| `by` | `head`, `base` or `both`: the side that deleted or renamed the file |
+| `from` | the path that side renamed into this one |
+| `to` | the path that side renamed this one into |
+| `commit` | the first twelve hexadecimal digits of the commit, in that side's history, that deleted or renamed it |
+
+The kind is read from the stages and each side's history, never from a
+missing stage alone. For each side, from its history:
+
+- **Removed:** where the side lacks the path the merge base had (the base
+  lacks it with stages 1 and 2 alone, the head with 1 and 3), the
+  latest commit of its history that removed the path, read without
+  rename detection (`git log -1 --diff-filter=D --no-renames`), which
+  may be older than the side's tip. Its own diff against its first
+  parent, read with rename detection (`git diff-tree -M`), says
+  whether it deleted the path or renamed it into another (`to`).
+- **Renamed into:** where the side holds the path the merge base
+  lacked, the latest commit of its history that added it, read the same
+  way, whose own diff pairs it with an older path (`from`).
+
+Then the record's kind:
+
+| What the sides' histories show | `kind` | Its other members |
+|---|---|---|
+| one side removed it by a deletion; the other holds it, renamed into it by neither | `deleted` | `by`, `commit` |
+| one side removed it by a rename (`to`) or renamed another path into it (`from`); the other holds it and renamed nothing into it | `renamed` | `by`, `from` or `to`, `commit` |
+| both sides renamed it, into it or away, and neither deleted it or lacks it unexplained | `renamed` | `by` (`both`) |
+| all three stages, renamed into by neither side | `modified` | none |
+| stages 2 and 3 without 1, renamed into by neither side | `added` | none |
+| anything else: a side lacks it and its history shows no commit that removed it, a deletion and a rename meet in it, or another set of stages | `unknown` | none |
+
+So a file the base deleted, which the head appended to, is
+`{"path":".temper/known-reds.md","kind":"deleted","by":"base","commit":"0123456789ab"}`,
+the commit the base's history removed it in. The command reads all of
+this with git commands that write neither the index nor the tree
+(`ls-files`, `log`, `diff-tree`), so each file it leaves stays as the
+merge left it. It settles no file one side deleted or renamed: whether
+the change still needs it is the resolution's judgement
+(`../domain/forge/change/repairs.md`).
+
+**Bounded whole.** The result is at most the merge kind's result bound
+with its newline. The command puts `left`'s records first, in the
+index's path order, then `settled`'s paths in that order, each whole or
+not at all: within each list, the first that does not fit is omitted,
+and every one after it. Where any is omitted, the result ends with
+this member, N and M the counts omitted and `read` how a resolution
+reads them in its checkout, where HEAD is the head and MERGE_HEAD the
+base:
+
+```
+"more":{"left":N,"settled":M,"read":"git status --short; git log --name-status --diff-filter=DR HEAD...MERGE_HEAD"}
+```
+
+The result is compact JSON, no spaces between its tokens, and its members are
+`settled`, `left` and `more`, in that order, `left` absent when empty
+and `more` absent when nothing was omitted.
+
+**Carried, never parsed.** The worker and the engine carry the result
+as bytes within its bound (`../domain/worker/jobs.md`), into the
+resolution's words; no reader parses its members, so its form moves
+no version, and a project's command that writes paths alone in `left`
+still runs. The record is for the resolution's agent to read.
 
 temper writes the merge request exactly as
 `{"version":1,"head":"HEAD","base":"BASE"}`, without spaces, in that member
