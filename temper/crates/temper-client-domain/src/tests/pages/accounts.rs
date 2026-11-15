@@ -962,6 +962,24 @@ fn leaving_accounts_dismisses_the_added_line() {
     assert_eq!(root.pages().accounts().unwrap().added, None);
 }
 #[test]
+fn returning_to_kept_accounts_dismisses_the_keys_added_line() {
+    let (mut root, _) = added_key();
+    assert!(root.pages().accounts().unwrap().added.is_some());
+    let out = event(&mut root, Event::Returned { place: crate::Place::Address(Address::Accounts) });
+    assert_eq!(root.pages().accounts().unwrap().added, None);
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(moves(&out), 0);
+}
+#[test]
+fn returning_to_kept_accounts_dismisses_the_signed_in_accounts_added_line() {
+    let (mut root, _) = ended_model(false, true);
+    assert!(root.pages().accounts().unwrap().added.is_some());
+    let out = event(&mut root, Event::Returned { place: crate::Place::Address(Address::Accounts) });
+    assert_eq!(root.pages().accounts().unwrap().added, None);
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(moves(&out), 0);
+}
+#[test]
 fn a_fresh_accounts_page_has_no_added_line() {
     let (mut root, _, watch) = opened(c::HeldRole::Member);
     let pending = jig_client::Key { asker: pages::me_handle().asker, number: 991 };

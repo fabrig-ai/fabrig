@@ -52,6 +52,7 @@ fn collect(lines: &[Line], given: &[Box<[u8]>], include_typed: bool) -> Original
             | Line::TabClose
             | Line::TabRefused
             | Line::Place(_)
+            | Line::Returned(_)
             | Line::Heard(_)
             | Line::Carried { .. }
             | Line::Written(_)
@@ -97,6 +98,7 @@ pub fn typed(line: &Line) -> bool {
         | Line::TabClose
         | Line::TabRefused
         | Line::Place(_)
+        | Line::Returned(_)
         | Line::Heard(_)
         | Line::Carried { .. }
         | Line::Written(_)
