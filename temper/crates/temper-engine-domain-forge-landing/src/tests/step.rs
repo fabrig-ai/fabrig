@@ -1084,3 +1084,19 @@ fn a_late_merge_readback_gives_manual_detection_a_whole_poll() {
         Decision::Landed { member: 0, prefix: prefix(0) }
     );
 }
+
+#[test]
+fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
+    let mut f = stack_facts(3);
+    f.preparation = crate::Preparation::Absent;
+    let asked = decide(&stack(3), &f);
+    let reoffered = decide(&asked.landing, &f);
+    assert_eq!(reoffered.decision, asked.decision);
+    assert_eq!(reoffered.landing.preparation, asked.landing.preparation);
+    f.preparation = crate::Preparation::Running;
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    f.preparation = crate::Preparation::Idle;
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    found(&mut f);
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Open);
+}

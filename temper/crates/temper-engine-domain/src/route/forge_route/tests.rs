@@ -2480,9 +2480,8 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
     assert_eq!(ledger.numbers.reserved, ledger.numbers.budget);
 }
 
-#[test]
-fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
-    use super::{Work, forge, forge_change, tasks};
+fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
+    use super::{Work, forge, forge_change};
     let (mut domain, env) = procedure_root();
     reserve_period(&mut domain, &env);
     let mut row = change_row(Some(7));
@@ -2513,11 +2512,17 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
     let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
-    let task = row.landing.task;
     assert_eq!(row.landing.members[0].change, 7);
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
-    let row = domain.core.tasks.task(task).expect("zero-budget landing admitted");
+    (domain, env, row)
+}
+
+#[test]
+fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
+    use super::tasks;
+    let (domain, _, landing) = reserved_turn_landing();
+    let row = domain.core.tasks.task(landing.landing.task).expect("zero-budget landing admitted");
     assert_eq!(row.executor, tasks::Executor::Procedure { connector: 0, code: super::LANDING_CODE });
     assert_eq!(row.numbers.budget, 0);
     assert_eq!(row.spec.words.as_ref(), b"Land Change");
@@ -5171,4 +5176,49 @@ fn a_refused_change_delegate_holds_with_words_and_recovery() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("refusal words") };
     assert!(skein_lib::bytes::find(words, b"delegate admission was refused").is_some());
     assert!(skein_lib::bytes::find(words, b"task release").is_some());
+}
+
+#[test]
+fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
+    use super::{forge, landing_route};
+    use temper_engine_domain_forge_landing::Preparation;
+    let (mut domain, env, mut row) = reserved_turn_landing();
+    let task = row.landing.task;
+    let context = domain.core.tasks.run_context(task).expect("landing context");
+    row.landing.preparation = 1;
+    row.landing.members[0].asked = Some(1);
+    let mut second = row.landing.members[0].clone();
+    second.change = 8;
+    row.landing.members = Box::new([row.landing.members[0].clone(), second]);
+    let check = |domain: &mut super::Domain, row: &forge::LandingRow, expected| {
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Landing(row.clone()) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        assert_eq!(landing_route::preparation(domain, &context), expected);
+    };
+    check(&mut domain, &row, Preparation::Absent);
+    row.job = Some(forge::history::JobRecord {
+        step: forge::history::JobStep {
+            task: 100,
+            attempt: 1,
+            job: forge::history::Job::Prepare,
+            outcome: Some(forge::history::JobOutcome::Done),
+            head: None,
+        },
+        round: 1,
+        members: Box::new([0, 1]),
+        head: None,
+        written: true,
+    });
+    assert!(domain.core.tasks.task(100).is_none(), "ended jobs need no live delegate");
+    check(&mut domain, &row, Preparation::Idle);
+    row.landing.members[0].candidate = Some(SHA1);
+    check(&mut domain, &row, Preparation::Absent);
+    row.job.as_mut().expect("admitted job").members = Box::new([1]);
+    check(&mut domain, &row, Preparation::Idle);
+    row.landing.preparation = 2;
+    check(&mut domain, &row, Preparation::Absent);
 }

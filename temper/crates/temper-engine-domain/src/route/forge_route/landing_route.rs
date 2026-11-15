@@ -578,7 +578,7 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
     words.into_boxed()
 }
 
-fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
+pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
     let members = match domain.forge.landing(context.task) {
         Some(row) => u32::try_from(row.landing.members.len()).expect("bounded members"),
         None => 0,
@@ -617,7 +617,28 @@ fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Prepara
             }
         }
     }
-    landing::Preparation::Idle
+    if admitted_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
+}
+
+// A policy intent precedes jig's admission; the durable job record names the admitted suffix
+// (temper/docs/design/domain/landing.md, 5.2; temper/docs/design/domain/landing-history.md, 3.3).
+fn admitted_prepare(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.landing(task) else { return false };
+    let Some(job) = &row.job else { return false };
+    if job.round != row.landing.preparation || job.step.job != forge::history::Job::Prepare {
+        return false;
+    }
+    let mut admitted = job.members.iter();
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.left.is_none()
+            && member.landed.is_none()
+            && member.candidate.is_none()
+            && admitted.next().copied() != Some(u16::try_from(index).expect("bounded members"))
+        {
+            return false;
+        }
+    }
+    admitted.next().is_none()
 }
 fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
     let row = domain.forge.landing(task)?;

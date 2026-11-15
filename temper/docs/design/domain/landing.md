@@ -439,9 +439,15 @@ The default, for a project with no prepare command:
   reads its members' branches: each prefix found there in order, each
   on the one below, for the round's base and that member's head, is
   taken, and a job is made only for the members above the last taken.
-  Each unprepared suffix is delegated once: while its job has no
-  readable outcome, the landing waits for that job's retries, including
-  after restart. A failed prefix read is no evidence of an absent push.
+  Each admitted unprepared suffix is delegated once: while its job has
+  no readable outcome, the landing waits for that job's retries, including
+  after restart. A prepare decision records intent before jig admits its
+  delegation. With no admitted job for that suffix, the landing offers
+  prepare again; a concurrent wait for the same procedure step cannot
+  strand that intent. The retained job record (landing-history.md,
+  3.3) identifies an admitted job by its round and ordered suffix members,
+  even after its child leaves the live delegate list. A failed prefix
+  read is no evidence of an absent push.
   A repeated job compares each rebuilt prefix's whole tree with the
   existing branch, including Markdown paths, and checks that the existing
   tip contains the prefix below and, for a merge, the member's head.

@@ -486,7 +486,7 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
             crate::Preparation::Idle if member.asked == Some(landing.preparation) && !found => {
                 return wait(landing, None);
             }
-            crate::Preparation::Idle | crate::Preparation::Failed => {}
+            crate::Preparation::Absent | crate::Preparation::Idle | crate::Preparation::Failed => {}
         }
         for member in &mut landing.members {
             if active(member) && member.candidate.is_none() {

@@ -83,7 +83,32 @@ impl Walk {
                 }
             })
             .collect();
-        format!("merge stage {}, tasks {tasks:?}", self.stage)
+        let landings: Vec<_> = self
+            .store
+            .borrow()
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let temper_engine_domain::Record::Forge { row } = row
+                    && let temper_engine_domain_forge::Stored::Landing(row) = row.as_ref()
+                {
+                    Some((
+                        row.landing.task,
+                        &row.landing.phase,
+                        row.landing.preparation,
+                        row.landing
+                            .members
+                            .iter()
+                            .map(|member| (member.change, member.asked, member.candidate.is_some(), member.left))
+                            .collect::<Vec<_>>(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .map(|row| format!("{row:?}"))
+            .collect();
+        format!("merge stage {}, tasks {tasks:?}, landings {landings:?}", self.stage)
     }
     pub fn wake(&self) -> Option<Time> {
         self.wake
