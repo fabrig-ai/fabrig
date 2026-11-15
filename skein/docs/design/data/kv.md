@@ -277,7 +277,7 @@ removes them with its own.
 
 For records that are appended, never changed, read rarely and large in
 sum, kept on disk and not in the map: jig's task logs, a task's history
-and its turns (jig's `protocol/store/README.md`). Each log's committed
+and its turns (jig's `protocol/store/logs.md`). Each log's committed
 length, its extent, is a row of the map, so the store's commit is the
 point of truth for what a log holds (temper's `draft/store-shape.md`,
 section 2).
@@ -510,7 +510,7 @@ failed syncs.
   values and keys, the root's commit as one `Commit`, loads by key range
   at restart; secrets in a second store, in a root of their own,
   `0o600`.
-- **Task logs** as payload logs (jig's `protocol/store/README.md`): a
+- **Task logs** as payload logs (jig's `protocol/store/logs.md`): a
   task's history and its turns, each a log, appended and synced, then
   committed with the decision that made them; the worker's
   acknowledgement of a turn after that commit.

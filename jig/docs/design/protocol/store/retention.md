@@ -161,7 +161,8 @@ fields and nothing more.
 - **Deferred** while live work names the task (the tasks child keeps its
   stub, `Key::Stub`): the row is erased and put again with `since` now.
 - **Otherwise,** in one decision: `Write::DropTranscript { task }`
-  (`transcripts.md`, 5), the row erased, and `Record` put with the same
+  (`transcripts.md`, 5), which drops its turns log and any transcript
+  file (`logs.md`, 5), the row erased, and `Record` put with the same
   `since`. Several tasks' rows may go in one decision, within its bound.
   It reads no record: dropping a missing transcript is harmless.
 
@@ -190,12 +191,16 @@ fields and nothing more.
   keys by task joins both. The families keyed by something other than
   the task (decided person proposals, their decisions, parties'
   updates) are not scanned: a task's rows in them are erased by key.
+  Rows its history log holds (`logs.md`, 2) are read where a line names
+  an update, and erased none of them: the log goes whole with the
+  record (below).
 - **Then, in one decision:** its transcript dropped (again, harmlessly,
   if the turns stage ran), its result's index row and its result's
   update, its live and ended read positions with the people child's
   caches of them (`people::Event::Forget`), and its row in the index of
   delegates (`Key::Delegate`) for a task requester.
-- **Last, in one decision:** its ended record, `Unname` to every
+- **Last, in one decision:** its ended record, its history log dropped
+  (`Write::DropHistory`, `logs.md`, 9), `Unname` to every
   connector (9), its row erased and `Summary` put with the same `since`.
   Its summary and its rows in the ended indexes stay.
 - **A task forgotten once read** that reaches this stage read (one its
@@ -224,7 +229,8 @@ pass:
 - **Its own rows,** as the record stage's, a page a decision, each
   reply's and notice's update with its line; then its transcript dropped,
   its result's index row and its row in the index of delegates; last,
-  its summary and the row. Its connectors heard `Unname` at its forget.
+  its history log dropped (`Write::DropHistory`, `logs.md`, 9), its
+  summary and the row. Its connectors heard `Unname` at its forget.
 
 ### 6.5 Proposal
 
