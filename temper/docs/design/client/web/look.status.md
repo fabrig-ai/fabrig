@@ -1,8 +1,9 @@
 # look: status
 
-2026-11-12. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-15. Where the tree's code lags or departs from [look.md](look.md).
 
 
+- **Not yet:** the whole document, *The project's frame*: the link's state as one word, 12.5 px, at the right of the rail's first row, out of the foot's flow [in flight: change 3618].
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
