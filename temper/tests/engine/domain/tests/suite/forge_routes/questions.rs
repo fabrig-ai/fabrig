@@ -1024,19 +1024,13 @@ fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
     saved.questions.open[0].stands = Stands::Held { answer: ANSWER.into() };
     let mut task = Box::new(live_task(&world, change).clone());
     task.questions = Box::new([]);
-    let mut header = world.store.header();
-    header.commits += 1;
-    world.store.pending.push_back((
-        header.commits,
+    world.store.seed(
         Box::new([
-            engine::Write::Save(Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(saved))) }),
-            engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))),
-            engine::Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
-                header,
-            )))),
+            Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(saved))) },
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))),
         ]),
-    ));
-    world.store.apply();
+        Box::new([]),
+    );
     world.restart(true, true);
     wait_answer(&mut world, producer.task, change);
     let resumed = resumed_producer(&mut world, change, &producer, question);
