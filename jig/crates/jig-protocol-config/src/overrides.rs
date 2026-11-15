@@ -51,6 +51,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         b"hub" => set_hub(hub, field, value),
         b"documents" => set_documents(&mut core.documents, field, value),
         b"core" => set_core(core, field, value),
+        b"retention" => set_core(core, name, value),
         b"link" => set_link(link, field, value),
         b"clients" => {
             if let Some(field) = field.strip_prefix(b"public.") {
@@ -571,6 +572,7 @@ fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value:
         return Ok(());
     }
     let jig_domain_core_vocabulary::Limits {
+        retention,
         routes: _,
         public: _,
         settings,
@@ -632,6 +634,9 @@ fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value:
         }
         b"settings.alternatives" => settings.alternatives = count(value)?,
         b"settings.permissions" => settings.permissions = count(value)?,
+        b"retention.turns_ms" => retention.turns = millis(value)?,
+        b"retention.records_ms" => retention.records = millis(value)?,
+        b"retention.summaries_ms" => retention.summaries = millis(value)?,
         b"templates" => *templates = count(value)?,
         b"fill_mark" => *fill_mark = value,
         b"connectors" => *connectors = count(value)?,
@@ -893,6 +898,15 @@ struct Fits {
 fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
     if (name == b"accounts.sign_ins" || name == b"accounts.sign_in_deadline_ms") && !driver_fits(&limits.driver) {
         return false;
+    }
+    if name.starts_with(b"retention.") {
+        let r = limits.core.retention;
+        return match name {
+            b"retention.turns_ms" => r.turns > Duration::ZERO && r.turns <= r.records,
+            b"retention.records_ms" => r.records > Duration::ZERO && r.turns <= r.records && r.records <= r.summaries,
+            b"retention.summaries_ms" => r.summaries > Duration::ZERO && r.records <= r.summaries,
+            _ => false,
+        };
     }
     let Some(dot) = bytes::find(name, b".") else {
         return false;

@@ -138,7 +138,16 @@ impl World {
                 let key = root::Key::Core(key);
                 refreshed_move(records.get(&key), recovered.get(&key))
             });
-            if !(refreshed_move || exception.is_some() && (header || wires || expired))
+            // Dropped transcripts leave attempt places for bounded later commits (transcripts.md, 5).
+            let orphan = match keys::decode_own(key) {
+                Some(keys::Own::Attempt { task, .. }) => {
+                    let owner =
+                        keys::encode_own(&keys::Own::Transcript { task }, u32::MAX).expect("fixed transcript key");
+                    !inventory.contains_key(&owner) && !restored.contains_key(key)
+                }
+                _ => false,
+            };
+            if !(orphan || refreshed_move || exception.is_some() && (header || wires || expired))
                 && inventory.get(key) != restored.get(key)
             {
                 return Err(format!(

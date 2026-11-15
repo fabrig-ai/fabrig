@@ -149,6 +149,11 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
         if !match &range.scope {
             transport::Scope::Tasks { query } => transport::ended::position(query, &record.key()),
             transport::Scope::EndedTasks
+            | transport::Scope::TaskSummaries
+            | transport::Scope::Retention { .. }
+            | transport::Scope::ErasureKeys { .. }
+            | transport::Scope::ProposalRemains { .. }
+            | transport::Scope::TaskOwnRows { .. }
             | transport::Scope::TaskRows { .. }
             | transport::Scope::SettingsHistory { .. }
             | transport::Scope::TaskText { .. }
@@ -191,6 +196,7 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
         let value = transport::Row {
             value: record.clone(),
             owner: Some(owner.clone()),
+            summary: None,
             ancestors: Box::new([]),
             related: None,
             unjoined: None,

@@ -190,17 +190,17 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let mut map = disk.map(2);
     let cold_key =
         store::keys::encode(&jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::LiveCold(0)), 64).unwrap();
-    for (family, number, id, key, kept) in [
-        ("temper-store", 48, 25, tagged_hot, false),
-        ("jig-store-tasks", 0, 14, task_key, false),
-        ("jig-store-tasks", 21, 13, cold_key, false),
+    for (family, number, id, key, binary) in [
+        ("temper-store", 48, 25, Some(tagged_hot), true),
+        ("jig-store-tasks", 0, 14, Some(task_key), true),
+        ("jig-store-tasks", 21, 13, Some(cold_key), true),
     ] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let family = SETS.sets.iter().flat_map(|s| s.families).find(|f| f.name == family).unwrap();
-        let schema_text = if kept { family.texts.last().copied().unwrap() } else { family.current };
-        let schema = skein_codec::schema::parse(schema_text.as_bytes()).unwrap();
+        let expected_text = if binary { family.current } else { family.texts.last().unwrap() };
+        let schema = skein_codec::schema::parse(expected_text.as_bytes()).unwrap();
         let ty = family.types.iter().find(|t| t.number == number).unwrap();
         let expected = schema
             .layout(schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap(), &[])
@@ -210,7 +210,9 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         let text_key = store::keys::encode_own(&store::keys::Own::Text(*layout.text()), 1024).unwrap();
         let text = kv_get(&mut disk, &mut map, text_key).unwrap();
         let text = store::registry_v1::Text::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&text)).unwrap();
-        assert_eq!(text.text(), schema_text.as_bytes());
-        assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
+        assert_eq!(text.text(), expected_text.as_bytes());
+        if let Some(key) = key {
+            assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
+        }
     }
 }

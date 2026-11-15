@@ -362,7 +362,8 @@ impl Protocol {
                 let end = self.ends.get(&outcome).expect("the world wrote this outcome").clone();
                 Ok(vec![engine::Event::Worker(engine::WorkerInput::ResultRead { payload, end })])
             }
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+            // Internal core walks use the real store, not the party-read script.
+            engine::Request::Store(engine::StoreRequest::Read { load, range }) if range.party != 0 => {
                 self.reads.push(*range);
                 Ok(vec![engine::Event::Store(engine::StoreInput::ReadLoaded {
                     load,

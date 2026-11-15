@@ -11,6 +11,8 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
         core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) => Some(task),
         core::Record::Tasks(
             tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
             | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
@@ -59,6 +61,37 @@ pub(super) fn owner(
     Ok(None)
 }
 
+/// Ended indexes alone fall back to a summary, within the owner's one join
+/// (protocol/store/retention.md, 7; protocol/store/loads.md, 3).
+pub(super) fn ended_row(
+    store: &mut Store,
+    value: core::Record,
+    number: u64,
+    spent: &mut Spent,
+) -> Result<Option<reads::Row>, Failure> {
+    let Some(value_summary) = point::record(store, &core::Key::Tasks(tasks::Key::Summary(number)))? else {
+        spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+        return Ok(None);
+    };
+    let core::Record::Tasks(tasks::Stored::Summary(summary)) = value_summary else {
+        return Err(Failure::Corrupt);
+    };
+    let row = reads::Row {
+        value,
+        owner: None,
+        summary: Some(summary),
+        ancestors: Box::new([]),
+        related: None,
+        unjoined: None,
+        ended_read: None,
+        linked: Box::new([]),
+        inbox: None,
+    };
+    spent.bytes = spent.bytes.checked_sub(row.owned_bytes().ok_or(Failure::Corrupt)?).ok_or(Failure::Cut)?;
+    spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+    Ok(Some(row))
+}
+
 pub(super) fn activity_row(
     value: core::Record,
     owner: &tasks::TaskRecord,
@@ -67,6 +100,7 @@ pub(super) fn activity_row(
     let row = reads::Row {
         value,
         owner: Some(Box::new(owner.clone())),
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,
@@ -133,6 +167,7 @@ fn projected(
     let row = reads::Row {
         value,
         owner,
+        summary: None,
         ancestors: joined.ancestors,
         related,
         unjoined: None,

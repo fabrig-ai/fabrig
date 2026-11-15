@@ -18,6 +18,8 @@ pub(crate) fn row_owner(row: &Row) -> Option<&tasks::TaskRecord> {
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
             | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
@@ -45,6 +47,11 @@ pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: 
     }
     if let Some(owner) = row_owner(row)
         && !core.open_project(owner.project)
+    {
+        return false;
+    }
+    if let Some(summary) = &row.summary
+        && !core.open_project(summary.project)
     {
         return false;
     }
@@ -102,6 +109,12 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             | notes::Scope::Goal { project, .. }
             | notes::Scope::Resources { project, .. } => core.people.role(party, *project).is_some(),
         },
+        Record::Tasks(
+            tasks::Stored::EndedByParty(_) | tasks::Stored::EndedByProject(_) | tasks::Stored::EndedDelegate(_),
+        ) if row_owner(row).is_none() => match &row.summary {
+            Some(summary) => core.people.role(party, summary.project).is_some(),
+            None => false,
+        },
         Record::Core(_)
         | Record::Tasks(
             tasks::Stored::Live(_)
@@ -112,6 +125,8 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
             | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Writer(_)

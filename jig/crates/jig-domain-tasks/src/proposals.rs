@@ -349,6 +349,10 @@ pub(crate) struct ProposalDeciding {
 }
 
 /// Finish one exact policy decision after root has made the accepted batch.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the terminal decision saves the proposal, update and retention row together"
+)]
 pub(crate) fn decide_person(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -446,6 +450,13 @@ pub(crate) fn decide_person(
             at: env.wall,
             task: proposal.first(),
             object: crate::UpdateObject::Proposal { proposal: crate::Newest::of(proposal.number) },
+        }),
+    });
+    out.push(Request::Save {
+        record: Stored::Retention(crate::RetentionRow {
+            stage: crate::RetentionStage::Proposal,
+            since: env.wall,
+            number,
         }),
     });
     out.push(Request::Save { record: Stored::DecidedProposal(Box::new(proposal)) });

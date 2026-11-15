@@ -157,6 +157,31 @@ fn an_application_key_must_have_its_owners_tag() {
 }
 
 #[test]
+fn retention_keys_sort_by_stage_then_wall_time_then_number() {
+    use jig_domain_tasks::{Key as TaskKey, RetentionStage as Stage};
+    use skein_lib::Wall;
+    let mut previous = Key::Tasks(TaskKey::Summary(u64::MAX));
+    for (stage, since, number) in [
+        (Stage::Turns, 5, 9),
+        (Stage::Turns, 6, 1),
+        (Stage::Turns, 6, 2),
+        (Stage::Record, 0, 0),
+        (Stage::Summary, 0, 0),
+        (Stage::Forgotten, 0, 0),
+        (Stage::Proposal, 0, 0),
+    ] {
+        let key = Key::Tasks(TaskKey::Retention { stage, since: Wall::from_nanos(since), number });
+        assert!(previous < key);
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
+        assert!(keys::encode(&previous, fixtures::KEY_LIMIT).unwrap() < bytes);
+        assert_eq!(keys::decode(&bytes), Some(key.clone()));
+        previous = key;
+    }
+    assert_eq!(crate::census::name(&[1, 1, 30], crate::Keyspaces::NONE), "tasks.summaries");
+    assert_eq!(crate::census::name(&[1, 1, 31], crate::Keyspaces::NONE), "tasks.retention");
+}
+
+#[test]
 fn tasks_keys_sort_as_bytes_as_they_derive() {
     let mut rng = Rng::new(0x5701_e014);
     for _ in samples() {

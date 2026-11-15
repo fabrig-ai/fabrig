@@ -10,6 +10,7 @@ mod placed;
 pub mod proposals;
 pub mod record;
 pub mod state;
+mod summary;
 pub mod value;
 use crate::tasks_v13 as wire;
 use alloc::boxed::Box;
@@ -18,6 +19,9 @@ use skein_lib::{Reader, Writer};
 
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    task_summary_title: 0,
+    task_summary_reason: 0,
+    summary_result_words: 0,
     end_failed_with_reason_reason: 0,
     end_refused_with_reason_reason: 0,
     failed_retry_reason_some: 0,
@@ -145,6 +149,9 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        task_summary_title: domain::SUMMARY_TEXT,
+        task_summary_reason: domain::SUMMARY_TEXT,
+        summary_result_words: domain::SUMMARY_TEXT,
         end_failed_with_reason_reason: domain::REASON_BYTES,
         end_refused_with_reason_reason: domain::REASON_BYTES,
         failed_retry_reason_some: domain::REASON_BYTES,
@@ -337,6 +344,8 @@ pub fn encode(
         }
         domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
+        domain::Stored::Summary(row) => wire::Value::Summary(Box::new(summary::encode(row, limits)?)),
+        domain::Stored::Retention(row) => wire::Value::Retention(summary::retention(*row, limits)?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value, models })?;
     let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
@@ -352,6 +361,8 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {
+        wire::Value::Summary(row) => domain::Stored::Summary(Box::new(summary::decode(*row)?)),
+        wire::Value::Retention(row) => domain::Stored::Retention(summary::read_retention(row)),
         wire::Value::LiveHot(_) | wire::Value::LiveCold(_) => {
             return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
         }
@@ -415,7 +426,9 @@ pub fn decode_cold(
     let wire::RowParts { value: part, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
-        wire::Value::Ledger(_)
+        wire::Value::Summary(_)
+        | wire::Value::Retention(_)
+        | wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -464,7 +477,9 @@ pub fn decode_live(
         wire::Row::decode(limits, &mut Reader::new(hot))?.into_parts();
     let hot = match part {
         wire::Value::LiveHot(hot) => hot,
-        wire::Value::Ledger(_)
+        wire::Value::Summary(_)
+        | wire::Value::Retention(_)
+        | wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -495,7 +510,9 @@ pub fn decode_live(
         wire::Row::decode(limits, &mut Reader::new(cold))?.into_parts();
     let cold = match part {
         wire::Value::LiveCold(cold) => cold,
-        wire::Value::Ledger(_)
+        wire::Value::Summary(_)
+        | wire::Value::Retention(_)
+        | wire::Value::Ledger(_)
         | wire::Value::ClosedLedger(_)
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
@@ -528,7 +545,9 @@ pub fn decode_live(
     row.remap_models(&models::moves(&hot_names, names));
     match &mut row {
         domain::Stored::Live(row) => row.authority.models = models,
-        domain::Stored::Attempt(_)
+        domain::Stored::Summary(_)
+        | domain::Stored::Retention(_)
+        | domain::Stored::Attempt(_)
         | domain::Stored::Hold(_)
         | domain::Stored::PlacedHold(_)
         | domain::Stored::Update(_)

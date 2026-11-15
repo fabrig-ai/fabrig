@@ -749,6 +749,11 @@ fn selected(scope: &Scope) -> (u32, u32, u32, bool) {
     match scope {
         Scope::SettingsHistory { first, last, newest, whole } => (*first, *last, *newest, *whole),
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::Tasks { .. }
         | Scope::TaskText { .. }

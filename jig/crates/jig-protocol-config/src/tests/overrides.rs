@@ -16,6 +16,39 @@ fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
 }
 
 #[test]
+fn retention_horizons_default_in_every_profile() {
+    for selected in [Profile::Small, Profile::Standard] {
+        let r = profile(selected).core.retention;
+        assert_eq!(r.turns, skein_lib::Duration::from_secs(14 * 86_400));
+        assert_eq!(r.records, skein_lib::Duration::from_secs(30 * 86_400));
+        assert_eq!(r.summaries, skein_lib::Duration::from_secs(365 * 86_400));
+    }
+}
+
+#[test]
+fn retention_horizons_override_by_name() {
+    let limits = parse(br#"{"profile":"small","overrides":{"retention.turns_ms":10,"retention.records_ms":20,"retention.summaries_ms":30}}"#).unwrap();
+    let r = limits.core.retention;
+    assert_eq!(r.turns.as_millis(), 10);
+    assert_eq!(r.records.as_millis(), 20);
+    assert_eq!(r.summaries.as_millis(), 30);
+    assert!(jig_domain_core_vocabulary::valid(&limits.core));
+}
+
+#[test]
+fn retention_horizons_refuse_zero_and_disorder_naming_the_limit() {
+    for (name, json) in [
+        (b"retention.turns_ms".as_slice(), br#"{"profile":"small","overrides":{"retention.turns_ms":0}}"#.as_slice()),
+        (b"retention.records_ms", br#"{"profile":"small","overrides":{"retention.records_ms":0}}"#),
+        (b"retention.summaries_ms", br#"{"profile":"small","overrides":{"retention.summaries_ms":0}}"#),
+        (b"retention.turns_ms", br#"{"profile":"small","overrides":{"retention.turns_ms":2678400000}}"#),
+        (b"retention.records_ms", br#"{"profile":"small","overrides":{"retention.records_ms":31622400000}}"#),
+    ] {
+        problem(json, &[b"limits", b"overrides", name], What::Override);
+    }
+}
+
+#[test]
 fn an_override_replaces_one_limit_of_the_profile() {
     for (name, value, json) in [
         ("tasks.inbox_messages", 9, br#"{"profile":"small","overrides":{"tasks.inbox_messages":9}}"#.as_slice()),
