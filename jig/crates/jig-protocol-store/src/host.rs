@@ -612,7 +612,8 @@ impl Drivers {
     }
 }
 fn handles(limits: &crate::Limits) -> u32 {
-    limits.files.checked_add(4).expect("store file handles fit")
+    // A rehearsal's patch also holds the source deployment and transcript roots.
+    limits.files.checked_add(4).expect("store file handles fit").max(crate::generations::COPY_HANDLES)
 }
 /// Largest positioned read admitted by the store.
 #[must_use]

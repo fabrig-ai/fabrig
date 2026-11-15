@@ -164,7 +164,7 @@ fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
 
 #[test]
 fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
-    let mut trace = previous();
+    let mut trace = super::logs::source(SEED);
     trace.patch_sets(MID);
     trace.open_switched().expect("first upgrade");
     trace.crash(SEED);
@@ -179,13 +179,13 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
         .expect("copy mkdir follows drop")
         .0;
 
-    let mut world = previous();
+    let mut world = super::logs::source(SEED);
     world.patch_sets(MID);
     world.open_switched().expect("first upgrade");
     let before = files(&mut world, 2);
     let counts = link_counts(&mut world, &before);
     let shared: Vec<_> = counts.iter().filter(|(_, links)| **links == 2).map(|(path, _)| path.clone()).collect();
-    assert!(!shared.is_empty(), "first upgrade shares sealed files");
+    assert!(shared.iter().any(|path| path.starts_with(b"generations/2/store/logs/")), "task logs shared");
     world.crash(SEED);
     world.patch_sets(SETS);
     world.trace_writes();

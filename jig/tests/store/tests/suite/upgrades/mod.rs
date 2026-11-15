@@ -5,6 +5,7 @@ pub(crate) mod frames;
 mod fresh_windows;
 mod generations;
 mod links;
+pub(crate) mod logs;
 pub(crate) mod patching;
 mod rehearsal;
 mod upgrade_edges;

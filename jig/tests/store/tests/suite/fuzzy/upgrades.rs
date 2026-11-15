@@ -3,11 +3,14 @@ use jig_store_world::patches;
 
 #[test]
 fn drop_copy_and_switch_recover_after_every_mutation() {
-    let mut trace = patching::second_generation();
-    trace.trace_writes();
-    let expected_last = trace.open_switched().expect("traced second upgrade");
-    for &(operation, change) in trace.changes() {
-        patching::a_drop_copy_or_switch_cut_recovers(operation, change, expected_last);
+    for link_error in [None, Some(skein_io::kernel::Error::Other(18))] {
+        let mut trace = patching::second_generation();
+        trace.refuse_links(link_error);
+        trace.trace_writes();
+        let expected_last = trace.open_switched().expect("traced second upgrade with task logs");
+        for &(operation, change) in trace.changes() {
+            patching::a_drop_copy_or_switch_cut_recovers(operation, change, expected_last, link_error);
+        }
     }
 }
 

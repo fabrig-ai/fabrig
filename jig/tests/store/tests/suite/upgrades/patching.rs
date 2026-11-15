@@ -58,7 +58,7 @@ fn pending(records: &Records) -> World {
 }
 
 pub(crate) fn second_generation() -> World {
-    let mut world = Records::story().committed(SEED, BASE);
+    let mut world = super::logs::source(SEED);
     world.patch_sets(MID);
     world.open_switched().expect("intermediate upgrade opens");
     world.crash(SEED);
@@ -263,14 +263,20 @@ pub(crate) fn a_drop_copy_or_switch_cut_recovers(
     operation: u32,
     change: jig_store_world::world::Change,
     expected_last: u64,
+    link_error: Option<skein_io::kernel::Error>,
 ) {
     let mut world = second_generation();
+    world.refuse_links(link_error);
     let source: std::collections::BTreeMap<_, _> =
         world.contents().into_iter().filter(|(path, _)| path.starts_with(b"generations/2/")).collect();
     world.trace_writes();
     world.cut_at(operation);
     let _ = world.open_switched();
     assert_eq!(world.operation_count(), operation, "drop/copy/switch cut reached");
+    // Before the switch's rename is even attempted, only the drop's rename was seen.
+    if world.changes().iter().filter(|(_, change)| *change == jig_store_world::world::Change::Rename).count() < 2 {
+        assert_eq!(world.active(), b"2\n", "copy cuts keep A active");
+    }
     world.crash(SEED);
     assert_eq!(world.open_switched(), Some(expected_last), "cut {operation} {change:?}: {:?}", world.refusal());
     assert_eq!(world.active(), b"3\n", "cut {operation} {change:?}");
@@ -278,6 +284,12 @@ pub(crate) fn a_drop_copy_or_switch_cut_recovers(
     let after = world.contents();
     for (path, bytes) in &source {
         assert_eq!(after.get(path), Some(bytes), "source changed at {operation}: {path:?}");
+        if let Some(suffix) = path.strip_prefix(b"generations/2/store/logs/")
+            && bytes.is_some()
+        {
+            let to = [b"generations/3/store/logs/", suffix].concat();
+            assert_eq!(after.get(&to), Some(bytes), "retried copy's log bytes");
+        }
     }
     assert!(!after.keys().any(|path| path.starts_with(b"generations/1/") || path.starts_with(b"generations/dropped")));
 }
@@ -316,7 +328,7 @@ fn drop_copy_and_switch_recover_at_each_step_s_first_mutation() {
         ("switch sync", sync, Change::Sync),
     ] {
         eprintln!("{why}: {operation}");
-        a_drop_copy_or_switch_cut_recovers(operation, change, expected_last);
+        a_drop_copy_or_switch_cut_recovers(operation, change, expected_last, None);
     }
 }
 
