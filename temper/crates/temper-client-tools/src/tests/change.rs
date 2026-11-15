@@ -998,7 +998,7 @@ fn change_show_prints_its_questions() {
 fn change_show_names_asked_and_held_questions() {
     for (stands, text, json) in [
         (w::Stands::Asked, b"asked of requester".as_slice(), br#""stands":"asked""#.as_slice()),
-        (w::Stands::Held, b"answered, held for dependencies", br#""stands":"held""#),
+        (w::Stands::Held, b"answered, held \xc2\xb7 Which branch?\n", br#""stands":"held""#),
     ] {
         let mut parts = question_parts();
         let mut questions = parts.questions.into_parts();

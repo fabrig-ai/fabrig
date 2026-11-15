@@ -31,6 +31,9 @@ what waits, `after-landing.md`, section 14.
   judges no landing: a change into a goal's branch is cleared as it
   lands. A red there is rerun once alone, and what still fails is news
   to the goal holding the branch (section 7), never a verdict.
+- **A person holds a tier** (section 3) with a reason: it starts no run
+  until released, its landings still verifying, and the release runs
+  the newest tip.
 - **A run reports** pass or fail, and its failing tests by id, read from
   its artifact (section 4). A run that names no tests when it fails, or
   never ends, is a fault, never a red.
@@ -199,6 +202,32 @@ branch text matches (2026-11-04).
   dropped run's branch stays on the forge (section 14). A run ended
   done has left the record already: the step giving its verdict takes
   it.
+- **A person's hold** (`../client/ctl/tools.md`, section 3, `tier hold`
+  and `tier release`): a project's owner, or the deployment's, holds a
+  repository's tier with a reason, and releases it. While held, the
+  tier starts no run: no baseline, no run at a move of its branch and,
+  for a tier following goal branches, none on any goal's branch. Each
+  move still adds its landings to the tier's range, verifying, and the
+  project's `verification_bound` counts as ever: past it they end
+  landed and uncleared, and a later verdict still counts (section 6).
+  A run in flight when the hold comes is let finish and judged, its
+  verdict posted (section 9); one held on its faults stays held, and a
+  release of its task dispatches it again (*Faults*, above); cancelled,
+  it is dropped (above), and no run starts in its place. The release
+  starts the next run as a move would: at once when due, at the
+  branch's newest tip, its range every landing since the last judged
+  tip, those made while held among them; for goal branches, the branch
+  due longest first. The hold is kept on the tier's record (section
+  10): a restart restores the tier held, and the hold outlasts the
+  tier's removal from the settings, as the record does (section 11).
+  It says who and why, in the tier's words, `held by party N: REASON`,
+  N the holding party's number: a verifying change's line for the tier
+  (`../client/forge/README.md`, 2.1) reads `NAME held by party N:
+  REASON` while no run of the tier covers its landing. A hold posts no
+  status (section 9): no run of the tier's is there to link, and no
+  task to post it. A hold of a held tier is refused, naming its holder,
+  and a release of a tier not held is refused (the person, 2026-11-14,
+  `../draft/tier-controls.md`).
 - **A restored record whose run's task is gone** restores as a tier
   with no run in flight, never a stopped start: as the start links the
   forge's rows to jig's tasks (`forge/README.md`, 9), a tier's record
@@ -246,13 +275,44 @@ red by earlier failures it does not run (5.3).
    range: they stay with the landing that first failed them.
 3. **New failures, one landing in the range:** they are that landing's.
 4. **New failures, several landings:** bisected over the landings'
-   commits in the range, oldest first, each probe the failing tests
-   alone at a landing's commit (each was proved there, so the gates
-   hold); the first landing whose commit fails a test owns it. A
-   landing whose commit changes nothing the tier reads (its key equals
-   the one before it) is skipped. The project's setting may say "tell
-   all" instead: every landing in the range is a suspect, and each
-   suspect's goal is told.
+   commits in the range, each probe the failing tests alone at a
+   landing's commit (each was proved there, so the gates hold); the
+   first landing whose commit fails a test owns it. The project's
+   setting may say "tell all" instead: every landing in the range is a
+   suspect, and each suspect's goal is told.
+   - **The candidates** are the range's landings whose key differs
+     from the one before it, the first's from the last judged run's: a
+     landing whose commit changes nothing the tier reads (its key
+     equals the one before it) is skipped, never probed and never
+     blamed. The last candidate's key is the tip's, so it fails every
+     new failure.
+   - **A group** is some new failures with the landings between two of
+     the range's, `low` and `high`, inclusive, between which their
+     owner lies. The first holds every new failure, from the range's
+     first landing to its last.
+   - **A probe halves a group:** while a group holds more than one
+     candidate, its failures alone are run at its middle candidate's
+     commit, of its c candidates the one at position ⌊(c − 1) / 2⌋,
+     oldest first from 0. Those that fail there make a group from
+     `low` to that landing; those that pass, one from the landing after
+     it to `high`. A group with one candidate is that landing's, with
+     no probe: it owns those failures. A group with none (its failures
+     passed at every candidate probed, failing only at the tip) is its
+     `high` landing's.
+   - **Lowest first, one at a time:** of the groups left, the one whose
+     `low` is lowest is probed next, the others waiting on the run's
+     record (section 10). Groups never overlap and a probed landing is
+     in no later group's middle, so a run probes each landing at most
+     once and its probe's branch, `temper/tier/<tier>.<n>.<k>`, k the
+     landing's index in the range from 0, is never made twice (section
+     2). One failure over n candidates takes at most ⌈log2 n⌉ probes: a
+     range of eight, one breaking, takes three.
+   - **After many** (section 4), a probe runs the whole tier and the
+     group splits by the run alone: a probe that fails anything keeps
+     `low` to the middle, one that passes takes the landing after it to
+     `high`, and the group's one candidate owns many. A probe of chosen
+     tests whose report is many fails them all there. A probe's fault
+     is a fault (section 3), retried as any part is.
 5. **A fault is not a red** (section 3).
 
 Failures reported as many have no failed-test rerun; their probes run the
@@ -435,6 +495,76 @@ blamed landing's full commit (2026-11-04).
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
   by #M". Keyed, as every comment of temper's (`forge/README.md`, section 4).
+- **Posted by the run's task, after its verdict is kept:** once the
+  verdict is judged and kept (sections 5 to 7: the record, the
+  landings' verification, the news), the run's task posts the status,
+  then the comments, one write at a time, in order, and ends done. It
+  lives while it posts, so the tier's next run starts once it has
+  posted. A tip judged by its receipt posts as a dispatched run does.
+- **The status's words,** its description cut to the forge's 140 bytes
+  at a character's boundary:
+  - green, the range cleared (5.1; 5.2, 1 with no failure left):
+    `success`, `run N passed`, or `run N passed by receipt`;
+  - red, failures left at the tip once rerun: `failure`, `run N
+    failed: B blamed, I inherited`, B the distinct failing tests blamed
+    on the range's landings, owned or suspected, I the run's other
+    failures, inherited; B `many` where a landing's blame is many, and
+    I `many` where the run's failures are many (section 4) and no
+    landing's blame is;
+  - pending, before a hold on its faults: section 3's words, posted
+    again at each hold of the run.
+
+  Its link is the judged run's whole part's forge run, never a
+  rerun's or a probe's; a receipt's run for a tip judged by its
+  receipt; for the pending status, the run part's last forge run, or
+  none where none was found.
+- **The comments,** on each pull request of each member of a landing in
+  the run's range, oldest landing first, then on each member of a red
+  landing this run repairs (5.3; section 7, `repairs`), in the order
+  the repairs are found. A member is a change of temper's the landing
+  brought, with its pull request, read from the landing log (section
+  10), else from the landing's `Verification` row and the change's row;
+  a landing temper did not make has none, and a change with no pull
+  request is skipped. A comment's first line, TIER the tier's name:
+  - `Cleared by TIER run N.` for a landing the verdict blames nothing;
+  - `Red: TIER run N blames this landing for X, Y.` for one that owns
+    failures, `for many tests` where they are many;
+  - `Suspected: TIER run N suspects this landing of X, Y.` under "tell
+    all" (5.2, 4);
+  - `Repaired by #M: TIER run N passed the failures blamed on this
+    landing.`, M the pull request of the change in the run's range
+    that names the red landing, the newest's (section 7), or
+    `Repaired: TIER run N passed the failures blamed on this landing.`
+    where none names it.
+
+  Then, after a blank line, `Run: URL`, the status's link, where there
+  is one. Test ids are written whole, in order, while the comment and
+  its key fit the forge client's `op_bytes` (skein's
+  `forge/client.md`), then `and K more`.
+- **Keys:** each write a keyed effect of the run's task (section 10):
+  purpose tag 8, operation 6 for the status, its part 0 for the
+  verdict's and, for a pending one, the count of the run's holds on
+  faults so far, 1 for the first (a release resets the faults, not
+  this count, which the run's posting keeps until its verdict, so
+  each hold posts its own); operation 7 for a comment, its
+  part the comment's index in the order above, from 0, so that a
+  restart posts each at most once (`forge/README.md`, section 4).
+- **What is posted is kept** on the tier's record from the verdict to
+  its last post (section 10): what the status says, and each comment's
+  pull request and what it says, so a restart posts the rest, with the
+  same words under the same keys, whatever its changes have become
+  meanwhile.
+- **A refused write is left:** a status or a comment the forge refuses
+  (a pull request locked or gone, the write refused) is skipped and the
+  next posted; it never holds the tier or its task. An uncertain write
+  is settled by the forge client, as any is.
+- **Nothing is posted** for a run with no verdict: a run of a tier
+  following goal branches (5.4), a run dropped (section 3), or a
+  person's hold (section 3).
+- **Not CI:** temper reads none of its `temper/verdict/<tier>`
+  statuses back as a commit's CI unless the landing branch's rule
+  requires one (`forge/keeping-up.md`, section 3), so a red verdict on
+  main's tip holds no landing (section 7, *Others go on*).
 
 ## 10. Effects, reads and the store
 
@@ -501,7 +631,19 @@ blamed landing's full commit (2026-11-04).
 - **In the store:** `Tier`, keyed by repository and tier, its run in
   flight, its last judged tip and failures, its flakes, the reds of no
   goal's until findings take them (section 7), with a count of those
-  dropped past their bound, and a held run's last fault (section 3);
+  dropped past their bound, a held run's last fault (section 3) and a
+  person's hold, its party, its time and its reason, at most 1024
+  bytes (section 3); a probe's part keeps the group it probes, its
+  `low` and `high` landings by their index in the range and its tests,
+  and the groups waiting, each with its own, named by their places in
+  the run's failures, so their bound is the failures' and not a
+  name's per landing (5.2); a judged run's
+  posting while its task posts (section 9): the run, its tip, its
+  link, the status's check and words, the verdict's blame of each
+  landing of the range, and each comment's pull request with the
+  landing it is for, or the red landing it repairs and the repairing
+  pull request, and the index of the next write, erased by the task's
+  last post or its close;
   for a tier following goal branches, each goal branch it follows,
   with its goal, its last run's tip, failures and start, and the branch
   its run in flight is for, within the forge's `holds`;
@@ -572,7 +714,14 @@ with failing tests by id and uploading their artifacts:
   change gives its result;
 - **a red run bisected:** three landings, one changing nothing the tier
   reads; two tests fail at the second's commit, which is red, and the
-  others cleared;
+  others cleared; a range of eight landings, one breaking, found in
+  three probes; two failures owned by two landings, each red with its
+  own; a landing whose key equals the one before it never probed;
+- **a person's hold:** held with a run in flight, the run is judged and
+  no run follows the moves after it; held past the bound, its changes
+  end landed and uncleared; the release starts one run at the newest
+  tip, its range every landing made while held; a restart while held
+  restores it held, and starts nothing;
 - **inherited failures:** the next run fails the same two tests and
   clears the landing after the red one;
 - **a flake:** one test fails, passes alone, and the range is cleared;
@@ -590,6 +739,13 @@ with failing tests by id and uploading their artifacts:
 - **the bound:** a runner down past it ends a change landed and
   uncleared; the late red is kept for findings;
 - **a repair** naming a red landing clears it, "repaired by";
+- **the forge shows it:** a green run's `success` status on its tip and
+  a `Cleared by` comment on each member's pull request; a red run's
+  `failure` status counting the blamed tests and a `Red:` comment on
+  the red landing's members, `Cleared by` on the others'; then the
+  repair's run, its status, and `Repaired by #M` on the red landing's
+  members; a restart between two comments posts each once; a run held
+  on its faults posts its pending status first;
 - **a documentation landing** every tier ignores clears at once;
 - **a landing temper did not make** is in a range like any other;
 - **a branch no tier follows:** a change landing into a goal's own

@@ -23,15 +23,29 @@ pub(super) fn read(
     for item in walked.rows {
         let value = paged::decode(store, item.row)?;
         let position = reads::Position::Owner(value.key());
-        let selected = match task {
-            Some(task) => match belongs(store, &value, task, spent) {
-                Ok(selected) => selected,
-                Err(Failure::Cut | Failure::Joins) if last.is_some() && last != range.after => {
-                    return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+        let selected = if let reads::Scope::ProposalRemains { proposal } = range.scope {
+            match &value {
+                core::Record::Core(core::CoreRecord::ProposalDecision(row)) => row.proposal == proposal,
+                core::Record::Tasks(tasks::Stored::Update(row)) => {
+                    row.object == tasks::UpdateObject::Proposal { proposal: tasks::Newest::of(proposal) }
                 }
-                Err(error @ (Failure::Cut | Failure::Joins | Failure::Corrupt)) => return Err(error),
-            },
-            None => true,
+                core::Record::Tasks(_)
+                | core::Record::Core(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_) => false,
+            }
+        } else {
+            match task {
+                Some(task) => match belongs(store, &value, task, spent) {
+                    Ok(selected) => selected,
+                    Err(Failure::Cut | Failure::Joins) if last.is_some() && last != range.after => {
+                        return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                    }
+                    Err(error @ (Failure::Cut | Failure::Joins | Failure::Corrupt)) => return Err(error),
+                },
+                None => true,
+            }
         };
         if !selected {
             spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
@@ -41,6 +55,7 @@ pub(super) fn read(
         let row = reads::Row {
             value,
             owner: None,
+            summary: None,
             ancestors: Box::new([]),
             related: None,
             unjoined: None,

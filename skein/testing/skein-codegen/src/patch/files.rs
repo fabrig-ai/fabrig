@@ -24,6 +24,8 @@ pub(crate) struct Crate {
     pub current: BTreeMap<String, Text>,
     /// The families named by `schema/wires`.
     pub wires: BTreeSet<String>,
+    /// The stored families named by `schema/registered`.
+    pub registered: BTreeSet<String>,
     /// Each wire's floor, or `None` for a per-build wire.
     pub wire_floors: BTreeMap<String, Option<u16>>,
     /// Each family's kept texts, by version.
@@ -72,6 +74,7 @@ impl Crate {
             root: root.to_path_buf(),
             current: BTreeMap::new(),
             wires: BTreeSet::new(),
+            registered: BTreeSet::new(),
             wire_floors: BTreeMap::new(),
             kept: BTreeMap::new(),
             renames: BTreeMap::new(),
@@ -139,6 +142,21 @@ impl Crate {
             wire_floors = floors(&source, |family| current.contains_key(family))?;
         }
         let wires = wire_floors.keys().cloned().collect();
+        let registered_path = Path::new("schema/registered");
+        let mut registered = BTreeSet::new();
+        if root.join(registered_path).try_exists().map_err(|error| Error::io(registered_path, &error))? {
+            let source = unconflicted(root, registered_path)?;
+            for family in source
+                .lines()
+                .map(|line| line.split('#').next().unwrap_or_default().trim())
+                .filter(|line| !line.is_empty())
+            {
+                if !current.contains_key(family) {
+                    return Err(Error::Registered { family: family.into() });
+                }
+                registered.insert(family.to_owned());
+            }
+        }
         let mut kept: BTreeMap<String, BTreeMap<u16, Text>> = BTreeMap::new();
         let mut renames = BTreeMap::new();
         for path in listed(root, Path::new(KEPT))? {
@@ -168,7 +186,17 @@ impl Crate {
                 skeletons.insert(number);
             }
         }
-        Ok(Self { root: root.to_path_buf(), current, wires, wire_floors, kept, renames, patches, skeletons })
+        Ok(Self {
+            root: root.to_path_buf(),
+            current,
+            wires,
+            registered,
+            wire_floors,
+            kept,
+            renames,
+            patches,
+            skeletons,
+        })
     }
 }
 

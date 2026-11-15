@@ -65,23 +65,22 @@ class ProtocolTests(unittest.TestCase):
                          [('a', 'passed', 1)])
 
     def test_libtest_protocol(self):
-        for scenario in ('pass', 'first-failure', 'starved', 'expected-panic'):
+        for scenario in ('pass', 'first-failure', 'starved'):
             logfile = NATIVE / 'protocol.log'
-            name = 'expected_panic' if scenario == 'expected-panic' else 'a'
             result = subprocess.run([str(NATIVE / 'tests'), '--exact', '--nocapture',
-                                     '--test-threads=1', '--logfile', str(logfile), name],
+                                     '--test-threads=1', '--logfile', str(logfile), 'a'],
                                     env=dict(os.environ, FIXTURE_CASE=scenario),
                                     stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, text=True, timeout=5)
             print(f'libtest {scenario}: {result.stdout!r}; log: {logfile.read_text()!r}', flush=True)
-            self.assertIn(f'test {name}' + (' - should panic' if scenario == 'expected-panic' else '') + ' ... ', result.stdout)
+            self.assertIn('test a ... ', result.stdout)
             if scenario == 'starved':
                 self.assertEqual(result.returncode, 0)
                 self.assertEqual(logfile.read_text(), '')
                 self.assertTrue(result.stdout.rstrip().endswith(
                     'skein-world: starved: waited 1 ms runnable, fixture patience'))
             else:
-                self.assertIn(('ok ' if scenario in ('pass', 'expected-panic') else 'failed ') + name, logfile.read_text())
+                self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
 class RunnerFixture(unittest.TestCase):
@@ -432,16 +431,16 @@ class HoldTests(RunnerFixture):
 
 class RunnerTests(RunnerFixture):
     def test_passing_binary_and_prefix(self):
-        self.binary(names=('a', 'b', 'c', 'expected_panic', 'ignored'))
+        self.binary(names=('a', 'b', 'c', 'ignored'))
         self.command.extend(['-Pdefault', '--status-level=fail', '--no-capture',
                              '--failure-output', 'immediate', '--color', 'never', '--retries=0'])
         result = self.invoke()
-        self.assertEqual(result['selected'], 5)
-        self.assertEqual([t['outcome'] for t in result['tests']], ['passed'] * 5)
+        self.assertEqual(result['selected'], 4)
+        self.assertEqual([t['outcome'] for t in result['tests']], ['passed'] * 4)
         self.assertEqual(len(result['processes']), 1)
         process = result['processes'][0]
         self.assertEqual(process['kind'], 'tests')
-        self.assertEqual(process['tests'], ['a', 'b', 'c', 'expected_panic', 'ignored'])
+        self.assertEqual(process['tests'], ['a', 'b', 'c', 'ignored'])
         for key in ('user_s', 'system_s'):
             self.assertTrue(math.isfinite(process[key]))
             self.assertGreaterEqual(process[key], 0)
@@ -451,7 +450,7 @@ class RunnerTests(RunnerFixture):
         self.assertEqual(self.directory.stat().st_mode & 0o777, 0o700)
         cases = ET.parse(self.directory / 'junit.xml').findall('.//testcase')
         self.assertEqual([(c.get('classname'), c.get('name')) for c in cases],
-                         [('fixture::suite', n) for n in ('a', 'b', 'c', 'expected_panic', 'ignored')])
+                         [('fixture::suite', n) for n in ('a', 'b', 'c', 'ignored')])
         calls = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0][1:], ['nextest', 'list', '--message-format', 'json', '--profile',

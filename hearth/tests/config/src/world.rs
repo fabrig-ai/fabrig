@@ -99,15 +99,7 @@ pub fn check(document: &[u8], settings: &Settings, seed: u64) -> Run {
                 matches!(expected, Err(Error { fault: Fault::Json(_), .. })),
                 "seed {seed}: {error:?} vs {expected:?}; {document:?}"
             ),
-            Fault::NotObject
-            | Fault::Duplicate { .. }
-            | Fault::NotInteger
-            | Fault::Range
-            | Fault::Nul
-            | Fault::Keys
-            | Fault::Note
-            | Fault::Shape(_)
-            | Fault::Declaration(_) => {
+            Fault::Duplicate { .. } | Fault::Decode(_) => {
                 assert_eq!(Err(error.clone()), expected, "seed {seed}, {settings:?}, {document:?}");
             }
         },

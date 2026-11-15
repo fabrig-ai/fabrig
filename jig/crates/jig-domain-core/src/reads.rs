@@ -191,6 +191,11 @@ fn backwards(scope: &Scope) -> bool {
     match scope {
         Scope::Activity { .. } | Scope::Escalation { .. } | Scope::Proposal { .. } => true,
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::SettingsHistory { .. }
         | Scope::TaskText { .. }

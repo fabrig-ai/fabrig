@@ -146,6 +146,9 @@ impl Word {
             }
             Self::Waiting(WaitingWord::Party) => (44, b"Waiting for a party", &[]),
             Self::Waiting(WaitingWord::Delegates) => (45, b"Waiting for delegates", &[]),
+            Self::Waiting(WaitingWord::Question) => {
+                (131, b"Waiting for an answer to its question ", &[HoleKind::Number])
+            }
             Self::Waiting(WaitingWord::News) => (46, b"Waiting for news", &[]),
             Self::Waiting(WaitingWord::Nothing) => (47, b"Nothing awaited", &[]),
             Self::Waiting(WaitingWord::Held) => (127, b"held", &[]),

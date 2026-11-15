@@ -1,9 +1,9 @@
 //! History records and the v20 patch (landing-history.md, 2, 4 and 7).
 use super::{
-    catch_up::{kept_golden, kept_schema, kept_value, patched},
+    catch_up::{current_layout, kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
-use crate::{keys, records, v24};
+use crate::{keys, records, v25};
 use skein_lib::{Reader, Wall};
 use temper_engine_domain_forge_vocabulary::{Stored, history::*};
 
@@ -113,9 +113,31 @@ fn history_records_round_trip_every_kind_and_interval() {
         check(Stored::HistoryEvent(event(What::Updated { outcome })));
     }
     for job in [Job::Prepare, Job::Merge] {
-        for outcome in [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Failed, JobOutcome::Lost] {
+        for outcome in
+            [JobOutcome::Done, JobOutcome::Conflict, JobOutcome::Timeout, JobOutcome::Cancelled, JobOutcome::Lost]
+        {
             check(Stored::HistoryEvent(event(What::JobEnded { job, outcome })));
         }
+    }
+    for class in [
+        JobFailure::Unprepared,
+        JobFailure::Run,
+        JobFailure::Result,
+        JobFailure::Unstarted,
+        JobFailure::Undelivered,
+        JobFailure::Unknown,
+    ] {
+        let outcome = JobOutcome::Failed { class };
+        check(Stored::HistoryEvent(event(What::JobEnded { job: Job::Merge, outcome })));
+        let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+        change.job = Some(JobRecord {
+            step: JobStep { task: 61, attempt: 2, job: Job::Merge, outcome: Some(outcome), head: None },
+            round: 0,
+            members: Box::new([]),
+            head: None,
+            written: false,
+        });
+        check(Stored::Change(Box::new(change)));
     }
     for ask in [Ask::Resolution, Ask::Repair, Ask::Judgement] {
         check(Stored::HistoryEvent(event(What::Asked { ask, task: 29, gate: None })));
@@ -161,8 +183,8 @@ fn history_records_round_trip_every_kind_and_interval() {
     check(Stored::HistoryLanding(LandingIndex { project: 3, landing: 29, number: 7, change: 9 }));
     check(Stored::HistoryLast(Last { project: 3, number: 7, change: 9, at: Wall::from_nanos(31) }));
     check_change_history_rows();
-    assert_eq!(v24::CEILINGS.history_project_marks, MARKS);
-    assert_eq!(v24::CEILINGS.history_hold_reason, REASON_BYTES);
+    assert_eq!(v25::CEILINGS.history_project_marks, MARKS);
+    assert_eq!(v25::CEILINGS.history_hold_reason, REASON_BYTES);
     assert_eq!(
         crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap().limits().history_formed_members,
         fixtures::LIMITS.landing_members
@@ -177,8 +199,15 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     let (job, rest) = bytes.as_ref().split_first().unwrap();
     assert_eq!(*job, 0, "no pending job");
     assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
-    let bytes = patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes)));
-    let after = v24::ChangeRow::decode(&v24::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let bytes = patched(
+        24,
+        13,
+        b"ChangeRow",
+        patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
+    );
+    let bytes = current_layout(b"ChangeRow", bytes);
+    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert!(after.questions().waiting().is_empty());
     assert!(after.history().is_none());
     assert!(after.job().is_none());
     let schema = kept_schema(20);
@@ -189,8 +218,8 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         u64::from(after.repository().forge()),
         value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
     );
-    assert_eq!(crate::STORE_VERSION, 24);
-    assert_eq!(crate::patches::PATCHES.len(), 13);
+    assert_eq!(crate::STORE_VERSION, 25);
+    assert_eq!(crate::patches::PATCHES.len(), 14);
 }
 
 fn check_change_history_rows() {

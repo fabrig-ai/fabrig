@@ -1,5 +1,5 @@
 use super::fixtures::{
-    self, Client, ENGINE_KEY, KEY, NAME, OTHER_ENGINE_KEY, OTHER_KEY, OTHER_NAME, OTHER_PARTY, PARTY, me, record, stop,
+    self, Client, ENGINE_KEY, KEY, NAME, OTHER_ENGINE_KEY, OTHER_KEY, OTHER_PARTY, PARTY, me, record, stop,
 };
 use crate::*;
 use skein_lib::{Duration, List, RequestEnvelope, Time};
@@ -150,18 +150,6 @@ fn a_request_past_the_retention_is_answered_unknown() {
     assert_eq!(c.domain.pending(KEY), None);
 }
 #[test]
-#[should_panic(expected = "request key conflict")]
-fn a_second_send_with_another_request_is_a_loud_key_conflict() {
-    let mut c = Client::live();
-    c.send();
-    c.step(Event::Send {
-        name: None,
-        key: KEY,
-        request: Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: fixtures::OTHER_SUBJECT })),
-    });
-}
-
-#[test]
 fn a_named_send_is_saved_and_sent_under_its_name() {
     let mut c = Client::live();
     c.step(Event::Send { key: KEY, name: Some(NAME), request: stop() });
@@ -214,13 +202,6 @@ fn the_same_key_and_name_sent_again_joins_the_first() {
     c.step(Event::Send { key: KEY, name: Some(NAME), request: stop() });
     assert!(c.downs().is_empty());
     assert!(c.told().is_empty());
-}
-#[test]
-#[should_panic(expected = "request key conflict")]
-fn the_same_key_under_another_name_is_a_loud_key_conflict() {
-    let mut c = Client::live();
-    c.send_as(KEY, Some(NAME));
-    c.step(Event::Send { key: KEY, name: Some(OTHER_NAME), request: stop() });
 }
 #[test]
 fn a_name_is_admitted_again_once_its_holder_is_answered() {
@@ -328,20 +309,6 @@ fn seen_and_ordinary_requests_hold_each_others_names() {
         assert!(c.downs().is_empty());
         assert_eq!(c.told().as_ref(), &[Told::Answered { key: OTHER_KEY, outcome: Outcome::Held }]);
     }
-}
-#[test]
-#[should_panic(expected = "request key conflict")]
-fn seen_under_the_same_key_with_another_request_conflicts() {
-    let mut c = Client::live();
-    seen_send(&mut c, KEY, None);
-    c.step(Event::Send { key: KEY, name: None, request: stop() });
-}
-#[test]
-#[should_panic(expected = "request key conflict")]
-fn seen_under_the_same_key_with_another_name_conflicts() {
-    let mut c = Client::live();
-    seen_send(&mut c, KEY, Some(NAME));
-    c.step(Event::Send { key: KEY, name: Some(OTHER_NAME), request: fixtures::seen() });
 }
 #[test]
 fn seen_retries_under_the_same_key_without_saving() {

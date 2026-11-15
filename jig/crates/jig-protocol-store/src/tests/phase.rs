@@ -26,6 +26,14 @@ use skein_io::{
 use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
+mod charter_versions;
+mod jobs;
+mod live_task_parts;
+mod milestones;
+mod projection_parts;
+mod registry;
+mod value_types;
+
 const CHUNK: u32 = 4096;
 const KEY: &[u8] = b"row";
 const VALUE: &[u8] = b"committed";
@@ -181,6 +189,7 @@ fn stage(store: &Store) -> Stage {
                     Stage::Walking
                 }
             }
+            Patching::Jobs(_) => Stage::Walking,
             Patching::Sealing { .. } => Stage::Sealing,
             Patching::Checking(_) => Stage::Checking,
         },
@@ -1011,6 +1020,8 @@ const HEAD_OLD: &str =
 const HEAD_NEW: &str = "family heads 2\nrecord A { x: u8 } record B { x: u8 y: bool } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
 const HEAD_PATCH: &str = "patch 1\nowner heads 1\nfamily heads 1 to 2\nadd B.y bool true\n";
 const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    current: HEAD_NEW,
+    types: &[],
     name: "heads",
     texts: &[HEAD_OLD, HEAD_NEW],
     map: crate::KeptMap::Store,
@@ -1019,6 +1030,7 @@ const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
     frames: None,
 };
 const HEAD_SET: crate::PatchSet = crate::PatchSet {
+    jobs: &[],
     name: "heads",
     owner: crate::Owner::Application,
     families: &[HEAD_FAMILY],
@@ -1027,7 +1039,7 @@ const HEAD_SET: crate::PatchSet = crate::PatchSet {
 };
 const HEAD_BASE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
-        families: &[crate::KeptFamily { texts: &[HEAD_OLD], ..HEAD_FAMILY }],
+        families: &[crate::KeptFamily { current: HEAD_OLD, texts: &[HEAD_OLD], ..HEAD_FAMILY }],
         patches: &[],
         ..HEAD_SET
     }],
@@ -1601,6 +1613,8 @@ fn assert_page_rows(store: &mut Store, last: u64) {
 const MANIFEST_FAMILIES: usize = 64;
 const MANIFEST_NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab";
 const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    current: "",
+    types: &[],
     flights: &[],
     frames: None,
     name: MANIFEST_NAME,
@@ -1609,6 +1623,7 @@ const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
     keys: &[],
 };
 const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
+    jobs: &[],
     fresh: None,
     owner: crate::Owner::Application,
     name: "manifest-bounds",
@@ -1807,6 +1822,8 @@ fn fresh_record(task: u64, crossed: bool) -> jig_domain_core_vocabulary::Record 
 fn fresh_baseline() -> Vec<Item> {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
+    // A whole task fixture saves its hot and cold parts beside the header, proof and turn.
+    store.limits.commits.writes = 5;
     store.patch_sets(FRESH_BEFORE);
     assert_opened(&disk.open(&mut store), 0);
     for task in 1..=FRESH_TASKS {
@@ -2038,6 +2055,7 @@ const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
         patches: &[],
         families: &[crate::KeptFamily {
+            current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],
             texts: &[jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0]],
             ..super::patching::SMITH.families[0]
         }],

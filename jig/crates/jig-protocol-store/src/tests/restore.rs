@@ -410,11 +410,29 @@ fn the_census_hands_up_conversations_before_result_rows() {
     );
 }
 
+fn assert_row_past_page(store: &Store, events: &[Event], needs: u64, has: u64, key: &[u8]) {
+    let [Event::PageRefused { owner, failure }] = events else { panic!("one refusal: {events:?}") };
+    assert_eq!(*owner, OWNER);
+    assert_eq!(
+        *failure,
+        crate::restore::Failure {
+            cause: crate::restore::Cause::RowPastPage { needs, has },
+            row: Some(crate::restore::site(store, key)),
+        }
+    );
+    assert_eq!(store.phase, Phase::Stopped);
+}
+
 #[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn the_census_counts_the_joined_task_against_decoded_bytes() {
+fn the_census_refuses_a_joined_task_past_decoded_bytes() {
     let mut store = census_store(true);
-    restore(&mut store, census(), None, 2, 100);
+    let task = fixtures::ended_task(ENDED);
+    let encoded = crate::codec::encode(&task, &fixtures::codec_limits(), &[]).expect("ended task");
+    let needs = skein_lib::length::len_u64(encoded.len());
+    let key = keys::encode(&fixtures::result_index(ALICE, 1, ENDED).key(), fixtures::KEY_LIMIT).expect("result key");
+    let events = restore(&mut store, census(), None, 2, 100);
+    assert_row_past_page(&store, &events, needs, 100, &key);
+    assert!(restore(&mut store, census(), None, 2, 65_536).is_empty());
 }
 
 fn application_store() -> Store {
@@ -523,26 +541,24 @@ fn the_census_never_parts_an_ended_read_position_from_its_task() {
 }
 
 #[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn a_census_pair_without_room_for_both_rows_panics() {
-    let mut store = positions_store();
-    restore(&mut store, census(), None, 1, 65_536);
+fn an_initial_row_past_the_byte_budget_refuses_the_page() {
+    let mut store = application_store();
+    let key = keys::application(b"a1", fixtures::KEY_LIMIT).expect("tagged application key");
+    let events = application_page(&mut store, None, 0);
+    assert_row_past_page(&store, &events, 3, 0, &key);
+    assert!(application_page(&mut store, None, 65_536).is_empty());
 }
 
 #[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn an_initial_empty_nonterminal_page_panics() {
+fn a_subsequent_row_past_the_byte_budget_refuses_the_page() {
     let mut store = application_store();
-    application_page(&mut store, None, 0);
-}
-
-#[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn a_subsequent_empty_nonterminal_page_panics() {
-    let mut store = application_store();
-    let (_, next) = page(application_page(&mut store, None, 3));
+    let (rows, next) = page(application_page(&mut store, None, 3));
+    assert_eq!(application_keys(rows).as_ref(), &[Box::from(b"a1".as_slice())]);
     assert!(next.is_some());
-    application_page(&mut store, next, 0);
+    let key = keys::application(b"a2", fixtures::KEY_LIMIT).expect("tagged application key");
+    let events = application_page(&mut store, next, 0);
+    assert_row_past_page(&store, &events, 3, 0, &key);
+    assert!(application_page(&mut store, None, 65_536).is_empty());
 }
 
 #[test]

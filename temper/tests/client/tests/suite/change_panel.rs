@@ -116,7 +116,7 @@ fn order(step: &w::Step) -> u8 {
 fn pull_opened(front: &Joint, goal: u64) -> bool {
     front.engine.store.rows.values().any(|record| {
         matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
-            temper_engine_domain_forge::Stored::Change(change) if change.task == goal && change.pull.is_some()))
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == goal && change.pull.is_some()))
     })
 }
 
@@ -583,7 +583,7 @@ fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
     assert!(
         !world.front().engine.store.rows.values().any(|record| {
             matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
-            temper_engine_domain_forge::Stored::Change(change) if change.task == task))
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == task))
         }),
         "the existing procedure fixture has no connector change"
     );
@@ -631,7 +631,7 @@ fn playground_change_page(playground_forge: u16) {
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     let on_playground = playground_forge == REPOSITORY.forge;
     let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());
-    let address = format!("http://forge.example/acme/shop/pulls/{}", facts_after_open(&mut world).pull.number);
+    let address = format!("http://forge.example/acme/shop/pulls/{}", facts_after_open(&mut world, true).pull.number);
     world.person(
         person,
         vec![
@@ -666,12 +666,12 @@ fn playground_change_page(playground_forge: u16) {
         assert_eq!(external[0].role, Role::Link);
     }
 }
-fn facts_after_open(world: &mut World<Temper, Joint>) -> Facts {
+fn facts_after_open(world: &mut World<Temper, Joint>, wait_for_gate: bool) -> Facts {
     use skein_lib::Duration;
 
     for _ in 0..STEPS {
         if world.front().engine.store.rows.values().any(|record| matches!(record,
-            engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(change) if change.pull.is_some()))) {
+            engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(change) if change.pull.is_some() && (!wait_for_gate || matches!(change.change.state, temper_engine_domain_forge_change::State::Gating { .. }))))) {
             return facts(world.front());
         }
         let outcome = world.run(Until::Time(world.now().saturating_add(Duration::from_millis(10))));
@@ -780,7 +780,7 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
     let person = world.client(fixtures::PARTY, fixtures::chat_page(chat));
     world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Running"), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    let before = facts_after_open(&mut world);
+    let before = facts_after_open(&mut world, false);
     let row = world
         .front()
         .engine
@@ -789,7 +789,7 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
         .values()
         .find_map(|record| {
             if let engine::Record::Forge { row } = record
-                && let forge::Stored::Change(row) = row.as_ref()
+                && let forge::Stored::ChangeHot(row) = row.as_ref()
                 && row.task == change
             {
                 Some(row.clone())

@@ -1,6 +1,36 @@
 use super::*;
 
 mod empty_repair;
+mod fence;
+mod released_resolution;
+
+#[test]
+fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
+    use temper_engine_domain_forge_change::{State, Waiting};
+    for passed in [None, Some(42)] {
+        let mut row = fixtures::opening_row();
+        row.change.state = State::Producing { requested: true };
+        row.change.last_head = None;
+        row.pending = None;
+        row.questions.waiting = Box::new([Waiting {
+            from: 40,
+            number: 7,
+            words: if passed.is_some() { Box::new([]) } else { b"Go on".as_slice().into() },
+            passed,
+        }]);
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let out = outputs(&mut d, Event::ReadAfresh);
+        let mut wakes: u32 = 0;
+        for request in &out {
+            if *request == (Request::WakeProcedure { task: fixtures::CHANGE }) {
+                wakes = wakes.saturating_add(1);
+            }
+        }
+        assert_eq!(wakes, 1, "waiting words make the next step due at restart");
+    }
+}
 
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
@@ -197,13 +227,13 @@ fn a_follow_changes_saved_row_and_restored_row_keep_its_landings() {
     row.follows = Some(follows.clone());
     let mut saved = None;
     for request in outputs(&mut d, Event::Change { row }) {
-        if let Request::Save { record: Stored::Change(row), .. } = request {
+        if let Request::Save { record: Stored::ChangeCold(row), .. } = request {
             saved = Some(row);
         }
     }
     let saved = saved.expect("saved change");
     assert_eq!(saved.follows, Some(follows.clone()));
-    let stored = Stored::Change(saved);
+    let stored = Stored::ChangeCold(saved);
     let meter = skein_world::domain::heap::Meter::new();
     meter.start();
     let cloned = stored.clone();
@@ -213,6 +243,9 @@ fn a_follow_changes_saved_row_and_restored_row_keep_its_landings() {
     let mut restored = domain();
     outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut restored, Event::Restore { record: stored });
+    let (_, hot) = d.change(fixtures::CHANGE).unwrap().clone().split();
+    outputs(&mut restored, Event::Restore { record: Stored::ChangeHot(Box::new(hot)) });
+    restored.fit_restored(&LIMITS).unwrap();
     assert_eq!(restored.change(fixtures::CHANGE).unwrap().follows, Some(follows));
 }
 
@@ -323,7 +356,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
         assert_eq!(env.wall.as_nanos() - since.as_nanos(), Duration::from_secs(counted).as_nanos());
         let mut saved = false;
         for request in &out {
-            if let Request::Save { record: Stored::Change(row), .. } = request {
+            if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
                 saved |= row.change.since == since;
             }
         }
@@ -347,6 +380,11 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             ] {
                 let (call, _) = fixtures::next_at(&mut d, &env);
                 out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            }
+            if !titled && decision == c::Decision::Hold(c::Hold::Stalled) {
+                let (call, read) = fixtures::next_at(&mut d, &env);
+                assert_eq!(read, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
+                out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
             }
             let mut decided = false;
             for request in &out {
@@ -375,7 +413,10 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     fixtures::step_change(&mut d);
-    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next(
+        &mut d,
+        if pushed { Ok(Answer::Commit(fixtures::HEAD)) } else { Err(skein_forge::api::Error::Missing) },
+    );
     // With neither a recorded pull nor a pushed head, no history is read.
     if !known && !pushed {
         return d;
@@ -445,14 +486,120 @@ fn a_recorded_merged_pull_lands_without_a_matching_pushed_head() {
 }
 
 #[test]
-fn a_merged_pull_at_the_pushed_head_is_recovered_after_restart() {
-    let d = producing_with_history(false, true, true);
-    let row = d.change(fixtures::CHANGE).expect("recovered change");
-    assert_eq!(row.pull, Some(1));
-    assert_eq!(
-        row.change.state,
-        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE, since: env().wall }
+fn closed_pull_history_at_the_pushed_head_is_not_taken_after_restart() {
+    use skein_forge::api::{Answer, Op, Read, Write};
+    use temper_engine_domain_forge_change as change;
+    for merged in [false, true] {
+        let mut d = producing_with_history(false, true, merged);
+        let row = d.change(fixtures::CHANGE).expect("recovered change");
+        assert_eq!(row.pull, None, "closed history at the same head is not owned");
+        assert_eq!(row.drift, None);
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
+        fixtures::answer(&mut d, call, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+        let (call, _) = fixtures::next_call(&mut d);
+        let finished = fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        assert!(
+            decided(&finished, change::Decision::Effect(change::Effect::Open)),
+            "opens without holding: {finished:?}"
+        );
+        outputs(&mut d, Event::Committed { entry: fixtures::OPEN + 1 });
+        answer_entry_clock(&mut d);
+        let (call, op) = fixtures::next_call(&mut d);
+        assert!(matches!(op, Op::Write(Write::OpenPull { .. })), "one opening: {op:?}");
+        let settled = fixtures::answer(&mut d, call, Ok(Answer::Created(2)));
+        assert_eq!(d.change(fixtures::CHANGE).expect("opened change").pull, Some(2));
+        assert!(saved_pull(&settled, 2), "the settlement saves its number");
+    }
+}
+
+fn decided(requests: &[Request], expected: temper_engine_domain_forge_change::Decision) -> bool {
+    for request in requests {
+        if let Request::ChangeDecision { decision, .. } = request
+            && *decision == expected
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn saved_pull(requests: &[Request], number: u64) -> bool {
+    for request in requests {
+        if let Request::Save { record: Stored::ChangeHot(row), .. } = request
+            && row.pull == Some(number)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn an_opening_stores_its_number_in_its_settlement() {
+    let (mut d, call) = fixtures::opening();
+    let settled = fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Created(7)));
+    assert_eq!(d.change(fixtures::CHANGE).expect("opened change").pull, Some(7));
+    assert!(saved_pull(&settled, 7));
+}
+
+#[test]
+fn an_uncertain_opening_found_closed_opens_its_own_next_step() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    let (mut d, call) = fixtures::opening();
+    fixtures::answer(&mut d, call, Err(Error::Timeout));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert!(matches!(op, Op::Read(Read::PullFor { .. })), "recover uncertain opening: {op:?}");
+    let mut pull = fixtures::open_pull();
+    pull.state = skein_forge::api::State::Closed;
+    fixtures::answer(&mut d, call, Ok(Answer::Pull(pull)));
+    let row = d.change(fixtures::CHANGE).expect("unnumbered change");
+    assert_eq!(row.pull, None);
+    assert_eq!(row.drift, None, "a closed recovery match is not ours");
+    fixtures::missing_pull(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(
+        decided(&finished, change::Decision::Effect(change::Effect::Open)),
+        "opens again without holding: {finished:?}"
     );
+}
+
+#[test]
+fn a_numbered_missing_pull_holds_instead_of_opening_another() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    for released in [false, true] {
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.pull = Some(7);
+        row.change.state = if released {
+            change::State::Checking { head: fixtures::HEAD }
+        } else {
+            change::State::Opening { requested: false }
+        };
+        row.change.released = released.then_some(change::Hold::Stalled);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert!(matches!(op, Op::Read(Read::Pull { number: 7, .. })), "own pull by number: {op:?}");
+        let held = fixtures::answer(&mut d, call, Err(Error::Missing));
+        assert!(
+            decided(&held, change::Decision::Hold(change::Hold::PullClosed)),
+            "numbered Missing holds before policy: {held:?}"
+        );
+        let row = d.change(fixtures::CHANGE).expect("held change");
+        assert_eq!(row.pull, Some(7));
+        assert!(matches!(row.change.state, change::State::Held { why: change::Hold::PullClosed, .. }));
+    }
 }
 
 #[test]
@@ -669,9 +816,16 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     row.change.state = change::State::Gating { head: fixtures::HEAD, asked: Box::new([]) };
     outputs(&mut d, Event::Change { row });
     start_opening_kept(&mut d, fixtures::CHANGE, FIRST_ENTRY, true);
-    fixtures::missing_pull_reads(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     start_opening(&mut d, fixtures::CHANGE, LATER_ENTRY);
-    assert!(fixtures::finish_missing(&mut d).is_empty(), "the kept chain restarts");
+    fixtures::finish_open(&mut d);
+    assert!(
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+            .is_empty(),
+        "the kept chain restarts"
+    );
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
@@ -754,7 +908,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
         [
             Op::Read(Read::Branch { branch: Box::from(b"temper/51".as_slice()) }),
             Op::Read(Read::Branch { branch: Box::from(b"main".as_slice()) }),
-            Op::Read(Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }),
+            Op::Read(Read::Pull { number: 1, ci: true }),
         ]
     );
     let Some(
@@ -898,7 +1052,7 @@ fn a_persons_request_is_taken_by_one_step_and_not_restored() {
         let requested = outputs(&mut d, Event::ReviewRequested { task: fixtures::CHANGE, head: fixtures::BASE });
         let mut ended_turn = false;
         for request in &requested {
-            if let Request::Save { record: Stored::Change(row), .. } = request {
+            if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
                 ended_turn |= !row.change.owns_turn;
             }
         }
@@ -1592,7 +1746,7 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
         );
         let mut saved = false;
         for request in &finished {
-            if let Request::Save { record: Stored::Change(_), .. } = request {
+            if let Request::Save { record: Stored::ChangeHot(_), .. } = request {
                 saved = true;
             }
             if let Request::ChangeDecision { decision: change::Decision::EndHold, .. } = request {
@@ -2017,7 +2171,7 @@ fn a_let_go_update_restored_is_decided_again() {
         let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Stale));
         let mut saved = None;
         for request in settled {
-            if let Request::Save { record: Stored::Change(row), .. } = request {
+            if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
                 saved = Some(row);
             }
         }
@@ -2026,7 +2180,9 @@ fn a_let_go_update_restored_is_decided_again() {
         assert_eq!(saved.effect, temper_engine_domain_forge_change::EffectResult::None);
         let mut restored = fixtures::connected_domain();
         outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
-        outputs(&mut restored, Event::Restore { record: Stored::Change(saved) });
+        let cold = d.change_cold.get(&saved.task).unwrap().clone();
+        outputs(&mut restored, Event::Restore { record: Stored::ChangeCold(Box::new(cold)) });
+        outputs(&mut restored, Event::Restore { record: Stored::ChangeHot(saved) });
         assert_eq!(restored.restore_fit_failure(), None);
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut restored, Event::ReadAfresh);
@@ -2812,5 +2968,125 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
             );
         }
         assert_eq!(d.steps.len(), 1);
+    }
+}
+
+fn drain_parts(out: &mut Queue<Request>) -> (usize, usize) {
+    let mut requests = skein_lib::List::uncapped();
+    while let Some(request) = out.pop() {
+        requests.push(request).expect("uncapped requests");
+    }
+    saved_parts(requests.as_slice())
+}
+fn saved_parts(requests: &[Request]) -> (usize, usize) {
+    let mut cold = 0_usize;
+    let mut hot = 0_usize;
+    for request in requests {
+        if let Request::Save { record: Stored::ChangeCold(_), .. } = request {
+            cold = cold.checked_add(1).unwrap();
+        }
+        if let Request::Save { record: Stored::ChangeHot(_), .. } = request {
+            hot = hot.checked_add(1).unwrap();
+        }
+        assert!(!matches!(request, Request::Save { record: Stored::Change(_), .. }));
+    }
+    (cold, hot)
+}
+
+#[test]
+fn change_saves_put_hot_alone_until_a_cold_field_changes() {
+    let mut d = fixtures::connected_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let mut row = fixtures::opening_row();
+    row.task = 12;
+    row.change.task = 12;
+    row.body = Box::new([b'b'; 6144]);
+    row.delegate = Some((13, temper_engine_domain_forge_change::Delegate::Produce));
+    row.title = Box::new([]);
+    assert_eq!(saved_parts(&outputs(&mut d, Event::Change { row })), (1, 2));
+    let mut out = Queue::uncapped();
+    d.priority(&env(), 12, -3, &mut out);
+    assert_eq!(drain_parts(&mut out), (0, 1));
+    let mut row = d.change(12).unwrap().clone();
+    row.result.checked(fixtures::HEAD, &[], LIMITS.client.answer_bytes);
+    domain::save_change_parts(&mut d, &mut out, row.clone());
+    assert_eq!(drain_parts(&mut out), (0, 1));
+    // Queue panels and policy steps use the same last-put cold comparison.
+    domain::save_change(&mut d, &mut out, row);
+    assert_eq!(drain_parts(&mut out), (0, 1));
+    let produced = outputs(
+        &mut d,
+        Event::ProducedTitle {
+            task: 12,
+            child: 13,
+            title: b"title".as_slice().into(),
+            report: b"report".as_slice().into(),
+        },
+    );
+    assert_eq!(saved_parts(&produced), (1, 1));
+    let mut observed = fixtures::opening_row();
+    observed.task = 12;
+    observed.change.task = 12;
+    observed.body = Box::new([b'b'; 6144]);
+    let (mut reading, _) = fixtures::opening_with(observed);
+    let mut event = fixtures::change_step();
+    if let Event::StepChange { task, .. } = &mut event {
+        *task = 12;
+    }
+    let starting = outputs(&mut reading, event);
+    assert_eq!(saved_parts(&starting).0, 0);
+    fixtures::missing_pull_reads(&mut reading);
+    let ci = fixtures::answer_next(&mut reading, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+    assert_eq!(saved_parts(&ci), (0, 1));
+    fixtures::answer_next(&mut reading, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let policy = fixtures::answer_next(
+        &mut reading,
+        Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }),
+    );
+    assert_eq!(saved_parts(&policy).0, 0);
+    assert!(saved_parts(&policy).1 > 0);
+    let amended = outputs(
+        &mut d,
+        Event::FollowChangeAmended {
+            task: 12,
+            follows: ChangeFollows { follow: 1, commits: Box::new([fixtures::HEAD]) },
+            words: b"amended\nbody".as_slice().into(),
+        },
+    );
+    assert_eq!(saved_parts(&amended), (1, 1));
+    let mut out = Queue::uncapped();
+    let row = d.change(12).unwrap().clone();
+    domain::save_change_parts(&mut d, &mut out, row);
+    assert_eq!(drain_parts(&mut out), (0, 1));
+}
+
+#[test]
+fn change_parts_restore_in_either_order_without_saves_and_orphans_name_the_present_part() {
+    for cold_first in [true, false] {
+        let row = fixtures::opening_row();
+        let (cold, hot) = row.clone().split();
+        let parts = [Stored::ChangeCold(Box::new(cold)), Stored::ChangeHot(Box::new(hot))];
+        let mut d = domain();
+        for part in if cold_first { parts.clone() } else { [parts[1].clone(), parts[0].clone()] } {
+            assert!(outputs(&mut d, Event::Restore { record: part }).is_empty());
+        }
+        assert_eq!(d.unjoined_change(), None);
+        assert!(d.change(row.task).is_none());
+        d.fit_restored(&LIMITS).unwrap();
+        assert_eq!(d.change(row.task), Some(&row));
+        assert_eq!(d.unjoined_change(), None);
+        for part in parts {
+            let mut d = domain();
+            let key = stored_key(&part);
+            assert!(outputs(&mut d, Event::Restore { record: part }).is_empty());
+            assert_eq!(d.unjoined_change(), Some(key));
+            assert!(
+                outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).is_empty()
+            );
+            assert!(d.change(row.task).is_none());
+        }
     }
 }

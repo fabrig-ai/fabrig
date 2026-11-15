@@ -345,12 +345,11 @@ impl Protocol {
                         let index = self.pending.remove(position).expect("matching pending request").index;
                         let call = &mut self.calls[index];
                         call.request = core::mem::take(&mut socket.request);
-                        let request = crate::referee::NativeRequest::from_http(&call.request);
-                        self.referee.observe(
-                            self.env.now,
-                            crate::referee::Seen::Request { owner: call.owner, request },
-                            &mut Vec::new(),
-                        );
+                        let seen = match crate::referee::NativeRequest::from_http(&call.request) {
+                            Ok(request) => crate::referee::Seen::Request { owner: call.owner, request },
+                            Err(finding) => crate::referee::Seen::RequestFinding(finding),
+                        };
+                        self.referee.observe(self.env.now, seen, &mut Vec::new());
                         progress.queries.push(query.clone());
                     }
                     fake::step(&mut self.provider, &self.provider_env, event, &mut self.replies);

@@ -2,13 +2,15 @@ use super::fixtures::{
     self, diff_change as change, diff_terminal as terminal, diff_text as text, fixture_hunks as hunks,
 };
 use crate::{
-    diff::*,
     form::{self, Form},
     limits,
     records::{Record, Type},
 };
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::diff::{Line as HunkLine, *};
 use skein_lib::bytes::copy_of;
+
 #[test]
 fn a_changed_file_prints_its_hunks_as_render_md_shows() {
     let printed = form::print(Form::Text, &Record::Change(fixtures::wg0_changed()), None, &limits::SHIPPED);
@@ -79,7 +81,9 @@ const ADDED: &str = "carbon-prod                                         added s
 fn an_added_target_prints_added_spec_and_its_twelve_digits() {
     let record = change(
         b"carbon-prod",
-        TargetChange::Added { spec_digest: fixtures::digest([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]) },
+        TargetChange::Added {
+            spec_digest: hearth_lib::encode::Digest(fixtures::digest([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc])),
+        },
     );
     assert_eq!(text(&record).as_deref(), Ok(ADDED.as_bytes()));
 }

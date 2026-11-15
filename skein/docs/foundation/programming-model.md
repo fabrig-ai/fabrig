@@ -1,6 +1,6 @@
 # Programming model (Rust)
 
-Provisional, 2026-10-03, revised 2026-10-28. How code is written in skein
+Provisional, 2026-10-03, revised 2026-11-14. How code is written in skein
 and in every service built on it. Read this first, before writing or
 reviewing any of it.
 
@@ -24,9 +24,9 @@ is testing-strategy.md.
 - **Three layers, and the crate graph enforces them.** `io` (kernel
   operations and their buffers), `protocol` (bytes to typed messages and
   back), `domain` (the service's own logic). A layer may be several
-  crates: a domain with child domains (4.5), a crate per protocol machine.
-  The domain's crates do not depend on io, so they cannot name a file
-  descriptor.
+  crates: a domain with child domains (4.5), a vocabulary of a domain's
+  values (4.6), a crate per protocol machine. The domain's crates do not
+  depend on io, so they cannot name a file descriptor.
 - **The domain is complete.** It runs the service's whole behaviour in a
   world of fakes, with no protocol and no io. The protocol layer
   translates between bytes and domain entities, and decides nothing about
@@ -303,9 +303,10 @@ therefore run in plaintext. No other step code gets an exception.
 role              depends on
 lib               nothing                          skein's `skein-lib`
 io                lib
-protocol machine  lib                              one per format; TLS also on rustls
+protocol machine  lib, vocabularies (4.6)          one per format; TLS also on rustls
 protocol composition lib, protocol machines        a reusable static stack, such as skein-llm
-domain            lib, and its child domains (4.5)
+domain            lib, its vocabulary, and its child domains (4.5)
+vocabulary        lib, and other vocabularies      a domain's values, for the crates that name them (4.6)
 protocol layer    lib, io, its machines, domain    sees both vocabularies
 service           lib, io, protocol layer, domain  its `iterate`
 shell             io, service, io-uring, libc      skein's kernel and clock; the service's loop
@@ -355,7 +356,8 @@ against fakes, or its `iterate` on the simulator.
   - Each machine is a step machine, with entry points of the same shape on
     each side, its own limits and the formulas that size its edge (6.3),
     and it is fuzzable alone.
-  - **Machines depend on lib only,** not on io and not on each other: the
+  - **Machines depend on lib only,** and on the vocabularies of the values
+    they encode or decode (4.6), not on io and not on each other: the
     stream below a machine may be a socket, a pipe or TLS, and it cannot
     tell which.
   - **The stack is static.** The connection holds one state per machine
@@ -468,8 +470,8 @@ root domain.
 
 - **Each child domain is a step machine of its own:** its own vocabulary,
   limits, state machines and entry points, and its own tests. It depends
-  on lib and on its children, never on a sibling or
-  a parent.
+  on lib, on its children and on its vocabulary (4.6), never on a sibling
+  or a parent.
 - **A parent owns its children's states and routes between them** within
   its step. Hand-offs inside the domain are short and acyclic, so a step
   completes them before it returns; the queues between parent and
@@ -480,6 +482,32 @@ root domain.
   change on either side break the build in one place.
 - **Only the root domain faces the protocol layer,** and only the root
   admits new external work, by its watermark (7.1).
+
+### 4.6 Vocabularies
+
+A domain's values that other crates name (its records, changes, errors
+and their limits) may live in a vocabulary: a crate of their own, below
+the domain, that depends on lib and on other vocabularies only. It is
+step code (section 10).
+
+- **It holds values and their own operations:** their definitions, the
+  inherent methods that read or name a value (an accessor, a name, an
+  ordering), and derived trait impls. Nothing it exports holds a domain's
+  state, steps it or decides for it. A method that reads a domain's
+  limits or chooses an outcome stays in the domain, as a free function.
+- **They are still the domain's types** (4.4). The domain re-exports its
+  vocabulary along the same module paths, so a caller builds through
+  either crate.
+- **Who names it:** the domain and its parents, a protocol layer, and a
+  machine that encodes or decodes those values, which then holds no copy
+  of them. A sibling domain doesn't (4.5).
+- **A copy needs a reason.** A layer keeps a type of its own for a
+  domain's values only where it adds a meaning, a check or a projection.
+  A format's version lives in the code that writes and reads it, not in a
+  second set of types.
+- **A crate split off for compile time** may be wider: some depend on
+  whole child domains or export decisions. It is a vocabulary only where
+  it meets this section, and a machine names no other.
 
 ## 5. Entities, handles and lifecycle
 
@@ -988,8 +1016,8 @@ targets (`notes.md`, *Why a pinned nightly*).
 
 ### 10.2 What is in
 
-Step code (io, the protocol machines, and a service's protocol layer,
-domain and `iterate`) uses:
+Step code (io, the protocol machines, vocabularies, and a service's
+protocol layer, domain and `iterate`) uses:
 
 - `struct` with named fields; tuple structs only as one-field newtypes
   (`Fd(i32)`).
@@ -1078,11 +1106,13 @@ profile traps whatever the lint does not see, in lib and the shell.
   its result.
 - **Assertions are fail-stop** and are for the service's own bugs, never
   for anything from outside the process: a peer, configuration or the
-  store's contents. `expect` names the invariant it relies on. Nothing
-  catches a panic, tests included, and no test triggers an assertion: a
-  test sees what an assertion guards through the outcomes around it. A
-  check whose job is to fail, such as a referee or a judge, returns its
-  finding, and only its caller panics.
+  store's contents. A stored record that doesn't decode or link is the
+  store's, and refused; one that does is the service's own writing, so a
+  rule it breaks is the service's bug. `expect` names the invariant it
+  relies on. Nothing catches a panic, tests included, and no test triggers
+  an assertion: a test sees what an assertion guards through the outcomes
+  around it. A check whose job is to fail, such as a referee or a judge,
+  returns its finding, and only its caller panics.
 - **Runtime checks stay on in production:** bounds checks, overflow
   checks, assertions. Safe Rust has no undefined behaviour left to trap;
   the ring adapter, the one place that could have some, is tested against

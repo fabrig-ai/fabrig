@@ -1,787 +1,585 @@
 //! Errors in the answer (hearth/docs/design/domain/render/errors.md, 1 to 3).
 mod ids;
 mod validation;
-use crate::form::{json::field, text::Lines};
-pub use crate::progress::{Step, StoreError, StoreFault, StoreLimit};
+use crate::{
+    form::{json::field, text::Lines},
+    progress::StoreFull,
+};
 use alloc::boxed::Box;
-pub use ids::{Ids, Owns, Why};
+use collisions::collision_json;
+use collisions::collision_text;
+use composition::{composition_json, composition_text};
+use hearth_domain_render_vocabulary::{
+    diff::Side,
+    errors::{
+        Cause, Class, Composition, Declared, Decode, Error, Expected, ExportFault, Exported, Field, Kind, Limit,
+        Object, Place, Schema, Takes,
+    },
+    revision::declaration::Map,
+};
+use ids::{ids_json, ids_text};
+use repository::{repository_json, repository_text, tool_json, tool_text};
+use reserved::{reserved_json, reserved_text};
+use resolution::{resolution_json, resolution_text};
+use schema::{schema_json, schema_text};
+use syntax::{syntax_json, syntax_text};
+use validation::{fault_kind_message, fault_kind_name, required_name};
+mod store;
 use skein_json::writer::Encoder;
-pub use validation::Evaluation;
+use store::{store_error_json, store_error_text};
 use validation::{json_names, names, signed};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Error {
-    pub side: Option<crate::diff::Side>,
-    pub kind: Kind,
-    pub class: Class,
-    pub at: Option<Place>,
-    pub also: Option<Place>,
-    pub target: Option<Box<[u8]>>,
-    pub task: Option<Box<[u8]>>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Kind {
-    Reserved(Reserved),
-    Exported(Exported),
-    Ids(Ids),
 
-    Resolution(Resolution),
-    Store(StoreError),
-    Evaluation(Evaluation),
-    Schema(Schema),
-    Guard(Guard),
-    Collision(Collision),
-    Decode(Decode),
-    Repository(Repository),
-    Tool(Tool),
-    Composition(Composition),
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Guard {
-    pub name: Box<[u8]>,
-    pub message: Box<[u8]>,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Class {
-    Configuration,
-    Operational,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Place {
-    pub path: Box<[u8]>,
-    pub position: Option<Position>,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Position {
-    pub line: u32,
-    pub column: u32,
-}
-impl Error {
-    pub(crate) fn text(&self, lines: &mut Lines) {
-        if let Some(side) = self.side {
-            lines.put(side.name());
+pub(crate) fn text(item: &Error, lines: &mut Lines) {
+    let task = if item.kind == Kind::Composition(Composition::Task) { None } else { item.task.as_deref() };
+    text_start(item.side, item.at.as_ref(), item.target.as_deref(), task, lines);
+    match &item.kind {
+        Kind::Exported(exported) => exported_text(exported, lines),
+        Kind::Ids(ids) => ids_text(ids, lines),
+        Kind::Reserved(reserved) => reserved_text(reserved, lines),
+        Kind::Collision(collision) => collision_text(collision, lines),
+        Kind::Resolution(error) => resolution_text(error, lines),
+        Kind::Store(error) => store_error_text(error, lines),
+        Kind::Decode(decode) => decode_text(decode, lines),
+        Kind::Repository(why) => repository_text(why, lines),
+        Kind::Tool(tool) => tool_text(tool, lines),
+        Kind::Composition(why) => composition_text(why, lines, item.target.as_deref(), item.task.as_deref()),
+        Kind::Schema(schema) => schema_text(schema, lines, item.task.as_deref()),
+        Kind::Evaluation(kind) => lines.put(fault_kind_message(*kind)),
+        Kind::Guard(guard) => {
+            lines.put(b"requires ");
+            lines.put(&guard.name);
             lines.put(b": ");
-        }
-        if let Some(at) = &self.at {
-            at.text(lines);
-            lines.put(b": ");
-        }
-        if let Some(target) = &self.target {
-            lines.put(target);
-            lines.put(b": ");
-        }
-        if let Some(task) = &self.task
-            && self.kind != Kind::Composition(Composition::Task)
-        {
-            lines.put(task);
-            lines.put(b": ");
-        }
-        match &self.kind {
-            Kind::Exported(exported) => exported.text(lines),
-            Kind::Ids(ids) => ids.text(lines),
-            Kind::Reserved(reserved) => reserved.text(lines),
-            Kind::Collision(collision) => collision.text(lines),
-            Kind::Resolution(error) => error.text(lines),
-            Kind::Store(error) => error.text(lines),
-            Kind::Decode(decode) => decode.text(lines),
-            Kind::Repository(why) => why.text(lines),
-            Kind::Tool(tool) => tool.text(lines),
-            Kind::Composition(why) => why.text(lines, self.target.as_deref(), self.task.as_deref()),
-            Kind::Schema(schema) => schema.text(lines, self.task.as_deref()),
-            Kind::Evaluation(kind) => lines.put(kind.message()),
-            Kind::Guard(guard) => {
-                lines.put(b"requires ");
-                lines.put(&guard.name);
-                lines.put(b": ");
-                lines.put(&guard.message);
-            }
-        }
-        if let Some(also) = &self.also {
-            lines.put(b" (");
-            also.text(lines);
-            lines.put(b")");
-        }
-        lines.put(b"\n");
-        if let Kind::Tool(tool) = &self.kind {
-            for line in &tool.tail {
-                lines.put(b"  ");
-                lines.put(line);
-                lines.put(b"\n");
-            }
+            lines.put(&guard.message);
         }
     }
-    pub(crate) fn json(&self, json: &mut Encoder) {
-        field(json, b"record", b"error");
-        if let Some(side) = self.side {
-            field(json, b"side", side.name());
+    text_end(item.also.as_ref(), lines);
+    if let Some(tool) = item.kind.tool() {
+        for line in &tool.tail {
+            lines.put(b"  ");
+            lines.put(line);
+            lines.put(b"\n");
         }
-        match &self.kind {
-            Kind::Reserved(reserved) => {
-                field(json, b"kind", b"reserved");
-                json.key(b"reserved");
-                reserved.json(json);
-            }
-            Kind::Ids(ids) => {
-                field(json, b"kind", b"ids");
-                json.key(b"ids");
-                ids.json(json);
-            }
-            Kind::Exported(exported) => {
-                field(json, b"kind", b"exported");
-                json.key(b"exported");
-                exported.json(json);
-            }
-            Kind::Collision(collision) => {
-                field(json, b"kind", b"collision");
-                json.key(b"collision");
-                collision.json(json);
-            }
-            Kind::Resolution(error) => {
-                field(json, b"kind", b"resolution");
-                json.key(b"resolution");
-                error.json(json);
-            }
-            Kind::Store(error) => {
-                field(json, b"kind", b"store");
-                error.json(json);
-            }
-            Kind::Evaluation(kind) => {
-                field(json, b"kind", b"evaluation");
-                field(json, b"evaluation", kind.name());
-            }
-            Kind::Schema(schema) => {
-                field(json, b"kind", b"schema");
-                json.key(b"schema");
-                schema.json(json);
-            }
-            Kind::Repository(why) => {
-                field(json, b"kind", b"repository");
-                json.key(b"repository");
-                why.json(json);
-            }
-            Kind::Composition(why) => {
-                field(json, b"kind", b"composition");
-                json.key(b"composition");
-                why.json(json);
-            }
-            Kind::Tool(tool) => {
-                field(json, b"kind", b"tool");
-                json.key(b"tool");
-                tool.json(json);
-            }
-            Kind::Decode(decode) => {
-                field(json, b"kind", b"decode");
-                json.key(b"decode");
-                decode.json(json);
-            }
-            Kind::Guard(guard) => {
-                field(json, b"kind", b"guard");
-                json.key(b"guard");
-                json.object_start();
-                field(json, b"message", &guard.message);
-                field(json, b"name", &guard.name);
-                json.object_end();
-            }
+    }
+}
+pub(crate) fn json(item: &Error, json: &mut Encoder) {
+    json_start(item.side, json);
+    match &item.kind {
+        Kind::Reserved(reserved) => {
+            field(json, b"kind", b"reserved");
+            json.key(b"reserved");
+            reserved_json(reserved, json);
         }
-        field(
-            json,
-            b"class",
-            match self.class {
-                Class::Configuration => b"configuration",
-                Class::Operational => b"operational",
-            },
-        );
-        if let Some(at) = &self.at {
-            json.key(b"at");
-            at.json(json);
+        Kind::Ids(ids) => {
+            field(json, b"kind", b"ids");
+            json.key(b"ids");
+            ids_json(ids, json);
         }
-        if let Some(also) = &self.also {
-            json.key(b"also");
-            also.json(json);
+        Kind::Exported(exported) => {
+            field(json, b"kind", b"exported");
+            json.key(b"exported");
+            exported_json(exported, json);
         }
-        if let Some(target) = &self.target {
-            field(json, b"target", target);
+        Kind::Collision(collision) => {
+            field(json, b"kind", b"collision");
+            json.key(b"collision");
+            collision_json(collision, json);
         }
-        if let Some(task) = &self.task {
+        Kind::Resolution(error) => {
+            field(json, b"kind", b"resolution");
+            json.key(b"resolution");
+            resolution_json(error, json);
+        }
+        Kind::Store(error) => {
+            store_kind_json(json);
+            store_error_json(error, json);
+        }
+        Kind::Evaluation(kind) => {
+            field(json, b"kind", b"evaluation");
+            field(json, b"evaluation", fault_kind_name(*kind));
+        }
+        Kind::Schema(schema) => {
+            field(json, b"kind", b"schema");
+            json.key(b"schema");
+            schema_json(schema, json);
+        }
+        Kind::Repository(why) => {
+            field(json, b"kind", b"repository");
+            json.key(b"repository");
+            repository_json(why, json);
+        }
+        Kind::Composition(why) => {
+            field(json, b"kind", b"composition");
+            json.key(b"composition");
+            composition_json(why, json);
+        }
+        Kind::Tool(tool) => {
+            field(json, b"kind", b"tool");
+            json.key(b"tool");
+            tool_json(tool, json);
+        }
+        Kind::Decode(decode) => {
+            field(json, b"kind", b"decode");
+            json.key(b"decode");
+            decode_json(decode, json);
+        }
+        Kind::Guard(guard) => {
+            field(json, b"kind", b"guard");
+            json.key(b"guard");
+            json.object_start();
+            field(json, b"message", &guard.message);
+            field(json, b"name", &guard.name);
+            json.object_end();
+        }
+    }
+    json_end(item.class, item.at.as_ref(), item.also.as_ref(), item.target.as_deref(), item.task.as_deref(), json);
+}
+
+pub(crate) fn store_full_text(full: &StoreFull, lines: &mut Lines) {
+    text_start(None, None, None, None, lines);
+    store::full_text(&full.store, full.limit, full.most, lines);
+    text_end(None, lines);
+}
+
+pub(crate) fn store_full_json(full: &StoreFull, json: &mut Encoder) {
+    json_start(None, json);
+    store_kind_json(json);
+    store::full_json(&full.store, full.limit, full.most, json);
+    json_end(Class::Operational, None, None, None, None, json);
+}
+
+fn text_start(side: Option<Side>, at: Option<&Place>, target: Option<&[u8]>, task: Option<&[u8]>, lines: &mut Lines) {
+    if let Some(side) = side {
+        lines.put(crate::diff::side(side));
+        lines.put(b": ");
+    }
+    if let Some(at) = at {
+        place_text(at, lines);
+        lines.put(b": ");
+    }
+    if let Some(target) = target {
+        lines.put(target);
+        lines.put(b": ");
+    }
+    if let Some(task) = task {
+        lines.put(task);
+        lines.put(b": ");
+    }
+}
+
+fn text_end(also: Option<&Place>, lines: &mut Lines) {
+    if let Some(also) = also {
+        lines.put(b" (");
+        place_text(also, lines);
+        lines.put(b")");
+    }
+    lines.put(b"\n");
+}
+
+fn json_start(side: Option<Side>, json: &mut Encoder) {
+    field(json, b"record", b"error");
+    if let Some(side) = side {
+        field(json, b"side", crate::diff::side(side));
+    }
+}
+
+fn store_kind_json(json: &mut Encoder) {
+    field(json, b"kind", b"store");
+}
+
+fn json_end(
+    class: Class,
+    at: Option<&Place>,
+    also: Option<&Place>,
+    target: Option<&[u8]>,
+    task: Option<&[u8]>,
+    json: &mut Encoder,
+) {
+    field(
+        json,
+        b"class",
+        match class {
+            Class::Configuration => b"configuration",
+            Class::Operational => b"operational",
+        },
+    );
+    if let Some(at) = at {
+        json.key(b"at");
+        place_json(at, json);
+    }
+    if let Some(also) = also {
+        json.key(b"also");
+        place_json(also, json);
+    }
+    if let Some(target) = target {
+        field(json, b"target", target);
+    }
+    if let Some(task) = task {
+        field(json, b"task", task);
+    }
+}
+
+pub(super) fn place_text(item: &Place, lines: &mut Lines) {
+    lines.put(&item.path);
+    if let Some(position) = item.position {
+        lines.put(b":");
+        lines.decimal(u64::from(position.line));
+        lines.put(b":");
+        lines.decimal(u64::from(position.column));
+    }
+}
+pub(super) fn place_json(item: &Place, json: &mut Encoder) {
+    json.object_start();
+    if let Some(position) = item.position {
+        json.key(b"column");
+        json.unsigned(u64::from(position.column));
+        json.key(b"line");
+        json.unsigned(u64::from(position.line));
+    }
+    field(json, b"path", &item.path);
+    json.object_end();
+}
+
+pub(super) fn decode_text(item: &Decode, lines: &mut Lines) {
+    match item {
+        Decode::Syntax(syntax) => syntax_text(syntax, lines),
+        Decode::Declaration(declared) => declared_text(*declared, lines),
+        Decode::Unexpected => lines.put(b"not JSON: unexpected byte"),
+        Decode::Trailing => lines.put(b"not JSON: trailing bytes"),
+        Decode::TooDeep => lines.put(b"JSON nested too deeply"),
+        Decode::StringTooLong => lines.put(b"JSON string too long"),
+        Decode::NumberTooLong => lines.put(b"JSON number too long"),
+        Decode::Number => lines.put(b"not JSON: invalid number"),
+        Decode::Escape => lines.put(b"not JSON: invalid escape"),
+        Decode::Surrogate => lines.put(b"not JSON: invalid surrogate"),
+        Decode::Utf8 => lines.put(b"not JSON: invalid UTF-8"),
+        Decode::Control => lines.put(b"not JSON: control byte"),
+        Decode::Truncated => lines.put(b"not JSON: truncated document"),
+        Decode::NotObject => lines.put(b"a document must be an object"),
+        Decode::NotInteger => lines.put(b"a number must be an integer"),
+        Decode::Range => lines.put(b"an integer outside i64"),
+        Decode::Nul => lines.put(b"U+0000 is not allowed"),
+        Decode::Keys => lines.put(b"too many object keys"),
+        Decode::Note => lines.put(b"_note must be a string"),
+        Decode::ListNull => lines.put(b"null inside a list"),
+        Decode::Name => lines.put(b"invalid task name"),
+        Decode::Placement => lines.put(b"placement must be an object"),
+        Decode::Members => lines.put(b"members must be an object or null"),
+        Decode::Member => lines.put(b"invalid member"),
+        Decode::Duplicate { key } => {
+            lines.put(b"duplicate key ");
+            lines.quote(key);
+        }
+        Decode::Settings { task } => {
+            lines.put(b"settings for ");
+            lines.quote(task);
+            lines.put(b" must be an object or null");
+        }
+        Decode::Unknown { field } => {
+            lines.put(b"unknown field ");
+            lines.quote(field);
+        }
+        Decode::Wrong { field } => {
+            lines.put(b"wrong value for ");
+            lines.put(field_name(*field));
+        }
+        Decode::Missing { field } => {
+            lines.put(b"missing ");
+            lines.put(field_name(*field));
+        }
+        Decode::Misplaced { field } => {
+            lines.put(b"misplaced ");
+            lines.put(field_name(*field));
+        }
+        Decode::TooLarge { limit, max } => {
+            lines.put(match limit {
+                Limit::Record => b"a record past ",
+                Limit::Closure => b"a closure past ",
+                Limit::Template => b"a template past ",
+                Limit::Document => b"a document past ",
+                Limit::Decoded => b"decoded documents past ",
+                Limit::Static => b"a static file past ",
+                Limit::Entries => b"listing entries past ",
+                Limit::Path => b"a path past ",
+                Limit::Paths => b"listing paths past ",
+                Limit::Tasks => b"tasks past ",
+                Limit::Targets => b"targets past ",
+            });
+            lines.decimal(*max);
+            lines.put(b" bytes");
+        }
+    }
+}
+pub(super) fn decode_json(item: &Decode, json: &mut Encoder) {
+    match item {
+        Decode::Syntax(syntax) => syntax_json(syntax, json),
+        Decode::Declaration(declared) => {
+            json.object_start();
+            json.key(b"declared");
+            declared_json(*declared, json);
+            field(json, b"kind", b"declaration");
+            json.object_end();
+        }
+        Decode::Unexpected => json.string(b"unexpected"),
+        Decode::Trailing => json.string(b"trailing"),
+        Decode::TooDeep => json.string(b"too_deep"),
+        Decode::StringTooLong => json.string(b"string_too_long"),
+        Decode::NumberTooLong => json.string(b"number_too_long"),
+        Decode::Number => json.string(b"number"),
+        Decode::Escape => json.string(b"escape"),
+        Decode::Surrogate => json.string(b"surrogate"),
+        Decode::Utf8 => json.string(b"utf8"),
+        Decode::Control => json.string(b"control"),
+        Decode::Truncated => json.string(b"truncated"),
+        Decode::NotObject => json.string(b"not_object"),
+        Decode::NotInteger => json.string(b"not_integer"),
+        Decode::Range => json.string(b"range"),
+        Decode::Nul => json.string(b"nul"),
+        Decode::Keys => json.string(b"keys"),
+        Decode::Note => json.string(b"note"),
+        Decode::ListNull => json.string(b"list_null"),
+        Decode::Name => json.string(b"name"),
+        Decode::Placement => json.string(b"placement"),
+        Decode::Members => json.string(b"members"),
+        Decode::Member => json.string(b"member"),
+        Decode::Duplicate { key } => {
+            json.object_start();
+            field(json, b"key", key);
+            field(json, b"kind", b"duplicate");
+            json.object_end();
+        }
+        Decode::Settings { task } => {
+            json.object_start();
             field(json, b"task", task);
+            field(json, b"kind", b"settings");
+            json.object_end();
         }
-    }
-}
-impl Place {
-    fn text(&self, lines: &mut Lines) {
-        lines.put(&self.path);
-        if let Some(position) = self.position {
-            lines.put(b":");
-            lines.decimal(u64::from(position.line));
-            lines.put(b":");
-            lines.decimal(u64::from(position.column));
+        Decode::Unknown { field: name } => {
+            json.object_start();
+            field(json, b"field", name);
+            field(json, b"kind", b"unknown");
+            json.object_end();
         }
-    }
-    fn json(&self, json: &mut Encoder) {
-        json.object_start();
-        if let Some(position) = self.position {
-            json.key(b"column");
-            json.unsigned(u64::from(position.column));
-            json.key(b"line");
-            json.unsigned(u64::from(position.line));
+        Decode::Wrong { field: name } => {
+            json.object_start();
+            field(json, b"field", field_name(*name));
+            field(json, b"kind", b"wrong");
+            json.object_end();
         }
-        field(json, b"path", &self.path);
-        json.object_end();
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Decode {
-    Syntax(Syntax),
-    Declaration(Declared),
-    ListNull,
-    Unexpected,
-    Trailing,
-    TooDeep,
-    StringTooLong,
-    NumberTooLong,
-    Number,
-    Escape,
-    Surrogate,
-    Utf8,
-    Control,
-    Truncated,
-    NotObject,
-    NotInteger,
-    Range,
-    Nul,
-    Keys,
-    Note,
-    Name,
-    Placement,
-    Members,
-    Member,
-    Duplicate { key: Box<[u8]> },
-    Settings { task: Box<[u8]> },
-    Unknown { field: Box<[u8]> },
-    Wrong { field: Field },
-    Missing { field: Field },
-    Misplaced { field: Field },
-    TooLarge { limit: Limit, max: u64 },
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Field {
-    Kind,
-    Firmware,
-    Hardware,
-    On,
-    Mutable,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Limit {
-    Record,
-    Closure,
-    Template,
-    Document,
-    Decoded,
-    Static,
-    Entries,
-    Path,
-    Paths,
-    Tasks,
-    Targets,
-}
-
-impl Decode {
-    fn text(&self, lines: &mut Lines) {
-        match self {
-            Self::Syntax(syntax) => syntax.text(lines),
-            Self::Declaration(declared) => declared.text(lines),
-            Self::Unexpected => lines.put(b"not JSON: unexpected byte"),
-            Self::Trailing => lines.put(b"not JSON: trailing bytes"),
-            Self::TooDeep => lines.put(b"JSON nested too deeply"),
-            Self::StringTooLong => lines.put(b"JSON string too long"),
-            Self::NumberTooLong => lines.put(b"JSON number too long"),
-            Self::Number => lines.put(b"not JSON: invalid number"),
-            Self::Escape => lines.put(b"not JSON: invalid escape"),
-            Self::Surrogate => lines.put(b"not JSON: invalid surrogate"),
-            Self::Utf8 => lines.put(b"not JSON: invalid UTF-8"),
-            Self::Control => lines.put(b"not JSON: control byte"),
-            Self::Truncated => lines.put(b"not JSON: truncated document"),
-            Self::NotObject => lines.put(b"a document must be an object"),
-            Self::NotInteger => lines.put(b"a number must be an integer"),
-            Self::Range => lines.put(b"an integer outside i64"),
-            Self::Nul => lines.put(b"U+0000 is not allowed"),
-            Self::Keys => lines.put(b"too many object keys"),
-            Self::Note => lines.put(b"_note must be a string"),
-            Self::ListNull => lines.put(b"null inside a list"),
-            Self::Name => lines.put(b"invalid task name"),
-            Self::Placement => lines.put(b"placement must be an object"),
-            Self::Members => lines.put(b"members must be an object or null"),
-            Self::Member => lines.put(b"invalid member"),
-            Self::Duplicate { key } => {
-                lines.put(b"duplicate key ");
-                lines.quote(key);
-            }
-            Self::Settings { task } => {
-                lines.put(b"settings for ");
-                lines.quote(task);
-                lines.put(b" must be an object or null");
-            }
-            Self::Unknown { field } => {
-                lines.put(b"unknown field ");
-                lines.quote(field);
-            }
-            Self::Wrong { field } => {
-                lines.put(b"wrong value for ");
-                lines.put(field.name());
-            }
-            Self::Missing { field } => {
-                lines.put(b"missing ");
-                lines.put(field.name());
-            }
-            Self::Misplaced { field } => {
-                lines.put(b"misplaced ");
-                lines.put(field.name());
-            }
-            Self::TooLarge { limit, max } => {
-                lines.put(match limit {
-                    Limit::Record => b"a record past ",
-                    Limit::Closure => b"a closure past ",
-                    Limit::Template => b"a template past ",
-                    Limit::Document => b"a document past ",
-                    Limit::Decoded => b"decoded documents past ",
-                    Limit::Static => b"a static file past ",
-                    Limit::Entries => b"listing entries past ",
-                    Limit::Path => b"a path past ",
-                    Limit::Paths => b"listing paths past ",
-                    Limit::Tasks => b"tasks past ",
-                    Limit::Targets => b"targets past ",
-                });
-                lines.decimal(*max);
-                lines.put(b" bytes");
-            }
+        Decode::Missing { field: name } => {
+            json.object_start();
+            field(json, b"field", field_name(*name));
+            field(json, b"kind", b"missing");
+            json.object_end();
         }
-    }
-    fn json(&self, json: &mut Encoder) {
-        match self {
-            Self::Syntax(syntax) => syntax.json(json),
-            Self::Declaration(declared) => {
-                json.object_start();
-                json.key(b"declared");
-                declared.json(json);
-                field(json, b"kind", b"declaration");
-                json.object_end();
-            }
-            Self::Unexpected => json.string(b"unexpected"),
-            Self::Trailing => json.string(b"trailing"),
-            Self::TooDeep => json.string(b"too_deep"),
-            Self::StringTooLong => json.string(b"string_too_long"),
-            Self::NumberTooLong => json.string(b"number_too_long"),
-            Self::Number => json.string(b"number"),
-            Self::Escape => json.string(b"escape"),
-            Self::Surrogate => json.string(b"surrogate"),
-            Self::Utf8 => json.string(b"utf8"),
-            Self::Control => json.string(b"control"),
-            Self::Truncated => json.string(b"truncated"),
-            Self::NotObject => json.string(b"not_object"),
-            Self::NotInteger => json.string(b"not_integer"),
-            Self::Range => json.string(b"range"),
-            Self::Nul => json.string(b"nul"),
-            Self::Keys => json.string(b"keys"),
-            Self::Note => json.string(b"note"),
-            Self::ListNull => json.string(b"list_null"),
-            Self::Name => json.string(b"name"),
-            Self::Placement => json.string(b"placement"),
-            Self::Members => json.string(b"members"),
-            Self::Member => json.string(b"member"),
-            Self::Duplicate { key } => {
-                json.object_start();
-                field(json, b"key", key);
-                field(json, b"kind", b"duplicate");
-                json.object_end();
-            }
-            Self::Settings { task } => {
-                json.object_start();
-                field(json, b"task", task);
-                field(json, b"kind", b"settings");
-                json.object_end();
-            }
-            Self::Unknown { field: name } => {
-                json.object_start();
-                field(json, b"field", name);
-                field(json, b"kind", b"unknown");
-                json.object_end();
-            }
-            Self::Wrong { field: name } => {
-                json.object_start();
-                field(json, b"field", name.name());
-                field(json, b"kind", b"wrong");
-                json.object_end();
-            }
-            Self::Missing { field: name } => {
-                json.object_start();
-                field(json, b"field", name.name());
-                field(json, b"kind", b"missing");
-                json.object_end();
-            }
-            Self::Misplaced { field: name } => {
-                json.object_start();
-                field(json, b"field", name.name());
-                field(json, b"kind", b"misplaced");
-                json.object_end();
-            }
-            Self::TooLarge { limit, max } => {
-                json.object_start();
-                field(json, b"kind", b"too_large");
-                field(
-                    json,
-                    b"limit",
-                    match limit {
-                        Limit::Record => b"record",
-                        Limit::Closure => b"closure",
-                        Limit::Template => b"template",
-                        Limit::Document => b"document",
-                        Limit::Decoded => b"decoded",
-                        Limit::Static => b"static",
-                        Limit::Entries => b"entries",
-                        Limit::Path => b"path",
-                        Limit::Paths => b"paths",
-                        Limit::Tasks => b"tasks",
-                        Limit::Targets => b"targets",
-                    },
-                );
-                json.key(b"max");
-                json.unsigned(*max);
-                json.object_end();
-            }
+        Decode::Misplaced { field: name } => {
+            json.object_start();
+            field(json, b"field", field_name(*name));
+            field(json, b"kind", b"misplaced");
+            json.object_end();
         }
-    }
-}
-impl Field {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Kind => b"kind",
-            Self::Firmware => b"firmware",
-            Self::Hardware => b"hardware",
-            Self::On => b"on",
-            Self::Mutable => b"mutable",
+        Decode::TooLarge { limit, max } => {
+            json.object_start();
+            field(json, b"kind", b"too_large");
+            field(
+                json,
+                b"limit",
+                match limit {
+                    Limit::Record => b"record",
+                    Limit::Closure => b"closure",
+                    Limit::Template => b"template",
+                    Limit::Document => b"document",
+                    Limit::Decoded => b"decoded",
+                    Limit::Static => b"static",
+                    Limit::Entries => b"entries",
+                    Limit::Path => b"path",
+                    Limit::Paths => b"paths",
+                    Limit::Tasks => b"tasks",
+                    Limit::Targets => b"targets",
+                },
+            );
+            json.key(b"max");
+            json.unsigned(*max);
+            json.object_end();
         }
     }
 }
 
-/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format/tasks.md, 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Declared {
-    Unknown { of: Object },
-    Later,
-    Wrong { expected: Expected },
-    Missing { key: Required },
-    Name,
-    Doc,
-    Order,
-    Optional,
-    Bound,
-    Above,
-    Enum,
-    Settings,
-    Secret,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Object {
-    Declaration,
-    Read,
-    Guard,
-    Script,
-    Bless,
-    Entry(Map),
-    Range,
-    Spec,
-    Export,
-    Type,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Expected {
-    Object,
-    String,
-    Strings,
-    Bool,
-    Int,
-    Field(Takes),
-    True,
-    Type,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Required {
-    If,
-    Message,
-    Type,
-    Doc,
-    Value,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Map {
-    Packages,
-    Preseeds,
-    Initramfs,
-    Software,
-    Files,
-    Users,
-    Groups,
-    Presets,
-    Tmpfiles,
-    Data,
-    Secrets,
-    Identity,
-    Cmdline,
-    Live,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Takes {
-    Text,
-    Int,
-    Bool,
-    Strings,
-    Range,
-}
-
-impl Declared {
-    fn text(self, lines: &mut Lines) {
-        match self {
-            Self::Unknown { of } => {
-                lines.put(b"no such key in a ");
-                lines.put(of.name());
-            }
-            Self::Wrong { expected } => {
-                lines.put(b"not ");
-                lines.put(expected.name());
-            }
-            Self::Missing { key } => {
-                lines.put(b"missing ");
-                lines.put(key.name());
-            }
-            Self::Later => lines.put(b"a key for a later milestone"),
-            Self::Name => lines.put(b"invalid declaration name"),
-            Self::Doc => lines.put(b"doc must be one line within its length limit"),
-            Self::Order => lines.put(b"order must be from 0 to 999"),
-            Self::Optional => lines.put(b"optional beside a default"),
-            Self::Bound => lines.put(b"a bound on a type it does not bound"),
-            Self::Above => lines.put(b"min above max"),
-            Self::Enum => lines.put(b"an enum must list distinct values"),
-            Self::Settings => lines.put(b"too many settings"),
-            Self::Secret => lines.put(b"an export type holds secret"),
-        }
-    }
-    fn json(self, json: &mut Encoder) {
-        json.object_start();
-        match self {
-            Self::Unknown { of } => {
-                field(json, b"kind", b"unknown");
-                field(json, b"of", of.name());
-            }
-            Self::Wrong { expected } => {
-                field(json, b"kind", b"wrong");
-                field(json, b"expected", expected.name());
-            }
-            Self::Missing { key } => {
-                field(json, b"kind", b"missing");
-                field(json, b"key", key.name());
-            }
-            Self::Later => field(json, b"kind", b"later"),
-            Self::Name => field(json, b"kind", b"name"),
-            Self::Doc => field(json, b"kind", b"doc"),
-            Self::Order => field(json, b"kind", b"order"),
-            Self::Optional => field(json, b"kind", b"optional"),
-            Self::Bound => field(json, b"kind", b"bound"),
-            Self::Above => field(json, b"kind", b"above"),
-            Self::Enum => field(json, b"kind", b"enum"),
-            Self::Settings => field(json, b"kind", b"settings"),
-            Self::Secret => field(json, b"kind", b"secret"),
-        }
-        json.object_end();
-    }
-}
-impl Object {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Declaration => b"declaration",
-            Self::Read => b"read",
-            Self::Guard => b"guard",
-            Self::Script => b"script",
-            Self::Bless => b"bless",
-            Self::Range => b"range",
-            Self::Spec => b"spec",
-            Self::Export => b"export",
-            Self::Type => b"type",
-            Self::Entry(map) => map.name(),
-        }
-    }
-}
-impl Map {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Packages => b"packages entry",
-            Self::Preseeds => b"preseeds entry",
-            Self::Initramfs => b"initramfs entry",
-            Self::Software => b"software entry",
-            Self::Files => b"files entry",
-            Self::Users => b"users entry",
-            Self::Groups => b"groups entry",
-            Self::Presets => b"presets entry",
-            Self::Tmpfiles => b"tmpfiles entry",
-            Self::Data => b"data entry",
-            Self::Secrets => b"secrets entry",
-            Self::Identity => b"identity entry",
-            Self::Cmdline => b"cmdline entry",
-            Self::Live => b"live entry",
-        }
-    }
-}
-impl Expected {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Object => b"an object",
-            Self::String => b"a string",
-            Self::Strings => b"a list of strings",
-            Self::Bool => b"a bool",
-            Self::Int => b"an int",
-            Self::True => b"true",
-            Self::Type => b"a type",
-            Self::Field(takes) => takes.name(),
-        }
-    }
-}
-impl Takes {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Text => b"a string",
-            Self::Int => b"an int",
-            Self::Bool => b"a bool",
-            Self::Strings => b"a list of strings",
-            Self::Range => b"a range",
-        }
+pub(super) fn field_name(item: Field) -> &'static [u8] {
+    match item {
+        Field::Kind => b"kind",
+        Field::Firmware => b"firmware",
+        Field::Hardware => b"hardware",
+        Field::On => b"on",
+        Field::Mutable => b"mutable",
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Schema {
-    Source { first: Box<[u8]>, second: Box<[u8]> },
-    Export { fault: ExportFault },
-    Unlisted { reader: Box<[u8]>, root: Root, task: Box<[u8]>, setting: Option<Box<[u8]>> },
-    Dynamic { root: Root },
-    Task { task: Box<[u8]> },
-    Unread { task: Box<[u8]>, setting: Box<[u8]>, declared: Box<[Box<[u8]>]> },
-    Wrong { expected: TypeName },
-    Enum { value: Box<[u8]>, listed: Box<[Box<[u8]>]> },
-    Beneath { allowed: Box<[Box<[u8]>]> },
-    Below { min: i64 },
-    Above { max: i64 },
-    Length { max_length: i64 },
-    Null,
-    UndeclaredField { field: Box<[u8]>, declared: Box<[Box<[u8]>]> },
-    MissingField { field: Box<[u8]> },
-    Undeclared { setting: Box<[u8]>, declared: Box<[Box<[u8]>]> },
-    Missing { setting: Box<[u8]> },
-    Absent { task: Box<[u8]> },
-    Malformed { format: Format },
-    Target { name: Box<[u8]>, environment: Box<[u8]> },
-    File { path: Box<[u8]> },
-    Large { path: Box<[u8]>, max: u64 },
-    Main,
-    Security,
-    Component { package: Box<[u8]>, component: Box<[u8]> },
+pub(super) fn declared_text(item: Declared, lines: &mut Lines) {
+    match item {
+        Declared::Unknown { of } => {
+            lines.put(b"no such key in a ");
+            lines.put(object_name(of));
+        }
+        Declared::Wrong { expected } => {
+            lines.put(b"not ");
+            lines.put(expected_name(expected));
+        }
+        Declared::Missing { key } => {
+            lines.put(b"missing ");
+            lines.put(required_name(key));
+        }
+        Declared::Later => lines.put(b"a key for a later milestone"),
+        Declared::Name => lines.put(b"invalid declaration name"),
+        Declared::Doc => lines.put(b"doc must be one line within its length limit"),
+        Declared::Order => lines.put(b"order must be from 0 to 999"),
+        Declared::Optional => lines.put(b"optional beside a default"),
+        Declared::Bound => lines.put(b"a bound on a type it does not bound"),
+        Declared::Above => lines.put(b"min above max"),
+        Declared::Enum => lines.put(b"an enum must list distinct values"),
+        Declared::Settings => lines.put(b"too many settings"),
+        Declared::Secret => lines.put(b"an export type holds secret"),
+    }
+}
+pub(super) fn declared_json(item: Declared, json: &mut Encoder) {
+    json.object_start();
+    match item {
+        Declared::Unknown { of } => {
+            field(json, b"kind", b"unknown");
+            field(json, b"of", object_name(of));
+        }
+        Declared::Wrong { expected } => {
+            field(json, b"kind", b"wrong");
+            field(json, b"expected", expected_name(expected));
+        }
+        Declared::Missing { key } => {
+            field(json, b"kind", b"missing");
+            field(json, b"key", required_name(key));
+        }
+        Declared::Later => field(json, b"kind", b"later"),
+        Declared::Name => field(json, b"kind", b"name"),
+        Declared::Doc => field(json, b"kind", b"doc"),
+        Declared::Order => field(json, b"kind", b"order"),
+        Declared::Optional => field(json, b"kind", b"optional"),
+        Declared::Bound => field(json, b"kind", b"bound"),
+        Declared::Above => field(json, b"kind", b"above"),
+        Declared::Enum => field(json, b"kind", b"enum"),
+        Declared::Settings => field(json, b"kind", b"settings"),
+        Declared::Secret => field(json, b"kind", b"secret"),
+    }
+    json.object_end();
+}
+
+pub(super) fn object_name(item: Object) -> &'static [u8] {
+    match item {
+        Object::Declaration => b"declaration",
+        Object::Read => b"read",
+        Object::Guard => b"guard",
+        Object::Script => b"script",
+        Object::Bless => b"bless",
+        Object::Range => b"range",
+        Object::Spec => b"spec",
+        Object::Export => b"export",
+        Object::Type => b"type",
+        Object::Entry(map) => map_name(map),
+    }
+}
+
+pub(super) fn map_name(item: Map) -> &'static [u8] {
+    match item {
+        Map::Packages => b"packages entry",
+        Map::Preseeds => b"preseeds entry",
+        Map::Initramfs => b"initramfs entry",
+        Map::Software => b"software entry",
+        Map::Files => b"files entry",
+        Map::Users => b"users entry",
+        Map::Groups => b"groups entry",
+        Map::Presets => b"presets entry",
+        Map::Tmpfiles => b"tmpfiles entry",
+        Map::Data => b"data entry",
+        Map::Secrets => b"secrets entry",
+        Map::Identity => b"identity entry",
+        Map::Cmdline => b"cmdline entry",
+        Map::Live => b"live entry",
+    }
+}
+
+pub(super) fn expected_name(item: Expected) -> &'static [u8] {
+    match item {
+        Expected::Object => b"an object",
+        Expected::String => b"a string",
+        Expected::Strings => b"a list of strings",
+        Expected::Bool => b"a bool",
+        Expected::Int => b"an int",
+        Expected::True => b"true",
+        Expected::Type => b"a type",
+        Expected::Field(takes) => takes_name(takes),
+    }
+}
+
+pub(super) fn takes_name(item: Takes) -> &'static [u8] {
+    match item {
+        Takes::Text => b"a string",
+        Takes::Int => b"an int",
+        Takes::Bool => b"a bool",
+        Takes::Strings => b"a list of strings",
+        Takes::Range => b"a range",
+    }
 }
 
 mod schema;
-pub use schema::Format;
 
 mod type_name;
-pub use type_name::TypeName;
 
 mod repository;
-pub use repository::{Command, Ended, Repository, Tool};
 
-pub mod syntax;
-pub use syntax::Syntax;
 mod composition;
-pub use composition::{Composition, Host};
+mod syntax;
 
 mod collisions;
-pub use collisions::{Collision, Id, Subject};
 
-/// Reference roots restricted to literal names (hearth/docs/design/protocol/format/README.md, 5.4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Root {
-    Debian,
-    Tasks,
-    Exports,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ExportFault {
-    Form,
-    Root { root: Root },
-}
-
-/// Another target's exports failed (hearth/docs/design/domain/render/README.md, 3.4).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Exported {
-    pub exporter: Box<[u8]>,
-    pub task: Box<[u8]>,
-    pub cause: Cause,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Cause {
-    Decode(Decode),
-    Repository(Repository),
-    Composition(Composition),
-    Schema(Schema),
-    Evaluation(Evaluation),
-}
-
-impl Exported {
-    fn text(&self, lines: &mut Lines) {
-        lines.put(b"exports.");
-        lines.put(&self.task);
-        lines.put(b" of ");
-        lines.put(&self.exporter);
-        lines.put(b": ");
-        match &self.cause {
-            Cause::Decode(value) => value.text(lines),
-            Cause::Repository(value) => value.text(lines),
-            Cause::Composition(value) => value.text(lines, Some(&self.exporter), Some(&self.task)),
-            Cause::Schema(value) => value.text(lines, Some(&self.task)),
-            Cause::Evaluation(value) => lines.put(value.message()),
-        }
+pub(super) fn exported_text(item: &Exported, lines: &mut Lines) {
+    lines.put(b"exports.");
+    lines.put(&item.task);
+    lines.put(b" of ");
+    lines.put(&item.exporter);
+    lines.put(b": ");
+    match &item.cause {
+        Cause::Decode(value) => decode_text(value, lines),
+        Cause::Repository(value) => repository_text(value, lines),
+        Cause::Composition(value) => composition_text(value, lines, Some(&item.exporter), Some(&item.task)),
+        Cause::Schema(value) => schema_text(value, lines, Some(&item.task)),
+        Cause::Evaluation(value) => lines.put(fault_kind_message(*value)),
     }
-    fn json(&self, json: &mut Encoder) {
-        json.object_start();
-        json.key(b"cause");
-        json.object_start();
-        match &self.cause {
-            Cause::Decode(value) => {
-                json.key(b"decode");
-                value.json(json);
-            }
-            Cause::Repository(value) => {
-                json.key(b"repository");
-                value.json(json);
-            }
-            Cause::Composition(value) => {
-                json.key(b"composition");
-                value.json(json);
-            }
-            Cause::Schema(value) => {
-                json.key(b"schema");
-                value.json(json);
-            }
-            Cause::Evaluation(value) => field(json, b"evaluation", value.name()),
+}
+pub(super) fn exported_json(item: &Exported, json: &mut Encoder) {
+    json.object_start();
+    json.key(b"cause");
+    json.object_start();
+    match &item.cause {
+        Cause::Decode(value) => {
+            json.key(b"decode");
+            decode_json(value, json);
         }
-        json.object_end();
-        field(json, b"exporter", &self.exporter);
-        field(json, b"task", &self.task);
-        json.object_end();
+        Cause::Repository(value) => {
+            json.key(b"repository");
+            repository_json(value, json);
+        }
+        Cause::Composition(value) => {
+            json.key(b"composition");
+            composition_json(value, json);
+        }
+        Cause::Schema(value) => {
+            json.key(b"schema");
+            schema_json(value, json);
+        }
+        Cause::Evaluation(value) => field(json, b"evaluation", fault_kind_name(*value)),
     }
+    json.object_end();
+    field(json, b"exporter", &item.exporter);
+    field(json, b"task", &item.task);
+    json.object_end();
 }
 
 mod resolution;
-pub use resolution::Resolution;
 
 mod reserved;
-pub use reserved::{Reserved, Rule};

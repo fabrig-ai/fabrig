@@ -34,6 +34,9 @@ pub(in super::super) fn account(
         head(&mut words, expected.as_ref());
         append(&mut words, b", found ");
         head(&mut words, observed.as_ref());
+    } else if why == change::Hold::PullClosed {
+        append(&mut words, b"its pull request closed: ");
+        append(&mut words, skein_lib::Decimal::of(row.pull?).as_bytes());
     } else if why == change::Hold::Stalled {
         append(&mut words, b"no progress at ");
         append(&mut words, step_name(was));
@@ -47,6 +50,9 @@ pub(in super::super) fn account(
             waiting_on_reads(&mut words, was, row);
         } else {
             waiting(&mut words, was, row);
+        }
+        if let change::State::Checking { .. } = was.as_ref() {
+            return Some(domain.forge.ci_stall_words(task, words.as_slice(), tasks::HOLD_ACCOUNT_BYTES));
         }
     } else {
         return None;

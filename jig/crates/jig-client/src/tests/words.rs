@@ -205,3 +205,12 @@ fn a_task_no_account_serves_has_its_own_wait_word() {
     assert_eq!(book.say(0, Word::Waiting(WaitingWord::Account).id(), &[]).unwrap().text.as_ref(), b"an account");
     assert_eq!(book.say(0, Word::waiting(&WaitsOn::Nothing).id(), &[]).unwrap().text.as_ref(), b"Nothing awaited");
 }
+
+#[test]
+fn an_own_question_wait_names_its_number() {
+    let book = book(Box::new([words::english()]));
+    assert_eq!(
+        book.say(0, Word::waiting(&WaitsOn::Question { number: 7 }).id(), &[Hole::Number(7)]).unwrap().text.as_ref(),
+        b"Waiting for an answer to its question 7"
+    );
+}

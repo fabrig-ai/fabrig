@@ -230,6 +230,7 @@ fn opening_row() -> ChangeRow {
             gates: Box::new([]),
             clean: Box::new([]),
             gate_failures: Box::new([]),
+            released_resolution: false,
             released: None,
             repairs: 0,
             resolutions: 0,
@@ -386,6 +387,8 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
         .insert(
             (REPO, Box::from(tier)),
             TierRow {
+                posting: None,
+                hold: None,
                 observations: Box::new([]),
                 repository: REPO,
                 tier: Box::from(tier),

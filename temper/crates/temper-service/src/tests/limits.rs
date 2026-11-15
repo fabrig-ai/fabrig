@@ -194,7 +194,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649725 bytes, past its bound of 4580852 bytes\n",
+            b"engine.limits.store: the store's map value, 47844499 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }
@@ -267,6 +267,8 @@ fn the_small_profile_passes_each_domains_validity() {
     let mut short = settings.limits;
     short.root.journal.transcript_bytes -= 1;
     assert!(limits::engine(&jig, &short).is_none());
+    short.forge.client.answer_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_some(), "the forge answer, not the deep task row, sets small's bound");
     assert_eq!(root.public_watermark, root.watermark / 2);
     let mut jig = jig;
     jig.clients.public.reads = 8;
@@ -314,8 +316,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The deep task row's 22,467,664 bytes plus 21 eight-byte executors and its question wake watermark.
-                transcript_bytes: 22_467_840,
+                // Task row 22,467,664 + 21 * 8 executors + 8 question watermark + 56 open attempt.
+                transcript_bytes: 22_467_896,
                 result_bytes: 335_619,
                 ..small.root.journal
             },

@@ -81,7 +81,7 @@ fn a_goals_change_keeps_the_red_landing_it_repairs_across_restart() {
     let engine::CallAnswer::Delegated(made) = &answer else { panic!("repair refused: {:?}", world.call_errors) };
     let number = made[0].task;
     until(&mut world, LANDING_TICKS, "repair row saved", |world| {
-        world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(number)))
+        world.store.rows.contains_key(&Key::Forge(forge_top::Key::ChangeHot(number)))
     });
     assert_eq!(change(&world, number).repairs, Some(commit));
     assert!(
@@ -102,6 +102,7 @@ fn a_goals_change_keeps_the_red_landing_it_repairs_across_restart() {
     until(&mut world, RUN_TICKS, "repair landing cleared", |world| {
         matches!(change(world, number).change.state, State::Cleared { .. })
     });
+    tier_runs::posted(&mut world);
     world.close();
 }
 
@@ -117,6 +118,7 @@ fn a_cleared_landing_is_refused_as_a_red_to_repair() {
     until(&mut world, LANDING_TICKS, "cleared repair refused", |world| world.call_errors.len() > before);
     let digits = String::from_utf8(engine::commit_text(&commit).into_vec()).expect("commit digits");
     assert_eq!(world.call_errors[before].text.as_ref(), format!("repairs: {digits} is red in no tier.").as_bytes());
+    tier_runs::posted(&mut world);
     world.close();
 }
 
@@ -132,6 +134,7 @@ fn a_red_landing_on_another_branch_is_refused() {
         world.call_errors[before].text.as_ref(),
         format!("repairs: {digits} landed into main, not release.").as_bytes()
     );
+    tier_runs::posted(&mut world);
     world.close();
 }
 

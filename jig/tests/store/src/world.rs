@@ -238,6 +238,12 @@ impl World {
         }
     }
 
+    /// Drop the simulator and drivers, retaining only the component for heap observations.
+    #[must_use]
+    pub fn into_component(self) -> Store {
+        self.store
+    }
+
     /// Consume a settled world to inspect the component's durable rows.
     #[must_use]
     pub fn into_stores(self) -> jig_protocol_store::Stores {
@@ -320,6 +326,14 @@ impl World {
     }
 
     pub fn commit(&mut self, writes: Box<[Write]>) -> Option<u64> {
+        let mut whole = Vec::new();
+        for write in writes {
+            if let Write::Save(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(row))) = &write {
+                whole.push(Write::Save(root::cold_task(row)));
+            }
+            whole.push(write);
+        }
+        let writes = whole.into_boxed_slice();
         let number = self.next;
         self.model.stage(number, &writes);
         self.operations = 0;
@@ -574,9 +588,17 @@ impl World {
             for event in events {
                 match event {
                     // This store world has no census consumer (protocol/store/README.md, 6.3).
-                    Event::Census { .. } => {}
+                    Event::Census { .. } | Event::Ran { .. } => {}
                     Event::Page { .. } | Event::PageRefused { .. } => {
                         unreachable!("a start's pages need a start-mode store")
+                    }
+                    Event::Job { owner, of, job, page } => {
+                        let result = if of == Owner::Jig {
+                            jig_protocol_store::jobs::page(&job, &page)
+                        } else {
+                            Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
+                        };
+                        answer = Some(Request::Job { owner, answer: result });
                     }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));

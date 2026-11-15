@@ -78,6 +78,15 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
         "temper serve: forge 7: not connected: its records were made for forgejo at fake.test:443\n"
     );
 
+    for (note, words) in [
+        (
+            Note::GitHubLogOriginUnresolved { host: b"productionresultssa7.blob.core.windows.net".as_slice().into() },
+            "GitHub log origin https://productionresultssa7.blob.core.windows.net:443: unresolved; skipped",
+        ),
+        (Note::GitHubLogOriginsUnresolved, "GitHub log origins: none resolved; no job log will be fetched"),
+    ] {
+        assert_eq!(note_line("custom", note), format!("custom serve: {words}\n"));
+    }
     assert_eq!(
         note_line("temper", Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"
@@ -828,6 +837,10 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
         (Failure::HeldPastLimit { which: HeldLimit::Revisions, held: 5, limit: 4 }, "Revisions, held 5, limit 4"),
         (Failure::HeldPastLimit { which: HeldLimit::Versions, held: 5, limit: 4 }, "Versions, held 5, limit 4"),
         (
+            Failure::NeedsPastLimit { held: 4097, limit: 4096 },
+            "stored settings' agent needs hold 4097 bytes, past the 4096 byte bound; raise fleet.needs_bytes",
+        ),
+        (
             Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Policy(1),
@@ -897,7 +910,7 @@ fn unreadable_temper_rows_end_with_the_named_recovery_words_and_exit_one() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
-    for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting")] {
+    for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting"), (47, "ChangeCold"), (48, "ChangeHot")] {
         let end = End::Stopped(Stop::StoreRow { row: temper_engine_service::UnreadableRow { key: Box::from([tag]) } });
         for deployment in ["/data/deployment", "/elsewhere/store"] {
             for binary in ["temper", "temper-engine"] {

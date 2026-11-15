@@ -17,10 +17,15 @@ fn notified(world: &World, task: u64) -> &tasks::ActivityLine {
             }
             tasks::Stored::Activity(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)

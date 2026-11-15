@@ -10,6 +10,8 @@ use skein_lib::{Duration, Token};
 
 pub const SEED: u64 = 118;
 const TURN: KeptFamily = KeptFamily {
+    current: fixture::patches::kept::fixture_turn::TEXTS[0],
+    types: &[],
     flights: &[],
     name: "fixture-turn",
     texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
@@ -17,8 +19,14 @@ const TURN: KeptFamily = KeptFamily {
     keys: &[],
     frames: Some(fixture::ROOT),
 };
-const SMITH: PatchSet =
-    PatchSet { owner: Owner::Smith, name: fixture::NAME, families: &[TURN], patches: &[], fresh: Some(fixture::FRESH) };
+const SMITH: PatchSet = PatchSet {
+    jobs: &[],
+    owner: Owner::Smith,
+    name: fixture::NAME,
+    families: &[TURN],
+    patches: &[],
+    fresh: Some(fixture::FRESH),
+};
 pub const BEFORE: PatchSets = PatchSets { sets: &[SMITH] };
 pub const MARKS: &[&str] =
     &["patch 1\nowner fixture-smith 1\nmark fresh-windows\n", "patch 1\nowner fixture-smith 2\nmark fresh-windows\n"];

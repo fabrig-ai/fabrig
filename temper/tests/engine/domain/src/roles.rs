@@ -207,6 +207,10 @@ impl World {
     /// Restore genuine held-chat rows and saved sessions through actual root
     /// startup pages; no direct child inputs are used
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "startup classifies all durable rows before constructing the roles world"
+    )]
     pub fn new(settings: Settings) -> World {
         let mut store = snapshot(settings);
         story_policy(&mut store, settings);
@@ -238,12 +242,17 @@ impl World {
                     )
                     | jig_domain_core::Record::Tasks(
                         tasks::Stored::Ended(_)
+                        | tasks::Stored::Summary(_)
+                        | tasks::Stored::Retention(_)
+                        | tasks::Stored::LiveCold { .. }
                         | tasks::Stored::Stub(_)
                         | tasks::Stored::Ledger(_)
                         | tasks::Stored::Writer(_)
                         | tasks::Stored::PlacedHold(_)
                         | tasks::Stored::Pool(_)
                         | tasks::Stored::Milestone(_)
+                        | tasks::Stored::Attempt(_)
+                        | tasks::Stored::Hold(_)
                         | tasks::Stored::History(_)
                         | tasks::Stored::PersonProposal(_)
                         | tasks::Stored::Update(_)
@@ -393,7 +402,8 @@ impl World {
             &mut self.store,
             &mut self.protocol,
             config(self.settings),
-        );
+        )
+        .unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Complete registered outside replies and pending store IO within a bounded number of iterations.
@@ -522,6 +532,10 @@ impl World {
                         return;
                     }
                 }
+                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
@@ -551,7 +565,6 @@ impl World {
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)
                 | engine::Request::Party(_)
-                | engine::Request::Store(_)
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }

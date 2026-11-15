@@ -5,6 +5,7 @@ use skein_lib::{List, usize_of};
 
 mod plan;
 pub use plan::{Change, Comparison, Matching, RenameRefused, changes};
+pub(crate) use plan::{compare as compare_types, held as compare_held, payload as payload_matches};
 mod run;
 pub use run::{Build, Halt, Old, Step};
 mod text;
@@ -307,6 +308,15 @@ impl Patcher {
             Ok(schema) => schema,
             Err(error) => return Err(KeepError::Schema(error)),
         };
+        self.keep_schema(schema)
+    }
+
+    /// Keeps an already parsed and checked schema, under the same capacity and
+    /// family checks as `keep`.
+    pub fn keep_schema(&mut self, schema: Schema) -> Result<u16, KeepError> {
+        if schema.text().len() > usize_of(self.build.tables.capacity.text) || self.build.tables.schemas.room() == 0 {
+            return Err(KeepError::Room);
+        }
         if let Some(first) = self.build.tables.schemas.get(0)
             && first.spelled(first.family()) != schema.spelled(schema.family())
         {
@@ -318,6 +328,12 @@ impl Patcher {
         }
         self.build.tables.schemas.push(schema).expect("schema room checked");
         Ok(version)
+    }
+
+    /// The checked schemas, in the order they were kept.
+    #[must_use]
+    pub fn schemas(&self) -> &List<Schema> {
+        &self.build.tables.schemas
     }
 
     /// The kept schema of this version, when present.

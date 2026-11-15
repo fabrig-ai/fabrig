@@ -2,19 +2,13 @@
 use crate::{limits::Limits, oid::Oid};
 use alloc::boxed::Box;
 use core::mem;
+pub use hearth_domain_render_vocabulary::revision::Mode;
 use skein_lib::{
     Env, List, Queue, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
 /// Fixed fields' allowance before a path.
 pub const RECORD: u32 = 100;
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Mode {
-    File,
-    Executable,
-    Link,
-    Submodule,
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Entry {
     pub path: Box<[u8]>,

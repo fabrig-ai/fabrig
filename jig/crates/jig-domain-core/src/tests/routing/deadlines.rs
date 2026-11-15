@@ -2,7 +2,7 @@
 use crate::tests::*;
 use jig_domain_link::{Form, Scheme};
 
-fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) {
+fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) -> Time {
     let mut out = Queue::uncapped();
     brief::gather_step(
         &mut core.brief,
@@ -24,7 +24,7 @@ fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) {
         },
         &mut out,
     );
-    assert_eq!(core.brief.next_deadline(), Some(deadline));
+    core.brief.next_deadline().expect("brief settle alarm")
 }
 
 #[test]
@@ -32,10 +32,9 @@ fn next_deadline_is_the_earliest_child_alarm() {
     let (mut core, env) = routing::engine_timers::timer_core(false);
     let people = core.people.next_deadline().expect("sign-in alarm");
     assert_eq!(core.next_deadline(env.now, env.wall), Some(people));
-    let brief = Time::from_nanos(12);
-    arm_brief(&mut core, &env.limits, brief);
+    let brief = arm_brief(&mut core, &env.limits, Time::from_nanos(12));
     assert_eq!(core.next_deadline(env.now, env.wall), Some(brief));
-    assert_eq!(core.due(Time::from_nanos(11), env.wall), None);
+    assert_eq!(core.due(Time::from_nanos(brief.as_nanos().saturating_sub(1)), env.wall), None);
     assert_eq!(core.due(brief, env.wall), Some(Timer::Brief));
 }
 
@@ -152,9 +151,9 @@ fn held_new_work_keeps_finishing_timers_visible() {
     let (mut core, limits) = with_task_alarm();
     arm_brief(&mut core, &limits, Time::from_nanos(20));
     let now = Time::from_nanos(20);
-    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(Time::from_nanos(10)));
+    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(Time::ZERO), "startup retention is due");
     assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Tasks));
-    assert_eq!(core.next_finishing_deadline(now, Wall::EPOCH), Some(now));
+    assert_eq!(core.next_finishing_deadline(now, Wall::EPOCH), Some(Time::ZERO), "retention advances admitted work");
     assert_eq!(core.finishing_due(now, Wall::EPOCH), Some(Timer::Brief));
 }
 
@@ -185,16 +184,16 @@ fn account_alarms_keep_running_while_the_core_stops() {
 #[test]
 fn task_timers_wait_for_the_start_to_open_without_hiding_finishing_timers() {
     let (mut core, limits) = with_task_alarm();
-    arm_brief(&mut core, &limits, Time::from_nanos(20));
+    let brief = arm_brief(&mut core, &limits, Time::from_nanos(20));
     let now = Time::from_nanos(20);
     core.opened = false;
-    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(now), "only the finishing alarm is visible during restore");
+    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(brief), "only the finishing alarm is visible during restore");
     assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Brief));
     core.opened = true;
     assert_eq!(
         core.next_deadline(now, Wall::EPOCH),
-        Some(Time::from_nanos(10)),
-        "the task alarm remains armed for opening"
+        Some(Time::ZERO),
+        "opening makes retention due without disarming the task alarm"
     );
     assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Tasks));
 }

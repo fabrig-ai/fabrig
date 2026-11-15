@@ -1210,14 +1210,17 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
     if initial || held {
         crate::activity::append(&mut task.record, env.wall, crate::Line::Milestone { position }, out);
     }
-    out.push(Request::Save {
-        record: Stored::Milestone(crate::Milestone {
-            task: number,
-            position: task.record.milestone,
-            phase: task.record.phase.clone(),
-            at: env.wall,
-        }),
-    });
+    if let Phase::Held { was, why, source } = &task.record.phase {
+        out.push(Request::Save {
+            record: Stored::Hold(crate::HoldRow {
+                task: number,
+                position,
+                held: crate::Held { was: was.clone(), why: *why, source: source.clone() },
+                at: env.wall,
+            }),
+        });
+    }
+    crate::attempts::changed(&mut task.record, env.wall, out);
 }
 
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
@@ -1292,6 +1295,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => None,
     };
     task.alarm = alarm;
+    save_cold(task, out);
     crate::changed::observe(task, env.wall);
     out.push(Request::Save { record: Stored::Live(Box::new(task.record.clone())) });
     crate::grace::schedule(domain, env, number);
@@ -1317,6 +1321,30 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     if unavailable {
         crate::proposals::holder_unavailable(domain, number, out);
         crate::escalation::holder_unavailable(domain, number, out);
+    }
+}
+
+/// Compare before observe replaces the last published record (protocol/store/parts.md, 2).
+pub(crate) fn save_cold(task: &Task, out: &mut Queue<Request>) {
+    let changed = match task.published.as_deref() {
+        None => true,
+        Some(previous) => {
+            previous.spec != task.record.spec
+                || previous.contract != task.record.contract
+                || previous.authority != task.record.authority
+                || previous.instructions != task.record.instructions
+        }
+    };
+    if changed {
+        out.push(Request::Save {
+            record: Stored::LiveCold {
+                number: task.record.number,
+                spec: Box::new(task.record.spec.clone()),
+                contract: task.record.contract.clone(),
+                authority: task.record.authority.clone(),
+                instructions: task.record.instructions.clone(),
+            },
+        });
     }
 }
 
@@ -1506,6 +1534,7 @@ pub(crate) fn make_admitted(
             offered: crate::Reasons::ALL,
             asked_requester: false,
             question_woken: 0,
+            open_attempt: None,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
             label: new.label,

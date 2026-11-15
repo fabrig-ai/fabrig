@@ -153,7 +153,8 @@ fn restore_walk_reports_real_refusal_and_cursor_arithmetic() {
 fn restore_live_pages_keep_varied_families_in_walk_order() {
     let person = fixtures::person(ALICE);
     let task = fixtures::live_task(ENDED);
-    let mut store = raw_store(&[put(person.clone()), put(task.clone())]);
+    let Record::Tasks(jig_domain_tasks::Stored::Live(row)) = &task else { panic!("live fixture") };
+    let mut store = raw_store(&[put(person.clone()), put(task.clone()), put(fixtures::cold_task(row))]);
     let mut after = None;
     let mut records = List::with_capacity(ROWS);
     loop {
@@ -250,16 +251,17 @@ fn successful_census_pairs_are_atomic_and_exclusive() {
 }
 
 #[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn restore_pages_panic_when_the_byte_budget_prevents_progress() {
+fn restore_pages_refuse_a_first_pair_past_the_byte_budget() {
     let mut store = raw_store(&[put(position()), put(fixtures::ended_task(ENDED))]);
-    restore::page(&mut store, census(), None, ROWS, 1).expect("budget assertion");
-}
-
-#[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn retained_pages_panic_when_the_row_budget_prevents_progress() {
-    raw_store(&[]).retained_page(None, 0, BYTES).expect("budget assertion");
+    let position_bytes = codec::encode(&position(), &fixtures::codec_limits(), &[]).expect("position");
+    let task_bytes = codec::encode(&fixtures::ended_task(ENDED), &fixtures::codec_limits(), &[]).expect("task");
+    let needs = len_u64(position_bytes.len()).checked_add(len_u64(task_bytes.len())).expect("pair bytes");
+    let key = keys::encode(&position().key(), fixtures::KEY_LIMIT).expect("position key");
+    let error = restore::page(&mut store, census(), None, ROWS, 1).expect_err("pair past page");
+    assert_eq!(
+        error,
+        restore::Failure { cause: Cause::RowPastPage { needs, has: 1 }, row: Some(restore::site(&store, &key)) }
+    );
 }
 
 #[test]

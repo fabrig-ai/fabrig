@@ -83,10 +83,10 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
 }
 
 fn assert_csv_landing(world: &World, requester: &engine::Assignment, change: u64, repair_task: u64, h2: u64) {
-    let Some(Record::Forge { row, .. }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+    let Some(Record::Forge { row, .. }) = world.store.rows.get(&Key::Forge(forge_top::Key::ChangeHot(change))) else {
         panic!("change row")
     };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    let forge_top::Stored::ChangeHot(row) = row.as_ref() else { panic!("change row") };
     let temper_engine_domain_forge_change::State::Landed { merge, .. } = row.change.state else { panic!("landed") };
     let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge id");
     let mut head = [0; 32];
@@ -110,7 +110,7 @@ fn assert_csv_landing(world: &World, requester: &engine::Assignment, change: u64
         format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
     );
     assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[4], format!("successful repair task {repair_task}: pushed, then CI passed at {head}"));
+    assert_eq!(lines[4], format!("successful repair task {repair_task}: pushed"));
     assert_eq!(lines[5], "Producer report (historical; before repairs):");
     assert_eq!(lines[6], "pushed");
     assert_eq!(lines[7], format!("checks at {head}: build passed"));
@@ -179,10 +179,7 @@ fn a_landed_change_carries_its_producers_report() {
         );
         let requester = next(&mut world, 2);
         assert_eq!(requester.task, chat.task);
-        let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-            panic!("durable change")
-        };
-        let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+        let Some(row) = world.store.change(change) else { panic!("durable change") };
         assert_eq!(row.report.as_ref(), report.as_slice());
         let temper_engine_domain_forge_change::State::Landed { merge, .. } = row.change.state else { panic!("landed") };
         let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge");

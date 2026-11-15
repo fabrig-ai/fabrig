@@ -105,8 +105,9 @@ impl World {
 
     /// The durable change being judged, including CI and gate failure accounting.
     #[must_use]
-    pub fn reviewed_change(&self) -> &forge::ChangeRow {
-        self.store.rows.values().find_map(change_row).expect("change created")
+    pub fn reviewed_change(&self) -> forge::ChangeRow {
+        let task = self.store.rows.values().find_map(change_row).expect("change created").task;
+        self.store.change(task).expect("durable change parts")
     }
 
     /// The real Smith run kept for a review, including its reads and terminal failure.
@@ -207,9 +208,9 @@ pub(super) fn decode(to: skein_lib::ReplyTo, call: &jig_domain_fleet::Call) -> e
     }
 }
 
-fn change_row(record: &engine::Record) -> Option<&forge::ChangeRow> {
+fn change_row(record: &engine::Record) -> Option<&forge::ChangeHot> {
     if let engine::Record::Forge { row } = record
-        && let forge::Stored::Change(row) = row.as_ref()
+        && let forge::Stored::ChangeHot(row) = row.as_ref()
     {
         return Some(row);
     }

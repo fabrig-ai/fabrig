@@ -74,6 +74,7 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
     let mut workflows = gates.into_vec();
     if let Some(tier) = tier {
         workflows.push(raw::Workflow {
+            requirements: Box::new([]),
             file: b"slow.yml".as_slice().into(),
             jobs: Box::new([b"test".as_slice().into()]),
             latency_min: Duration::from_secs(90),
@@ -291,12 +292,8 @@ pub fn task(world: &World, number: u64) -> &tasks::TaskRecord {
 }
 
 #[must_use]
-pub fn change(world: &World, number: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(number))) else {
-        panic!("change {number}")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub fn change(world: &World, number: u64) -> forge_top::ChangeRow {
+    world.store.change(number).expect("durable change")
 }
 
 #[must_use]
@@ -333,7 +330,7 @@ pub fn until(world: &mut World, ticks: u32, description: &str, met: impl Fn(&Wor
             .values()
             .filter_map(|row| match row {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) => Some((row.task, &row.change.state)),
+                    forge_top::Stored::ChangeHot(row) => Some((row.task, &row.change.state)),
                     _ => None,
                 },
                 Record::Core(_) => None,
@@ -409,6 +406,38 @@ pub fn merge(world: &World, number: u64) -> skein_forge::api::Commit {
         | State::Uncleared { merge } => merge,
         ref state => panic!("change landed: {state:?}"),
     }
+}
+
+/// Settle the verdict's writes and observe the forge changes they made before a cold oracle.
+pub fn posted(world: &mut World) {
+    until(world, LANDING_TICKS, "verdict posts observed", |world| {
+        for record in world.store.rows.values() {
+            let Record::Forge { row } = record else { continue };
+            match row.as_ref() {
+                forge_top::Stored::Tier(tier) if tier.posting.as_ref().is_some_and(|posting| posting.part == 0) => {
+                    return false;
+                }
+                forge_top::Stored::Client(skein_forge_client::Stored::Live(live))
+                    if live.watch.resource.repository == forge_world::REPO =>
+                {
+                    if let Some(item) = &live.cached.item {
+                        let Ok(raw::Answer::Item { item: current, .. }) = world.fake.inspect(
+                            &world.fake_env.limits,
+                            b"org/repo",
+                            &raw::Read::Item { number: item.number, after: 0, since: None },
+                        ) else {
+                            continue;
+                        };
+                        if item.updated != current.updated {
+                            return false;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        restart_cut(world)
+    });
 }
 
 #[must_use]

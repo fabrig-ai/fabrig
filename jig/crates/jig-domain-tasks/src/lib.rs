@@ -63,6 +63,7 @@
 extern crate alloc;
 mod activity;
 mod admission;
+mod attempts;
 mod batch;
 mod boundary;
 mod capacity;
@@ -124,6 +125,11 @@ pub use session::{
 mod settings;
 mod settings_moves;
 mod standing;
+mod summary;
+pub use summary::{
+    RetentionRow, RetentionStage, SUMMARY_TEXT, SummaryEnding, SummaryEndings, SummaryResult, SummaryResultKind,
+    TaskSummary,
+};
 mod stored;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
 mod subscriptions;
@@ -153,8 +159,8 @@ pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amend, Amendment, AmendmentHistory, Cancel, Change, DependencyPlace, History, Milestone, Release,
-    Settings, Tracking, address_admit, instruction_admit,
+    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Held, History,
+    HoldRow, Milestone, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
@@ -182,6 +188,7 @@ pub use value::{
 };
 pub use wake::valid as wake_valid;
 
+pub use run::ends::own_question;
 pub use run::run_attempt;
 
 /// Maximum bytes in a connector's retained hold account.

@@ -1,10 +1,11 @@
+use crate::progress::{StoreFull, StoreLimit};
 use crate::{
-    errors::{Class, Error, Kind, StoreError, StoreFault, StoreLimit},
     form::{self, Form},
     limits,
     progress::{Strays, Waiting},
     records::Record,
 };
+
 const WAITING: &[(Form, &[u8])] = &[
     (Form::Text, b"waiting for the store's lock: /store\n"),
     (Form::JsonLines, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"waiting\",\"store\":\"/store\"}\n"),
@@ -28,25 +29,19 @@ fn the_strays_notice_gives_the_count_and_the_first() {
         assert_eq!(form::print(form, &record, None, &limits::SHIPPED).as_deref(), Ok(expected), "{form:?}");
     }
 }
-const ERRORS: &[(Form, StoreFault, &[u8])] = &[
-    (Form::Text, StoreFault::Full { limit: StoreLimit::CacheFiles, most: 2 }, b"the store /store is full: 2 cache files\n"),
-    (Form::Text, StoreFault::Full { limit: StoreLimit::Resolutions, most: 3 }, b"the store /store is full: 3 resolutions\n"),
-    (Form::Text, StoreFault::Full { limit: StoreLimit::Layers, most: 4 }, b"the store /store is full: 4 layers\n"),
-    (Form::JsonLines, StoreFault::Full { limit: StoreLimit::CacheFiles, most: 2 }, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"cache_files\",\"most\":2,\"class\":\"operational\"}\n"),
+const ERRORS: &[(Form, StoreLimit, u32, &[u8])] = &[
+    (Form::Text, StoreLimit::CacheFiles, 2, b"the store /store is full: 2 cache files\n"),
+    (Form::Text, StoreLimit::Resolutions, 3, b"the store /store is full: 3 resolutions\n"),
+    (Form::Text, StoreLimit::Layers, 4, b"the store /store is full: 4 layers\n"),
+    (Form::JsonLines, StoreLimit::CacheFiles, 2, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"cache_files\",\"most\":2,\"class\":\"operational\"}\n"),
+    (Form::JsonLines, StoreLimit::Resolutions, 3, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"resolutions\",\"most\":3,\"class\":\"operational\"}\n"),
+    (Form::JsonLines, StoreLimit::Layers, 4, b"{\"record\":\"version\",\"client\":1}\n{\"record\":\"error\",\"kind\":\"store\",\"store\":\"/store\",\"limit\":\"layers\",\"most\":4,\"class\":\"operational\"}\n"),
 ];
 #[test]
 fn the_store_error_names_the_store_and_the_limit() {
-    for &(form, fault, expected) in ERRORS {
-        let record = Record::Error(Error {
-            side: None,
-            kind: Kind::Store(StoreError { store: b"/store".as_slice().into(), fault }),
-            class: Class::Operational,
-            at: None,
-            also: None,
-            target: None,
-            task: None,
-        });
-        assert_eq!(form::print(form, &record, None, &limits::SHIPPED).as_deref(), Ok(expected), "{form:?} {fault:?}");
+    for &(form, limit, most, expected) in ERRORS {
+        let record = Record::StoreFull(StoreFull { store: b"/store".as_slice().into(), limit, most });
+        assert_eq!(form::print(form, &record, None, &limits::SHIPPED).as_deref(), Ok(expected), "{form:?} {limit:?}");
     }
 }
 

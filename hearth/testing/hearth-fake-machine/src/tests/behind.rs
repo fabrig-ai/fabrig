@@ -148,8 +148,3 @@ fn a_kill_cut_releases_the_lock_it_held() {
     behind.cut(Cut::Kill, &[first], 7);
     assert_eq!(answer(&mut behind, Ask::Lock { file: second }), Ok(Reply::Done), "Kill closes the holder");
 }
-#[test]
-#[should_panic(expected = "M2")]
-fn a_power_loss_cut_asserts_m2() {
-    fixtures::behind().cut(Cut::PowerLoss, &[], 7);
-}

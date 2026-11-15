@@ -237,10 +237,7 @@ impl Observer {
             _ => {}
         }
     }
-    fn scan(&mut self) {
-        self.check_scan().expect("secret scan");
-    }
-    fn check_scan(&mut self) -> Result<(), String> {
+    fn scan(&mut self) -> Result<(), String> {
         if self.needles.is_empty() {
             return Err(String::from("the fake issued a key"));
         }
@@ -382,7 +379,7 @@ pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) -> Result<(), String> 
     })
 }
 pub(crate) fn checkpoint() -> Result<(), String> {
-    OBSERVER.with(|cell| cell.borrow_mut().as_mut().ok_or_else(|| String::from("active observer"))?.check_scan())
+    OBSERVER.with(|cell| cell.borrow_mut().as_mut().ok_or_else(|| String::from("active observer"))?.scan())
 }
 pub(crate) fn tokens() -> usize {
     OBSERVER.with(|cell| cell.borrow().as_ref().map_or(0, |observer| observer.tokens.len()))
@@ -453,7 +450,7 @@ fn scan_directory(
     dir: skein_fake_machine::Opened,
     path: &[u8],
     counts: &mut Counts,
-) {
+) -> Result<(), String> {
     loop {
         let entries = disk.list(dir, 32, 4096).expect("public file listing");
         if entries.is_empty() {
@@ -464,18 +461,19 @@ fn scan_directory(
             if secret_path(&path) {
                 continue;
             }
-            observer.check("persisted filename", b"", &path).expect("persisted filename scan");
+            observer.check("persisted filename", b"", &path)?;
             if kind == skein_fake_machine::Is::Directory {
                 let child = disk.open(dir, &name, skein_fake_machine::How::Directory).expect("public directory");
-                scan_directory(observer, disk, child, &path, counts);
+                let finding = scan_directory(observer, disk, child, &path, counts);
                 disk.close(child);
+                finding?;
             } else if kind == skein_fake_machine::Is::File {
                 let file = disk.open(dir, &name, skein_fake_machine::How::ReadNoFollow).expect("public file");
                 let bytes = disk
                     .read(file, 0, u32::try_from(disk.stat(file).size).expect("scenario file length"))
                     .expect("public persisted bytes");
                 disk.close(file);
-                observer.check("persisted file", &path, &bytes).expect("persisted file scan");
+                observer.check("persisted file", &path, &bytes)?;
                 counts.files += 1;
                 counts.logs += usize::from(name.starts_with(b"log-") || path.starts_with(b"stderr/"));
                 counts.transcripts += usize::from(path.windows(11).any(|part| part == b"transcripts"));
@@ -486,11 +484,12 @@ fn scan_directory(
             }
         }
     }
+    Ok(())
 }
-pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Counts {
+pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Result<Counts, String> {
     OBSERVER.with(|cell| {
         let mut observer = cell.borrow_mut().take().expect("active observer");
-        observer.scan();
+        observer.scan()?;
         let mut counts = Counts {
             tokens: observer.tokens.len(),
             checkpoints: observer.checkpoints,
@@ -501,10 +500,11 @@ pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Counts {
         };
         for (index, name) in [b"state".as_slice(), b"worker", b"client"].into_iter().enumerate() {
             let root = disk.reopen_root(u32::try_from(index).expect("scenario root"));
-            scan_directory(&mut observer, disk, root, name, &mut counts);
+            let finding = scan_directory(&mut observer, disk, root, name, &mut counts);
             disk.close(root);
+            finding?;
         }
-        counts
+        Ok(counts)
     })
 }
 
@@ -556,14 +556,21 @@ mod tests {
         assert!(observer.wires.contains_key(&(Role::Client, second.raw())));
     }
     #[test]
-    #[should_panic(expected = "installation token in earlier surface")]
     fn a_new_token_checks_artifacts_saved_before_it_was_issued() {
         let mut observer = Observer::default();
         observer.token(b"observer-first-value");
         observer.save("earlier surface", b"", b"observer-second-value");
-        observer.scan();
+        assert_eq!(observer.scan(), Ok(()));
         observer.token(b"observer-second-value");
-        observer.scan();
+        let finding = observer.scan().expect_err("new token checks the saved artifact");
+        assert_eq!(finding, "installation token in earlier surface ");
+        for secret in ["observer-first-value", "observer-second-value"] {
+            assert!(!finding.contains(secret), "the finding names only the surface");
+        }
+        OBSERVER.with(|cell| *cell.borrow_mut() = Some(observer));
+        let mut disk = temper_playground::machine::fresh();
+        assert_eq!(finish(&mut disk).expect_err("finish carries the scan finding"), finding);
+        assert!(!enabled(), "finish clears the observer even on a finding");
     }
     #[test]
     fn exact_secret_scans_cover_binary_debug_and_basic_encodings() {

@@ -1,6 +1,6 @@
 use super::fixtures::{decode, decode_under};
 use crate::{
-    Fault, Position,
+    Decode, Fault, Position,
     json::{Kind, Value},
     limits::{Limits, SHIPPED},
 };
@@ -43,7 +43,7 @@ fn a_fraction_or_an_exponent_fails_at_the_number() {
     for input in CASES {
         let error = decode(input).expect_err("not integer");
         assert_eq!(error.at, Position { offset: 5, line: 1, column: 6 });
-        assert_eq!(error.fault, Fault::NotInteger);
+        assert_eq!(error.fault, Fault::Decode(Decode::NotInteger));
     }
 }
 
@@ -52,8 +52,8 @@ fn integers_decode_to_i64_s_edges_and_fail_one_past() {
     const CASES: &[(&[u8], Result<i64, Fault>)] = &[
         (br#"{"n":9223372036854775807}"#, Ok(9_223_372_036_854_775_807)),
         (br#"{"n":-9223372036854775808}"#, Ok(-9_223_372_036_854_775_808)),
-        (br#"{"n":9223372036854775808}"#, Err(Fault::Range)),
-        (br#"{"n":-9223372036854775809}"#, Err(Fault::Range)),
+        (br#"{"n":9223372036854775808}"#, Err(Fault::Decode(Decode::Range))),
+        (br#"{"n":-9223372036854775809}"#, Err(Fault::Decode(Decode::Range))),
     ];
     for (input, expected) in CASES {
         let found = match decode(input) {
@@ -81,7 +81,7 @@ fn u0000_in_a_string_or_a_key_fails_at_its_opening_quote() {
     for (input, at) in CASES {
         let error = decode(input).expect_err("NUL");
         assert_eq!(error.at, *at);
-        assert_eq!(error.fault, Fault::Nul);
+        assert_eq!(error.fault, Fault::Decode(Decode::Nul));
     }
 }
 
@@ -119,7 +119,7 @@ fn a_note_that_is_not_a_string_fails_at_its_value() {
     for input in CASES {
         let error = decode(input).expect_err("note");
         assert_eq!(error.at, Position { offset: 9, line: 1, column: 10 });
-        assert_eq!(error.fault, Fault::Note);
+        assert_eq!(error.fault, Fault::Decode(Decode::Note));
     }
 }
 #[test]
@@ -128,14 +128,14 @@ fn a_document_that_is_not_an_object_fails_at_its_first_byte() {
     for input in CASES {
         let error = decode(input).expect_err("object required");
         assert_eq!(error.at, Position { offset: 0, line: 1, column: 1 });
-        assert_eq!(error.fault, Fault::NotObject);
+        assert_eq!(error.fault, Fault::Decode(Decode::NotObject));
     }
 }
 #[test]
 fn the_shipped_limits_refuse_one_past_each() {
     const EXPECTED: &[Fault] = &[
         Fault::Json(skein_json::tokenizer::Error::TooDeep),
-        Fault::Keys,
+        Fault::Decode(Decode::Keys),
         Fault::Json(skein_json::tokenizer::Error::TooLong),
     ];
     let inputs = super::fixtures::past_shipped();
@@ -147,7 +147,7 @@ fn the_shipped_limits_refuse_one_past_each() {
 #[test]
 fn a_note_counts_as_a_key_at_the_limit() {
     const CASES: &[(&[u8], Result<(), Fault>)] =
-        &[(br#"{"_note":"x","a":0}"#, Err(Fault::Keys)), (br#"{"_note":"x"}"#, Ok(()))];
+        &[(br#"{"_note":"x","a":0}"#, Err(Fault::Decode(Decode::Keys))), (br#"{"_note":"x"}"#, Ok(()))];
     let limits = Limits { keys: 1, ..SHIPPED };
     for (input, expected) in CASES {
         let found = match decode_under(input, &limits) {

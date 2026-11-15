@@ -43,7 +43,7 @@ fn a_forget_tells_every_connector_the_task_is_erased() {
     for messages in [6, 7] {
         core.counters.deployment.messages = messages;
         let mut work = Queue::uncapped();
-        let out = crate::reads::forget::forget(&mut core, &mut work, &owner);
+        let out = crate::reads::forget::forget(&mut core, Wall::EPOCH, &mut work, &owner);
         let mut erases = List::with_capacity(out.len());
         let mut unnamed = List::with_capacity(out.len());
         for request in &out {

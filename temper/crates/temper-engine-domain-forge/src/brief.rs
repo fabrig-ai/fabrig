@@ -1,6 +1,6 @@
 //! Forge-owned brief sections, gathered from current provider facts
-//! (jig's domain/connectors.md, section 9). Pull sections stop at their cutoff
-//! (temper/docs/design/domain/forge/change/repairs.md, A resolution).
+//! (jig's domain/connectors.md, section 9). Sections stop at their cutoff
+//! (temper/docs/design/domain/forge/change/repairs.md, A forge section is sized by its cutoff).
 use crate::brief_words::{self, bounds, busy, moved, moved_transient, room, unnamed};
 use crate::{BriefCommit, BriefItem, BriefRead, BriefSource, Domain, Request};
 use alloc::boxed::Box;
@@ -23,6 +23,8 @@ pub(crate) struct BriefFetch {
     refused: Option<u64>,
     deadline: Option<skein_lib::Time>,
     cutoff: Option<skein_lib::Time>,
+    waiting_on: bool,
+    files_read: u64,
     file_count: Option<u64>,
     mode: PullMode,
     base: Option<skein_forge::api::Commit>,
@@ -146,6 +148,8 @@ pub(super) fn brief_pull(
         refused: None,
         deadline: None,
         cutoff: None,
+        waiting_on: false,
+        files_read: 0,
         file_count: None,
         mode,
         base: None,
@@ -191,8 +195,8 @@ pub(crate) fn brief_answer(
         drop_section(domain, fetch.owner);
         return true;
     }
-    if past_cutoff(&fetch, now) {
-        finish_at_cutoff(domain, fetch, out);
+    if past_cutoff(&fetch, now) && !identity_stage(fetch.stage) {
+        finish_at_cutoff(domain, owner, fetch, out);
         return true;
     }
     if result == Err(skein_forge::api::Error::Busy) {
@@ -287,6 +291,7 @@ pub(crate) fn brief_answer(
             }
             let nonempty = !files.is_empty();
             let kept = u32::try_from(files.len()).expect("bounded files");
+            fetch.files_read = fetch.files_read.saturating_add(u64::from(kept));
             let mut changed = List::with_capacity(rows);
             if fetch.file_skip > 0 {
                 for path in &fetch.changed {
@@ -408,7 +413,7 @@ pub(crate) fn brief_answer(
             let count = u32::try_from(checks.len()).expect("bounded check list");
             fetch.ci = Some(crate::brief_ci::Section::new(fetch.head, count, fetch.bytes));
             fetch.checks = checks;
-            next_failed_job(&mut fetch)
+            next_failed_job(&mut fetch, false)
         }
         answer if fetch.stage == BriefStage::Run => {
             let attempt = fetch
@@ -455,31 +460,20 @@ pub(crate) fn brief_answer(
                     keep_check(&mut fetch, Box::new([]), false);
                 }
             }
-            next_failed_job(&mut fetch)
+            next_failed_job(&mut fetch, false)
         }
         Ok(_) | Err(_) => {
             refused(fetch.owner, fetch.stage, reason, None, error, out);
-            if unread.fate == crate::BriefFate::Capacity || !crate::held::stand_on_partner(domain, fetch.owner) {
-                crate::held::ready(domain, fetch.owner, BriefRead::Failed(unread), out);
+            if let Some(read) = unread_section(domain, fetch.owner, fetch.stage, unread, &mut fetch.words) {
+                crate::held::ready(domain, fetch.owner, read, out);
                 return true;
             }
-            let marker = match fetch.stage {
-                BriefStage::Item | BriefStage::Pull | BriefStage::Files | BriefStage::Compare => {
-                    b"[the pull request could not be read: ".as_slice()
-                }
-                BriefStage::Reviews | BriefStage::Remarks => b"[the reviews could not be read: ",
-                BriefStage::Checks => b"[the failed checks could not be read: ",
-                BriefStage::Job | BriefStage::Run => unreachable!("job failures keep their check's marker"),
-            };
-            append(&mut fetch.words, marker);
-            append(&mut fetch.words, &unread.words);
-            append(&mut fetch.words, b"]\n");
             None
         }
     };
     if let Some(read) = next {
-        if past_cutoff(&fetch, now) {
-            finish_at_cutoff(domain, fetch, out);
+        if past_cutoff(&fetch, now) && !identity_stage(fetch.stage) {
+            finish_at_cutoff(domain, owner, fetch, out);
             return true;
         }
         fetch.read = read.clone();
@@ -487,17 +481,43 @@ pub(crate) fn brief_answer(
         domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
         out.push(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository, read } });
     } else {
-        finish(domain, fetch, out);
+        finish(domain, fetch, false, out);
     }
     true
 }
 
-fn finish(domain: &mut Domain, mut fetch: BriefFetch, out: &mut Queue<Request>) {
+/// A brief section's read that fails (temper/docs/design/domain/forge/change/repairs.md).
+fn unread_section(
+    domain: &mut Domain,
+    owner: Token,
+    stage: BriefStage,
+    unread: brief_words::BriefUnread,
+    words: &mut BriefWords,
+) -> Option<BriefRead> {
+    if unread.fate == crate::BriefFate::Capacity || !crate::held::stand_on_partner(domain, owner, false) {
+        return Some(BriefRead::Failed(unread));
+    }
+    let marker = match stage {
+        BriefStage::Item | BriefStage::Pull | BriefStage::Files | BriefStage::Compare => {
+            b"[the pull request could not be read: ".as_slice()
+        }
+        BriefStage::Reviews | BriefStage::Remarks => b"[the reviews could not be read: ",
+        BriefStage::Checks => b"[the failed checks could not be read: ",
+        BriefStage::Job | BriefStage::Run => unreachable!("job failures keep their check's marker"),
+    };
+    append(words, marker);
+    append(words, &unread.words);
+    append(words, b"]\n");
+    None
+}
+
+fn finish(domain: &mut Domain, mut fetch: BriefFetch, cut: bool, out: &mut Queue<Request>) {
     if let Some(ci) = fetch.ci {
         crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
     } else {
         if let Some(request) = &fetch.request
             && !request.has_remarks
+            && !cut
         {
             append(&mut fetch.words, b"[the request for changes gave no remarks]\n");
         }
@@ -525,17 +545,22 @@ fn files_omitted(fetch: &mut BriefFetch, prefix: &[u8], reason: &[u8], next_page
     append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
 }
 
-fn cutoff(fetch: &BriefFetch) -> Option<skein_lib::Time> {
-    match fetch.stage {
-        BriefStage::Files | BriefStage::Compare => fetch.cutoff,
-        BriefStage::Item
-        | BriefStage::Pull
-        | BriefStage::Reviews
-        | BriefStage::Remarks
-        | BriefStage::Checks
-        | BriefStage::Run
-        | BriefStage::Job => None,
+fn identity_stage(stage: BriefStage) -> bool {
+    match stage {
+        BriefStage::Item | BriefStage::Pull | BriefStage::Reviews | BriefStage::Checks => true,
+        BriefStage::Files | BriefStage::Compare | BriefStage::Remarks | BriefStage::Run | BriefStage::Job => false,
     }
+}
+
+pub(crate) fn past_identity(domain: &Domain, section: Token) -> bool {
+    match section_owner(domain, section) {
+        Some(owner) => !identity_stage(domain.brief_fetches.get(&owner).expect("section fetch").stage),
+        None => false,
+    }
+}
+
+fn cutoff(fetch: &BriefFetch) -> Option<skein_lib::Time> {
+    fetch.cutoff
 }
 
 fn past_cutoff(fetch: &BriefFetch, now: skein_lib::Time) -> bool {
@@ -545,23 +570,66 @@ fn past_cutoff(fetch: &BriefFetch, now: skein_lib::Time) -> bool {
     }
 }
 
-fn finish_at_cutoff(domain: &mut Domain, mut fetch: BriefFetch, out: &mut Queue<Request>) {
+const JOB_CUT: &[u8] = b"[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]\n";
+
+fn comparison_cut(fetch: &mut BriefFetch) {
+    if comparison(fetch).is_some() {
+        append(&mut fetch.words, b"[comparison cut at the brief's deadline: not read; ");
+        match fetch.mode {
+            PullMode::Conflict(_) | PullMode::Semantic(_) => append(&mut fetch.words, b"read it in your checkout"),
+            PullMode::Review | PullMode::Other => append(&mut fetch.words, b"read_pull_files lists the pull's files"),
+        }
+        append(&mut fetch.words, b"]\n");
+    }
+}
+
+fn finish_at_cutoff(domain: &mut Domain, owner: Token, mut fetch: BriefFetch, out: &mut Queue<Request>) {
+    if identity_stage(fetch.stage) && !crate::held::stand_on_partner(domain, fetch.owner, true) {
+        fetch.waiting_on = true;
+        domain.brief_fetches.insert(owner, fetch).expect("same waiting section room");
+        return;
+    }
     refused(fetch.owner, fetch.stage, CUTOFF, None, None, out);
     match fetch.stage {
         BriefStage::Files => {
-            let page = fetch.file_page;
-            files_omitted(&mut fetch, b"", CUTOFF.as_bytes(), page);
+            append(&mut fetch.words, b"[files cut at the brief's deadline: ");
+            append(&mut fetch.words, &decimal(fetch.files_read));
+            if let Some(count) = fetch.file_count {
+                append(&mut fetch.words, b" of ");
+                append(&mut fetch.words, &decimal(count));
+            }
+            append(&mut fetch.words, b" files read; read_pull_files from page ");
+            append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
+            append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+            comparison_cut(&mut fetch);
         }
-        BriefStage::Compare => append(&mut fetch.words, b"[comparison omitted: not read by the section's cutoff]\n"),
-        BriefStage::Item
-        | BriefStage::Pull
-        | BriefStage::Reviews
-        | BriefStage::Remarks
-        | BriefStage::Checks
-        | BriefStage::Run
-        | BriefStage::Job => unreachable!("only files and comparison have a cutoff"),
+        BriefStage::Compare => comparison_cut(&mut fetch),
+        BriefStage::Remarks => {
+            append(&mut fetch.words, b"[remarks cut at the brief's deadline: ");
+            append(&mut fetch.words, &decimal(u64::from(fetch.next_review.saturating_sub(1))));
+            append(&mut fetch.words, b" of ");
+            append(&mut fetch.words, &decimal(skein_lib::len_u64(fetch.review_ids.len())));
+            append(&mut fetch.words, b" reviews' remarks read; read_remarks reads a review's remarks]\n");
+        }
+        BriefStage::Run | BriefStage::Job => {
+            append(&mut fetch.words, JOB_CUT);
+            keep_check(&mut fetch, Box::new([]), false);
+            next_failed_job(&mut fetch, true);
+        }
+        BriefStage::Item | BriefStage::Pull | BriefStage::Reviews | BriefStage::Checks => {
+            let marker = match fetch.stage {
+                BriefStage::Item | BriefStage::Pull => b"[the pull request could not be read: ".as_slice(),
+                BriefStage::Reviews => b"[the reviews could not be read: ",
+                BriefStage::Checks => b"[the failed checks could not be read: ",
+                BriefStage::Files | BriefStage::Compare | BriefStage::Remarks | BriefStage::Run | BriefStage::Job => {
+                    unreachable!("identity stage")
+                }
+            };
+            append(&mut fetch.words, marker);
+            append(&mut fetch.words, b"not read by the brief's deadline]\n");
+        }
     }
-    finish(domain, fetch, out);
+    finish(domain, fetch, true, out);
 }
 
 /// The writer slot, not the change's current delegate, identifies this brief's
@@ -778,7 +846,9 @@ pub(crate) fn gather(
     }
     let read = match source {
         BriefSource::Document => {
-            crate::brief_document::gather(domain, owner, parts, max_job_bytes, out);
+            if !crate::brief_document::gather(domain, owner, parts, max_job_bytes, out) {
+                return;
+            }
             None
         }
         BriefSource::Home { repository, design } => Some(match domain.repository(repository) {
@@ -800,7 +870,33 @@ pub(crate) fn gather(
     };
     if let Some(read) = read {
         crate::held::ready(domain, owner, read, out);
+    } else {
+        require_read(domain, owner, source, out);
     }
+}
+
+/// A section the forge answers later has a read of its own
+/// (temper/docs/design/domain/forge/change/repairs.md).
+pub(super) fn require_read(domain: &mut Domain, section: Token, source: BriefSource, out: &mut Queue<Request>) {
+    if section_owner(domain, section).is_some()
+        || domain.document_fetches.contains_key(&crate::brief_document::call(section))
+    {
+        return;
+    }
+    let stage = match source {
+        BriefSource::Ci { .. } => "checks",
+        BriefSource::Reviews { .. } | BriefSource::Request { .. } => "reviews",
+        BriefSource::Pull { .. } | BriefSource::Home { .. } => "item",
+        BriefSource::Document => "branch",
+    };
+    out.push(Request::BriefReadRefused {
+        section,
+        stage,
+        reason: "the change cannot be named in its section",
+        heads: None,
+        error: None,
+    });
+    crate::held::ready(domain, section, BriefRead::Failed(unnamed()), out);
 }
 
 fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
@@ -812,7 +908,7 @@ fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
 }
 
 /// Append each failed status before asking for its pinned attempt's log.
-fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
+fn next_failed_job(fetch: &mut BriefFetch, cut: bool) -> Option<skein_forge::api::Read> {
     let total = u32::try_from(fetch.checks.len()).expect("bounded check list");
     for index in fetch.next_check..total {
         let status = fetch.checks.get(skein_lib::usize_of(index)).expect("index in check list");
@@ -831,6 +927,11 @@ fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
         append(&mut fetch.words, b"\nLink: ");
         append(&mut fetch.words, &status.url);
         append(&mut fetch.words, b"\n");
+        if cut {
+            append(&mut fetch.words, JOB_CUT);
+            keep_check(fetch, Box::new([]), false);
+            continue;
+        }
         match status.job {
             Some(attempt) if attempt.head == fetch.head.0 => {
                 fetch.stage = BriefStage::Run;
@@ -919,6 +1020,8 @@ pub(super) fn brief_reviews(
         refused: None,
         deadline: None,
         cutoff: None,
+        waiting_on: false,
+        files_read: 0,
         file_count: None,
         mode: PullMode::Other,
         base: None,
@@ -964,12 +1067,16 @@ pub(super) fn brief_ci(
         return Some(BriefRead::Failed(unnamed()));
     };
     if let change::State::Repairing { why: change::Repair::LandingAt { gate, candidate, .. }, .. } = row.change.state {
-        let words = domain.candidate_failure_words(row.task, gate, candidate)?;
+        let Some(words) = domain.candidate_failure_words(row.task, gate, candidate) else {
+            return Some(landing_gone(domain, owner, parts, bytes, out));
+        };
         let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
         return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
     }
     if let change::State::Repairing { why: change::Repair::Landing { gate }, .. } = row.change.state {
-        let words = domain.landing_failure_words(row.task, gate)?;
+        let Some(words) = domain.landing_failure_words(row.task, gate) else {
+            return Some(landing_gone(domain, owner, parts, bytes, out));
+        };
         let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
         return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
     }
@@ -1002,6 +1109,8 @@ pub(super) fn brief_ci(
         refused: None,
         deadline: None,
         cutoff: None,
+        waiting_on: false,
+        files_read: 0,
         file_count: None,
         mode: PullMode::Other,
         base: None,
@@ -1029,6 +1138,15 @@ pub(super) fn brief_ci(
     None
 }
 
+fn landing_gone(domain: &mut Domain, owner: Token, parts: u32, bytes: u32, out: &mut Queue<Request>) -> BriefRead {
+    refused(owner, BriefStage::Checks, "the landing no longer keeps its failure", None, None, out);
+    let mut words = BriefWords::with_capacity(bytes, false);
+    match unread_section(domain, owner, BriefStage::Checks, brief_words::landing_gone(), &mut words) {
+        Some(read) => read,
+        None => brief_part(&words, parts, bytes),
+    }
+}
+
 fn decimal(number: u64) -> Box<[u8]> {
     let mut digits = List::with_capacity(20);
     let mut value = number;
@@ -1050,7 +1168,7 @@ fn decimal(number: u64) -> Box<[u8]> {
 
 fn completed_item(domain: &Domain, item: BriefItem) -> bool {
     match domain.change_for_brief(item.repository, item.number) {
-        Some(row) => row.terminal(),
+        Some(row) => row.frozen(),
         None => false,
     }
 }
@@ -1131,7 +1249,10 @@ pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
 }
 
 fn fetch_deadline(fetch: &BriefFetch) -> Option<skein_lib::Time> {
-    skein_lib::earliest(cutoff(fetch), if fetch.refused.is_some() { fetch.deadline } else { None })
+    skein_lib::earliest(
+        if fetch.waiting_on { None } else { cutoff(fetch) },
+        if fetch.refused.is_some() { fetch.deadline } else { None },
+    )
 }
 
 fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
@@ -1145,32 +1266,19 @@ fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
     None
 }
 
-/// Size pull files and comparisons at their cutoff; other Busy reads wait to the deadline.
+/// Size sections at their cutoff; an identity without a standing partner waits on
+/// (domain/forge/change/repairs.md, A forge section is sized by its cutoff).
 pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
     crate::brief_document::expire(domain, now, out);
     for _ in 0..domain.brief_fetches.capacity() {
         let Some(owner) = expired_owner(domain, now) else { break };
-        let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
-        if past_cutoff(&fetch, now) {
-            finish_at_cutoff(domain, fetch, out);
+        let fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
+        if past_cutoff(&fetch, now) && !fetch.waiting_on {
+            finish_at_cutoff(domain, owner, fetch, out);
             continue;
         }
         refused(fetch.owner, fetch.stage, "the forge client is busy", None, Some(skein_forge::api::Error::Busy), out);
-        if fetch.stage == BriefStage::Job || fetch.stage == BriefStage::Run {
-            // Each remaining pinned job has the same unavailable-log marker.
-            for _ in 0..=fetch.checks.len() {
-                append(&mut fetch.words, b"[job log could not be read]\n");
-                keep_check(&mut fetch, Box::new([]), false);
-                if next_failed_job(&mut fetch).is_none() {
-                    break;
-                }
-            }
-        }
-        if let Some(ci) = fetch.ci {
-            crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
-        } else {
-            crate::held::ready(domain, fetch.owner, BriefRead::Failed(busy()), out);
-        }
+        crate::held::ready(domain, fetch.owner, BriefRead::Failed(busy()), out);
     }
 }
 

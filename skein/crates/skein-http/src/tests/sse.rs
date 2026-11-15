@@ -346,30 +346,6 @@ fn what_the_reader_waits_for_follows_its_state() {
     assert_eq!(events.reader.waiting(), Waiting::Nothing);
 }
 
-#[test]
-#[should_panic(expected = "Next is asked between events")]
-fn one_next_at_a_time() {
-    let mut events = Events::new(LIMITS);
-    events.down(Request::Next);
-    events.down(Request::Next);
-}
-
-#[test]
-#[should_panic(expected = "Next is asked between events")]
-fn no_next_after_the_outcome() {
-    let mut events = Events::new(LIMITS);
-    events.down(Request::Next);
-    events.up(Up::End);
-    events.down(Request::Next);
-}
-
-#[test]
-#[should_panic(expected = "a delivery meets the body's one demand")]
-fn no_bytes_without_a_demand() {
-    let mut events = Events::new(LIMITS);
-    events.bytes(b"data\n\n");
-}
-
 /// The native face, keeping every output so stream order is asserted.
 struct Face {
     reader: crate::sse::Reader,

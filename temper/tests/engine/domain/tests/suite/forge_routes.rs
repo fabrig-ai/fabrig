@@ -61,6 +61,9 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+#[path = "forge_routes/producer_amendment.rs"]
+mod producer_amendment;
+mod producer_words;
 #[path = "forge_routes/questions.rs"]
 mod questions;
 
@@ -112,6 +115,7 @@ mod repair_cause;
 mod repair_empty;
 mod repair_green;
 mod resolution_head;
+mod resolution_release;
 mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
@@ -122,6 +126,7 @@ mod red_findings;
 mod tiers;
 mod triager_prover;
 
+mod brief_deadline;
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;
 
@@ -140,6 +145,7 @@ mod b2_tree;
 mod check_timeout;
 mod completed_change;
 mod completed_reads;
+mod pull_owner;
 mod saved_close;
 #[path = "forge_routes/saved_retry.rs"]
 mod saved_retry;
@@ -315,7 +321,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
                 .any(|word| word.kind == tasks::MessageKind::Met { dependency: e.task, removed: false });
         }
         if world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
                 if row.task == c && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))
         {
             break;
@@ -326,7 +332,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) if matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Done(_)))));
     assert_eq!(world.merges, 1, "Met wakes the vetoed change and its merge reaches the forge");
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
             if row.task == c && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))));
     world.close();
 }
@@ -389,7 +395,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -398,7 +404,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
         )),
         "recovered push did not land"
@@ -449,7 +455,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Held {
                     why: temper_engine_domain_forge_change::Hold::Stalled, .. }))
         )),
@@ -518,7 +524,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
         .values()
         .find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(change) => Some(change),
+                forge_top::Stored::ChangeHot(change) => Some(change),
                 _ => None,
             },
             Record::Core(_) => None,
@@ -547,7 +553,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })))
         }) {
             break;
@@ -555,7 +561,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     }
     assert_eq!(world.merges, 1, "ordinary CI lands when it passes");
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })))));
     world.close();
 }
@@ -612,7 +618,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
     if owner_gate {
         assert!(
             world.store.rows.values().all(|stored| !matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )),
             "the project's rule holds landing until its verdict"
@@ -643,7 +649,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -651,7 +657,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
         }
     }
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                 && change.verdicts.iter().any(|report| Some(report.head) == change.change.last_head
                     && report.status == temper_engine_domain_forge_change::Status::Passed))
@@ -792,14 +798,14 @@ fn check_gate_repair(no_ci: bool) {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })))
         }) {
             break;
         }
     }
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                 && change.change.repairs == 1))));
     world.close();
@@ -818,6 +824,18 @@ fn failed_ci_repair(
     branch: &[u8],
     checks: &[&[u8]],
 ) -> engine::Assignment {
+    start_failed_ci(world, producer, branch, checks);
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.len() >= 3 {
+            break;
+        }
+    }
+    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
+}
+
+/// Push the producer's head, fail the named checks and end the producer.
+fn start_failed_ci(world: &mut World, producer: &engine::Assignment, branch: &[u8], checks: &[&[u8]]) {
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -854,13 +872,6 @@ fn failed_ci_repair(
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..200 {
-        world.tick();
-        if world.assigned.len() >= 3 {
-            break;
-        }
-    }
-    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
 }
 
 /// The words of a repair's CI section.
@@ -1003,7 +1014,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
                 && world
                     .pending
                     .values()
-                    .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. })))
+                    .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. })))
             {
                 repair = Some(row.number);
                 break;
@@ -1141,7 +1152,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
         world.tick();
         review = world.store.rows.values().find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(row) => match row.delegate {
+                forge_top::Stored::ChangeHot(row) => match row.delegate {
                     Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. }))
                         if live_task(&world, task).phase == tasks::Phase::Active(tasks::Active::Preparing) =>
                     {
@@ -1267,7 +1278,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
         world.tick();
         review = world.store.rows.values().find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(row) => match row.delegate {
+                forge_top::Stored::ChangeHot(row) => match row.delegate {
                     Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. }))
                         if live_task(&world, task).phase == tasks::Phase::Active(tasks::Active::Preparing) =>
                     {
@@ -1446,7 +1457,7 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
     let engine::BriefBody::Text(words) = &pull.body else { panic!("pull text: {pull:?}") };
     let words = std::str::from_utf8(words).expect("pull text is UTF-8");
     assert!(words.contains(&omitted), "{words}");
-    assert!(words.contains("[comparison omitted: not read by the section's cutoff]"), "{words}");
+    assert!(words.contains("[comparison cut at the brief's deadline: not read; read it in your checkout]"), "{words}");
     let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = world
         .store
         .rows
@@ -1550,7 +1561,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -1559,7 +1570,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                     && change.change.resolutions == 1)
         )),
@@ -1599,7 +1610,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     for _ in 0..100 {
         world.tick();
         if world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change) if change.pull.is_some())
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change) if change.pull.is_some())
         )) { break; }
     }
     let pull = world
@@ -1608,7 +1619,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         .values()
         .find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(change) => change.pull,
+                forge_top::Stored::ChangeHot(change) => change.pull,
                 _ => None,
             },
             Record::Core(_) => None,
@@ -1616,7 +1627,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         .expect("opened pull before review");
     assert!(
         !world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
         )),
         "approval requirement holds the first head"
@@ -1645,7 +1656,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -1654,7 +1665,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                     && change.change.updates == 1 && change.change.last_head != Some(translate::commit(first)))
         )),
@@ -1720,7 +1731,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         .values()
         .find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(change) => change.pull,
+                forge_top::Stored::ChangeHot(change) => change.pull,
                 _ => None,
             },
             Record::Core(_) => None,
@@ -1775,7 +1786,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     }
     assert!(
         !world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
         )),
         "old review must not approve repaired head"
@@ -1802,7 +1813,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -1811,7 +1822,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                     && change.change.repairs == 1)
         )),
@@ -1881,7 +1892,7 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
         .values()
         .filter_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(change) => match change.change.state {
+                forge_top::Stored::ChangeHot(change) => match change.change.state {
                     temper_engine_domain_forge_change::State::Landed { merge, .. } => Some(merge),
                     _ => None,
                 },
@@ -1979,8 +1990,8 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
     let repair_branch = repair.workspace.repositories[0].push.as_ref().expect("repair branch").clone();
     assert_ne!(repair_branch, branch);
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
-            if change.base_repair && change.queue_repair.is_none())
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
+            if world.store.change(change.task).unwrap().base_repair && change.queue_repair.is_none())
     )));
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: repair_branch.clone(), commit: 1 })),
@@ -2014,7 +2025,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             .values()
             .filter(|stored| {
                 matches!(stored,
-                    Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                    Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                         if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
                 )
             })
@@ -2030,7 +2041,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             .rows
             .values()
             .filter(|stored| matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             ))
             .count(),
@@ -2565,7 +2576,7 @@ fn subscription_after_first_batch(mut world: World, goal: &engine::Assignment, b
     assert!(matches!(made, engine::CallAnswer::Delegated(_)), "first batch: {made:?}");
     assert!(
         world.store.rows.values().any(|row| matches!(row,
-        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::ChangeCold(change)
             if change.base.as_ref() == branch))),
         "first batch targets g"
     );
@@ -2596,10 +2607,7 @@ fn finish_subscription_batch(world: &mut World, goal: &engine::Assignment) {
     world.until(Until::SecondAssignment);
     let producer = world.assigned.iter().find(|run| run.task != goal.task).expect("batch producer").clone();
     let tasks::Party::Task(change) = live_task(world, producer.task).requester else { panic!("change producer") };
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    let Some(row) = world.store.change(change) else { panic!("durable change") };
     let branch = row.branch.clone();
     change_tool::land_change(world, &producer, &branch);
     assert_eq!(world.merges, 1, "first batch lands before teardown");
@@ -3793,7 +3801,7 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
         ));
         assert!(
             world.store.rows.values().all(|stored| !matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
                 if row.task == change && row.pull.is_some()))),
             "change has no produced pull"
         );

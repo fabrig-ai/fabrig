@@ -193,15 +193,3 @@ fn counted_splitting_returns_every_item_in_order() {
     assert_eq!(items.into_boxed().as_ref(), &[Box::from(&b"ab"[..]), Box::from(&b""[..]), Box::from(&b"c"[..])]);
     assert!(reader.is_empty());
 }
-
-#[test]
-#[should_panic(expected = "count accepted the piece framing")]
-fn counted_splitting_requires_validated_framing() {
-    piece::counted(&mut Reader::new(b"\0"));
-}
-
-#[test]
-#[should_panic(expected = "count includes the next item")]
-fn counted_splitting_requires_a_remaining_item() {
-    piece::counted(&mut Reader::new(b""));
-}

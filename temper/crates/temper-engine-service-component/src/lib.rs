@@ -237,6 +237,12 @@ pub enum Note {
         reason: &'static str,
     },
     /// One patch finished before the store opened (jig's protocol/store/opening.md, 2).
+    Ran {
+        of: jig_protocol_store::Owner,
+        job: Box<str>,
+        rows: u64,
+        commits: u64,
+    },
     Patched {
         of: jig_protocol_store::Owner,
         patch: u32,
@@ -308,6 +314,11 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
+    /// A default results host skipped once for this run (protocol/forge/README.md, 2.6).
+    GitHubLogOriginUnresolved {
+        host: Box<[u8]>,
+    },
+    GitHubLogOriginsUnresolved,
     /// An entry newly unable to serve a forge sign-in meta (protocol/openid-provider.md, 7).
     ForgeSignIn {
         number: u16,

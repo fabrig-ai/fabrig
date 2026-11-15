@@ -401,6 +401,14 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
             out.number(u64::from(*entries));
             out.put(b" waiting");
         }
+        WaitsOn::Question { number } => {
+            out.put(
+                &book
+                    .say(0, Word::waiting(&task.waits_on).id(), &[skein_ui::phrases::Hole::Number(*number)])
+                    .expect("waiting phrase")
+                    .text,
+            );
+        }
         WaitsOn::Dependencies { .. } | WaitsOn::Delegates | WaitsOn::News => {
             out.put(&book.say(0, Word::waiting(&task.waits_on).id(), &[]).expect("waiting phrase").text);
         }

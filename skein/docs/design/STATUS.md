@@ -54,9 +54,9 @@ tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
 its checks' exceptions and the `expect`s naming a round or milestone
 (`../foundation/cli.md`, section 9), and no binary has a table yet, so none has checks 6 and 7;
-of `programming-model.md`, 10.4, no test catches a panic, but `#[should_panic]` tests in every
-tree still trigger assertions, held where they stand by the count of `tools/lints/design.md`, 7:
-the milestones of `temper/docs/design/draft/panics.execution.md` convert them.
+of `programming-model.md`, 10.4, no test catches a panic or triggers an assertion, and the
+count of `tools/lints/design.md`, 7 refuses `#[should_panic]` beside `catch_unwind` and
+`resume_unwind`.
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
@@ -81,6 +81,7 @@ Design documents:
 - [`data/codec/README.md`](data/codec/README.status.md)
 - [`data/codec/diff.md`](data/codec/diff.status.md)
 - [`data/codec/patches.md`](data/codec/patches.status.md)
+- [`data/codec/layouts.md`](data/codec/layouts.status.md)
 - [`data/codec/command.md`](data/codec/command.status.md)
 - [`data/codec/bridges.md`](data/codec/bridges.status.md)
 - [`data/json.md`](data/json.status.md)
@@ -106,6 +107,7 @@ Design documents:
 - [`forge/client.md`](forge/client.status.md)
 - [`forge/connection.md`](forge/connection.status.md)
 - [`forge/github.md`](forge/github.status.md)
+- [`forge/job-state.md`](forge/job-state.status.md)
 - [`forge/setup/README.md`](forge/setup/README.status.md)
 - [`testing/fakes/forge.md`](testing/fakes/forge.status.md)
 - [`testing/fakes/github.md`](testing/fakes/github.status.md)

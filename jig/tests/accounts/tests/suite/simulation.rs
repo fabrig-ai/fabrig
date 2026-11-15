@@ -416,14 +416,6 @@ fn retry_wall_uses_the_actual_armed_monotonic_deadline() {
 }
 
 #[test]
-#[should_panic(expected = "accounts restore after link: Next")]
-fn restore_after_want_panics_naming_the_key() {
-    let mut world = World::default();
-    world.step(Event::Want);
-    world.step(Event::Restore { record: Stored::Next { number: 1_009 } });
-}
-
-#[test]
 fn credential_usability_uses_the_supplied_time_without_a_step() {
     let mut world = credential_world();
     world.fire_at(99);

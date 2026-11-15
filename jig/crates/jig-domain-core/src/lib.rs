@@ -60,8 +60,9 @@ pub use crate::{
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         projections::{
-            MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone,
-            ProjectionRecord, ProjectionTask, finish_decision, projection_bytes, projection_record_bytes,
+            MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionGoalHot, ProjectionKey,
+            ProjectionMilestone, ProjectionRecord, ProjectionTask, ProjectionTaskHot, finish_decision,
+            projection_bytes, projection_record_bytes,
         },
     },
     funding::pools::CreateStart,
@@ -109,8 +110,8 @@ pub use crate::{
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
-        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, StepRefusal,
-        Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
+        StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
     },
 };
 
@@ -160,6 +161,7 @@ pub struct Core {
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
     pub(crate) restart_attempts: u32,
+    fleet_versions: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
@@ -417,6 +419,7 @@ impl Core {
             opened: false,
             start_pending: false,
             restart_attempts: limits.fleet.attempts,
+            fleet_versions: limits.settings.versions,
             counters: Counters::bootstrap(config.deployment),
             seed_owners: config.owners.clone(),
             seed_projects: config.seed_projects,

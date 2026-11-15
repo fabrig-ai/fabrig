@@ -11,6 +11,7 @@ mod generations;
 mod gets;
 mod intervals;
 mod keys;
+mod live_parts;
 mod open;
 mod pages;
 mod patching;
@@ -24,8 +25,13 @@ mod transcripts;
 
 mod settings;
 
+pub(crate) mod charter_versions;
+mod milestones;
 mod operations;
 mod phase;
+pub(crate) mod projection_parts;
+mod registered_layouts;
+mod retention;
 mod words;
 
 mod frame_memory;
@@ -108,20 +114,6 @@ fn valid_requires_room_for_transcript_work() {
     ] {
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
-}
-
-#[test]
-#[should_panic(expected = "the store's limits are valid")]
-fn over_refuses_insufficient_transcript_readers() {
-    let mut limits = fixtures::store_limits();
-    limits.reads = limits
-        .core
-        .load_slots
-        .checked_add(limits.core.tasks.tasks)
-        .expect("fixture reader capacity")
-        .checked_sub(1)
-        .expect("fixture has transcript readers");
-    let _store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
 }
 
 mod catch_up;

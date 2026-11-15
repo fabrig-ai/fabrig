@@ -17,7 +17,10 @@ pub enum State {
     /// Waiting on one listed dependency: this task.
     WaitingFor(u64),
     /// Waiting on `count` listed dependencies, and on more when the list was cut.
-    WaitingForTasks { count: u32, more: bool },
+    WaitingForTasks {
+        count: u32,
+        more: bool,
+    },
     /// Waiting on no dependency, for its holdings.
     WaitingForHoldings,
     /// Waiting for the supplied number of live delegates.
@@ -27,6 +30,7 @@ pub enum State {
     /// Waiting for an answer from another person or role.
     WaitingForParty(c::Whom),
     /// Waiting for news.
+    WaitingForQuestion(u64),
     WaitingForNews,
     /// Running without more specific observed work.
     Running,
@@ -122,6 +126,7 @@ pub fn header_state(task: &c::Task, me: Option<&c::Me>) -> State {
                 State::WaitingForParty(*whom)
             }
         }
+        c::WaitsOn::Question { number } => State::WaitingForQuestion(*number),
         c::WaitsOn::News => State::WaitingForNews,
         c::WaitsOn::Nothing => row_state(&task.chip),
     }

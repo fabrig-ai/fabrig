@@ -51,6 +51,7 @@ pub mod status;
 mod tests;
 pub mod text;
 pub mod tiers;
+pub use tiers::{TierAct, TierActRequest, TierRefusal};
 pub mod verification;
 pub mod views;
 pub mod workflows;
@@ -351,6 +352,8 @@ pub fn stored_key(row: &Stored) -> Key {
         }),
         Stored::Closer(row) => Key::Closer(row.task),
         Stored::Change(row) => Key::Change(row.task),
+        Stored::ChangeCold(row) => Key::ChangeCold(row.task),
+        Stored::ChangeHot(row) => Key::ChangeHot(row.task),
         Stored::Issue(row) => Key::Issue(row.goal),
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
@@ -379,6 +382,39 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             total = total.checked_add(bytes(&remark.words))?;
         }
         Some(total)
+    }
+    fn llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<u64> {
+        let Some(choice) = value else { return Some(0) };
+        let mut count = skein_lib::len_u64(choice.subagents.len());
+        if let Some(later) = &choice.later {
+            count = count.checked_add(skein_lib::len_u64(later.subagents.len()))?;
+        }
+        count.checked_mul(u64::try_from(size_of::<jig_domain_tasks::ModelEffort>()).ok()?)
+    }
+    fn questions(value: &change::Questions) -> Option<u64> {
+        let mut held =
+            skein_lib::len_u64(value.open.len()).checked_mul(u64::try_from(size_of::<change::Open>()).ok()?)?;
+        for open in &value.open {
+            held = held.checked_add(bytes(&open.line))?.checked_add(bytes(&open.words))?;
+            if let change::Stands::Held { answer } = &open.stands {
+                held = held.checked_add(bytes(answer))?;
+            }
+        }
+        held = held.checked_add(
+            skein_lib::len_u64(value.waiting.len()).checked_mul(u64::try_from(size_of::<change::Waiting>()).ok()?)?,
+        )?;
+        for word in &value.waiting {
+            held = held.checked_add(bytes(&word.words))?;
+        }
+        Some(held)
+    }
+    fn early(value: &change::Early) -> Option<u64> {
+        match value {
+            change::Early::None => Some(0),
+            change::Early::Started(heads) | change::Early::Spent(heads) => {
+                skein_lib::len_u64(heads.len()).checked_mul(u64::try_from(size_of::<change::StartedFrom>()).ok()?)
+            }
+        }
     }
     fn name(value: &Name) -> Option<u64> {
         match &value.what {
@@ -811,6 +847,73 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 None => 0,
             })?
             .checked_add(change_state_bytes(&row.change.state, 0)?),
+        Stored::ChangeHot(row) => skein_lib::len_u64(row.signed.len())
+            .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
+            .checked_add(skein_lib::len_u64(row.repair_tasks.len()).checked_mul(8)?)?
+            .checked_add(u64::try_from(size_of::<ChangeHot>()).ok()?)?
+            .checked_add(skein_lib::len_u64(row.resolution_tasks.len()).checked_mul(8)?)?
+            .checked_add(match &row.ending {
+                Some(Ending::Failed { line }) => bytes(line),
+                Some(Ending::Landed | Ending::NoChange | Ending::Cancelled) | None => 0,
+            })?
+            .checked_add(history::job_bytes(row.job.as_ref())?)?
+            .checked_add(questions(&row.questions)?)?
+            .checked_add(early(&row.change.early)?)?
+            .checked_add(match &row.merge_result {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.follow_check {
+                Some(check) => follow_check::stored_bytes(check)?,
+                None => 0,
+            })?
+            .checked_add(
+                skein_lib::len_u64(row.change.gates.len())
+                    .checked_mul(u64::try_from(size_of::<change::Gate>()).ok()?)?,
+            )?
+            .checked_add(skein_lib::len_u64(row.change.clean.len()).checked_mul(32)?)?
+            .checked_add(
+                skein_lib::len_u64(row.change.gate_failures.len())
+                    .checked_mul(u64::try_from(size_of::<change::GateFailure>()).ok()?)?,
+            )?
+            .checked_add(
+                skein_lib::len_u64(row.verdicts.len())
+                    .checked_mul(u64::try_from(size_of::<change::GateReport>()).ok()?)?,
+            )?
+            .checked_add(
+                skein_lib::len_u64(row.gate_remarks.len()).checked_mul(u64::try_from(size_of::<GateRemark>()).ok()?)?,
+            )?
+            .checked_add(remark_bytes(&row.gate_remarks)?)?
+            .checked_add(bytes(&row.result.checks.bytes))?
+            .checked_add(bytes(&row.result.failed.bytes))?
+            .checked_add(bytes(&row.result.repairs.bytes))?
+            .checked_add(bytes(&row.result.reviews.bytes))?
+            .checked_add(match &row.effect_account {
+                Some(account) => bytes(&account.words),
+                None => 0,
+            })?
+            .checked_add(match &row.producer_failure {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(change_state_bytes(&row.change.state, 0)?),
+        Stored::ChangeCold(row) => u64::try_from(size_of::<ChangeCold>())
+            .ok()?
+            .checked_add(bytes(&row.branch))?
+            .checked_add(bytes(&row.base))?
+            .checked_add(bytes(&row.title))?
+            .checked_add(bytes(&row.body))?
+            .checked_add(bytes(&row.report))?
+            .checked_add(llm(row.producing_llm.as_ref())?)?
+            .checked_add(llm(row.review_llm.as_ref())?)?
+            .checked_add(match &row.close {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.follows {
+                Some(follows) => skein_lib::len_u64(follows.commits.len()).checked_mul(32)?,
+                None => 0,
+            }),
         Stored::Issue(row) => {
             let before = match &row.before {
                 Some(before) => before.milestones.len(),

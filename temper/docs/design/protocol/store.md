@@ -82,7 +82,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 | 9 | `Landed` | `Landed(Commit)` | a merge temper made, and its task | `landings` |
 | 10 | `Entry` | `Entry(u64)`: the entry's number | an unsettled outbox entry, held or not, and whether the forge's merge queue holds its merge (`queued`, skein's `forge/client.md`, 7.7) | `entries` |
 | 11 | `Client` | `Client(client::Key)`: `Live(Resource)` or `Repository(Repository)` | the client's working set: a live resource's row, or a repository's listing mark | the client's `resources` and `repositories` |
-| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held for dependencies with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
+| 12 | `Change` | `Change(u64)`: the task | a change's record whole, as a store from before families 47 and 48 holds it, read by the job `change-parts` alone, which moves it into them (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
 | 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
@@ -228,6 +228,36 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   and `seen` (`../domain/findings.md`, 4), an older store's findings
   having neither. It moves `STORE_VERSION` by one, the one after the
   latest when it lands, without making a row for an older store.
+- **A change's two parts,** after them, at the next two free bytes when
+  they land (47 and 48 where no other family has taken them since): a
+  change's record kept as a part an act changes and a part that changes
+  on most saves (`../draft/store-shape.md`, section 7; jig's
+  `protocol/store/parts.md`, 1):
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 47 | `ChangeCold` | `ChangeCold(u64)`: the task | `ChangeCold`: the record's `task`, `repository`, `branch`, `base`, `goal`, `base_repair`, `producing_charter`, `review_charter`, `producing_llm`, `review_llm`, `repairs`, `catch_up`, `close`, `title`, `body`, `follows` and `report`. Put when the change is made and when one of them changes: a producer's title and report, a follow's amendment | `changes` |
+  | 48 | `ChangeHot` | `ChangeHot(u64)`: the task | `ChangeHot`: the record's `task` and every other field of it. Put by each save of the change | `changes` |
+
+  Their records are the schema's `Value` variants `change_cold` and
+  `change_hot`, appended after the last, value types 47 and 48 over
+  their bytes, named `temper.changes-cold` and `temper.changes-hot`
+  for the census. `change` and its `ChangeRow` stay declared for the
+  job alone; a field added to a change's record goes to one of the
+  parts.
+  - **The forge keeps each change whole** in memory, as before. Its
+    save puts the hot part, and the cold part when a cold field
+    differs from the change it replaces or the change is new; a
+    change's erase erases both. The codec's split and join name every
+    field of the record, with no rest pattern.
+  - **The restart** restores both families and joins each change at
+    `Restored` (section 5); one part without the other stops the
+    restart as a row this build cannot read does, naming the present
+    part's family.
+  - **The job `change-parts`** (jig's `protocol/store/jobs.md`) walks
+    family 12 and, for each row, puts the change's two parts and
+    erases its row, in answers within the commit edge: 379 rows on
+    dev.fabrig.ai. Afterwards family 12 is empty.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
   events kept, `whole_since`, its hours' marks, the change being swept
@@ -354,7 +384,19 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 
   The routing gives it to jig's component, whose format row records it;
   opening patches an older supported store in a copy before restoring
-  it (jig's `protocol/store/opening.md`).
+  it (jig's `protocol/store/opening.md`). From `temper-store`'s
+  registration (jig's `protocol/store/layouts.md`, 1), listed in
+  `temper-protocol-store`'s `schema/registered`, the version stays
+  where the last patch left it, no patch is written for the family, and
+  its layouts change by defaults, former names and written jobs.
+- **`temper-store`'s value types** (jig's `protocol/store/layouts.md`,
+  2): its `Row`'s variants, one value type per variant its keys hold
+  (section 3), each numbered in `temper-protocol-store`'s patch set,
+  in its keys' order, and never renumbered; `temper-secrets` is
+  patched as before. The application's jobs at open (jig's
+  `protocol/store/jobs.md`) are dispatched by
+  `temper_protocol_store::jobs::page`, which names `change-parts`
+  (section 2, a change's two parts).
 - **A repository's tag** is its forge's number and its id, packed
   (`../domain/forge/adoption.md`): the tasks' resource parameters and
   saved resources jig keeps name the pair.
@@ -547,7 +589,8 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
   decoded bytes, its cursor the last key kept.
 - **Family by family,** in the variants' order, since the family's byte
   leads each key. The forge restores each row into its own table and
-  reconciles them all at `Restored`, so it takes the rows in any order.
+  reconciles them all at `Restored`, so it takes the rows in any order;
+  a change's two parts (section 2, families 47 and 48) are joined there.
 - **Every row the predicate admits.** `Range::contains` admits every
   forge key below byte 128 and no core key; a test checks the interval against it on
   generated keys of both (section 6).

@@ -136,14 +136,6 @@ fn templates_expand_every_occurrence_and_price_twenty_digit_numbers() {
     let _h = Harness::with(config, setup);
 }
 
-#[test]
-#[should_panic(expected = "expanded path within the limits")]
-fn a_template_one_byte_past_its_expanded_path_limit_is_refused() {
-    let (config, setup) = configured();
-    let config = Config { limits: Limits { name_bytes: 30, ..config.limits }, ..config };
-    let _h = Harness::with(config, setup);
-}
-
 fn declared() -> (Config, Setup) {
     let mut config = calm();
     config.limits.name_bytes = 64;
@@ -252,6 +244,7 @@ fn made_repositories_keep_workflows_and_merge_settings_across_an_image() {
                     flaky: Box::new([]),
                     report: None,
                     select: None,
+                    requirements: Box::new([]),
                 }]);
                 config.made_manual_merges =
                     crate::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true };

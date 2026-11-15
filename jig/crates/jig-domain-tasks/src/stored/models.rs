@@ -43,6 +43,7 @@ impl crate::Stored {
                     members(&mut value.template.batch, moved);
                 }
             }
+            crate::Stored::LiveCold { authority: value, .. } => authority(value, moved),
             crate::Stored::PersonProposal(row) | crate::Stored::DecidedProposal(row) => match &mut row.action {
                 crate::PersonAction::Settings { .. } => {}
                 crate::PersonAction::Batch(batch) => members(batch, moved),
@@ -57,7 +58,9 @@ impl crate::Stored {
                     authority(&mut value.after.authority, moved);
                 }
             }
-            crate::Stored::Update(_)
+            crate::Stored::Summary(_)
+            | crate::Stored::Retention(_)
+            | crate::Stored::Update(_)
             | crate::Stored::Result(_)
             | crate::Stored::EndedByParty(_)
             | crate::Stored::EndedByProject(_)
@@ -65,6 +68,8 @@ impl crate::Stored {
             | crate::Stored::Delegate(_)
             | crate::Stored::Activity(_)
             | crate::Stored::Milestone(_)
+            | crate::Stored::Attempt(_)
+            | crate::Stored::Hold(_)
             | crate::Stored::ClosedLedger(_)
             | crate::Stored::PlacedHold(_)
             | crate::Stored::Stub(_)

@@ -285,6 +285,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Tier(Result<(), crate::TierRefusal>),
     Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
@@ -1059,7 +1060,264 @@ pub struct ChangeRow {
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
 }
+/// A change's cold store part (temper/docs/design/protocol/store.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeCold {
+    pub task: u64,
+    pub repository: skein_forge::api::Repository,
+    pub branch: Box<[u8]>,
+    pub base: Box<[u8]>,
+    pub goal: Option<u64>,
+    pub base_repair: bool,
+    pub producing_charter: u32,
+    pub review_charter: u32,
+    pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
+    pub review_llm: Option<jig_domain_tasks::LlmChoice>,
+    pub repairs: Option<skein_forge::api::Commit>,
+    pub catch_up: Option<skein_forge::api::Commit>,
+    pub close: Option<Box<[u8]>>,
+    pub title: Box<[u8]>,
+    pub body: Box<[u8]>,
+    pub follows: Option<ChangeFollows>,
+    pub report: Box<[u8]>,
+}
+/// A change's hot store part (temper/docs/design/protocol/store.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeHot {
+    pub task_release: Option<TaskRelease>,
+    pub job: Option<crate::history::JobRecord>,
+    pub signed: Box<[SignOff]>,
+    pub ending: Option<Ending>,
+    pub repair_tasks: Box<[u64]>,
+    pub resolution_tasks: Box<[u64]>,
+    pub result: crate::ChangeResult,
+    pub task: u64,
+    pub priority: i32,
+    pub change: change::Change,
+    pub ci: Option<change::Ci>,
+    pub pull: Option<u64>,
+    pub pending: Option<u64>,
+    pub effect: change::EffectResult,
+    pub delegate: Option<(u64, change::Delegate)>,
+    pub delegate_status: change::Status,
+    pub verdicts: Box<[change::GateReport]>,
+    pub gate_remarks: Box<[GateRemark]>,
+    pub drift: Option<change::Hold>,
+    pub queue_repair: Option<u64>,
+    pub queue_repairs: u32,
+    pub effect_account: Option<EffectAccount>,
+    pub producer_failure: Option<Box<[u8]>>,
+    pub questions: change::Questions,
+    pub follow_check: Option<FollowCheck>,
+    pub merge_result: Option<Box<[u8]>>,
+    pub history: Option<crate::history::ChangeHistory>,
+}
 impl ChangeRow {
+    /// Place every field in its store part.
+    #[must_use]
+    pub fn split(self) -> (ChangeCold, ChangeHot) {
+        let Self {
+            task_release,
+            job,
+            signed,
+            goal,
+            ending,
+            repair_tasks,
+            resolution_tasks,
+            result,
+            task,
+            repository,
+            branch,
+            base,
+            title,
+            body,
+            priority,
+            change,
+            ci,
+            pull,
+            pending,
+            effect,
+            delegate,
+            delegate_status,
+            verdicts,
+            gate_remarks,
+            drift,
+            base_repair,
+            queue_repair,
+            queue_repairs,
+            producing_charter,
+            review_charter,
+            producing_llm,
+            review_llm,
+            effect_account,
+            producer_failure,
+            report,
+            questions,
+            repairs,
+            follows,
+            follow_check,
+            catch_up,
+            close,
+            merge_result,
+            history,
+        } = self;
+        (
+            ChangeCold {
+                task,
+                repository,
+                branch,
+                base,
+                goal,
+                base_repair,
+                producing_charter,
+                review_charter,
+                producing_llm,
+                review_llm,
+                repairs,
+                catch_up,
+                close,
+                title,
+                body,
+                follows,
+                report,
+            },
+            ChangeHot {
+                task_release,
+                job,
+                signed,
+                ending,
+                repair_tasks,
+                resolution_tasks,
+                result,
+                task,
+                priority,
+                change,
+                ci,
+                pull,
+                pending,
+                effect,
+                delegate,
+                delegate_status,
+                verdicts,
+                gate_remarks,
+                drift,
+                queue_repair,
+                queue_repairs,
+                effect_account,
+                producer_failure,
+                questions,
+                follow_check,
+                merge_result,
+                history,
+            },
+        )
+    }
+    /// Join parts belonging to the same task.
+    #[must_use]
+    pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
+        let ChangeCold {
+            task: cold_task,
+            repository,
+            branch,
+            base,
+            goal,
+            base_repair,
+            producing_charter,
+            review_charter,
+            producing_llm,
+            review_llm,
+            repairs,
+            catch_up,
+            close,
+            title,
+            body,
+            follows,
+            report,
+        } = cold;
+        let ChangeHot {
+            task_release,
+            job,
+            signed,
+            ending,
+            repair_tasks,
+            resolution_tasks,
+            result,
+            task,
+            priority,
+            change,
+            ci,
+            pull,
+            pending,
+            effect,
+            delegate,
+            delegate_status,
+            verdicts,
+            gate_remarks,
+            drift,
+            queue_repair,
+            queue_repairs,
+            effect_account,
+            producer_failure,
+            questions,
+            follow_check,
+            merge_result,
+            history,
+        } = hot;
+        assert_eq!(cold_task, task, "change parts name one task");
+        Self {
+            task_release,
+            job,
+            signed,
+            goal,
+            ending,
+            repair_tasks,
+            resolution_tasks,
+            result,
+            task,
+            repository,
+            branch,
+            base,
+            title,
+            body,
+            priority,
+            change,
+            ci,
+            pull,
+            pending,
+            effect,
+            delegate,
+            delegate_status,
+            verdicts,
+            gate_remarks,
+            drift,
+            base_repair,
+            queue_repair,
+            queue_repairs,
+            producing_charter,
+            review_charter,
+            producing_llm,
+            review_llm,
+            effect_account,
+            producer_failure,
+            report,
+            questions,
+            repairs,
+            follows,
+            follow_check,
+            catch_up,
+            close,
+            merge_result,
+            history,
+        }
+    }
+}
+impl ChangeRow {
+    /// Its facts are frozen from the step that ends it (domain/forge/keeping-up.md, 3).
+    #[must_use]
+    pub fn frozen(&self) -> bool {
+        self.ending.is_some() || self.terminal()
+    }
+
     /// The pull a judgement delegate reads; every other state keeps the change's pull.
     #[must_use]
     pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {
@@ -1323,7 +1581,7 @@ pub enum Stored {
     Client(skein_forge_client::Stored),
     /// A goal closer's committed state.
     Closer(crate::CloserRow),
-    /// A change procedure's committed state.
+    /// A whole family-12 change, kept for the job at open.
     Change(Box<ChangeRow>),
     /// A goal issue's committed projection.
     Issue(IssueRow),
@@ -1383,6 +1641,8 @@ pub enum Stored {
     RedNumber {
         last: u64,
     },
+    ChangeCold(Box<ChangeCold>),
+    ChangeHot(Box<ChangeHot>),
     HistoryProject(crate::history::Project),
     HistoryEvent(crate::history::Event),
     HistoryChange(crate::history::ChangeIndex),
@@ -1443,6 +1703,8 @@ pub enum Key {
     Red { goal: u64, key: Box<[u8]> },
     RedNumber,
     RedPass { change: u64, key: Box<[u8]> },
+    ChangeCold(u64),
+    ChangeHot(u64),
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -1642,6 +1904,12 @@ pub enum Event {
         task: u64,
         follows: ChangeFollows,
         words: Box<[u8]>,
+    },
+    TierAct {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::TierActRequest,
     },
     FollowAct {
         request: Token,
@@ -1962,6 +2230,10 @@ pub enum Event {
     },
     /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
     DropChange {
+        task: u64,
+    },
+    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/README.md, 7).
+    DropErased {
         task: u64,
     },
     /// Register one activated change task with its held branch.
@@ -2698,12 +2970,58 @@ pub struct TierRow {
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
     pub held: Option<landing::Fault>,
+    pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
+    pub posting: Option<Box<TierPosting>>,
     pub received: bool,
     pub goals: Box<[TierGoal]>,
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
+}
+/// Kept verdict projections (temper/docs/design/domain/after-landing.md, sections 9 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierPosting {
+    pub number: u64,
+    pub tip: skein_forge::api::Commit,
+    pub link: Box<[u8]>,
+    pub check: skein_forge::api::Check,
+    pub description: Box<[u8]>,
+    pub landings: Box<[TierPostedLanding]>,
+    pub comments: Box<[TierComment]>,
+    /// Status is 0; comment i is i + 1.
+    pub next: u32,
+    pub entry: Option<u64>,
+    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    pub part: u16,
+    /// Retains the rendering bound across restart and settings changes.
+    pub op_bytes: u32,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierPostedLanding {
+    pub commit: skein_forge::api::Commit,
+    pub blame: temper_engine_domain_forge_tiers::Blame,
+    /// The report's retained change read, composed before verification can be released.
+    pub change: Option<u64>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierComment {
+    pub pull: u64,
+    pub landing: skein_forge::api::Commit,
+    pub kind: TierCommentKind,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierCommentKind {
+    Verdict { at: u16 },
+    Repaired { by: Option<u64> },
+}
+/// A person's independent hold of a tier (domain/after-landing.md, sections 3 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierHold {
+    pub party: u64,
+    pub at: skein_lib::Wall,
+    /// At most 1024 bytes.
+    pub reason: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLanding {

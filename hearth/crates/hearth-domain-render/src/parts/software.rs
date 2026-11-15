@@ -2,32 +2,10 @@
 pub use super::config::Script;
 use crate::{entries::Expansion, errors::Error, revision::declaration::Map};
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::software::{Change, Download, DownloadKeyed, Fetch, How, Software};
 use hearth_lib::{encode::Digest, hash::H};
 use skein_lib::{Joined, List, Map as Ordered};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Software {
-    pub downloads: Box<[Download]>,
-    pub scripts: Box<[Script]>,
-    pub fetch: Box<[Fetch]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Download {
-    pub path: Box<[u8]>,
-    pub sha256: Digest,
-    pub owner: Box<[u8]>,
-    pub group: Box<[u8]>,
-    pub how: How,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum How {
-    File { mode: u16 },
-    Tar { strip: u32 },
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Fetch {
-    pub sha256: Digest,
-    pub url: Box<[u8]>,
-}
+
 pub(crate) fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, Box<[Error]>> {
     let entries = expansion.of(Map::Software);
     let count = u32::try_from(entries.len()).expect("entry bound");
@@ -95,19 +73,6 @@ pub(crate) fn digest(software: &Software) -> Digest {
     }
     super::config::encode_scripts(&software.scripts, record);
     hash.finish()
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub downloads: Box<[DownloadKeyed]>,
-    pub scripts: Option<super::config::ScriptsChange>,
-}
-/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum DownloadKeyed {
-    Added { key: Box<[u8]>, value: Download },
-    Removed { key: Box<[u8]>, value: Download },
-    Changed { key: Box<[u8]>, before: Download, after: Download },
 }
 
 #[must_use]

@@ -843,11 +843,9 @@ fn lifecycle_history_has_independent_positions_and_restore_does_not_repeat_a_pha
     assert_eq!(world.record(1).milestone, held + 1);
     assert_eq!(world.record(1).revision, revision + 1, "release also has its semantic history row");
     assert!(
-        matches!(world.records.get(&Key::Milestone { task: 1, position: held }), Some(jig_domain_tasks::Stored::Milestone(row)) if matches!(row.phase, Phase::Held { why: Hold::Effects, .. }))
+        matches!(world.records.get(&Key::Hold { task: 1, position: held }), Some(jig_domain_tasks::Stored::Hold(row)) if row.held.why == Hold::Effects)
     );
-    assert!(
-        matches!(world.records.get(&Key::Milestone { task: 1, position: held + 1 }), Some(jig_domain_tasks::Stored::Milestone(row)) if row.phase == world.record(1).phase)
-    );
+    assert!(!world.records.contains_key(&Key::Hold { task: 1, position: held + 1 }), "release writes no hold row");
 }
 
 #[path = "../lifecycle/goals.rs"]

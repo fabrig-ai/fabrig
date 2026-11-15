@@ -80,12 +80,16 @@ struct World {
 impl World {
     fn new() -> (Self, Duties) {
         let facts = Facts {
+            set_up: false,
+            box_log: Box::default(),
             seed: 7,
             now: Time::ZERO,
             wall: Wall::EPOCH,
             size: Size { rows: 24, columns: 80 },
             scheme: Some(Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: b"127.0.0.1:8367".as_slice().into(),
             front: false,

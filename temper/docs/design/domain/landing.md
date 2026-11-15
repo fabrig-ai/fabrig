@@ -262,7 +262,13 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   - a gate's runner faults past `gate_retries` (7.4), `gate NAME of
     REPOSITORY failed on its runner past its retries`;
   - a gate's run in flight past the project's `gate_timeout` (7.1),
-    `gate NAME of REPOSITORY: run RUN running past its bound`;
+    `gate NAME of REPOSITORY: run RUN running past its bound`, then,
+    after `; `, a clause for each of the run's jobs not completed, as a
+    change's stall names its pending checks
+    (`forge/change/repairs.md`, *A stall on CI says why*), each named
+    by the job's name in its run: `JOB: waiting for a runner labelled
+    L1, L2`, `JOB: blocked by the jobs it needs`, `JOB: running at step
+    N, NAME`, `JOB: pending, its job unread`;
   - its pull request or a merge refused for a cause not stale (section 8),
     `turn: WHY`.
 
@@ -537,7 +543,10 @@ The default, for a project with no prepare command:
   key's receipt, and acts in a later round only through that receipt,
   where its key is that round's (`landing-search.md`, section 6).
 - **Bounded:** a run in flight longer than the project's `gate_timeout`
-  since its dispatch holds the landing (4.2).
+  since its dispatch holds the landing (4.2). Before the hold, the run
+  is read afresh (`Read::Run`), and each of its jobs not completed by
+  skein's `Read::JobState` (skein's `forge/job-state.md`), only then,
+  so the hold names why each waits; the words live in the hold alone.
 - **Its status:** `temper/gate/<name>` on the candidate, pending once
   dispatched, then the receipt's verdict (section 10).
 

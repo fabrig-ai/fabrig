@@ -12,6 +12,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             core::CoreKey::Deployment => {}
             core::CoreKey::Projection(key) => match key {
                 core::ProjectionKey::Goal(task)
+                | core::ProjectionKey::GoalWords(task)
+                | core::ProjectionKey::TaskWords { task, .. }
                 | core::ProjectionKey::Task { task, .. }
                 | core::ProjectionKey::Lifecycle { task, .. }
                 | core::ProjectionKey::Revision { task, .. } => name.task = Some(*task),
@@ -34,11 +36,14 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             },
         },
         core::Key::Tasks(key) => match key {
-            tasks::Key::Live(task)
+            tasks::Key::LiveCold(task)
+            | tasks::Key::Live(task)
             | tasks::Key::Ended(task)
             | tasks::Key::Stub(task)
             | tasks::Key::History { task, .. }
             | tasks::Key::Milestone { task, .. }
+            | tasks::Key::Attempt { task, .. }
+            | tasks::Key::Hold { task, .. }
             | tasks::Key::Activity { task, .. }
             | tasks::Key::Delegate { task, .. }
             | tasks::Key::EndedDelegate { task, .. }
@@ -59,7 +64,9 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
                     name.outlives = Some(r::Outlives::Spend);
                 }
             }
-            tasks::Key::Result { .. }
+            tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::Result { .. }
             | tasks::Key::Writer(_)
             | tasks::Key::Pool(_)
             | tasks::Key::PersonProposal(_)
@@ -117,6 +124,7 @@ fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "every durable row's observable names share one exhaustive match")]
 fn record_names(record: &core::Record, name: &mut r::Naming) {
     match record {
         core::Record::Core(record) => match record {
@@ -141,13 +149,18 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 tasks::Writer::Run { task, .. } => name.task = Some(task),
                 tasks::Writer::Effect { .. } => {}
             },
-            tasks::Stored::Update(_)
+            tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
+            | tasks::Stored::Update(_)
             | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)
             | tasks::Stored::EndedDelegate(_)
             | tasks::Stored::Delegate(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::ClosedLedger(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Stub(_)

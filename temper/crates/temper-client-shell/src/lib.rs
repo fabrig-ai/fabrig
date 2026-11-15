@@ -41,6 +41,7 @@ pub const CLIENT: Table = Table {
         &environment::PATH,
         &environment::COLORFGBG,
         &environment::COLORTERM,
+        &environment::TERM_PROGRAM,
         &environment::SSL_CERT_FILE,
         &SITE,
         &environment::INTERNAL_COMMIT,
@@ -134,6 +135,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                 address,
                 &captured.environment,
                 working.as_os_str().as_bytes(),
+                format!("{} ({})", captured.version, captured.commit).as_bytes(),
                 &Clock::new(),
             ))
         }

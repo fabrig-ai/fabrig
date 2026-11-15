@@ -37,8 +37,8 @@ fn make(world: &mut World, requester: &engine::Assignment, template: u64, follow
 
 fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..TICKS {
-        if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change)))
-            && let forge_top::Stored::Change(row) = row.as_ref()
+        if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::ChangeHot(change)))
+            && let forge_top::Stored::ChangeHot(row) = row.as_ref()
             && let Some((child, _)) = row.delegate
             && let Some(run) = world.assigned.iter().rev().find(|run| run.task == child)
         {
@@ -218,7 +218,7 @@ fn a_procedure_batchs_follow_change_dispatches_its_own_gate_before_queue_or_turn
             world.tick();
             change = world.store.rows.values().find_map(|record| match record {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) if row.follows.is_some() => Some(row.task),
+                    forge_top::Stored::ChangeCold(row) if row.follows.is_some() => Some(row.task),
                     _ => None,
                 },
                 Record::Core(_) => None,
@@ -277,6 +277,7 @@ fn a_procedure_batchs_follow_change_dispatches_its_own_gate_before_queue_or_turn
             forge_top::FollowVerdict::Passed
         );
         assert!(world.writes.iter().all(|write| !matches!(write, skein_forge::api::Write::Status { context, .. } if context.starts_with(b"temper/gate/follow."))));
+        tier_runs::posted(&mut world);
         world.close();
     }
 }

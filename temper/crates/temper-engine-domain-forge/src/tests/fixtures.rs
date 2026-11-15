@@ -85,6 +85,32 @@ pub fn open_pull() -> skein_forge::api::Pull {
     }
 }
 
+pub fn frozen_rows() -> Box<[ChangeRow]> {
+    use temper_engine_domain_forge_change::State;
+    let mut rows = skein_lib::List::uncapped();
+    for state in [
+        State::Landed { merge: HEAD, since: env().wall },
+        State::Red { merge: HEAD, since: env().wall },
+        State::Cleared { merge: HEAD },
+        State::Uncleared { merge: HEAD },
+        State::NoChange { words: Box::new([]) },
+        State::Ended,
+    ] {
+        let mut row = opening_row();
+        row.change.state = state;
+        rows.push(row).unwrap();
+    }
+    for ending in
+        [Ending::Landed, Ending::NoChange, Ending::Cancelled, Ending::Failed { line: b"failed".as_slice().into() }]
+    {
+        let mut row = opening_row();
+        row.change.state = State::Checking { head: HEAD };
+        row.ending = Some(ending);
+        rows.push(row).unwrap();
+    }
+    rows.into_boxed()
+}
+
 pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
@@ -109,6 +135,7 @@ pub fn opening_row() -> ChangeRow {
             gates: Box::new([]),
             clean: Box::new([]),
             gate_failures: Box::new([]),
+            released_resolution: false,
             released: None,
             repairs: 0,
             resolutions: 0,
@@ -154,20 +181,24 @@ pub fn opening_row() -> ChangeRow {
 }
 
 pub fn opening() -> (Domain, Token) {
+    opening_with(opening_row())
+}
+
+pub fn opening_with(row: ChangeRow) -> (Domain, Token) {
     let mut d = connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
-    let row = opening_row();
     let entry = skein_forge_client::Entry {
         number: OPEN,
-        task: CHANGE,
+        task: row.task,
         repository: REPO,
         effect: skein_forge_client::Effect {
             write: skein_forge::api::Write::OpenPull {
                 title: row.title.clone(),
-                body: row.body.clone(),
+                // The tiny outbox holds the fitted effect, not the stored brief.
+                body: text::fit(&row.body, 256, b"..."),
                 head: row.branch.clone(),
                 base: row.base.clone(),
             },

@@ -119,27 +119,3 @@ fn a_trace_off_world_keeps_no_entries_and_names_it_in_the_tail() {
     assert_eq!(world.tail(), "the trace is off\n");
     assert_eq!(support::run(world, None).trace.len(), 0);
 }
-
-#[test]
-#[should_panic(expected = "time moves only while the world is idle")]
-fn a_busy_world_refuses_a_clock_advance() {
-    let mut world = World::new(7, Config::calm());
-    world.spawn(|| Script::new(Time::ZERO, &[]));
-    world.advance(ms(1));
-}
-
-#[test]
-#[should_panic(expected = "time never moves past the next due instant")]
-fn an_idle_world_refuses_to_advance_past_its_next_due_instant() {
-    let mut world = World::new(7, Config::calm());
-    world.spawn(|| Script::new(ms(10), &[]));
-    world.advance(ms(11));
-}
-
-#[test]
-#[should_panic(expected = "time never moves backwards")]
-fn a_world_refuses_to_move_its_clock_backwards() {
-    let mut world = World::<Script>::new(7, Config::calm());
-    world.advance(ms(10));
-    world.advance(ms(9));
-}

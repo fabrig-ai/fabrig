@@ -3,4 +3,4 @@
 #[rustfmt::skip]
 mod public_v1;
 #[rustfmt::skip]
-mod v22;
+mod v24;

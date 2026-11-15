@@ -156,6 +156,7 @@ pub fn theme(scheme: Scheme, background: Option<Rgb>) -> Theme {
         placeholder: fore(faint),
         active: Paint { back, ..Paint::NONE },
         regions: Box::new([
+            region(look::HEADER, Place::Top, Arrange::Lines, 0, None),
             region(look::TOP, Place::Top, Arrange::Lines, 1, Some(border)),
             region(look::BOTTOM, Place::Bottom, Arrange::Spread, 1, None),
             region(look::SECTIONS, Place::Body, Arrange::Lines, 1, None),
@@ -212,8 +213,9 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         StyleLook { mark: Some(Mark { glyph: '✓', paint: fore(good) }), ..style(look::STEP_DONE, Paint::NONE) },
         StyleLook { mark: Some(Mark { glyph: '▸', paint: fore(accent) }), ..style(look::STEP_NOW, bold) },
         StyleLook { mark: Some(Mark { glyph: '·', paint: fore(faint) }), ..style(look::STEP_AHEAD, fore(dim)) },
-        StyleLook { align: Align::End, ..style(look::PLAYGROUND, fore(accent)) },
-        StyleLook { align: Align::End, ..style(look::END_FAINT, fore(faint)) },
+        style(look::MARK_CYAN, fore(rgb(0x00, 0xc4, 0xfe))),
+        style(look::MARK_BLUE, fore(rgb(0x1b, 0x76, 0xfd))),
+        style(look::MARK_VIOLET, fore(rgb(0x8e, 0x2c, 0xf8))),
         StyleLook { mark: Some(Mark { glyph: '•', paint: Paint::NONE }), ..style(look::BULLETS, Paint::NONE) },
         StyleLook { mark: Some(Mark { glyph: ' ', paint: Paint::NONE }), ..style(look::LEFT_OFF, Paint::NONE) },
         StyleLook {

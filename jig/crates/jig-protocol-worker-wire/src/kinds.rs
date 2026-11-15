@@ -96,15 +96,46 @@ pub enum Overflow {
     Frame,
 }
 
-pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
-    use skein_codec::schema::{Shape, VariantIx};
-    let mut versions = List::uncapped();
+fn kept() -> List<skein_codec::schema::Schema> {
+    let mut schemas = List::uncapped();
     for text in crate::patches::kept::jig_worker_wire::TEXTS {
-        let kept = skein_codec::schema::parse(text.as_bytes()).expect("valid kept worker schema");
+        schemas
+            .push(skein_codec::schema::parse(text.as_bytes()).expect("valid kept worker schema"))
+            .expect("uncapped schemas");
+    }
+    schemas
+}
+
+pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
+    schema_from(limits, &kept())
+}
+
+/// The channel schema and statement share one parse of each kept worker text.
+pub fn schema_and_spoken(limits: &v14::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
+    let schemas = kept();
+    let schema = schema_from(limits, &schemas)?;
+    let mut layouts = List::with_capacity(
+        u32::try_from(crate::patches::kept::jig_worker_wire::TEXTS.len()).expect("kept versions fit"),
+    );
+    for kept in &schemas {
+        if kept.version() >= crate::wire::FLOOR {
+            layouts.push(kept.fingerprints().family().digest()).expect("uncapped layouts");
+        }
+    }
+    let worker = crate::Spoken { name: crate::wire::FAMILY, lowest: crate::wire::FLOOR, layouts };
+    Ok((schema, crate::spoken::with_worker(worker)))
+}
+
+fn schema_from(limits: &v14::Limits, schemas: &List<skein_codec::schema::Schema>) -> Result<Schema, Overflow> {
+    use skein_codec::schema::{Shape, VariantIx};
+    let values = limits.values();
+    let mut versions = List::uncapped();
+    for kept in schemas {
         let version = kept.version();
         if version < crate::wire::FLOOR {
             continue;
         }
+        let bounds = if version == VERSION { None } else { Some(kept.bounds_within(&v14::LIMIT_NAMES, &values)) };
         let mut kinds = List::uncapped();
         for (name, base, direction) in [
             (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),
@@ -122,8 +153,7 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
                     crate::sizes::body(limits, rule)
                 } else {
                     let record = variant.record.expect("each kind holds a record");
-                    let bound =
-                        kept.most_bytes_within(record, &v14::LIMIT_NAMES, &limits.values()).ok_or(Overflow::Body)?;
+                    let bound = bounds.as_ref().expect("kept bounds").at(record).ok_or(Overflow::Body)?;
                     let Ok(bound) = u32::try_from(bound) else { return Err(Overflow::Frame) };
                     Some(bound)
                 }
@@ -139,6 +169,12 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
 /// The channel offers the range stated for jig's own wire.
 #[must_use]
 pub fn schema_for(limits: &v14::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
+    schema_for_prepared(&schema(limits).ok()?, wires)
+}
+
+/// Selects the stated range from a table already prepared by this construction.
+#[must_use]
+pub fn schema_for_prepared(full: &Schema, wires: &List<crate::Spoken>) -> Option<Schema> {
     let mut stated = None;
     for wire in wires {
         if wire.name == crate::wire::FAMILY {
@@ -149,7 +185,6 @@ pub fn schema_for(limits: &v14::Limits, wires: &List<crate::Spoken>) -> Option<S
         }
     }
     let stated = stated?;
-    let full = schema(limits).ok()?;
     full.version(stated.lowest)?;
     full.version(stated.highest())?;
     let mut versions = List::uncapped();

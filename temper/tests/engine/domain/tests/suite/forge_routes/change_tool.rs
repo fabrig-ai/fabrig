@@ -127,12 +127,8 @@ fn start_plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8])
     before
 }
 
-fn stored_change(world: &World, task: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
-        panic!("registered change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+fn stored_change(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 #[test]
@@ -179,7 +175,7 @@ fn a_control_changes_choices_are_validated_before_delegation() {
             "{input:?}: {answer:?}"
         );
         assert_eq!(world.call_errors.len(), 0);
-        assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
+        assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))));
         assert_eq!(
             world
                 .store
@@ -341,7 +337,7 @@ fn an_after_naming_no_earlier_change_is_refused() {
     assert!(matches!(answer, Some(engine::CallAnswer::DelegationRefused(problem))
         if problem.why == tasks::Refusal::Dependencies));
     assert_eq!(world.assigned.len(), 1);
-    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
+    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::ChangeHot(_)))));
 }
 
 fn live(world: &World, task: u64) -> &tasks::TaskRecord {
@@ -1193,12 +1189,13 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
         .values()
         .find_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == change_task => Some(row),
+                forge_top::Stored::ChangeHot(row) if row.task == change_task => Some(row),
                 _ => None,
             },
             Record::Core(_) => None,
         })
         .expect("registered past the operation bound");
+    let row = world.store.change(row.task).unwrap();
     assert_eq!(row.body.as_ref(), words.as_slice());
     let branch = row.branch.clone();
     land_change(&mut world, &producer, &branch);
@@ -1223,8 +1220,12 @@ fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: 
         engine::Parts::none(),
     );
     world.send(event);
+    let tasks::Party::Task(change) = live(world, producer.task).requester else { panic!("change requester") };
     for _ in 0..1000 {
-        if world.merges == 1 {
+        if matches!(
+            goal_landing::row(world, change).change.state,
+            temper_engine_domain_forge_change::State::Landed { .. }
+        ) {
             break;
         }
         world.tick();
@@ -1278,7 +1279,7 @@ fn producer_titles_name_changes_when_the_brief_opens_with_context() {
             .values()
             .find_map(|record| match record {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) if row.task == change => Some(row.branch.clone()),
+                    forge_top::Stored::ChangeCold(row) if row.task == change => Some(row.branch.clone()),
                     _ => None,
                 },
                 Record::Core(_) => None,

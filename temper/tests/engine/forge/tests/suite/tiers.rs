@@ -21,6 +21,7 @@ fn failures() -> p::Failures {
 }
 fn workflow(flaky: Box<[Box<[u8]>]>, reports: bool) -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         fails: Box::new([]),
         flaky,
         report: reports.then(|| raw::Report {
@@ -258,6 +259,91 @@ fn red_over_three_landings_skips_the_unchanged_one() {
     assert_eq!(receipts(&world).len(), 2);
     assert_eq!(row(&world).record.failing, failures());
 }
+fn bisected_range(seed: u64, owners: &[usize], expected_probes: &[usize], restart: bool) {
+    let mut configured = workflow(Box::new([]), true);
+    configured.latency_min = Duration::from_secs(3);
+    configured.latency_max = Duration::from_secs(3);
+    let mut world = configured_world(seed, configured);
+    start_baseline(&mut world);
+    let names = tests();
+    let mut commits = Vec::new();
+    for i in 0..8 {
+        let failed: Vec<_> = owners
+            .iter()
+            .enumerate()
+            .filter_map(|(test, owner)| (*owner <= i).then_some(names[test].clone()))
+            .collect();
+        let commit = if owners.contains(&i) {
+            let content: Vec<_> = failed.iter().flat_map(|test| test.iter().copied().chain(*b"\n")).collect();
+            push(&mut world, b"failures", &content)
+        } else {
+            push(&mut world, b"file", &[u8::try_from(i).expect("eight landings")])
+        };
+        commits.push(commit);
+    }
+    finish(&mut world, BASELINE);
+    attach(&mut world, 2, RANGE);
+    world.take_calls();
+    if restart {
+        let mut saved = None;
+        for at in 0..STEPS {
+            step(&mut world, RANGE, 3000 + at);
+            let row = row(&world);
+            if let Some(run) = &row.record.run
+                && matches!(&run.part, p::Part::Probe { waiting, .. } if !waiting.is_empty())
+                && row
+                    .flight
+                    .as_ref()
+                    .is_some_and(|flight| flight.start.is_some() && flight.run.is_some() && flight.report.is_none())
+            {
+                saved = Some(run.clone());
+                break;
+            }
+        }
+        let saved = saved.expect("a selected probe with a waiting group is in flight");
+        world.restart();
+        assert_eq!(row(&world).record.run.as_ref(), Some(&saved));
+        world.run_for(1);
+    }
+    let verdict = finish(&mut world, RANGE);
+    let expected: Vec<_> = (0..8)
+        .map(|i| {
+            let owned: Box<[_]> = owners
+                .iter()
+                .enumerate()
+                .filter_map(|(test, owner)| (*owner == i).then_some(names[test].clone()))
+                .collect();
+            if owned.is_empty() { p::Blame::Cleared } else { p::Blame::Owns(p::Failures::Tests(owned)) }
+        })
+        .collect();
+    assert_eq!(verdict.landings.as_ref(), expected);
+    let calls = world.take_calls();
+    let probes: Vec<_> = calls
+        .iter()
+        .filter_map(|op| match op {
+            api::Op::Write(api::Write::CreateBranch { branch, commit })
+                if branch.starts_with(b"temper/tier/browser.2.") =>
+            {
+                Some((branch.clone(), *commit))
+            }
+            api::Op::Read(_) | api::Op::Write(_) => None,
+        })
+        .collect();
+    let wanted: Vec<_> = expected_probes
+        .iter()
+        .map(|i| (format!("temper/tier/browser.2.{i}").into_bytes().into_boxed_slice(), commits[*i]))
+        .collect();
+    assert_eq!(probes, wanted);
+    assert_eq!(row(&world).record.failing, p::Failures::Tests(names[..owners.len()].into()));
+}
+
+#[test]
+fn eight_landings_bisect_one_or_two_failures_to_their_owners() {
+    for (seed, owners, probes) in [(31, &[5][..], &[3, 5, 4][..]), (32, &[1, 6][..], &[3, 1, 0, 5, 6][..])] {
+        bisected_range(seed, owners, probes, false);
+    }
+}
+
 #[test]
 fn inherited_failures_clear_the_landing_after() {
     let mut world = world(12, Box::new([]), true);
@@ -401,7 +487,7 @@ fn a_selected_rerun_survives_a_cold_restart() {
 }
 #[test]
 fn a_selected_probe_survives_a_cold_restart() {
-    restarted_part(19, 2);
+    bisected_range(19, &[1, 6], &[3, 1, 0, 5, 6], true);
 }
 
 #[test]

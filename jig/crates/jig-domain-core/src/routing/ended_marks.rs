@@ -49,7 +49,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
         )
         .is_some()
     {
-        let mut erase = crate::reads::forget::forget(core, work, &owner);
+        let mut erase = crate::reads::forget::forget(core, env.wall, work, &owner);
         // Route the mark first, then its erase, in this decision.
         let mut out = super::tag_ended_mark(core, env, child, work);
         while let Some(request) = erase.pop() {

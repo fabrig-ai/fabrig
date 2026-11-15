@@ -10,8 +10,21 @@ const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000; // A stall's read, durable hold, escalation and worker delivery.
 
 pub(super) fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
+    preparing_rows(goal, None)
+}
+fn ci_world(rows: Option<u32>) -> World {
+    let world = World::configured_ci(true, true, true);
+    if let Some(rows) = rows {
+        let mut limits = world.env.limits.forge.client;
+        limits.rows = rows;
+        world.with_forge_client(limits)
+    } else {
+        world
+    }
+}
+fn preparing_rows(goal: bool, rows: Option<u32>) -> (World, engine::Assignment, u64, engine::Assignment) {
     let (mut world, owner) = if goal {
-        let mut world = World::configured_ci(true, true, true);
+        let mut world = ci_world(rows);
         world.adopt();
         world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
         let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else {
@@ -22,7 +35,7 @@ pub(super) fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::
         let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
         (world, goal)
     } else {
-        let mut world = World::configured_ci(true, true, true);
+        let mut world = ci_world(rows);
         world.adopt();
         world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
         let people::Ask::Create { project, mut batch } = world.chat(1, b"Make the fix") else {
@@ -354,7 +367,7 @@ fn a_stalled_update_names_its_wait_and_reaches_its_goal() {
     let (mut world, goal, _, _, task) =
         super::goal_closer::updating_landing_with_stall(false, Some(Duration::from_secs(5)));
     let State::Updating { from, base, .. } = row(&world, task).change.state else { panic!("updating") };
-    world.hold_write_answers = Some(HoldWrite::All);
+    world.hold_write_answers = Some(HoldWrite::Update);
     for _ in 0..STEPS {
         world.tick();
         if !world.held_write_answers.is_empty() {
@@ -504,4 +517,108 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     let entry = goal_entry(&world, task, goal.task);
     heard_live(&mut world, &goal, entry);
     close(world, &goal);
+}
+
+#[test]
+fn a_ci_stall_names_each_pending_jobs_wait_only_after_the_bound() {
+    use skein_forge::api::{self, JobState};
+    for (story, state, linked, unread, count, checks_fail, why) in [
+        (
+            "no runner serves docker",
+            JobState::Waiting,
+            true,
+            false,
+            1,
+            false,
+            "; ci / test: waiting for a runner labelled docker",
+        ),
+        (
+            "needs unfinished jobs",
+            JobState::Blocked,
+            true,
+            false,
+            1,
+            false,
+            "; ci / test: blocked by the jobs it needs",
+        ),
+        ("running past the stall", JobState::Running, true, false, 1, false, "; ci / test: running at step 2, test"),
+        ("no job linked", JobState::Waiting, false, false, 1, false, "; ci / test: pending, no job linked"),
+        ("job unread", JobState::Waiting, true, true, 1, false, "; ci / test: pending, its job unread"),
+        ("checks unread", JobState::Waiting, false, false, 1, true, ""),
+        (
+            "ten pending",
+            JobState::Waiting,
+            false,
+            false,
+            10,
+            false,
+            "; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; ci / test: pending, no job linked; and 2 more pending",
+        ),
+    ] {
+        let (mut world, goal, task, producer) = preparing_rows(true, Some(32));
+        world.forge_reads = Some(Vec::new());
+        waiting(&mut world, task, &producer, true);
+        assert!(
+            !world.forge_reads.as_ref().unwrap().iter().any(|(_, read)| matches!(read, api::Read::JobState { .. })),
+            "{story}: no periodic job read"
+        );
+        let State::Checking { head } = row(&world, task).change.state else { panic!("checking") };
+        let attempt = api::JobAttempt { head, run: 7, job: 41, attempt: 1 };
+        let check = api::Status {
+            at: world.env.now,
+            context: b"ci / test".as_slice().into(),
+            check: api::Check::Pending,
+            description: Box::new([]),
+            url: Box::new([]),
+            job: linked.then_some(attempt),
+        };
+        world.scripted_forge_reads.push((
+            api::Read::Checks { commit: head },
+            if checks_fail {
+                Err(api::Error::Refused)
+            } else {
+                Ok(api::Answer::Checks(vec![check; count].into_boxed_slice()))
+            },
+        ));
+        world.scripted_forge_reads.push((
+            api::Read::JobState { attempt },
+            if unread {
+                Err(api::Error::MissingJob)
+            } else {
+                Ok(api::Answer::JobState {
+                    attempt,
+                    state,
+                    labels: Box::new([b"docker".as_slice().into()]),
+                    step: (state == JobState::Running)
+                        .then(|| api::Step { number: 2, name: b"test".as_slice().into() }),
+                    cut: false,
+                })
+            },
+        ));
+        stall(&mut world, task);
+        let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else { panic!("hold") };
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("account") };
+        let head = forge_top::commit_text(&head);
+        let minutes = world.env.limits.forge.change_policy.stall.as_nanos() / 60_000_000_000;
+        assert_eq!(
+            words.as_ref(),
+            format!(
+                "no progress at checking for {minutes} minutes: waiting for CI at {}{why}",
+                core::str::from_utf8(&head[..12]).unwrap()
+            )
+            .as_bytes(),
+            "{story}"
+        );
+        assert_eq!(
+            world
+                .forge_reads
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|(_, read)| matches!(read, api::Read::JobState { .. }))
+                .count(),
+            usize::from(linked && !checks_fail)
+        );
+        close(world, &goal);
+    }
 }

@@ -124,6 +124,74 @@ fn report(world: &mut World, lost: bool) {
 }
 
 #[test]
+fn a_cancelled_changes_history_is_frozen_across_push_close_reopen_and_restart() {
+    let mut world = queued();
+    let pull = world.change(TASK).pull.expect("own pull");
+    let pull_name = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(pull) };
+    // Another live watcher keeps both resources under observation after this change ends.
+    world.event(top::Event::Names { task: 777, resources: Box::new([name(), pull_name]) });
+    world.run_for(60);
+    world.event(top::Event::ChangeEnding { task: TASK, ending: top::Ending::Cancelled });
+    let frozen = world.history(TASK);
+    assert_eq!(frozen.last().expect("ended event").what, h::What::Ended { ending: h::Ending::Cancelled });
+    world.push(BRANCH, b"later push");
+    world.run_for(60);
+    assert_eq!(world.history(TASK), frozen, "push is not this ended change's");
+    world.close(pull);
+    world.run_for(60);
+    assert_eq!(world.history(TASK), frozen, "close adds no event");
+    world.external(raw::Op::Write(raw::Write::Reopen { number: pull }), 2);
+    world.run_for(60);
+    assert_eq!(world.history(TASK), frozen, "reopen adds no event");
+    world.restart();
+    world.run_for(60);
+    assert_eq!(world.history(TASK), frozen, "restart keeps its frozen facts");
+}
+
+#[test]
+fn a_delegates_interval_open_at_the_changes_end_closes_once() {
+    let mut world = queued();
+    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::ChangeEnding { task: TASK, ending: top::Ending::Cancelled });
+    let before = world.history(TASK);
+    world.restart();
+    result(&mut world, true, false);
+    let after = world.history(TASK);
+    assert_eq!(after.len(), before.len() + 1);
+    let end = after.last().expect("delegate's end");
+    assert_eq!(end.what, h::What::Answered { ask: h::Ask::Repair, outcome: h::Answer::Failed });
+    assert_eq!(end.operation, CHILD);
+    world.restart();
+    result(&mut world, true, false);
+    assert_eq!(world.history(TASK), after);
+}
+
+#[test]
+fn a_jobs_interval_open_at_the_changes_end_closes_once_but_no_new_claim_starts() {
+    let mut world = queued();
+    let job = h::JobStep { task: CHILD, attempt: 1, job: h::Job::Merge, outcome: None, head: None };
+    world.event(top::Event::JobHistory { task: TASK, job });
+    world.event(top::Event::ChangeEnding { task: TASK, ending: top::Ending::Cancelled });
+    let before = world.history(TASK);
+    world.restart();
+    let ended = h::JobStep { outcome: Some(h::JobOutcome::Failed { class: h::JobFailure::Unknown }), ..job };
+    world.event(top::Event::JobHistory { task: TASK, job: ended });
+    let after = world.history(TASK);
+    assert_eq!(after.len(), before.len() + 1);
+    let end = after.last().expect("job's end");
+    assert_eq!(
+        end.what,
+        h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Failed { class: h::JobFailure::Unknown } }
+    );
+    assert_eq!((end.operation, end.attempt), (CHILD, 1));
+    world.restart();
+    world.event(top::Event::JobHistory { task: TASK, job: ended });
+    world.event(top::Event::JobHistory { task: TASK, job: h::JobStep { attempt: 2, ..job } });
+    world.event(top::Event::JobHistory { task: TASK, job: h::JobStep { attempt: 2, ..ended } });
+    assert_eq!(world.history(TASK), after);
+}
+
+#[test]
 fn queue_merge_records_the_merge_base_and_clearing_in_order() {
     let mut world = queued();
     let head = translate::commit(world.branch(BRANCH));

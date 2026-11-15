@@ -2,10 +2,9 @@
 
 These are native counting-allocator bytes, not browser memory or resident size.
 The playground binary's test holds the service's first-step held bytes from
-the 2026-11-14 worker-wire v8 table below, its first-step peak from the
-2026-11-13 worker-wire v7 table, and its start held from the 2026-11-14
-worker-wire v9 table, each with a quarter's margin rounded up to two
-significant digits. Its start peak retains the earlier 2026-11-13 table;
+the 2026-11-14 worker-wire v8 table below, and its other bounds from the
+2026-11-14 store-shape S4 merge table, each with a quarter's margin rounded
+up to two significant digits;
 nonservice regression bounds retain their 2026-11-12 figures plus a quarter
 ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
 the memory's bar itself to the user.
@@ -210,7 +209,7 @@ quarter is 460,055, rounded up to two significant digits gives 470,000
 bytes, replacing 340,000. The service's first-step peak stays 690,000 and
 its start held/peak 600,000/760,000. No runtime limit changes.
 
-### Current service table: worker-wire v9
+### Earlier service table: worker-wire v9
 
 Measured 2026-11-14 (`date -u`), on `temper62811/c2819`, with
 `temper-worker-wire` 9, keeping versions 5, 6, 7 and 8 and their bridges.
@@ -242,6 +241,36 @@ the first step and 56 bytes higher at start.
 Only the exceeded service start held ceiling moves: 630,245 plus a quarter,
 rounded up to two significant digits, gives 790,000 bytes, replacing 600,000.
 Every other ceiling stays as it is. No runtime limit changes.
+
+### Current service table: store-shape S4 merge
+
+Measured 2026-11-14 (`date -u`), on `temper62826/g2826`, at saved commit
+`088057bdab8395f39a98734e9fdeeed24fe6b8d1` with the merge resolutions.
+Every figure came from one run of
+`story_as_world_at_its_first_step_and_start`, with only service comparisons
+suspended for measurement and restored afterwards. First step takes one
+world step; start takes 159 world steps. The run reached both snapshots,
+then failed the fake disk's start-retained comparison.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 444,564 | 724,525 | 3,806,964 | 4,260,593 |
+| 1: fake LLM | 27,585 | 27,585 | 28,321 | 28,321 |
+| 2: fake forge HTTP | 30,394 | 30,394 | 31,135 | 31,179 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,474 | 5,991 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,417 | 507,303 |
+| Shared forge before start | 7,229 | not separately measured at start |
+
+The merge combines registered layouts and jobs at open with the landed
+schemas and bridges. This run isolated no control. Only exceeded service
+ceilings move: first-step peak 724,525 plus a quarter rounds up to 910,000;
+start held 3,806,964 plus a quarter rounds up to 4,800,000; start peak
+4,260,593 plus a quarter rounds up to 5,400,000 bytes. First-step held
+stays 470,000. No runtime limit changes.
 
 The following one-process observation is the unbound 2026-11-08 measurement;
 its ignored test has no active figures to repin. The one-process binary takes the same entry as

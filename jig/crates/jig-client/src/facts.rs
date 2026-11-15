@@ -125,7 +125,7 @@ fn waiting(waits_on: &WaitsOn, project: u32, me: &Me) -> Option<ChatStatus> {
             }
         }
         WaitsOn::Dependencies { .. } => Some(ChatStatus::Parked),
-        WaitsOn::Delegates | WaitsOn::News | WaitsOn::Nothing => None,
+        WaitsOn::Question { .. } | WaitsOn::Delegates | WaitsOn::News | WaitsOn::Nothing => None,
     }
 }
 fn reader(whom: Whom, project: u32, me: &Me) -> bool {

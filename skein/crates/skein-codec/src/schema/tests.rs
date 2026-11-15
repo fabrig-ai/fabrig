@@ -9,9 +9,61 @@ use super::{
 
 use core::fmt::Write;
 
+mod metadata;
+
+const NAMED: &[u8] = b"family f 1 record R { a: text 64 b: list 4 text 16 }";
+const NESTED: &[u8] = b"family f 1 record HTTPValue { x: option list 3 option bytes 32 y: secret 64 } enum E { none value: HTTPValue } versioned record Top { e: E }";
+const CHAIN: &[u8] = b"family f 1\nversioned record A { a: u16 b: bytes 3 }\nenum E { a: A, empty }\nrecord R { chain: list 2 option list 3 A e: E fixed: fixed 5 }";
+const SCALARS: &[u8] = b"family f 1 record R { a: u8 b: u16 c: u32 d: u64 e: bool f: duration g: fixed 7 h: bytes 9 i: secret 9 j: text 9 }";
+
+#[test]
+fn one_pass_bounds_equal_each_prefix_with_named_limits() {
+    type Case = (&'static [u8], &'static [&'static str], &'static [u32], &'static [Option<u64>]);
+    let cases: &[Case] = &[
+        (NAMED, &[], &[], &[Some(152)]),
+        (NAMED, &["r_b"], &[1], &[Some(92)]),
+        (NAMED, &["absent"], &[0], &[Some(152)]),
+        (NAMED, &["r_a", "r_b"], &[8], &[None]),
+        (NAMED, &["r_a"], &[8, 2], &[None]),
+        (
+            NESTED,
+            &["h_t_t_p_value_x_some", "h_t_t_p_value_x_some_item_some", "h_t_t_p_value_y"],
+            &[2, 8, 4],
+            &[Some(39), Some(40), Some(42)],
+        ),
+        (NESTED, &["h_t_t_p_value_y"], &[], &[None, None, None]),
+        (CHAIN, &[], &[], &[Some(11), Some(12), Some(97)]),
+        (SCALARS, &[], &[], &[Some(70)]),
+    ];
+    for &(text, names, values, expected) in cases {
+        let schema = parse(text).expect("sample schema");
+        let bounds = schema.bounds_within(names, values);
+        for (index, expected) in expected.iter().enumerate() {
+            let at = DeclIx::new(u32::try_from(index).expect("sample declaration index"));
+            assert_eq!(bounds.at(at), schema.most_bytes_within(at, names, values), "{text:?} {names:?} at {index}");
+            assert_eq!(bounds.at(at), *expected, "{text:?} {names:?} at {index}");
+        }
+        assert_eq!(schema.declarations(), u32::try_from(expected.len()).expect("sample length"));
+    }
+}
+
+#[test]
+fn one_pass_overflow_ends_even_an_unrelated_later_bound() {
+    let mut schema =
+        parse(b"family f 1 record Before { a: u8 } record R { a: list 1 list 1 u8 } record After { a: bool }")
+            .expect("small checked family");
+    overflow_lists(&mut schema);
+    let bounds = schema.bounds_within(&[], &[]);
+    for (at, expected) in [Some(1), None, None].into_iter().enumerate() {
+        let at = DeclIx::new(u32::try_from(at).expect("three declarations"));
+        assert_eq!(bounds.at(at), schema.most_bytes_within(at, &[], &[]));
+        assert_eq!(bounds.at(at), expected);
+    }
+}
+
 #[test]
 fn named_limits_lower_only_matching_bounds_level_by_level() {
-    let schema = parse(b"family f 1 record R { a: text 64 b: list 4 text 16 }").expect("bounded family");
+    let schema = parse(NAMED).expect("bounded family");
     let at = schema.find(b"R").expect("record exists");
     let cases: &[(&[&str], &[u32], Option<u64>)] = &[
         (&[], &[], Some(u64::from(schema.most_bytes(at)))),
@@ -26,7 +78,7 @@ fn named_limits_lower_only_matching_bounds_level_by_level() {
     for &(names, values, expected) in cases {
         assert_eq!(schema.most_bytes_within(at, names, values), expected, "{names:?}: {values:?}");
     }
-    let nested = parse(b"family f 1 record HTTPValue { x: option list 3 option bytes 32 y: secret 64 } enum E { none value: HTTPValue } versioned record Top { e: E }").expect("nested family");
+    let nested = parse(NESTED).expect("nested family");
     let at = nested.find(b"Top").expect("record exists");
     assert_eq!(
         nested.most_bytes_within(
@@ -41,14 +93,18 @@ fn named_limits_lower_only_matching_bounds_level_by_level() {
 #[test]
 fn named_bound_arithmetic_refuses_overflow() {
     let mut schema = parse(b"family f 1 record R { a: list 1 list 1 u8 }").expect("small checked family");
-    // Parsing refuses overflowing ceilings. Alter its private table to exercise
-    // the run-time bound's independent overflow check.
+    overflow_lists(&mut schema);
+    assert_eq!(schema.most_bytes_within(DeclIx::new(0), &[], &[]), None);
+}
+
+fn overflow_lists(schema: &mut super::Schema) {
+    // Parsing refuses overflowing ceilings; mutate the private type table to
+    // exercise the bound pass's independent overflow check.
     for at in 0..schema.types.len() {
         if let Type::List { item, .. } = schema.ty(TypeIx::new(at)) {
             *schema.types.get_mut(at).expect("existing type") = Type::List { bound: u32::MAX, item };
         }
     }
-    assert_eq!(schema.most_bytes_within(DeclIx::new(0), &[], &[]), None);
 }
 
 type RefusalCase = (&'static [u8], u32, Span, Wrong, &'static [u8]);
@@ -108,6 +164,34 @@ fn grammar_refusals_name_the_token_and_line() {
         ),
         (b"family {\n1", 2, Span { start: 7, end: 8 }, Wrong::Family, b"family f\n1"),
         (b"family f 65536", 1, Span { start: 9, end: 14 }, Wrong::Version, b"family f 65535"),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\\\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"#\" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\t\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \" \" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\x7f\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"x\" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"x\" }\xff",
+            2,
+            Span { start: 39, end: 40 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"x\" }#\xff",
+        ),
     ];
     for &(source, line, at, wrong, twin) in cases {
         refusal(source, line, at, wrong);
@@ -300,7 +384,7 @@ fn secret_pieces_refuse_a_later_declaration() {
 
 #[test]
 fn chains_are_outermost_first_and_sizes_are_hand_counted() {
-    let schema = parse(b"family f 1\nversioned record A { a: u16 b: bytes 3 }\nenum E { a: A, empty }\nrecord R { chain: list 2 option list 3 A e: E fixed: fixed 5 }").expect("small schema");
+    let schema = parse(CHAIN).expect("small schema");
     assert_eq!(schema.most_bytes(DeclIx::new(0)), 11); // version 2 + integer 2 + length 4 + bytes 3
     assert_eq!(schema.most_bytes(DeclIx::new(1)), 12); // tag + A
     assert_eq!(schema.most_bytes(DeclIx::new(2)), 97); // 4 + 2*(1 + 4 + 3*11) + 12 + 5
@@ -368,7 +452,7 @@ fn variants_at_the_tag_ceiling_pass_and_one_more_fails() {
 
 #[test]
 fn every_scalar_and_length_has_its_minimum_width() {
-    let schema = parse(b"family f 1 record R { a: u8 b: u16 c: u32 d: u64 e: bool f: duration g: fixed 7 h: bytes 9 i: secret 9 j: text 9 }").expect("scalar widths");
+    let schema = parse(SCALARS).expect("scalar widths");
     for (at, expected) in [1, 2, 4, 8, 1, 8, 7, 4, 4, 4].into_iter().enumerate() {
         assert_eq!(schema.fewest_bytes(TypeIx::new(u32::try_from(at).expect("ten types"))), expected);
     }

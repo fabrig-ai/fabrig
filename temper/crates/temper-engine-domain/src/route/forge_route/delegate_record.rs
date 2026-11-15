@@ -34,7 +34,10 @@ pub(crate) fn start(
     if released {
         domain
             .forge_delegating
-            .insert((task, step), super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .insert(
+                (task, step),
+                super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
+            )
             .expect("one release per change step");
         super::super::forge_event(
             domain,

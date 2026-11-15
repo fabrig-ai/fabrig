@@ -448,14 +448,36 @@ fn a_required_answer_past_its_read_or_cut_bound_fails_permanently() {
 #[test]
 fn a_required_cut_cannot_outlive_the_deadline() {
     const BUDGET: u32 = 40; // A 41-byte answer needs a cut.
-    for sections in [
-        Box::new([named_connector(2, b"pull", true, 0)]) as Box<[Planned]>,
-        Box::new([named_connector(2, b"pull", true, 0), connector(3, false, 1)]),
-    ] {
+    for (optional, settle_first) in [(false, true), (true, true), (true, false)] {
         let mut world = World::new(LIMITS);
-        begin(&mut world, sections, BUDGET);
-        // Either start cutting now, or defer allocation until the optional section expires.
-        world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: BUDGET + 1 });
+        let mut sections = vec![named_connector(2, b"pull", true, 0)];
+        if optional {
+            sections.push(connector(3, false, 1));
+        }
+        begin(&mut world, sections.into_boxed_slice(), BUDGET);
+        let asked = world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: BUDGET + 1 });
+        if optional {
+            assert_eq!(asked.len(), 0);
+        } else {
+            assert_eq!(asked, [GatherRequest::CutTo { connector: 3, section: Token::new(2), size: BUDGET }]);
+        }
+        if settle_first {
+            let settled = world.fire(Time::from_nanos(8_750_000_000));
+            if optional {
+                assert_eq!(
+                    settled,
+                    [
+                        GatherRequest::Drop { connector: 3, section: Token::new(3) },
+                        GatherRequest::CutTo { connector: 3, section: Token::new(2), size: BUDGET },
+                    ]
+                );
+                // Keep the cut unanswered while serving the drop.
+                assert_eq!(world.settle(settled.into_iter().take(1).collect()).len(), 0);
+            } else {
+                assert_eq!(settled.len(), 0);
+            }
+            assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(10_000_000_000)));
+        }
         let expired = world.fire(Time::ZERO.saturating_add(Duration::from_secs(10)));
         let done = world.settle(expired);
         assert_eq!(
@@ -463,10 +485,138 @@ fn a_required_cut_cannot_outlive_the_deadline() {
             [GatherRequest::Failed {
                 brief: Token::new(1),
                 why: GatherMissing::Late,
-                failure: failure(GatherFate::Infrastructure, b"pull", b"not gathered by its deadline")
+                failure: failure(GatherFate::Infrastructure, b"pull", b"not cut by its deadline")
             }]
         );
         assert!(world.closed(Token::new(2)));
+    }
+}
+
+#[test]
+fn a_partial_required_section_gets_time_to_cut_after_optional_gathering_settles() {
+    let mut world = World::new(LIMITS);
+    let pull = Token::new(2);
+    let optional = Token::new(3);
+    world.put(pull, &[b'x'; 41]);
+    world.pause(pull);
+    world.pause(optional);
+    let asked = begin(&mut world, Box::new([named_connector(2, b"pull", true, 0), connector(3, false, 1)]), 40);
+    assert_eq!(world.settle(asked).len(), 0);
+    assert_eq!(world.fire(Time::from_nanos(5_000_000_000)).len(), 0);
+    assert_eq!(world.step(GatherEvent::Ready { brief: Token::new(1), section: pull, size: 41 }).len(), 0);
+    let settle_at = Time::from_nanos(8_750_000_000);
+    assert_eq!(world.domain.next_deadline(), Some(settle_at));
+    assert_eq!(world.fire(Time::from_nanos(8_749_999_999)).len(), 0);
+    let settled = world.fire(settle_at);
+    assert_eq!(
+        settled,
+        [
+            GatherRequest::Drop { connector: 3, section: optional },
+            GatherRequest::CutTo { connector: 3, section: pull, size: 40 },
+        ]
+    );
+    assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(10_000_000_000)));
+    assert_eq!(world.fire(Time::from_nanos(9_000_000_000)).len(), 0);
+    let done = world.settle(settled);
+    assert_eq!(
+        done,
+        [GatherRequest::Complete {
+            brief: Token::new(1),
+            order: Box::new([
+                GatherPlaced::Connector { connector: 3, kind: 7, token: pull, size: 40 },
+                GatherPlaced::Missing { connector: 3, kind: 7, why: GatherMissing::Late },
+            ]),
+        }]
+    );
+    assert!(referee::within_budget(&done, 40));
+    assert!(world.closed(pull) && world.closed(optional));
+    assert_eq!(world.domain.next_deadline(), None);
+    assert_eq!(world.fire(Time::from_nanos(10_000_000_000)).len(), 0);
+}
+
+#[test]
+fn required_gathering_is_waited_for_past_settling_and_ready_optional_sections_are_kept() {
+    for optional in [false, true] {
+        let mut world = World::new(LIMITS);
+        let mut sections = vec![named_connector(2, b"pull", true, 0)];
+        world.put(Token::new(2), b"pull");
+        if optional {
+            sections.push(connector(3, false, 1));
+            world.put(Token::new(3), b"optional");
+        }
+        begin(&mut world, sections.into_boxed_slice(), 40);
+        if optional {
+            world.env.now = Time::from_nanos(8_749_999_999);
+            assert_eq!(
+                world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(3), size: 8 }).len(),
+                0
+            );
+        }
+        assert_eq!(world.fire(Time::from_nanos(8_750_000_000)).len(), 0);
+        assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(10_000_000_000)));
+        world.env.now = Time::from_nanos(9_000_000_000);
+        let done = world.step(GatherEvent::Ready { brief: Token::new(1), section: Token::new(2), size: 4 });
+        let mut order = vec![GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(2), size: 4 }];
+        if optional {
+            order.push(GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(3), size: 8 });
+        }
+        assert_eq!(
+            world.settle(done),
+            [GatherRequest::Complete { brief: Token::new(1), order: order.into_boxed_slice() }]
+        );
+        assert_eq!(world.env.now, Time::from_nanos(9_000_000_000));
+        assert_eq!(world.domain.next_deadline(), None);
+    }
+}
+
+#[test]
+fn a_clock_jump_expires_once_whether_or_not_the_settle_point_fired() {
+    for settle_first in [false, true] {
+        for now in [10_000_000_000, 11_000_000_000] {
+            let mut world = World::new(LIMITS);
+            begin(&mut world, Box::new([named_connector(2, b"pull", true, 0), connector(3, false, 1)]), 40);
+            if settle_first {
+                let settled = world.fire(Time::from_nanos(8_750_000_000));
+                assert_eq!(settled, [GatherRequest::Drop { connector: 3, section: Token::new(3) }]);
+                assert_eq!(world.settle(settled).len(), 0);
+            }
+            let expired = world.fire(Time::from_nanos(now));
+            assert_eq!(
+                world.settle(expired),
+                [GatherRequest::Failed {
+                    brief: Token::new(1),
+                    why: GatherMissing::Late,
+                    failure: failure(GatherFate::Infrastructure, b"pull", b"not gathered by its deadline"),
+                }]
+            );
+            assert!(world.closed(Token::new(2)) && world.closed(Token::new(3)));
+            assert_eq!(world.domain.next_deadline(), None);
+            assert_eq!(world.fire(Time::from_nanos(now)).len(), 0);
+        }
+    }
+}
+
+#[test]
+fn the_settle_point_rounds_down_from_the_plan_instant_without_overflow() {
+    for (plan, deadline, settle_at) in [
+        (100, 101, 100),
+        (100, 109, 107),
+        (0, u64::MAX, 16_140_901_064_495_857_663),
+        (u64::MAX - 8, u64::MAX, u64::MAX - 1),
+    ] {
+        let mut world = World::new(LIMITS);
+        world.env.now = Time::from_nanos(plan);
+        world.step(planned(Box::new([connector(2, false, 0)]), 40, Time::from_nanos(deadline)));
+        assert_eq!(world.domain.next_deadline(), Some(Time::from_nanos(settle_at)));
+        let settled = world.fire(Time::from_nanos(settle_at));
+        assert_eq!(
+            world.settle(settled),
+            [GatherRequest::Complete {
+                brief: Token::new(1),
+                order: Box::new([GatherPlaced::Missing { connector: 3, kind: 7, why: GatherMissing::Late }]),
+            }]
+        );
+        assert_eq!(world.domain.next_deadline(), None);
     }
 }
 

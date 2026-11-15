@@ -238,21 +238,23 @@ fn ctl_a_child_prerequisite_accepts_live_and_ended_identities_without_shifting_s
 }
 
 #[test]
-#[should_panic(expected = "task-list prerequisite")]
 fn ctl_a_failed_child_prerequisite_stops_before_retrying() {
     support::ctl::read_condition_tests::a_failed_child_prerequisite_stops_before_retrying();
 }
 
 #[test]
-#[should_panic(expected = "poll prerequisite")]
 fn ctl_a_failed_poll_stops_before_retrying_an_unmet_condition() {
     support::ctl::read_condition_tests::a_failed_poll_stops_before_retrying_an_unmet_condition();
 }
 
 #[test]
-#[should_panic(expected = "adoption ended refused: exit=Some(Code(2)); unreachable")]
 fn ctl_a_refused_started_adoption_fails_before_polling_pending() {
     support::ctl::read_condition_tests::a_refused_started_adoption_fails_before_polling_pending();
+}
+
+#[test]
+fn ctl_a_failed_ctl_check_reaches_the_world_after_cleanup() {
+    support::ctl::read_condition_tests::a_failed_ctl_check_reaches_the_world_after_cleanup();
 }
 
 #[test]

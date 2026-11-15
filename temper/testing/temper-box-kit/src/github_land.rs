@@ -1009,6 +1009,7 @@ impl Referee<cluster::Root> for Judge {
         }
     }
     fn watch(&mut self, now: Time, hosts: &[cluster::Root]) -> Result<(), String> {
+        cluster::check_calls(hosts)?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }

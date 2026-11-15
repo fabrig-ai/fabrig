@@ -108,11 +108,12 @@ impl jig_conformance::Durable for Store {
     fn release_held(&mut self) -> Option<u64> {
         Self::release_held(self)
     }
-    fn crash(&mut self, seed: u64) {
+    fn crash(&mut self, seed: u64) -> Result<(), String> {
         Self::crash(self, seed);
+        Ok(())
     }
-    fn fork(&self) -> Self {
-        Self::fork(self)
+    fn fork(&self) -> Result<Self, String> {
+        Ok(Self::fork(self))
     }
     fn applied(&self) -> u64 {
         self.applied
@@ -125,6 +126,21 @@ impl jig_conformance::Durable for Store {
     }
 }
 impl Store {
+    /// Read a durable change as the whole record the domain keeps in memory.
+    #[must_use]
+    pub fn change(&self, task: u64) -> Option<temper_engine_domain_forge::ChangeRow> {
+        use temper_engine_domain_forge::{ChangeRow, Key, Stored};
+        let engine::Record::Forge { row: cold } = self.rows.get(&engine::Key::Forge(Key::ChangeCold(task)))? else {
+            return None;
+        };
+        let Stored::ChangeCold(cold) = cold.as_ref() else { return None };
+        let engine::Record::Forge { row: hot } = self.rows.get(&engine::Key::Forge(Key::ChangeHot(task)))? else {
+            return None;
+        };
+        let Stored::ChangeHot(hot) = hot.as_ref() else { return None };
+        Some(ChangeRow::join(*cold.clone(), *hot.clone()))
+    }
+
     #[must_use]
     pub fn new() -> Store {
         Self::with_limits(&widest())
@@ -304,8 +320,42 @@ impl Store {
             header = *saved;
         }
         header.commits = number;
-        let mut writes: Vec<_> =
-            saves.into_vec().into_iter().filter(|row| row.key() != header_key).map(Write::Save).collect();
+        let mut writes = Vec::new();
+        for row in saves {
+            if row.key() == header_key {
+                continue;
+            }
+            if let Record::Forge { row } = &row
+                && let temper_engine_domain_forge::Stored::Change(change) = row.as_ref()
+            {
+                let (cold, hot) = change.clone().split();
+                writes.push(Write::Save(Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::ChangeCold(Box::new(cold))),
+                }));
+                writes.push(Write::Save(Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::ChangeHot(Box::new(hot))),
+                }));
+            } else {
+                writes.push(Write::Save(row));
+            }
+        }
+        let mut parts = Vec::new();
+        for write in &writes {
+            if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(row)))) =
+                write
+            {
+                parts.push(Write::Save(Record::Core(jig_domain_core::Record::Tasks(
+                    jig_domain_tasks::Stored::LiveCold {
+                        number: row.number,
+                        spec: Box::new(row.spec.clone()),
+                        contract: row.contract.clone(),
+                        authority: row.authority.clone(),
+                        instructions: row.instructions.clone(),
+                    },
+                ))));
+            }
+        }
+        writes.extend(parts);
         writes.extend(erases.into_vec().into_iter().map(Write::Erase));
         writes.push(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
             header,
@@ -579,6 +629,8 @@ impl Store {
             event @ (Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }
+            | Event::Job { .. }
+            | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }

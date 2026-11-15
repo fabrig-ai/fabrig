@@ -557,6 +557,7 @@ pub enum Now {
 /// Limits of the core's child routes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    pub retention: RetentionLimits,
     pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
@@ -606,6 +607,14 @@ pub struct Limits {
     pub documents: crate::documents::DocumentLimits,
     /// Live view streams.
     pub views: views::Limits,
+}
+
+/// Ended work's horizons (jig/docs/design/protocol/store/retention.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct RetentionLimits {
+    pub turns: skein_lib::Duration,
+    pub records: skein_lib::Duration,
+    pub summaries: skein_lib::Duration,
 }
 
 /// Public index bounds (jig/docs/design/domain/people/public-reading.md, 9).
@@ -1119,6 +1128,8 @@ pub enum Timer {
     Brief,
     /// Account refresh or retry.
     Account,
+    /// Ended work's serialized retention pass (protocol/store/retention.md, 5).
+    Retention,
 }
 
 /// Why an entire connector-owned procedure step was refused.
@@ -1461,7 +1472,7 @@ impl Timer {
     pub const fn new_work(self) -> bool {
         match self {
             Self::Tasks => true,
-            Self::People | Self::Fleet | Self::Brief | Self::Account => false,
+            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention => false,
         }
     }
 }
@@ -1495,7 +1506,7 @@ impl Timer {
 
 pub fn waits(timer: Timer) -> bool {
     match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
+        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
         Timer::Account => false,
     }
 }

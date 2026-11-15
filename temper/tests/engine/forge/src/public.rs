@@ -36,6 +36,7 @@ pub fn world(passes: u32) -> World {
     let mut world = World::public_turn(
         SEED,
         raw::Workflow {
+            requirements: Box::new([]),
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,
@@ -99,7 +100,7 @@ pub fn ready(world: &mut World, task: u64, branch: &[u8]) {
     row.change.last_head = Some(head);
     row.change.state = c::State::Gating { head, asked: Box::new([]) };
     mark(&mut row);
-    if !world.stored().contains_key(&top::Key::Change(task)) {
+    if !world.stored().contains_key(&top::Key::ChangeHot(task)) {
         world.event(top::Event::Change { row });
     }
     changes::change_step_task(world, task, 1, c::Status::Passed, Box::new([]), false, false);

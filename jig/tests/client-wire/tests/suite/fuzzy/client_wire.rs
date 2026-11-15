@@ -1,6 +1,6 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v22::*;
+use jig_client_protocol_wire::v24::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
@@ -581,14 +581,11 @@ fn records_14(bytes: &[u8]) {
     check!(AmendmentState, bytes);
     check!(HistoryAmendment, bytes);
     check!(HistoryLine, bytes);
-    check!(MilestonePhaseActive, bytes);
-    check!(MilestonePhaseClosing, bytes);
-    check!(MilestonePhaseHeld, bytes);
-    check!(MilestonePhaseEnded, bytes);
-    check!(MilestonePhase, bytes);
-    check!(MilestoneLine, bytes);
     check!(HistoryRowChange, bytes);
-    check!(HistoryRowMilestone, bytes);
+    check!(AttemptLine, bytes);
+    check!(HoldLine, bytes);
+    check!(HistoryRowAttempt, bytes);
+    check!(HistoryRowHold, bytes);
     check!(HistoryRow, bytes);
     check!(HistoryPage, bytes);
     check!(RuntimeActive, bytes);
@@ -693,6 +690,10 @@ fn mutation_seed(path: &Path) -> bool {
             "record_activity_page_",
             "enum_word_result_",
             "record_history_page_",
+            "record_attempt_line_",
+            "record_hold_line_",
+            "record_history_row_",
+            "enum_history_row_",
             "record_inbox_page_",
             "record_ended_",
             "enum_goal_holding_",

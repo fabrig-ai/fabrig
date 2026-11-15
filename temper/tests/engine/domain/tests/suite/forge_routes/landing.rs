@@ -370,7 +370,7 @@ fn a_ready_change_waits_when_landing_room_is_full() {
         .values()
         .find_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == change => Some(row),
+                forge_top::Stored::ChangeHot(row) if row.task == change => Some(row),
                 _ => None,
             },
             Record::Core(_) => None,
@@ -623,7 +623,7 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
         .values()
         .filter_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) => {
+                forge_top::Stored::ChangeHot(row) => {
                     Some((row.task, row.change.landing, row.change.state.clone(), row.pending, row.effect))
                 }
                 _ => None,

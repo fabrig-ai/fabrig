@@ -211,7 +211,7 @@ fn a_small_fix_made_in_a_smith_chat_lands_through_the_fake_forge() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -219,7 +219,7 @@ fn a_small_fix_made_in_a_smith_chat_lands_through_the_fake_forge() {
         }
     }
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
     )));
 }
@@ -311,7 +311,7 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
         .values()
         .find_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
-                forge_top::Stored::Change(change) => change.pull,
+                forge_top::Stored::ChangeHot(change) => change.pull,
                 _ => None,
             },
             Record::Core(_) => None,
@@ -347,7 +347,7 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
         world.tick();
         if world.store.rows.values().any(|stored| {
             matches!(stored,
-                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )
         }) {
@@ -355,7 +355,7 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
         }
     }
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                 && change.change.repairs == 1)
     )));
@@ -421,7 +421,7 @@ fn a_dark_theme_request_without_a_widget_ends_with_no_change() {
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
         if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
     assert!(world.store.rows.values().any(|stored| matches!(stored,
-        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
             if change.pull.is_none() && change.change.last_head.is_none()
                 && matches!(change.change.state, temper_engine_domain_forge_change::State::NoChange { .. })))));
     let reply = Script {

@@ -1,25 +1,8 @@
 //! Resolution and layer keys (hearth/docs/design/domain/render/spec.md, 1.5, 2.1).
 use crate::parts::{Spec, packages::Inputs};
+pub use hearth_domain_render_vocabulary::keys::{Keys, Resolution};
 use hearth_lib::{encode::Digest, hash::H};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Keys {
-    pub packages: Digest,
-    pub software: Digest,
-    pub config: Digest,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Resolution {
-    Needed { key: Digest },
-    Known { key: Digest, keys: Keys },
-}
-impl Resolution {
-    #[must_use]
-    pub const fn key(&self) -> Digest {
-        match self {
-            Self::Needed { key } | Self::Known { key, .. } => *key,
-        }
-    }
-}
+
 #[must_use]
 pub(crate) fn resolution(inputs: &Inputs) -> Digest {
     let mut hash = H::new(b"resolution", 4);

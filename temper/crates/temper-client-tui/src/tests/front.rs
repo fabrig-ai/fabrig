@@ -226,7 +226,7 @@ fn log_follows_end() {
 
 fn front() -> Tui {
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Front);
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
     tui.step(Told::Stage { stage: crate::BoxStage::Running });
     tui.step(Told::Size { columns: FULL.columns });
     tui

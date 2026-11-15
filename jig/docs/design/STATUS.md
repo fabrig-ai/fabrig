@@ -42,7 +42,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention remains `protocol/store/README.status.md`, 6.1; rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
@@ -119,9 +119,9 @@ with the turn's marker, counting nothing (`domain/engine/executors.md`, 2;
 `protocol/store/transcripts.md`, 3). The note-range departure remains `domain/engine/README.status.md`, 10. The repeated fixture names remain `domain/testing.status.md`, 7. The core's
 observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
-Views are made only for readers; further observation-cost work and proof
-that the focused suite fits 30 CPU s remain
-(`domain/testing.md`, sections 5, 9 and 10). Typed core row names and shared
+Views are made only for readers; further observation-cost work remains
+(`domain/testing.md`, sections 5, 9 and 10), and the focused suite's CPU
+budget is 215 s by the user's word of 11-14 (`domain/testing.status.md`, 9). Typed core row names and shared
 setup avoid repeated formatting and construction; protocol wires skip idle
 polls and parse only new bytes, and due agents check holds and credentials
 before joint account and host selection. The seven store sweeps run in fuzzy
@@ -210,6 +210,9 @@ Design documents:
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)
 - [`protocol/store/README.md`](protocol/store/README.status.md)
+- [`protocol/store/layouts.md`](protocol/store/layouts.status.md)
+- [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
+- [`protocol/store/parts.md`](protocol/store/parts.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:

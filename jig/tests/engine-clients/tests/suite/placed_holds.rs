@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v22 as w;
+use jig_client_protocol_wire::v24 as w;
 use jig_domain_core::{self as core, documents as d};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -14,7 +14,7 @@ fn request() -> Box<[u8]> {
     ask.encode(&mut bytes).expect("ask");
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 22, request: bytes.finish(), value: None },
+        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 24, request: bytes.finish(), value: None },
     )
     .expect("keyed");
     let mut bytes = Writer::new(keyed.measure() as usize);
@@ -97,7 +97,7 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
             lifted: full,
             may_lift: full,
         };
-        let line = d::HoldLine {
+        let line = d::HoldPhaseLine {
             words: None,
             placed: Some(placed.clone()),
             circle: None,

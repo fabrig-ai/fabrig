@@ -5,7 +5,7 @@ use skein_codec::patch::{Capacity, KeepError, PatchError, PatchWrong, Patcher};
 use skein_codec::schema;
 use std::path::Path;
 
-use super::files::{Crate, Text};
+use super::files::{Crate, Text, renames_path};
 use super::run::{historical, read_optional};
 use super::text::{Block, PatchText};
 use super::{Error, Finding, FloorWrong, Landed, derive};
@@ -21,6 +21,24 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
     let frozen = derive::frozen(&derive::patches(&base)?, &base, &tree.wires);
     let mut findings = Vec::new();
     for (family, current) in &tree.current {
+        if tree.registered.contains(family) {
+            let version = base.kept.get(family).and_then(|texts| texts.last_key_value()).map(|(version, _)| *version);
+            let kept = tree
+                .kept
+                .get(family)
+                .is_some_and(|texts| texts.values().any(|text| landed.get(&text.path) != Some(text.source.as_bytes())));
+            let renames = tree
+                .renames
+                .get(family)
+                .is_some_and(|source| landed.get(&renames_path(family)) != Some(source.as_bytes()));
+            let block = branch
+                .and_then(|number| patches.get(&number))
+                .is_some_and(|patch| patch.blocks.iter().any(|block| block.family == *family));
+            if version != Some(current.version) || kept || renames || block {
+                findings.push(Finding::Registered { family: family.clone() });
+            }
+            continue;
+        }
         let Some(texts) = tree.kept.get(family) else {
             findings.push(Finding::Unkept { family: family.clone() });
             continue;
@@ -34,7 +52,8 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
             for version in *first..=*last {
                 if !texts.contains_key(&version) {
                     findings.push(Finding::KeptGap { family: family.clone(), missing: version });
-                } else if version != *first && !moves_to(&patches, family, version) {
+                } else if !tree.registered.contains(family) && version != *first && !moves_to(&patches, family, version)
+                {
                     findings.push(Finding::Unpatched { family: family.clone(), version });
                 }
             }
@@ -48,7 +67,8 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
                 .filter_map(|texts| texts.last_key_value().map(|(_, text)| text))
                 .find(|text| text.path == *path)
                 .is_some_and(|text| {
-                    !frozen.contains(&(text.family.clone(), text.version))
+                    !tree.registered.contains(&text.family)
+                        && !frozen.contains(&(text.family.clone(), text.version))
                         && tree.current.get(&text.family).is_some_and(|current| current.source == text.source)
                 });
             if !refreshed {
@@ -68,6 +88,9 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
             findings.push(Finding::Misnumbered { patch: *number, level: patch.level });
         }
         for block in &patch.blocks {
+            if Some(*number) == branch && tree.registered.contains(&block.family) {
+                continue;
+            }
             if let Err(error) = planned(&tree, *number, block) {
                 findings.push(Finding::Unplanned { patch: *number, family: block.family.clone(), error });
             }

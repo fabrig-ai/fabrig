@@ -7,20 +7,29 @@ use temper_protocol_records as records;
 use temper_protocol_records_forge as forge_records;
 
 fn service(states: u32, life: Duration) -> crate::Service {
-    let ready = fixtures::ready().engine.expect("engine");
-    let store = fixtures::records_store_from(ready.store.host.component.into_stores());
-    let mut service = routing_service_with_store(states, life, None, Some(store));
-    service.engine.as_mut().expect("engine").env.limits = ready.env.limits;
-    service.engine.as_mut().expect("engine").domain = ready.domain;
-    let rows = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
-    for row in rows {
-        if let root::Record::Forge { row } = row
-            && let domain::Stored::Forge(record) = *row
-        {
-            fixtures::restore_forge(service.engine.as_mut().unwrap(), record);
-        }
-    }
+    let mut service = routing_service(states, life);
+    fixtures::restart(&mut service);
+    crate::engine::clock(service.engine.as_mut().expect("engine"), Time::ZERO, Wall::EPOCH);
     service
+}
+#[test]
+fn record_store_keeps_the_rows_of_a_services_completed_first_start() {
+    let ready = fixtures::ready().engine.expect("engine");
+    let mut expected = fixtures::records_store_from(ready.store.host.component.into_stores());
+    let mut found = fixtures::records_store();
+    for range in [
+        root::Range::Core(root::CoreRange::Deployment),
+        root::Range::Core(root::CoreRange::Settings),
+        root::Range::Core(root::CoreRange::People),
+        root::Range::Core(root::CoreRange::Tasks),
+        root::Range::Forge,
+    ] {
+        assert_eq!(
+            fixtures::load(&mut found, range.clone()),
+            fixtures::load(&mut expected, range.clone()),
+            "{range:?}"
+        );
+    }
 }
 // The page owners emit their measured sizes only in the usual figure write mode.
 #[expect(clippy::disallowed_macros, reason = "figure write mode names and writes the sizes")]
@@ -84,12 +93,19 @@ fn github_config(
     fixtures::fill_files(&mut config);
     config
 }
+pub(super) fn load_records(engine: &mut crate::engine::Engine) {
+    for _ in 0_u32..8 {
+        crate::forge::records::advance(engine);
+        if engine.forge_records.done() {
+            return;
+        }
+    }
+    panic!("forge records did not finish loading");
+}
 fn load_routing(service: &mut crate::Service) {
     fixtures::mark_store(&mut service.engine.as_mut().expect("engine").store);
     assert!(service.engine.as_ref().expect("engine").setup.component.is_none(), "no host before the rows load");
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(service.engine.as_mut().expect("engine"));
-    }
+    load_records(service.engine.as_mut().expect("engine"));
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").setup.component.is_some());
     assert!(service.engine.as_ref().expect("engine").forge_records.done());
@@ -120,10 +136,10 @@ pub(super) fn start(service: &mut crate::Service, run: u64, plan: host::Plan) {
 pub(super) fn terminal(service: &mut crate::Service) -> root::SetupEnd {
     for _ in 0_u32..4 {
         advance(service.engine.as_mut().expect("engine"));
-    }
-    for _ in 0..service.engine.as_mut().expect("engine").events.len() {
-        if let Some(root::Event::Setup { end, .. }) = service.engine.as_mut().expect("engine").events.pop() {
-            return end;
+        for _ in 0..service.engine.as_mut().expect("engine").events.len() {
+            if let Some(root::Event::Setup { end, .. }) = service.engine.as_mut().expect("engine").events.pop() {
+                return end;
+            }
         }
     }
     panic!("setup terminal")
@@ -361,7 +377,16 @@ impl Face {
     }
     pub(super) fn sent(&mut self, service: &mut crate::Service) {
         self.settle(service);
-        assert!(contains(&self.wire.received, b"\r\n\r\n"), "request sent");
+        let engine = service.engine.as_ref().expect("engine");
+        assert!(
+            contains(&self.wire.received, b"\r\n\r\n"),
+            "request sent: runs {:?}, events {:?}, notes {:?}, answers {:?}, bytes {}",
+            engine.setup.runs,
+            engine.events,
+            engine.notes,
+            engine.setup.answers,
+            self.wire.received.len()
+        );
     }
 }
 #[test]
@@ -589,9 +614,7 @@ fn admitted_tls_starts_after_rows_and_serves_a_local_manifest() {
         assert!(service.engine.as_ref().expect("engine").setup.served.contains_key(&entry.number()));
     }
     fixtures::replace_store(&mut service, fixtures::records_store());
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(service.engine.as_mut().expect("engine"));
-    }
+    load_records(service.engine.as_mut().expect("engine"));
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").forge_records.done());
     assert!(service.engine.as_ref().expect("engine").setup.component.is_some());
@@ -788,9 +811,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     );
     engine.store = fixtures::records_store();
     engine.forge_records.loaded(Box::new([]), None);
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(engine);
-    }
+    load_records(engine);
     assert_eq!(
         engine.notes.pop(),
         Some(crate::Note::ForgeNotConnected {
@@ -879,11 +900,22 @@ fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &
 }
 fn local_store(token: bool) -> crate::store::Store {
     use temper_engine_domain_forge::Stored;
-    // Persist the real first-start settings before constructing a restart fixture.
-    let mut bootstrap = fixtures::ready();
-    let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
+    let mut store = fixtures::records_store();
+    store.host.ask(jig_protocol_store::Request::Get {
+        owner: Token::new(994),
+        key: jig_protocol_store::Get::Jig(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)),
+    });
+    let Some(StoreEvent::Got {
+        row:
+            Some(jig_protocol_store::Row::Jig(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+                mut header,
+            )))),
+        ..
+    }) = store.host.above.pop()
+    else {
+        panic!("completed deployment")
+    };
     header.commits = header.commits.checked_add(1).unwrap();
-    let mut store = bootstrap.engine.take().unwrap().store;
     if token {
         kept_record(&mut store, 1, Item::AdminToken, b"test-admin");
     }
@@ -945,10 +977,8 @@ fn local_repository() -> domain::Repository {
     }
 }
 fn local_service(config: fixtures::ConfiguredEngine, store: crate::store::Store) -> crate::Service {
-    let mut service =
-        fixtures::configured_service(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    fixtures::replace_store(&mut service, store);
-    service
+    fixtures::configured_service_with_store(config, &fixtures::seeds(), None, fixtures::forge_runtime(), Some(store))
+        .unwrap()
 }
 fn restore_local(service: &mut crate::Service) {
     restore_local_with_file(service, true);
@@ -1035,9 +1065,7 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
     ] {
         let mut service = local_service(local_config(true, fake), local_store(true));
         let engine = service.engine.as_mut().unwrap();
-        for _ in 0_u32..8 {
-            crate::forge::records::advance(engine);
-        }
+        load_records(engine);
         advance(engine);
         assert!(engine.setup.runs.is_empty(), "no Reconcile before root restore");
         assert!(engine.forge.starts.is_empty());
@@ -1179,9 +1207,7 @@ fn local_with_other(config: fixtures::ConfiguredEngine, store: crate::store::Sto
     other.number = 2;
     other.address = ([127, 0, 0, 1], 3000).into();
     runtime.push(other).unwrap();
-    let mut service = fixtures::configured_service(config, &fixtures::seeds(), None, runtime).unwrap();
-    fixtures::replace_store(&mut service, store);
-    service
+    fixtures::configured_service_with_store(config, &fixtures::seeds(), None, runtime, Some(store)).unwrap()
 }
 fn other_progresses(service: &mut crate::Service) {
     while service.notes().pop().is_some() {}
@@ -1229,9 +1255,7 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
         }
         let mut service = local_with_other(local_config(true, false), store);
         // Hold root restore while setting the host's admission conditions.
-        for _ in 0_u32..8 {
-            crate::forge::records::advance(service.engine.as_mut().unwrap());
-        }
+        load_records(service.engine.as_mut().unwrap());
         advance(service.engine.as_mut().unwrap());
         if fault == 1 {
             service.engine.as_mut().unwrap().setup.served.remove(&1);
@@ -1533,9 +1557,7 @@ fn takeover_stops_missing_and_busy_keep_the_handover_and_isolate_the_forge() {
     for fault in 0_u8..4 {
         let config = if fault == 1 { with_handover(b"") } else { with_handover(b"test-admin") };
         let mut service = local_with_other(config, local_store(false));
-        for _ in 0_u32..8 {
-            crate::forge::records::advance(service.engine.as_mut().unwrap());
-        }
+        load_records(service.engine.as_mut().unwrap());
         advance(service.engine.as_mut().unwrap());
         if fault == 2 {
             service.engine.as_mut().unwrap().setup.served.remove(&1);
@@ -1850,9 +1872,10 @@ fn github_app_urls_use_the_clients_public_origin() {
 #[test]
 fn setup_reconciliation_waits_for_the_mark() {
     fn restarting() -> Box<crate::Service> {
-        let mut previous = fixtures::ready().engine.unwrap();
-        kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
-        Box::new(fixtures::restarting_from(previous))
+        let mut store = fixtures::records_store();
+        kept_record(&mut store, 1, Item::AdminToken, b"test-admin");
+        let store = fixtures::reopened_store(store, &fixtures::store_limits().0);
+        Box::new(fixtures::start_with_store(&[(1, 100)], Some(store)))
     }
     // The shared service restart fixture's existing iteration horizon.
     const PASSES: u32 = 256;
@@ -1864,6 +1887,9 @@ fn setup_reconciliation_waits_for_the_mark() {
     service.engine.as_mut().unwrap().store.hold_mark = true;
     for _ in 0..PASSES {
         fixtures::turn(&mut service);
+        if service.engine.as_ref().unwrap().store.held_mark.is_some() {
+            break;
+        }
     }
     let engine = service.engine.as_mut().unwrap();
     assert!(
@@ -1884,6 +1910,9 @@ fn setup_reconciliation_waits_for_the_mark() {
     assert!(engine.store.down(mark));
     for _ in 0..PASSES {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        if engine.setup.lifecycle.startup_restored() && engine.setup.component.is_some() {
+            break;
+        }
     }
     assert!(engine.store.host.mark_durable());
     assert!(engine.setup.lifecycle.startup_restored());
@@ -1893,6 +1922,9 @@ fn setup_reconciliation_waits_for_the_mark() {
     lifecycle::read(engine, read.forge, read.run, Ok(None));
     for _ in 0..PASSES {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        if !engine.setup.runs.is_empty() {
+            break;
+        }
     }
     assert_eq!(engine.setup.runs.len(), 1, "one configured reconciliation");
     for _ in 0..PASSES {
@@ -2047,9 +2079,7 @@ fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
     assert_eq!(local.identity.login, record.bot.login);
     assert_eq!(local.identity.author.name, record.bot.name);
     assert_eq!(local.identity.author.email, record.bot.email);
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(engine);
-    }
+    load_records(engine);
     advance(engine);
     assert!(engine.setup.component.is_some());
     let run = Token::new(94);
@@ -2107,9 +2137,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             if mode == domain::Mode::Fake {
                 assert_eq!(local.trigger, lifecycle::Trigger::StartFake);
             }
-            for _ in 0_u32..8 {
-                crate::forge::records::advance(engine);
-            }
+            load_records(engine);
             advance(engine);
             let run = Token::new(983);
             engine
@@ -2238,29 +2266,111 @@ fn a_github_record_restored_at_start_uses_its_resolved_tls_endpoint() {
     assert_github_paste_is_admitted(&mut service);
 }
 #[test]
-fn a_held_github_setup_entry_is_replaced_when_the_shell_resolves_its_name() {
-    for host_started in [false, true] {
+fn a_waiting_github_setup_run_is_released_with_its_entry_on_the_records_port() {
+    for kept_while_serving in [false, true] {
         let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+        if kept_while_serving {
+            load_routing(&mut service);
+            service.engine.as_mut().unwrap().forge.serving = Some(());
+        }
         let engine = service.engine.as_mut().unwrap();
-        let record = tls_github_record();
+        let mut record = tls_github_record();
+        record.place.api.port = 8443;
         fixtures::restore_forge(engine, record.clone());
-        crate::forges::record(engine, record);
-        if host_started {
+        crate::route::request(engine, root::Request::ForgeKept(record));
+        if !kept_while_serving {
+            assert!(engine.unresolved_github().is_none());
+            assert!(engine.unresolved().is_empty());
             load_routing(&mut service);
-            assert_github_entry_removed(&mut service);
-            assert_tls_github_entry(&mut service, crate::forge::HELD_ADDRESS);
+            service.engine.as_mut().unwrap().forge.serving = Some(());
         }
-        let address = ([192, 0, 2, 7], 443).into();
-        service.resolved(2, Some(address));
-        if !host_started {
-            let (settings, _) = service.engine.as_ref().unwrap().setup.pending.as_ref().unwrap();
-            assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(address));
-            load_routing(&mut service);
+        let engine = service.engine.as_mut().unwrap();
+        assert_eq!(engine.setup.served.get(&2).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
+        for _ in 0..engine.setup.membership.len() {
+            let _initial = engine.setup.membership.pop();
         }
+        let before = engine.events.len();
+        start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+        let engine = service.engine.as_mut().unwrap();
+        assert!(!engine.setup.staged.contains_key(&Token::new(94)));
+        assert!(engine.setup.runs.is_empty());
+        assert!(engine.setup.above.is_empty());
+        assert!(engine.setup.io.is_empty());
+        assert!(engine.forge.starts.is_empty());
+        assert!(engine.notes.is_empty());
+        assert_eq!(engine.forge.github_waiting.get(&2).unwrap().plans.len(), 1);
+        assert_eq!(engine.events.len(), before, "asking the waiting run emits no terminal");
+        advance(engine);
+        assert_eq!(engine.events.len(), before, "the waiting run neither ends nor reaches the host");
+        engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 7], 443).into()));
+        let address = ([192, 0, 2, 7], 8443).into();
         assert_github_entry_removed(&mut service);
         assert_tls_github_entry(&mut service, address);
+        let root::SetupEnd::Done { forge: 2, outcome: root::SetupOutcome::Manifest { .. } } = terminal(&mut service)
+        else {
+            panic!("the waiting manifest goes down once answered")
+        };
         assert_github_paste_is_admitted(&mut service);
     }
+}
+
+#[test]
+fn a_failed_github_api_ends_waiting_and_later_setup_runs_unreachable() {
+    let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+    let engine = service.engine.as_mut().unwrap();
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::forges::record(engine, record);
+    load_routing(&mut service);
+    service.engine.as_mut().unwrap().forge.serving = Some(());
+    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+    service.engine.as_mut().unwrap().resolved_github(b"api.github.com", None);
+    for run in [94, 95] {
+        if run == 95 {
+            start(&mut service, run, host::Plan::Install { forge: 2 });
+        }
+        let root::SetupEnd::Stopped { forge: 2, reason } = terminal(&mut service) else {
+            panic!("failed API ends the run")
+        };
+        assert_eq!(reason.as_ref(), b"unreachable: api.github.com");
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.io.is_empty());
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.unresolved_github().is_none());
+}
+
+#[test]
+fn a_new_github_manifest_connect_waits_for_names_then_answers_with_its_link() {
+    let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+    load_routing(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.serving = Some(());
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::route::request(engine, root::Request::ForgeKept(record));
+    crate::route::request(engine, root::Request::Manifest { forge: 2, request: Token::new(94), back: None });
+    assert_eq!(engine.setup.public.len(), 1);
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.above.is_empty());
+    assert!(engine.setup.io.is_empty());
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 7], 443).into()));
+    for _ in 0_u32..4 {
+        advance(engine);
+    }
+    assert!(engine.setup.public.is_empty());
+    let mut linked = false;
+    for event in &engine.events {
+        if let root::Event::Forge(event) = event
+            && let domain::Event::ConnectAnswered { forge: 2, request, answer: domain::ConnectAnswer::Link(_) } =
+                event.as_ref()
+        {
+            assert_eq!(*request, Token::new(94));
+            linked = true;
+        }
+    }
+    assert!(linked, "the first Connect's manifest reaches the host only after DNS answers");
 }
 
 #[test]
@@ -2277,9 +2387,7 @@ fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
     lifecycle::read(engine, 2, Token::new(7), Ok(None));
     lifecycle::removed(engine, 2, Token::new(7), Ok(()));
     assert_eq!(engine.events.len(), before);
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(engine);
-    }
+    load_records(engine);
     advance(engine);
     assert!(!engine.setup.served.contains_key(&2));
     assert!(engine.setup.lifecycle.local(2).is_none());
@@ -2298,9 +2406,7 @@ fn a_kept_fake_reads_at_start_then_waits_for_the_box_when_the_handover_is_absent
     let engine = service.engine.as_mut().unwrap();
     insert_runtime_forge(engine, &record);
     keep(engine, &record);
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(engine);
-    }
+    load_records(engine);
     lifecycle::restored(engine);
     advance(engine);
     assert!(!engine.setup.lifecycle.local(2).unwrap().pending);
@@ -2353,9 +2459,14 @@ fn fixture_setup(
     snapshot.setup = config.setup.clone();
     snapshot.without_records = config.without_records.clone();
     fixtures::fill_files(&mut snapshot);
-    let endpoints = core::mem::replace(endpoints, crate::forge::prepare(&snapshot.engine, List::with_capacity(0))?);
-    let service = fixtures::configured_prepared(snapshot, &fixtures::seeds(), None, endpoints, None)?;
-    Ok(service.engine.unwrap().setup)
+    fixtures::setup_machine(&mut snapshot.engine, &snapshot.setup);
+    let mut layer = prepare(&snapshot.engine, endpoints, &fixtures::seeds().crypto, false)?;
+    for source in &snapshot.forges {
+        let record = fixtures::configured_forge(source, &snapshot.identities, &snapshot.setup);
+        runtime::keep_layer(&mut layer, source, &record);
+    }
+    layer.fixture_locals(&snapshot.setup);
+    Ok(layer)
 }
 fn fixture_fixed(
     config: &fixtures::ConfiguredEngine,

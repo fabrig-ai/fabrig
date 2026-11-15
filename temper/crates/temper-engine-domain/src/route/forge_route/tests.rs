@@ -1237,6 +1237,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             gates: Box::new([]),
             clean: Box::new([]),
             gate_failures: Box::new([]),
+            released_resolution: false,
             released: None,
             repairs: 0,
             resolutions: 0,
@@ -1672,8 +1673,17 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     for pull in [None, Some(23)] {
         let mut row = change_row(pull);
         row.change.last_head = Some([1; 32]);
+        let mut held = row.clone();
+        held.pull = Some(24);
+        held.change.last_head = None;
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(held)) },
+            &mut out,
+        );
         out.push(forge::Request::Save {
-            record: forge::Stored::Change(Box::new(row)),
+            record: forge::Stored::ChangeHot(Box::new(row.split().1)),
             release: None,
             read_afresh: None,
         });
@@ -2903,7 +2913,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
             None => None,
         };
         let expected = match expected {
-            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]) }),
+            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) }),
             None => None,
         };
         assert_eq!(made, expected);
@@ -3925,7 +3935,13 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             .forge_delegating
             .insert(
                 (task, step),
-                super::ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false },
+                super::ChangeStep {
+                    delegate: Some(kind),
+                    relayed: None,
+                    refusal: None,
+                    released: false,
+                    passing: None,
+                },
             )
             .unwrap();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -4360,6 +4376,7 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
                 relayed: None,
                 refusal: None,
                 released: false,
+                passing: None,
             },
         )
         .unwrap();

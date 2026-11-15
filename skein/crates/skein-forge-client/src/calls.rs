@@ -80,6 +80,9 @@ impl Calls {
             },
         }
     }
+    pub(crate) const fn stamp(&self) -> u64 {
+        self.sequence
+    }
     pub(crate) fn is_full(&self) -> bool {
         self.slab.is_full()
     }
@@ -131,6 +134,7 @@ fn shared_resource(op: &Op) -> Option<crate::What> {
         | Read::PullFiles { .. }
         | Read::Compare { .. }
         | Read::Checks { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::File { .. }
         | Read::Protection { .. }
@@ -588,7 +592,7 @@ pub(crate) fn answered(
             };
             crate::outbox::answer::answered(d, env, number, result, out);
         }
-        Owner::Resource(resource) => crate::keep::answer::answered_resource(d, env, &resource, result, out),
+        Owner::Resource(resource) => crate::keep::answer::answered_resource(d, env, &resource, token, result, out),
         Owner::Repository(repository) => crate::keep::answer::answered_repository(d, env, repository, result, out),
     }
 }

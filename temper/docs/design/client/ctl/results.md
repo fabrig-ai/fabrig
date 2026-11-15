@@ -64,7 +64,11 @@ digest: task 7c1e09a2b44f0d13
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
 - **`waiting on:`** prints jig's word for what the task waits on (jig's
-  `client/domain/client/helpers.md`), or the party and what it must answer. A
+  `client/domain/client/helpers.md`), or the party and what it must answer.
+  A task kept by its own question to the task that requested it prints
+  jig's `Waiting for an answer to its question N`, and `--json`'s
+  `waits_on` is `{"question": {"number": N}}`, as a wait on dependencies
+  is an object named for its kind (jig's `domain/engine/views.md`, 3). A
   held task that awaits nothing else prints its hold, where `Nothing
   awaited` would read as if nothing were wrong; one that awaits anything
   else prints that. The hold prints as `held` alone (the user, 2026-11-06):
@@ -284,7 +288,7 @@ digest: task 7c1e09a2b44f0d13
 - **What it does not send** prints a line on stderr too: another
   party's kept requests, `kept: N for party P, unsent while it is not
   signed in here` (`README.md`, 6.2); the records the client dropped at start,
-  `dropped: N kept records these tools cannot read` (`tools.md`, 5).
+  `dropped: N kept records these tools cannot read` (`host.md`).
 
 ## 2. JSON
 
@@ -330,7 +334,7 @@ may change with them.
 | Status | Meaning | Prints |
 |---|---|---|
 | 0 | a read answered, an act done or proposed, a wait's condition met | the result |
-| 1 | the call failed: usage, the directory refused, its store unreadable (`tools.md`, 5), or busy past the lock's wait (`README.md`, 6.3), the engine's address not on loopback, nothing listening at the engine's address, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, `README.md`, section 5), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
+| 1 | the call failed: usage, the directory refused, its store unreadable (`host.md`), or busy past the lock's wait (`README.md`, 6.3), the engine's address not on loopback, nothing listening at the engine's address, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, `README.md`, section 5), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
 | 2 | refused by the engine, and only by it: a key conflict among them (`README.md`, section 5); a wait's subject no longer visible to the party | jig's refusal, typed in JSON, in words in text; the act's alternatives where the refusal names them (read again, propose instead) |
 | 3 | a wait's timeout, or its subject's watch ended, its condition not met | the current document, or the last, and its digest |
 | 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (`README.md`, 6.2) | nothing more |

@@ -303,6 +303,11 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
             format!("application setting {kind}/{scope}/{number}: {why:?}")
         }
         Failure::HeldPastLimit { which, held, limit } => format!("{which:?}, held {held}, limit {limit}"),
+        Failure::NeedsPastLimit { held, limit } => {
+            format!(
+                "stored settings' agent needs hold {held} bytes, past the {limit} byte bound; raise fleet.needs_bytes"
+            )
+        }
         Failure::AccountsPastLimit { failure } => {
             format!("accounts {:?}, key {:?}, limit {}", failure.set, failure.key, failure.limit)
         }
@@ -433,6 +438,10 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 "{binary} serve: call admission refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}\n",
                 String::from_utf8_lossy(&tool)
             )
+        }
+        temper_engine_service::Note::Ran { of, job, rows, commits } => {
+            let binary = if binary == "temper" { "temper-box" } else { binary };
+            format!("{binary} serve: ran {} {job}: {rows} rows in {commits} commits\n", crate::upgrade::owner(of))
         }
         temper_engine_service::Note::Patched { of, patch, counts } => {
             let binary = if binary == "temper" { "temper-box" } else { binary };
@@ -566,6 +575,15 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("{binary} serve: forge {number}: not connected: {why}\n")
         }
 
+        temper_engine_service::Note::GitHubLogOriginUnresolved { host } => {
+            format!(
+                "{binary} serve: GitHub log origin https://{}:443: unresolved; skipped\n",
+                String::from_utf8_lossy(&host)
+            )
+        }
+        temper_engine_service::Note::GitHubLogOriginsUnresolved => {
+            format!("{binary} serve: GitHub log origins: none resolved; no job log will be fetched\n")
+        }
         temper_engine_service::Note::ForgeSignIn { number, client, why } => {
             use temper_engine_service::clients::forge_sign_in::Unserved;
             let why = match why {

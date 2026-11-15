@@ -76,10 +76,12 @@ fn a_directory_that_is_no_repository_exits_75() {
     assert_eq!(rendered.exit, Exit::Code(75), "git failed operationally");
 }
 #[test]
-#[should_panic(expected = "git is required")]
 fn a_scratch_repository_without_git_on_the_path_fails_by_name_not_by_skip() {
     let scratch = skein_scratch::Scratch::new("without-git");
-    let _repository = Repository::make_on(scratch.path().as_os_str(), "no-git", fixtures::THIN);
+    let error = Repository::try_make_on(scratch.path().as_os_str(), "no-git", fixtures::THIN)
+        .expect_err("missing git refuses the scratch repository");
+    let cause = error.strip_prefix("git is required on the supplied PATH: ").expect("the refusal names git");
+    assert!(!cause.is_empty(), "the refusal includes the spawn error: {error}");
 }
 
 const CACHED: &[(&str, &[u8])] = &[

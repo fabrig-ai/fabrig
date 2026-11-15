@@ -44,7 +44,12 @@ pub(super) fn task(
         };
         return Ok(reads::Loaded::Page { rows: Box::new([row]), next: None });
     }
-    Ok(empty())
+    // A summary serves lists only (protocol/store/retention.md, 7).
+    match record(store, &core::Key::Tasks(tasks::Key::Summary(task)))? {
+        Some(core::Record::Tasks(tasks::Stored::Summary(_))) => Ok(reads::Loaded::Gone),
+        Some(_) => Err(Failure::Corrupt),
+        None => Ok(empty()),
+    }
 }
 
 fn page(
@@ -98,7 +103,7 @@ pub(super) fn escalation(
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     let key = core::Key::Core(core::CoreKey::EscalationDecision { task, revision: owner.escalation.revision() });
     let Some(value) = record(store, &key)? else { return Ok(empty()) };
-    let related = core::Key::Tasks(tasks::Key::Milestone { task, position: owner.hold });
+    let related = core::Key::Tasks(tasks::Key::Hold { task, position: owner.hold });
     page(store, range, value, Some(&owner), Some(related), spent)
 }
 

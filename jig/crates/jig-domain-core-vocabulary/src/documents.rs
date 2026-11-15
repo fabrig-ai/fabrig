@@ -40,9 +40,9 @@ pub use inbox_selection::{InboxSelection, inbox_selection_bound};
 pub use jig_domain_accounts::Use;
 pub use live_delegates::LiveDelegate;
 pub use objects::{
-    AmendmentChange, AmendmentState, EndedDelegate, Escalation, FundingOffer, HistoryLine, MilestoneLine,
-    MilestonePhase, PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting,
-    ProposedTask, Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
+    AmendmentChange, AmendmentState, AttemptLine, EndedDelegate, Escalation, FundingOffer, HistoryLine, HoldLine,
+    PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting, ProposedTask,
+    Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
 };
 pub use programs::{ProgramHost, ProgramLogin};
 pub use project_note::{
@@ -55,9 +55,9 @@ pub use small::text as bounded_text;
 pub use task_lines::{ConversationRead, TaskLine};
 pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery};
 pub use task_tree::{
-    AuthorityLine, BudgetLine, ContractLine, Dependency, Ending, EscalationState, FoldedCount, GrantLine, HoldLine,
-    NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase, ProposalRef,
-    ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow,
+    AuthorityLine, BudgetLine, ContractLine, Dependency, Ending, EscalationState, FoldedCount, GrantLine,
+    HoldPhaseLine, NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase,
+    ProposalRef, ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow,
 };
 pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
@@ -575,4 +575,10 @@ pub fn chip_heap_bound(limits: &DocumentLimits) -> Option<u64> {
 /// or restoring it. Whole opaque resource keys must fit the receiving limits.
 pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
     small::chip_from_row(limits, row)
+}
+
+/// A list-only chip from retained summary facts (protocol/store/retention.md, 7).
+#[must_use]
+pub fn chip_from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> Chip {
+    small::chip_from_summary(limits, summary)
 }

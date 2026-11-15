@@ -2,7 +2,7 @@ use crate::driver::Driver;
 use crate::fixtures::{self, LIMITS, Shape};
 use crate::referee::{Accounting, Referee};
 use skein_fake_forge_domain::{
-    self as fake, Observation,
+    Observation,
     api::{self as raw, Kind},
 };
 use skein_forge::api::{Answer, Error, Op, Read, Repository, Write};
@@ -153,30 +153,17 @@ impl World {
     /// A Forgejo repository with dispatch-only workflows and a seeded tree.
     #[must_use]
     pub fn turn(seed: u64, workflows: Box<[raw::Workflow]>, tree: Box<[raw::File]>) -> Self {
-        let mut world = Self::new(seed, 0);
-        let Driver::Forgejo(joint) = &mut world.joint else { unreachable!("Forgejo world") };
-        joint.fake_env.limits.limits.workflows = u32::try_from(workflows.len()).expect("fixture workflows");
-        joint.fake_env.limits.limits.workflow_runs = 4;
-        let mut domain = fake::Domain::new(&joint.fake_env.limits, seed);
-        fake::repository(
-            &mut domain,
-            &joint.fake_env.limits,
-            raw::Setup {
-                id: 2,
-                name: Box::from(b"org/repo".as_slice()),
-                default: Box::from(b"main".as_slice()),
-                tree,
-                workflows,
-                labels: Box::new([]),
-                checks: raw::Checks { contexts: Box::new([]), ..joint::checks(1000) },
-                protection: None,
-                hooked: false,
-            },
-        );
-        fake::grant(&mut domain, b"org/repo", 1, raw::Permission::Admin);
-        fake::grant(&mut domain, b"org/repo", 2, raw::Permission::Write);
-        joint.domain = domain;
+        Self::turn_on(seed, workflows, tree, false)
+    }
+    #[must_use]
+    pub fn turn_on(seed: u64, workflows: Box<[raw::Workflow]>, tree: Box<[raw::File]>, github: bool) -> Self {
+        let shape = if github { Shape::Github { log_poll: Duration::from_secs(10) } } else { Shape::Plain };
+        let mut world = Self::with(seed, 0, shape);
+        world.joint.configure_workflows(seed, workflows, tree, shape.author());
         world
+    }
+    pub fn runner_labels(&mut self, labels: Option<Box<[Box<[u8]>]>>) {
+        self.joint.runner_labels(labels);
     }
     /// A person's fixture call outside the component's HTTP traffic.
     /// # Errors
@@ -351,6 +338,7 @@ impl World {
             Event::Hint { .. } => self.hints += 1,
             Event::Keep { .. }
             | Event::Pushed { .. }
+            | Event::Fence { .. }
             | Event::Withdraw { .. }
             | Event::Restore { .. }
             | Event::Restored { .. }

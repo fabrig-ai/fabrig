@@ -50,13 +50,13 @@ fn handles_are_issued_once() {
 }
 
 #[test]
-#[should_panic(expected = "a handle the machine never issued, or closed")]
 fn a_closed_handle_is_its_clients_bug() {
     let (mut machine, root) = machine(&[Item::file(b"f", b"")]);
     let file = machine.open(root, b"f", How::Read).unwrap();
+    assert_eq!(machine.check_handle(file), Ok(()));
     machine.close(file);
-    let stat = machine.stat(file);
-    panic!("stated a closed handle: {stat:?}");
+    let finding = machine.check_handle(file).expect_err("a closed handle");
+    assert!(finding.contains("a handle the machine never issued, or closed"), "{finding}");
 }
 
 /// Forty links followed in one resolution, and no more.
@@ -356,6 +356,26 @@ fn a_cut_synced_keeps_the_new_length_past_a_crash() {
         machine.close(file);
         machine.close(root);
     }
+}
+
+#[test]
+fn later_mutations_leave_the_synced_bytes_for_crash_recovery() {
+    let (mut machine, root) = machine(&[Item::file(b"file", b"initial")]);
+    let file = machine.open(root, b"file", How::Write).unwrap();
+    machine.write(file, 0, b"changed").unwrap();
+    machine.crash(0); // This seed lands no pending write.
+    let root = machine.reopen_root(0);
+    let file = machine.open(root, b"file", How::Write).unwrap();
+    assert_eq!(machine.read(file, 0, 16).unwrap(), b"initial");
+    machine.write(file, 0, b"durable").unwrap();
+    machine.sync(file);
+    machine.truncate(file, 3).unwrap();
+    machine.crash(0);
+    let root = machine.reopen_root(0);
+    let file = machine.open(root, b"file", How::Read).unwrap();
+    assert_eq!(machine.read(file, 0, 16).unwrap(), b"durable");
+    machine.close(file);
+    machine.close(root);
 }
 
 fn moved_after_crash(seed: u64, sync_source: bool, sync_destination: bool) -> bool {

@@ -496,6 +496,108 @@ fn a_seed_policy_whose_whole_value_exceeds_its_byte_limit_refuses_start() {
     );
 }
 
+fn comma_separated(values: &skein_lib::List<Box<[u8]>>) -> Box<[u8]> {
+    let mut length = values.len().saturating_sub(1);
+    let mut bytes = 0_usize;
+    for value in values {
+        bytes = bytes.checked_add(value.len()).unwrap();
+    }
+    length = length.checked_add(u32::try_from(bytes).unwrap()).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(length).unwrap());
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            writer.put(b",").unwrap();
+        }
+        writer.put(value).unwrap();
+    }
+    writer.finish()
+}
+
+// Enough resolved models across charters to exceed one held version's room.
+pub(super) fn needs_document(needs_bytes: u64) -> Box<[u8]> {
+    use skein_lib::{Decimal, Writer, bytes::find};
+    let text = fixtures::ENGINE_SMALL;
+    let prefix = b"\"charters\": [";
+    let start = find(text, prefix).unwrap().checked_add(prefix.len()).unwrap();
+    let end = find(text, b"],\n\"templates\"").unwrap();
+    let original = text.get(start..end).unwrap();
+    let charter = fixtures::with(original, b"\"model\": \"small\", ", b"");
+    let mut values = skein_lib::List::with_capacity(32);
+    for number in 1_u64..=32 {
+        let value = fixtures::with(&charter, b"\"number\": 1", b"\"number\": N");
+        let value = fixtures::with(&value, b"N", Decimal::of(number).as_bytes());
+        values.push(value).unwrap();
+    }
+    let text = fixtures::with(text, original, &comma_separated(&values));
+    let overrides = br#"{"profile":"small","overrides":{"tasks.charters":32,"core.settings.versions":1,"core.run_bytes":65536,"fleet.needs_bytes":N}}"#;
+    let overrides = fixtures::with(overrides, b"N", Decimal::of(needs_bytes).as_bytes());
+    let text = fixtures::with(&text, br#"{"profile": "small"}"#, &overrides);
+    let prefix = b"\"models\": [";
+    let start = find(&text, prefix).unwrap().checked_add(prefix.len()).unwrap();
+    let end = find(&text, b"]\n},\n\"hosts\"").unwrap();
+    let original = text.get(start..end).unwrap();
+    let mut models = skein_lib::List::with_capacity(64);
+    let mut names = skein_lib::List::with_capacity(64);
+    for number in 1_u64..=64 {
+        let digits = Decimal::of(number);
+        let mut name = Writer::new(128);
+        name.put(b"\"").unwrap();
+        name.put([b'm'; 126].get(digits.as_bytes().len()..).unwrap()).unwrap();
+        name.put(digits.as_bytes()).unwrap();
+        name.put(b"\"").unwrap();
+        let name = name.finish();
+        models.push(fixtures::with(original, b"\"small\"", &name)).unwrap();
+        names.push(name).unwrap();
+    }
+    let text = fixtures::with(&text, original, &comma_separated(&models));
+    let names = comma_separated(&names);
+    let prefix = b"\"models\":[";
+    let mut offered = Writer::new(prefix.len().checked_add(names.len()).unwrap().checked_add(1).unwrap());
+    offered.put(prefix).unwrap();
+    offered.put(&names).unwrap();
+    offered.put(b"]").unwrap();
+    fixtures::with(&text, b"\"models\":[\"small\"]", &offered.finish())
+}
+
+pub(super) fn needs_engine(bytes: &[u8]) -> Result<crate::Engine, crate::Problems> {
+    let document =
+        crate::document(bytes, &crate::DocumentLimits { bytes: 1_048_576, tokens: 131_072, depth: 16 }).unwrap();
+    crate::engine(&document, 0, &crate::Directories::working(), crate::Defaults::Document)
+}
+
+pub(super) fn needs_bound() -> (u64, u64) {
+    let mut engine = needs_engine(&needs_document(1_000_000)).unwrap();
+    engine.limits.core.fleet.needs_bytes = 0;
+    let config = crate::core(&engine, [0; 16], 0);
+    let needs = jig_domain_core::settings::fleet_needs::configured(&config, &engine.limits.core);
+    let past = jig_domain_fleet::needs_fit(&engine.limits.core.fleet, 1, &needs).unwrap_err();
+    (past.held, past.limit)
+}
+
+#[test]
+fn configured_agent_needs_name_their_bytes_and_limit() {
+    let (bytes, room) = needs_bound();
+    for budget in [bytes - room - 1, bytes - room, bytes] {
+        let result = needs_engine(&needs_document(budget));
+        if budget >= bytes - room {
+            result.expect("configured needs fit at the bound");
+        } else {
+            let Err(problems) = result else { panic!("needs past their bound are refused") };
+            assert_eq!(
+                problems.problems.as_slice(),
+                &[crate::Problem {
+                    path: fixtures::path(&[b"limits", b"fleet", b"needs_bytes"]),
+                    what: What::NeedsBytes { bytes, limit: bytes - 1 },
+                }]
+            );
+            let message = problems.problems.get(0).unwrap().codec_message().unwrap();
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(bytes).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(bytes - 1).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, b"fleet.needs_bytes").is_some());
+        }
+    }
+}
+
 // Current people-v13 envelope, protocol/limits.md.
 const POLICY_MAX: u64 = 43_695;
 const AMENDMENT_MAX: u32 = 135_168;

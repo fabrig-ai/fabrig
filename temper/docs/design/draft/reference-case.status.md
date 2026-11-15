@@ -1,6 +1,6 @@
 # reference-case: status
 
-2026-11-08. Where the design lags or departs from [reference-case.md](reference-case.md).
+2026-11-15. Where the design lags or departs from [reference-case.md](reference-case.md).
 
 The case walks the mechanisms of `reference-code-production.md` and
 `archive/reference-landing.md`, and lags where they do; their statuses say where,

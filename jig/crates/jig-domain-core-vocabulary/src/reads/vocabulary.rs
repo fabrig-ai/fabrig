@@ -65,7 +65,17 @@ pub enum Scope {
     /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/README.md, 6.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     EndedTasks,
-    /// History, milestones, activity, terminals, decisions, ended reads and the
+    /// Summary-only deletion sweep (protocol/store/README.md, 6.1).
+    TaskSummaries,
+    /// Due stage prefix (protocol/store/retention.md, 4–5).
+    Retention { stage: tasks::RetentionStage, through: Wall },
+    /// Unjoined internal point reads, held behind preceding decisions.
+    ErasureKeys { keys: Box<[Key]> },
+    /// Bounded fallback for the decision and update of a missing decided proposal.
+    ProposalRemains { proposal: u64 },
+    /// Only ranges keyed by this task (protocol/store/retention.md, 6.2).
+    TaskOwnRows { task: u64 },
+    /// History, attempts, holds, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
     /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).
     TaskRows { task: u64 },
@@ -93,7 +103,7 @@ pub enum Scope {
     Turn { task: u64, attempt: u64, turn: u32 },
     /// Ended direct delegates in task-key order.
     EndedDelegates { task: u64 },
-    /// Semantic changes and lifecycle milestones in owner-key order.
+    /// Semantic changes, attempts and holds in owner-key order.
     History { task: u64, subtree: bool },
     /// Immutable task activity, newest position first.
     Activity { task: u64 },
@@ -274,6 +284,8 @@ pub struct Range {
 pub struct Row {
     pub value: Record,
     pub owner: Option<Box<tasks::TaskRecord>>,
+    /// Ended-index fallback only, when retention left no record (protocol/store/retention.md, 7).
+    pub summary: Option<Box<tasks::TaskSummary>>,
     /// Requester ancestors nearest first, copied from durable task records.
     pub ancestors: Box<[u64]>,
     /// Related immutable evidence, such as a decision or answered question.
@@ -344,7 +356,7 @@ pub enum EndedValue {
     Escalation {
         task: Box<documents::Task>,
         decision: crate::EscalationDecisionRecord,
-        hold: Option<documents::MilestoneLine>,
+        hold: Option<documents::HoldLine>,
     },
     /// Original question and any retained answer or task ending.
     Question {
@@ -393,9 +405,13 @@ pub enum PageRow {
     /// A semantic task change.
     History(documents::HistoryLine),
     /// A lifecycle transition.
-    Milestone(documents::MilestoneLine),
+    Attempt(documents::AttemptLine),
+    Hold(documents::HoldLine),
     /// Whole original words, run boundaries and exact archive references.
-    Activity { line: tasks::ActivityLine, turn: Option<PageTurn> },
+    Activity {
+        line: tasks::ActivityLine,
+        turn: Option<PageTurn>,
+    },
     /// One waiting object or unread update.
     Inbox(documents::InboxEntry),
     /// One loaded note.
@@ -520,6 +536,20 @@ pub fn row_bytes(row: &Row) -> Option<u64> {
         .checked_add(record_bytes(&row.value)?)?
         .checked_add(match &row.owner {
             Some(owner) => tasks::task_bytes(owner)?,
+            None => 0,
+        })?
+        .checked_add(match &row.summary {
+            Some(summary) => {
+                let words = match &summary.result {
+                    Some(result) => len_u64(result.words.len()),
+                    None => 0,
+                };
+                u64::try_from(size_of::<tasks::TaskSummary>())
+                    .ok()?
+                    .checked_add(len_u64(summary.title.len()))?
+                    .checked_add(len_u64(summary.reason.len()))?
+                    .checked_add(words)?
+            }
             None => 0,
         })?
         .checked_add(u64::try_from(size_of_val(row.ancestors.as_ref())).ok()?)?

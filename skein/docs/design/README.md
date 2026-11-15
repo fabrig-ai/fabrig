@@ -61,6 +61,7 @@ this design.
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs, bounds and golden bytes generated from them | [data/codec/README.md](data/codec/README.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
 | record patches | `skein-codec` | versioned patch files and upgrades of stored records | [data/codec/patches.md](data/codec/patches.md) |
+| layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
 | the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
 | bridges | `skein-codec`, `skein-codegen` | a wire's reverses, its floor and breaking declarations, and the bridge that translates a record between the versions a build speaks | [data/codec/bridges.md](data/codec/bridges.md) |
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |
@@ -70,7 +71,7 @@ this design.
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm/connection.md](llm/connection.md) |
 | OAuth | `skein-oauth`, `skein-oauth-codec`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client, with its saved records' generated code in a codec crate below it; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth/README.md](oauth/README.md), [data/codec/README.md](data/codec/README.md) |
 | the OAuth issuer | `skein-oauth-issuer` | OpenID Connect's issuer, stateless: an authorization and a token request checked, an ID token signed, the discovery document, key set and userinfo answer | [oauth/issuer.md](oauth/issuer.md) |
-| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect, Forgejo's or GitHub's | [forge/README.md](forge/README.md), [forge/github.md](forge/github.md) |
+| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect, Forgejo's or GitHub's | [forge/README.md](forge/README.md), [forge/github.md](forge/github.md), [forge/job-state.md](forge/job-state.md) |
 | the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge/connection.md](forge/connection.md) |
 | the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge/client.md](forge/client.md) |
 | the forge setup | `skein-forge-setup` | makes a forge ready for a service: the identity, credentials, repositories and hooks it acts with | [forge/setup/README.md](forge/setup/README.md) |

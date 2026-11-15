@@ -206,7 +206,10 @@ graph.
 lib                           no_std, skein-lib only
 hearth-lib                    the canonical encoding and H (domain/store/README.md, 3.1 and 3.2)  M1
 
-domain                        no_std, skein-lib, hearth-lib and their own children only
+vocabulary                    no_std, skein-lib, hearth-lib and other vocabularies only
+hearth-domain-render-vocabulary  render's values: the spec's parts, the diff's changes, the errors (domain/render/README.md, 5.1)  M1
+
+domain                        no_std, skein-lib, hearth-lib, their vocabularies and their own children only
 hearth-domain-builder         the builder's root: routes between its children; jobs (domain/steward.md)
 ├── hearth-domain-render      configuration to spec (protocol/format.md, domain/render.md)  M1
 ├── hearth-domain-store       layers, keys, records, pins, collection (domain/store.md)   M1, M2
@@ -251,7 +254,7 @@ hearth-protocol-activator     the activator's protocol layer: routes its machine
 hearth-protocol-helper        the tree helper's protocol layer: routes its machines       M2
 
 client                        what exists for the client, under one prefix, each crate held to its layer's rules (client/README.md, section 2)
-hearth-client-protocol-records  the client's records and their printer                    M1, M3
+hearth-client-protocol-records  the printer of render's values and the client's own records  M1, M3
 hearth-client-domain-dev      the client's development loop; the Incus driver from M3b (domain/development.md)  M3
 hearth-client-protocol-incus  incus's argument vectors and JSON output (domain/development.md, 8.3)  M3b
 
@@ -278,7 +281,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
   holds resolutions and cache files' records, over a store without layers
   (hearth/docs/design/domain/store/README.md, 2.4); `hearth-protocol-tree` decodes the frame and records of
   kinds 1, 4 and 5 (hearth/docs/design/domain/store/records.md, 1); `hearth-client-protocol-records`
-  holds the records of `render` and `diff` and prints them (hearth/docs/design/domain/render/README.md,
+  prints the answers of `render` and `diff` (hearth/docs/design/domain/render/README.md,
   5.1; hearth/docs/design/client/README.md, 3.2).
 - **Client crates live under one prefix,** as jig's do (
   `jig/docs/design/README.md`, section 15). A crate that exists for the client is
@@ -302,7 +305,16 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 - **The builder's children,** and the steward's, are siblings that
   share no types; each root translates between them
   (`skein/docs/foundation/programming-model.md`, 4.5).
-- **Every format is its own machine crate,** lib-only and fuzzed alone;
+- **Render's values have one owner,** `hearth-domain-render-vocabulary`
+  (`skein/docs/foundation/programming-model.md`, 4.6;
+  hearth/docs/design/domain/render/README.md, 5.1): the client's printer
+  prints them, and a machine that decodes them names them, so no layer
+  holds a copy of them. A layer keeps a type of its own only where it
+  adds a meaning, a check or a projection: the client's own records,
+  configuration's documents and declarations, which the builder compiles
+  into render's.
+- **Every format is its own machine crate,** depending on lib and on
+  the vocabularies of the values it decodes, and fuzzed alone;
   a process's protocol layer only routes between its machines
   (`skein/docs/foundation/programming-model.md`, section 4; hearth/docs/design/domain/activator/README.md, 7.1). JSON's machine
   is skein's tokenizer, which `hearth-protocol-config` composes

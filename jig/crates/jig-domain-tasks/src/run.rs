@@ -679,6 +679,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     task.record.last_answer = Some(attempt);
     task.record.narrowing = false;
     task.record.llm_changed = false;
+    if let Some(open) = &mut task.record.open_attempt {
+        open.end = Some(end_kind);
+    }
     let spent = task.record.run_spent;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunEnded { attempt, end: end_kind, spent }, out);
     if let Some(words) = stood {

@@ -68,6 +68,7 @@ fn a_pull_seen_merged_is_logged() {
     let mut out = Queue::uncapped();
     let pending = PendingStep {
         failed: change_ci::Failed::new(Box::new([])),
+        stall: None,
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,
@@ -205,7 +206,7 @@ fn a_new_admission_replaces_sign_offs_and_joins_an_existing_commit() {
     let out = signed(&mut d, SECOND, second);
     let mut kept = false;
     for request in &out {
-        if let Request::Save { record: Stored::Change(row), .. } = request {
+        if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
             kept |= row.task == SECOND && row.signed.as_ref() == [second];
         }
     }

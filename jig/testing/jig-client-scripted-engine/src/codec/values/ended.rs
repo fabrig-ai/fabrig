@@ -1,7 +1,7 @@
 //! Wire projections of owner ended facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, pieces, w};
 use super::{
-    wire_activity_line, wire_authority, wire_executor, wire_funder, wire_message_proposal_kind, wire_milestone_line,
+    wire_activity_line, wire_authority, wire_executor, wire_funder, wire_hold_line, wire_message_proposal_kind,
     wire_numbers, wire_object_key, wire_person_task, wire_proposal_choice, wire_proposal_history, wire_proposer,
     wire_question, wire_requester, wire_result_document, wire_specification, wire_task, wire_task_contract_document,
     wire_wake_policy,
@@ -48,7 +48,7 @@ pub(in crate::codec) fn wire_ended_value(
             w::EndedValueEscalationParts {
                 task: wire_task(task, limits)?,
                 decision: wire_escalation_decision_record(decision, limits)?,
-                hold: (hold).as_ref().map(|item| wire_milestone_line(item, limits)).transpose()?,
+                hold: (hold).as_ref().map(|item| wire_hold_line(item, limits)).transpose()?,
             },
         )?),
         c::EndedValue::Question { question, answer, ending } => w::EndedValue::Question(w::EndedValueQuestion::new(

@@ -1,30 +1,11 @@
 //! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render/README.md, 2.2 and 4.1).
 use crate::limits::Limits;
-use alloc::boxed::Box;
 use core::mem;
+pub use hearth_domain_render_vocabulary::diff::{Hunks, Line, LineKind as Kind};
 use skein_lib::{
     Env, List, Queue, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Kind {
-    Hunk,
-    Context,
-    Removed,
-    Added,
-    NoNewline,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Line {
-    pub kind: Kind,
-    pub text: Box<[u8]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Hunks {
-    pub lines: Box<[Line]>,
-    pub left_out: u32,
-    pub binary: bool,
-}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     Read,

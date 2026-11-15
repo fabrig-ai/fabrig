@@ -14,8 +14,19 @@ use core::mem::{size_of, size_of_val};
 /// Returns `None` on sum overflow; allocates/copies nothing and admits neither shape nor authority.
 /// Root separately counts inline slots and queues.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "each durable row's heap ownership is measured in one exhaustive match")]
 pub fn stored_bytes(record: &Stored) -> Option<u64> {
     match record {
+        Stored::Summary(row) => {
+            let words = match &row.result {
+                Some(result) => bytes(result.words.len())?,
+                None => 0,
+            };
+            bytes(size_of::<crate::TaskSummary>())?
+                .checked_add(bytes(row.title.len())?)?
+                .checked_add(bytes(row.reason.len())?)?
+                .checked_add(words)
+        }
         Stored::PlacedHold(hold) => bytes(size_of::<crate::PlacedHold>())?
             .checked_add(bytes(hold.reason.len())?)?
             .checked_add(bytes(size_of_val(&*hold.exempt))?),
@@ -35,6 +46,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             | crate::Line::Turn { .. } => Some(0),
         },
         Stored::Milestone(row) => phase_bytes(&row.phase),
+        Stored::Hold(row) => held_bytes(&row.held.was, row.held.source.as_deref()),
         Stored::PersonProposal(row) | Stored::DecidedProposal(row) => {
             let action = match &row.action {
                 crate::PersonAction::Settings { items, .. } => bytes(size_of_val(&**items))?,
@@ -71,7 +83,19 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(total)
         }
         Stored::Live(task) | Stored::Ended(task) => task_bytes(task),
-        Stored::Result(_)
+        Stored::LiveCold { spec, contract, authority, instructions, .. } => {
+            let mut total = bytes(size_of::<Spec>())?
+                .checked_add(spec_bytes(spec)?)?
+                .checked_add(contract_bytes(contract)?)?
+                .checked_add(authority_bytes(authority)?)?;
+            if let Some(instructions) = instructions {
+                total = total.checked_add(bytes(instructions.len())?)?;
+            }
+            Some(total)
+        }
+        Stored::Retention(_)
+        | Stored::Attempt(_)
+        | Stored::Result(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
         | Stored::EndedDelegate(_)
@@ -307,33 +331,35 @@ pub fn phase_bytes(phase: &Phase) -> Option<u64> {
     match phase {
         Phase::Closing(closing) => ending_bytes(&closing.ending),
         Phase::Ended(ending) => ending_bytes(ending),
-        Phase::Held { was, source, .. } => {
-            let mut total = match was {
-                Was::Closing(closing) => ending_bytes(&closing.ending)?,
-                Was::Waiting | Was::Active(_) => 0,
-            };
-            if let Some(source) = source {
-                total = total.checked_add(bytes(size_of::<crate::HoldSource>())?)?;
-                match &**source {
-                    crate::HoldSource::Resource(name) => {
-                        total = total.checked_add(bytes(size_of_val(&*name.path))?)?;
-                        for segment in &name.path {
-                            total = total.checked_add(bytes(segment.len())?)?;
-                        }
-                    }
-                    crate::HoldSource::Effect { .. } => {}
-                    crate::HoldSource::Preparation { words } | crate::HoldSource::Account { words, .. } => {
-                        total = total.checked_add(bytes(words.len())?)?;
-                    }
-                    crate::HoldSource::Circle(circle) => {
-                        total = total.checked_add(bytes(size_of_val(&*circle.tasks))?)?;
-                    }
-                }
-            }
-            Some(total)
-        }
+        Phase::Held { was, source, .. } => held_bytes(was, source.as_deref()),
         Phase::Waiting | Phase::Active(_) => Some(0),
     }
+}
+
+fn held_bytes(was: &Was, source: Option<&crate::HoldSource>) -> Option<u64> {
+    let mut total = match was {
+        Was::Closing(closing) => ending_bytes(&closing.ending)?,
+        Was::Waiting | Was::Active(_) => 0,
+    };
+    if let Some(source) = source {
+        total = total.checked_add(bytes(size_of::<crate::HoldSource>())?)?;
+        match source {
+            crate::HoldSource::Resource(name) => {
+                total = total.checked_add(bytes(size_of_val(&*name.path))?)?;
+                for segment in &name.path {
+                    total = total.checked_add(bytes(segment.len())?)?;
+                }
+            }
+            crate::HoldSource::Effect { .. } => {}
+            crate::HoldSource::Preparation { words } | crate::HoldSource::Account { words, .. } => {
+                total = total.checked_add(bytes(words.len())?)?;
+            }
+            crate::HoldSource::Circle(circle) => {
+                total = total.checked_add(bytes(size_of_val(&*circle.tasks))?)?;
+            }
+        }
+    }
+    Some(total)
 }
 
 fn proposal_bytes(proposal: &Proposal) -> Option<u64> {

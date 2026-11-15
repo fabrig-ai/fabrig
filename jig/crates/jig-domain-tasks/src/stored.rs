@@ -44,7 +44,15 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             let inserted = domain.person_proposals.insert(row.number, *row);
             assert!(inserted == Ok(None), "restored person proposal admitted");
         }
-        Stored::Live(task) => {
+        Stored::Live(mut task) => {
+            if task.open_attempt.is_none() {
+                task.open_attempt = match crate::attempts::names(&task.phase) {
+                    Some(attempt) => {
+                        Some(crate::OpenAttempt { attempt, claimed: None, started: None, from: 0, end: None })
+                    }
+                    None => None,
+                };
+            }
             let number = task.number;
             assert!(!domain.names.contains_key(&number), "restore {key:?}: duplicate live index");
             fit::room(crate::RestoreBound::Tasks, domain.tasks.len(), domain.tasks.capacity())?;
@@ -78,7 +86,10 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         Stored::Writer(slot) => crate::writers::restore(domain, limits, slot)?,
         Stored::Pool(row) => crate::holds::restore_pool(domain, limits, row)?,
         Stored::Ledger(record) => crate::funders::restore_funding(domain, record)?,
-        Stored::Update(_)
+        Stored::Summary(_)
+        | Stored::Retention(_)
+        | Stored::LiveCold { .. }
+        | Stored::Update(_)
         | Stored::EndedByParty(_)
         | Stored::EndedByProject(_)
         | Stored::EndedDelegate(_)
@@ -88,6 +99,8 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         | Stored::ClosedLedger(_)
         | Stored::Ended(_)
         | Stored::Milestone(_)
+        | Stored::Attempt(_)
+        | Stored::Hold(_)
         | Stored::History(_)
         | Stored::Activity(_) => {
             assert!(key.live(), "restore {key:?}: ended row in live load");
@@ -104,11 +117,16 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
         | crate::Key::Pool(_)
         | crate::Key::PersonProposal(_)
         | crate::Key::PlacedHold(_) => None,
-        crate::Key::Ended(_)
+        crate::Key::Summary(_)
+        | crate::Key::Retention { .. }
+        | crate::Key::LiveCold(_)
+        | crate::Key::Ended(_)
         | crate::Key::ClosedLedger(_)
         | crate::Key::DecidedProposal(_)
         | crate::Key::History { .. }
         | crate::Key::Milestone { .. }
+        | crate::Key::Attempt { .. }
+        | crate::Key::Hold { .. }
         | crate::Key::Activity { .. }
         | crate::Key::Update { .. }
         | crate::Key::Result { .. }

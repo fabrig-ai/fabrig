@@ -223,56 +223,51 @@ pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Re
     })
 }
 
-pub(crate) fn milestone_phase_fields(
-    value: &w::MilestonePhase,
-    limits: &Limits,
-) -> Result<c::MilestonePhase, w::Problem> {
-    Ok(match value {
-        w::MilestonePhase::Waiting => c::MilestonePhase::Waiting,
-        w::MilestonePhase::Active(row) => c::MilestonePhase::Active(crate::translate::facts::run_stage(row.value())),
-        w::MilestonePhase::Closing(row) => c::MilestonePhase::Closing {
-            stage: crate::translate::facts::closing_stage(row.stage()),
-            ending: chip_ending_fields(row.ending(), limits)?,
+pub(crate) fn attempt_line_fields(value: &w::AttemptLine) -> c::AttemptLine {
+    c::AttemptLine {
+        task: value.task(),
+        attempt: value.attempt(),
+        claimed: match value.claimed() {
+            Some(at) => Some(Wall::from_nanos(*at)),
+            None => None,
         },
-        w::MilestonePhase::Held(row) => {
-            let opt0 = match row.source() {
-                Some(item) => Some(crate::translate::facts::part(item)),
-                None => None,
-            };
-            let opt1 = match row.ending() {
-                Some(item) => Some(chip_ending_fields(item, limits)?),
-                None => None,
-            };
-            c::MilestonePhase::Held {
-                before: crate::translate::facts::prior_phase(row.before()),
-                why: crate::translate::answers::hold_category(row.why()),
-                source: opt0,
-                ending: opt1,
-            }
-        }
-        w::MilestonePhase::Ended(row) => c::MilestonePhase::Ended(chip_ending_fields(row.value(), limits)?),
-    })
+        started: match value.started() {
+            Some(at) => Some(Wall::from_nanos(*at)),
+            None => None,
+        },
+        ended: match value.ended() {
+            Some(at) => Some(Wall::from_nanos(*at)),
+            None => None,
+        },
+        end: match value.end() {
+            Some(end) => Some(super::run_end_fields(end)),
+            None => None,
+        },
+        phases: *value.phases(),
+    }
 }
-
-pub(crate) fn milestone_line_fields(value: &w::MilestoneLine, limits: &Limits) -> Result<c::MilestoneLine, w::Problem> {
-    let opt0 = match value.at() {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    Ok(c::MilestoneLine {
+pub(crate) fn hold_line_fields(value: &w::HoldLine, limits: &Limits) -> Result<c::HoldLine, w::Problem> {
+    Ok(c::HoldLine {
         task: value.task(),
         position: value.position(),
-        phase: milestone_phase_fields(value.phase(), limits)?,
-        at: opt0,
+        at: Wall::from_nanos(value.at()),
+        before: crate::translate::facts::prior_phase(value.before()),
+        why: crate::translate::answers::hold_category(value.why()),
+        source: match value.source() {
+            Some(part) => Some(crate::translate::facts::part(part)),
+            None => None,
+        },
+        ending: match value.ending() {
+            Some(item) => Some(chip_ending_fields(item, limits)?),
+            None => None,
+        },
     })
 }
-
 pub(crate) fn history_row_fields(value: &w::HistoryRow, limits: &Limits) -> Result<c::HistoryRow, w::Problem> {
     Ok(match value {
         w::HistoryRow::Change(row) => c::HistoryRow::Change(Box::new(history_line_fields(row.value(), limits)?)),
-        w::HistoryRow::Milestone(row) => {
-            c::HistoryRow::Milestone(Box::new(milestone_line_fields(row.value(), limits)?))
-        }
+        w::HistoryRow::Attempt(row) => c::HistoryRow::Attempt(Box::new(attempt_line_fields(row.value()))),
+        w::HistoryRow::Hold(row) => c::HistoryRow::Hold(Box::new(hold_line_fields(row.value(), limits)?)),
     })
 }
 

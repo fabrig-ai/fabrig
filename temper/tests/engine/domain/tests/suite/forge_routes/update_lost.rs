@@ -144,7 +144,8 @@ fn an_update_lost_for_good_holds_at_its_count_told_why() {
     let tasks::HoldSource::Account { connector, entry, words } = source.as_ref() else {
         panic!("updates hold needs an account")
     };
-    let account = change_row(&world, task).effect_account.as_ref().expect("last lost write's account");
+    let kept = change_row(&world, task);
+    let account = kept.effect_account.as_ref().expect("last lost write's account");
     assert_eq!(*connector, 0);
     assert_eq!(*entry, Some(account.entry));
     assert_eq!(*words, account.words);

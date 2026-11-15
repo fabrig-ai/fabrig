@@ -59,6 +59,7 @@ impl Harness {
         self.next
     }
     pub(crate) fn adoption_answer(&mut self, call: u32, outcome: w::Outcome) {
+        let previous = self.serving.replace(call);
         let (attempt, _, _) = self.sends.get(&call).expect("adopt sent");
         self.client(client::Event::Up {
             up: client::Up::Answer {
@@ -68,6 +69,7 @@ impl Harness {
                 why: None,
             },
         });
+        self.serving = previous;
     }
     pub(crate) fn sent_adoption(&self, call: u32) -> w::AdoptParts {
         let (_, _, client::Ask::Family { record, .. }) = self.sends.get(&call).expect("adopt sent") else {
@@ -94,6 +96,7 @@ impl Harness {
             | w::Request::HandFinding(_)
             | w::Request::TriageFinding(_)
             | w::Request::SetDraft(_)
+            | w::Request::TierAct(_)
             | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
@@ -192,7 +195,7 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
     let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
-    let refusal = jig_client_protocol_wire::v22::Refusal::KeyConflict;
+    let refusal = jig_client_protocol_wire::v24::Refusal::KeyConflict;
     let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
     refusal.encode(&mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(

@@ -3,6 +3,8 @@ use super::*;
 use temper_engine_domain_forge_change::{Route, Stands, State};
 
 const TICKS: u32 = 200;
+// A complete pair of landings includes fresh reads and queue turns.
+const LAND_TICKS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
 const QUESTION: &[u8] = b"Which behavior should hold?\nChoose the documented behavior or widen the change.\nI recommend keeping the documented behavior.";
 const ANSWER: &[u8] = b"Keep the documented behavior.\nLeave the wider work for later.";
@@ -14,26 +16,35 @@ const BUDGET: u64 = 200;
 // Keep ordinary relay stories within the stall; the stall story advances the clock.
 
 pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
+    plan_world_with(bound, false)
+}
+
+fn plan_world_with(bound: Option<u32>, across: bool) -> (World, engine::Assignment) {
+    plan_world_with_limits(bound, &StoryLimits { across, ..StoryLimits::default() }, false)
+}
+
+pub(super) fn plan_world_with_limits(
+    bound: Option<u32>,
+    limits: &StoryLimits,
+    silent_ci: bool,
+) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
-        false,
+        silent_ci,
         1000,
         Gate { approval: None, agent: false, owner: false },
         None,
-        StoryLimits {
-            slots: Some(3),
-            questions: bound,
-            stall: Some(Duration::from_secs(3600)),
-            ..StoryLimits::default()
-        },
+        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*limits },
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();
-    world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
+    let mut bounds = protocol::bounds();
+    bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(protocol::hello_with(CHANNEL, 0, 3, bounds, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(BUDGET * 2) };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
@@ -142,19 +153,15 @@ pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignmen
     );
 }
 
-pub(super) fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("change row")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub(super) fn row(world: &World, change: u64) -> forge_top::ChangeRow {
+    world.store.change(change).expect("durable change")
 }
 
 pub(super) fn replies(world: &World, target: u64, from: u64) -> Vec<&tasks::Word> {
     live_task(world, target).inbox.iter().filter(|word| word.from == tasks::Party::Task(from)).collect()
 }
 
-fn up_world(bound: Option<u32>) -> (World, engine::Assignment, u64, engine::Assignment) {
+pub(super) fn up_world(bound: Option<u32>) -> (World, engine::Assignment, u64, engine::Assignment) {
     let (mut world, requester) = plan_world(bound);
     let change = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
     let producer = next_producer(&mut world, change);
@@ -610,7 +617,7 @@ pub(super) fn wait_answer(world: &mut World, producer: u64, change: u64) {
             .values()
             .filter_map(|record| match record {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) => Some((row.task, &row.change.state)),
+                    forge_top::Stored::ChangeHot(row) => Some((row.task, &row.change.state)),
                     _ => None,
                 },
                 Record::Core(_) => None,
@@ -858,6 +865,7 @@ fn a_producers_finish_waits_for_its_requesters_answer() {
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
+// questions.md, 1, Held for a dependency it did not start from.
 #[test]
 fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
     let (mut world, requester, change, producer) = up_world(None);
@@ -892,6 +900,289 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
     wait_answer(&mut world, producer.task, change);
     assert_eq!(world.merges, 1);
     assert_eq!(replies(&world, producer.task, change)[0].words.as_ref(), ANSWER);
+}
+
+struct AddedDependency {
+    world: World,
+    dependency: u64,
+    change: u64,
+    upstream: engine::Assignment,
+    producer: engine::Assignment,
+    question: u64,
+}
+
+fn existing_sibling_question() -> AddedDependency {
+    let (mut world, requester) = plan_world(None);
+    let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
+    let upstream = next_producer(&mut world, dependency);
+    let change = make_change(&mut world, &requester, CALL + 1, engine::ChangeQuestions::Up);
+    let producer = next_producer(&mut world, change);
+    let question = ask(&mut world, &producer, change);
+    park_after_turn(&mut world, &producer, None, 0);
+    let mut amendment =
+        temper_engine_domain_world::fixtures::task_amendment(None, None, b"Land the existing sibling first");
+    amendment.dependencies = Some(Box::new([dependency]));
+    let revision = live_task(&world, change).revisions.spec;
+    call(
+        &mut world,
+        &requester,
+        CALL + 2,
+        engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
+    );
+    assert!(live_task(&world, change).started_from.is_empty());
+    answer(&mut world, &requester, change, CALL + 3);
+    assert_answer_held(&mut world, change, &producer, dependency);
+    AddedDependency { world, dependency, change, upstream, producer, question }
+}
+
+fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignment, dependency: u64) {
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_eq!(
+        row(world, change).questions.open.first().map(|question| question.stands.clone()),
+        Some(Stands::Held { answer: ANSWER.into() })
+    );
+    assert_eq!(replies(world, producer.task, change).len(), 0);
+    assert!(!world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
+    assert_pending_dependency(world, change, dependency);
+}
+
+fn land_sibling_and_resume(story: &mut AddedDependency) {
+    let AddedDependency { world, dependency, change, upstream, producer, question } = story;
+    let branch = row(world, *dependency).branch.clone();
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"prerequisite", b"ready", 1)
+        .expect("sibling pushed");
+    super::delegates::fixtures::answer_producer(world, upstream);
+    let resumed = resumed_producer(world, *change, producer, *question);
+    let State::Landed { merge, .. } = row(world, *dependency).change.state else { panic!("sibling landed") };
+    let landing = row(world, *change).base.clone();
+    let tip = super::goal_branch::branch_tip(world, &landing);
+    assert_eq!(translate::commit(tip), merge);
+    assert_eq!(world.merges, 1);
+    let repository = resumed
+        .workspace
+        .repositories
+        .iter()
+        .find(|item| item.provider == forge_world::REPO)
+        .expect("resumed repository");
+    // Nothing was pushed or saved: the next attempt starts from the landing branch itself.
+    assert_eq!(repository.start, engine::ForgeStart::Base(landing));
+    finish_producing(world, *change, &resumed);
+    both_land(world, *change, *dependency);
+}
+
+// producer-reach.md, 5, story 1; questions.md, 1, Held for a dependency it did not start from.
+#[test]
+fn an_answer_waits_for_an_existing_sibling_and_resumes_at_its_landed_tip() {
+    let mut story = existing_sibling_question();
+    land_sibling_and_resume(&mut story);
+}
+
+#[test]
+fn a_restart_keeps_an_answer_held_until_its_added_dependency_lands() {
+    let mut story = existing_sibling_question();
+    story.world.restart(true, true);
+    assert_answer_held(&mut story.world, story.change, &story.producer, story.dependency);
+    land_sibling_and_resume(&mut story);
+}
+
+// questions.md, 1: a change into another repository orders landings, not answers.
+#[test]
+fn a_pending_change_into_another_repository_does_not_hold_an_answer() {
+    let (mut world, requester) = plan_world_with(None, true);
+    let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
+    next_producer(&mut world, dependency);
+    world.adopted.clear();
+    world.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: people::ApplicationScope::Project(1),
+        reply_to: ReplyTo::new(Token::new(94)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [94; 16],
+        digest: [6; 32],
+        carried: None,
+        request: engine::Application::Forge(forge_top::Ask::Adopt(forge_top::Adoption {
+            project: 1,
+            home: false,
+            forge: forge_world::REPO.forge,
+            host: b"forge.example".as_slice().into(),
+            owner: b"org".as_slice().into(),
+            name: b"lib".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: forge_top::Role::Owned,
+            landing: b"main".as_slice().into(),
+            ci: true,
+            checks: Box::new([]),
+        })),
+    }));
+    world.until(Until::Adopted);
+    assert!(
+        matches!(world.adopted.as_slice(), [forge_top::ApplicationOutcome::Adopted(_)]),
+        "library adopted: {:?}",
+        world.adopted
+    );
+    let mut spec = engine::ChangeCall::words(b"Change lib".as_slice().into(), Some(b"org/lib".as_slice().into()));
+    spec.questions = Some(engine::ChangeQuestions::Up);
+    spec.after = Box::new([engine::ChangeAfter::Task(dependency)]);
+    call(&mut world, &requester, CALL + 1, engine::Tool::Change { changes: Box::new([spec]) });
+    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("dependent made") };
+    let change = made[0].task;
+    let producer = next_producer(&mut world, change);
+    assert_ne!(row(&world, dependency).repository, row(&world, change).repository);
+    assert!(live_task(&world, change).started_from.is_empty());
+    let question = ask(&mut world, &producer, change);
+    park_after_turn(&mut world, &producer, None, 0);
+    answer(&mut world, &requester, change, CALL + 2);
+    resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+}
+
+fn assert_pending_dependency(world: &World, change: u64, dependency: u64) {
+    assert_eq!(live_task(world, change).waiting_on.as_ref(), &[dependency]);
+    assert!(world.root.tasks().task(dependency).is_some());
+    assert!(!matches!(live_task(world, dependency).phase, tasks::Phase::Ended(_) | tasks::Phase::Closing(_)));
+    assert_eq!(world.merges, 0);
+}
+
+fn resumed_producer(
+    world: &mut World,
+    change: u64,
+    producer: &engine::Assignment,
+    question: u64,
+) -> engine::Assignment {
+    for _ in 0..TICKS {
+        world.tick();
+        if let Some(run) = world.assigned.iter().find(|run| run.task == producer.task && run.attempt > producer.attempt)
+        {
+            assert!(
+                run.messages
+                    .iter()
+                    .any(|word| word.kind == tasks::MessageKind::Answer { question } && word.words.as_ref() == ANSWER)
+            );
+            assert!(row(world, change).questions.open.is_empty());
+            return run.clone();
+        }
+    }
+    panic!("the producer starts its next attempt after the answer");
+}
+
+fn both_land(world: &mut World, change: u64, dependency: u64) {
+    for _ in 0..LAND_TICKS {
+        world.tick();
+        if matches!(row(world, change).change.state, State::Landed { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(row(world, dependency).change.state, State::Landed { .. }));
+    assert!(matches!(row(world, change).change.state, State::Landed { .. }));
+    assert_eq!(world.merges, 2);
+}
+
+struct EarlyQuestion {
+    world: World,
+    requester: engine::Assignment,
+    dependency: u64,
+    change: u64,
+    upstream: engine::Assignment,
+    producer: engine::Assignment,
+    head: u64,
+    question: u64,
+}
+
+fn early_question() -> EarlyQuestion {
+    let (mut world, requester) = plan_world(None);
+    let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
+    let upstream = next_producer(&mut world, dependency);
+    let head = super::early_start::push(&mut world, &upstream, 1, b"prerequisite");
+    super::early_start::observe_push(&mut world, &upstream);
+    let mut spec = engine::ChangeCall::words(b"Use the prerequisite".as_slice().into(), None);
+    spec.questions = Some(engine::ChangeQuestions::Up);
+    spec.after = Box::new([engine::ChangeAfter::Task(dependency)]);
+    call(&mut world, &requester, CALL + 1, engine::Tool::Change { changes: Box::new([spec]) });
+    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("dependent made") };
+    let change = made[0].task;
+    let producer = next_producer(&mut world, change);
+    assert_eq!(
+        producer.workspace.repositories[0].start,
+        engine::ForgeStart::Merged {
+            branch: row(&world, change).base.clone(),
+            heads: Box::new([translate::commit(head)])
+        }
+    );
+    assert_pending_dependency(&world, change, dependency);
+    let question = ask(&mut world, &producer, change);
+    park_after_turn(&mut world, &producer, None, 0);
+    world.until(Until::Ready);
+    EarlyQuestion { world, requester, dependency, change, upstream, producer, head, question }
+}
+
+fn finish_early_pair(
+    world: &mut World,
+    change: u64,
+    dependency: u64,
+    producer: &engine::Assignment,
+    upstream: &engine::Assignment,
+    head: u64,
+) {
+    super::early_start::push(world, producer, head, b"dependent");
+    super::delegates::fixtures::answer_producer(world, producer);
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_pending_dependency(world, change, dependency);
+    super::delegates::fixtures::answer_producer(world, upstream);
+    both_land(world, change, dependency);
+}
+
+#[test]
+fn an_early_producers_answer_arrives_while_its_dependency_is_pending() {
+    let EarlyQuestion { mut world, requester, dependency, change, upstream, producer, head, question } =
+        early_question();
+    let activity = live_task(&world, producer.task).last_activity;
+    let attempts = world.assigned.iter().filter(|run| run.task == producer.task).count();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(99)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [99; 16],
+        ask: people::Ask::Say { project: 1, task: producer.task, words: b"Please continue".as_slice().into() },
+    }));
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(live_task(&world, producer.task).last_activity > activity);
+    assert_eq!(world.assigned.iter().filter(|run| run.task == producer.task).count(), attempts);
+    assert_eq!(live_task(&world, producer.task).questions[0].number, question);
+    answer(&mut world, &requester, change, CALL + 2);
+    wait_answer(&mut world, producer.task, change);
+    let resumed = resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+    finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
+}
+
+#[test]
+fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
+    let EarlyQuestion { mut world, requester: _, dependency, change, upstream, producer, head, question } =
+        early_question();
+    world.drain_cut();
+    // A committed answer left held by an earlier build: jig has spent the change's question credit.
+    let mut saved = row(&world, change).clone();
+    saved.questions.open[0].stands = Stands::Held { answer: ANSWER.into() };
+    let mut task = Box::new(live_task(&world, change).clone());
+    task.questions = Box::new([]);
+    world.store.seed(
+        Box::new([
+            Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(saved))) },
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))),
+        ]),
+        Box::new([]),
+    );
+    world.restart(true, true);
+    wait_answer(&mut world, producer.task, change);
+    let resumed = resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+    finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
 }
 
 #[test]

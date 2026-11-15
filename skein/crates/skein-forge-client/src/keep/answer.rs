@@ -2,7 +2,7 @@ use super::{
     Alarm, Answer, Box, Commit, Delivery, Domain, Echo, Env, Error, Fresh, Limits, List, Phase, Priority, Progress,
     Queue, Repository, Request, Resource, Scan, Sent, State, Stored, Time, What, api,
 };
-use skein_lib::usize_of;
+use skein_lib::{Token, usize_of};
 
 pub(crate) fn answered_repository(
     d: &mut Domain,
@@ -80,7 +80,8 @@ pub(crate) fn answered_repository(
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
-        | Answer::Job { .. }
+        | Answer::JobState { .. }
+| Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators { .. }
@@ -147,6 +148,7 @@ pub(crate) fn answered_resource(
     d: &mut Domain,
     env: &Env<Limits>,
     key: &Resource,
+    sent: Token,
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
@@ -159,6 +161,14 @@ pub(crate) fn answered_resource(
         State::Busy(phase, _) => phase,
         State::Idle | State::Due(_, _) | State::Waiting(_, _) => unreachable!("resource terminal while busy"),
     };
+    // A fence drops every answer sent before it without moving kept facts (forge/client.md, 4).
+    if sent.raw() <= row.fence {
+        row.read = Sent::Current;
+        row.hinted = false;
+        row.state = State::Idle;
+        super::poll::nudge_resource(&mut d.alarms, env, key, row);
+        return;
+    }
     // A head or an absence read before this client's own push cannot judge
     // that push; a fresh read does. Other failures keep their backoff.
     let before_push = core::mem::replace(&mut row.read, Sent::Current) == Sent::BeforePush;
@@ -226,7 +236,8 @@ pub(crate) fn answered_resource(
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
-        | Answer::Job { .. }
+        | Answer::JobState { .. }
+| Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators { .. }

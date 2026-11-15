@@ -138,6 +138,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FailProjection { .. }
             | forge::Event::ProjectDesired { .. }
             | forge::Event::DropChange { .. }
+            | forge::Event::DropErased { .. }
             | forge::Event::Change { .. }
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
@@ -180,6 +181,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Follow { .. }
             | forge::Event::FollowChangeAmended { .. }
             | forge::Event::FollowAct { .. }
+            | forge::Event::TierAct { .. }
             | forge::Event::JobHistory { .. }
             | forge::Event::SettleOutbox => true,
         },

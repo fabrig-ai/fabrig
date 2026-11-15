@@ -108,6 +108,7 @@ fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core:
         let row = core::reads::Row {
             value: core::Record::Tasks(jig_domain_tasks::Stored::History(history.clone())),
             owner: Some(Box::new(owner.clone())),
+            summary: None,
             ancestors: ancestors.into(),
             related: None,
             unjoined: None,

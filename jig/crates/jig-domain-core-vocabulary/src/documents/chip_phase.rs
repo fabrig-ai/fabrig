@@ -1,7 +1,7 @@
 //! Nonrecursive chip facts (`client/domain/objects.md`, 3 and 5). Durable
 //! lifecycle clocks remain distinct from best-effort engine receipt clocks.
 
-use super::{BudgetLine, HoldLine, Missing, Part, PartKey, PartKind, ResourceLine};
+use super::{BudgetLine, HoldPhaseLine, Missing, Part, PartKey, PartKind, ResourceLine};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -44,7 +44,7 @@ pub struct ChipDetails {
     pub retry: Option<tasks::RetryNotice>,
     pub wake: tasks::WakePolicy,
     pub person_wait: Option<tasks::PersonWait>,
-    pub hold: Option<HoldLine>,
+    pub hold: Option<HoldPhaseLine>,
     pub budget: BudgetLine,
     /// Exact immutable activity tail for retained failure/result explanations.
     pub activity: u64,
@@ -122,6 +122,38 @@ pub fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipDetails,
         ended_at: row.ended_at,
         observation: None,
     })
+}
+
+/// Facts no longer kept have their row-only empty values (protocol/store/retention.md, 7).
+pub fn from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> ChipDetails {
+    ChipDetails {
+        dependencies: List::with_capacity(0),
+        project: summary.project,
+        executor: summary.executor,
+        phase_since: summary.ended_at,
+        run_since: None,
+        attempt: if summary.attempt == 0 { None } else { Some(summary.attempt) },
+        retry: None,
+        wake: tasks::WakePolicy::DEFAULT,
+        person_wait: None,
+        hold: None,
+        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.deadline),
+        activity: summary.activity,
+        resources: List::with_capacity(0),
+        resources_cut: false,
+        resources_observed: false,
+        procedure: match summary.executor {
+            tasks::Executor::Procedure { connector, code } => {
+                Some(Part { connector, kind: PartKind::Procedure, key: PartKey::Number(u64::from(code)) })
+            }
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
+        },
+        live_delegates: 0,
+        closing_connectors: None,
+        ending: Some(super::task_tree::ending_from_summary(limits, summary)),
+        ended_at: Some(summary.ended_at),
+        observation: None,
+    }
 }
 
 pub fn heap_bound(limits: &super::DocumentLimits) -> Option<u64> {

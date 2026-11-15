@@ -16,7 +16,7 @@ const TUI: ClientId = ClientId(1_000);
 const ELSEWHERE: ClientId = ClientId(1_001);
 const SECOND_TUI: ClientId = ClientId(1_002);
 const SIGN_OUT: Token = Token::new(1);
-const CONNECTED: &str = "temper · Project 1";
+const CONNECTED: &str = "Project 1 ·";
 const SIGN_IN: &str = "Sign in this terminal to 127.0.0.1:8367";
 // Walking's one seeded project is party 1's project in `me`.
 const PROJECTS: &str = "/ for commands";
@@ -730,7 +730,8 @@ fn a_playground_the_browser_starts_shows_in_the_tuis_header_and_quiet_line() {
     assert_eq!(world.front().playground_starts.len(), 1, "the browser starts the playground once");
     let text = tui.text();
     let header = text.lines().next().expect("the header");
-    assert!(header.contains("playground · 127.0.0.1:8367"), "the playground precedes the place");
+    assert_eq!(header.trim_end(), " ▄█▀▀   temper");
+    assert_eq!(text.lines().nth(1).unwrap().trim_end(), "▄█▄█▄█  127.0.0.1:8367");
     let words = text.lines().map(|line| line.trim_matches(['│', ' '])).collect::<Vec<_>>().join(" ");
     assert!(words.contains("This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it."));
     assert!(tui.status().ends_with("playground"));

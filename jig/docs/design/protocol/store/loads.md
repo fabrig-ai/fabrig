@@ -18,8 +18,21 @@
   is at least the largest row a writer can commit, never the on-demand
   read allowance (`core.load_bytes`), which bounds a party's or a run's
   loads alone. So every record its writers wrote restores
-  (`../../domain/engine/restart.md`), and a restart page that comes back
-  empty without moving its cursor is a bug and panics, never a loop.
+  (`../../domain/engine/restart.md`).
+- **A first row past the page's bytes refuses the page.** The asker's
+  decoded byte bound is configuration, and the store's rows may have been
+  written under larger limits, so a page whose first row does not fit it
+  (a census's ended read position with its task's record counted
+  together, `2`) is refused, never handed up empty:
+  `Event::PageRefused` with `restore::Failure { cause:
+  Cause::RowPastPage { needs, has }, row }`, `needs` the decoded bytes
+  that row asks (the pair's, for a census), `has` the request's decoded
+  byte bound, and `row` the first row's site. The engine stops with it as
+  with any refused page, and a configuration that raises the bound starts
+  it. A page that comes back empty without moving its cursor for any
+  other reason, such as a request for no rows, is our own code's bug and
+  an assertion, never a loop, which no test triggers
+  (`skein/docs/foundation/programming-model.md`, 10.4).
 - **A row that does not decode** stops the engine, as a failed commit
   does: the store holds bytes it did not write, or that broke since.
 
@@ -39,7 +52,10 @@ root for one step at a time, and the root asks the store:
   conversations' read positions among them, ended ones never), then the
   tasks child's live families, then the core's own live rows (goals'
   projections, run proofs, calls, agents' conversations). It is a fixed
-  list of intervals, in that order, paged and handed up typed. The root
+  list of intervals, in that order, paged and handed up typed. A live
+  task is handed up whole, its hot row joined to its cold row by a point
+  read; a goal's projection rows come as they lie, the core joining
+  their words (`parts.md`, 2 and 3). The root
   has the accounts child want its sources only once these are restored
   (`../../domain/accounts.md`, 3.5);
 - **the inbox's census,** a step of its own once people's read positions
@@ -108,11 +124,11 @@ a page, and each turn's line its turn (below).
 |---|---|
 | a task, a person task, a result | the task's record, by key, with its last attempt's terminal |
 | a proposal | a party's: its record, by key, with its decision; a task's: the row of its proposer's history that keeps it |
-| an escalation | its decision, by the revision its task's record names, with the hold's milestone |
+| an escalation | its decision, by the revision its task's record names, with the hold row at its task's `hold` (`../../domain/tasks/lifecycle.md`, 12.2) |
 | a question, a reply | the task's activity line, by its position, with the line that answers a question, where its answer was heard (below), or the turn a reply was (from the transcript, `transcripts.md`, 3) |
 | a turn | the task's transcript (`transcripts.md`, 3) |
 | a task's activity, newest first, or the page beside one of its lines | the activity family, read backwards or, for the lines after a position, forwards (4); each turn's line with its turn, from the transcript (`transcripts.md`, 3); its owner task joined once for the page, and no row's ancestry or links, since an activity line names its task alone |
-| a task's history, or a subtree's | the history and milestone families; a subtree's by the index of its delegates, task by task: the task's own rows, then each delegate's in that index's order, each task's rows in its own history's order |
+| a task's history, or a subtree's | the history, attempt and hold families (`../../domain/tasks/lifecycle.md`, 12.3); a subtree's by the index of its delegates, task by task: the task's own rows, then each delegate's in that index's order, each task's rows its changes, then its attempts, then its holds |
 | a task's ended delegates | the index of ended delegates by requester |
 | an inbox group | the index of the party's inbox, by time: what needs them oldest first, updates newest first; a group, and the filter, select within it |
 | a task query's live tasks | not the store's: the tasks child's live tasks, scanned in memory |

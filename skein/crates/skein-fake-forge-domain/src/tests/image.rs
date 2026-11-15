@@ -19,6 +19,7 @@ fn workflow() -> Workflow {
     Workflow {
         file: copy_of(b"wf"),
         jobs: names(&[b"test"]),
+        requirements: Box::new([]),
         latency_min: Duration::from_secs(5),
         latency_max: Duration::from_secs(5),
         silent: 0,
@@ -519,4 +520,45 @@ fn late_branch_creation_and_recorded_merge_survive_an_image() {
         other.settle();
         assert!(other.answered.is_empty(), "restoration retains no reply right");
     }
+}
+
+#[test]
+fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
+    use crate::api::{JobRequirements, JobWait};
+    let mut configured = setup();
+    let mut workflow = workflow();
+    workflow.jobs = names(&[b"test", b"after"]);
+    workflow.requirements = Box::new([
+        JobRequirements { job: copy_of(b"test"), labels: names(&[b"docker"]), needs: Box::new([]) },
+        JobRequirements { job: copy_of(b"after"), labels: Box::new([]), needs: names(&[b"test"]) },
+    ]);
+    configured.workflows = Box::new([workflow]);
+    let mut h = Harness::with(Config { runner_labels: Some(Box::new([])), ..calm() }, configured);
+    h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"wf"), branch: copy_of(MAIN), inputs: Box::new([]) }));
+    let bytes = h.domain.image().unwrap();
+    assert_eq!(bytes.get(..8), Some(b"FORGEIM2".as_slice()));
+    let mut other = restored(&h);
+    let Answer::Jobs(jobs) = other.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
+    assert_eq!((jobs[0].labels.as_ref(), jobs[0].wait), (names(&[b"docker"]).as_ref(), Some(JobWait::Runner)));
+    assert_eq!((jobs[1].needs.as_ref(), jobs[1].wait), (names(&[b"test"]).as_ref(), Some(JobWait::Needs)));
+    other.env.limits.runner_labels = None;
+    other.until(Time::from_nanos(Duration::from_secs(6).as_nanos()));
+    let Answer::Jobs(jobs) = other.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
+    assert_eq!(jobs[0].wait, None);
+    assert_eq!(jobs[0].steps[1].status, crate::api::StepStatus::Running);
+
+    let extension = skein_lib::bytes::find(&bytes, b"JOBST001").expect("job-state extension");
+    let mut legacy = copy_of(&bytes[..extension]);
+    for (out, byte) in legacy.iter_mut().zip(b"FORGEIMG") {
+        *out = *byte;
+    }
+    let domain = Domain::from_image(&h.env.limits, &legacy).unwrap();
+    let Answer::Jobs(jobs) = domain.inspect(&h.env.limits, &repository(), &Read::Jobs { run: 1 }).unwrap() else {
+        panic!("legacy jobs")
+    };
+    for job in jobs {
+        assert!(job.labels.is_empty() && job.needs.is_empty() && job.wait.is_none());
+    }
+    let stored = domain.repositories.get(domain.id(&repository())).unwrap();
+    assert!(stored.workflows[0].requirements.is_empty());
 }

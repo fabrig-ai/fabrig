@@ -26,6 +26,21 @@ counted around each reused pass, never by an address.
   5: `Referee` keeps `observe`, which panics on what it finds, and
   `watch`'s default calls it; the referees of jig's, temper's, smith's
   and hearth's worlds implement `observe`. [in flight: change 2882]
+  5: the domain ledger's `try_open` and `try_end`, the heap's findings
+  returned by the runs, `Outcome::try_release`, and a binary's output
+  past its limit kept as its finding: each still panics where it finds,
+  and the world's, oauth accounts' and the capture's tests trigger it,
+  `#[should_panic]`. [in flight: change 3126]
+  5: a settled world's hosted child whose output was not read to its end
+  is no finding a run returns: the simulated world panics as it settles,
+  and the world's test triggers it, `#[should_panic]`. [in flight: change 3127]
+  5: `Meter::try_check`; the meter's tests trigger `check`'s panic,
+  `#[should_panic]`. [in flight: change 3128]
+  5: the fake echo client's check of its peer and the minimal fake
+  machine's check of a handle panic where they find, and their tests
+  trigger them, `#[should_panic]`. [in flight: change 3130]
+  5: the LLM connection's close judge panics where it finds, and its
+  tests trigger it, `#[should_panic]`. [in flight: change 3129]
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list

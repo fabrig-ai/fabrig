@@ -33,11 +33,13 @@ pub fn own(rng: &mut Rng) -> Own {
 pub fn core_key(rng: &mut Rng) -> CoreKey {
     match rng.below(15) {
         0 => CoreKey::Deployment,
-        1 => CoreKey::Projection(match rng.below(4) {
+        1 => CoreKey::Projection(match rng.below(6) {
             0 => ProjectionKey::Goal(number(rng)),
             1 => ProjectionKey::Task { goal: number(rng), task: number(rng) },
             2 => ProjectionKey::Lifecycle { goal: number(rng), task: number(rng), position: number(rng) },
-            _ => ProjectionKey::Revision { goal: number(rng), task: number(rng), revision: number(rng) },
+            3 => ProjectionKey::Revision { goal: number(rng), task: number(rng), revision: number(rng) },
+            4 => ProjectionKey::GoalWords(number(rng)),
+            _ => ProjectionKey::TaskWords { goal: number(rng), task: number(rng) },
         }),
         2 => CoreKey::RunProof(number(rng)),
         3 => CoreKey::Call(core::CallKey {
@@ -136,8 +138,17 @@ pub fn funder(rng: &mut Rng) -> jig_domain_tasks::Funder {
 }
 pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
     use jig_domain_tasks::{Key, Newest, UpdateObject};
-    match rng.below(22) {
+    match rng.below(27) {
+        24 => Key::Summary(number(rng)),
+        25 => Key::Retention {
+            stage: retention_stage(rng),
+            since: skein_lib::Wall::from_nanos(number(rng)),
+            number: number(rng),
+        },
+        26 => Key::LiveCold(number(rng)),
         21 => Key::PlacedHold(number(rng)),
+        22 => Key::Attempt { task: number(rng), attempt: number(rng) },
+        23 => Key::Hold { task: number(rng), position: number(rng) },
         0 => Key::Live(number(rng)),
         1 => Key::Stub(number(rng)),
         2 => Key::Ledger(funder(rng)),
@@ -245,4 +256,15 @@ pub fn within(intervals: &[skein_kv::Range], key: &[u8]) -> bool {
         }
     }
     false
+}
+
+pub fn retention_stage(rng: &mut Rng) -> jig_domain_tasks::RetentionStage {
+    use jig_domain_tasks::RetentionStage;
+    match rng.below(5) {
+        0 => RetentionStage::Turns,
+        1 => RetentionStage::Record,
+        2 => RetentionStage::Summary,
+        3 => RetentionStage::Forgotten,
+        _ => RetentionStage::Proposal,
+    }
 }

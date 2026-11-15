@@ -3,8 +3,67 @@ pub(in crate::tests) mod deployment_connectors;
 pub(in crate::tests) mod hold_origin;
 
 #[test]
+fn saved_lifecycle_projections_take_holds_and_ended_positions_but_not_attempts() {
+    use crate::{CoreRecord, MilestoneId, ProjectionRecord, Record, Request, Write, tasks};
+    use skein_lib::{Env, List, Queue, Time, Wall};
+    let (mut core, limits) = super::make_tree();
+    let mut ended = core.tasks.task(2).unwrap().clone();
+    ended.phase = tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) });
+    ended.milestone = 29;
+    ended.ended_at = Some(Wall::from_nanos(17));
+    let held = tasks::Held {
+        was: tasks::Was::Active(tasks::Active::Running { attempt: 3 }),
+        why: tasks::Hold::Stopped,
+        source: None,
+    };
+    let phase = tasks::Phase::Held { was: held.was.clone(), why: held.why, source: None };
+    let rows = [
+        tasks::Stored::Attempt(tasks::AttemptRow {
+            task: 2,
+            attempt: 3,
+            claimed: None,
+            started: None,
+            ended: None,
+            end: None,
+            phases: None,
+        }),
+        tasks::Stored::Hold(tasks::HoldRow { task: 2, position: 23, at: Wall::from_nanos(11), held }),
+        tasks::Stored::Ended(Box::new(ended.clone())),
+    ];
+    let before = core.projections.get(&1).unwrap().milestones.len();
+    let mut feeds = List::with_capacity(2);
+    for (index, row) in rows.into_iter().enumerate() {
+        let mut saved = Queue::uncapped();
+        saved.push(tasks::Request::Save { record: row });
+        let out = crate::routing::task::tag_task_outputs(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::from_nanos(19), limits },
+            saved,
+        );
+        for request in &out {
+            if let Request::Write(Write::Save(Record::Core(CoreRecord::Projection(ProjectionRecord::Milestone {
+                milestone,
+                ..
+            })))) = request
+            {
+                feeds.push(milestone.clone()).unwrap();
+            }
+        }
+        if index == 0 {
+            assert!(feeds.is_empty());
+            assert_eq!(core.projections.get(&1).unwrap().milestones.len(), before);
+        }
+    }
+    assert_eq!(feeds.len(), 2);
+    assert_eq!(feeds.get(0).unwrap().identity, MilestoneId::Lifecycle { task: 2, position: 23 });
+    assert_eq!(feeds.get(0).unwrap().phase, Some(phase));
+    assert_eq!(feeds.get(1).unwrap().identity, MilestoneId::Lifecycle { task: 2, position: ended.milestone });
+    assert_eq!(feeds.get(1).unwrap().phase, Some(ended.phase));
+}
+
+#[test]
 fn saving_a_projection_preserves_neighbours_when_updating_or_appending() {
-    use crate::{CoreRecord, ProjectionRecord, ProjectionTask, Record, Request, Write, effects::projections, tasks};
+    use crate::{ProjectionTask, effects::projections, tasks};
     use skein_lib::{List, Queue};
 
     let (mut core, limits) = super::make_tree();
@@ -45,28 +104,171 @@ fn saving_a_projection_preserves_neighbours_when_updating_or_appending() {
             let neighbour = state.plan.get(*index).unwrap();
             assert_eq!(neighbour.words.as_ptr(), *words, "task {number} copied neighbour {}", neighbour.number);
         }
-        let Some(Request::Write(Write::Save(Record::Core(CoreRecord::Projection(ProjectionRecord::Task {
-            goal,
-            task,
-        }))))) = out.pop()
-        else {
-            panic!("saved projection task")
-        };
-        assert_eq!(goal, 1);
-        assert_eq!(task, next);
-        let Some(Request::Write(Write::Save(Record::Core(CoreRecord::Projection(ProjectionRecord::Goal {
-            goal,
-            changed,
-            ..
-        }))))) = out.pop()
-        else {
-            panic!("saved projection header")
-        };
-        assert_eq!(goal, state.goal);
-        assert!(changed);
-        assert!(out.is_empty());
+        while out.pop().is_some() {}
         core.projections.get_mut(&1).unwrap().changed = false;
         projections::save(&mut core, &limits, &row, &mut out);
         assert!(!core.projections.get(&1).unwrap().changed, "identical save leaves task {number} unchanged");
+        assert!(out.is_empty());
     }
+}
+
+fn projection_puts(out: &mut skein_lib::Queue<crate::Request>) -> Box<[crate::ProjectionRecord]> {
+    let mut rows = skein_lib::List::uncapped();
+    while let Some(request) = out.pop() {
+        let crate::Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Projection(row)))) =
+            request
+        else {
+            panic!("only projection puts: {request:?}")
+        };
+        rows.push(row).expect("uncapped test rows");
+    }
+    rows.into_boxed()
+}
+
+fn projection_keys(rows: &[crate::ProjectionRecord]) -> Box<[crate::ProjectionKey]> {
+    let mut keys = skein_lib::List::uncapped();
+    for row in rows {
+        keys.push(row.key()).expect("uncapped test keys");
+    }
+    keys.into_boxed()
+}
+
+#[test]
+fn projection_saves_put_only_new_or_changed_parts() {
+    use crate::{ProjectionKey as K, ProjectionRecord as R, effects::projections, tasks};
+    use skein_lib::Queue;
+    let (mut core, limits) = super::make_tree();
+    let goal = core.tasks.task(1).unwrap().clone();
+    core.projections.remove(&1).unwrap();
+    let mut out = Queue::uncapped();
+    projections::save(&mut core, &limits, &goal, &mut out);
+    let rows = projection_puts(&mut out);
+    assert_eq!(
+        projection_keys(&rows).as_ref(),
+        [K::GoalWords(1), K::Task { goal: 1, task: 1 }, K::TaskWords { goal: 1, task: 1 }, K::Goal(1)]
+    );
+    let R::GoalWords { words, .. } = &rows[0] else { panic!("goal words") };
+    assert_eq!(words, &goal.spec.words);
+    let R::GoalHot { goal: hot, changed, .. } = &rows[3] else { panic!("hot header") };
+    assert!(*changed);
+    assert_eq!(hot, &core.projections.get(&1).unwrap().goal.hot());
+
+    let mut task = core.tasks.task(2).unwrap().clone();
+    task.number = 9;
+    core.projections.get_mut(&1).unwrap().changed = false;
+    projections::save(&mut core, &limits, &task, &mut out);
+    let rows = projection_puts(&mut out);
+    assert_eq!(
+        projection_keys(&rows).as_ref(),
+        [K::Task { goal: 1, task: 9 }, K::TaskWords { goal: 1, task: 9 }, K::Goal(1)]
+    );
+    let R::TaskWords { words, .. } = &rows[1] else { panic!("task words") };
+    assert_eq!(words, &task.spec.words);
+    projections::save(&mut core, &limits, &task, &mut out);
+    assert!(out.is_empty(), "a save with no projected change puts nothing");
+
+    task.phase = tasks::Phase::Active(tasks::Active::Claimed { attempt: 7 });
+    projections::save(&mut core, &limits, &task, &mut out);
+    let rows = projection_puts(&mut out);
+    assert_eq!(rows.len(), 1);
+    let R::TaskHot { goal: 1, task: hot } = &rows[0] else { panic!("hot task") };
+    assert_eq!(hot.number, 9);
+    assert_eq!(hot.phase, task.phase);
+    core.projections.get_mut(&1).unwrap().changed = false;
+    task.phase = tasks::Phase::Waiting;
+    projections::save(&mut core, &limits, &task, &mut out);
+    assert_eq!(projection_keys(&projection_puts(&mut out)).as_ref(), [K::Task { goal: 1, task: 9 }, K::Goal(1)]);
+
+    task.spec.words = b"amended words".as_slice().into();
+    projections::save(&mut core, &limits, &task, &mut out);
+    assert_eq!(
+        projection_puts(&mut out).as_ref(),
+        &[R::TaskWords { goal: 1, task: 9, words: task.spec.words.clone() }]
+    );
+    projections::save(&mut core, &limits, &task, &mut out);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
+    use crate::{
+        CoreKey, CoreRecord, Key, MilestoneId, ProjectionKey as K, ProjectionMilestone, ProjectionRecord as R, Record,
+        Request, Write, effects::projections, tasks,
+    };
+    use skein_lib::{Env, Queue, Time, Wall};
+    let (mut core, limits) = super::make_tree();
+    let mut out = Queue::uncapped();
+    let milestone = ProjectionMilestone {
+        identity: MilestoneId::Lifecycle { task: 2, position: 900 },
+        phase: None,
+        change: None,
+        words: b"history".as_slice().into(),
+    };
+    projections::history(&mut core, &limits, 2, milestone.clone(), &mut out);
+    while out.pop().is_some() {}
+    let state = core.projections.get_mut(&1).unwrap();
+    state.goal.phase = tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) });
+    state.fed_at = None;
+    let plan = state.plan.clone();
+    let history_key = projections::milestone_key(1, milestone.identity);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = projections::finish_decision(&mut core, &env);
+    let mut keys = skein_lib::List::uncapped();
+    let mut feeds = 0;
+    while let Some(request) = out.pop() {
+        match request {
+            Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))) => assert_eq!(key, history_key),
+            Request::Write(Write::Save(Record::Core(CoreRecord::Projection(row)))) => {
+                let R::GoalHot { changed: false, fed_at: Some(_), .. } = &row else { panic!("fed hot header") };
+                keys.push(row.key()).expect("uncapped test keys");
+            }
+            Request::Ask { ask: crate::Ask::ProjectGoal { feed }, .. } => {
+                assert_eq!(feed.plan, plan);
+                assert_eq!(feed.milestones.as_ref(), core::slice::from_ref(&milestone));
+                assert!(feed.closing);
+                feeds += 1;
+            }
+            other @ (Request::Write(_)
+            | Request::Ask { .. }
+            | Request::ProjectMade { .. }
+            | Request::Held(_)
+            | Request::Now(_)) => panic!("feed decision: {other:?}"),
+        }
+    }
+    assert_eq!(keys.as_slice(), &[K::Goal(1)]);
+    assert_eq!(feeds, core.connectors.len());
+    let connectors = core.connectors.clone();
+    for connector in &connectors {
+        projections::settled(&mut core, 1, *connector, &mut out);
+        if core.projections.contains_key(&1) {
+            assert_eq!(projection_keys(&projection_puts(&mut out)).as_ref(), [K::Goal(1)]);
+        }
+    }
+    let mut erased = skein_lib::List::uncapped();
+    while let Some(request) = out.pop() {
+        match request {
+            Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))) => {
+                erased.push(key).expect("uncapped test erasures");
+            }
+            Request::Ask { ask: crate::Ask::ForgetProjection { goal: 1 }, .. } => {}
+            other @ (Request::Write(_)
+            | Request::Ask { .. }
+            | Request::ProjectMade { .. }
+            | Request::Held(_)
+            | Request::Now(_)) => panic!("last settlement: {other:?}"),
+        }
+    }
+    let mut expected = skein_lib::List::uncapped();
+    expected.push(K::Goal(1)).unwrap();
+    expected.push(K::GoalWords(1)).unwrap();
+    for task in &plan {
+        expected.push(K::Task { goal: 1, task: task.number }).unwrap();
+        expected.push(K::TaskWords { goal: 1, task: task.number }).unwrap();
+    }
+    let mut expected = expected.into_boxed();
+    let mut erased = erased.into_boxed();
+    expected.sort();
+    erased.sort();
+    assert_eq!(erased, expected);
+    assert!(!core.projections.contains_key(&1));
 }

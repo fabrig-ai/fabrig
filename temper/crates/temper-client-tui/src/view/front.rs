@@ -43,6 +43,36 @@ pub(crate) fn stage(tui: &Tui, words: &Words) -> Option<(Box<[u8]>, Style)> {
     };
     Some((line, look::HINT))
 }
+pub(crate) fn start(tui: &Tui, words: &Words) -> Option<Box<[u8]>> {
+    match tui.box_stage() {
+        BoxStage::Finding | BoxStage::Fetching { .. } | BoxStage::Starting => {
+            let (line, _style) = stage(tui, words).expect("a starting stage has a line");
+            Some(line)
+        }
+        BoxStage::Running => {
+            let mut last = None;
+            for line in tui.box_lines() {
+                last = Some(line);
+            }
+            let line = last?;
+            Some(lossy(without_time(line)))
+        }
+        BoxStage::Failed { .. } | BoxStage::Stopping | BoxStage::Ended { .. } => None,
+    }
+}
+fn without_time(line: &[u8]) -> &[u8] {
+    let Some(prefix) = line.get(..10) else { return line };
+    for (byte, shape) in prefix.iter().zip(b"00:00:00Z ") {
+        if *shape == b'0' {
+            if !byte.is_ascii_digit() {
+                return line;
+            }
+        } else if byte != shape {
+            return line;
+        }
+    }
+    line.get(10..).expect("the time prefix fits the line")
+}
 fn megabytes(bytes: u64) -> Box<[u8]> {
     concat(&[
         Decimal::of(bytes.checked_div(1_000_000).expect("nonzero divisor")).as_bytes(),
@@ -91,6 +121,7 @@ fn step(bytes: &[u8]) -> Box<[u8]> {
 pub(crate) fn box_state(tui: &Tui, words: &Words) -> Option<(Box<[u8]>, Style)> {
     match tui.box_state() {
         BoxState::Running => None,
+        BoxState::Starting { name } => Some((words.say(Word::StartingGroup, &[Hole::Name(step(name))]), look::HINT)),
         BoxState::Stopping => Some((words.say(Word::Stopping, &[]), look::SIGNAL)),
         BoxState::Stopped { .. } => Some((words.say(Word::BoxStopped, &[]), look::DOWN)),
         BoxState::Restarting { step: bytes } => {
@@ -139,7 +170,7 @@ pub(crate) fn log_note(tui: &Tui, words: &Words) -> Option<LogNote> {
 }
 fn log_lines(tui: &Tui, words: &Words) -> Box<[Box<[u8]>]> {
     let mut lines = List::with_capacity(limits::BOX_LOG);
-    for line in tui.box_log() {
+    for line in tui.box_lines() {
         lines
             .push(copy_of(utf8_prefix(&lossy(line), usize::try_from(limits::LOG_LINE).expect("log line fits memory"))))
             .expect("the box keeps at most BOX_LOG lines");
@@ -151,7 +182,7 @@ fn log_lines(tui: &Tui, words: &Words) -> Box<[Box<[u8]>]> {
 }
 pub(crate) fn gave_up_note(tui: &Tui, words: &Words) -> Option<Box<[u8]>> {
     match tui.box_state() {
-        BoxState::Running | BoxState::Restarting { .. } | BoxState::Stopping => None,
+        BoxState::Running | BoxState::Starting { .. } | BoxState::Restarting { .. } | BoxState::Stopping => None,
         BoxState::Stopped { end } => {
             if tui.stop_asked() {
                 None

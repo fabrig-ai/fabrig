@@ -508,6 +508,7 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         | skein_forge::api::Read::Statuses { .. }
         | skein_forge::api::Read::Compare { .. }
         | skein_forge::api::Read::Checks { .. }
+        | skein_forge::api::Read::JobState { .. }
         | skein_forge::api::Read::Job { .. }
         | skein_forge::api::Read::Branches { .. }
         | skein_forge::api::Read::Settings
@@ -2369,6 +2370,21 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
 }
 
 // Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+fn change_unpinned(domain: &Domain, task: u64) -> bool {
+    if !domain.forge.droppable(task) && !domain.forge.droppable_last(task) {
+        return false;
+    }
+    let row = domain.forge.change(task).expect("droppable change");
+    let goal = match row.goal {
+        Some(goal) => Some(goal),
+        None => tracked_ancestor(domain, tasks::Party::Task(task)),
+    };
+    match goal {
+        Some(goal) => domain.core.tasks.task(goal).is_none(),
+        None => true,
+    }
+}
+
 fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<forge::Request>) {
     let tasks = domain.forge.change_tasks();
     if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
@@ -2378,17 +2394,7 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     let mut oldest_last = None;
     for number in tasks {
         let settled = domain.forge.droppable(number);
-        if !settled && !domain.forge.droppable_last(number) {
-            continue;
-        }
-        let row = domain.forge.change(number).expect("enumerated change");
-        let goal = match row.goal {
-            Some(goal) => Some(goal),
-            None => tracked_ancestor(domain, tasks::Party::Task(number)),
-        };
-        if let Some(goal) = goal
-            && domain.core.tasks.task(goal).is_some()
-        {
+        if !change_unpinned(domain, number) {
             continue;
         }
         let slot = if settled { &mut oldest } else { &mut oldest_last };
@@ -2577,6 +2583,7 @@ pub(super) fn start_recovered_change(
                     gates,
                     clean: Box::new([]),
                     gate_failures: Box::new([]),
+                    released_resolution: false,
                     released: None,
                     repairs: 0,
                     resolutions: 0,
@@ -2606,7 +2613,7 @@ pub(super) fn start_recovered_change(
                 review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
-                questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
+                questions: forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2667,8 +2674,14 @@ pub(super) fn start_recovered_change(
     if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
+            )
             .expect("one released relay per change step");
+        let record = domain.core.tasks.task(task).expect("released change");
+        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
@@ -2679,6 +2692,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
+        // A retired delegate's inbox terminal is not fresh evidence (change/repairs.md, A release).
+        let Some((current, _)) = domain.forge.change(task).expect("registered change").delegate else { continue };
+        if child != current {
+            continue;
+        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
@@ -4063,6 +4081,17 @@ fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::
     Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
+fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut words, b", your change, was amended to spec revision ");
+    append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
+    append(&mut words, b". Your spec now holds its amended words; work to them from here on. Its reason: ");
+    append(&mut words, reason);
+    forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
+}
+
 fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
     let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
     let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
@@ -4699,6 +4728,7 @@ fn delegate_change_step(
         return;
     }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
             env,
@@ -4714,7 +4744,10 @@ fn delegate_change_step(
     } else {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false, passing: None },
+            )
             .expect("one forge procedure delegate");
     }
     let decision = append_change_replies(
@@ -5118,8 +5151,13 @@ pub(crate) fn outputs(
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
             forge::Request::Save { record, release, read_afresh } => {
                 // Both opening and finding a pull save the change with its number.
-                if let forge::Stored::Change(row) = &record {
-                    watch_change(domain, env, row);
+                if let forge::Stored::ChangeHot(hot) = &record
+                    && let Some(mut row) = domain.forge.change(hot.task).cloned()
+                {
+                    // The watch follows this save's progress, not a later save in the turn.
+                    row.pull = hot.pull;
+                    row.change.last_head = hot.change.last_head;
+                    watch_change(domain, env, &row);
                 }
                 if let Some(name) = read_afresh
                     && let Some(resource) = hub_name(domain.config.forge_connector, &name, &env.limits.tasks)
@@ -6084,6 +6122,17 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Unname { task } => {
             if number == domain.config.forge_connector {
+                // Drop with the task's record, even with free room (domain/forge/change/README.md, 7).
+                if change_unpinned(domain, task) {
+                    let mut out = Queue::uncapped();
+                    forge::step(
+                        &mut domain.forge,
+                        &env.with(env.limits.forge),
+                        forge::Event::DropErased { task },
+                        &mut out,
+                    );
+                    outputs(domain, env, decision, &mut out);
+                }
                 domain.work.push(Work::Forge(forge::Event::Unnamed { task }));
             }
         }
@@ -6355,6 +6404,25 @@ fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
     for text in [b"".as_slice(), &[b'a'; 39], &[b'a'; 41], &[b'a'; 63], &[b'a'; 65], &[b'A'; 40], &[b'g'; 64]] {
         assert_eq!(catch_up_commit(text), None);
     }
+}
+
+/// temper/docs/design/domain/forge/change/questions.md, 1: the amendment reason fits the message bound.
+#[cfg(test)]
+#[test]
+fn a_producer_amendment_cuts_a_long_reason_at_its_end() {
+    let prefix = b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: ";
+    let short = producer_amendment_words(41, 3, b"Widen to the CLI", 512);
+    assert_eq!(short.as_ref(), b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: Widen to the CLI");
+    let reason = "\u{00e9}".repeat(256);
+    let long = producer_amendment_words(41, 3, reason.as_bytes(), 512);
+    assert!(long.len() <= 512);
+    assert!(long.starts_with(prefix));
+    assert!(long.ends_with("…".as_bytes()));
+    let mut expected = List::uncapped();
+    append(&mut expected, prefix);
+    append(&mut expected, "\u{00e9}".repeat(188).as_bytes());
+    append(&mut expected, "…".as_bytes());
+    assert_eq!(long.as_ref(), expected.as_slice(), "the cut keeps UTF-8 whole");
 }
 
 pub(crate) use follow_route::make_refused as follow_make_refused;

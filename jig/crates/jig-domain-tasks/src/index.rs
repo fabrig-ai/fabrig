@@ -129,6 +129,22 @@ pub enum Key {
     },
     /// One durable placed hold, after the existing key families.
     PlacedHold(u64),
+    Attempt {
+        task: u64,
+        attempt: u64,
+    },
+    Hold {
+        task: u64,
+        position: u64,
+    },
+    /// The live task's spec, contract, authority and instructions.
+    LiveCold(u64),
+    Summary(u64),
+    Retention {
+        stage: crate::RetentionStage,
+        since: Wall,
+        number: u64,
+    },
 }
 
 impl Key {
@@ -143,11 +159,16 @@ impl Key {
             | Self::Writer(_)
             | Self::Pool(_)
             | Self::PersonProposal(_) => true,
-            Self::Ended(_)
+            Self::Summary(_)
+            | Self::Retention { .. }
+            | Self::LiveCold(_)
+            | Self::Ended(_)
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)
             | Self::History { .. }
             | Self::Milestone { .. }
+            | Self::Attempt { .. }
+            | Self::Hold { .. }
             | Self::Activity { .. }
             | Self::Update { .. }
             | Self::Result { .. }

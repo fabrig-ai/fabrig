@@ -1,4 +1,5 @@
-use crate::errors::{Error, Ids, Kind, Owns, Why};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Error, Ids, Kind, Owns, Why};
 use skein_lib::bytes::copy_of;
 pub fn ids_error(of: Owns, why: Why) -> Error {
     let mut error = super::modules_guard();

@@ -11,6 +11,7 @@ const URL: &[u8] = b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAA
 
 fn child() -> Child {
     Child::new(Front {
+        set_up: false,
         executable: b"/bin/temper".as_slice().into(),
         directories: temper_shell::directories::Directories {
             config: b"/config".as_slice().into(),

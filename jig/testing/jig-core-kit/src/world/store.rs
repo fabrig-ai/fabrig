@@ -86,7 +86,22 @@ impl World {
 
     /// Save fixture rows through a durable, externally observed numbered commit.
     pub fn seed(&mut self, rows: Box<[root::Record]>) {
-        self.fixture_writes(rows.into_vec().into_iter().map(root::Write::Save).collect());
+        let mut writes = Vec::new();
+        for row in rows {
+            if let root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &row {
+                writes.push(root::Write::Save(root::Record::Core(core::Record::Tasks(
+                    jig_domain_tasks::Stored::LiveCold {
+                        number: task.number,
+                        spec: Box::new(task.spec.clone()),
+                        contract: task.contract.clone(),
+                        authority: task.authority.clone(),
+                        instructions: task.instructions.clone(),
+                    },
+                ))));
+            }
+            writes.push(root::Write::Save(row));
+        }
+        self.fixture_writes(writes);
     }
     /// Erase a fixture through the same durable transaction path.
     pub fn erase(&mut self, key: root::Key) -> Option<root::Record> {
@@ -212,14 +227,12 @@ impl World {
 
     pub fn restart_with(&mut self, config: root::Config) {
         self.restart_config = (crate::oracle::configuration(&config), self.limits);
-        self.restart_configured(config);
+        self.restart_configured(config).unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// A cold start under `config`, which `restart_config` already holds a copy of.
-    pub(crate) fn restart_configured(&mut self, config: root::Config) {
-        self.observer
-            .observe(self.wall, crate::referee::Observed::Restart)
-            .unwrap_or_else(|finding| self.fail(&finding));
+    pub(crate) fn restart_configured(&mut self, config: root::Config) -> Result<(), String> {
+        self.observer.observe(self.wall, crate::referee::Observed::Restart)?;
         if matches!(self.cut, Some(super::Cut::Disk { .. }))
             || matches!(self.reached_cut, Some(super::Cut::Disk { .. }))
         {
@@ -228,14 +241,16 @@ impl World {
         if let Some(super::Cut::Disk { from, operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
-        self.store.reconfigure(18, &config.core.settings.models);
+        self.store
+            .reconfigure(18, &config.core.settings.models)
+            .map_err(|finding| format!("restart readback: {finding:?}"))?;
         if self.store.reached_kill() {
             self.reached_cut = self.cut.take();
-            return;
+            return Ok(());
         }
         // The observer may resume A after a crashed pending copy whose
         // process-local commits were discarded. Its own position is the fence.
-        self.observer.fresh_mark(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.fresh_mark(self.wall, &self.store)?;
         self.observer.configure_projects(&config);
         if let Some(watches) = &mut self.watches {
             watches.restart(self.store.applied);
@@ -243,7 +258,7 @@ impl World {
         if let Some(reads) = &mut self.reads {
             reads.restart(self.store.applied);
         }
-        self.observer.cold(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.cold(self.wall, &self.store)?;
         self.stopped = false;
         self.period_started = false;
         self.restoring = None;
@@ -279,5 +294,6 @@ impl World {
             self.drain();
         }
         self.lose_answer = false;
+        Ok(())
     }
 }

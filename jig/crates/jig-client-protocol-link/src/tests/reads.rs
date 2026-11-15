@@ -322,7 +322,7 @@ fn a_malformed_read_value_is_malformed_and_reported() {
 fn a_read_value_of_another_wire_version_is_malformed_and_reported() {
     let (mut h, exchange) = fixtures::Harness::reading();
     let value = fixtures::encoded_read_value(&fixtures::frame_read_value());
-    h.answer(exchange, &fixtures::jig_read_record_answer(value, 2));
+    h.answer(exchange, &fixtures::jig_read_record_answer(value, 22));
     h.read_malformed();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
     assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));

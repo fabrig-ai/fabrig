@@ -1,5 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::{Base, Common, GitHubCall, GitHubForge, Waiting};
+use super::{Base, Common, Component, Dialect, GitHubCall, GitHubForge, Waiting, find};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
@@ -8,7 +8,52 @@ use skein_forge::{
         redirect::Redirect,
     },
 };
-use skein_lib::{Env, Id, Queue, Token};
+use skein_lib::{Env, Id, List, Queue, Token};
+
+impl Component {
+    /// Origins only grow, preserving each connection's pool index (3.1, 4.5).
+    pub(super) fn log_origin(&mut self, env: &Env<Limits>, number: u16, origin: crate::settings::LogOrigin) {
+        let Some(entry) = find(&mut self.forges, number) else {
+            return;
+        };
+        match entry.dialect {
+            Dialect::Forgejo { .. } => return,
+            Dialect::GitHub(_) => {}
+        }
+        let forge = &mut entry.base.forge;
+        let tls = match forge.transport {
+            crate::settings::Transport::Plaintext { .. } => false,
+            crate::settings::Transport::Tls { .. } => true,
+        };
+        if crate::limits::check_origin(
+            &env.limits,
+            &self.common.shared,
+            &self.common.owner.user_agent,
+            forge,
+            tls,
+            &origin,
+        )
+        .is_err()
+        {
+            return;
+        }
+        for held in &forge.log_origins {
+            if held.origin.same(&origin.origin) {
+                return;
+            }
+        }
+        if forge.log_origins.len() >= env.limits.log_origins {
+            return;
+        }
+        if forge.log_origins.room() == 0 {
+            let held = core::mem::replace(&mut forge.log_origins, List::with_capacity(env.limits.log_origins));
+            for origin in held.into_boxed() {
+                forge.log_origins.push(origin).expect("held origins fit the bound");
+            }
+        }
+        forge.log_origins.push(origin).expect("checked origin room");
+    }
+}
 
 impl Common {
     #[expect(

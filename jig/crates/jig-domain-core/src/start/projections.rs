@@ -1,6 +1,7 @@
 //! Bounded projection assembly and links (jig/docs/design/domain/engine/restart.md).
 use crate::{
-    Core, CoreKey, Key, Limits, Projection, ProjectionKey, ProjectionMilestone, ProjectionRecord, ProjectionTask,
+    Core, CoreKey, Key, Limits, Projection, ProjectionGoalHot, ProjectionKey, ProjectionMilestone, ProjectionRecord,
+    ProjectionTaskHot,
     effects::projections::phase_within,
     people,
     start::{Failure, Linked, LiveSet},
@@ -11,9 +12,19 @@ use skein_lib::{List, Map, length::len_u64};
 
 #[derive(Hash, Debug)]
 pub(crate) struct Assembly {
-    pub(crate) header: Option<Projection>,
-    pub(crate) tasks: Map<u64, ProjectionTask>,
+    pub(crate) header: Option<Header>,
+    pub(crate) goal_words: Option<Box<[u8]>>,
+    pub(crate) tasks: Map<u64, ProjectionTaskHot>,
+    pub(crate) task_words: Map<u64, Box<[u8]>>,
     pub(crate) milestones: Map<ProjectionKey, ProjectionMilestone>,
+}
+
+#[derive(Hash, Debug)]
+pub(crate) struct Header {
+    goal: ProjectionGoalHot,
+    pending: Box<[u16]>,
+    changed: bool,
+    fed_at: Option<u64>,
 }
 
 fn fit(core: &mut Core, key: ProjectionKey, held: u64, limit: u64) -> bool {
@@ -32,13 +43,16 @@ fn fit(core: &mut Core, key: ProjectionKey, held: u64, limit: u64) -> bool {
 fn fit_row(core: &mut Core, limits: &Limits, row: &ProjectionRecord) -> Option<u64> {
     let key = row.key();
     let (goal, words, word_limit, phase) = match row {
-        ProjectionRecord::Goal { goal, pending, .. } => {
+        ProjectionRecord::GoalHot { goal, pending, .. } => {
             if !fit(core, key, len_u64(pending.len()), len_u64(core.connectors.len())) {
                 return None;
             }
-            (goal.number, goal.words.len(), limits.tasks.spec_bytes, Some(&goal.phase))
+            (goal.number, 0, limits.tasks.spec_bytes, Some(&goal.phase))
         }
-        ProjectionRecord::Task { goal, task } => (*goal, task.words.len(), limits.tasks.spec_bytes, Some(&task.phase)),
+        ProjectionRecord::TaskHot { goal, task } => (*goal, 0, limits.tasks.spec_bytes, Some(&task.phase)),
+        ProjectionRecord::GoalWords { goal, words, .. } | ProjectionRecord::TaskWords { goal, words, .. } => {
+            (*goal, words.len(), limits.tasks.spec_bytes, None)
+        }
         ProjectionRecord::Milestone { goal, milestone } => (
             *goal,
             milestone.words.len(),
@@ -85,7 +99,9 @@ pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRec
                 goal,
                 Assembly {
                     header: None,
+                    goal_words: None,
                     tasks: Map::with_capacity(limits.tasks.tree_tasks),
+                    task_words: Map::with_capacity(limits.tasks.tree_tasks),
                     milestones: Map::with_capacity(core.routes),
                 },
             )
@@ -93,12 +109,11 @@ pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRec
     }
     let state = core.start.projections.as_mut().expect("assembly table").get_mut(&goal).expect("assembly admitted");
     match row {
-        ProjectionRecord::Goal { goal, pending, changed, fed_at } => {
+        ProjectionRecord::GoalHot { goal, pending, changed, fed_at } => {
             assert!(state.header.is_none(), "duplicate projection {key:?}");
-            state.header =
-                Some(Projection { goal, pending, changed, fed_at, plan: Box::new([]), milestones: Box::new([]) });
+            state.header = Some(Header { goal, pending, changed, fed_at });
         }
-        ProjectionRecord::Task { task, .. } => {
+        ProjectionRecord::TaskHot { task, .. } => {
             assert!(!state.tasks.contains_key(&task.number), "duplicate projection {key:?}");
             let held = state.tasks.len();
             let limit = state.tasks.capacity();
@@ -106,6 +121,19 @@ pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRec
                 return fit(core, key, u64::from(held).checked_add(1).expect("one more piece"), u64::from(limit));
             }
             state.tasks.insert(task.number, task).expect("bounded projection tasks");
+        }
+        ProjectionRecord::GoalWords { words, .. } => {
+            assert!(state.goal_words.is_none(), "duplicate projection {key:?}");
+            state.goal_words = Some(words);
+        }
+        ProjectionRecord::TaskWords { task, words, .. } => {
+            assert!(!state.task_words.contains_key(&task), "duplicate projection {key:?}");
+            let held = state.task_words.len();
+            let limit = state.task_words.capacity();
+            if held == limit {
+                return fit(core, key, u64::from(held).checked_add(1).expect("one more piece"), u64::from(limit));
+            }
+            state.task_words.insert(task, words).expect("bounded projection words");
         }
         ProjectionRecord::Milestone { milestone, .. } => {
             assert!(!state.milestones.contains_key(&key), "duplicate projection {key:?}");
@@ -129,7 +157,13 @@ impl Core {
             if state.header.is_none() {
                 let key = match state.tasks.first() {
                     Some((&task, _)) => ProjectionKey::Task { goal, task },
-                    None => *state.milestones.first().expect("assembly has a piece").0,
+                    None => match state.task_words.first() {
+                        Some((&task, _)) => ProjectionKey::TaskWords { goal, task },
+                        None => match state.goal_words {
+                            Some(_) => ProjectionKey::GoalWords(goal),
+                            None => *state.milestones.first().expect("assembly has a piece").0,
+                        },
+                    },
                 };
                 let _refused = self.start_refuse(Failure::Link {
                     record: Key::Core(CoreKey::Projection(key)),
@@ -137,8 +171,23 @@ impl Core {
                 });
                 return;
             }
-            let mut projection = state.header.expect("assembled header linked");
             let source = Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal)));
+            let Some(words) = state.goal_words else {
+                let _refused = self.start_refuse(Failure::Link {
+                    record: source,
+                    linked: Linked::Record(Key::Core(CoreKey::Projection(ProjectionKey::GoalWords(goal)))),
+                });
+                return;
+            };
+            let Header { goal: hot, pending, changed, fed_at } = state.header.expect("assembled header linked");
+            let mut projection = Projection {
+                goal: hot.join(words),
+                pending,
+                changed,
+                fed_at,
+                plan: Box::new([]),
+                milestones: Box::new([]),
+            };
             if projection.goal.project != people::DEPLOYMENT && self.authority.policy(projection.goal.project).is_none()
             {
                 let _refused = self
@@ -171,7 +220,24 @@ impl Core {
             for _ in 0..state.tasks.len() {
                 let (&number, _) = state.tasks.first().expect("bounded assembled plan");
                 let task = state.tasks.remove(&number).expect("assembled task");
-                plan.push(task).expect("bounded assembled plan");
+                let Some(words) = state.task_words.remove(&number) else {
+                    let _refused = self.start_refuse(Failure::Link {
+                        record: Key::Core(CoreKey::Projection(ProjectionKey::Task { goal, task: number })),
+                        linked: Linked::Record(Key::Core(CoreKey::Projection(ProjectionKey::TaskWords {
+                            goal,
+                            task: number,
+                        }))),
+                    });
+                    return;
+                };
+                plan.push(task.join(words)).expect("bounded assembled plan");
+            }
+            if let Some((&task, _)) = state.task_words.first() {
+                let _refused = self.start_refuse(Failure::Link {
+                    record: Key::Core(CoreKey::Projection(ProjectionKey::TaskWords { goal, task })),
+                    linked: Linked::Record(Key::Core(CoreKey::Projection(ProjectionKey::Task { goal, task }))),
+                });
+                return;
             }
             let mut milestones = List::with_capacity(state.milestones.len());
             for _ in 0..state.milestones.len() {

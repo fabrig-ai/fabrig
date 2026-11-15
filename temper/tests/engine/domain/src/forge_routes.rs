@@ -82,6 +82,7 @@ pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) 
 pub enum HoldWrite {
     All,
     Merge,
+    Update,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -114,6 +115,7 @@ pub struct World {
     run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
+    pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
@@ -148,6 +150,10 @@ pub struct World {
     pub slow_branch_latency: Duration,
     /// Delay the review diff independently of the change's fresh checks.
     pub review_files_delay: Option<Duration>,
+    /// Delay each failed job's log independently of checks and pull reads.
+    pub job_read_delay: Option<Duration>,
+    /// Delay checks only while a CI repair is preparing, not while discovering its failure.
+    pub repair_checks_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
@@ -217,6 +223,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// CI contexts whose real fake-forge jobs run at every pushed head.
+    pub ci_contexts: Option<&'static [&'static [u8]]>,
     pub kinds: bool,
     /// Two stock standing roles with the world's scripted model, beside a tier.
     pub standing_roles: bool,
@@ -394,6 +402,7 @@ impl World {
             forge_charter,
             applications,
             forge_commits: _,
+            ci_contexts: _,
             kinds,
             standing_roles,
             questions,
@@ -1073,6 +1082,7 @@ impl World {
                 tier,
                 if turn {
                     Box::new([raw::Workflow {
+                        requirements: Box::new([]),
                         fails: Box::new([]),
                         flaky: Box::new([]),
                         report: None,
@@ -1096,7 +1106,13 @@ impl World {
             labels: Box::new([]),
             checks: raw::Checks {
                 cues: Box::new([]),
-                contexts: if turn { Box::new([]) } else { Box::new([Box::from(&b"build"[..])]) },
+                contexts: if let Some(contexts) = timing.ci_contexts {
+                    contexts.iter().map(|context| Box::from(*context)).collect()
+                } else if turn {
+                    Box::new([])
+                } else {
+                    Box::new([Box::from(&b"build"[..])])
+                },
                 latency_min: Duration::ZERO,
                 latency_max: Duration::ZERO,
                 silent: if silent_ci { 1000 } else { 0 },
@@ -1235,6 +1251,7 @@ impl World {
             run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
+            scripted_forge_reads: Vec::new(),
             adopted: Vec::new(),
             follow_answers: Vec::new(),
             signed_in: None,
@@ -1262,6 +1279,8 @@ impl World {
             slow_branch: None,
             slow_branch_latency: Duration::from_secs(20),
             review_files_delay: None,
+            job_read_delay: None,
+            repair_checks_delay: None,
             gate,
             held_reads: None,
             hold_reads_at_any_step: false,
@@ -1968,9 +1987,13 @@ impl World {
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         if !self.assigned.is_empty() {
-            self.events.push_back(protocol::hello_slots(
+            let mut bounds = protocol::bounds();
+            bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
+            self.events.push_back(protocol::hello_with(
                 Token::new(7),
+                0,
                 self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
+                bounds,
                 self.assigned
                     .iter()
                     .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
@@ -2083,7 +2106,7 @@ impl World {
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
                         && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
-                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
                                 if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
@@ -2100,6 +2123,20 @@ impl World {
                         reads.push((call, read.clone()));
                     }
                     self.forge_calls += 1;
+                    if let skein_forge::api::Op::Read(read) = &op
+                        && let Some((_, result)) = self.scripted_forge_reads.iter().find(|(asked, _)| asked == read)
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: result.clone(),
+                            },
+                        ))));
+                        continue;
+                    }
                     let issue_write = match &op {
                         skein_forge::api::Op::Write(skein_forge::api::Write::CreateIssue { .. }) => true,
                         skein_forge::api::Op::Write(
@@ -2150,13 +2187,17 @@ impl World {
                     }
                     // Nonparticipating keep-up reads Item after u64::MAX. The change
                     // finishes its fresh Checks before its repair enters Preparing.
-                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                    let preparing_ci = (self.fail_brief_reads.is_some()
+                        || self.slow_brief_reads
+                        || self.repair_checks_delay.is_some())
                         && self.store.rows.values().any(|row| {
                             matches!(row,
                             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
                                 if row.spec.words.starts_with(b"Repair CI at ")
                                     && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
-                        })
+                        });
+                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                        && preparing_ci
                         && ((pull
                             && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
                             || (checks
@@ -2241,7 +2282,13 @@ impl World {
                             None
                         };
                     let slow = (self.slow_brief_reads
-                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. })))
+                        && preparing_ci
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Read(
+                                skein_forge::api::Read::Checks { .. } | skein_forge::api::Read::Item { after: 0, .. }
+                            )
+                        ))
                         || matches!((&op, &self.slow_branch),
                             (skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }), Some(slow))
                                 if branch == slow);
@@ -2255,6 +2302,13 @@ impl World {
                         } else {
                             None
                         };
+                    let ci_delay = match &op {
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }) => self.job_read_delay,
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_ci => {
+                            self.repair_checks_delay
+                        }
+                        _ => None,
+                    };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits.clone();
@@ -2262,7 +2316,7 @@ impl World {
                         limits.latency_min = self.slow_branch_latency;
                         limits.latency_max = self.slow_branch_latency;
                     }
-                    if let Some(delay) = review_delay.or(comparison_delay) {
+                    if let Some(delay) = review_delay.or(comparison_delay).or(ci_delay) {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }
@@ -2334,7 +2388,11 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
-                        Some(engine::ApplicationAnswer::Looked(_) | engine::ApplicationAnswer::FileFinding(_)) => {}
+                        Some(
+                            engine::ApplicationAnswer::Looked(_)
+                            | engine::ApplicationAnswer::FileFinding(_)
+                            | engine::ApplicationAnswer::Tier(Ok(())),
+                        ) => {}
                         answer => panic!("retained application answer: {answer:?}"),
                     },
                     _ => {}
@@ -2729,6 +2787,9 @@ impl World {
                         Some(HoldWrite::All) => matches!(op, skein_forge::api::Op::Write(_)),
                         Some(HoldWrite::Merge) => {
                             matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+                        }
+                        Some(HoldWrite::Update) => {
+                            matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Update { .. }))
                         }
                         None => false,
                     };
@@ -3234,7 +3295,7 @@ impl World {
         }
         self.oracle_settle();
         self.store.crash(0);
-        snapshot.compare_rows(&self.store.rows);
+        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
         let store = std::mem::take(&mut self.store);
         let mut fresh =
             crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
@@ -3257,15 +3318,16 @@ impl World {
             ));
         }
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows);
-        crate::oracle::compare_forges(forges, self.root.forges());
+        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
+        crate::oracle::compare_forges(forges, self.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read.clone());
-            snapshot.compare_answer(index, answer);
+            snapshot.compare_answer(index, answer).unwrap_or_else(|finding| panic!("{finding}"));
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
-            crate::oracle::compare_forge(*project, *subject, before, after);
+            crate::oracle::compare_forge(*project, *subject, before, after)
+                .unwrap_or_else(|finding| panic!("{finding}"));
         }
         self.oracle_settle();
         self.oracle_running = false;

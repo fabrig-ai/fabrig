@@ -309,6 +309,38 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     -> Result<(), String>` and `domain::check_replays(seed, other, run)
     -> Result<R, String>` are the returning forms of `Ledger::assert_settled`
     and `domain::assert_replays`, which panic on them.
+    `Ledger::try_open(key, value) -> Result<(), String>` and
+    `Ledger::try_end(key) -> Result<V, String>` return a second open of a
+    key in flight and an end of one not in flight as findings, in the
+    words `open` and `end` fail with now; `open` and `end` keep their
+    signatures and panic on them. A referee's contracts built on a ledger
+    return its findings to the referee's `watch`, as oauth accounts' do.
+  - The heap's checks are the run's findings. A process past its
+    scenario's ceiling, at an iteration, a restart or its construction,
+    and a process ended in the run that frees other than it held of its
+    own, are findings that `World::try_run*` and `real::World::try_run`
+    return, in the text they fail with now; a construction's is kept from
+    `spawn` and returned as the run starts. A settled world's hosted child
+    whose output was not read to its end is one too
+    (`Sim::check_hosted_settled`, simulator.md, 5). A settled process's
+    leak is found as its outcome drops it: `Outcome::try_release(self)
+    -> Result<(), String>` drops each process and returns the first
+    leak's finding, and an outcome dropped without it fails with that
+    finding, as it does now. A binary's output past its scenario's limit,
+    where its expectation measures or ends with it, is kept as the
+    binary's finding, as an expected end's is, and the run returns it.
+  - `skein_heap::Meter::try_check(&self, step: Measured, bound: u64, what:
+    &dyn Debug) -> Result<u64, String>` returns the most the step held of
+    its own, or, past `bound`, the finding `check` fails with now, `{what:?}:
+    {own} bytes held at the peak of a step, more than the worst case of
+    {bound}`. `Meter::check` keeps its signature and panics on it. A step
+    checked out of turn stays an assertion of both, the caller's bug.
+  - A kit's own checks of the code it plays against return their findings
+    the same way: the fake echo client's check of its peer (../examples.md,
+    5), the minimal fake machine's check that a handle is one it issued and
+    still holds (section 4), and the LLM connection's close judge
+    (../llm/connection.md, 8). Their callers panic on them; their tests
+    read them.
   - A harness that adds context to a failure writes it before it runs
     what may fail: conformance's simulated driver names each seed and
     configuration on stderr before running it, and catches nothing.

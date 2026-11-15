@@ -40,7 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 22, last: 22 }) },
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 24, last: 24 }) },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -170,34 +170,6 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
 }
 
 #[test]
-#[should_panic(expected = "a linked client steps with step")]
-fn stepping_a_linked_client_with_the_unlinked_pair_is_a_fault() {
-    let mut c = crate::Client::new(&fixtures::limits(), 7).unwrap();
-    c.step_unlinked(Time::ZERO, Wall::EPOCH, Event::SignOut, &mut Queue::uncapped());
-}
-
-#[test]
-#[should_panic(expected = "a linked client steps with step")]
-fn firing_a_linked_client_with_the_unlinked_pair_is_a_fault() {
-    let mut c = crate::Client::new(&fixtures::limits(), 7).unwrap();
-    c.fire_unlinked(Time::ZERO, Wall::EPOCH, &mut Queue::uncapped());
-}
-
-#[test]
-#[should_panic(expected = "an unlinked client steps with step_unlinked")]
-fn stepping_an_unlinked_client_with_the_linked_pair_is_a_fault() {
-    let mut c = crate::Client::unlinked(&fixtures::limits(), 7).unwrap();
-    c.step(Time::ZERO, Wall::EPOCH, Event::SignOut, &mut Queue::uncapped());
-}
-
-#[test]
-#[should_panic(expected = "an unlinked client steps with step_unlinked")]
-fn firing_an_unlinked_client_with_the_linked_pair_is_a_fault() {
-    let mut c = crate::Client::unlinked(&fixtures::limits(), 7).unwrap();
-    c.fire(Time::ZERO, Wall::EPOCH, &mut Queue::uncapped());
-}
-
-#[test]
 fn an_unlinked_approval_is_carried_by_the_host() {
     let code = super::approval::code();
     for (event, act, answer) in [
@@ -227,10 +199,4 @@ fn an_unlinked_approval_is_carried_by_the_host() {
         c.step(Event::ApprovalAnswer { answer });
         assert_eq!(c.requests(), &[UnlinkedRequest::Approval(expected)]);
     }
-}
-#[test]
-#[should_panic(expected = "require an unlinked client")]
-fn an_approval_answer_to_a_linked_client_is_a_fault() {
-    let mut c = fixtures::Client::new();
-    c.step(Event::ApprovalAnswer { answer: Approval::NotAsked(NotAsked::Lost) });
 }

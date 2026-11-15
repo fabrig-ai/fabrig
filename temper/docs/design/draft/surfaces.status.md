@@ -227,11 +227,15 @@
     Kit": no read names who asked, as none does for the web's from line
     (4). Decided by T1's repair's design, 2026-11-11.
   - 3, 11.1 and 13: `../client/tui/pages/launchpad.md`, 3, heads the
-    launchpad's header with Home on All projects' headline, code's, over
+    launchpad's first section with Home on All projects' headline, code's, over
     the joined briefs, each project's name and its brief's first
     sentence, where the at-scale mockup has one brief across projects in
     the status agent's words: the engine keeps one brief a project (15's
     default). Decided by T1's repair's design, 2026-11-11.
+  - 11.1: the brief is not framed: it stands in the launchpad's first
+    section, under a two-line header with no frame
+    (`../client/tui/pages/README.md`, 3), where 11.1 frames it: the
+    user's request `tui-14` of 2026-11-15 (`tui.status.md`).
   - 11.1 and 13: `../client/tui/pages/launchpad.md`, 4, lists no talk
     with a role under Where you left off, where 11.1 has one among the
     conversations to go back to: no read lists the talks a person has

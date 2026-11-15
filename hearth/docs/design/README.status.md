@@ -1,6 +1,6 @@
 # hearth's design: status
 
-2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-14. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.1: the activator, steward and their link and jobs; the
   delegated cgroup subtrees; bootstrap. The binary hosts the builder

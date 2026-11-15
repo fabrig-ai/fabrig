@@ -114,7 +114,7 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
         assert_eq!(saved.writer, None);
         assert_saved(&out, Stored::Hold(saved.clone()), Some(name(BRANCH)));
         assert_eq!(d.change(TASK).unwrap().change.last_head, Some(TIP));
-        assert_saved(&out, Stored::Change(Box::new(d.change(TASK).unwrap().clone())), None);
+        assert_saved(&out, Stored::ChangeHot(Box::new(d.change(TASK).unwrap().clone().split().1)), None);
         assert!(d.procedure_wakes.contains_key(&TASK));
         assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
         assert_eq!(d.heads.len(), 2);

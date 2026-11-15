@@ -1,8 +1,12 @@
 # questions: status
 
-2026-11-12. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-15. Where the tree's code lags or departs from [questions.md](questions.md).
 
 
+- **Not yet:** 1, *Its requester's words and amendments*: a change
+  answers its requester's words with the fallback feedback whatever its
+  producer, and keeps no words to pass on its record [in flight: change
+  3544].
 - **Not yet:** 1, *Passed up*: a requester's run that reads the change's
   question and ends without answering leaves later runs no sight of it,
   and the requester idle with it [in flight: change 838].

@@ -14,6 +14,7 @@ jig-test-domain.workspace = true
 jig-test-connector.workspace = true
 jig-protocol-store.workspace = true
 jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-kv.workspace = true
@@ -23,7 +24,6 @@ skein-sim.workspace = true
 [dev-dependencies]
 jig-domain-people.workspace = true
 jig-domain-notes.workspace = true
-jig-domain-tasks.workspace = true
 jig-test-connector-kit.workspace = true
 jig-test-profile.workspace = true
 

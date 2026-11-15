@@ -179,10 +179,11 @@ When no live task names a resource, it leaves the working set.
   temper's forge keeps the repositories an ended chat worked on, so that
   the chat reads their names while the store keeps it.
 - **The core tells every connector when a task is erased:** `Unname`,
-  in the decision that erases the task whole, whichever erases it: a
-  deleted project's erasure of its tasks (people/acts.md, 2), the forget
-  of a task forgotten once read (people/README.md, section 5), or retention at
-  the deployment's horizon (`../protocol/store/README.md`, 6.1). From then on
+  in the decision that erases the task's full record, whichever erases
+  it: a deleted project's erasure of its tasks (people/acts.md, 2), the
+  forget of a task forgotten once read (people/README.md, section 5), or
+  retention at the deployment's horizon, which keeps the task's summary
+  a while longer (`../protocol/store/retention.md`, 6.2). From then on
   nothing it named need be kept for it. A connector that keeps nothing
   past a release takes `Unname` as nothing to do.
 
@@ -693,7 +694,9 @@ procedure, but a mechanism of the connector's, keyed to the goal.
 - **Fed by the root:** the goal's state, its plan as its subtree's tasks
   and their phases, and its milestones as the tree's history records
   them, in the connector's own terms, whenever they change: a change to
-  any task of the subtree, not only to the goal's own. Milestones come
+  any task of the subtree, not only to the goal's own. Its milestones
+  are the changes made to its subtree's tasks, and their holds and ends
+  (tasks/lifecycle.md, 12.3), never a wake's phase. Milestones come
   as they are recorded, each with an identity of its own, so the
   connector keeps what it has written and adds to it; the plan comes
   whole, within the tree's limits (tasks/README.md, section 6). The last
@@ -727,7 +730,11 @@ release the writer; Uncertain and Held retain it for connector recovery.
   file at a branch's head. The brief child domain plans them (engine/briefs.md,
   section 1) by kind and budget; the connector gathers each, keeps it,
   and says its size, or says why it could not, in fixed words and how
-  that counts (engine/briefs.md, 1.1); asked to cut it to a smaller size, it cuts it by its
+  that counts (engine/briefs.md, 1.1). It gathers within the brief's
+  deadline, which the root gives it with the gather: a section it reads
+  in several reads ends at its cutoff, ahead of the deadline, with what
+  it has and a marker for the rest (engine/briefs.md, 1, *Within the
+  deadline*); asked to cut it to a smaller size, it cuts it by its
   own rules and says the new size; when the brief is complete, it hands
   the section to the root, which puts the assignment together (root.md,
   section 7).

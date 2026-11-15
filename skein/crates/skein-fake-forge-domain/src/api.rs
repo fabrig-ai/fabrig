@@ -635,7 +635,7 @@ pub enum What {
     Job,
 }
 
-pub use crate::actions::{Conclusion, Failing, Job, Run, RunEvent, RunState, Step, StepStatus, WORKFLOW_STEP};
+pub use crate::actions::{Conclusion, Failing, Job, JobWait, Run, RunEvent, RunState, Step, StepStatus, WORKFLOW_STEP};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MergeHow {
@@ -1075,6 +1075,7 @@ pub struct Workflow {
     /// Its file under `.forgejo/workflows/`, as a dispatch names it.
     pub file: Box<[u8]>,
     pub jobs: Box<[Box<[u8]>]>,
+    pub requirements: Box<[JobRequirements]>,
     pub latency_min: Duration,
     pub latency_max: Duration,
     pub silent: u32,
@@ -1082,6 +1083,13 @@ pub struct Workflow {
     pub cue: Option<Cue>,
 }
 
+/// A workflow job's runner labels and dependencies (forge/job-state.md, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct JobRequirements {
+    pub job: Box<[u8]>,
+    pub labels: Box<[Box<[u8]>]>,
+    pub needs: Box<[Box<[u8]>]>,
+}
 /// One named dispatch input; keys fit a name and values a body (testing/fakes/forge.md, 2.3).
 pub type WorkflowInput = (Box<[u8]>, Box<[u8]>);
 

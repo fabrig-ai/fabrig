@@ -24,7 +24,9 @@
 
   The terminal's `--line` is left out: a border's glyphs in it would
   barely show, and so is its `--sel`: the band is the terminal's own
-  ground, moved (below).
+  ground, moved (below). Beside the palette, the mark's three brand
+  colours, the same in both themes: cyan `#00C4FE`, blue `#1B76FD` and
+  violet `#8E2CF8` (`pages/README.md`, 3).
 - **The band,** `temper_client_tui::theme(scheme, background)`'s, from
   the user's request of 2026-11-08, since a fixed colour reads as black
   on a dark terminal whose ground is not the palette's:
@@ -45,7 +47,8 @@
 
   | Region | Place | Arranged | Border | Padding | Holds |
   |---|---|---|---|---|---|
-  | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; the launchpad's header |
+  | `tui-header` | top | lines | none | 0 | the header, its mark and two lines, a blank row under it (`pages/README.md`, 3) |
+  | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; a talk's head |
   | `tui-sections` | body | lines | none | 1 | the launchpad's sections and notes |
   | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages/design-session.md`, 1) |
   | `tui-working` | bottom | lines | none | 0 | a chat's running line |
@@ -62,15 +65,18 @@
 
   | Token | Paint | Else | Carried by |
   |---|---|---|---|
-  | `tui-title` | accent, bold | | "temper" in a title |
-  | `tui-hint` | dim | | hints, the quiet line's words; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
+  | `tui-title` | accent, bold | | "temper" in a title, signing in's and a talk's |
+  | `tui-mark-cyan` | `#00C4FE`, both themes | | the mark's cyan cells (`pages/README.md`, 3) |
+  | `tui-mark-blue` | `#1B76FD`, both themes | | the mark's blue cells |
+  | `tui-mark-violet` | `#8E2CF8`, both themes | | the mark's violet cells |
+  | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
   | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
   | `tui-refused` | accent | | a refusal |
-  | `tui-name` | bold | | the project's name, a row's project on the launchpad, Start's command names, a chat's heading; a printed way's or card's name |
-  | `tui-faint` | faint | | " · " in the title, " / " in the rule above the box; a printed branch's bar `┃` |
-  | `tui-address` | dim | aligned to the end | `HOST:PORT` in a title, and the place in the rule above the box |
+  | `tui-name` | bold | | "temper" and "temper box" in the header; the project's name, a row's project on the launchpad, Start's command names, a chat's heading; a printed way's or card's name |
+  | `tui-faint` | faint | | " · " in a title and the header, " / " in the rule above the box; a printed branch's bar `┃` |
+  | `tui-address` | dim | aligned to the end | `HOST:PORT` in a talk's title, and the place in the rule above the box |
   | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
   | `tui-head` | bold | | "Where you left off", "Needs you", "Start"; a printed proposal's "Before" and "After" |
   | `tui-signal` | accent | | a need's mark, "?", "$", "✓" or "•", the count of what needs the person, "Proposal"; a printed person's ring `○`; a draft's section's "new" |
@@ -87,7 +93,7 @@
   | `tui-option` | bold | its description dim | a list choice: its name, and its words as its description |
   | `tui-command` | bold | active name plain; its description dim | a command: its name, and its words as its description |
   | `tui-note` | dim | | a note |
-  | `tui-spaced` | none | a blank row between two children | the launchpad's sections, with a blank row before the first, under the header's frame (`pages/launchpad.md`, 3); the conversation's entries |
+  | `tui-spaced` | none | a blank row between two children | the launchpad's sections, with a blank row before the first, under the header (`pages/README.md`, 3); the conversation's entries |
   | `tui-bullets` | none | the mark `•`, no paint | the group around an agent's text's Markdown blocks |
   | `tui-left-off` | none | the mark " ", a space | the launchpad's left-off chats' list |
   | `tui-picked` | accent, over the band where there is one | a band where the theme has one; the mark `❯`, accent | the launchpad's selected left-off chat |

@@ -20,11 +20,36 @@ impl Domain {
     pub fn restore_fit_failure(&self) -> Option<&RestoreFit> {
         self.restore_fit.as_deref()
     }
+    /// A change with only one part is an unreadable row (protocol/store.md, 5).
+    #[must_use]
+    pub fn unjoined_change(&self) -> Option<crate::Key> {
+        for (task, _) in &self.change_cold {
+            if !self.changes.contains_key(task) && !self.change_hot.contains_key(task) {
+                return Some(crate::Key::ChangeCold(*task));
+            }
+        }
+        for (task, _) in &self.change_hot {
+            if !self.change_cold.contains_key(task) {
+                return Some(crate::Key::ChangeHot(*task));
+            }
+        }
+        None
+    }
+    fn join_changes(&mut self) {
+        while let Some((task, _)) = self.change_hot.first() {
+            let task = *task;
+            let Some(cold) = self.change_cold.get(&task).cloned() else { break };
+            let hot = self.change_hot.remove(&task).expect("pending change part");
+            let row = crate::ChangeRow::join(cold, hot);
+            self.changes.insert(task, row).expect("change room checked");
+        }
+    }
     /// Fit reconstruction before reference linking or client recovery.
     pub fn fit_restored(&mut self, limits: &Limits) -> Result<(), RestoreFit> {
         if let Some(failure) = self.restore_fit_failure() {
             return Err(*failure);
         }
+        self.join_changes();
         let result = derived(self, limits);
         if let Err(failure) = result {
             self.restore_fit = Some(Box::new(failure));
@@ -104,6 +129,7 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
         | Answer::Protection(None)
         | Answer::Located { .. }
         | Answer::Commit(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Directory { .. }
         | Answer::File { .. }
@@ -434,6 +460,29 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 )?;
             }
             Ok(())
+        }
+        Stored::ChangeCold(row) => room(
+            K::Change,
+            Rows(K::Change),
+            d.change_cold.len(),
+            d.change_cold.capacity(),
+            d.change_cold.contains_key(&row.task),
+        ),
+        Stored::ChangeHot(row) => {
+            room(
+                K::Change,
+                Rows(K::Change),
+                d.change_hot.len(),
+                d.change_hot.capacity(),
+                d.change_hot.contains_key(&row.task),
+            )?;
+            room(
+                K::Change,
+                RestoreSet::ChangeTimers,
+                d.change_due.len(),
+                d.change_due.capacity(),
+                d.change_due.contains_key(&row.task),
+            )
         }
         Stored::Change(row) => {
             room(K::Change, Rows(K::Change), d.changes.len(), d.changes.capacity(), d.changes.contains_key(&row.task))?;

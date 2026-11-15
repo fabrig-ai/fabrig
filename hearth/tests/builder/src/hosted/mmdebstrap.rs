@@ -19,7 +19,10 @@ pub struct Mmdebstrap {
 impl Mmdebstrap {
     #[must_use]
     pub fn host(spawn: &Spawn, inherited: &Inherited, scenario: &Scenario<'_>, shared: Shared, seed: u64) -> Hosted {
-        let simulate = face::check(&spawn.args, &spawn.env);
+        let simulate = match face::check(&spawn.args, &spawn.env) {
+            Ok(simulate) => simulate,
+            Err(finding) => panic!("{finding}"),
+        };
         let jobs = VecDeque::from([
             Job::Verify(spawn.program.clone()),
             Job::Read([simulate.scratch.as_ref(), b"/sources.list"].concat().into()),

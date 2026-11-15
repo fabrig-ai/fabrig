@@ -27,6 +27,7 @@ mod change_history;
 pub mod history;
 mod landing_proofs;
 mod readiness;
+mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use temper_engine_domain_forge_vocabulary::boundary;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]

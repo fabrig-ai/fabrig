@@ -145,6 +145,8 @@ fn projection_rows(world: &World, goal: u64) -> usize {
                     | core::ProjectionKey::Task { goal: number, .. }
                     | core::ProjectionKey::Lifecycle { goal: number, .. }
                     | core::ProjectionKey::Revision { goal: number, .. }
+                    | core::ProjectionKey::GoalWords(number)
+                    | core::ProjectionKey::TaskWords { goal: number, .. }
                 ))) if *number == goal
             )
         })
@@ -252,7 +254,7 @@ fn a_delegate_of_a_delegate_ending_feeds_the_whole_plan_once_and_closing_waits_f
             })
             .collect::<Vec<_>>();
         assert_eq!(ended.len(), 1, "one immutable terminal milestone");
-        assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Milestone(row))) if matches!(ended[0].identity, core::MilestoneId::Lifecycle { task, position } if task == row.task && position == row.position))));
+        assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) if matches!(ended[0].identity, core::MilestoneId::Lifecycle { task, position } if task == row.number && position == row.milestone))));
     }
     settle_tree(&mut world, goal, child, restart_configuration);
 }
@@ -307,19 +309,19 @@ fn settle_tree(world: &mut World, goal: (u64, u64), child: (u64, u64), restart_c
         },
     });
     assert_eq!(world.projections.iter().filter(|(_, _, feed)| feed.closing).count(), 2);
-    assert_eq!(projection_rows(world, goal.0), 4, "header and full ended plan retained");
+    assert_eq!(projection_rows(world, goal.0), 8, "header and full ended plan retained");
     assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(goal.0)))));
     assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(goal.0)))));
     world.hold_writes = true;
     world.send(root::Event::ProjectionEffect { goal: goal.0, number: 1, effect: World::effect() });
     assert_eq!(world.pending_writes.len(), 1, "closing write admitted after the task ended");
-    assert_eq!(projection_rows(world, goal.0), 4);
+    assert_eq!(projection_rows(world, goal.0), 8);
     let (number, call) = world.pending_writes.pop().expect("committed projection attempt");
     let entry = projection_outbox(world, goal.0).expect("persisted projection");
     let procedures = world.procedure_inputs.len();
     let answers = world.answers.len();
     world.restart_with(restart_configuration);
-    assert_eq!(projection_rows(world, goal.0), 4, "closing retention survives restart");
+    assert_eq!(projection_rows(world, goal.0), 8, "closing retention survives restart");
     assert_eq!(projection_outbox(world, goal.0).expect("restored projection").number, entry.number);
     let event = world.systems[0].answer(call, jig_test_system::Fault::None);
     world.send(root::Event::Connector { number, event: connector::Event::System(event) });
@@ -329,7 +331,7 @@ fn settle_tree(world: &mut World, goal: (u64, u64), child: (u64, u64), restart_c
     assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(goal.0)))));
     assert_eq!(world.systems[0].observed().iter().filter(|effect| effect.applied).count(), 1);
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal: goal.0, connector: 1 }));
-    assert_eq!(projection_rows(world, goal.0), 4, "other connector still owns its last feed");
+    assert_eq!(projection_rows(world, goal.0), 8, "other connector still owns its last feed");
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal: goal.0, connector: 2 }));
     assert_eq!(projection_rows(world, goal.0), 0, "last settlement releases projection state");
 }
@@ -417,12 +419,12 @@ fn an_untracked_goal_is_fed_its_state_once_as_its_last_feed() {
 #[test]
 fn an_untracked_goals_projection_is_forgotten_once_its_write_settles() {
     let (mut world, configuration, goal) = untracked_world(173);
-    assert_eq!(projection_rows(&world, goal), 2, "header and task retained");
+    assert_eq!(projection_rows(&world, goal), 4, "header and task retained");
     world.restart_with(configuration);
     world.hold_writes = true;
     world.send(root::Event::ProjectionEffect { goal, number: 1, effect: World::effect() });
     assert_eq!(world.pending_writes.len(), 1, "the closing projection still writes");
-    assert_eq!(projection_rows(&world, goal), 2);
+    assert_eq!(projection_rows(&world, goal), 4);
     let before = jig_core_world::fixtures::live_row(&world, goal).phase.clone();
     let entry = projection_outbox(&world, goal).expect("pending projection");
     world.restart_with(untracked_configuration(173).0);
@@ -443,7 +445,7 @@ fn an_untracked_goals_projection_is_forgotten_once_its_write_settles() {
     );
     assert_eq!(world.procedure_inputs.len(), procedures);
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 1 }));
-    assert_eq!(projection_rows(&world, goal), 2, "second connector still owns its feed");
+    assert_eq!(projection_rows(&world, goal), 4, "second connector still owns its feed");
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 2 }));
     assert_eq!(projection_rows(&world, goal), 0);
     assert_eq!(jig_core_world::fixtures::live_row(&world, goal).tracked, None, "the task stays live");
@@ -551,5 +553,70 @@ fn unresolved_projection_outcomes_keep_their_entry_across_restart_until_connecto
         assert_eq!(jig_core_world::fixtures::live_row(&world, goal).phase, before);
         assert_eq!(world.procedure_inputs.len(), procedures);
         jig_core_world::fixtures::finish_chat(&mut world, 0, b"projection recovered");
+    }
+}
+
+#[test]
+fn a_restarted_projection_feeds_the_same_whole_goal_plan_and_history() {
+    let seed = 174;
+    let mut world = World::new(Setup { seed, ..Setup::default() });
+    finish_chat(&mut world, 0, b"");
+    world.hold_projection_settlements = true;
+    let goal = core::ProjectionGoal {
+        number: 900,
+        project: people::DEPLOYMENT,
+        priority: 7,
+        words: b"retained goal".as_slice().into(),
+        phase: tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) }),
+    };
+    let task = core::ProjectionTask {
+        number: 901,
+        requester: tasks::Party::Task(900),
+        words: b"ended plan task".as_slice().into(),
+        phase: tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::new([]) }),
+    };
+    let milestone = core::ProjectionMilestone {
+        identity: core::MilestoneId::Lifecycle { task: 901, position: 3 },
+        phase: Some(task.phase.clone()),
+        change: None,
+        words: b"retained history".as_slice().into(),
+    };
+    let (hot_goal, goal_words) = goal.clone().split();
+    let (hot_task, task_words) = task.clone().split();
+    let rows = [
+        core::ProjectionRecord::TaskWords { goal: 900, task: 901, words: task_words },
+        core::ProjectionRecord::GoalWords { goal: 900, task: 900, words: goal_words },
+        core::ProjectionRecord::TaskHot { goal: 900, task: hot_task },
+        core::ProjectionRecord::Milestone { goal: 900, milestone: milestone.clone() },
+        core::ProjectionRecord::GoalHot { goal: hot_goal, pending: Box::new([1, 2]), changed: true, fed_at: None },
+    ];
+    let expected =
+        core::ProjectionFeed { goal, plan: Box::new([task]), milestones: Box::new([milestone]), closing: true };
+    let mut before = Vec::new();
+    for attempt in 0..2 {
+        // The seed is a committed closing feed waiting for the root to hand it off.
+        world.store.seed(
+            rows.iter()
+                .cloned()
+                .map(|r| root::Record::Core(core::Record::Core(core::CoreRecord::Projection(r))))
+                .collect(),
+        );
+        world.projections.clear();
+        world.restart_with(fixture(seed, false).0);
+        let feeds = world
+            .projections
+            .iter()
+            .filter(|(_, _, feed)| feed.goal.number == 900)
+            .map(|(_, connector, feed)| (*connector, feed.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(feeds.len(), 2);
+        for (_, feed) in &feeds {
+            assert_eq!(feed, &expected);
+        }
+        if attempt == 0 {
+            before = feeds;
+        } else {
+            assert_eq!(feeds, before, "restart joins every part before feeding");
+        }
     }
 }

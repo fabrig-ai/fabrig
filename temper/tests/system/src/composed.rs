@@ -796,6 +796,10 @@ impl World {
                 let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
                 self.store.submit(number, writes, delay);
             }
+            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+            }
             engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                 let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
@@ -832,8 +836,7 @@ impl World {
                 watch.text.extend_from_slice(&text);
                 self.root_events.push_back(engine::Event::Party(engine::PartyInput::StreamDelivered { watcher }));
             }
-            other @ (engine::Request::Store(engine::StoreRequest::Read { .. })
-            | engine::Request::Worker(
+            other @ (engine::Request::Worker(
                 engine::WorkerRequest::Host(_) | engine::WorkerRequest::ReadResult { .. },
             )
             | engine::Request::Party(

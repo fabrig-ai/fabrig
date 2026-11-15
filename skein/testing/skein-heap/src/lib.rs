@@ -464,7 +464,15 @@ impl Meter {
     /// freed since it ended, as the test took its requests and dropped them:
     /// the test frees nothing else in between, and checks before the next
     /// step starts. `what` names the step if it fails.
+    #[expect(clippy::panic, reason = "the test's fail-stop wrapper reports try_check's finding")]
     pub fn check(&self, step: Measured, bound: u64, what: &dyn Debug) -> u64 {
+        self.try_check(step, bound, what).unwrap_or_else(|finding| panic!("{finding}"))
+    }
+
+    /// Returns the most `step` held of its own at once, or the finding if it
+    /// exceeds `bound`. Like [`Self::check`], checks after the step ends and
+    /// before the next starts, once its receivers have freed what it handed out.
+    pub fn try_check(&self, step: Measured, bound: u64, what: &dyn Debug) -> Result<u64, String> {
         let (last, phase) = COUNTS.with(|counts| (counts.highs.borrow().step, counts.phase.get()));
         assert!(
             last == step.step && phase != Phase::Stepping,
@@ -472,8 +480,12 @@ impl Meter {
         );
         let own = COUNTS.with(|counts| counts.highs.borrow().own(self));
         let own = own.expect("what a step handed out by a high was live at it");
-        assert!(own <= bound, "{what:?}: {own} bytes held at the peak of a step, more than the worst case of {bound}");
-        own
+        if own > bound {
+            return Err(format!(
+                "{what:?}: {own} bytes held at the peak of a step, more than the worst case of {bound}"
+            ));
+        }
+        Ok(own)
     }
 
     /// `live`, a count of the live heap, since the base.

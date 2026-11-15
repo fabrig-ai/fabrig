@@ -89,9 +89,7 @@ fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access()
     let mut service =
         fixtures::configured_service(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     fixtures::replace_store(&mut service, fixtures::records_store());
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(service.engine.as_mut().unwrap());
-    }
+    load_records(service.engine.as_mut().unwrap());
     advance(service.engine.as_mut().unwrap());
     public::reachable(service.engine.as_mut().unwrap(), 1, Token::new(90), None, 1);
     let mut face = Face::new();
@@ -112,7 +110,7 @@ fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access()
 }
 
 fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http::Peer {
-    use jig_client_protocol_wire::v22 as j;
+    use jig_client_protocol_wire::v24 as j;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
@@ -150,7 +148,7 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     client
 }
 fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> temper_client_protocol_wire::v1::Outcome {
-    use jig_client_protocol_wire::v22 as j;
+    use jig_client_protocol_wire::v24 as j;
     use temper_client_protocol_wire::v1 as w;
     let engine = service.engine.as_ref().unwrap();
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
@@ -172,7 +170,7 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
 #[test]
 fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_restart() {
     use fixtures::http as peer;
-    use jig_client_protocol_wire::v22 as j;
+    use jig_client_protocol_wire::v24 as j;
     use temper_client_protocol_wire::v1 as w;
     let mut service = local_service(picker_config(), local_store(false));
     restore_local(&mut service);

@@ -68,40 +68,43 @@ fn a_close_after_an_abort_is_inert() {
 }
 
 #[test]
-#[should_panic(expected = "nothing follows Closed")]
 fn the_referee_rejects_a_second_closed() {
     let mut judge = Judge::default();
-    judge.observe(&Event::Closed);
-    judge.observe(&Event::Closed);
+    assert_eq!(judge.observe(&Event::Closed), Ok(()));
+    let finding = judge.observe(&Event::Closed).expect_err("second Closed");
+    assert!(finding.contains("nothing follows Closed"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "nothing follows Closed")]
 fn the_referee_rejects_an_event_after_closed() {
     let mut judge = Judge::default();
-    judge.observe(&Event::Closed);
-    judge.observe(&Event::Cancelled {
-        call: skein_lib::Token::new(7),
-        measures: skein_llm_connection::Measures::none(),
-    });
+    assert_eq!(judge.observe(&Event::Closed), Ok(()));
+    let finding = judge
+        .observe(&Event::Cancelled { call: skein_lib::Token::new(7), measures: skein_llm_connection::Measures::none() })
+        .expect_err("event after Closed");
+    assert!(finding.contains("nothing follows Closed"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "every call has its terminal")]
 fn the_referee_rejects_a_call_without_a_terminal() {
     let mut judge = Judge::default();
     judge.start(skein_lib::Token::new(7));
-    judge.observe(&Event::Closed);
+    let finding = judge.observe(&Event::Closed).expect_err("call without a terminal");
+    assert!(finding.contains("every call has its terminal"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "no past-due wake")]
 fn the_referee_rejects_a_past_due_deadline_with_only_io_settlement_left() {
-    Judge::default().settlement(false, Some(skein_lib::Time::ZERO), skein_lib::Time::ZERO);
+    let finding = Judge::default()
+        .settlement(false, Some(skein_lib::Time::ZERO), skein_lib::Time::ZERO)
+        .expect_err("past-due deadline while only io settles");
+    assert!(finding.contains("no past-due wake"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "not runnable work")]
 fn the_referee_rejects_work_with_only_io_settlement_left() {
-    Judge::default().settlement(true, None, skein_lib::Time::ZERO);
+    let finding = Judge::default()
+        .settlement(true, None, skein_lib::Time::ZERO)
+        .expect_err("runnable work while only io settles");
+    assert!(finding.contains("not runnable work"), "{finding}");
 }

@@ -699,9 +699,7 @@ fn history_driver() -> (Driver, [u64; 2]) {
         .expect("adopted repository");
     repository.project = 1;
     writer.event(forge::Event::Restore { record: forge::Stored::Repository(repository) });
-    let mut row = temper_engine_forge_world::changes::change_row();
-    row.change.state = temper_engine_domain_forge_change::State::Ended;
-    row.ending = Some(forge::Ending::NoChange);
+    let row = temper_engine_forge_world::changes::change_row();
     writer.event(forge::Event::Change { row });
     let public = [forge::PublicTask { task: CHANGE, goal: None }];
     let before = writer.public(1, wire::PUBLIC_CHANGE, Some(CHANGE), &public).expect("public change");
@@ -710,7 +708,7 @@ fn history_driver() -> (Driver, [u64; 2]) {
     assert_eq!(before.record, after.record, "history is absent from the public projection");
     assert_eq!(before.tasks, after.tasks);
     writer.evict_history_change(CHANGE, 1);
-    assert!(!writer.stored().contains_key(&forge::Key::Change(CHANGE)), "the change row was evicted");
+    assert!(!writer.stored().contains_key(&forge::Key::ChangeHot(CHANGE)), "the change row was evicted");
     let rows: Vec<_> = writer
         .stored()
         .iter()
@@ -726,9 +724,12 @@ fn history_driver() -> (Driver, [u64; 2]) {
     let mut driver = driver();
     let member = driver.session();
     let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
-    driver.store.seed(rows.into_boxed_slice(), Box::new([root::Key::Forge(forge::Key::Change(CHANGE))]));
+    driver.store.seed(
+        rows.into_boxed_slice(),
+        Box::new([root::Key::Forge(forge::Key::ChangeHot(CHANGE)), root::Key::Forge(forge::Key::ChangeCold(CHANGE))]),
+    );
     let driver = restarted_panels(&mut driver);
-    assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::Change(CHANGE))));
+    assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::ChangeHot(CHANGE))));
     (driver, [member, outsider])
 }
 #[test]

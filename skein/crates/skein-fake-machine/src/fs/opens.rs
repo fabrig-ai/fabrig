@@ -62,7 +62,7 @@ impl Machine {
                         if !self.may(found.parent, WRITE) {
                             return Err(Refusal::Permission);
                         }
-                        self.make(found.parent, name, Body::File(Vec::new()), mode & !UMASK)
+                        self.make(found.parent, name, Body::File(Vec::new().into()), mode & !UMASK)
                     }
                 }
             }
@@ -79,7 +79,7 @@ impl Machine {
                 if !self.may(found.parent, WRITE) {
                     return Err(Refusal::Permission);
                 }
-                self.make(found.parent, name, Body::File(Vec::new()), mode & !UMASK)
+                self.make(found.parent, name, Body::File(Vec::new().into()), mode & !UMASK)
             }
         };
         Ok(self.issue(node, how))

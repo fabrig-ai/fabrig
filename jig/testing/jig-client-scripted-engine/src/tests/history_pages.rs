@@ -34,25 +34,36 @@ fn semantic() -> HistoryRow {
         at: None,
     }))
 }
-fn milestone() -> HistoryRow {
-    HistoryRow::Milestone(Box::new(MilestoneLine {
+fn attempt() -> HistoryRow {
+    HistoryRow::Attempt(Box::new(AttemptLine {
+        task: 8,
+        attempt: u64::MAX,
+        claimed: None,
+        started: Some(Wall::EPOCH),
+        ended: Some(Wall::from_nanos(u64::MAX)),
+        end: Some(RunEnd::Finished),
+        phases: Some(u32::MAX),
+    }))
+}
+fn hold() -> HistoryRow {
+    HistoryRow::Hold(Box::new(HoldLine {
         task: 8,
         position: u64::MAX,
-        phase: MilestonePhase::Closing {
-            stage: ClosingStage::Run { attempt: u64::MAX },
-            ending: ChipEnding::Done(ResultValue::OwnerVerdict {
-                verdict: u32::MAX,
-                words: DocumentText { bytes: text(b""), cut: true },
-                fields: List::with_capacity(1),
-            }),
-        },
-        at: Some(Wall::EPOCH),
+        at: Wall::EPOCH,
+        before: PriorPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
+        why: HoldCategory::Budget,
+        source: Some(Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Number(u64::MAX) }),
+        ending: Some(ChipEnding::Done(ResultValue::OwnerVerdict {
+            verdict: u32::MAX,
+            words: DocumentText { bytes: text(b""), cut: true },
+            fields: List::with_capacity(1),
+        })),
     }))
 }
 
 #[test]
-fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_continuations() {
-    let values = vec![semantic(), milestone()];
+fn scripted_history_pages_keep_change_attempt_and_hold_rows_under_opaque_source_continuations() {
+    let values = vec![semantic(), attempt(), hold()];
     let mut setup = live_script();
     setup.bounds.rows = 1;
     setup.truth.sources.push(Source {

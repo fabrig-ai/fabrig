@@ -591,6 +591,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         last_head,
         gate_failures,
         released,
+        released_resolution,
         way,
         landing,
         ended_held,
@@ -614,6 +615,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             owns_turn: *owns_turn,
             last_head: *last_head,
             gate_failures: encode_gate_failures(gate_failures),
+            released_resolution: *released_resolution,
             released: match released {
                 Some(why) => Some(encode_hold(*why)),
                 None => None,
@@ -643,6 +645,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         last_head,
         gate_failures,
         released,
+        released_resolution,
         way,
         landing,
     } = value.into_parts();
@@ -665,6 +668,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         owns_turn,
         last_head,
         gate_failures: decode_gate_failures(gate_failures),
+        released_resolution,
         released: match released {
             Some(why) => Some(decode_hold(why)),
             None => None,
@@ -831,7 +835,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     .expect(FITS)
 }
 #[expect(clippy::too_many_lines, reason = "the durable change account translates each row field in place")]
-pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, super::Undecodable> {
+pub(crate) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, super::Undecodable> {
     let w::ChangeRowParts {
         task_release,
         job,
@@ -948,6 +952,309 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         },
         catch_up,
         close,
+        merge_result,
+        history: match history {
+            Some(value) => Some(super::history::decode_change_history(value)),
+            None => None,
+        },
+        effect_account: match effect_account {
+            Some(account) => {
+                let w::EffectAccountParts { entry, words } = account.into_parts();
+                Some(top::EffectAccount { entry, words })
+            }
+            None => None,
+        },
+    })
+}
+
+pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
+    let top::ChangeCold {
+        task,
+        repository,
+        branch,
+        base,
+        goal,
+        base_repair,
+        producing_charter,
+        review_charter,
+        producing_llm,
+        review_llm,
+        repairs,
+        catch_up,
+        close,
+        title,
+        body,
+        follows,
+        report,
+    } = value;
+    w::ChangeCold::new(
+        &w::CEILINGS,
+        w::ChangeColdParts {
+            task: *task,
+            repository: names::encode_repository(*repository),
+            branch: branch.clone(),
+            base: base.clone(),
+            title: title.clone(),
+            body: body.clone(),
+            base_repair: *base_repair,
+            producing_charter: *producing_charter,
+            review_charter: *review_charter,
+            producing_llm: encode_llm(producing_llm.as_ref()),
+            review_llm: encode_llm(review_llm.as_ref()),
+            report: report.clone(),
+            repairs: *repairs,
+            follows: match follows {
+                Some(value) => Some(
+                    w::ChangeFollows::new(
+                        &w::CEILINGS,
+                        w::ChangeFollowsParts { follow: value.follow, commits: encode_commits(&value.commits) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            catch_up: *catch_up,
+            close: close.clone(),
+            goal: *goal,
+        },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
+    let w::ChangeColdParts {
+        task,
+        repository,
+        branch,
+        base,
+        goal,
+        base_repair,
+        producing_charter,
+        review_charter,
+        producing_llm,
+        review_llm,
+        repairs,
+        catch_up,
+        close,
+        title,
+        body,
+        follows,
+        report,
+    } = value.into_parts();
+    top::ChangeCold {
+        goal,
+        task,
+        repository: names::decode_repository(repository),
+        branch,
+        base,
+        title,
+        body,
+        base_repair,
+        producing_charter,
+        review_charter,
+        producing_llm: decode_llm(producing_llm),
+        review_llm: decode_llm(review_llm),
+        report,
+        repairs,
+        follows: match follows {
+            Some(value) => {
+                let w::ChangeFollowsParts { follow, commits } = value.into_parts();
+                Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
+            }
+            None => None,
+        },
+        catch_up,
+        close,
+    }
+}
+#[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
+pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
+    let top::ChangeHot {
+        task_release,
+        job,
+        signed,
+        ending,
+        repair_tasks,
+        resolution_tasks,
+        result,
+        task,
+        priority,
+        change,
+        ci,
+        pull,
+        pending,
+        effect,
+        delegate,
+        delegate_status,
+        verdicts,
+        gate_remarks,
+        drift,
+        queue_repair,
+        queue_repairs,
+        effect_account,
+        producer_failure,
+        questions,
+        follow_check,
+        merge_result,
+        history,
+    } = value;
+    w::ChangeHot::new(
+        &w::CEILINGS,
+        w::ChangeHotParts {
+            task_release: match task_release {
+                Some(release) => Some(
+                    w::TaskRelease::new(
+                        &w::CEILINGS,
+                        w::TaskReleaseParts { revision: release.revision, at: release.at.as_nanos() },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            job: super::history::encode_job_record(job.as_ref()),
+            signed: super::landing_log::encode_signed(signed),
+            result: encode_result(result),
+            task: *task,
+            priority: u32::from_be_bytes(priority.to_be_bytes()),
+            change: encode_change(change),
+            ci: match ci {
+                Some(read) => Some(
+                    w::ChangeCi::new(
+                        &w::CEILINGS,
+                        w::ChangeCiParts { head: read.head, status: encode_status(read.status) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            pull: *pull,
+            pending: *pending,
+            effect: encode_effect_result(*effect),
+            delegate: match delegate {
+                Some((task, request)) => Some(
+                    w::DelegateRef::new(
+                        &w::CEILINGS,
+                        w::DelegateRefParts { task: *task, request: encode_delegate(*request) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            delegate_status: encode_status(*delegate_status),
+            verdicts: encode_gate_reports(verdicts),
+            gate_remarks: encode_gate_remarks(gate_remarks),
+            drift: match drift {
+                Some(value) => Some(encode_hold(*value)),
+                None => None,
+            },
+            queue_repair: *queue_repair,
+            queue_repairs: *queue_repairs,
+            questions: encode_questions(questions),
+            producer_failure: producer_failure.clone(),
+            follow_check: match follow_check {
+                Some(check) => Some(encode_check(check)),
+                None => None,
+            },
+            merge_result: merge_result.clone(),
+            history: match history {
+                Some(value) => Some(super::history::encode_change_history(value)),
+                None => None,
+            },
+            ending: encode_ending(ending.as_ref()),
+            repair_tasks: encode_numbers(repair_tasks),
+            resolution_tasks: encode_numbers(resolution_tasks),
+            effect_account: match effect_account {
+                Some(account) => Some(
+                    w::EffectAccount::new(
+                        &w::CEILINGS,
+                        w::EffectAccountParts { entry: account.entry, words: account.words.clone() },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+        },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
+    let w::ChangeHotParts {
+        task_release,
+        job,
+        signed,
+        ending,
+        repair_tasks,
+        resolution_tasks,
+        result,
+        task,
+        priority,
+        change,
+        ci,
+        pull,
+        pending,
+        effect,
+        delegate,
+        delegate_status,
+        verdicts,
+        gate_remarks,
+        drift,
+        queue_repair,
+        queue_repairs,
+        effect_account,
+        producer_failure,
+        questions,
+        follow_check,
+        merge_result,
+        history,
+    } = value.into_parts();
+    Ok(top::ChangeHot {
+        task_release: match task_release {
+            Some(release) => {
+                let w::TaskReleaseParts { revision, at } = release.into_parts();
+                Some(top::TaskRelease { revision, at: Wall::from_nanos(at) })
+            }
+            None => None,
+        },
+        job: super::history::decode_job_record(job),
+        signed: super::landing_log::decode_signed(signed),
+        ending: decode_ending(ending),
+        repair_tasks: repair_tasks.into_boxed(),
+        resolution_tasks: resolution_tasks.into_boxed(),
+        result: decode_result(result),
+        task,
+        priority: i32::from_be_bytes(priority.to_be_bytes()),
+        change: decode_change(change),
+        ci: match ci {
+            Some(read) => {
+                let w::ChangeCiParts { head, status } = read.into_parts();
+                Some(d::Ci { head, status: decode_status(status) })
+            }
+            None => None,
+        },
+        pull,
+        pending,
+        effect: decode_effect_result(effect),
+        delegate: match delegate {
+            Some(value) => {
+                let w::DelegateRefParts { task, request } = value.into_parts();
+                Some((task, decode_delegate(request)))
+            }
+            None => None,
+        },
+        delegate_status: decode_status(delegate_status),
+        verdicts: decode_gate_reports(verdicts),
+        gate_remarks: decode_gate_remarks(gate_remarks),
+        drift: match drift {
+            Some(value) => Some(decode_hold(value)),
+            None => None,
+        },
+        queue_repair,
+        queue_repairs,
+        questions: decode_questions(questions)?,
+        producer_failure,
+        follow_check: match follow_check {
+            Some(check) => Some(decode_check(check)),
+            None => None,
+        },
         merge_result,
         history: match history {
             Some(value) => Some(super::history::decode_change_history(value)),
@@ -1150,6 +1457,23 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
         )
         .expect("same count");
     }
+    let mut waiting = List::with_capacity(u32::try_from(value.waiting.len()).expect("admitted count"));
+    for word in &value.waiting {
+        waiting
+            .push(
+                w::Waiting::new(
+                    &w::CEILINGS,
+                    w::WaitingParts {
+                        from: word.from,
+                        number: word.number,
+                        words: word.words.clone(),
+                        passed: word.passed,
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect("same count");
+    }
     w::Questions::new(
         &w::CEILINGS,
         w::QuestionsParts {
@@ -1159,13 +1483,19 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             },
             taken: value.taken,
             open,
+            waiting,
         },
     )
     .expect(FITS)
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::QuestionsParts { route, taken, open } = value.into_parts();
+    let w::QuestionsParts { route, taken, open, waiting } = value.into_parts();
+    let mut words_waiting = List::with_capacity(waiting.len());
+    for word in waiting.into_boxed() {
+        let w::WaitingParts { from, number, words, passed } = word.into_parts();
+        words_waiting.push(d::Waiting { from, number, words, passed }).expect("same count");
+    }
     let mut questions = List::with_capacity(open.len());
     for question in open.into_boxed() {
         let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
@@ -1185,6 +1515,7 @@ fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecoda
         },
         taken,
         open: questions.into_boxed(),
+        waiting: words_waiting.into_boxed(),
     })
 }
 

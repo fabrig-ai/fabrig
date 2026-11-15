@@ -119,9 +119,9 @@ fn a_kill_before_the_first_operation_loses_the_commit_and_past_the_last_keeps_it
         store.submit(1, writes.clone(), 0);
         assert_eq!(store.tick(false), Ok(durable.then_some(1)));
         assert_eq!(store.reached_kill(), !durable);
-        store.crash(18);
+        store.crash(18).expect("crash readback");
         assert_eq!(store.applied, u64::from(durable));
         assert_eq!(store.rows.len(), 2 * usize::from(durable));
-        assert_eq!(store.readback(), store.rows);
+        assert_eq!(store.readback().expect("complete readback"), store.rows);
     }
 }

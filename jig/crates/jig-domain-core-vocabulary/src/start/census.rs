@@ -43,9 +43,12 @@ impl Census {
                 None
             }
             Key::Tasks(
-                tasks::Key::Live(_)
+                tasks::Key::Summary(_)
+                | tasks::Key::Retention { .. }
+                | tasks::Key::Live(_)
                 | tasks::Key::Ended(_)
                 | tasks::Key::PlacedHold(_)
+                | tasks::Key::LiveCold(_)
                 | tasks::Key::Stub(_)
                 | tasks::Key::Ledger(_)
                 | tasks::Key::ClosedLedger(_)
@@ -55,6 +58,8 @@ impl Census {
                 | tasks::Key::PersonProposal(_)
                 | tasks::Key::History { .. }
                 | tasks::Key::Milestone { .. }
+                | tasks::Key::Attempt { .. }
+                | tasks::Key::Hold { .. }
                 | tasks::Key::Update { .. }
                 | tasks::Key::EndedByParty { .. }
                 | tasks::Key::EndedByProject { .. }

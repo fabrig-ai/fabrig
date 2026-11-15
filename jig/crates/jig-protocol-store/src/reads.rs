@@ -35,7 +35,12 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
     }
     let mut spent = Spent { rows: range.rows, bytes: range.bytes, joins: store.limits.joins };
     let result = match range.scope {
-        Scope::EndedTasks => erasure::read(store, &range, None, &mut spent),
+        Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. } => erasure::read(store, &range, None, &mut spent),
         Scope::TaskRows { task } => erasure::read(store, &range, Some(task), &mut spent),
         Scope::SettingsHistory { .. } => settings::read(store, &range),
         Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {

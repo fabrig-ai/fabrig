@@ -11,6 +11,8 @@ mod opens;
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::format;
+use alloc::rc::Rc;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 /// The longest name a directory holds (`NAME_MAX`).
@@ -231,7 +233,9 @@ pub(crate) struct Node {
 
 #[derive(Clone, Debug, Hash)]
 enum Body {
-    File(Vec<u8>),
+    // Synced contents share their allocation with the durable node. A write,
+    // truncate or crash replay splits it before changing either view.
+    File(Rc<Vec<u8>>),
     Directory {
         entries: BTreeMap<Box<[u8]>, NodeId>,
         removed: bool,
@@ -347,7 +351,7 @@ impl Machine {
                     node.links = node.links.checked_add(1).expect("bounded scenario links");
                     continue;
                 }
-                Made::File(bytes) => Body::File(bytes.clone()),
+                Made::File(bytes) => Body::File(Rc::new(bytes.clone())),
                 Made::Directory => Body::Directory { entries: BTreeMap::new(), removed: false },
                 Made::Link(target) => Body::Link(target.clone().into_boxed_slice()),
                 Made::Fifo => Body::Special(Is::Fifo),
@@ -399,6 +403,7 @@ impl Machine {
         if end > LARGEST_FILE {
             return Err(Refusal::NoSpace);
         }
+        let contents = Rc::make_mut(contents);
         if contents.len() < end {
             contents.resize(end, 0);
         }
@@ -419,6 +424,11 @@ impl Machine {
     /// Makes this file's bytes or this directory's entries durable.
     pub fn sync(&mut self, file: Opened) {
         let id = self.handle(file).node;
+        if let Body::File(contents) = &mut self.node_mut(id).body
+            && contents.capacity() > contents.len()
+        {
+            Rc::make_mut(contents).shrink_to_fit();
+        }
         let node = self.node(id).clone();
         match node.body {
             Body::File(_) => {
@@ -475,7 +485,7 @@ impl Machine {
                     len = usize::try_from(rng.checked_rem(within).expect("positive write span"))
                         .expect("torn length fits");
                 }
-                write_bytes(contents, *at, bytes.get(..len).expect("torn within write"));
+                write_bytes(Rc::make_mut(contents), *at, bytes.get(..len).expect("torn within write"));
             }
         }
         self.crash_moves(&mut surviving, &mut rng);
@@ -857,7 +867,7 @@ impl Machine {
             Body::File(_) | Body::Link(_) | Body::Special(_) => None,
         };
         let durable_body = match &body {
-            Body::File(_) => Body::File(Vec::new()),
+            Body::File(_) => Body::File(Rc::new(Vec::new())),
             Body::Directory { .. } => Body::Directory { entries: BTreeMap::new(), removed: false },
             Body::Link(target) => Body::Link(target.clone()),
             Body::Special(is) => Body::Special(*is),
@@ -926,11 +936,20 @@ impl Machine {
         self.nodes.remove(&node);
     }
 
-    fn handle(&self, handle: Opened) -> &Handle {
-        match self.handles.get(&handle.raw()) {
-            Some(handle) => handle,
-            None => fail(&format!("{handle:?}: a handle the machine never issued, or closed")),
+    /// Checks that the machine issued this handle and still holds it.
+    pub(crate) fn check_handle(&self, handle: Opened) -> Result<(), String> {
+        if self.handles.contains_key(&handle.raw()) {
+            Ok(())
+        } else {
+            Err(format!("{handle:?}: a handle the machine never issued, or closed"))
         }
+    }
+
+    fn handle(&self, handle: Opened) -> &Handle {
+        if let Err(finding) = self.check_handle(handle) {
+            fail(&finding);
+        }
+        self.handles.get(&handle.raw()).expect("the handle was checked")
     }
 
     fn node(&self, node: NodeId) -> &Node {

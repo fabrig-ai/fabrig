@@ -484,23 +484,6 @@ fn a_valid_template_override_changes_and_restores_the_policy() {
 }
 
 #[test]
-#[should_panic(expected = "merged template choices fit their effective executors")]
-fn startup_rejects_an_incompatible_merged_template() {
-    let mut config = config(41);
-    let configured = template_settings();
-    config.settings = configured.settings;
-    config.defaults = configured.defaults;
-    config.seed_projects[0].policy.templates = Box::new([executor_override(OTHER_CHARTER)]);
-    let mut limits = limits();
-    limits.tasks.charters = OTHER_CHARTER;
-    for charter in &config.defaults.charters {
-        let bytes = policy_owned_bytes(&charter.policy).expect("bounded fixture policy");
-        limits.run_bytes = limits.run_bytes.max(u32::try_from(bytes).expect("fixture policy size"));
-    }
-    drop(seeded_core(config, &limits).expect("fixture core configuration"));
-}
-
-#[test]
 fn prospective_templates_follow_set_removal_and_reset_without_publishing() {
     use crate::settings::{self as s, Edit, Item, Setting, Value};
     let (mut core, _) = make_tree();

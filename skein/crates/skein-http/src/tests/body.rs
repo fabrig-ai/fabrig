@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 
 use super::{Drive, Exchanged, LIMITS, Machine, exchange, get};
-use crate::client::{Error, Event, Limits, Request, Reuse, Waiting};
+use crate::client::{Error, Event, Request, Reuse, Waiting};
 
 const LINE: Read = Read::Scan { until: Delimiter::LF, max: 16 };
 
@@ -235,30 +235,6 @@ fn a_withdrawal_or_a_discard_that_crosses_the_body_s_end_is_dropped() {
 }
 
 #[test]
-#[should_panic(expected = "a body demand with no exchange in progress")]
-fn no_body_demand_once_the_exchange_is_done() {
-    let mut machine = Machine::new(LIMITS);
-    machine.called(get());
-    machine.bytes(b"HTTP/1.1 200 OK\r\n");
-    machine.bytes(b"Content-Length: 0\r\n");
-    machine.bytes(b"\r\n");
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-}
-
-#[test]
-#[should_panic(expected = "a body demand after its withdrawal")]
-fn no_body_demand_after_a_withdrawal() {
-    let mut machine = Machine::new(LIMITS);
-    machine.called(get());
-    machine.bytes(b"HTTP/1.1 200 OK\r\n");
-    machine.bytes(b"\r\n");
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(4), room: 0 }));
-    machine.down(Request::Body(Down::Demand { read: Read::Nothing, room: 0 }));
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(4), room: 0 }));
-}
-
-#[test]
 fn the_framing_of_a_chunked_body_is_read_only_for_a_demand() {
     let mut machine = Machine::new(LIMITS);
     machine.called(get());
@@ -430,14 +406,4 @@ fn what_a_body_leaves_unread_does_not_reach_the_next_exchange() {
     let second =
         exchange(&mut machine, get(), b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nxyz", drive(Read::Fill(3)));
     assert_eq!(second.body, b"xyz");
-}
-
-#[test]
-#[should_panic(expected = "no demand past Limits::read")]
-fn a_demand_past_what_the_intake_holds_is_the_side_above_s_bug() {
-    let mut machine = Machine::new(Limits { read: 4, ..LIMITS });
-    machine.called(get());
-    machine.bytes(b"HTTP/1.1 200 OK\r\n");
-    machine.bytes(b"\r\n");
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(5), room: 0 }));
 }

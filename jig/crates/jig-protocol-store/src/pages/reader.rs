@@ -52,6 +52,38 @@ pub(crate) fn walk_map(
     after: Option<&Cursor>,
     rows: u32,
 ) -> Result<pages::Walked, Failure> {
+    walk_values(store, map, intervals, after, rows, true)
+}
+
+/// Written jobs walk layout ids and bytes as stored, not serving values.
+pub(crate) fn walk_stored(
+    store: &mut Store,
+    intervals: &[Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Result<pages::Walked, Failure> {
+    walk_stored_map(store, KeptMap::Store, intervals, after, rows)
+}
+
+/// Rehearsals decode each stored layout, so neither map crosses the serving read edge.
+pub(crate) fn walk_stored_map(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Result<pages::Walked, Failure> {
+    walk_values(store, map, intervals, after, rows, false)
+}
+
+fn walk_values(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[Range],
+    after: Option<&Cursor>,
+    rows: u32,
+    mapped: bool,
+) -> Result<pages::Walked, Failure> {
     cursor(store, map, intervals, after)?;
     let capacity = rows.min(pages::map_limits(store, map).page.bytes);
     let mut found = List::with_capacity(capacity);
@@ -72,7 +104,7 @@ pub(crate) fn walk_map(
             }
             let limits = pages::map_limits(store, map);
             let rows = capacity.saturating_sub(found.len()).saturating_add(1).min(limits.page.rows);
-            let page = load_rows(store, map, range.clone(), rows)?;
+            let page = load_rows(store, map, range.clone(), rows, mapped)?;
             for row in page.rows {
                 let size = row_bytes(store, &row)?;
                 let total = encoded
@@ -98,10 +130,10 @@ pub(crate) fn walk_map(
 }
 
 pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
-    load_rows(store, map, range, 1)
+    load_rows(store, map, range, 1, true)
 }
 
-fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32) -> Result<pages::Page, Failure> {
+fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32, mapped: bool) -> Result<pages::Page, Failure> {
     let mut limits = pages::map_limits(store, map);
     limits.key = limits.key.checked_add(1).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::CursorLength)))?;
     let mut above = Queue::uncapped();
@@ -118,7 +150,13 @@ fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32) -> Result
         &mut below,
     );
     assert!(below.is_empty(), "memory pages issue no files");
-    terminal(above.pop())
+    let mut page = terminal(above.pop())?;
+    if mapped && map == KeptMap::Store {
+        for row in &mut page.rows {
+            crate::registry::read(store, &row.key, &mut row.value);
+        }
+    }
+    Ok(page)
 }
 
 pub(crate) fn terminal(event: Option<skein_kv::Event>) -> Result<pages::Page, Failure> {

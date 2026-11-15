@@ -411,7 +411,9 @@ log says when that happened; nothing else about the loop changes.
   `worker` and `out` (closes, the box's pipe, the components' requests,
   printed links, the publish and the reclaim). `temper-service`'s
   `iterate` runs them, and `iterate_stage` runs one. The binary's adapter
-  adds its own two: `names` (a forge's name resolved) and `drain` (handover
+  adds its own two: `names` (a kept forge's name resolved before
+  serving, a push's host, and, once serving, at most one of GitHub's
+  names a pass, `forge/README.md`, 2.6) and `drain` (handover
   files, operator lines and links), the only stages that may block in a
   system call.
 - **The clock.** Every stage still sees the pass's one `now`. Only the
@@ -475,7 +477,7 @@ the client wire (`README.md`, section 11).
   | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `reading the forge afresh`, `settling the forge's outbox`, `opening decisions` |
   | the forges' records not yet loaded and connected | `loading the forges' records` |
   | the first periods not yet given | `opening the first periods` |
-  | the forges' names not yet resolved | `resolving the forges' names` |
+  | the forges' names not yet resolved, GitHub's apart (`forge/README.md`, 2.6) | `resolving the forges' names` |
   | the root's commits past its window, waiting on the store | `waiting for the store to make commit N durable, the oldest of M in flight` |
   | the root at its watermark | `at its watermark: B of W in flight` |
 
@@ -708,9 +710,17 @@ Each document keeps its own; these cross them:
 - **Names while running.** io connects to addresses, resolved at
   startup, while a forge's address may move behind its CDN, and a name
   that does not resolve at the start leaves its forge unreachable for
-  that run, not the start refused (setup/init.md, 3). Default: a restart
-  resolves names again; skein's DNS client, or skein-forge-connection
-  resolving at its connect, would mend it (a skein addition).
+  that run, not the start refused (setup/init.md, 3). GitHub's names
+  alone are resolved once serving, when a forge first needs them, and
+  each holds its pass for one lookup (`forge/README.md`, 2.6). Default:
+  a restart resolves names again; skein's DNS client, or
+  skein-forge-connection resolving at its connect, would mend it and
+  take the lookups off the loop (a skein addition).
+- **Other names resolved before serving.** A sign-in's hosts
+  (configuration/README.md) and Google's sign-in endpoints
+  (`sign-in.md`, 3.1) are still resolved by the shell at start, and a
+  kept forge's own name before the start serves. Default: so; the
+  deferral GitHub's names take would serve them too.
 - **The kernel's share of a pass.** A long pass (6.1) times what the
   service runs, not the reap and the submit around it, since the submit
   holds the loop's wait, and `skein-shell`'s `drive` keeps both. A stall

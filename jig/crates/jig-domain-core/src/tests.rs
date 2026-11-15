@@ -171,6 +171,11 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        retention: RetentionLimits {
+            turns: Duration::from_secs(14 * 86_400),
+            records: Duration::from_secs(30 * 86_400),
+            summaries: Duration::from_secs(365 * 86_400),
+        },
         public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {
@@ -1928,39 +1933,25 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
 #[test]
 fn documents_lifecycle_history_keeps_holds_and_endings() {
     let (_, limits) = make_tree();
-    let row = tasks::Milestone {
+    let mut row = tasks::HoldRow {
         at: Wall::EPOCH,
         task: 2,
         position: 3,
-        phase: tasks::Phase::Held {
-            was: tasks::Was::Active(tasks::Active::Due),
-            why: tasks::Hold::Deadline,
-            source: None,
-        },
+        held: tasks::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Deadline, source: None },
     };
-    let line = milestone_from_row(&limits, &row).unwrap();
+    let line = hold_from_row(&limits, &row).unwrap();
     assert_eq!(line.position, 3);
-    assert_eq!(
-        line.phase,
-        MilestonePhase::Held {
-            before: PriorPhase::Active(tasks::Active::Due),
-            why: tasks::Hold::Deadline,
-            ending: None,
-            source: None
-        }
-    );
-    assert_eq!(line.at, Some(Wall::EPOCH));
-    let line = milestone_from_row(
-        &limits,
-        &tasks::Milestone {
-            at: Wall::EPOCH,
-            task: 2,
-            position: 4,
-            phase: tasks::Phase::Ended(tasks::Ending::Failed { reason: Box::from(&b"Failure"[..]) }),
-        },
-    );
-    let line = line.unwrap();
-    let MilestonePhase::Ended(Ending::Failed(words)) = line.phase else { panic!() };
+    assert_eq!(line.before, PriorPhase::Active(tasks::Active::Due));
+    assert_eq!(line.why, tasks::Hold::Deadline);
+    assert_eq!(line.ending, None);
+    assert_eq!(line.source, None);
+    assert_eq!(line.at, Wall::EPOCH);
+    row.held.was = tasks::Was::Closing(tasks::Closing {
+        stage: tasks::Stage::Effects,
+        ending: tasks::Ending::Failed { reason: Box::from(&b"Failure"[..]) },
+    });
+    let line = hold_from_row(&limits, &row).unwrap();
+    let Some(Ending::Failed(words)) = line.ending else { panic!() };
     assert_eq!(words.bytes.as_ref(), b"Failure");
 }
 
@@ -2956,6 +2947,7 @@ pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> cra
             Some(value) => Some(Box::new(value)),
             None => None,
         },
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,

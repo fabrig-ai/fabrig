@@ -2,56 +2,6 @@
 use super::{View, domain, task_problem, too_large, wire};
 use alloc::boxed::Box;
 use skein_lib::List;
-pub(super) fn encode_projection_goal(
-    source: &domain::ProjectionGoal,
-    limits: &View,
-) -> Result<wire::ProjectionGoal, wire::Problem> {
-    let domain::ProjectionGoal { number, project, priority, words, phase } = source;
-    wire::ProjectionGoal::new(
-        &limits.core,
-        wire::ProjectionGoalParts {
-            number: *number,
-            project: *project,
-            priority: *priority,
-            words: words.clone(),
-            phase: encode_phase(phase, limits)?,
-        },
-    )
-}
-pub(super) fn decode_projection_goal(
-    source: wire::ProjectionGoal,
-    limits: &View,
-) -> Result<domain::ProjectionGoal, wire::Problem> {
-    let wire::ProjectionGoalParts { number, project, priority, words, phase } = source.into_parts();
-    Ok(domain::ProjectionGoal { number, project, priority, words, phase: decode_phase(phase, limits)? })
-}
-pub(super) fn encode_projection_task(
-    source: &domain::ProjectionTask,
-    limits: &View,
-) -> Result<wire::ProjectionTask, wire::Problem> {
-    let domain::ProjectionTask { number, requester, words, phase } = source;
-    wire::ProjectionTask::new(
-        &limits.core,
-        wire::ProjectionTaskParts {
-            number: *number,
-            requester: encode_party(requester, limits)?,
-            words: words.clone(),
-            phase: encode_phase(phase, limits)?,
-        },
-    )
-}
-pub(super) fn decode_projection_task(
-    source: wire::ProjectionTask,
-    limits: &View,
-) -> Result<domain::ProjectionTask, wire::Problem> {
-    let wire::ProjectionTaskParts { number, requester, words, phase } = source.into_parts();
-    Ok(domain::ProjectionTask {
-        number,
-        requester: decode_party(requester),
-        words,
-        phase: decode_phase(phase, limits)?,
-    })
-}
 pub(super) fn encode_projection_milestone(
     source: &domain::ProjectionMilestone,
     limits: &View,
@@ -109,21 +59,42 @@ pub(super) fn encode_projection_record(
     limits: &View,
 ) -> Result<wire::ProjectionRecord, wire::Problem> {
     Ok(match source {
-        domain::ProjectionRecord::Goal { goal, pending, changed, fed_at } => {
-            wire::ProjectionRecord::Goal(wire::ProjectionGoalRow::new(
+        domain::ProjectionRecord::GoalHot { goal, pending, changed, fed_at } => {
+            let domain::ProjectionGoalHot { number, project, priority, phase } = goal;
+            wire::ProjectionRecord::GoalHot(wire::ProjectionGoalHot::new(
                 &limits.core,
-                wire::ProjectionGoalRowParts {
-                    goal: encode_projection_goal(goal, limits)?,
+                wire::ProjectionGoalHotParts {
+                    number: *number,
+                    project: *project,
+                    priority: *priority,
+                    phase: encode_phase(phase, limits)?,
                     pending: encode_pending(pending, limits)?,
                     changed: *changed,
                     fed_at: *fed_at,
                 },
             )?)
         }
-        domain::ProjectionRecord::Task { goal, task } => wire::ProjectionRecord::Task(wire::ProjectionTaskRow::new(
-            &limits.core,
-            wire::ProjectionTaskRowParts { goal: *goal, task: encode_projection_task(task, limits)? },
-        )?),
+        domain::ProjectionRecord::TaskHot { goal, task } => {
+            let domain::ProjectionTaskHot { number, requester, phase } = task;
+            wire::ProjectionRecord::TaskHot(wire::ProjectionTaskHot::new(
+                &limits.core,
+                wire::ProjectionTaskHotParts {
+                    goal: *goal,
+                    number: *number,
+                    requester: encode_party(requester, limits)?,
+                    phase: encode_phase(phase, limits)?,
+                },
+            )?)
+        }
+        domain::ProjectionRecord::GoalWords { goal, task, words } => {
+            if goal != task {
+                return Err(super::problem(skein_codec::Reason::Bound));
+            }
+            wire::ProjectionRecord::GoalWords(encode_words(*goal, *task, words, limits)?)
+        }
+        domain::ProjectionRecord::TaskWords { goal, task, words } => {
+            wire::ProjectionRecord::TaskWords(encode_words(*goal, *task, words, limits)?)
+        }
         domain::ProjectionRecord::Milestone { goal, milestone } => {
             wire::ProjectionRecord::Milestone(wire::ProjectionMilestoneRow::new(
                 &limits.core,
@@ -140,18 +111,40 @@ pub(super) fn decode_projection_record(
     limits: &View,
 ) -> Result<domain::ProjectionRecord, wire::Problem> {
     Ok(match source {
-        wire::ProjectionRecord::Goal(value) => {
-            let wire::ProjectionGoalRowParts { goal, pending, changed, fed_at } = value.into_parts();
-            domain::ProjectionRecord::Goal {
-                goal: decode_projection_goal(goal, limits)?,
+        wire::ProjectionRecord::Goal(_) | wire::ProjectionRecord::Task(_) => {
+            return Err(super::problem(skein_codec::Reason::Tag));
+        }
+        wire::ProjectionRecord::GoalHot(value) => {
+            let wire::ProjectionGoalHotParts { number, project, priority, phase, pending, changed, fed_at } =
+                value.into_parts();
+            domain::ProjectionRecord::GoalHot {
+                goal: domain::ProjectionGoalHot { number, project, priority, phase: decode_phase(phase, limits)? },
                 pending: decode_pending(pending),
                 changed,
                 fed_at,
             }
         }
-        wire::ProjectionRecord::Task(value) => {
-            let wire::ProjectionTaskRowParts { goal, task } = value.into_parts();
-            domain::ProjectionRecord::Task { goal, task: decode_projection_task(task, limits)? }
+        wire::ProjectionRecord::TaskHot(value) => {
+            let wire::ProjectionTaskHotParts { goal, number, requester, phase } = value.into_parts();
+            domain::ProjectionRecord::TaskHot {
+                goal,
+                task: domain::ProjectionTaskHot {
+                    number,
+                    requester: decode_party(requester),
+                    phase: decode_phase(phase, limits)?,
+                },
+            }
+        }
+        wire::ProjectionRecord::GoalWords(value) => {
+            let wire::ProjectionWordsParts { goal, task, words } = value.into_parts();
+            if goal != task {
+                return Err(super::problem(skein_codec::Reason::Bound));
+            }
+            domain::ProjectionRecord::GoalWords { goal, task, words }
+        }
+        wire::ProjectionRecord::TaskWords(value) => {
+            let wire::ProjectionWordsParts { goal, task, words } = value.into_parts();
+            domain::ProjectionRecord::TaskWords { goal, task, words }
         }
         wire::ProjectionRecord::Milestone(value) => {
             let wire::ProjectionMilestoneRowParts { goal, milestone } = value.into_parts();
@@ -159,6 +152,51 @@ pub(super) fn decode_projection_record(
         }
     })
 }
+fn encode_words(goal: u64, task: u64, words: &[u8], limits: &View) -> Result<wire::ProjectionWords, wire::Problem> {
+    wire::ProjectionWords::new(&limits.core, wire::ProjectionWordsParts { goal, task, words: Box::from(words) })
+}
+
+/// Split a whole kept row; rows already in parts pass without a rewrite (parts.md, 4).
+pub(crate) fn split(
+    source: wire::ProjectionRecord,
+) -> Result<Option<(wire::ProjectionRecord, wire::ProjectionRecord)>, wire::Problem> {
+    Ok(match source {
+        wire::ProjectionRecord::Goal(value) => {
+            let wire::ProjectionGoalRowParts { goal, pending, changed, fed_at } = value.into_parts();
+            let wire::ProjectionGoalParts { number, project, priority, words, phase } = goal.into_parts();
+            Some((
+                wire::ProjectionRecord::GoalHot(wire::ProjectionGoalHot::new(
+                    &wire::CEILINGS,
+                    wire::ProjectionGoalHotParts { number, project, priority, phase, pending, changed, fed_at },
+                )?),
+                wire::ProjectionRecord::GoalWords(wire::ProjectionWords::new(
+                    &wire::CEILINGS,
+                    wire::ProjectionWordsParts { goal: number, task: number, words },
+                )?),
+            ))
+        }
+        wire::ProjectionRecord::Task(value) => {
+            let wire::ProjectionTaskRowParts { goal, task } = value.into_parts();
+            let wire::ProjectionTaskParts { number, requester, words, phase } = task.into_parts();
+            Some((
+                wire::ProjectionRecord::TaskHot(wire::ProjectionTaskHot::new(
+                    &wire::CEILINGS,
+                    wire::ProjectionTaskHotParts { goal, number, requester, phase },
+                )?),
+                wire::ProjectionRecord::TaskWords(wire::ProjectionWords::new(
+                    &wire::CEILINGS,
+                    wire::ProjectionWordsParts { goal, task: number, words },
+                )?),
+            ))
+        }
+        wire::ProjectionRecord::Milestone(_)
+        | wire::ProjectionRecord::GoalHot(_)
+        | wire::ProjectionRecord::TaskHot(_)
+        | wire::ProjectionRecord::GoalWords(_)
+        | wire::ProjectionRecord::TaskWords(_) => None,
+    })
+}
+
 fn encode_phase(source: &jig_domain_tasks::Phase, limits: &View) -> Result<wire::PhaseBytes, wire::Problem> {
     wire::PhaseBytes::new(
         &limits.core,

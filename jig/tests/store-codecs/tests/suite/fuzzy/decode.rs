@@ -156,6 +156,11 @@ fn core(bytes: &[u8]) {
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
+    if let Ok(row) = core_v6::ProjectionRecord::decode(&core_v6::CEILINGS, &mut Reader::new(bytes)) {
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured projection part");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
 }
 #[test]
 fn arbitrary_core_rows_never_panic_and_round_trip_when_they_decode() {

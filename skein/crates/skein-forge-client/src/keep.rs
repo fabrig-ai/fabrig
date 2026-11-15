@@ -43,6 +43,8 @@ struct Live {
     branch_present: bool,
     pushed_by: Option<(Commit, u64)>,
     read: Sent,
+    // The last call token sent when this resource was fenced; live-only.
+    fence: u64,
     hinted: bool,
     state: State,
     interval: Duration,
@@ -235,6 +237,7 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
         branch_present: false,
         pushed_by: None,
         read: Sent::Current,
+        fence: 0,
         hinted: false,
         state: State::Due(phase, Priority::Keep),
         interval: l.poll,

@@ -276,6 +276,9 @@ impl World {
         let (project, way, gates) = self.landing_config.clone().expect("landing configured");
         assert!(self.project_landing(project, way, gates));
     }
+    pub fn runner_labels(&mut self, labels: Option<Box<[Box<[u8]>]>>) {
+        self.forge_env.limits.runner_labels = labels;
+    }
     pub fn runner_setup_faults(&mut self, faults: u32) {
         self.forge_env.limits.setup_faults = faults;
     }
@@ -1931,6 +1934,8 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
+        top::Stored::ChangeCold(row) => top::Key::ChangeCold(row.task),
+        top::Stored::ChangeHot(row) => top::Key::ChangeHot(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::RefusedSetting(key) => top::Key::Setting(*key),
         top::Stored::Setting(row) => top::Key::Setting(row.key),
@@ -1997,6 +2002,7 @@ fn repository_config(repositories: u32) -> forge::Config {
 #[must_use]
 pub fn fake_config() -> forge::Config {
     forge::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         limits: forge::Limits {
@@ -2074,6 +2080,7 @@ fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
         Box::new([tier])
     } else if turn {
         Box::new([raw::Workflow {
+            requirements: Box::new([]),
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,

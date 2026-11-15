@@ -13,8 +13,6 @@ fn world() -> World {
         let mut row = changes::change_row();
         row.task = task;
         row.change.task = task;
-        row.change.state = temper_engine_domain_forge_change::State::Ended;
-        row.ending = Some(forge::Ending::NoChange);
         world.event(forge::Event::Change { row });
     }
     world.take_seen();
@@ -130,7 +128,7 @@ fn evicted_change_and_erased_landing_keep_their_history() {
     let mut world = world();
     world.write_history(51, wall(10), Some(61));
     world.evict_history_change(51, 2);
-    assert!(!world.stored().contains_key(&forge::Key::Change(51)));
+    assert!(!world.stored().contains_key(&forge::Key::ChangeHot(51)));
     let mut row = changes::change_row();
     row.pull = Some(1);
     world.keep_history_landing(landings::landing_row(&row));

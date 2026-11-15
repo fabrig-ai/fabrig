@@ -36,6 +36,7 @@ pub(crate) fn charters() -> Box<[crate::CharterModels]> {
     Box::new([crate::CharterModels { resumes: false, number: 1, revision: 1, models: Some(Box::new([0])) }])
 }
 
+mod attempts;
 mod batch_bytes;
 mod decision_reads;
 mod hold_origin;
@@ -43,6 +44,7 @@ mod kept;
 mod keys;
 mod refusals;
 pub(crate) mod revisions;
+mod summary;
 mod waiting;
 
 mod close_project;

@@ -623,6 +623,11 @@ pub fn people_asks() -> Box<[people::Ask]> {
 }
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    retention: core::RetentionLimits {
+        turns: skein_lib::Duration::from_secs(14 * 86_400),
+        records: skein_lib::Duration::from_secs(30 * 86_400),
+        summaries: skein_lib::Duration::from_secs(365 * 86_400),
+    },
     public: jig_domain_core_vocabulary::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
@@ -756,16 +761,16 @@ pub mod disk;
 mod reads;
 mod store;
 pub use reads::{
-    CHILD, GOAL, GRANDCHILD, activity_line, answer_line, delegate, ended_delegate, ended_of, escalation_decision,
-    history_with_proposal, hold_milestone, ledger_period, notes_entry_in, notified_line, person_proposal,
-    proposal_decision, question_line, read, terminal, update, with_hold, with_links, with_proposal_rows,
-    with_question_lines,
+    CHILD, GOAL, GRANDCHILD, activity_line, answer_line, attempt_row, delegate, ended_delegate, ended_of,
+    escalation_decision, history_with_proposal, hold_row, ledger_period, notes_entry_in, notified_line,
+    person_proposal, proposal_decision, question_line, read, terminal, update, with_hold, with_links,
+    with_proposal_rows, with_question_lines,
 };
 pub use store::{
-    ALICE, ENDED, LIVE, OTHER_DEPLOYMENT, PROJECT, ROOT, answer, below, call, codec_limits, commit, committed,
-    directory, ended_task, env, format_put, get_kv, header, header_put, header_record, history, installation_put,
-    layouts_put, live_task, notes_entry, notes_line, opened, opened_with_budget, over, person, plant, result_index,
-    run, run_proof, save, sign_in_secret, stores, turn, window_turn,
+    ALICE, ENDED, LIVE, OTHER_DEPLOYMENT, PROJECT, ROOT, answer, below, call, codec_limits, cold_task, commit,
+    committed, directory, ended_task, env, format_put, get_kv, header, header_put, header_record, history,
+    installation_put, layouts_put, live_task, notes_entry, notes_line, opened, opened_with_budget, over, person, plant,
+    result_index, run, run_proof, save, sign_in_secret, stores, turn, window_turn,
 };
 
 pub use store::limits as store_limits;

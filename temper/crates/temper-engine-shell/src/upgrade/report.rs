@@ -21,6 +21,10 @@ pub const fn owner(of: Owner) -> &'static str {
 
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the ordered upgrade report includes job progress (jig protocol/store/jobs.md, 3)"
+)]
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
     let mut text = String::new();
     let mut kept = None;
@@ -43,6 +47,14 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 passed = false;
                 write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
                 place(&mut text, at);
+            }
+            Event::Ran { of, job, rows, commits, .. } => {
+                writeln!(
+                    text,
+                    "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits; time unavailable",
+                    owner(*of)
+                )
+                .expect("string write");
             }
             Event::Patched { of, patch, counts, .. } => {
                 writeln!(
@@ -84,6 +96,7 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
             | Event::OpenRefused { .. }
             | Event::Switched { .. }
             | Event::Site { .. }
+            | Event::Job { .. }
             | Event::Committed { .. }
             | Event::Failed { .. }
             | Event::FrameTooLarge { .. }

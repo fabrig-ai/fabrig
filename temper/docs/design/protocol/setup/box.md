@@ -854,8 +854,16 @@ in a terminal or not, as 1 to 5 say.
   | `restarting STEP` | the step's name, as the terminal's lines name it (`forgejo-3`) | a long step exited and is to be restarted (2, *Restarts*) |
   | `running STEP` | the same | that step spawned again |
   | `gave-up STEP` | the same | the box gives up on that step (2, *Gives up*) |
+  | `starting NAME` | the group's kind's name, `Forgejo` for the owned kind's and `Playground` for the fake kind's, never its label (3) | a group's start begins, where `box.log` gets `<label>: starting` (2, *Its own log*): an asked group's at its `start`, and a started group the box runs at a later start at its first step (1, *At a later start*) |
+  | `started NAME` | the same | that group is started: its long steps started and, for an owned Forgejo, Forgejo answers, where `box.log` gets `<label>: started` |
+  | `dormant NAME` | the same | that group runs nothing again: its start failed, answering `failed`, or its steps closed at a stop or a removal, where `box.log` gets `<label>: stopped` (2, *Stops a group*) |
 
-  No line but `link` holds a secret, and the box writes no `link` to a
+  A box runs at most one group of a kind (1), so NAME names one group;
+  the names are `temper_box_machine::front`'s words, the TUI's state
+  and notice in front saying them as they come (`../../client/tui/box.md`,
+  *The box's state*): the user's request `tui-11` of 2026-11-15, so
+  that a box set up before says its Forgejo starting. No line but
+  `link` holds a secret, and the box writes no `link` to a
   log. The box holds at most 256 lines its parent has not taken; a line
   that finds 256 held is dropped, `box.log` and the steps' logs keeping
   what it said. Writing them never holds a step, a log or the pipe to

@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v24 as w};
+use crate::{Bounds, Undecodable, v25 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -8,6 +8,7 @@ mod api;
 mod application;
 mod away;
 mod change;
+pub(crate) use change::decode_change_row as decode_legacy_change;
 mod client;
 mod closer;
 mod drafts;
@@ -117,6 +118,8 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
                 .expect(FITS),
         ),
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
+        d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
+        d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
         d::Stored::Change(value) => w::Value::Change(Box::new(change::encode_change_row(value))),
         d::Stored::Issue(value) => w::Value::Issue(Box::new(issues::encode(value))),
     };
@@ -159,10 +162,12 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
+        w::Value::ChangeCold(value) => d::Stored::ChangeCold(Box::new(change::decode_change_cold(*value))),
+        w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
         w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value)?)),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
@@ -271,6 +276,10 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         change_gate_failures: forge.change_policy.gates,
         questions_open: forge.change_policy.questions.checked_add(1)?,
         result_text_bytes: forge.client.answer_bytes,
+        change_cold_branch: forge.name_bytes,
+        change_cold_base: forge.name_bytes,
+        change_hot_verdicts: forge.change_policy.gates,
+        change_hot_gate_remarks: forge.change_policy.gates,
         change_row_branch: forge.name_bytes,
         change_row_base: forge.name_bytes,
         change_row_verdicts: forge.change_policy.gates,
@@ -357,7 +366,15 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_row_tier: 32,
         tier_row_goals: forge.holds,
         tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_posting_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_posting_comments: d::tiers::posting_comments(forge)?,
+        tier_posted_tests_tests: forge.tiers.failing_tests,
+        tier_posting_link: 2048,
+        tier_posting_description: 140,
         tier_flight_pending: forge.client.rows,
+        tier_probe_waiting: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_group_tests: forge.tiers.failing_tests,
+        tier_hold_reason: 1024,
         tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_blamed: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_flakes: forge.tiers.failing_tests,

@@ -168,7 +168,7 @@ impl Store {
                     self.pending = check_frames(&bytes, self.applied)?
                         .into_iter()
                         .filter(|(number, _)| *number > self.applied)
-                        .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
+                        .map(|(number, ops)| self.commit(number, &ops, limits, names, connector))
                         .collect::<Result<_, _>>()?;
                 }
                 Observed::Recovered(path) if is_log(&path) => {
@@ -182,7 +182,7 @@ impl Store {
                         && let Some((number, ops)) = snapshots::read(bytes)
                         && self.applied < number
                     {
-                        let commit = self.commit(number, ops, limits, names, connector)?;
+                        let commit = self.commit(number, &ops, limits, names, connector)?;
                         self.apply(&commit, limits)?;
                         self.recovered.extend(1..=number);
                         committed.push(commit);
@@ -210,7 +210,7 @@ impl Store {
             if number <= self.applied {
                 continue;
             }
-            let commit = self.commit(number, ops, limits, names, connector)?;
+            let commit = self.commit(number, &ops, limits, names, connector)?;
             self.apply(&commit, limits)?;
             self.pending.retain(|pending| pending.number > number);
             committed.push(commit);
@@ -260,10 +260,48 @@ impl Store {
         self.applied = commit.number;
         Ok(())
     }
+    fn decode(
+        &self,
+        key: &core::Key,
+        value: &[u8],
+        ops: &[skein_kv::Op],
+        limits: &codec::View,
+        names: &[core::settings::ModelName],
+    ) -> Option<core::Record> {
+        let mut value: Box<[u8]> = Box::from(value);
+        // A captured task put carries its registered layout id over this binary's payload.
+        if let core::Key::Tasks(_) = key
+            && let Some(head) = value.get_mut(..2)
+        {
+            head.copy_from_slice(&13_u16.to_be_bytes());
+        }
+        if let Some(record) = codec::decode(key, &value, limits, names) {
+            return Some(record);
+        }
+        let core::Key::Tasks(jig_domain_tasks::Key::Live(task)) = key else { return None };
+        let cold_key = core::Key::Tasks(jig_domain_tasks::Key::LiveCold(*task));
+        let raw = keys::encode(&cold_key, u32::MAX)?;
+        let mut cold = None;
+        for op in ops {
+            match op {
+                skein_kv::Op::Put { key, value } if *key == raw => cold = Some(value.clone()),
+                skein_kv::Op::Erase { key } if *key == raw => return None,
+                skein_kv::Op::Put { .. } | skein_kv::Op::Erase { .. } => {}
+            }
+        }
+        if cold.is_none() {
+            let root::Record::Core(record) = self.rows.get(&root::Key::Core(cold_key))? else { return None };
+            cold = codec::encode(record, limits, names);
+        }
+        let mut cold = cold?;
+        cold.get_mut(..2)?.copy_from_slice(&13_u16.to_be_bytes());
+        Some(core::Record::Tasks(codec::tasks::decode_live(&value, &cold, &limits.tasks, names).ok()?))
+    }
+
     fn commit(
         &self,
         number: u64,
-        ops: Box<[skein_kv::Op]>,
+        ops: &[skein_kv::Op],
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
@@ -272,11 +310,13 @@ impl Store {
         for op in ops {
             match op {
                 skein_kv::Op::Put { key, value } => {
-                    if let Some(key) = keys::decode(&key) {
-                        let row = codec::decode(&key, &value, limits, names).ok_or("real stored row decodes")?;
+                    if let Some(key) = keys::decode(key) {
+                        let row = self
+                            .decode(&key, value, ops, limits, names)
+                            .ok_or_else(|| format!("real stored row {key:?} decodes, head {:?}", value.get(..2)))?;
                         writes.push(root::Write::Save(root::Record::Core(row)));
-                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
-                        let place = codec::component::Transcript::decode(&value)
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
+                        let place = codec::component::Transcript::decode(value)
                             .map_err(|why| format!("real transcript place: {why:?}"))?;
                         let name = format!("transcripts/{:016x}/{task:016x}", task >> 12).into_bytes();
                         let bytes = self.files.get(&name).ok_or("transcript write precedes map commit")?;
@@ -299,15 +339,15 @@ impl Store {
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let (number, _) =
                             jig_test_store::keys::decode(&key[1..], connector).ok_or("real application key")?;
-                        let record = jig_test_store::records::decode(&value, connector)
+                        let record = jig_test_store::records::decode(value, connector)
                             .map_err(|why| format!("real application row: {why:?}"))?;
                         writes.push(root::Write::Save(root::Record::Connector { number, record }));
                     }
                 }
                 skein_kv::Op::Erase { key } => {
-                    if let Some(key) = keys::decode(&key) {
+                    if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
-                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let (number, key) =

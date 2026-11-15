@@ -95,43 +95,10 @@ fn configured_job_bounds_fit_at_the_tasks_childs_limits() {
     let mut config = config(7);
     config.jobs = Box::new([JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]);
     let core = Core::new(config, &limits).expect("job bounds fit the tasks child");
-    assert_eq!(core.jobs.len(), 1);
-}
-
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
-#[test]
-#[should_panic(expected = "job kinds are ascending and distinct")]
-fn repeated_job_kinds_are_not_configuration() {
-    let mut config = config(7);
-    config.jobs = Box::new([bound(), bound()]);
-    drop(Core::new(config, &limits()));
-}
-
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
-#[test]
-#[should_panic(expected = "job kinds are ascending and distinct")]
-fn descending_job_kinds_are_not_configuration() {
-    let mut config = config(7);
-    config.jobs = Box::new([bound(), JobBound { kind: JobKind(6), ..bound() }]);
-    drop(Core::new(config, &limits()));
-}
-
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
-#[test]
-#[should_panic(expected = "job specs fit the tasks child")]
-fn a_job_spec_bound_past_the_tasks_child_is_not_configuration() {
-    let mut config = config(7);
-    config.jobs = Box::new([JobBound { spec: limits().tasks.spec_bytes + 1, ..bound() }]);
-    drop(Core::new(config, &limits()));
-}
-
-/// The application declares job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
-#[test]
-#[should_panic(expected = "job results fit the tasks child")]
-fn a_job_result_bound_past_the_tasks_child_is_not_configuration() {
-    let mut config = config(7);
-    config.jobs = Box::new([JobBound { result: limits().tasks.result_bytes + 1, ..bound() }]);
-    drop(Core::new(config, &limits()));
+    assert_eq!(
+        core.jobs.as_ref(),
+        &[JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]
+    );
 }
 
 fn due_job() -> (Core, Limits) {

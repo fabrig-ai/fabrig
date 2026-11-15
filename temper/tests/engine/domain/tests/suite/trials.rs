@@ -676,13 +676,28 @@ fn the_calendar_takes_no_period_of_project_zero() {
     end_by_turn(&mut driver, &run);
     driver.fire_at(Duration::from_secs(180));
     driver.settle();
-    assert!(
-        driver
-            .root
-            .next_deadline(&driver.env)
-            .is_none_or(|due| due > skein_lib::Time::from_nanos(walking::PERIOD_SPAN.as_nanos())),
-        "project zero arms no calendar renewal"
-    );
+    let before = zero_periods(&driver);
+    driver.fire_at(walking::PERIOD_SPAN);
+    driver.settle();
+    assert_eq!(zero_periods(&driver), before, "project zero arms no calendar renewal");
+}
+
+fn zero_periods(driver: &Driver) -> Vec<engine::Key> {
+    driver
+        .store
+        .rows
+        .keys()
+        .filter(|key| {
+            matches!(
+                key,
+                engine::Key::Core(core::Key::Tasks(
+                    tasks::Key::Ledger(tasks::Funder::Period { project: 0, .. })
+                        | tasks::Key::ClosedLedger(tasks::Funder::Period { project: 0, .. })
+                ))
+            )
+        })
+        .cloned()
+        .collect()
 }
 
 #[test]

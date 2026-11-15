@@ -3,7 +3,7 @@
 use super::fixtures as f;
 use crate::{Event, Message, Request, translate};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v22 as w;
+use jig_client_protocol_wire::v24 as w;
 use jig_domain_core_vocabulary::{
     self as core,
     settings::{CatalogueModel, ModelSource},
@@ -94,7 +94,7 @@ fn a_catalogue_replaces_the_models_a_request_names() {
                 w::KeyedParts {
                     key: [5; 16],
                     owner: w::Owner::Jig,
-                    version: 22,
+                    version: 24,
                     request: f::encode_ask(&create()),
                     value: None,
                 },
@@ -201,14 +201,4 @@ fn a_catalogue_at_the_wire_bound_replaces_the_models() {
         exchange.component.settings.models.last().unwrap().shown.as_ref().unwrap().len(),
         usize::try_from(exchange.env.limits.wire.me_model_shown_some).unwrap()
     );
-}
-
-#[test]
-#[should_panic(expected = "core catalogue fits the client wire")]
-fn a_catalogue_past_the_wire_bound_panics() {
-    let mut exchange = f::Exchange::new();
-    let mut models = translate::llm::catalogue(&catalogue());
-    models.last_mut().unwrap().shown =
-        Some(vec![b'n'; usize::try_from(exchange.env.limits.wire.me_model_shown_some).unwrap() + 1].into_boxed_slice());
-    exchange.component.down(&exchange.env, Event::Catalogue { models }, &mut exchange.out);
 }

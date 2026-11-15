@@ -110,12 +110,16 @@ A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
 takes no questions and that its requester is task R; a task's words are
-answered with words saying the same, to that task; each reply commits
-with the step that takes what it answers, so a retried step answers
-once. A party's words stay unanswered, since a procedure's step
+answered with words saying the same, to that task, but its requester's
+while it has a live producer, which pass to that producer under either
+route (`questions.md`, 1, *Its requester's words and amendments*); each
+reply commits with the step that takes what it answers, so a retried
+step answers once. A party's words stay unanswered, since a procedure's step
 messages tasks alone (jig's `domain/tasks/messages.md`, 5): they are taken and
-dropped, and the change's page says that a change takes no words. Its
-amendments and cancels are its own (2, 4).
+dropped, and the change's page says that a change takes no words. An
+amendment of its words reaches its live producer under either route
+(`questions.md`, 1, *Its requester's words and amendments*); its
+cancels are its own (4).
 
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
@@ -295,13 +299,27 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
-   `ai/temper#12`"). **No step past it without its pull:** CI runs on
+   `ai/temper#12`"). **Its own pull request** (2026-11-15): a change
+   owns only a pull request it opened, or one whose number it stored.
+   With no number, it looks one up by its branches and takes it only
+   open (`../keeping-up.md`, 3): a closed match, merged or not, belongs
+   to an ended change, a cancelled predecessor's on the same branch at
+   the same head among them (4), and the change opens its own. It
+   stores the number of the one it takes, or of the one it opens as the
+   opening's answer names it, in the step that settles it. From then on
+   it reads and writes that pull request alone, a restart included, and
+   never opens another while it has one: its own found closed is
+   reopened, by a release (3), and its own read as missing holds it as
+   its pull request closed does (3). An uncertain opening found again
+   by its branches (`../README.md`, section 4) is the change's only
+   where what is found is open; a closed one is no answer to it, and the
+   change opens its own. **No step past it without its pull:** CI runs on
    pull requests, so a change reaches checking or gating only with its
    pull request open. A change released from a hold at opening (its
    branch moved or missing, 3) comes back to this step at the head it
-   then reads: it opens its pull request, or finds the one already open,
-   before it reads CI. A release of any other hold that finds no pull
-   request open does the same. **Its pull request at another head is
+   then reads: it opens its pull request, reopens its own, or finds the
+   one already open, before it reads CI. A release of any other hold
+   that finds its pull request not open does the same. **Its pull request at another head is
    not drift** (2026-11-13): the forge updates a pull request's head
    after a push, so a pull request it finds open naming another head
    than the branch's, while the branch is at the head the change
@@ -446,8 +464,13 @@ nothing on its branch's head: forward moves by temper's identity are
 taken as that writer's (jig's `domain/connectors.md`, section 11), and
 the change reads the head afresh once the slot is freed. Otherwise:
 
-- **Its pull request closed** by someone else: held, saying who and
-  when. A release reopens it; a cancel closes the change.
+- **Its pull request closed** by someone else, or read as missing by
+  its number: held, saying who and when. A release reopens it, by its
+  number, never opening another (2, step 2); a cancel closes the
+  change. **Only its own** (2026-11-15): a pull request the change does
+  not own, an ended change's on the same branch among them, is no drift
+  of its, nor is that change's branch: closed, reopened or retargeted,
+  they wake and hold nothing of its (`../keeping-up.md`, 3).
 - **Its branch moved** while nothing of temper's writes it, a late copy
   of its own update among them (`../README.md`, section 6), or by another
   identity, or not forward: held, the head kept as it is, the hold's
@@ -475,8 +498,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
   requester amends the change so.
 - **Its pull request merged by someone else:** landed, like any other
   landing. A merged pull request on reused branch names is its own only
-  when its recorded number or pushed head matches (`../README.md`, section 4); any other
-  merged pull request is Missing and cannot land the change.
+  when its recorded number matches (`../README.md`, section 4); any other
+  merged pull request is Missing and cannot land the change. A head the
+  landing branch already holds through another's merge ends the change
+  with no change (2).
 
 **On its requester's held branch** (1), the branch's writers are its
 requester's delegates, one at a time, the change's own among them.
@@ -536,6 +561,15 @@ released (jig's `domain/tasks/holds.md`, 5): its pull request closed with a
 comment saying why, and its branch deleted, its commits still readable
 under the closed pull request. A change whose merge landed meanwhile
 ends landed, not cancelled.
+
+**Ended, it is frozen** (2026-11-15). Its closed pull request stays its
+own: a change made after it on the same branch, at the same head or
+not, opens its own (2, step 2), and never takes it. From its end, its
+pull request and its branch raise no drift on any live task, its
+successor, its goal and the branch's holder among them, whatever the
+forge or a person does to them, a reopen by hand included
+(`../keeping-up.md`, 3), and its history gains no event but those
+`../../landing-history.md`, 2.2, keeps for after an end.
 
 ## 5. Its panel
 
@@ -633,8 +667,16 @@ changes live at once, never every change made.
   settled, unpinned change with the lowest task number; task numbers
   are jig's, deployment-wide and never reused, so the lowest was made
   first. Its record leaves memory and its `Change` row is erased. While
-  the table has room nothing is dropped, so a quiet deployment keeps as
-  many panels as the table holds.
+  the table has room nothing is dropped for room, so a quiet deployment
+  keeps each panel until its task's record goes (below).
+- **Dropped with its task's record:** when jig erases the full record
+  of the change's task (`Unname`, jig's `domain/connectors.md`, 3.4),
+  30 days after it ended by jig's retention
+  (jig's `protocol/store/retention.md`, 6.2), the root drops the change
+  in that decision, full table or not, if it is settled or dropped
+  last and unpinned, by the rules above, with what goes with it (below).
+  A change pinned then stays, and goes when room is needed, as before.
+  So a quiet deployment's table holds no change past its task.
 - **The root chooses:** only the root knows which goals live, so it
   picks the change to drop, a settled one first and one dropped last
   only when no settled one can go, as `start_change` makes the registration,

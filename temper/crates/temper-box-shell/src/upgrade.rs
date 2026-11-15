@@ -21,7 +21,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         skein_shell::effective_user(),
         false,
     )?;
-    let engine::Runtimes { roots, github } = engine::runtimes("temper-box", &named.machine)?;
+    let engine::Runtimes { roots, github } = engine::runtimes(&named.machine)?;
     let config = engine::settings(&bytes, directories, &service::stock::Given::Stock);
     let accounts = engine::accounts(&config)?;
     let seeds = engine::seeds(None, None)?;

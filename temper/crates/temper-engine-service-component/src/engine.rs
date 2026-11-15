@@ -374,14 +374,21 @@ impl Engine {
         self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len()))
     }
     fn pending_with_room(&self, now: Time, notes_room: u32) -> bool {
-        let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
-        let components = (self.store.opened || self.end.is_some())
-            && self.clients.work_pending_with_secrets(now, secrets_ready)
+        self.pending_with_clients(now, notes_room, self.clients.work_pending_with_secrets(now, secrets_ready))
+    }
+    /// HTTP fragments alone need only the clients pass; queued root and other-child work still runs.
+    #[cfg(test)]
+    pub(crate) fn work_pending_without_clients(&self, now: Time) -> bool {
+        self.pending_with_clients(now, self.notes.room(), self.clients.root_outputs_pending())
+    }
+    fn pending_with_clients(&self, now: Time, notes_room: u32, clients_pending: bool) -> bool {
+        let effects = self.store.host.mark_durable() || self.end.is_some();
+        let components = (self.store.opened || self.end.is_some()) && clients_pending
             || effects && self.setup.work_pending(now)
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)
-            || effects && self.forge.work_pending(now)
+            || effects && (self.forge.work_pending(now) || self.unresolved_github().is_some())
             || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
             || !self.workers.notes.is_empty() && notes_room > 0
             || effects
@@ -786,7 +793,19 @@ pub(crate) fn answer(engine: &mut Engine) {
                 }
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }
-            event @ jig_protocol_store::Event::Site { .. } => {
+            jig_protocol_store::Event::Ran { owner, of, job, rows, commits } => {
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.events.push(jig_protocol_store::Event::Ran {
+                        owner,
+                        of,
+                        job: job.clone(),
+                        rows,
+                        commits,
+                    });
+                }
+                engine.notes.try_push(crate::Note::Ran { of, job, rows, commits }).expect("job progress note room");
+            }
+            event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
                 crate::store::route::site(
                     &mut engine.store.routes,
                     &mut engine.store.host.component,
@@ -906,6 +925,8 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::OlderBuild { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Generations { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Ahead { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Job { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Patch { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),

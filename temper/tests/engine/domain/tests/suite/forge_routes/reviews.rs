@@ -494,6 +494,13 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
     let (mut world, reviewer, head) = review_read_budget(2, 0);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"other", b"base moved", 1)
         .expect("wake the live review's change");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+            key: None,
+        },
+    })));
     let step = hold_step_commits(&mut world);
     let completions = occupy_read_capacity(&mut world);
     let before = world.answers.len();
@@ -880,19 +887,8 @@ fn requester(world: &World, task: u64) -> u64 {
     parent
 }
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
-    world
-        .store
-        .rows
-        .values()
-        .find_map(|record| match record {
-            Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == task => Some(row),
-                _ => None,
-            },
-            Record::Core(_) => None,
-        })
-        .expect("durable change")
+fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 fn assert_review_head(world: &World, reviewer: &engine::Assignment, head: [u8; 32]) {
@@ -1097,7 +1093,7 @@ fn release(world: &mut World, task: u64) {
     assert!(
         writes.iter().any(|write| matches!(write,
             engine::Write::Save(Record::Forge { row }) if matches!(row.as_ref(),
-                forge_top::Stored::Change(row) if row.task == task
+                forge_top::Stored::ChangeHot(row) if row.task == task
                     && !matches!(row.change.state, temper_engine_domain_forge_change::State::Held { .. })
                     && row.change.gate_failures.is_empty()
                     && row.change.released.is_some())

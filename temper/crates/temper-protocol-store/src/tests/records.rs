@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v24};
+use crate::{records, v25};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -114,7 +114,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v24::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v25::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -408,9 +408,9 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
         row.change.ended_held = ended_held;
         let row = forge::Stored::Change(Box::new(row));
         let bytes = records::encode(&row);
-        let wire = v24::Row::decode(&v24::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
-        let v24::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
-        assert_eq!(wire.change().state().live(), &v24::ChangeLive::Ended);
+        let wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
+        let v25::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        assert_eq!(wire.change().state().live(), &v25::ChangeLive::Ended);
         assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
         assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
@@ -423,21 +423,21 @@ fn old_ended_rows_decode_with_or_without_a_hold() {
     let row = fixtures::change_row(State::Ended);
     let bytes = records::encode(&forge::Stored::Change(Box::new(row.clone())));
     for ended_held in [None, Some(Hold::Repairs)] {
-        let wire = v24::Row::decode(&v24::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
-        let v24::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        let wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
+        let v25::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
         let mut wire = wire.into_parts();
         let mut change = wire.change.into_parts();
         let mut holds = skein_lib::List::with_capacity(1);
         if ended_held.is_some() {
-            holds.push(v24::ChangeHold::Repairs).expect("one hold");
+            holds.push(v25::ChangeHold::Repairs).expect("one hold");
         }
         // The unchanged schema's representation, independent of the domain encoder.
         change.state =
-            v24::ChangeState::new(&v24::CEILINGS, v24::ChangeStateParts { live: v24::ChangeLive::Ended, holds })
+            v25::ChangeState::new(&v25::CEILINGS, v25::ChangeStateParts { live: v25::ChangeLive::Ended, holds })
                 .expect("old state");
-        wire.change = v24::Change::new(&v24::CEILINGS, change).expect("old change");
-        let value = v24::Value::Change(Box::new(v24::ChangeRow::new(&v24::CEILINGS, wire).expect("old row")));
-        let wire = v24::Row::new(&v24::CEILINGS, v24::RowParts { value }).expect("old row");
+        wire.change = v25::Change::new(&v25::CEILINGS, change).expect("old change");
+        let value = v25::Value::Change(Box::new(v25::ChangeRow::new(&v25::CEILINGS, wire).expect("old row")));
+        let wire = v25::Row::new(&v25::CEILINGS, v25::RowParts { value }).expect("old row");
         let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("row size"));
         wire.encode(&mut writer).expect("measured room");
         let mut expected = row.clone();
@@ -982,7 +982,7 @@ fn every_application_outcome_preserves_its_complete_record() {
         jig_protocol_store::people_v17::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v17::CEILINGS };
     assert!(
         jig_protocol_store::people_v17::Refusal::encoded_bound(&limits).expect("bounded facts")
-            <= u64::from(v24::CEILINGS.core_refused_refusal)
+            <= u64::from(v25::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
@@ -997,13 +997,13 @@ fn an_application_refusal_written_by_people_sixteen_decodes_through_seventeen() 
     let variant = schema.variant(value.tag(root).unwrap());
     assert_eq!(schema.spelled(variant.name), b"unknown");
     let refusal = value.take().into_exposed();
-    let value = v24::CoreRefused::new(&v24::CEILINGS, v24::CoreRefusedParts { refusal }).expect("small piece");
-    let stored = v24::Application::new(
-        &v24::CEILINGS,
-        v24::ApplicationParts { token: 9, until: 10, outcome: v24::ApplicationOutcome::CoreRefused(value) },
+    let value = v25::CoreRefused::new(&v25::CEILINGS, v25::CoreRefusedParts { refusal }).expect("small piece");
+    let stored = v25::Application::new(
+        &v25::CEILINGS,
+        v25::ApplicationParts { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) },
     )
     .expect("application");
-    let row = v24::Row::new(&v24::CEILINGS, v24::RowParts { value: v24::Value::Application(stored) }).expect("row");
+    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Application(stored) }).expect("row");
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(
         records::decode(&fixtures::encoded_row(&row), &bounds),
@@ -1029,14 +1029,14 @@ fn appended_people_refusals_round_trip_in_application_answers() {
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v24::CoreRefused::new(&v24::CEILINGS, v24::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v24::Application::new(
-            &v24::CEILINGS,
-            v24::ApplicationParts { token: 9, until: 10, outcome: v24::ApplicationOutcome::CoreRefused(value) },
+        let value = v25::CoreRefused::new(&v25::CEILINGS, v25::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v25::Application::new(
+            &v25::CEILINGS,
+            v25::ApplicationParts { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v24::Row::new(&v24::CEILINGS, v24::RowParts { value: v24::Value::Application(application) }).expect("row");
+            v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
@@ -1082,7 +1082,7 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
         assert_eq!(bytes.len(), 13); // Row version, family, forge, author.
-        assert_eq!(&bytes[..3], &[0, 24, 16]);
+        assert_eq!(&bytes[..3], &[0, 25, 16]);
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         if forge == u16::MAX {
             let mut golden = [255; 11];
@@ -1111,7 +1111,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 24, 17]);
+        assert_eq!(&bytes[..3], &[0, 25, 17]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -1136,7 +1136,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v24 as w;
+    use crate::v25 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -1152,7 +1152,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     let mut after = skein_lib::Writer::new(1);
     jig_protocol_store::people_v17::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 24);
+    assert_eq!(crate::STORE_VERSION, 25);
 }
 
 #[test]
@@ -1434,6 +1434,69 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
         }
     }
 }
+#[test]
+fn landing_faults_and_own_holds_are_mutually_exclusive() {
+    use skein_lib::{List, Writer};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for faults in [false, true] {
+        for own in [false, true] {
+            let phase = v25::LandingPhase::new(
+                &v25::CEILINGS,
+                v25::LandingPhaseParts {
+                    place: v25::LandingPlace::Proving,
+                    held: if faults {
+                        Some(
+                            v25::LandingFaults::new(&v25::CEILINGS, v25::LandingFaultsParts { member: 0, gate: 0 })
+                                .expect("fault hold"),
+                        )
+                    } else {
+                        None
+                    },
+                },
+            )
+            .expect("landing phase");
+            let landing = v25::LandingState::new(
+                &v25::CEILINGS,
+                v25::LandingStateParts {
+                    task: 61,
+                    project: 5,
+                    phase,
+                    members: List::with_capacity(0),
+                    preparation: 0,
+                    stale_proofs: 0,
+                    branch: Box::new([]),
+                    round: None,
+                    own_hold: own.then_some(v25::LandingOwnHold::Turn),
+                    last_left: None,
+                },
+            )
+            .expect("landing state");
+            let row = v25::LandingRow::new(
+                &v25::CEILINGS,
+                v25::LandingRowParts {
+                    landing,
+                    asks: List::with_capacity(0),
+                    entries: List::with_capacity(0),
+                    job: None,
+                },
+            )
+            .expect("landing row");
+            let wire =
+                v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(row) }).expect("landing row");
+            let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
+            wire.encode(&mut writer).expect("measured room");
+            let bytes = writer.finish();
+            let decoded = records::decode(&bytes, &bounds);
+            if faults && own {
+                assert_eq!(decoded, Err(crate::Undecodable::Malformed), "two holds cannot wrap one landing phase");
+            } else {
+                let decoded = decoded.expect("a landing with at most one hold decodes");
+                assert_eq!(records::encode(&decoded), bytes, "each admitted hold survives exactly");
+            }
+        }
+    }
+}
+
 #[test]
 fn receipts_preserve_the_check_key_run_and_verdict() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -1749,7 +1812,7 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State};
+    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
     let mut row =
         fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
@@ -1768,7 +1831,15 @@ fn a_changes_questions_round_trip_unchanged() {
         })
         .unwrap();
     }
-    row.questions = Questions { route: Route::Up, taken: 3, open: open.into_boxed() };
+    row.questions = Questions {
+        route: Route::Up,
+        taken: 3,
+        open: open.into_boxed(),
+        waiting: Box::new([
+            Waiting { from: 40, number: 8, words: Box::new([]), passed: Some(42) },
+            Waiting { from: 40, number: 9, words: b"Go on: prerequisite landed".as_slice().into(), passed: None },
+        ]),
+    };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(Box::new(row));
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
@@ -2630,9 +2701,9 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
     oversized.extend_from_slice(&(u64::from(u32::MAX) + 1).to_be_bytes());
     assert!(crate::keys::decode(&oversized, &fixtures::LIMITS).is_none());
     for (endpoint, label) in [(1025, 60), (1024, 61)] {
-        v24::Device::new(
-            &v24::CEILINGS,
-            v24::DeviceParts {
+        v25::Device::new(
+            &v25::CEILINGS,
+            v25::DeviceParts {
                 party: 1,
                 number: 1,
                 endpoint: vec![b'e'; endpoint].into_boxed_slice(),
@@ -2697,7 +2768,7 @@ fn pull_size_is_omitted_without_changing_the_stored_pull() {
 
 #[test]
 fn a_change_holding_a_retired_route_or_state_never_decodes() {
-    use crate::v24 as w;
+    use crate::v25 as w;
     use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Producing { requested: true })));
@@ -2725,7 +2796,12 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
         }
         parts.questions = w::Questions::new(
             &w::CEILINGS,
-            w::QuestionsParts { route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open },
+            w::QuestionsParts {
+                route: if route { w::Route::Retired } else { w::Route::Up },
+                taken: 1,
+                open,
+                waiting: skein_lib::List::with_capacity(0),
+            },
         )
         .unwrap();
         let row = w::Row::new(
@@ -2761,5 +2837,66 @@ fn a_pending_merge_job_end_and_its_readback_marker_round_trip() {
         let record = forge::Stored::Change(Box::new(row));
         let key = crate::keys::encode(&forge::stored_key(&record), u32::MAX).expect("key");
         assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
+    }
+}
+
+#[test]
+fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
+    use skein_lib::Rng;
+    let bounds = crate::bounds(&fixtures::LIMITS, 8192).unwrap();
+    let mut random = Rng::new(0x12_2f_30);
+    for state in fixtures::change_states().into_boxed() {
+        let mut row = fixtures::change_row(state);
+        row.task = random.next_u64();
+        row.change.task = row.task;
+        row.priority =
+            i32::from_be_bytes(u32::try_from(random.next_u64() & u64::from(u32::MAX)).unwrap().to_be_bytes());
+        row.body = Box::new([42; 6144]);
+        if row.task & 1 != 0 {
+            use jig_domain_tasks::{LlmChoice, ModelEffort};
+            use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
+            let model = ModelEffort { model: 0, effort: None };
+            row.producing_llm =
+                Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
+            row.review_llm = row.producing_llm.clone();
+            row.close = Some(b"close".as_slice().into());
+            row.merge_result = Some(b"merged".as_slice().into());
+            row.questions.open = Box::new([Open {
+                asker: 1,
+                number: 2,
+                line: b"question".as_slice().into(),
+                words: b"whole question".as_slice().into(),
+                stands: Stands::Held { answer: b"answer".as_slice().into() },
+            }]);
+            row.change.early = Early::Started(Box::new([StartedFrom { task: 2, head: [3; 32] }]));
+        }
+        let (cold, hot) = row.clone().split();
+        assert_eq!(forge::ChangeRow::join(cold.clone(), hot.clone()), row);
+        let whole = records::encode(&forge::Stored::Change(Box::new(row.clone())));
+        let hot_bytes = records::encode(&forge::Stored::ChangeHot(Box::new(hot.clone())));
+        assert!(hot_bytes.len() + 6000 < whole.len(), "hot {} whole {}", hot_bytes.len(), whole.len());
+        for (part, other) in [
+            (forge::Stored::ChangeCold(Box::new(cold.clone())), forge::Key::ChangeCold(row.task.wrapping_add(1))),
+            (forge::Stored::ChangeHot(Box::new(hot)), forge::Key::ChangeHot(row.task.wrapping_add(1))),
+        ] {
+            let bytes = records::encode(&part);
+            let key = crate::keys::encode(&forge::stored_key(&part), u32::MAX).unwrap();
+            assert_eq!(
+                records::row(&key, &bytes, &bounds),
+                Ok(part.clone()),
+                "hot {} whole {}",
+                hot_bytes.len(),
+                whole.len()
+            );
+            assert_eq!(
+                records::row(&crate::keys::encode(&other, u32::MAX).unwrap(), &bytes, &bounds),
+                Err(crate::Undecodable::Malformed)
+            );
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = part.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        }
     }
 }

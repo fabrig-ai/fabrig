@@ -11,6 +11,9 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
         core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) => Some(task),
         core::Record::Tasks(
             tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -20,6 +23,8 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::Update(_)
             | tasks::Stored::Result(_)
@@ -56,6 +61,37 @@ pub(super) fn owner(
     Ok(None)
 }
 
+/// Ended indexes alone fall back to a summary, within the owner's one join
+/// (protocol/store/retention.md, 7; protocol/store/loads.md, 3).
+pub(super) fn ended_row(
+    store: &mut Store,
+    value: core::Record,
+    number: u64,
+    spent: &mut Spent,
+) -> Result<Option<reads::Row>, Failure> {
+    let Some(value_summary) = point::record(store, &core::Key::Tasks(tasks::Key::Summary(number)))? else {
+        spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+        return Ok(None);
+    };
+    let core::Record::Tasks(tasks::Stored::Summary(summary)) = value_summary else {
+        return Err(Failure::Corrupt);
+    };
+    let row = reads::Row {
+        value,
+        owner: None,
+        summary: Some(summary),
+        ancestors: Box::new([]),
+        related: None,
+        unjoined: None,
+        ended_read: None,
+        linked: Box::new([]),
+        inbox: None,
+    };
+    spent.bytes = spent.bytes.checked_sub(row.owned_bytes().ok_or(Failure::Corrupt)?).ok_or(Failure::Cut)?;
+    spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+    Ok(Some(row))
+}
+
 pub(super) fn activity_row(
     value: core::Record,
     owner: &tasks::TaskRecord,
@@ -64,6 +100,7 @@ pub(super) fn activity_row(
     let row = reads::Row {
         value,
         owner: Some(Box::new(owner.clone())),
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,
@@ -130,6 +167,7 @@ fn projected(
     let row = reads::Row {
         value,
         owner,
+        summary: None,
         ancestors: joined.ancestors,
         related,
         unjoined: None,
@@ -209,6 +247,10 @@ mod tests {
             let mut spent = Spent { rows: 1, bytes: u64::MAX, joins: LOOKUP_JOINS };
             let Ok(found) = owner(&mut store, number, &mut spent) else { panic!("lookup fits one join: {number}") };
             assert_eq!(found.is_some(), present, "owner {number}");
+            if let Some(found) = found {
+                let record = if number == LIVE { fixtures::live_task(number) } else { fixtures::ended_task(number) };
+                assert_eq!(Some(found.as_ref()), super::as_task(&record), "owner joined whole");
+            }
             assert_eq!(spent.joins, 0, "owner {number}");
         }
     }

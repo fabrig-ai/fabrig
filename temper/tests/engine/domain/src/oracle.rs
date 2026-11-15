@@ -1,5 +1,5 @@
 //! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
-//! temper/docs/design/testing/README.md, 2).
+//! temper/docs/design/testing/README.md, 4.2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
@@ -70,22 +70,21 @@ impl Snapshot {
         Self { rows: rows.clone(), wall, queries, answers: Vec::new() }
     }
 
-    pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) {
+    pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
         for key in self.rows.keys().chain(rows.keys().filter(|key| !self.rows.contains_key(*key))) {
             let before = self.rows.get(key).and_then(|row| retained(key, row, self.wall));
             let after = rows.get(key).and_then(|row| retained(key, row, self.wall));
             if before != after {
-                assert_eq!(
-                    before,
-                    after,
-                    "restart oracle row {key:?}, field {}",
+                return Err(format!(
+                    "assertion `left == right` failed: restart oracle row {key:?}, field {}\n  left: {before:?}\n right: {after:?}",
                     difference(&format!("{before:#?}"), &format!("{after:#?}"))
-                );
+                ));
             }
         }
+        Ok(())
     }
 
-    pub fn compare_answer(&self, index: usize, answer: Answer) {
+    pub fn compare_answer(&self, index: usize, answer: Answer) -> Result<(), String> {
         let (sign_in, read) = &self.queries[index];
         let mut before = durable::answer(self.answers[index].clone());
         let mut after = durable::answer(answer);
@@ -99,13 +98,12 @@ impl Snapshot {
             }
         }
         if before != after {
-            assert_eq!(
-                before,
-                after,
-                "restart oracle document {read:?}, sign-in {sign_in}, field {}",
+            return Err(format!(
+                "assertion `left == right` failed: restart oracle document {read:?}, sign-in {sign_in}, field {}\n  left: {before:?}\n right: {after:?}",
                 difference(&format!("{before:#?}"), &format!("{after:#?}"))
-            );
+            ));
         }
+        Ok(())
     }
 }
 
@@ -161,11 +159,11 @@ fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 4.2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {
-        self.close_erasing(None);
+        self.close_erasing(None).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// A deliberately broken fixture: `close` does nothing.
@@ -174,11 +172,13 @@ impl Driver {
         self.broken = Fixture::Broken;
     }
 
-    /// Fixture fault at the snapshot/restart boundary, exercising the same oracle.
-    pub fn close_erasing(&mut self, erase: Option<Key>) {
+    /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
+    pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
         if !matches!(self.broken, Fixture::Checked) {
-            return;
+            return Ok(());
         }
+        // A finding ends this attempt too; Drop must not repeat a failed readback.
+        self.broken = Fixture::Closed;
         self.oracle_settle();
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
         let forges = self.root.forges();
@@ -197,7 +197,7 @@ impl Driver {
         }
         self.store.crash(0);
         // Check the crashed inventory before startup can mask a missing writer row.
-        snapshot.compare_rows(&self.store.rows);
+        snapshot.compare_rows(&self.store.rows)?;
         self.root =
             engine::Domain::new(config::copy(&self.restart_config), &self.env.limits).expect("restart configuration");
         self.out.clear();
@@ -205,18 +205,18 @@ impl Driver {
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         self.period_sent = true;
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows);
-        compare_forges(forges, self.root.forges());
+        snapshot.compare_rows(&self.store.rows)?;
+        compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);
-            snapshot.compare_answer(index, answer);
+            snapshot.compare_answer(index, answer)?;
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
-            compare_forge(*project, *subject, before, after);
+            compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
-        self.broken = Fixture::Closed;
+        Ok(())
     }
 
     fn oracle_settle(&mut self) {
@@ -368,18 +368,19 @@ pub fn close_world(
     store: &mut crate::store::Store,
     protocol: &mut crate::protocol::Protocol,
     config: engine::Config,
-) {
+) -> Result<(), String> {
     let mut driver = Driver::cold(store.take_for_drop(), config, &env.limits);
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.protocol, protocol);
     driver.env = env.with(env.limits);
     driver.period_sent = true;
     driver.events.clear();
-    driver.close();
+    let finding = driver.close_erasing(None);
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
     driver.broken = Fixture::Broken;
+    finding
 }
 
 /// Public forge subjects are discovered from retained owners, including ended tasks.
@@ -434,30 +435,31 @@ pub fn compare_forge(
     subject: u64,
     before: Option<temper_engine_domain_forge::Document>,
     after: Option<temper_engine_domain_forge::Document>,
-) {
+) -> Result<(), String> {
     let before = durable::forge(before);
     let after = durable::forge(after);
     if before != after {
-        assert_eq!(
-            before,
-            after,
-            "restart oracle forge document project {project}, key {subject}, field {}",
+        return Err(format!(
+            "assertion `left == right` failed: restart oracle forge document project {project}, key {subject}, field {}\n  left: {before:?}\n right: {after:?}",
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
-        );
+        ));
     }
+    Ok(())
 }
 
-pub fn compare_forges(before: temper_engine_domain_forge::Forges, after: temper_engine_domain_forge::Forges) {
+pub fn compare_forges(
+    before: temper_engine_domain_forge::Forges,
+    after: temper_engine_domain_forge::Forges,
+) -> Result<(), String> {
     let before = durable::forges(before);
     let after = durable::forges(after);
     if before != after {
-        assert_eq!(
-            before,
-            after,
-            "restart oracle forge document forges, field {}",
+        return Err(format!(
+            "assertion `left == right` failed: restart oracle forge document forges, field {}\n  left: {before:?}\n right: {after:?}",
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
-        );
+        ));
     }
+    Ok(())
 }
 
 impl Drop for Driver {
@@ -482,6 +484,39 @@ mod tests {
         assert_eq!(driver.store.rows, rows);
         assert_eq!(driver.store.applied, commits, "one cold restart per story");
         assert!(matches!(driver.broken, Fixture::Closed));
+    }
+
+    #[test]
+    fn a_changed_answer_names_its_query_and_sign_in() {
+        let before = Answer::None(core::reads::Why::Unknown);
+        let mut snapshot = Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH);
+        snapshot.queries.push((42, Read::Result { task: 7 }));
+        snapshot.answers.push(before.clone());
+        assert_eq!(snapshot.compare_answer(0, before), Ok(()));
+        let finding = snapshot.compare_answer(0, Answer::None(core::reads::Why::Gone)).expect_err("changed readback");
+        assert!(finding.contains("restart oracle document Result { task: 7 }, sign-in 42, field"), "{finding}");
+        assert!(finding.contains("Unknown") && finding.contains("Gone"), "{finding}");
+    }
+
+    #[test]
+    fn a_missing_forge_document_names_its_project_and_key() {
+        let before = Some(forge::Document::Dismissals(Box::new([])));
+        assert_eq!(compare_forge(42, 7, before.clone(), before.clone()), Ok(()));
+        let finding = compare_forge(42, 7, before, None).expect_err("lost forge document");
+        assert!(finding.contains("restart oracle forge document project 42, key 7, field"), "{finding}");
+        assert!(finding.contains("Dismissals") && finding.contains("None"), "{finding}");
+    }
+
+    #[test]
+    fn a_missing_forge_names_the_forges_document() {
+        let mut driver = Driver::new(crate::store::Store::new());
+        driver.settle();
+        let before = driver.root.forges();
+        assert!(!before.rows.is_empty(), "fixture configures a forge");
+        assert_eq!(compare_forges(before.clone(), before.clone()), Ok(()));
+        let finding = compare_forges(before, forge::Forges { rows: Box::new([]) }).expect_err("lost forge");
+        assert!(finding.contains("restart oracle forge document forges, field"), "{finding}");
+        assert!(finding.contains("left: Forges") && finding.contains("right: Forges"), "{finding}");
     }
 
     use skein_forge_client as client;
@@ -522,8 +557,8 @@ mod tests {
         let (key, row) = live_row(empty_live());
         assert!(retained(&key, &row, skein_lib::Wall::EPOCH).is_none());
         let rows = BTreeMap::from([(key, row)]);
-        Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH).compare_rows(&rows);
-        Snapshot::new(&rows, skein_lib::Wall::EPOCH).compare_rows(&BTreeMap::new());
+        assert_eq!(Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH).compare_rows(&rows), Ok(()));
+        assert_eq!(Snapshot::new(&rows, skein_lib::Wall::EPOCH).compare_rows(&BTreeMap::new()), Ok(()));
     }
 
     #[test]
@@ -594,22 +629,28 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "restart oracle row")]
     fn dropping_a_live_delivery_position_is_still_a_writer_fault() {
         let mut row = empty_live();
         row.position.comment = 1;
         let (key, record) = live_row(row);
+        let label = format!("restart oracle row {key:?}");
         let rows = BTreeMap::from([(key, record)]);
-        Snapshot::new(&rows, skein_lib::Wall::EPOCH).compare_rows(&BTreeMap::new());
+        let finding = Snapshot::new(&rows, skein_lib::Wall::EPOCH)
+            .compare_rows(&BTreeMap::new())
+            .expect_err("lost delivery position");
+        assert!(finding.contains(&label), "{finding}");
     }
 
     #[test]
-    #[should_panic(expected = "restart oracle row")]
     fn inventing_live_cached_content_is_still_a_writer_fault() {
         let mut row = empty_live();
         row.cached.tip = Some([1; 32]);
         let (key, record) = live_row(row);
+        let label = format!("restart oracle row {key:?}");
         let rows = BTreeMap::from([(key, record)]);
-        Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH).compare_rows(&rows);
+        let finding = Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH)
+            .compare_rows(&rows)
+            .expect_err("invented cached content");
+        assert!(finding.contains(&label), "{finding}");
     }
 }
