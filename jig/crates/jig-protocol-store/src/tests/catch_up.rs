@@ -1,4 +1,4 @@
-//! The baseline's live record reaches the before-talk payload (protocol/store/opening.md, 3).
+//! The baseline's ended record reaches the before-talk payload (protocol/store/opening.md, 3).
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::bytes;
 
@@ -44,7 +44,7 @@ fn current(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
         }
     }
     let new = skein_codec::schema::parse(text.unwrap().as_bytes()).unwrap();
-    let plan = skein_codec::layout::Plan::derive(
+    let plan = skein_codec::layout::Plan::derive_dropping(
         &old,
         old.root(root, None).unwrap(),
         &[],
@@ -71,8 +71,8 @@ fn baseline_golden(name: &str) -> Box<[u8]> {
 }
 
 #[test]
-fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
-    let smallest = baseline_golden("enum_value_live_smallest.bin");
+fn a_baseline_ended_row_keeps_its_fields_without_a_talk() {
+    let smallest = baseline_golden("enum_value_ended_smallest.bin");
     let (tag, record) = smallest.split_first().expect("live tag");
     let (_, fields) = record.split_first().expect("closer option");
     let live = bytes::concat(&[&[*tag, 1], &42_u64.to_be_bytes(), fields]);
@@ -88,7 +88,7 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let bytes = current(b"Row", bytes);
     let row = crate::tasks_v13::Row::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
-    let crate::tasks_v13::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
+    let crate::tasks_v13::Value::Ended(record) = row.into_parts().value else { panic!("before-talk ended") };
     assert!(!record.activation_open());
     assert_eq!(record.session(), &None);
     assert_eq!(record.outcome().tries().infrastructure(), 0);

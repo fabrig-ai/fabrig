@@ -169,15 +169,6 @@ fn settings(task: &crate::TaskRecord) -> Settings {
     }
 }
 
-/// One immutable lifecycle milestone, identified independently of semantic revisions.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Milestone {
-    pub task: u64,
-    pub position: u64,
-    pub phase: Phase,
-    pub at: skein_lib::Wall,
-}
-
 /// Attempt and hold history (domain/tasks/lifecycle.md, 12.1 and 12.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AttemptRow {

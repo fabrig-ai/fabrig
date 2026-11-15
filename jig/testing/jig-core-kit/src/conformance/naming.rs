@@ -133,7 +133,6 @@ mod tests {
             (T::PersonProposal(1), None, None, None),
             (T::DecidedProposal(1), None, None, None),
             (T::History { task, revision: 1 }, None, Some(task), None),
-            (T::Milestone { task, position: 1 }, None, Some(task), None),
             (T::Activity { task, position: 1 }, None, Some(task), None),
             (
                 T::Update {
@@ -218,7 +217,7 @@ mod tests {
         ] {
             cases.push((root::Key::Connector { number: 1, key }, owner, task, None));
         }
-        assert_eq!(cases.len(), 71, "all store key kinds, including both application scopes");
+        assert_eq!(cases.len(), 70, "all store key kinds, including both application scopes");
         for (key, project, task, outlives) in cases {
             let expected = (project.is_some() || task.is_some()).then(|| r::Naming {
                 row: match &key {

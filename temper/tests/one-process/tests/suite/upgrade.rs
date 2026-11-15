@@ -16,7 +16,7 @@ fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit(
     temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
 }
 #[test]
-fn the_golden_store_rehearses_its_kept_patch_counts_and_restores() {
+fn the_golden_store_rehearsal_refuses_retired_milestones_without_writing() {
     temper_one_process_world::upgrade::check::golden(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
     );
@@ -43,7 +43,7 @@ fn a_story_keeps_its_history_through_a_settled_upgrade() {
     temper_one_process_world::upgrade::story::settled();
 }
 #[test]
-fn golden_rehearsal_decodes_all_kept_records() {
+fn golden_rehearsal_decodes_all_kept_records_before_refusing_retired_milestones() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
         false,

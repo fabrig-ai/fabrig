@@ -10,10 +10,10 @@ use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
 use jig_protocol_store::{self as store, Event, Get, KeptFamily, PatchSet, PatchSets, Request, Row, Store, Write};
 use skein_lib::{Reader, Token};
 #[path = "upgrade_disk.rs"]
-mod disk;
+pub(super) mod disk;
 use disk::Disk;
 
-const SETS: PatchSets = PatchSets {
+pub(super) const SETS: PatchSets = PatchSets {
     sets: &[store::SKEIN_PATCH_SET, store::SMITH_PATCH_SET, jig_protocol_accounts::JIG_PATCH_SET, crate::PATCH_SET],
 };
 fn old_sets() -> PatchSets {
@@ -54,7 +54,7 @@ fn old_sets() -> PatchSets {
         ),
     }
 }
-fn component(disk: &Disk, sets: PatchSets) -> Store {
+pub(super) fn component(disk: &Disk, sets: PatchSets) -> Store {
     let mut app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
     app.version = if sets.sets.last().unwrap().level == Some(12) { 23 } else { crate::STORE_VERSION };
     let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
@@ -110,17 +110,8 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     // The smallest golden change names task zero.
     let change_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::Change(0), 1024).unwrap();
     let tagged_change = store::keys::application(&change_key, disk.limits().store.key).unwrap();
-    let task_key = store::keys::encode(
-        &jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(0)),
-        disk.limits().store.key,
-    )
-    .unwrap();
     let change_text = old.sets.last().unwrap().families.iter().find(|f| f.name == "temper-store").unwrap().current;
-    let tasks_text = old.sets[2].families.iter().find(|f| f.name == "jig-store-tasks").unwrap().current;
     let change = [&[0, 23, 12][..], &golden(change_text, "record_change_row_smallest.bin")].concat().into_boxed_slice();
-    let task = [&[0, 12, 9][..], &golden(tasks_text, "record_before_talk_smallest.bin"), &[0, 0, 0, 0]]
-        .concat()
-        .into_boxed_slice();
     let codec = store::codec::limits(&disk.limits().core).unwrap();
     // The smallest change names repository 0/0; keep its owner in the fixture too.
     let repository_key = crate::keys::encode(
@@ -141,7 +132,6 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
             store::codec::encode(&header(2), &codec, &[]).unwrap(),
         ),
         put(tagged_change.clone(), change),
-        put(task_key.clone(), task),
     ];
     let events = disk.kv(&mut map, skein_kv::Request::Commit { owner: Token::new(1), ops: ops.into() });
     let [skein_kv::Event::Committed { number: 2, .. }] = events.as_slice() else { panic!("plant: {events:?}") };
@@ -149,7 +139,6 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         store::keys::encode_own(&store::keys::Own::Layout { family: family.into(), number, id }, 1024).unwrap()
     };
     assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 12, 25)).is_none());
-    assert!(kv_get(&mut disk, &mut map, layout_key("jig-store-tasks", 0, 13)).is_none());
     disk.kv(&mut map, skein_kv::Request::Close { owner: Token::new(1) });
 
     drop(map);
@@ -193,32 +182,14 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let crate::v25::Value::ChangeHot(change) = change.into_parts().value else { panic!("change row") };
     assert_eq!(change.task_release(), &None);
     assert!(!change.change().released_resolution());
-    let events = disk.request(
-        &mut current,
-        Request::Get {
-            owner: Token::new(1),
-            key: Get::Jig(jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(0))),
-        },
-    );
-    let [Event::Got { row: Some(Row::Jig(Record::Tasks(jig_domain_tasks::Stored::Live(task)))), .. }] =
-        events.as_slice()
-    else {
-        panic!("task: {events:?}")
-    };
-    assert_eq!(task.question_woken, 0);
     let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
     let [Event::Switched { .. }] = switched.as_slice() else { panic!("switch: {switched:?}") };
     drop(current);
     disk.restart();
 
     let mut map = disk.map(2);
-    let cold_key =
-        store::keys::encode(&jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::LiveCold(0)), 64).unwrap();
-    for (family, number, id, key, binary) in [
-        ("temper-store", 48, 25, Some(tagged_hot), true),
-        ("jig-store-tasks", 0, 14, Some(task_key), true),
-        ("jig-store-tasks", 21, 13, Some(cold_key), true),
-    ] {
+    {
+        let (family, number, id, key, binary) = ("temper-store", 48, 25, Some(tagged_hot), true);
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();

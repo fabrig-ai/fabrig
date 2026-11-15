@@ -22,6 +22,7 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
     let new_held: Vec<_> = new.iter().collect();
     let mut types = 0_usize;
     let mut added = 0_usize;
+    let mut dropping = Vec::new();
     for ((family, old), new) in families.iter().zip(&old).zip(&new) {
         for ty in family.types {
             let variant = ty.variant.map(str::as_bytes);
@@ -34,10 +35,19 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
                 continue;
             };
             let plan = skein_codec::layout::Plan::derive(old, old_root, &old_held, new, new_root, &new_held);
-            assert!(plan.is_ok(), "{} type {}: {plan:?}", family.name, ty.number);
+            if let Err(why) = plan {
+                assert_eq!(why.why, skein_codec::layout::Why::VariantDropped);
+                skein_codec::layout::Plan::derive_dropping(old, old_root, &old_held, new, new_root, &new_held).unwrap();
+                dropping.push((family.name, ty.number));
+            }
             types += 1;
         }
     }
     assert_ne!(types, 0);
+    assert_eq!(dropping, [("jig-store-core", 1), ("jig-store-tasks", 0), ("jig-store-tasks", 6)]);
+    let tasks = families.iter().find(|f| f.name == "jig-store-tasks").unwrap();
+    assert_eq!(tasks.retired.iter().map(|t| t.number).collect::<Vec<_>>(), [10]);
+    let current = skein_codec::schema::parse(tasks.current.as_bytes()).unwrap();
+    assert!(current.root(b"Row", Some(b"milestone")).is_none());
     assert_eq!(added, 5);
 }

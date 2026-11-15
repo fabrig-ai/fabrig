@@ -172,7 +172,6 @@ record SettingsAccepted { by: Party revision: u32 }
 enum PersonProposalState { pending: PendingPersonProposal, accepted: AcceptedProposal, rejected: RejectedPersonProposal, withdrawn: WithdrawnPersonProposal, settings_accepted: SettingsAccepted }
 enum PersonAction { batch: ProposedBatch, amend: boxed ProposedAmendment, settings: ProposedSettings }
 record PersonProposal { number: u64 proposer: u64 project: u32 action: PersonAction reason: bytes 524288 state: PersonProposalState }
-record Milestone { task: u64 position: u64 phase: Phase at: u64 }
 record HoldRow { task: u64 position: u64 held: Held at: u64 }
 record Grace { by: Party until: u64 reason: bytes 524288 message: u64 }
 record SettingsRevision { task: u32 run: option u32 }
@@ -428,7 +427,7 @@ record TaskSummary {
 enum RetentionStage { turns, record, summary, forgotten, proposal }
 record RetentionRow { stage: RetentionStage since: u64 number: u64 }
 
-enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord, attempt: AttemptRow, hold: HoldRow, live_hot: LiveHot, live_cold: LiveCold, summary: boxed TaskSummary, retention: RetentionRow }
+enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, ended_talk: TaskRecord, attempt: AttemptRow, hold: HoldRow, live_hot: LiveHot, live_cold: LiveCold, summary: boxed TaskSummary, retention: RetentionRow }
 record ModelName { value: text 4096 }
 versioned record Row { value: Value models: list 64 ModelName }
 record CapacityActionBatch { first: option u64 members: u32 }

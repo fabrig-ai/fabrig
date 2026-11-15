@@ -17,7 +17,7 @@ fn read(disk: &mut Disk, store: &mut Store, task: u64, scope: reads::Scope) -> r
 #[test]
 fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
     let mut disk = Disk::new(&[]);
-    let mut store = milestones::store(&disk, crate::JIG_STORE_PATCH_SET);
+    let mut store = jig_store(&disk, crate::JIG_STORE_PATCH_SET);
     assert_opened(&disk.open(&mut store), 0);
     let mut above = Queue::uncapped();
     let mut below = fixtures::below();
@@ -53,7 +53,7 @@ fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
     let set = crate::JIG_STORE_PATCH_SET;
     let old_jobs = set.jobs.iter().filter(|job| job.name != "task-logs").copied().collect::<Vec<_>>();
     let mut disk = Disk::new(&[]);
-    let mut old = milestones::store(&disk, PatchSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
+    let mut old = jig_store(&disk, PatchSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
     assert_opened(&disk.open(&mut old), 0);
     let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -93,7 +93,7 @@ fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
     ];
     let before = scopes.iter().map(|scope| read(&mut disk, &mut old, 5, scope.clone())).collect::<Vec<_>>();
     let mut disk = Disk::new(&disk.items());
-    let mut current = milestones::store(&disk, set);
+    let mut current = jig_store(&disk, set);
     let mut events = VecDeque::from(disk.open(&mut current).into_vec());
     let mut pages = 0;
     let mut ran = 0_u32;
@@ -134,7 +134,7 @@ fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
     let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
     let [Event::Switched { .. }] = switched.as_ref() else { panic!("{switched:?}") };
     let mut disk = Disk::new(&disk.items());
-    let mut again = milestones::store(&disk, set);
+    let mut again = jig_store(&disk, set);
     let events = disk.open(&mut again);
     assert_opened(&events, last);
     for (scope, before) in scopes.iter().zip(&before) {

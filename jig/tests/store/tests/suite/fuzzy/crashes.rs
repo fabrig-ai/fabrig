@@ -14,8 +14,18 @@ fn history_world() -> World {
             patches: &[],
             jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
             families: &[
-                jig_protocol_store::KeptFamily { types: &[], texts: &[], ..jig_protocol_store::STORE_FAMILIES[3] },
-                jig_protocol_store::KeptFamily { types: &[], texts: &[], ..jig_protocol_store::STORE_FAMILIES[4] },
+                jig_protocol_store::KeptFamily {
+                    retired: &[],
+                    types: &[],
+                    texts: &[],
+                    ..jig_protocol_store::STORE_FAMILIES[3]
+                },
+                jig_protocol_store::KeptFamily {
+                    retired: &[],
+                    types: &[],
+                    texts: &[],
+                    ..jig_protocol_store::STORE_FAMILIES[4]
+                },
             ],
             ..jig_protocol_store::JIG_STORE_PATCH_SET
         }],

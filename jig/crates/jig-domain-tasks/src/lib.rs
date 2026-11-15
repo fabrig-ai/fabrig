@@ -160,7 +160,7 @@ pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
     AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Held, History,
-    HoldRow, Milestone, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
+    HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};

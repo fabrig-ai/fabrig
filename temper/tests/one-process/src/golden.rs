@@ -155,10 +155,6 @@ pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
             && matches!(task.phase, tasks::Phase::Active(tasks::Active::Running { .. }))
     })
 }
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "the stop, hold release, upgrade, history and client observations are independent"
-)]
 struct Judge {
     finding: Option<String>,
     controls: skein_world::Controls,
@@ -167,37 +163,9 @@ struct Judge {
     stopped: bool,
     released: bool,
     upgrade: bool,
-    history_checked: bool,
     ticks: u32,
-    client_started: bool,
 }
 impl Judge {
-    fn start_client(&mut self, others: &mut [Proc]) {
-        for proc in others.iter_mut() {
-            if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                for args in [
-                    vec![b"me".as_slice(), b"--json"],
-                    vec![b"task".as_slice(), b"turn", b"1", b"1.1", b"--json"],
-                    vec![b"task".as_slice(), b"turn", b"1", b"4.1", b"--json"],
-                    vec![
-                        b"chat".as_slice(),
-                        b"start",
-                        b"Golden after upgrade",
-                        b"--project",
-                        b"1",
-                        b"--key",
-                        b"golden-after-upgrade",
-                        b"--json",
-                    ],
-                ] {
-                    caller.commands.push_back(crate::ctl::Command::new(&args));
-                }
-                caller.closed = true;
-            }
-        }
-        self.client_started = true;
-    }
-
     fn stop_peers(&mut self, others: &mut [Proc]) -> Result<(), String> {
         let ended = others.iter().all(|proc| !matches!(proc, Proc::Agent(agent) if !agent.is_empty()));
         for proc in others {
@@ -234,70 +202,20 @@ impl Judge {
                 }
             }
         }
-        if self.upgrade && !self.history_checked && self.store.borrow().wires.is_some_and(|number| number > 98) {
-            assert_history(&self.store.borrow())?;
-            self.history_checked = true;
-        }
-        if self.upgrade
-            && self.history_checked
-            && !self.client_started
-            && self
-                .store
-                .borrow()
-                .agent_records
-                .iter()
-                .any(|row| matches!(row, referee::AgentRecord::Start { task: 7, attempt, .. } if *attempt > 6))
-        {
-            self.start_client(others);
-        }
-        if self.upgrade {
-            for proc in others.iter() {
-                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                    for answer in &caller.answers {
-                        match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
-                            (left, right) if left != right => {
-                                let finding = format!("ctl failed: {}", String::from_utf8_lossy(&answer.error));
-                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
         let complete = if self.upgrade {
-            let store = self.store.borrow();
-            self.history_checked
-                && store
-                    .agent_records
-                    .iter()
-                    .any(|row| matches!(row, referee::AgentRecord::Start { task: 7, attempt, .. } if *attempt > 6))
-                && live(&store).any(|task| {
-                    task.number > 7 && task.spec.words.as_ref() == b"Golden after upgrade"
-                        && store.agent_records.iter().any(|row| {
-                            matches!(row, referee::AgentRecord::Start { task: number, .. } if *number == task.number)
-                        })
-                })
-                && others
-                    .iter()
-                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 4))
+            service.service.end().is_some()
         } else {
             self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some()
         };
         if !self.stopped && complete {
-            if self.upgrade {
-                for proc in others.iter() {
-                    if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                        assert_client(&caller.answers)?;
-                    }
-                }
-            }
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.finish();
                 }
             }
-            self.controls.signal(0, ServiceSignal::Terminate);
+            if !self.upgrade {
+                self.controls.signal(0, ServiceSignal::Terminate);
+            }
             self.stopped = true;
         }
         if self.stopped {
@@ -337,9 +255,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.stopped && now >= Time::from_nanos(60_000_000_000)).then(|| {
             format!(
-                "golden did not settle; checked {}, started {}, tasks {:?}",
-                self.history_checked,
-                self.client_started,
+                "golden did not settle; tasks {:?}",
                 live(&self.store.borrow()).map(|t| (t.number, t.attempt, &t.phase)).collect::<Vec<_>>()
             )
         })
@@ -347,60 +263,6 @@ impl skein_world::Referee<Proc> for Judge {
     fn passed(&self) -> bool {
         self.finding.is_none() && (self.stopped)
     }
-}
-
-fn assert_client(answers: &[crate::ctl::Answer]) -> Result<(), String> {
-    for answer in answers {
-        match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
-            (left, right) if left != right => {
-                let finding = format!("current client: {}", String::from_utf8_lossy(&answer.error));
-                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-            }
-            _ => {}
-        }
-    }
-    let [me, first, last, _new] = answers else { return Err(String::from("me, two archived turns, and a new chat")) };
-    let me: serde_json::Value =
-        serde_json::from_slice(&me.output).map_err(|why| format!("current me JSON: {why:?}"))?;
-    match (&(me["party"]["number"]), &(1)) {
-        (left, right) if left != right => {
-            let finding = String::from("the kept token still names person 1");
-            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-        }
-        _ => {}
-    }
-    match (&(me["party"]["login"]["bytes"]), &("owner")) {
-        (left, right) if left != right => {
-            let finding = String::from("assertion `left == right` failed");
-            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-        }
-        _ => {}
-    }
-    if !(me["projects"]
-        .as_array()
-        .ok_or_else(|| String::from("project memberships"))?
-        .iter()
-        .any(|project| project["project"] == 1 && project["name"]["bytes"] == "Demo"))
-    {
-        return Err(format!(
-            "assertion failed: {}",
-            stringify!(
-                me["projects"]
-                    .as_array()
-                    .ok_or_else(|| String::from("project memberships"))?
-                    .iter()
-                    .any(|project| project["project"] == 1 && project["name"]["bytes"] == "Demo")
-            )
-        ));
-    }
-    if skein_lib::bytes::find(&first.output, b"delegate this change in playground/widget").is_none() {
-        return Err(String::from("first kept chat turn read by current client"));
-    }
-    if skein_lib::bytes::find(&last.output, b"CSV export is available from widget").is_none() {
-        return Err(String::from("last kept chat turn read by current client"));
-    }
-
-    Ok(())
 }
 
 fn assert_history(store: &Store) -> Result<(), String> {
@@ -562,9 +424,7 @@ pub fn make(directory: &Path) {
                 stopped: false,
                 released: false,
                 upgrade: false,
-                history_checked: false,
                 ticks: 0,
-                client_started: false,
             },
         )
         .with_machine(machine);
@@ -590,7 +450,7 @@ pub fn make(directory: &Path) {
     world::lower_store(None);
 }
 
-/// Load the permanent baseline into a fresh machine and use this build's service.
+/// The permanent baseline is refused for its retired milestones, without switching generations.
 pub fn read(directory: &Path) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
@@ -599,9 +459,7 @@ pub fn read(directory: &Path) {
     let configuration = read_configuration(directory);
     let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let mut disk = files::load(directory);
-    // The terminal keeps its token; ctl additionally reads the engine's address.
-    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
-    let client = disk.reopen_root(2);
+    let active = files::active(&mut disk);
     let machine = Machine::new(disk);
     let store = Rc::new(RefCell::new(Store::new()));
     store.borrow_mut().recovering();
@@ -628,9 +486,7 @@ pub fn read(directory: &Path) {
                 stopped: false,
                 released: false,
                 upgrade: true,
-                history_checked: false,
                 ticks: 0,
-                client_started: false,
             },
         )
         .with_machine(machine);
@@ -638,23 +494,22 @@ pub fn read(directory: &Path) {
             world.host_roots(program, roots);
         }
         world.spawn_restartable(programs::service_roots(), programs::service::<Golden>);
-        world.host_roots(
-            crate::ctl::program(|spawn, inherited| {
-                Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
-            }),
-            crate::ctl::roots,
-        );
-        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
-            Proc::Other(HarnessProcess::Calls(Box::new(crate::ctl::Caller::scripted(root))))
-        });
-        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm_peer(), None))));
-        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
         world.run()
     });
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
-    let expected = std::fs::read_to_string(directory.join("patched.txt")).expect("per-patch table");
-    PATCHED.with(|lines| assert_eq!(lines.borrow().concat(), expected, "one reviewed line per applied patch"));
+    assert!(
+        matches!(service.service.end(), Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
+        temper_service::EngineStop::StoreOpen { why: jig_protocol_store::OpenRefusal::Layout { family, value_type: 10, why: jig_protocol_store::Unplanned::Retired, .. } }
+    ))) if family.as_ref() == "jig-store-tasks"),
+        "{:?}",
+        service.service.end()
+    );
+    assert_eq!(
+        files::active(&mut outcome.machine.0.borrow_mut()),
+        active,
+        "refusal never switches the active generation"
+    );
     world::lower_store(None);
 }
 

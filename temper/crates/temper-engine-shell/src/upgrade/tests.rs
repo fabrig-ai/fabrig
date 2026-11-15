@@ -87,9 +87,12 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
 #[test]
 fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
     let (_scratch, directories) = deployment();
+    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("active");
+    let active = std::fs::read(&active_path).expect("baseline active generation");
     let code = run("temper-engine", &directories, &Request::Check(directories.data.clone()), "test-build")
         .expect("upgrade reaches its report");
-    assert_eq!(code, 0, "golden patches and restores pass");
+    assert_eq!(code, 1, "baseline's retired milestones refuse the rehearsal");
+    assert_eq!(std::fs::read(active_path).expect("active after refusal"), active);
 }
 
 #[test]

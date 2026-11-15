@@ -9,7 +9,7 @@ use skein_io::{
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle, Pid, Sim};
 
-pub(super) struct Disk {
+pub(in crate::tests) struct Disk {
     machine: Machine,
     sim: Sim,
     pid: Pid,
@@ -21,6 +21,9 @@ pub(super) struct Disk {
 }
 impl Disk {
     pub fn new() -> Self {
+        Self::with_items(&[])
+    }
+    pub fn with_items(items: &[skein_fake_machine::Item]) -> Self {
         let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
         limits.store.budget = 4_194_304;
         limits.store.ops = 256;
@@ -33,7 +36,7 @@ impl Disk {
             timeout: limits.store.deadline,
         };
         let mut machine = Machine::for_user(0);
-        let handle = machine.lay(&[]);
+        let handle = machine.lay(items);
         let mut sim = Sim::new(1, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
@@ -45,6 +48,14 @@ impl Disk {
         let [a, b, c] = &mut io;
         let seeded = store::seed([a, b, c], 1);
         Self { machine, sim, pid, root: Root { token: Token::new(1), fd }, io, files, env, seeded }
+    }
+    pub fn active(&mut self) -> Vec<u8> {
+        let root = self.machine.reopen_root(0);
+        let opened = self.machine.open(root, b"active", skein_fake_machine::How::ReadNoFollow).unwrap();
+        let bytes = self.machine.read(opened, 0, 64).unwrap();
+        self.machine.close(opened);
+        self.machine.close(root);
+        bytes
     }
     pub fn restart(&mut self) {
         self.machine.crash(1);

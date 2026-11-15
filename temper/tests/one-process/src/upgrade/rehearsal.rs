@@ -273,7 +273,7 @@ fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let (lines, code) = render(&tool.0);
     eprintln!("golden maps: {expected} kept records\n{lines}");
-    assert_eq!(code, u8::from(broken), "{lines}");
+    assert_eq!(code, 1, "{lines}");
     if broken {
         use std::fmt::Write;
         let mut hex = String::new();
@@ -284,8 +284,13 @@ fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
         assert!(!lines.contains("decoded ") && !lines.contains("patched "), "no plan runs: {lines}");
     } else {
         assert!(lines.contains(&format!("decoded {expected} records\n")), "{lines}");
-        assert!(lines.contains("patches and restores pass"), "{lines}");
-        assert!(lines.find("decoded ") < lines.find("patched "), "{lines}");
+        assert!(
+            lines.contains(
+                "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
+            ),
+            "{lines}"
+        );
+        assert!(!lines.contains("patched ") && !lines.contains("patches and restores pass"), "{lines}");
     }
     let mut disk = outcome.machine.0.borrow_mut();
     assert_eq!(contents(&mut disk, 0), before, "every source path and byte unchanged");

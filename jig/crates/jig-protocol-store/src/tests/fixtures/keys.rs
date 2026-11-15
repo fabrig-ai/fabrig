@@ -178,7 +178,6 @@ pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
         7 => Key::ClosedLedger(funder(rng)),
         8 => Key::DecidedProposal(number(rng)),
         9 => Key::History { task: number(rng), revision: number(rng) },
-        10 => Key::Milestone { task: number(rng), position: number(rng) },
         11 => Key::Update {
             party: number(rng),
             at: Newest::of(number(rng)),

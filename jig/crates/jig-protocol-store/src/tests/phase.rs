@@ -29,10 +29,8 @@ use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 mod charter_versions;
 mod floor;
 mod jobs;
-mod live_task_parts;
-mod milestones;
-mod projection_parts;
 mod registry;
+mod store_floor;
 mod task_logs;
 mod value_types;
 
@@ -2116,4 +2114,16 @@ fn the_patched_copys_open_reports_its_recovered_and_patched_counts() {
     }
     assert!(census.keyspaces.iter().any(|row| *row.prefix == [2, b's'] && row.puts > 0), "patched shelves counted");
     assert_eq!(store.stores.secrets.census().keyspaces(), []);
+}
+
+fn jig_store(disk: &Disk, set: crate::PatchSet) -> Store {
+    let mut limits = fixtures::store_limits();
+    limits.store.budget = 2_097_152;
+    limits.store.ops = 128;
+    limits.commits.writes = 7;
+    let mut store = disk.store_with_limits(&limits);
+    store.patch_sets(crate::PatchSets {
+        sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])),
+    });
+    store
 }

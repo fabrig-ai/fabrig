@@ -44,15 +44,6 @@ fn a_template_member_holding_a_template_is_refused() {
         Err(bound_problem(crate::tasks_v13::Path::CreationRecurring))
     );
 }
-fn a_milestone_reads_back_with_its_complete_phase() {
-    let row = jig_domain_tasks::Stored::Milestone(jig_domain_tasks::Milestone {
-        task: 17,
-        position: 7,
-        phase: fixtures::task_phase(),
-        at: skein_lib::Wall::from_nanos(61),
-    });
-    assert_eq!(saved_tasks(&row), Ok(row));
-}
 fn a_decided_person_proposal_reads_back() {
     use jig_domain_tasks::{Party, PersonProposalState};
     for state in [
@@ -347,7 +338,6 @@ fn task_phases_and_proposals_read_back_as_written() {
     table([
         ("a_pending_person_proposal_reads_back", a_pending_person_proposal_reads_back),
         ("a_recurring_template_reads_back_one_level_deep", a_recurring_template_reads_back_one_level_deep),
-        ("a_milestone_reads_back_with_its_complete_phase", a_milestone_reads_back_with_its_complete_phase),
         ("a_decided_person_proposal_reads_back", a_decided_person_proposal_reads_back),
         ("each_proposal_action_reads_back", each_proposal_action_reads_back),
         ("each_proposal_decision_reads_back", each_proposal_decision_reads_back),

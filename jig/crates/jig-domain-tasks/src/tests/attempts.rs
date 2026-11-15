@@ -121,9 +121,6 @@ fn phases_keep_two_attempts_not_milestones_and_restart_keeps_the_open_attempt() 
         let mut attempts: u32 = 0;
         let mut lines = skein_lib::List::uncapped();
         for stored in h.stored.values() {
-            if let Stored::Milestone(_) = stored {
-                panic!("no row per phase change");
-            }
             if let Stored::Attempt(_) = stored {
                 attempts = attempts.checked_add(1).unwrap();
             }

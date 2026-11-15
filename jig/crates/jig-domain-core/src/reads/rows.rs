@@ -463,7 +463,6 @@ fn person_row_project(row: &Row, project: u32) -> bool {
             | tasks::Stored::Ended(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PlacedHold(_)
@@ -794,7 +793,6 @@ fn object(
                 tasks::Stored::Live(_)
                 | tasks::Stored::Ended(_)
                 | tasks::Stored::Activity(_)
-                | tasks::Stored::Milestone(_)
                 | tasks::Stored::Attempt(_)
                 | tasks::Stored::Hold(_)
                 | tasks::Stored::PlacedHold(_)
@@ -1038,7 +1036,6 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                 }
                 Record::Tasks(
                     tasks::Stored::History(_)
-                    | tasks::Stored::Milestone(_)
                     | tasks::Stored::Attempt(_)
                     | tasks::Stored::Hold(_)
                     | tasks::Stored::Activity(_)
@@ -1192,7 +1189,6 @@ fn inbox_selection_row(limits: &Limits, row: &Row) -> Result<Option<documents::I
         Record::Tasks(
             tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
@@ -1248,7 +1244,6 @@ fn inbox_row(
         Record::Tasks(
             tasks::Stored::Activity(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
@@ -1536,8 +1531,7 @@ fn hold_record(record: &Record) -> Option<&tasks::HoldRow> {
     match record {
         Record::Tasks(tasks::Stored::Hold(value)) => Some(value),
         Record::Tasks(
-            tasks::Stored::Milestone(_)
-            | tasks::Stored::Attempt(_)
+            tasks::Stored::Attempt(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
@@ -1573,7 +1567,6 @@ fn activity_record(record: &Record) -> Option<&tasks::ActivityLine> {
         Record::Tasks(
             tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
@@ -1660,7 +1653,6 @@ fn ledger(record: &Record) -> Option<&tasks::FundingRecord> {
             tasks::Stored::Activity(_)
             | tasks::Stored::PersonProposal(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Live(_)
@@ -1840,7 +1832,6 @@ fn key_kind(key: &Key) -> KeyKind {
             | tasks::Key::ClosedLedger(
                 tasks::Funder::Task(_) | tasks::Funder::Pool { .. } | tasks::Funder::Recurring { .. },
             )
-            | tasks::Key::Milestone { .. }
             | tasks::Key::PlacedHold(_)
             | tasks::Key::Summary(_)
             | tasks::Key::Retention { .. }

@@ -172,7 +172,7 @@ fn generated_live_records_split_and_join_with_each_parts_own_model_names() {
         assert_eq!(hot.models().len(), 1, "nested recurring authorities stay hot");
         assert_eq!(hot.models().as_slice()[0].value(), b"a");
         assert_eq!(cold.models().as_slice()[0].value(), b"z");
-        // EndedTalk keeps the whole payload and the same-width tag as LiveTalk.
+        // EndedTalk keeps the whole payload.
         let whole = codec::tasks::encode(&Stored::Ended(Box::new(row)), &wire::CEILINGS, &names).unwrap();
         assert!(hot_bytes.len() < whole.len());
     }

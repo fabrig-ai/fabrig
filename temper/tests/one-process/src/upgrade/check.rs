@@ -4,7 +4,7 @@ use crate::{fixtures, referee, stories, world};
 use jig_protocol_store::{Owner, PatchSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
-use std::{cell::RefCell, collections::BTreeMap, fmt::Write, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
 
 type Patches = Vec<(Owner, u32, jig_protocol_store::Counts)>;
 #[derive(Clone, Copy, Debug)]
@@ -306,22 +306,14 @@ pub fn golden(directory: &Path) {
         temper_engine_service::store::PATCH_SETS,
         Until::Check,
     );
-    assert_eq!(code, 0, "{report}");
-    let mut actual = String::new();
-    for (of, patch, counts) in patches {
-        assert!(
-            report.contains(&format!(
-                "patched {} {patch}: {} records in {} commits",
-                temper_engine_shell::upgrade::owner(of),
-                counts.records,
-                counts.commits
-            )),
-            "{report}"
-        );
-        writeln!(actual, "{} {patch} {} {}", temper_engine_shell::upgrade::owner(of), counts.records, counts.commits)
-            .expect("count line");
-    }
-    assert_eq!(actual, std::fs::read_to_string(directory.join("patched.txt")).expect("golden patch counts"));
-    assert!(report.contains("patches and restores pass"), "{report}");
+    assert_eq!(code, 1, "{report}");
+    assert!(patches.is_empty(), "refusal precedes every patch");
+    assert!(
+        report.contains(
+            "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
+        ),
+        "{report}"
+    );
+    assert!(!report.contains("patches and restores pass"), "{report}");
     assert_eq!(image(&mut disk), before);
 }

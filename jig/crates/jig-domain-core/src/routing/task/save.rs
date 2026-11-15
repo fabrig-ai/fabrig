@@ -125,7 +125,6 @@ fn prepare_record(
             record
         }
         tasks::Stored::Live(_)
-        | tasks::Stored::Milestone(_)
         | tasks::Stored::Attempt(_)
         | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
@@ -176,7 +175,6 @@ fn task_saved(
                 tasks::Stored::Live(_) => true,
                 tasks::Stored::Ended(_) => false,
                 tasks::Stored::Activity(_)
-                | tasks::Stored::Milestone(_)
                 | tasks::Stored::Attempt(_)
                 | tasks::Stored::Hold(_)
                 | tasks::Stored::PersonProposal(_)
@@ -257,7 +255,6 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
         | tasks::Stored::Update(_)
         | tasks::Stored::Pool(_)
         | tasks::Stored::History(_)
-        | tasks::Stored::Milestone(_)
         | tasks::Stored::Attempt(_)
         | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
@@ -292,7 +289,6 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
         | tasks::Stored::Pool(_)
         | tasks::Stored::ClosedLedger(_)
         | tasks::Stored::History(_)
-        | tasks::Stored::Milestone(_)
         | tasks::Stored::Attempt(_)
         | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
@@ -346,8 +342,7 @@ fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut
             },
             out,
         ),
-        tasks::Stored::Milestone(_)
-        | tasks::Stored::Attempt(_)
+        tasks::Stored::Attempt(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::Live(_)
         | tasks::Stored::PersonProposal(_)

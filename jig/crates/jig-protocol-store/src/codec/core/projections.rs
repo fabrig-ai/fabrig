@@ -111,9 +111,6 @@ pub(super) fn decode_projection_record(
     limits: &View,
 ) -> Result<domain::ProjectionRecord, wire::Problem> {
     Ok(match source {
-        wire::ProjectionRecord::Goal(_) | wire::ProjectionRecord::Task(_) => {
-            return Err(super::problem(skein_codec::Reason::Tag));
-        }
         wire::ProjectionRecord::GoalHot(value) => {
             let wire::ProjectionGoalHotParts { number, project, priority, phase, pending, changed, fed_at } =
                 value.into_parts();
@@ -156,47 +153,6 @@ fn encode_words(goal: u64, task: u64, words: &[u8], limits: &View) -> Result<wir
     wire::ProjectionWords::new(&limits.core, wire::ProjectionWordsParts { goal, task, words: Box::from(words) })
 }
 
-/// Split a whole kept row; rows already in parts pass without a rewrite (parts.md, 4).
-pub(crate) fn split(
-    source: wire::ProjectionRecord,
-) -> Result<Option<(wire::ProjectionRecord, wire::ProjectionRecord)>, wire::Problem> {
-    Ok(match source {
-        wire::ProjectionRecord::Goal(value) => {
-            let wire::ProjectionGoalRowParts { goal, pending, changed, fed_at } = value.into_parts();
-            let wire::ProjectionGoalParts { number, project, priority, words, phase } = goal.into_parts();
-            Some((
-                wire::ProjectionRecord::GoalHot(wire::ProjectionGoalHot::new(
-                    &wire::CEILINGS,
-                    wire::ProjectionGoalHotParts { number, project, priority, phase, pending, changed, fed_at },
-                )?),
-                wire::ProjectionRecord::GoalWords(wire::ProjectionWords::new(
-                    &wire::CEILINGS,
-                    wire::ProjectionWordsParts { goal: number, task: number, words },
-                )?),
-            ))
-        }
-        wire::ProjectionRecord::Task(value) => {
-            let wire::ProjectionTaskRowParts { goal, task } = value.into_parts();
-            let wire::ProjectionTaskParts { number, requester, words, phase } = task.into_parts();
-            Some((
-                wire::ProjectionRecord::TaskHot(wire::ProjectionTaskHot::new(
-                    &wire::CEILINGS,
-                    wire::ProjectionTaskHotParts { goal, number, requester, phase },
-                )?),
-                wire::ProjectionRecord::TaskWords(wire::ProjectionWords::new(
-                    &wire::CEILINGS,
-                    wire::ProjectionWordsParts { goal, task: number, words },
-                )?),
-            ))
-        }
-        wire::ProjectionRecord::Milestone(_)
-        | wire::ProjectionRecord::GoalHot(_)
-        | wire::ProjectionRecord::TaskHot(_)
-        | wire::ProjectionRecord::GoalWords(_)
-        | wire::ProjectionRecord::TaskWords(_) => None,
-    })
-}
-
 fn encode_phase(source: &jig_domain_tasks::Phase, limits: &View) -> Result<wire::PhaseBytes, wire::Problem> {
     wire::PhaseBytes::new(
         &limits.core,
@@ -219,7 +175,7 @@ fn encode_pending(values: &[u16], limits: &View) -> Result<List<wire::Connector>
         Ok(value) => value,
         Err(error) => return Err(too_large(error)),
     };
-    if count > limits.core.projection_goal_row_pending {
+    if count > limits.core.projection_goal_hot_pending {
         return Err(super::problem(skein_codec::Reason::Bound));
     }
     let mut result = List::with_capacity(count);

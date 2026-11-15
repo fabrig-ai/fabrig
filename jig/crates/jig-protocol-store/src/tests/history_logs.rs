@@ -368,7 +368,6 @@ fn every_generated_family_routes_only_its_history_keys() {
             } else if let Key::Tasks(
                 tasks::Key::Ended(task)
                 | tasks::Key::History { task, .. }
-                | tasks::Key::Milestone { task, .. }
                 | tasks::Key::Activity { task, .. }
                 | tasks::Key::Attempt { task, .. }
                 | tasks::Key::Hold { task, .. },
@@ -400,7 +399,10 @@ fn every_generated_family_routes_only_its_history_keys() {
         key_family(&mut seen, &key);
     }
     for &(prefix, name) in keys::KEYSPACES {
-        assert!(seen.contains(prefix), "generated family {name}");
+        // Retired milestones keep a census range, not a domain key.
+        if prefix != [1, 1, 10] {
+            assert!(seen.contains(prefix), "generated family {name}");
+        }
     }
     for key in [Box::from([]), Box::from([1, 1, 6]), Box::from([1, 1, 24]), keys::application(&[1, 6], 32).unwrap()] {
         assert_eq!(keys::logged(&key), None);
