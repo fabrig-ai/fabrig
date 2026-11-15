@@ -8,7 +8,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 |---|---|---|---|
 | 1, prepare | a landing's stack for one repository (`../landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`../landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
-| 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and those left |
+| 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and a record of each left, its kind and, for a deletion or a rename, the side and the commit that made it (`../../protocol/tooling.md`, 4.1), carried as bytes and parsed by no reader |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command and the close request | the files settled |
 
 - **Its kinds are entries** the root gives the capability: each a

@@ -813,8 +813,10 @@ fn assert_help_preservation_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
     for rule in [
         "keep the requested change and unrelated base content",
-        "restore losses a review names",
-        "never remove content to pass checks",
+        "a file the base deleted stays deleted unless the requested change needs it",
+        "read the commit that deleted it before you restore anything",
+        "Restore losses a review names",
+        "never remove content just to pass a check",
     ] {
         assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
     }

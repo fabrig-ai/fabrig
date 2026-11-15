@@ -308,6 +308,31 @@ fn an_underived_layout_refuses_before_the_copy_with_its_census_count() {
     assert!(!disk.tree().iter().any(|(p, ..)| p.as_ref() == b"generations/2"));
 }
 #[test]
+fn a_wrong_tasks_version_refuses_before_an_underived_layout_without_writing() {
+    let mut disk = Disk::new(&base(false, true));
+    let family = KeptFamily { current: KEPT, types: &[], ..FAMILY };
+    let mut old = store(&disk, PatchSet { families: Box::leak(Box::new([family])), ..SET });
+    assert_opened(&disk.open(&mut old), 1);
+    let key = crate::keys::encode_own(&crate::keys::Own::Format, old.limits.store.key).expect("format key fits");
+    let bytes = fixtures::get_kv(&mut old, &key).expect("format row exists");
+    let mut format = crate::codec::component::Format::decode(&bytes).expect("format fixture");
+    let wanted = format.tasks;
+    format.tasks = wanted.checked_add(1).expect("next tasks version fits");
+    raw(&mut disk, &mut old, vec![skein_kv::Op::Put { key, value: format.encode().expect("format fits") }]);
+    let mut disk = Disk::new(&disk.items());
+    let before = snapshot(&mut disk);
+    let mut store = store(&disk, written_set());
+    let events = disk.open(&mut store);
+    let [Event::OpenRefused { why, .. }] = events.as_ref() else { panic!("{events:?}") };
+    assert_eq!(
+        *why,
+        OpenRefusal::Format { family: crate::Family::Tasks, found: u32::from(format.tasks), wanted: u32::from(wanted) }
+    );
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    assert_eq!(snapshot(&mut disk), before);
+    assert!(!disk.tree().iter().any(|(p, ..)| p.as_ref() == b"generations/2"));
+}
+#[test]
 fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_values() {
     let mut disk = Disk::new(&base(false, true));
     let mut store = store(&disk, SET);

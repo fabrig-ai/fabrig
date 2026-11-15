@@ -23,6 +23,11 @@ A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
 (`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
+A failed workspace preparation says where and why: its detail names the
+worker, the workspace, the repository, the stage and git's command, with
+check out and clean told apart, and the operation's and the prepare's
+times, and the worker logs a line for it
+(`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -182,6 +187,11 @@ reports to the engine, passed or refused. A change keeps the reds its
 passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
 4). Reds end too by the tool and with their goal (`draft/branch-reds.status.md`).
+Before its summary, the check writes every failure it found, with its
+key and class, to `temper/pre-pr-failures.json` in the git directory, and
+the summary's second line names that file and counts the failures by
+class, so that a key its capped summary had no room for stays readable
+(`draft/pre-pr-failure-list.status.md`).
 
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
@@ -504,6 +514,7 @@ Drafts:
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
@@ -511,6 +522,7 @@ Drafts:
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
+- [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)

@@ -1367,7 +1367,14 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     assert!(
         words.contains("keep the requested change and unrelated base content, appended lines and blank lines included")
     );
-    assert!(words.contains("restore losses a review names; never remove content to pass checks."));
+    assert!(words.contains("each side's intended deletions and renames"));
+    assert!(words.contains("a file the base deleted stays deleted unless the requested change needs it"));
+    assert!(words.contains("read the commit that deleted it before you restore anything"));
+    assert!(words.contains("Restore losses a review names; never remove content just to pass a check"));
+    assert!(words.contains("keeping an intended deletion removes none"));
+    assert!(words.contains(
+        "for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why"
+    ));
     assert!(words.contains("Until then it has no pull request:"));
 }
 

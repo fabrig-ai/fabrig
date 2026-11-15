@@ -166,7 +166,7 @@ Kind: answered question. Owner: `temper/docs/design/client/README.md`.
 
 Kind: answered question. Owner: `temper/docs/design/domain/worker/checkouts.md`.
 
-"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 1 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
+"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 2 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
 
 ### 2.18 A12: The reference project's main-only rule
 

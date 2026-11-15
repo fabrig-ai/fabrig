@@ -306,6 +306,10 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         return;
     }
     documents::configure(value);
+    if STORY.with(|slot| matches!(slot.get(), Story::Merge)) {
+        // The compact resolution keeps its deletion rule beside the pinned parameters.
+        value["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = 512.into();
+    }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
         value["world_settings"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,

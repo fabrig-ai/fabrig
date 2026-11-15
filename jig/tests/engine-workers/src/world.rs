@@ -23,7 +23,7 @@ impl World {
             component: Component::new(
                 limits,
                 workers.to_vec().into_boxed_slice(),
-                jig_protocol_worker_wire::spoken(),
+                crate::fixtures::kept_wires(),
                 jig_protocol_worker_wire::Application::opaque(crate::fixtures::application()),
             )
             .expect("valid engine"),

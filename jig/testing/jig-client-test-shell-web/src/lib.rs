@@ -109,7 +109,9 @@ impl Shell {
                     self.host.due();
                 }
                 Report::Act(node, act) => self.host.act(node, act),
-                Report::Place(path) | Report::Returned(path) => self.host.went(&path),
+                Report::Place(path) => self.host.went(&path),
+                // A kept page resumes without a presentation step (jig/docs/design/protocol/browser/README.md, 9).
+                Report::Returned(_path) => {}
                 Report::Fetch(report) => self.host.heard(adapter::fetched(report)),
                 Report::Carried(reports, stored) => self.host.carried(reports, stored),
             }

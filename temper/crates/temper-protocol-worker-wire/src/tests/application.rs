@@ -7,11 +7,19 @@ use skein_lib::List;
 #[test]
 fn the_application_speaks_from_the_floor_with_its_bridge() {
     let application = crate::application(&fixtures::limits()).expect("application");
+    let description = application.kept.get(0).unwrap();
+    assert_eq!(description.family, wire::FAMILY);
+    assert_eq!(description.texts, kept::TEXTS);
+    assert_eq!(description.patches, crate::patches::PATCHES);
+    assert_eq!(description.floor, kept::FLOOR);
+    assert_eq!(description.names, v1::LIMIT_NAMES);
+    assert_eq!(description.values.as_slice(), fixtures::limits().values());
+    assert_eq!(application.spoken.get(0), Some(&crate::spoken()));
     assert_eq!(wire::FLOOR, kept::FLOOR);
     assert_eq!(application.spoken.len(), 1);
-    assert_eq!(application.bridges.len(), 1);
+    assert_eq!(application.kept.len(), 1);
     let spoken = application.spoken.get(0).unwrap();
-    let bridge = application.bridges.get(0).unwrap();
+    let bridge = application.kept.get(0).unwrap().bridge().unwrap();
     assert_eq!(spoken.name, wire::FAMILY);
     assert_eq!(spoken.lowest, wire::FLOOR);
     assert_eq!(spoken.highest(), wire::VERSION);
@@ -88,8 +96,8 @@ fn the_roots_name_the_declarations_temper_encodes() {
 #[test]
 fn left_carries_checked_deliveries_across_six_and_seven() {
     let limits = fixtures::limits();
-    let mut application = crate::application(&limits).unwrap();
-    let bridge = application.bridges.get_mut(0).unwrap();
+    let application = crate::application(&limits).unwrap();
+    let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
     let mut old = skein_lib::Writer::new(44);
     old.put(&1_u32.to_be_bytes()).unwrap();
     old.put(&17_u64.to_be_bytes()).unwrap();
@@ -113,11 +121,21 @@ fn left_carries_checked_deliveries_across_six_and_seven() {
 #[test]
 fn identity_goes_down_whole_to_every_spoken_version() {
     let application = crate::application(&fixtures::limits()).unwrap();
-    let bridge = application.bridges.get(0).unwrap();
+    let bridge = application.kept.get(0).unwrap().bridge().unwrap();
     // Also check the current root, so a misspelled declaration cannot pass
     // when no older version is spoken.
     assert_eq!(bridge.total(wire::VERSION, b"Identity"), Some(true));
     for version in bridge.floor()..bridge.current() {
         assert_eq!(bridge.total(version, b"Identity"), Some(true), "Identity to {version}");
     }
+}
+
+#[test]
+fn application_refuses_limits_past_the_wire_ceiling() {
+    let mut limits = fixtures::limits();
+    limits.red_head = v1::CEILINGS.red_head;
+    crate::application(&limits).unwrap();
+    limits.red_head = v1::CEILINGS.red_head.checked_add(1).unwrap();
+    assert!(v1::check_limits(&limits).is_err());
+    assert_eq!(crate::application(&limits).err(), Some(skein_codec::bridge::BridgeError::Room));
 }

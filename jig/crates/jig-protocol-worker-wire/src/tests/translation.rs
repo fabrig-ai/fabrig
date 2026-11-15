@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Root, Spoken, v14 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v14 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -19,19 +19,17 @@ fn no_sites(site: Site, _: &Old, _: &mut Build, _: Node) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
 }
 fn application() -> Application {
-    let mut bridges = List::with_capacity(1);
-    bridges
-        .push(
-            Bridge::new(
-                Capacity { versions: 2, patches: 2, text: 4096, bytes: 128, nodes: 32 },
-                &APP,
-                &["patch 1\nowner application 1\nfamily application 1 to 2\nwiden Value.n u8 u16\n"],
-                1,
-                no_sites,
-            )
-            .unwrap(),
-        )
-        .unwrap();
+    let mut kept = List::with_capacity(1);
+    kept.push(Kept {
+        family: "application",
+        texts: &APP,
+        patches: &["patch 1\nowner application 1\nfamily application 1 to 2\nwiden Value.n u8 u16\n"],
+        floor: 1,
+        sites: no_sites,
+        names: &[],
+        values: List::uncapped(),
+    })
+    .unwrap();
     let mut roots = List::with_capacity(16);
     for carried in [
         Carried::Items,
@@ -47,7 +45,7 @@ fn application() -> Application {
     }
     let mut spoken = List::with_capacity(1);
     spoken.push(Spoken::of("application", &APP, 1).unwrap()).unwrap();
-    Application { spoken, bridges, roots }
+    Application { spoken, kept, roots }
 }
 fn opaque() -> Translation {
     Translation::new(Application::opaque(List::with_capacity(16))).unwrap()
@@ -360,11 +358,20 @@ fn work() -> wire::Work {
 #[test]
 fn construction_rejects_missing_bridges_and_declarations_and_total_checks_worker_sends() {
     let mut missing = application();
-    missing.bridges = List::with_capacity(16);
+    missing.kept = List::with_capacity(16);
     Translation::new(missing).unwrap_err();
     let mut missing = application();
     missing.roots.get_mut(0).unwrap().declaration = "Absent";
     Translation::new(missing).unwrap_err();
+    let mut wrong = application();
+    wrong.kept.get_mut(0).unwrap().family = "another-family";
+    wrong.roots = List::uncapped();
+    assert_eq!(Translation::new(wrong).unwrap_err(), skein_codec::bridge::BridgeError::Floor);
+    for texts in [&[][..], &["not a schema"][..]] {
+        let mut invalid = application();
+        invalid.kept.get_mut(0).unwrap().texts = texts;
+        assert_eq!(Translation::new(invalid).unwrap_err(), skein_codec::bridge::BridgeError::Floor);
+    }
     let mut machine = Translation::new(application()).unwrap();
     let incomplete = machine.incomplete(&agreed(12, 4));
     assert_eq!(
@@ -441,4 +448,157 @@ fn application_ask_and_answer_roots_translate_and_unrooted_bytes_cross_as_is() {
     }
     let unrooted = opaque().send(worker(&ask), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&unrooted), ask);
+}
+
+#[test]
+fn kept_bridge_matches_the_eager_bridge() {
+    let application = application();
+    let kept = application.kept.get(0).unwrap();
+    let mut lazy = kept.bridge().unwrap();
+    let mut eager = Bridge::new(
+        Capacity { versions: 2, patches: 2, text: 4096, bytes: 128, nodes: 32 },
+        kept.texts,
+        kept.patches,
+        kept.floor,
+        kept.sites,
+    )
+    .unwrap();
+    assert_eq!(lazy.floor(), eager.floor());
+    assert_eq!(lazy.current(), eager.current());
+    for version in eager.floor()..=eager.current() {
+        assert_eq!(lazy.layout(version), eager.layout(version));
+    }
+    let old = lazy.translate(2, 1, b"Value", VALUE.into()).unwrap();
+    assert_eq!(old, eager.translate(2, 1, b"Value", VALUE.into()).unwrap());
+    assert_eq!(old.as_ref(), OLDER);
+    assert_eq!(lazy.translate(1, 2, b"Value", old.clone()).unwrap().as_ref(), VALUE);
+    assert_eq!(eager.translate(1, 2, b"Value", old).unwrap().as_ref(), VALUE);
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one current link carries every rooted part before an older conversion")]
+fn current_application_links_keep_no_plans_and_older_parts_reuse_one_bridge() {
+    let mut app = application();
+    app.roots.push(Root { carried: Carried::JobResult, wire: "application", declaration: "Value" }).unwrap();
+    let mut sender = Translation::new(app).unwrap();
+    let mut app = application();
+    app.roots.push(Root { carried: Carried::JobResult, wire: "application", declaration: "Value" }).unwrap();
+    let mut receiver = Translation::new(app).unwrap();
+    let mut current = agreed(channel::VERSION, smith_charter::wire::VERSION);
+    current[3].version = 2;
+    assert_eq!((sender.planned(), receiver.planned()), (0, 0));
+    assert!(sender.incomplete(&current).is_empty());
+    assert!(receiver.incomplete(&current).is_empty());
+    assert_eq!((sender.planned(), receiver.planned()), (0, 0));
+    let mut parts = assignment(Box::new([])).into_parts();
+    parts.workspace = Some(
+        wire::Workspace::new(&wire::CEILINGS, wire::WorkspaceParts { workstream: 8, items: VALUE.into() }).unwrap(),
+    );
+    parts.grants.push(grant()).unwrap();
+    let assignment = engine(&wire::FromEngine::Assignment(wire::Assignment::new(&wire::CEILINGS, parts).unwrap()));
+    let job = engine(&wire::FromEngine::Job(
+        wire::Job::new(
+            &wire::CEILINGS,
+            wire::JobParts {
+                task: 7,
+                attempt: 2,
+                kind: 3,
+                spec: VALUE.into(),
+                deadline: skein_lib::Duration::from_secs(2),
+                workspace: None,
+                grants: List::with_capacity(16),
+            },
+        )
+        .unwrap(),
+    ));
+    let finished = worker(&wire::FromWorker::JobAnswer(
+        wire::JobAnswer::new(
+            &wire::CEILINGS,
+            wire::JobAnswerParts {
+                task: 7,
+                attempt: 2,
+                ending: wire::JobEnding::Finished(
+                    wire::JobFinished::new(
+                        &wire::CEILINGS,
+                        wire::JobFinishedParts { result: VALUE.into(), work: work() },
+                    )
+                    .unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    ));
+    let unprepared = worker(&wire::FromWorker::JobAnswer(
+        wire::JobAnswer::new(
+            &wire::CEILINGS,
+            wire::JobAnswerParts {
+                task: 7,
+                attempt: 2,
+                ending: wire::JobEnding::Failed(
+                    wire::JobFailed::new(
+                        &wire::CEILINGS,
+                        wire::JobFailedParts {
+                            failure: wire::JobFailure::Unprepared(
+                                wire::PreparationValue::new(
+                                    &wire::CEILINGS,
+                                    wire::PreparationValueParts {
+                                        value: wire::Preparation::Permanent(
+                                            wire::Resource::new(
+                                                &wire::CEILINGS,
+                                                wire::ResourceParts { resource: Some(VALUE.into()) },
+                                            )
+                                            .unwrap(),
+                                        ),
+                                    },
+                                )
+                                .unwrap(),
+                            ),
+                            detail: Box::new([]),
+                            work: work(),
+                        },
+                    )
+                    .unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    ));
+    let ask = worker(&wire::FromWorker::Ask(
+        wire::Ask::new(&wire::CEILINGS, wire::AskParts { run: 7, attempt: 2, number: 1, bytes: VALUE.into() }).unwrap(),
+    ));
+    let answer = engine(&wire::FromEngine::Asked(
+        wire::Asked::new(
+            &wire::CEILINGS,
+            wire::AskedParts {
+                run: 7,
+                attempt: 2,
+                number: 1,
+                answer: wire::AskAnswer::Bytes(
+                    wire::AskBytes::new(&wire::CEILINGS, wire::AskBytesParts { bytes: VALUE.into() }).unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    ));
+    for original in [assignment, job, finished, unprepared, ask, answer] {
+        let expected = skein_lib::bytes::copy_of(original.bytes());
+        let sent = sender.send(original, channel::VERSION, &current, &wire::CEILINGS).unwrap();
+        assert_eq!(sent.bytes(), expected.as_ref());
+        let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &current, &wire::CEILINGS).unwrap();
+        assert_eq!(up.bytes(), expected.as_ref());
+        assert_eq!((sender.planned(), receiver.planned()), (0, 0));
+    }
+    let older = agreed(channel::VERSION, smith_charter::wire::VERSION);
+    for _ in 0_u8..2 {
+        let original = wire::FromWorker::Ask(
+            wire::Ask::new(&wire::CEILINGS, wire::AskParts { run: 7, attempt: 2, number: 1, bytes: VALUE.into() })
+                .unwrap(),
+        );
+        let sent = sender.send(worker(&original), channel::VERSION, &older, &wire::CEILINGS).unwrap();
+        let wire::FromWorker::Ask(value) = worker_value(&sent) else { panic!("ask") };
+        assert_eq!(value.bytes(), OLDER);
+        let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &older, &wire::CEILINGS).unwrap();
+        assert_eq!(worker_value(&up), original);
+        assert_eq!((sender.planned(), receiver.planned()), (1, 1));
+    }
 }
