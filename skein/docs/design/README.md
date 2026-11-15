@@ -57,6 +57,7 @@ this design.
 | server-sent events | `skein-http` | reader and writer machines over body streams | [net/http/sse.md](net/http/sse.md) |
 | testing HTTP | `skein-http` | step tests and worlds for HTTP and server-sent events | [net/http/testing.md](net/http/testing.md) |
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [data/json.md](data/json.md) |
+| DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs, bounds and golden bytes generated from them | [data/codec/README.md](data/codec/README.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |

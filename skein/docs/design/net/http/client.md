@@ -75,7 +75,8 @@ pub struct Header { name: Box<[u8]>, value: Box<[u8]> }   // names compared with
 - **A gzip encoder** (added 2026-10-20) is beside the client, for a
   caller whose server takes a compressed request body (RFC 9110, 8.4.1;
   ../../llm/README.md, section 4.8): a pure function of the whole body to its gzip
-  member (RFC 1952), DEFLATE inside (RFC 1951), and a worst case from
+  member (RFC 1952), DEFLATE inside (RFC 1951) by `skein-deflate`'s
+  encoder (../../data/deflate.md), and a worst case from
   the body's length that its output never passes, so the caller sets
   the room aside before it compresses. It is deterministic: one body,
   one output. It keeps a bounded window and match search, chosen for
