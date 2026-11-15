@@ -2,7 +2,6 @@
 
 2026-11-15. Where skein's code lags or departs from [kv.md](kv.md).
 
-- **Not yet:** 6: no payload log is built: no `Op::Append` or `Op::Drop`, no `ReadLog`, no log rule, no `logs/` directory, and the 9 bullet on payload logs is untested. [in flight: change 3537]
 
 - **Not yet:** 9: the model-map referee across simulated-disk commits,
   loads, snapshots and crash recovery, commits racing every snapshot
