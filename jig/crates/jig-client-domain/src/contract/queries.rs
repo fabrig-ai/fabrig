@@ -58,8 +58,20 @@ pub enum WaitedFor {
 /// The task's wait, supplied by its owner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum WaitsOn {
-    Dependencies { pending: skein_lib::List<u64>, count: u32 },
-    Party { whom: Whom, entries: u32, task: u64, kind: WaitedFor },
+    /// Its oldest unanswered question to its requester (domain/engine/views.md, 3).
+    Question {
+        number: u64,
+    },
+    Dependencies {
+        pending: skein_lib::List<u64>,
+        count: u32,
+    },
+    Party {
+        whom: Whom,
+        entries: u32,
+        task: u64,
+        kind: WaitedFor,
+    },
     Delegates,
     News,
     Nothing,

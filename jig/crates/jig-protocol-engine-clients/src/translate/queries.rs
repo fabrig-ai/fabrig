@@ -79,6 +79,9 @@ pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w:
             w::WaitsOnDependenciesParts { pending, count },
         )?),
         WaitsOn::Delegates => w::WaitsOn::Delegates,
+        WaitsOn::Question { number } => {
+            w::WaitsOn::Question(w::WaitsOnQuestion::new(limits, w::WaitsOnQuestionParts { number })?)
+        }
         WaitsOn::News => w::WaitsOn::News,
         WaitsOn::Nothing => w::WaitsOn::Nothing,
     })

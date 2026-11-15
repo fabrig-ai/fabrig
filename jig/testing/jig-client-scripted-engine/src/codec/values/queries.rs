@@ -59,6 +59,9 @@ pub(in crate::codec) fn wire_waits_on(value: &c::WaitsOn, limits: &w::Limits) ->
             },
         )?),
         c::WaitsOn::Delegates => w::WaitsOn::Delegates,
+        c::WaitsOn::Question { number } => {
+            w::WaitsOn::Question(w::WaitsOnQuestion::new(limits, w::WaitsOnQuestionParts { number: *number })?)
+        }
         c::WaitsOn::News => w::WaitsOn::News,
         c::WaitsOn::Nothing => w::WaitsOn::Nothing,
     })

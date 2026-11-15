@@ -232,10 +232,12 @@ result and the desired cleanup state. Bounded diagnostics say when cut.
 
 - **What a task waits on** is the engine's to compute, since only it
   holds the tree and the inbox together: a party (who), for a question,
-  a proposal, an escalation or a person task in its tree; its
-  dependencies, for a kept task: the pending ones, the oldest first, and
-  how many; its delegates; news; or nothing (`../../../domain/tasks/README.md`,
-  section 3).
+  a proposal, an escalation or a person task in its tree; its own
+  question, for a task kept by its unanswered question to a requester
+  that is a task: the question's number; its dependencies, for a kept
+  task: the pending ones, the oldest first, and how many; its
+  delegates; news; or nothing (`../../../domain/tasks/README.md`,
+  section 3; `../../../domain/engine/views.md`, 3).
 - **Its last activity** is when it last heard words, replied, or had a
   delegate end: a wall time, kept on every task, by which lists order.
 

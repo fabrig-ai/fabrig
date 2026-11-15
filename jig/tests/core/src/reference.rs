@@ -38,6 +38,11 @@ pub fn waits_on(rows: &BTreeMap<root::Key, root::Record>, task: u64) -> WaitsOn 
     }
     if matches!(owner.phase, tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. })) {
         WaitsOn::Nothing
+    } else if let tasks::Phase::Active(_) = owner.phase
+        && let Some(number) =
+            owner.questions.iter().filter(|credit| credit.asked == owner.requester).map(|credit| credit.number).min()
+    {
+        WaitsOn::Question { number }
     } else if !owner.delegates.is_empty() {
         WaitsOn::Delegates
     } else if matches!(owner.phase, tasks::Phase::Active(tasks::Active::Idle)) {
