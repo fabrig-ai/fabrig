@@ -1824,6 +1824,53 @@ fn landing_gates_read_an_optional_boolean_base_at_its_path() {
 }
 
 #[test]
+fn landing_gates_read_optional_paired_report_members() {
+    use temper_engine_domain_forge_tiers::Format;
+    for (member, expected, artifact) in [
+        ("", None, b"".as_slice()),
+        (r#", "artifact":"failed", "format":"junit""#, Some(Format::Junit), b"failed".as_slice()),
+        (r#", "artifact":"failed", "format":"lines""#, Some(Format::Lines), b"failed".as_slice()),
+        (
+            r#", "artifact":"12345678901234567890123456789012", "format":"lines""#,
+            Some(Format::Lines),
+            b"12345678901234567890123456789012".as_slice(),
+        ),
+    ] {
+        let projects = format!(
+            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
+        );
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &fixtures::turn_jig());
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.unwrap();
+        let report = &members.landings.get(&1).unwrap().repositories[0].gates[0].report;
+        assert_eq!(report.as_ref().map(|report| report.format), expected);
+        if let Some(report) = report {
+            assert_eq!(report.artifact.as_ref(), artifact);
+        }
+    }
+    for (member, refused) in [
+        (r#", "artifact":"failed""#, "format"),
+        (r#", "format":"lines""#, "artifact"),
+        (r#", "artifact":"", "format":"lines""#, "artifact"),
+        (r#", "artifact":"a/b", "format":"lines""#, "artifact"),
+        (r#", "artifact":"123456789012345678901234567890123", "format":"lines""#, "artifact"),
+        (r#", "artifact":"failed", "format":"xml""#, "format"),
+    ] {
+        let projects = format!(
+            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
+        );
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &fixtures::turn_jig());
+        assert!(members.is_none());
+        let rendered = lines(&problems);
+        let text = core::str::from_utf8(&rendered).unwrap();
+        assert!(text.starts_with(&format!("application.landing.projects[0].gates[0].gates[0].{refused}: ")), "{text}");
+        assert_eq!(text.lines().count(), 1, "{text}");
+    }
+}
+
+#[test]
 fn landing_gate_bounds_read_defaults_and_refuse_out_of_range_at_the_member() {
     for (setting, timeout, retries) in [
         ("", 3_600_000, 2),

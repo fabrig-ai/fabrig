@@ -1190,6 +1190,7 @@ fn kept_candidate_failure(d: &mut Domain) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
         }]),
         policy::Project::DEFAULT,

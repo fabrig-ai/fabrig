@@ -20,5 +20,5 @@ pub use boundary::{
     Blame, Commit, Failures, Finding, Flake, Format, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt,
     Record, Run, Selection, Settings, Suspects, TestId, Unreadable, Verdict,
 };
-pub use report::{failed, report};
+pub use report::{failed, report, selection};
 pub use verdict::{due, judged, repaired, start, step};

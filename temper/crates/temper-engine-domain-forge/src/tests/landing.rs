@@ -25,6 +25,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([tier.clone()]),
         },
@@ -236,6 +237,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
                         ignored: Box::new([]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: tiers.into_boxed(),
                 }]),
@@ -1754,6 +1756,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                     ignored: Box::new([b"dir/skip".as_slice().into()]),
                     blocking: true,
                     base: false,
+                    report: None,
                 }])
             }]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
@@ -1968,7 +1971,8 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                     workflow: b"gate.yml".as_slice().into(),
                     ignored: Box::new([]),
                     blocking: true,
-                    base: false
+                    base: false,
+                    report: None,
                 }]),
                 tiers: Box::new([]),
             }]),
@@ -2149,6 +2153,7 @@ fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([])
         }]),

@@ -12,6 +12,7 @@ fn gate() -> Gate {
         ignored: Box::new([copy_of(b"docs")]),
         blocking: true,
         base: false,
+        report: None,
     }
 }
 fn tree(object: u8, pairs: &[(&[u8], u8)]) -> Tree {
@@ -200,6 +201,18 @@ fn a_base_definition_appends_only_the_true_flag() {
     let mut gate = gate();
     assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01");
     gate.base = true;
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01");
+}
+
+#[test]
+fn a_report_definition_follows_the_optional_base_flag() {
+    let mut gate = gate();
+    gate.report = Some(crate::Report { artifact: copy_of(b"failed"), format: crate::Format::Junit });
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x02\0\x06failed\0");
+    gate.base = true;
+    gate.report.as_mut().expect("report").format = crate::Format::Lines;
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01\x02\0\x06failed\x01");
+    gate.report = None;
     assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01");
 }
 

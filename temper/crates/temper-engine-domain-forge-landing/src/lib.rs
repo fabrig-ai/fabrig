@@ -20,9 +20,11 @@ mod verdict;
 
 pub use boundary::{
     CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Leave,
-    Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Probed, Project, Proof, Repository,
-    Round, RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, WORKFLOW_BYTES,
+    Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Probed, Project, Proof, Report,
+    Repository, Round, RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, probe, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};
+
+pub use temper_engine_domain_forge_tiers::Format;

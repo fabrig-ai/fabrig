@@ -14,6 +14,43 @@ pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, 
     }
 }
 
+/// A gate's failed cases only, safe to send as a selection
+/// (temper/docs/design/domain/landing-search-by-test.md, 2).
+#[must_use]
+pub fn selection(format: Format, file: &[u8], limits: &Limits) -> Option<Failures> {
+    let failures = match format {
+        Format::Lines => lines(file, *limits),
+        Format::Junit => junit_cases(file, *limits, false).ok()?,
+    };
+    match &failures {
+        Failures::Many => Some(failures),
+        Failures::Tests(tests) => {
+            if tests.is_empty() {
+                return None;
+            }
+            for test in tests {
+                if !selection_id(test) {
+                    return Some(Failures::Many);
+                }
+            }
+            Some(failures)
+        }
+    }
+}
+
+#[expect(clippy::disallowed_methods, reason = "this report boundary validates ids before a gate can send them as text")]
+fn selection_id(test: &[u8]) -> bool {
+    if core::str::from_utf8(test).is_err() {
+        return false;
+    }
+    for byte in test {
+        if *byte < 32 || *byte == 127 {
+            return false;
+        }
+    }
+    true
+}
+
 /// A failed run without a readable, nonempty report is a runner fault.
 #[must_use]
 pub fn failed(report: Option<Result<Failures, Unreadable>>) -> Outcome {
@@ -96,6 +133,10 @@ struct Case {
 }
 
 fn junit(file: &[u8], limits: Limits) -> Result<Failures, Unreadable> {
+    junit_cases(file, limits, true)
+}
+
+fn junit_cases(file: &[u8], limits: Limits, errors: bool) -> Result<Failures, Unreadable> {
     let mut failures = Failures::Tests(Box::new([]));
     // The artifact bounds the nesting; the stack grows only as tags arrive.
     let Ok(capacity) = u32::try_from(file.len()) else { return Err(Unreadable) };
@@ -163,7 +204,7 @@ fn junit(file: &[u8], limits: Limits) -> Result<Failures, Unreadable> {
                 }
             }
         } else if !closing
-            && (name == b"failure" || name == b"error")
+            && (name == b"failure" || (errors && name == b"error"))
             && let Some(case) = &mut case
         {
             case.failed = true;

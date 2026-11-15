@@ -23,6 +23,7 @@ fn world() -> World {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
         }])
     ));

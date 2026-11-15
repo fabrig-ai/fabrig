@@ -34,6 +34,14 @@ pub struct Gate {
     pub blocking: bool,
     /// Include the round’s base in the key and dispatch inputs.
     pub base: bool,
+    pub report: Option<Report>,
+}
+
+/// A gate's failed-case report (domain/landing-search-by-test.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Report {
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
 }
 
 /// The project's landing settings needed by the policy.

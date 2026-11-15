@@ -1,5 +1,32 @@
 use super::{LIMITS, tests};
-use crate::{Failures, Format, Outcome, Unreadable, failed, report};
+use crate::{Failures, Format, Outcome, Unreadable, failed, report, selection};
+
+#[test]
+fn gate_selection_reads_only_failed_safe_bounded_unique_ids() {
+    let cases: &[(Format, &[u8], Option<Failures>)] = &[
+        (Format::Lines, b"b\na\nb\n", Some(tests(&["a", "b"]))),
+        (Format::Lines, b"b\r\n\r\na\n\nb\na\r", Some(tests(&["a", "b"]))),
+        (Format::Lines, b"a\tb", Some(Failures::Many)),
+        (Format::Lines, b"a\x7fb", Some(Failures::Many)),
+        (Format::Lines, b"a\x00b", Some(Failures::Many)),
+        (Format::Lines, b"a\xffb", Some(Failures::Many)),
+        (Format::Lines, b"1234567890123456", Some(tests(&["1234567890123456"]))),
+        (Format::Lines, b"12345678901234567", Some(Failures::Many)),
+        (Format::Lines, b"a\nb\nc\nd\na", Some(tests(&["a", "b", "c", "d"]))),
+        (Format::Lines, b"a\nb\nc\nd\ne", Some(Failures::Many)),
+        (Format::Lines, b"\n\r\n", None),
+        (Format::Junit, b"not xml", None),
+        (Format::Junit, br#"<testsuite><testcase name="a"><error/></testcase><testcase name="b"/></testsuite>"#, None),
+        (Format::Junit, br#"<testsuite><testcase classname="s" name="b"><failure/></testcase><testcase name="error"><error/></testcase><testcase classname="s" name="a"><error/><failure/></testcase><testcase classname="s" name="b"><failure/></testcase></testsuite>"#, Some(tests(&["s.a", "s.b"]))),
+        (Format::Junit, br#"<testsuite><testcase name="a&#9;b"><failure/></testcase></testsuite>"#, Some(Failures::Many)),
+        (Format::Junit, b"<testsuite><testcase name='\xff'><failure/></testcase></testsuite>", Some(Failures::Many)),
+        (Format::Junit, br#"<testsuite><testcase name="12345678901234567"><failure/></testcase></testsuite>"#, Some(Failures::Many)),
+        (Format::Junit, br#"<testsuite><testcase name="a"><failure/></testcase><testcase name="b"><failure/></testcase><testcase name="c"><failure/></testcase><testcase name="d"><failure/></testcase><testcase name="e"><failure/></testcase></testsuite>"#, Some(Failures::Many)),
+    ];
+    for (format, file, expected) in cases {
+        assert_eq!(selection(*format, file, &LIMITS), *expected, "{file:?}");
+    }
+}
 
 #[test]
 fn junit_names_failed_and_errored_cases_in_order() {

@@ -92,6 +92,7 @@ pub struct RepositoryChecks {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateCheck {
+    pub report: Option<temper_engine_domain_forge_landing::Report>,
     pub base: bool,
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
@@ -129,6 +130,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                     ignored: gate.ignored.clone(),
                     blocking: gate.blocking,
                     base: gate.base,
+                    report: gate.report.clone(),
                 })
                 .expect("counted gates");
         }

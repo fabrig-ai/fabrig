@@ -174,6 +174,8 @@ Shape: `gate-check`. Paths: `application.landing.projects[].gates[].gates[]`. A 
 - `ignored`: list of text, at most forge.ignored_paths; each at most forge.name_bytes; optional; init leaves it out. Whole paths the check ignores, with no empty, dot or parent segment.
 - `blocking`: true or false; required; init leaves it out. Whether a failing gate blocks landing.
 - `base`: true or false, false when absent; optional; init leaves it out. Whether the gate reads the round’s base, given as temper_base and included in its key.
+- `artifact`: text, 1 to 32 bytes; no slash; with format or neither; optional; init leaves it out. The artifact listing the gate’s failed cases; none when absent.
+- `format`: text, junit or lines; with artifact or neither; optional; init leaves it out. The format of the failed-case artifact.
 
 ## application.landing.projects[].gates[].tiers[]
 

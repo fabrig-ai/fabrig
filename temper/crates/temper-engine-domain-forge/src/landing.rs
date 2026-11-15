@@ -113,6 +113,12 @@ enum Stage {
         next: u32,
         words: Box<[u8]>,
     },
+    FailedReport {
+        key: ReceiptKey,
+        run: api::Run,
+        words: Box<[u8]>,
+        format: temper_engine_domain_forge_tiers::Format,
+    },
     Tree {
         member: u16,
         gate: u16,
@@ -254,6 +260,13 @@ impl Domain {
                     || gate.workflow.is_empty()
                     || gate.workflow.len() > policy::WORKFLOW_BYTES
                     || gate.ignored.len() > usize::try_from(l.ignored_paths).expect("u32 fits")
+                {
+                    return false;
+                }
+                if let Some(report) = &gate.report
+                    && (report.artifact.is_empty()
+                        || report.artifact.len() > policy::CHECK_NAME_BYTES
+                        || report.artifact.contains(&b'/'))
                 {
                     return false;
                 }
@@ -1328,6 +1341,7 @@ fn advance(
                 | Stage::StallJobs
                 | Stage::Run { .. }
                 | Stage::FailedJobs { .. }
+                | Stage::FailedReport { .. }
                 | Stage::Tree { .. } => {
                     unreachable!("member stage")
                 }
@@ -1414,6 +1428,21 @@ fn advance(
                 Ok(_) | Err(_) => append_words(&mut log, b"[job log could not be read]\n"),
             }
             failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
+        }
+        Stage::FailedReport { key, run, words, format } => {
+            let failures = match answer {
+                Ok(api::Answer::File { truncated: true, .. }) => Some(temper_engine_domain_forge_tiers::Failures::Many),
+                Ok(api::Answer::File { bytes, .. }) => temper_engine_domain_forge_tiers::selection(
+                    format,
+                    &bytes,
+                    &temper_engine_domain_forge_tiers::Limits {
+                        failing_tests: env.limits.tiers.failing_tests,
+                        test_id_bytes: env.limits.tiers.test_id_bytes,
+                    },
+                ),
+                Ok(_) | Err(_) => None,
+            };
+            failed_receipt(d, env, owner, p, key, run, words, failures, out);
         }
         Stage::Round { member, stage, candidate } => {
             round_read(d, env, owner, p, &row, member, stage, candidate, answer, out);
@@ -4556,10 +4585,41 @@ fn failed_jobs(
     let row_logs = log.into_boxed();
     row.landing.round.failure =
         crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
+    let project = row.landing.project;
     save(d, row, out);
+    let mut report = None;
+    for gate in d.landing.gates(project, key.repository) {
+        if let Check::Gate(name) = &key.check
+            && *name == gate.name
+        {
+            report.clone_from(&gate.report);
+        }
+    }
+    if let Some(report) = report
+        && let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact, report.format, env)
+    {
+        p.stage = Stage::FailedReport { key: key.clone(), run, words: row_logs, format: report.format };
+        ask(d, env, owner, p, key.repository, read, out);
+        return;
+    }
+    failed_receipt(d, env, owner, p, key, run, row_logs, None, out);
+}
+
+#[expect(clippy::too_many_arguments, reason = "the failed run and its report complete the pending landing read")]
+fn failed_receipt(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    p: Pending,
+    key: ReceiptKey,
+    run: api::Run,
+    words: Box<[u8]>,
+    failures: Option<temper_engine_domain_forge_tiers::Failures>,
+    out: &mut Queue<Request>,
+) {
     let receipt = Receipt {
-        logs: row_logs,
-        failures: None,
+        logs: words,
+        failures,
         passed: false,
         candidate: run.commit,
         ended: env.wall,

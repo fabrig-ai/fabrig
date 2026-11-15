@@ -175,6 +175,7 @@ fn setup() -> Domain {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }])
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,

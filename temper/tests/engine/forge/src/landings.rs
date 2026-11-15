@@ -45,6 +45,7 @@ pub fn turn_in(mut world: World) -> World {
                 ignored: Box::new([Box::from(b"docs".as_slice())]),
                 blocking: true,
                 base: false,
+                report: None,
             }])
         }])
     ));

@@ -18,6 +18,7 @@ mod landing_judgement;
 mod landing_leaving;
 mod landing_proofs;
 mod landing_red_four;
+mod landing_reports;
 mod landing_rounds;
 mod member_message;
 mod memory;

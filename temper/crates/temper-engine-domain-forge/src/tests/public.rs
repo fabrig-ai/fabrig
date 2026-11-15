@@ -388,6 +388,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                         ignored: Box::new([]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -826,6 +827,7 @@ fn maximal_proofs(d: &mut Domain) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             })
             .expect("gate");
         d.landing

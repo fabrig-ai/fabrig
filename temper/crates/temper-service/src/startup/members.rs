@@ -123,7 +123,7 @@ pub static SHAPES: [Shape; 34] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 124] = [
+pub static MEMBERS: [Member; 126] = [
     Member {
         shape: "document",
         name: "engine",
@@ -761,6 +761,24 @@ pub static MEMBERS: [Member; 124] = [
         bound: "false when absent",
         required: false,
         line: "Whether the gate reads the round’s base, given as temper_base and included in its key.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-check",
+        name: "artifact",
+        kind: "text",
+        bound: "1 to 32 bytes; no slash; with format or neither",
+        required: false,
+        line: "The artifact listing the gate’s failed cases; none when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-check",
+        name: "format",
+        kind: "text",
+        bound: "junit or lines; with artifact or neither",
+        required: false,
+        line: "The format of the failed-case artifact.",
         gone: None,
     },
     Member {
