@@ -959,6 +959,26 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
 }
 
 #[test]
+fn stock_charters_put_revised_requests_and_answers_first() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let reviewer = defaults.charters.iter().find(|charter| charter.number == 4).expect("review charter");
+    let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
+    assert!(words.starts_with(concat!(
+        "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do. ",
+        "What it was asked is its request as revised and the answers given on it, as your brief gives them: where they differ from its title or its original request, they come first. ",
+        "Then give your verdict"
+    )));
+    let implementer = crate::stock::charter_set().implementer.expect("implementer text");
+    assert_eq!(
+        implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
+        Some(
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included; restore losses a review names; never remove content to pass checks; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule."
+        )
+    );
+}
+
+#[test]
 fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -1367,7 +1387,7 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     assert!(
         words.contains("keep the requested change and unrelated base content, appended lines and blank lines included")
     );
-    assert!(words.contains("restore losses a review names; never remove content to pass checks."));
+    assert!(words.contains("restore losses a review names; never remove content to pass checks;"));
     assert!(words.contains("Until then it has no pull request:"));
 }
 
