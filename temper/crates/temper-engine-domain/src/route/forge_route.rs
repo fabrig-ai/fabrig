@@ -4069,6 +4069,17 @@ fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::
     Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
+fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut words, b", your change, was amended to spec revision ");
+    append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
+    append(&mut words, b". Your spec now holds its amended words; work to them from here on. Its reason: ");
+    append(&mut words, reason);
+    forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
+}
+
 fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
     let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
     let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
@@ -6377,6 +6388,25 @@ fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
     for text in [b"".as_slice(), &[b'a'; 39], &[b'a'; 41], &[b'a'; 63], &[b'a'; 65], &[b'A'; 40], &[b'g'; 64]] {
         assert_eq!(catch_up_commit(text), None);
     }
+}
+
+/// temper/docs/design/domain/forge/change/questions.md, 1: the amendment reason fits the message bound.
+#[cfg(test)]
+#[test]
+fn a_producer_amendment_cuts_a_long_reason_at_its_end() {
+    let prefix = b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: ";
+    let short = producer_amendment_words(41, 3, b"Widen to the CLI", 512);
+    assert_eq!(short.as_ref(), b"Task 41, your change, was amended to spec revision 3. Your spec now holds its amended words; work to them from here on. Its reason: Widen to the CLI");
+    let reason = "\u{00e9}".repeat(256);
+    let long = producer_amendment_words(41, 3, reason.as_bytes(), 512);
+    assert!(long.len() <= 512);
+    assert!(long.starts_with(prefix));
+    assert!(long.ends_with("…".as_bytes()));
+    let mut expected = List::uncapped();
+    append(&mut expected, prefix);
+    append(&mut expected, "\u{00e9}".repeat(188).as_bytes());
+    append(&mut expected, "…".as_bytes());
+    assert_eq!(long.as_ref(), expected.as_slice(), "the cut keeps UTF-8 whole");
 }
 
 pub(crate) use follow_route::make_refused as follow_make_refused;

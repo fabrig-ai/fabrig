@@ -61,6 +61,8 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+#[path = "forge_routes/producer_amendment.rs"]
+mod producer_amendment;
 #[path = "forge_routes/questions.rs"]
 mod questions;
 

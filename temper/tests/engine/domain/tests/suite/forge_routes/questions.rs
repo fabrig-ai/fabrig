@@ -16,26 +16,31 @@ const BUDGET: u64 = 200;
 // Keep ordinary relay stories within the stall; the stall story advances the clock.
 
 pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
+    plan_world_with_limits(bound, &StoryLimits::default(), false)
+}
+
+pub(super) fn plan_world_with_limits(
+    bound: Option<u32>,
+    limits: &StoryLimits,
+    silent_ci: bool,
+) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
-        false,
+        silent_ci,
         1000,
         Gate { approval: None, agent: false, owner: false },
         None,
-        StoryLimits {
-            slots: Some(3),
-            questions: bound,
-            stall: Some(Duration::from_secs(3600)),
-            ..StoryLimits::default()
-        },
+        StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..*limits },
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();
-    world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
+    let mut bounds = protocol::bounds();
+    bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(protocol::hello_with(CHANNEL, 0, 3, bounds, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(BUDGET * 2) };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
