@@ -81,11 +81,13 @@ pub(crate) fn resolved(engine: &mut Engine, name: &[u8], address: Option<core::n
     let index = origin_index(engine).expect("wanted origin");
     let github = engine.forge.github.as_mut().expect("wanted GitHub origin");
     let entry = github.log_origins.get_mut(index).expect("wanted origin");
-    if let Some(address) = address {
+    let resolved = if let Some(address) = address {
         entry.address = skein_io::Addr::Ip(address);
+        Some(entry.clone())
     } else {
         engine.notes.push(crate::Note::GitHubLogOriginUnresolved { host: entry.origin.host.clone() });
-    }
+        None
+    };
     engine.forge.github_origins_tried = index.checked_add(1).expect("bounded origins");
     if engine.forge.github_origins_tried == github.log_origins.len() {
         let mut any = false;
@@ -96,6 +98,20 @@ pub(crate) fn resolved(engine: &mut Engine, name: &[u8], address: Option<core::n
         }
         if !any {
             engine.notes.push(crate::Note::GitHubLogOriginsUnresolved);
+        }
+    }
+    if let Some(origin) = resolved {
+        for forge in engine.workers.forges.iter() {
+            if forge.kind == crate::settings::Kind::GitHub
+                && forge.log_origins.is_none()
+                && !engine.forge.held.contains_key(&forge.number)
+                && !engine.forge.github_waiting.contains_key(&forge.number)
+                && engine.forge.component.start(forge.number).is_some()
+            {
+                engine
+                    .forge
+                    .down(skein_forge_connection::Request::LogOrigin { forge: forge.number, origin: origin.clone() });
+            }
         }
     }
 }
