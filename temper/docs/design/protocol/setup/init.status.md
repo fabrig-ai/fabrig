@@ -1,7 +1,8 @@
 # init: status
 
-2026-11-12. Where the tree's code lags or departs from [init.md](init.md).
+2026-11-15. Where the tree's code lags or departs from [init.md](init.md).
 
+- **Not yet:** 3: GitHub's place's name is looked up by the shell before the start serves (`temper-engine-shell/src/serve.rs`, `github_runtime`), where the engine resolves it once serving, the forge waiting meanwhile [in flight: change 3453].
 - **Not yet:** 3 and 2's `agent.json` row: `anthropic` offering keys, its `direct` and the `anthropic-api` endpoint in both documents [in flight: change 929].
 
 
