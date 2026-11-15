@@ -146,7 +146,11 @@ fn machine_pages_charge_framing_before_accepting_any_turn() {
             let current = patches::fixture_turn(2, SAID, &[], 0);
             assert_eq!(*cut, Some(u32::try_from(current.len()).expect("fixture length")));
             let old = patches::fixture_turn(1, SAID, REPLAY, 0);
-            assert_eq!(*next, Some(direct_frame_bytes(&old)), "continue past the stored frame");
+            assert_eq!(
+                *next,
+                Some(super::frames::log_frame_bytes(&root::turn(TASK, ATTEMPT, FIRST_TURN, &old))),
+                "continue past the stored frame"
+            );
         } else {
             unread(&events, read);
         }

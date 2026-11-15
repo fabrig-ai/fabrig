@@ -809,6 +809,7 @@ dependencies = [
  "jig-test-store",
  "serde_json",
  "skein-channel",
+ "skein-deflate",
  "skein-fake-channel",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",

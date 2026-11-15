@@ -10,4 +10,4 @@ pub(crate) mod patching;
 mod rehearsal;
 mod upgrade_edges;
 
-mod baseline;
+pub(crate) mod baseline;

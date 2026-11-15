@@ -145,6 +145,10 @@ impl World {
                         keys::encode_own(&keys::Own::Transcript { task }, u32::MAX).expect("fixed transcript key");
                     !inventory.contains_key(&owner) && !restored.contains_key(key)
                 }
+                Some(keys::Own::LogAttempt { task, .. }) => {
+                    let owner = keys::encode_own(&keys::Own::TurnLog { task }, u32::MAX).expect("fixed turn-log key");
+                    !inventory.contains_key(&owner) && !restored.contains_key(key)
+                }
                 _ => false,
             };
             if !(orphan || refreshed_move || exception.is_some() && (header || wires || expired))

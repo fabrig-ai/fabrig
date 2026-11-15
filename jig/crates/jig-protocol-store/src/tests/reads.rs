@@ -447,13 +447,14 @@ fn turn_reply() -> core::Record {
 
 fn party_store() -> (Store, Box<[u8]>) {
     let mut store = fixtures::opened();
-    fixtures::committed(
+    fixtures::committed_with_places(
         &mut store,
         Box::new([
             fixtures::header(1),
             fixtures::save(fixtures::ended_of(CHILD, tasks::Party::Person(ALICE))),
             fixtures::save(turn_reply()),
         ]),
+        &[CHILD],
     );
     let turns = [fixtures::turn(CHILD, 1, 1, b"one"), fixtures::turn(CHILD, 1, 2, b"two")];
     let mut above = Queue::uncapped();

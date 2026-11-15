@@ -476,7 +476,21 @@ fn scan_directory(
                 observer.check("persisted file", &path, &bytes)?;
                 counts.files += 1;
                 counts.logs += usize::from(name.starts_with(b"log-") || path.starts_with(b"stderr/"));
-                counts.transcripts += usize::from(path.windows(11).any(|part| part == b"transcripts"));
+                let payload = jig_channel_kit::world::store::logs::path(&path);
+                let turns = payload.is_some()
+                    && std::str::from_utf8(&name)
+                        .ok()
+                        .and_then(|name| u64::from_str_radix(name, 16).ok())
+                        .is_some_and(|log| log % 2 == 1);
+                if turns {
+                    let mut remaining = bytes.as_slice();
+                    while let Some((length, body)) = jig_channel_kit::world::store::logs::record(remaining, u32::MAX) {
+                        observer.check("persisted turn body", &path, &body)?;
+                        remaining = &remaining[length..];
+                    }
+                }
+                counts.logs += usize::from(payload.is_some());
+                counts.transcripts += usize::from(turns || path.windows(11).any(|part| part == b"transcripts"));
                 counts.client_files += usize::from(path.starts_with(b"client/"));
                 counts.worker_files += usize::from(path.starts_with(b"worker/"));
             } else {

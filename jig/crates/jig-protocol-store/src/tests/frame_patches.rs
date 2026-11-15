@@ -179,9 +179,14 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             Event::Site { owner, of, key, site, at, mut patcher } => {
                 assert_eq!(owner, OWNER);
                 assert_eq!(of, Owner::Smith);
-                let mut name = keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT)
-                    .expect("name")
-                    .into_vec();
+                let log_key =
+                    keys::encode_own(&keys::Own::TurnLog { task: frames::TASK }, fixtures::KEY_LIMIT).unwrap();
+                let own = if fixtures::get_kv(store, &log_key).is_some() {
+                    keys::Own::TurnLog { task: frames::TASK }
+                } else {
+                    keys::Own::Transcript { task: frames::TASK }
+                };
+                let mut name = keys::encode_own(&own, fixtures::KEY_LIMIT).expect("name").into_vec();
                 name.extend(offset.to_be_bytes());
                 assert_eq!(&*key, name);
                 let status = if refuse {
@@ -253,6 +258,58 @@ fn every_read_kind_patches_each_kept_frame_without_writing() {
         }
     }
 }
+fn log_scene(bytes: &[u8]) -> (Disk, Store) {
+    let (disk, mut store) = scene(bytes, SETS);
+    let frame = store.stores.store.frame(crate::transcripts::frame::body(bytes).unwrap()).unwrap();
+    super::history_logs::raw_commit(
+        &mut store,
+        Box::new([
+            skein_kv::Op::Erase {
+                key: keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT).unwrap(),
+            },
+            skein_kv::Op::Erase {
+                key: keys::encode_own(
+                    &keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT },
+                    fixtures::KEY_LIMIT,
+                )
+                .unwrap(),
+            },
+            skein_kv::Op::Append { log: crate::logs::turns(frames::TASK).unwrap(), frame },
+            skein_kv::Op::Put {
+                key: keys::encode_own(&keys::Own::TurnLog { task: frames::TASK }, fixtures::KEY_LIMIT).unwrap(),
+                value: codec::component::TurnLog { window: Some(0) }.encode().unwrap(),
+            },
+            skein_kv::Op::Put {
+                key: keys::encode_own(
+                    &keys::Own::LogAttempt { task: frames::TASK, attempt: frames::ATTEMPT },
+                    fixtures::KEY_LIMIT,
+                )
+                .unwrap(),
+                value: codec::component::LogAttempt { first: 0 }.encode().unwrap(),
+            },
+        ]),
+    );
+    (disk, store)
+}
+#[test]
+fn every_log_read_kind_patches_each_kept_body_without_writing() {
+    for body in [5, 6] {
+        for version in [1, 2] {
+            let bytes = frames::frame(body, &turn(version, REPLAY));
+            let (mut disk, mut store) = log_scene(&bytes);
+            let log = crate::logs::turns(frames::TASK).unwrap();
+            let extent = store.stores.store.log_end(log);
+            for kind in 0..6 {
+                let events = disk.request(&mut store, request(kind, BUDGET));
+                let events = answer(&mut disk, &mut store, events, false);
+                assert_eq!(payload(&events), &*expected(version), "body {body}, turn {version}, kind {kind}");
+                assert_eq!(store.stores.store.log_end(log), extent);
+                assert_eq!(&*disk.bytes(PATH), &*bytes);
+            }
+        }
+    }
+}
+
 fn unread(events: &[Event]) -> bool {
     match events {
         [
