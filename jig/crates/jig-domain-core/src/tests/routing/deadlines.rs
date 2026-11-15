@@ -149,11 +149,11 @@ fn with_task_alarm() -> (Core, Limits) {
 #[test]
 fn held_new_work_keeps_finishing_timers_visible() {
     let (mut core, limits) = with_task_alarm();
-    let brief = arm_brief(&mut core, &limits, Time::from_nanos(20));
+    arm_brief(&mut core, &limits, Time::from_nanos(20));
     let now = Time::from_nanos(20);
-    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(Time::from_nanos(10)));
+    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(Time::ZERO), "startup retention is due");
     assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Tasks));
-    assert_eq!(core.next_finishing_deadline(now, Wall::EPOCH), Some(brief));
+    assert_eq!(core.next_finishing_deadline(now, Wall::EPOCH), Some(Time::ZERO), "retention advances admitted work");
     assert_eq!(core.finishing_due(now, Wall::EPOCH), Some(Timer::Brief));
 }
 
@@ -192,8 +192,8 @@ fn task_timers_wait_for_the_start_to_open_without_hiding_finishing_timers() {
     core.opened = true;
     assert_eq!(
         core.next_deadline(now, Wall::EPOCH),
-        Some(Time::from_nanos(10)),
-        "the task alarm remains armed for opening"
+        Some(Time::ZERO),
+        "opening makes retention due without disarming the task alarm"
     );
     assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Tasks));
 }

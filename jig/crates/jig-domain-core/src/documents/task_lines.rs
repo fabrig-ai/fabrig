@@ -8,6 +8,42 @@ pub use jig_domain_core_vocabulary::documents::task_lines::*;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
+fn role(core: &Core, party: u64, project: u32) -> Result<(), Missing> {
+    if core.people.role(party, project).is_none() {
+        return Err(Missing::NotAllowed);
+    }
+    Ok(())
+}
+
+/// A shrunk task has a line, but no conversation read or live subtree
+/// (protocol/store/retention.md, 7).
+pub fn task_line_from_summary(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    summary: &tasks::TaskSummary,
+) -> Result<TaskLine, Missing> {
+    role(core, party, summary.project)?;
+    Ok(TaskLine {
+        chip: super::chip_from_summary(limits, summary),
+        project: summary.project,
+        requester: summary.requester,
+        tracked: summary.tracked,
+        label: summary.label,
+        flags: summary.flags,
+        changed: summary.changed,
+        last_activity: summary.last_activity,
+        ended_at: Some(summary.ended_at),
+        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.deadline),
+        waits_on: WaitsOn::Nothing,
+        phases: PhaseCounts::ZERO,
+        delegates_done: summary.ended_delegates.done,
+        delegates_total: summary.ended_delegates.done.saturating_add(summary.ended_delegates.failed),
+        held_below: 0,
+        conversation: None,
+    })
+}
+
 /// Construct a visible task's line without retaining derived facts.
 pub fn task_line(
     core: &Core,
@@ -16,9 +52,7 @@ pub fn task_line(
     row: &tasks::TaskRecord,
     ended_read: Option<u64>,
 ) -> Result<TaskLine, Missing> {
-    if core.people.role(party, row.project).is_none() {
-        return Err(Missing::NotAllowed);
-    }
+    role(core, party, row.project)?;
     let mut phases = PhaseCounts::ZERO;
     let mut pending = List::with_capacity(limits.tasks.tree_tasks);
     let ended = match row.phase {

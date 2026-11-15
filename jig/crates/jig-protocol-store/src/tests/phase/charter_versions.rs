@@ -6,6 +6,18 @@ use crate::{Owner, PatchSet, PatchSets};
 use alloc::collections::VecDeque;
 
 fn store(disk: &Disk, set: PatchSet) -> Store {
+    // This scene runs the charter job; the other jig jobs have their own page fixtures.
+    let set = PatchSet {
+        jobs: Box::leak(
+            set.jobs
+                .iter()
+                .copied()
+                .filter(|job| job.name == "charter-versions")
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+        ..set
+    };
     let mut limits = fixtures::store_limits();
     // The real family's schema texts and registered roots live in this map.
     limits.store.budget = 2_097_152;

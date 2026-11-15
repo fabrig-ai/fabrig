@@ -95,6 +95,9 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
                 // A value type introduced after the kept text has no seed layout.
                 // Registration gives it the binary's layout, with no old values to convert.
                 if schema.root(ty.root.as_bytes(), super::variant(ty.variant)).is_none() {
+                    if !empty(store, set.owner, ty).ok_or(refusal.clone())? {
+                        return Err(refusal);
+                    }
                     continue;
                 }
                 let value = made(layouts, binary, family, ty, false).ok_or(refusal)?;
@@ -116,6 +119,27 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
     }
     Ok(())
 }
+/// An absent kept type cannot have values (protocol/store/layouts.md, 5.1).
+fn empty(store: &Store, owner: crate::Owner, ty: &ValueType) -> Option<bool> {
+    for range in ty.keys {
+        let from = super::whole(owner, range.from, store.limits.store.key)?;
+        let to = super::whole(owner, range.to, store.limits.store.key)?;
+        for space in store.stores.store.census().keyspaces() {
+            if space.rows == 0 || space.prefix() >= to.as_ref() {
+                continue;
+            }
+            let end = super::check::prefix_end(space.prefix());
+            if let Some(end) = end
+                && end.as_ref() <= from.as_ref()
+            {
+                continue;
+            }
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
     let mut changed = false;
     for set in store.patch_sets.sets {

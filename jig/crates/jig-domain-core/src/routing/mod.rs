@@ -454,7 +454,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task, failure } => route_preparation_failed(core, work, task, failure),
-        Work::Forget { owner } => crate::reads::forget::forget(core, work, &owner),
+        Work::Forget { owner } => crate::reads::forget::forget(core, env.wall, work, &owner),
     }
 }
 
@@ -785,6 +785,11 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             let mut out = Queue::uncapped();
             step::fire_brief(core, env, &mut out);
             tag_brief(core, env, out)
+        }
+        Timer::Retention => {
+            let mut out = Queue::uncapped();
+            task::erase::scan(core, env, &mut out, task::erase::Select::Retention);
+            out
         }
         Timer::Account if !core.accounts.is_due(env.now) => stopping::empty(),
         Timer::Account => {

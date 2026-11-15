@@ -66,6 +66,7 @@ fn joined_row(
     reads::Row {
         value: value.clone(),
         owner: Some(Box::new(task.clone())),
+        summary: None,
         ancestors: ancestors.into(),
         related,
         unjoined: None,
@@ -133,6 +134,11 @@ fn candidate(store: &Store, range: &reads::Range, value: &core::Record) -> Optio
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::Spend { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Tasks { .. } => None,
     }
@@ -190,6 +196,11 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => return None,
     };
@@ -342,6 +353,11 @@ fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::Spend { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Tasks { .. } => None,
     }
@@ -377,6 +393,7 @@ fn unowned(value: &core::Record) -> reads::Row {
     reads::Row {
         value: value.clone(),
         owner: None,
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,

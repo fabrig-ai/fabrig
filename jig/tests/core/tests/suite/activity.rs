@@ -291,7 +291,7 @@ fn reading_an_ended_conversations_replies_then_forgets_it() {
         && writes.contains(&root::Write::Erase(read_key.clone()))));
     world.restart(508, false);
     jig_core_world::reads::ask(&mut world, 81, core::reads::Read::Task { task });
-    assert_eq!(jig_core_world::reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Unknown));
+    assert_eq!(jig_core_world::reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Gone));
 }
 
 fn mark_conversation(world: &mut World, task: u64) {

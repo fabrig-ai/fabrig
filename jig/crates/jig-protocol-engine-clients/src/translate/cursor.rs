@@ -84,6 +84,11 @@ fn put_scope(value: reads::Scope) -> Option<c::Scope> {
     Some(match value {
         reads::Scope::TaskText { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::SettingsHistory { .. } => return None,
         reads::Scope::Task { task } => c::Scope::Task(number(task)),

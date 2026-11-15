@@ -262,7 +262,8 @@ impl Store {
             }
         }
         for (key, task, _, index) in attempts {
-            let transcript = transcripts.get(&task).ok_or_else(|| inventory(key, "attempt has transcript metadata"))?;
+            // A drop leaves attempt places for bounded later commits (protocol/store/transcripts.md, 5).
+            let Some(transcript) = transcripts.get(&task) else { continue };
             if index.first >= transcript.length {
                 return Err(inventory(key, "attempt begins within committed transcript"));
             }

@@ -394,7 +394,11 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                         | accounts::Stored::Source { .. }
                         | accounts::Stored::Facts { .. },
                     )
-                    | core::Record::Tasks(tasks::Stored::ClosedLedger(_))
+                    | core::Record::Tasks(
+                        tasks::Stored::ClosedLedger(_)
+                        // Retention rows are left, erased alone when due (protocol/store/retention.md, 4; brief, Step 6).
+                        | tasks::Stored::Retention(_),
+                    )
                     | core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_)),
                 ) => false,
                 // This fixture creates no task, funding source or run outside the removed project.
@@ -425,6 +429,10 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
 
 fn final_rows(world: &World) -> BTreeMap<root::Key, root::Record> {
     let mut rows = world.store.rows.clone();
+    // Retention's rows are outside this deletion fixture's erasure walk.
+    rows.retain(|_, row| {
+        !matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Summary(_) | tasks::Stored::Retention(_))))
+    });
     for row in rows.values_mut() {
         if let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = row {
             // A restart has its own durable decisions; all allocated identities still agree.

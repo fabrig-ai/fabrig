@@ -4,6 +4,7 @@ use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, Unplanned, ValueType};
 use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH, WRITTEN};
 use skein_lib::{Buffer, Reader};
+mod added_types;
 mod edges;
 
 const FAMILY: KeptFamily = KeptFamily {

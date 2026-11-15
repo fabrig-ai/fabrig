@@ -9,6 +9,11 @@ fn subtree(scope: &Scope) -> bool {
     match scope {
         Scope::History { subtree: true, .. } => true,
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::TaskText { .. }
         | Scope::Task { .. }

@@ -139,6 +139,12 @@ pub enum Key {
     },
     /// The live task's spec, contract, authority and instructions.
     LiveCold(u64),
+    Summary(u64),
+    Retention {
+        stage: crate::RetentionStage,
+        since: Wall,
+        number: u64,
+    },
 }
 
 impl Key {
@@ -153,7 +159,9 @@ impl Key {
             | Self::Writer(_)
             | Self::Pool(_)
             | Self::PersonProposal(_) => true,
-            Self::LiveCold(_)
+            Self::Summary(_)
+            | Self::Retention { .. }
+            | Self::LiveCold(_)
             | Self::Ended(_)
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)

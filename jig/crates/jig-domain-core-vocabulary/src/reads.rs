@@ -79,6 +79,11 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
         Scope::EndedTasks
+        | Scope::TaskSummaries
+        | Scope::Retention { .. }
+        | Scope::ErasureKeys { .. }
+        | Scope::ProposalRemains { .. }
+        | Scope::TaskOwnRows { .. }
         | Scope::TaskRows { .. }
         | Scope::Tasks { .. }
         | Scope::Proposal { proposer: Proposer::Task(_), .. }

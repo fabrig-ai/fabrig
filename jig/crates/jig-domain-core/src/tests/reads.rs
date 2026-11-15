@@ -15,3 +15,4 @@ mod closed;
 mod proposal_facts;
 
 mod person;
+mod summaries;

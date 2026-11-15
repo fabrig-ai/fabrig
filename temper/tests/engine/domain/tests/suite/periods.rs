@@ -77,7 +77,8 @@ fn reserve_in_a_chat(d: &mut Driver) {
 #[test]
 fn a_period_is_renewed_at_its_next_start() {
     let mut d = driver(10401);
-    assert_eq!(d.root.next_deadline(&d.env), Some(skein_lib::Time::from_nanos(next(&d, 1, 1).as_nanos())));
+    let renewal = skein_lib::Time::from_nanos(next(&d, 1, 1).as_nanos());
+    assert!(d.root.next_deadline(&d.env).is_some_and(|deadline| deadline <= renewal));
     reserve_in_a_chat(&mut d);
     let first = ledger(&d, 1, 1);
     let times = first.period.expect("period times");

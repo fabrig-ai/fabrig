@@ -31,6 +31,7 @@ mod operations;
 mod phase;
 pub(crate) mod projection_parts;
 mod registered_layouts;
+mod retention;
 mod words;
 
 mod frame_memory;

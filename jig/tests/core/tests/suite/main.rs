@@ -63,6 +63,7 @@ mod referee;
 mod refusals;
 mod restart;
 mod restore_pages;
+mod retention;
 mod route_orders;
 mod run_positions;
 mod runs;
@@ -98,6 +99,7 @@ mod fuzzy {
     mod deletion;
     mod faults;
     mod reads;
+    mod retention;
     mod sessions;
     mod settings;
     mod stories;

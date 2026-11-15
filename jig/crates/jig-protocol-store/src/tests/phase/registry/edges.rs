@@ -53,10 +53,11 @@ fn new_value_types_register_at_the_seed_and_read_back() {
     const NEW_FAMILY: KeptFamily = KeptFamily {
         texts: &[KEPT_NEW],
         current: CURRENT_NEW,
-        keys: &[Keys { from: b"a", to: b"b", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
+        keys: &[Keys { from: b"a", to: b"c", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
+        // New types occupy census-distinct prefixes so the seed can prove their ranges empty.
         types: &[
-            ValueType { number: 1, root: "Row", variant: Some("added"), keys: &[KeyRange { from: b"a", to: b"a/1" }] },
-            ValueType { number: 0, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"a/1", to: b"b" }] },
+            ValueType { number: 0, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"a", to: b"b" }] },
+            ValueType { number: 1, root: "Row", variant: Some("added"), keys: &[KeyRange { from: b"b", to: b"c" }] },
             ValueType { number: 2, root: "Added", variant: None, keys: &[KeyRange { from: b"c", to: b"d" }] },
         ],
         ..FAMILY
@@ -93,12 +94,12 @@ fn new_value_types_register_at_the_seed_and_read_back() {
     let number = store.stores.store.last() + 1;
     let writes = Box::new([
         fixtures::header(number),
-        Write::Put { key: b"a/0".as_slice().into(), value: Box::from([0, 2, 1, 42]) },
+        Write::Put { key: b"b/0".as_slice().into(), value: Box::from([0, 2, 1, 42]) },
         Write::Put { key: b"c/0".as_slice().into(), value: Box::from([0, 2, 43]) },
     ]);
     assert_committed(&disk.request(&mut store, fixtures::commit(number, writes)), number);
     for (key, root, expected) in
-        [(b"a/0", b"Row".as_slice(), [0, 2, 1, 42].as_slice()), (b"c/0", b"Added".as_slice(), [0, 2, 43].as_slice())]
+        [(b"b/0", b"Row".as_slice(), [0, 2, 1, 42].as_slice()), (b"c/0", b"Added".as_slice(), [0, 2, 43].as_slice())]
     {
         let get = disk
             .request(&mut store, Request::Get { owner: Token::new(2), key: Get::Application(key.as_slice().into()) });

@@ -44,6 +44,8 @@ fn registered_value_type_numbers_are_pinned() {
                 (19, "Row", Some("attempt"), &[1, 1, 22]),
                 (20, "Row", Some("hold"), &[1, 1, 23]),
                 (21, "Row", Some("live_cold"), &[1, 1, 24]),
+                (22, "Row", Some("summary"), &[1, 1, 30]),
+                (23, "Row", Some("retention"), &[1, 1, 31]),
             ],
         ),
         (

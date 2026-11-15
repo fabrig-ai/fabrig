@@ -67,6 +67,120 @@ fn run_start(domain: &mut crate::Domain, env: &Env<crate::Limits>, context: &jig
     crate::domain::close(domain, env, decision, &mut Queue::uncapped());
 }
 
+fn unname(domain: &mut crate::Domain, env: &Env<crate::Limits>, task: u64) -> Box<[Write]> {
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Names { task, resources: super::change_names(None) } },
+        &mut Queue::uncapped(),
+    );
+    let connector = domain.config.forge_connector;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::effect_ask(
+        domain,
+        env,
+        &mut decision,
+        connector,
+        jig_domain_core::effects::connector::Ask::Unname { task },
+    );
+    crate::route::route_into(domain, env, &mut decision);
+    crate::domain::close(domain, env, decision, &mut Queue::uncapped());
+    let Some(crate::decision::JournalOutput::Commit { writes, .. }) =
+        crate::decision::commit(&mut domain.journal, &env.limits.journal)
+    else {
+        panic!("one unname decision")
+    };
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Names(task)))));
+    assert_eq!(domain.forge.names(task), None);
+    writes
+}
+
+#[test]
+fn unname_drops_only_its_finished_change_with_free_room_in_one_decision() {
+    for state in [
+        change::State::Ended,
+        change::State::Cleared { merge: [1; 32] },
+        change::State::NoChange { words: b"done".as_slice().into() },
+        change::State::Landed { merge: [1; 32], since: skein_lib::Wall::EPOCH },
+        change::State::Red { merge: [1; 32], since: skein_lib::Wall::EPOCH },
+        change::State::Uncleared { merge: [1; 32] },
+    ] {
+        let (mut domain, env, _) = kept(0);
+        keep(&mut domain, &env, 7, state, 999);
+        keep(&mut domain, &env, 9, change::State::Ended, 999);
+        let other = domain.forge.change(9).unwrap().clone();
+        let writes = unname(&mut domain, &env, 7);
+        assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(7)))));
+        assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeCold(7)))));
+        assert_eq!(domain.forge.change_tasks().as_ref(), &[9]);
+        assert_eq!(domain.forge.change(9), Some(&other));
+    }
+}
+
+#[test]
+fn unname_keeps_a_live_goals_change_by_row_or_tracked_ancestor() {
+    for explicit in [true, false] {
+        let (mut domain, env, context) = kept(1);
+        pin_goal(&mut domain, &env, &context, FIRST, explicit);
+        let row = domain.forge.change(FIRST).unwrap().clone();
+        let writes = unname(&mut domain, &env, FIRST);
+        assert_eq!(domain.forge.change(FIRST), Some(&row));
+        assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(FIRST)))));
+        assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeCold(FIRST)))));
+    }
+}
+
+#[test]
+fn unname_keeps_live_or_releasing_changes_and_only_names_an_absent_change() {
+    for (present, ended, releasing) in [(true, false, false), (true, true, true), (false, false, false)] {
+        let (mut domain, env, _) = kept(0);
+        if present {
+            keep(&mut domain, &env, 7, change::State::Ended, 999);
+            let mut row = domain.forge.change(7).unwrap().clone();
+            if !ended {
+                row.ending = None;
+            }
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+                &mut Queue::uncapped(),
+            );
+        }
+        if releasing {
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore {
+                    record: forge::Stored::Release(forge::ReleaseRow {
+                        task: 7,
+                        root: 7,
+                        ending: forge::ReleaseEnding::Done,
+                        close_pull: None,
+                        comment: None,
+                        pending: None,
+                        failed: false,
+                        effects_settled: false,
+                        releasing: false,
+                    }),
+                },
+                &mut Queue::uncapped(),
+            );
+        }
+        let row = domain.forge.change(7).cloned();
+        let writes = unname(&mut domain, &env, 7);
+        assert_eq!(domain.forge.change(7), row.as_ref());
+        for write in &writes {
+            if let Write::Erase(Key::Forge(key)) = write {
+                assert_eq!(*key, forge::Key::Names(7));
+            }
+            if let Write::Save(Record::Forge { .. }) = write {
+                panic!("unname changes no forge row beyond names");
+            }
+        }
+    }
+}
+
 #[test]
 fn free_room_keeps_every_settled_panel() {
     let (mut domain, env, context) = kept(KEPT - 1);
