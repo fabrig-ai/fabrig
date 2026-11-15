@@ -299,16 +299,6 @@ fn model_line(
         super::accounts::outcome(b, root, w, accounts, &page.request, text_per_node);
     }
 }
-fn connected(root: &Domain) -> bool {
-    if let temper_client_domain::forge::forges::State::Rows(rows) = root.forges() {
-        for row in rows {
-            if temper_client_domain::pages::welcome::forge_connected(row) {
-                return true;
-            }
-        }
-    }
-    false
-}
 #[expect(
     clippy::too_many_arguments,
     reason = "Ready composes the form, pane and three binding sets with the text bound"
@@ -324,7 +314,7 @@ fn ready(
     text_per_node: u32,
 ) {
     use crate::forge::connect;
-    let done = connected(root) && temper_client_domain::pages::welcome::model_counts(root) == Some(true);
+    let done = temper_client_domain::pages::welcome::ready(root);
     if done {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
         ready_lead(b, root, w);

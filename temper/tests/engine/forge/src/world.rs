@@ -277,6 +277,14 @@ impl World {
             5,
         )
     }
+    /// Enable the owned repository's manual-merge detection for a turn.
+    pub fn detect_manual_merges(&mut self) {
+        forge::manual_merges(
+            &mut self.forge,
+            b"org/repo",
+            raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+        );
+    }
     pub fn project_landing(
         &mut self,
         project: u32,
@@ -933,6 +941,11 @@ impl World {
                     cue: None,
                 },
             },
+        );
+        forge::manual_merges(
+            &mut world.forge,
+            b"org/second",
+            raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
         );
         forge::grant(&mut world.forge, b"org/second", 1, raw::Permission::Admin);
         forge::grant(&mut world.forge, b"org/second", 2, raw::Permission::Write);

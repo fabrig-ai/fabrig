@@ -5,7 +5,7 @@ use super::{
 };
 use skein_fake_llm_domain::api::Finish;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Step {
     One,
     Two,
@@ -20,6 +20,14 @@ pub(super) fn hold_repair(scripts: &mut Vec<Script>) {
         cue: b"Repair the failed landing gate".as_slice().into(),
         turns: Box::new([Turn { lines: Box::new([hold(b"batch-repair")]), finish: Finish::Stop, tokens: 20 }]),
     });
+}
+
+pub(super) fn gate_status(statuses: &Value, verdict: &str) -> Result<bool, String> {
+    if statuses["statuses"].is_null() {
+        return Ok(false);
+    }
+    let rows = statuses["statuses"].as_array().ok_or(String::from("statuses"))?;
+    Ok(rows.iter().any(|status| status["context"] == "temper/gate/gate" && status["status"] == verdict))
 }
 
 impl Judge<'_> {
@@ -45,14 +53,7 @@ impl Judge<'_> {
                 run,
                 serde_json::json!({"prefix":prefix,"wanted":verdict,"run":actual["status"],"states":states}),
             );
-            if statuses["total_count"] == 0 && statuses["statuses"].is_null() {
-                return Ok(false);
-            }
-            statuses["statuses"]
-                .as_array()
-                .ok_or_else(|| format!("statuses: {statuses}"))?
-                .iter()
-                .any(|status| status["context"] == "temper/gate/gate" && status["status"] == verdict)
+            gate_status(&statuses, verdict)?
         })
     }
 

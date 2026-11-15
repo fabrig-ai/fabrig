@@ -1075,7 +1075,10 @@ impl Domain {
             || !self.procedure_wakes.is_empty()
             || goal_branch::room_waiting(self)
             || self.client.is_ready()
-            || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self))
+            || ((self.lost_waiting()
+                || brief::waiting(self)
+                || goal_branch::read_waiting(self)
+                || crate::landing::read_waiting(self))
                 && self.client.has_room())
     }
 
@@ -1145,6 +1148,7 @@ impl Domain {
     /// Reclaim transient child buffers after the current decision.
     pub fn reclaim(&mut self) {
         self.client.reclaim();
+        crate::landing::reclaim(self);
         self.brief_reclaim = self.brief_reclaim.wrapping_add(1);
     }
 
@@ -1559,6 +1563,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Settle => {
             d.stopping = true;
             d.watch_due = None;
+            crate::landing::settle(d);
             child(d, env, skein_forge_client::Event::Settle, out);
         }
         Event::Bind { request, address, subject } => bind(d, request, address, subject, out),
@@ -2197,6 +2202,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         brief::retry(d, out);
         ask_lost_again(d, env, out);
         goal_branch::retry(d, env, out);
+        crate::landing::retry(d, env, out);
     }
     if out.room() > 0
         && let Some((task, wake)) = d.procedure_wakes.iter().next()
@@ -8363,13 +8369,14 @@ fn same_pull_facts(left: &skein_forge::api::Pull, right: &skein_forge::api::Pull
     left == *right
 }
 
-fn pull_changed(
+pub(crate) fn pull_changed(
     d: &mut Domain,
     env: &Env<Limits>,
     resource: skein_forge_client::Resource,
     pull: skein_forge::api::Pull,
     out: &mut Queue<Request>,
 ) {
+    crate::landing::pull_changed(d, resource.repository, &pull, out);
     let name = from_client(&resource, &env.limits);
     let prior = match &name {
         Some(name) => d.pulls.get(name).cloned(),
@@ -9030,8 +9037,11 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     let mut changes = List::with_capacity(env.limits.changes);
-    for (task, _) in &d.changes {
+    for (task, row) in &d.changes {
         changes.push(*task).expect("change capacity");
+        if !row.questions.waiting.is_empty() {
+            emit(out, Request::WakeProcedure { task: *task });
+        }
     }
     for task in &changes {
         topics::refresh(d, env, *task, out);

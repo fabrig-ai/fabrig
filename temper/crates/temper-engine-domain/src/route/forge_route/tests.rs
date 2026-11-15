@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod reds;
 mod room;
+mod settling;
 
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -2261,6 +2262,10 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
 }
 
 fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    procedure_root_with_limits(crate::tests::resume_fixture::limits())
+}
+
+fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{authority, forge};
     let mut config = crate::tests::resume_fixture::config(7);
     let kinds = Box::new([
@@ -2273,7 +2278,6 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
-    let mut limits = crate::tests::resume_fixture::limits();
     // The closer procedure and close job add two executor places.
     limits.authority.executors = 5;
     // The closer procedure and close job add two executor places.
@@ -2914,7 +2918,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
             None => None,
         };
         let expected = match expected {
-            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]) }),
+            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) }),
             None => None,
         };
         assert_eq!(made, expected);
@@ -3936,7 +3940,13 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             .forge_delegating
             .insert(
                 (task, step),
-                super::ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false },
+                super::ChangeStep {
+                    delegate: Some(kind),
+                    relayed: None,
+                    refusal: None,
+                    released: false,
+                    passing: None,
+                },
             )
             .unwrap();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -4371,6 +4381,7 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
                 relayed: None,
                 refusal: None,
                 released: false,
+                passing: None,
             },
         )
         .unwrap();
@@ -4922,6 +4933,7 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     assert_eq!(description.recovery, super::Recovery::Unrecoverable);
 }
 
+#[expect(clippy::too_many_lines, reason = "one restored train fixture couples task readiness and joined repositories")]
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;
@@ -4940,7 +4952,17 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
                 flags: tasks::Flags::PLAIN,
                 executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                 llm: None,
-                spec: template.spec.clone(),
+                spec: tasks::Spec {
+                    parameters: Box::new([
+                        tasks::Parameter::Resource {
+                            name: 1,
+                            connector: 0,
+                            resource: forge::tag(1, if joined && number == 8 { 2 } else { 1 }),
+                        },
+                        tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+                    ]),
+                    ..template.spec.clone()
+                },
                 contract: template.contract.clone(),
                 deadline: tasks::Deadline::Named,
                 authority: template.authority.clone(),
@@ -5001,21 +5023,40 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
             &mut Queue::uncapped(),
         );
     }
+    // These restored ready rows have already completed their procedure steps.
+    for task in [7, 8] {
+        let (_, _, step) = domain.core.tasks.procedure_due(task).unwrap();
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Procedure {
+                reply_to: super::super::internal(u64::MAX),
+                task,
+                step,
+                read: None,
+                decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
+            },
+            &mut Queue::uncapped(),
+        );
+    }
+    turn_project(&mut domain);
+    (domain, env)
+}
+fn turn_project(domain: &mut super::Domain) {
     assert!(domain.forge.project_landing(
         1,
-        c::Way::Turn,
+        super::forge_change::Way::Turn,
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
-        forge::AfterLanding {
+        super::forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
-                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
             },
             bound: skein_lib::Duration::from_secs(7200),
         }
     ));
     domain.opened = true;
-    (domain, env)
 }
 fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -5068,29 +5109,65 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
 }
 #[test]
-fn a_unit_holds_its_change_task_and_a_release_refuses_it_again() {
+fn either_train_holds_the_units_first_change_in_dependency_order() {
+    use super::tasks;
+    for first in [7, 8] {
+        let (mut domain, env) = train_root(true);
+        super::start_landing(&mut domain, &env, first);
+        judge_trains(&mut domain, &env);
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else {
+            panic!("train C{first} must hold upstream C8");
+        };
+        assert_eq!(
+            domain.core.tasks.task(7).unwrap().phase,
+            tasks::Phase::Active(tasks::Active::Idle),
+            "the other member is not held too"
+        );
+        let revision = domain.core.tasks.task(8).unwrap().revisions.hold;
+        for other in [7, 8] {
+            super::start_landing(&mut domain, &env, other);
+            judge_trains(&mut domain, &env);
+        }
+        assert_eq!(domain.core.tasks.task(8).unwrap().revisions.hold, revision);
+        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
+        domain.work.push(super::Work::Tasks(tasks::Event::Release {
+            reply_to: super::super::internal(u64::MAX),
+            by: tasks::Party::Deployment { project: 1 },
+            operation: tasks::Release { task: 8, again: None, message: None },
+        }));
+        judge_trains(&mut domain, &env);
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else {
+            panic!("released unit must be held again");
+        };
+        assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision);
+        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
+    }
+}
+
+#[test]
+fn a_unit_holds_its_first_dependency_and_a_release_refuses_it_again() {
     use super::{Work, tasks};
     let (mut domain, env) = train_root(true);
     judge_trains(&mut domain, &env);
     for task in [7, 8] {
         assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
     }
-    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(7).unwrap().phase else {
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(8).unwrap().phase else {
         panic!("unit hold")
     };
     assert_eq!(*why, tasks::Hold::Procedure);
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert!(words.starts_with(b"unit of 2 changes: C8, C7: a unit across repositories"));
     assert!(skein_lib::bytes::find(words, b"merge-queue.md, 13)").is_some());
-    let revision = domain.core.tasks.task(7).unwrap().revisions.hold;
+    let revision = domain.core.tasks.task(8).unwrap().revisions.hold;
     domain.work.push(Work::Tasks(tasks::Event::Release {
         reply_to: super::super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: 1 },
-        operation: tasks::Release { task: 7, again: None, message: None },
+        operation: tasks::Release { task: 8, again: None, message: None },
     }));
     judge_trains(&mut domain, &env);
-    let tasks::Phase::Held { .. } = domain.core.tasks.task(7).unwrap().phase else { panic!("held again") };
-    assert!(domain.core.tasks.task(7).unwrap().revisions.hold > revision, "released, then held anew");
+    let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("held again") };
+    assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision, "released, then held anew");
     assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
 }
 

@@ -598,7 +598,20 @@ pub struct Questions {
     pub taken: u32,
     /// Open questions in the order taken; the first is the one being worked.
     pub open: Box<[Open]>,
+    pub waiting: Box<[Waiting]>,
 }
+
+/// Words retained until the requester is told (domain/forge/change/questions.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Waiting {
+    pub from: u64,
+    pub number: u64,
+    pub words: Box<[u8]>,
+    pub passed: Option<u64>,
+}
+
+/// Words a change's record keeps at most.
+pub const WORDS_WAITING: usize = 16;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Open {

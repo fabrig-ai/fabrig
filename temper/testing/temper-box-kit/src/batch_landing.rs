@@ -286,6 +286,26 @@ fn gate_runs(forge: &Throwaway) -> Result<Vec<Value>, String> {
 
 /// Fixture admission is checked without starting the owned forge or a process story.
 pub mod tests {
+    pub fn gate_receipt_waits_for_an_unpublished_status_context() {
+        use serde_json::json;
+        assert_eq!(super::narrowed::gate_status(&json!({"statuses":null}), "failure"), Ok(false));
+        assert_eq!(
+            super::narrowed::gate_status(
+                &json!({"statuses":[{"context":"temper/gate/gate","status":"pending"}]}),
+                "failure"
+            ),
+            Ok(false)
+        );
+        assert_eq!(
+            super::narrowed::gate_status(
+                &json!({"statuses":[{"context":"temper/gate/gate","status":"failure"}]}),
+                "failure"
+            ),
+            Ok(true)
+        );
+        assert!(super::narrowed::gate_status(&json!({"statuses":"malformed"}), "failure").is_err());
+    }
+
     pub fn the_scripted_batch_fits_its_budget_and_call() {
         let scratch = super::super::Scratch::new("batch-admission");
         let api = "127.0.0.1:3000".parse().expect("fixture forge");
@@ -308,6 +328,17 @@ pub mod tests {
         let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
         let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
         let delegate: serde_json::Value = serde_json::from_slice(arguments).expect("delegate JSON");
+        let tracked =
+            delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
+        assert!(
+            u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
+            "the independent changes fit the project's goal limit"
+        );
+        let result_credits = u32::try_from(delegate["batch"].as_array().expect("batch").len())
+            .expect("batch members")
+            .checked_mul(engine.limits.core.tasks.result_bytes)
+            .expect("batch result credits");
+        assert!(result_credits <= engine.limits.core.tasks.inbox_bytes, "the batch's result credits fit its inbox");
         let spend: u64 = delegate["batch"]
             .as_array()
             .expect("batch")
@@ -336,7 +367,7 @@ struct Proof {
     panel: Value,
     run: u64,
 }
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
     Reviews,
     Keeping,
@@ -369,6 +400,12 @@ struct Read {
     arguments: Vec<String>,
     index: Option<usize>,
 }
+#[derive(Clone, Copy)]
+enum PeerStop {
+    Waiting,
+    Due(Time),
+    Stopped,
+}
 struct Judge<'a> {
     failed: Option<String>,
     chat: ChatJudge<'a>,
@@ -385,6 +422,7 @@ struct Judge<'a> {
     reads: RefCell<Reads>,
     amends: usize,
     observations: std::cell::RefCell<std::collections::BTreeMap<u64, Value>>,
+    peer_stop: PeerStop,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
@@ -744,6 +782,7 @@ impl Judge<'_> {
 
 impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        eprintln!("batch checking history at {:?}", Clock::new().now().now);
         let mut checked = Vec::new();
         for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
             let task = proof.panel["task"].as_u64().ok_or(String::from("landing task"))?;
@@ -752,15 +791,12 @@ impl Judge<'_> {
                 checked.push(task);
             }
         }
+        eprintln!("batch history checked at {:?}", Clock::new().now().now);
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
-        for proc in procs {
-            if let Process::Peer(peer) = proc {
-                peer.shutdown();
-            }
-        }
         self.chat.phase = ChatPhase::Stopping;
+        eprintln!("batch stopping at {:?}", Clock::new().now().now);
 
         Ok(())
     }
@@ -1110,33 +1146,18 @@ impl Referee<Process> for Judge<'_> {
             return;
         }
         let result = (|| -> Result<(), String> {
-            if self.chat.stopping() {
-                self.poll = now.saturating_add(Duration::from_millis(10));
-                // Retire the held terminal only after the peer has observed
-                // every client socket closed; it can reach no repair delegate.
-                for proc in procs {
-                    if let Process::Peer(peer) = proc
-                        && !peer.is_empty()
-                    {
-                        let closed = peer.observations().iter().all(|event| {
-                            use skein_fake_peers::llm::Observation;
-                            let Observation::Accepted { connection } = event else { return true };
-                            peer.observations().iter().any(|event| {
-                                if let Observation::Closed { connection: ended } = event {
-                                    ended == connection
-                                } else {
-                                    false
-                                }
-                            })
-                        });
-                        if closed {
-                            for name in [b"batch-repair".as_slice(), b"goal-finish".as_slice()] {
-                                peer.release(name).map_err(|error| format!("retire scripted call: {error:?}"))?;
-                            }
-                        }
+            if let PeerStop::Due(_) = self.peer_stop {
+                // Only after the binary and its clients end can held replies
+                // finish without delivering a repair result to a live delegate.
+                for name in [b"batch-owner".as_slice(), b"batch-repair".as_slice(), b"goal-finish".as_slice()] {
+                    release(procs, name)?;
+                }
+                for proc in procs.iter_mut() {
+                    if let Process::Peer(peer) = proc {
+                        peer.shutdown();
                     }
                 }
-                return Ok(());
+                self.peer_stop = PeerStop::Stopped;
             }
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
                 if calls(procs)?.ends().len() < deployment::setup_count(self.root) {
@@ -1169,7 +1190,11 @@ impl Referee<Process> for Judge<'_> {
             Ok(())
         })();
         if let Err(why) = result {
-            self.failed = Some(why);
+            self.failed = Some(if let Some(Process::Binary(binary)) = procs.first() {
+                format!("{why}; serve stderr: {}", String::from_utf8_lossy(binary.stderr()))
+            } else {
+                why
+            });
         }
     }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
@@ -1180,11 +1205,21 @@ impl Referee<Process> for Judge<'_> {
         if result.is_err() {
             self.report(procs);
         }
+        if self.chat.stopping()
+            && matches!(self.peer_stop, PeerStop::Waiting)
+            && let Some(Process::Binary(binary)) = procs.first()
+            && binary.is_empty()
+        {
+            self.peer_stop = PeerStop::Due(now);
+        }
         result
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
-            self.chat.next_deadline().map(|until| until.min(self.poll))
+            match self.peer_stop {
+                PeerStop::Due(at) => skein_lib::earliest(Some(at), self.chat.next_deadline()),
+                PeerStop::Waiting | PeerStop::Stopped => self.chat.next_deadline(),
+            }
         } else {
             Some(self.chat.deadline.until().map_or(self.poll, |until| until.min(self.poll)))
         }
@@ -1240,7 +1275,7 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
         rules,
     )
     .expect("concurrent batch scripts");
-    super::llm_recipe(recipe)
+    super::llm_recipe(recipe).without_records()
 }
 
 /// One world drives the native person, ctl Steps, fake model and shipped binary.
@@ -1255,6 +1290,7 @@ pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
 }
 
 fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
+    forge.detect_manual_merges();
     let peer = peer(root, forge, story);
     peer.configure(root);
     let clock = Clock::new();
@@ -1287,6 +1323,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         reads: RefCell::new(Reads::default()),
         amends: 0,
         observations: std::cell::RefCell::new(std::collections::BTreeMap::new()),
+        peer_stop: PeerStop::Waiting,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {

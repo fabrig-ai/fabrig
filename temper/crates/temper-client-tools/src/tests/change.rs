@@ -850,6 +850,47 @@ fn a_retried_reviewer_read_keeps_its_target_and_hold() {
     contains(&answer.stdout, b"held: task 8 (Insufficient activation budget)");
 }
 #[test]
+fn a_landing_repair_is_read_with_its_delegate_in_text_and_json() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let argv = if json { &["change", "show", "2", "--json"][..] } else { &["change", "show", "2"][..] };
+        let call = root.submit(argv);
+        assert_eq!(root.reads[&call].1, c::Read::Task { task: 2 });
+        serve(&mut root, call, false, false);
+        let step = w::Step::Repairing(
+            w::Repairing::new(
+                &w::CEILINGS,
+                w::RepairingParts {
+                    reason: w::Reason::Landing(
+                        w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        );
+        let mut parts = panel(step).into_parts();
+        parts.way = w::Way::Turn;
+        parts.in_landing = Some(13);
+        parts.runs = Some(15);
+        root.serving = Some(call);
+        deliver_panel(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        root.serving = None;
+        assert_eq!(root.reads[&call].1, c::Read::Task { task: 15 });
+        root.serve(call, f::task_result(f::goal(15, c::WaitsOn::Nothing)));
+        let answer = root.answer(call).expect("the landing repair remains readable");
+        assert_eq!(answer.status, 0);
+        assert!(answer.stderr.is_empty());
+        if json {
+            contains(&answer.stdout, br#""step":"repairing""#);
+            contains(&answer.stdout, br#""repair":"landing""#);
+            contains(&answer.stdout, br#""runs":15"#);
+        } else {
+            contains(&answer.stdout, b"Repairing: landing gate 0 failed.");
+        }
+    }
+}
+
+#[test]
 fn reviewer_read_refusals_keep_their_ordinary_status_and_line() {
     for (why, status, line) in [
         (c::ReadNone::Unknown, 2, b"unknown\n".as_slice()),
@@ -957,7 +998,7 @@ fn change_show_prints_its_questions() {
 fn change_show_names_asked_and_held_questions() {
     for (stands, text, json) in [
         (w::Stands::Asked, b"asked of requester".as_slice(), br#""stands":"asked""#.as_slice()),
-        (w::Stands::Held, b"answered, held for message room", br#""stands":"held""#),
+        (w::Stands::Held, b"answered, held \xc2\xb7 Which branch?\n", br#""stands":"held""#),
     ] {
         let mut parts = question_parts();
         let mut questions = parts.questions.into_parts();

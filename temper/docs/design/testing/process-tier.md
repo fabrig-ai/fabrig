@@ -137,8 +137,15 @@
   that head's failed `check` as they were; every process of the box's
   tree, read once the link is printed and again while a run started
   after the restart is live, runs a file of the new `bin/`, by device
-  and inode, none an old or a deleted file, and none a Forgejo or a
-  runner; the served page holds the mark. It needs the binaries' files
+  and inode, or, an agent, the worker's pin of the new `temper-box`
+  (`../protocol/setup/box.md`, 1; `../domain/worker/README.md`, 5): a
+  file in the worker's `agent/`, its bytes the new `temper-box`'s, and
+  not the file the first start pinned, by device and inode; none an old
+  or a deleted file, and none a Forgejo or a runner. A process that has
+  exited between the tree's read and its executable's read is no longer
+  of the tree and is not judged; one the story waits for, the box,
+  serve, the agent and the adapter, must be read alive. The served page
+  holds the mark. It needs the binaries' files
   and the processes, so it is this profile's.
 
 - **A deployment at its place restarted with a newer build**

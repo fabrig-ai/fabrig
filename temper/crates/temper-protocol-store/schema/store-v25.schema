@@ -207,7 +207,8 @@ enum Route { none, retired, up }
 record Held { answer: bytes 262144 }
 enum Stands { taken, retired, asked, held: Held }
 record Open { asker: u64 number: u64 line: bytes 256 words: bytes 262144 stands: Stands }
-record Questions { route: Route taken: u32 open: list 128 Open }
+record Waiting { from: u64 number: u64 words: bytes 262144 passed: option u64 }
+record Questions { route: Route taken: u32 open: list 128 Open waiting: list 16 Waiting = [] }
 record ChangeFailure { line: bytes 1048576 }
 enum ChangeEnding { landed, no_change, cancelled, failed: ChangeFailure }
 record SignOff { person: u64 head: fixed 32 at: u64 }

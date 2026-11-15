@@ -121,6 +121,32 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     let members = u32::from(batch);
     config["application"]["limits"]["overrides"]["forge.landing_members"] = members.into();
     config["application"]["limits"]["overrides"]["forge.resources_per_task"] = (members + 1).into();
+    // The turn needs the prepare kind, declared only when its carriers fit
+    // (temper/docs/design/domain/worker/jobs.md, kind 1).
+    let prepare = temper_service::limits::prepare_bound();
+    config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
+    config["engine"]["limits"]["overrides"]["tasks.message_bytes"] = prepare.result.into();
+    config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
+    config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
+    config["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
+    let agent_path = root.join("agent.json");
+    let mut agent: Value =
+        serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("agent JSON");
+    // A JSON string's quotes share the tool payload with its message.
+    let tool_payload = prepare.result + 2;
+    agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
+    config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
+    config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
+    config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+    config["application"]["limits"]["overrides"]["checkout.message_bytes"] = tool_payload.into();
+    // Let the call carriers follow the agent's declared payload.
+    config["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
+    config["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .remove("core.call_answer_bytes");
+    super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
+    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
@@ -180,6 +206,34 @@ fn moved_main<'a>(advanced: Option<&'a (String, String)>, previous: Option<&'a P
 
 /// Witness selection is checked without starting the owned forge or runner.
 pub mod tests {
+    /// A turn's task carriers must admit the prepare kind and its worker's result.
+    pub fn turn_configuration_declares_the_prepare_job() {
+        let scratch = super::super::Scratch::new("turn_prepare_carriers");
+        let api = "127.0.0.1:3000".parse().expect("fixture forge");
+        let forge = super::super::Forge::Throwaway {
+            forgejo: std::path::Path::new("/fixture/forgejo"),
+            api,
+            git: format!("http://{api}/"),
+        };
+        super::super::configuration(scratch.path(), &forge);
+        super::configure_batch(scratch.path(), 1, 3);
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
+                .expect("configuration JSON");
+        let engine = temper_real_loop_world::settings::configuration(&config);
+        let prepare = temper_service::limits::prepare_bound();
+        assert!(
+            temper_service::limits::prepare_jobs(&engine.limits).contains(&prepare),
+            "the turn declares the prepare job"
+        );
+        assert!(
+            config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
+                >= u64::from(prepare.result),
+            "the worker carries the prepare result"
+        );
+        scratch.remove();
+    }
+
     /// A cold retry retains the previous base; a new observation takes precedence.
     pub fn keeps_the_moved_main_witness_on_retry() {
         let previous = super::Proof {
@@ -460,8 +514,16 @@ impl Judge<'_> {
             .map(|run| json!({"id":run["id"],"workflow":run["workflow_id"],"status":run["status"]}))
             .collect();
         eprintln!("stalled runs: {runs:?}");
+        let sitting = if self.previous.is_none() {
+            "first"
+        } else if self.retry {
+            "retry"
+        } else {
+            "final"
+        };
         Err(format!(
-            "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            "turn restart stalled ({sitting}, main advanced={}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            self.advanced.is_some(),
             person.steps_seen(),
             person.finished,
             self.chat.forge.ok_or(String::from("forge"))?.failure_state()

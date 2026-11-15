@@ -1095,10 +1095,11 @@ fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_br
 }
 
 fn delivered_review_repair(moved: bool, idle: bool) {
-    let (mut world, requester) = super::questions::plan_world_with_limits(
+    let (mut world, requester) = super::questions::plan_world_with_gate(
         None,
         Gate { agent: true, ..Gate::default() },
         &StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
+        false,
     );
     let change = super::questions::make_change(&mut world, &requester, 93, engine::ChangeQuestions::Up);
     let producer = super::questions::next_producer(&mut world, change);

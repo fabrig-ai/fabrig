@@ -650,6 +650,32 @@ impl Throwaway {
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
     }
 
+    /// A merge train's members use Forgejo's manual-merge detection (domain/landing.md, 10).
+    pub fn detect_manual_merges(&self) {
+        let response = self
+            .instance
+            .exchange(&Outgoing::get("/api/v1/repos/acme/widget", Some(&self.instance.admin().token)))
+            .expect("repository settings");
+        assert_eq!(response.status, 200);
+        let before: Value = serde_json::from_slice(&response.body).expect("repository settings JSON");
+        // Forgejo edits pull-request options through the enabled repository unit.
+        let mut options = json!({"has_pull_requests":true,"allow_manual_merge":true,"autodetect_manual_merge":true});
+        for name in [
+            "allow_merge_commits",
+            "allow_rebase",
+            "allow_rebase_explicit",
+            "allow_squash_merge",
+            "allow_fast_forward_only_merge",
+            "allow_rebase_update",
+            "default_merge_style",
+            "default_delete_branch_after_merge",
+            "default_allow_maintainer_edit",
+        ] {
+            options[name] = before[name].clone();
+        }
+        request(&self.instance, &self.instance.admin().token, "PATCH", "/api/v1/repos/acme/widget", &options, 200);
+    }
+
     /// Repositories outside the bot's organizations, before the managed deployment starts.
     pub fn adoption_repositories(&self) {
         let token = &self.instance.admin().token;

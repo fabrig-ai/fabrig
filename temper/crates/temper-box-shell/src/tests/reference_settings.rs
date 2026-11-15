@@ -374,7 +374,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] 
         Executor::Procedure(3),
         Executor::Procedure(4),
         Executor::Procedure(6),
-        Executor::Job(1),
+        Executor::Job(temper_engine_domain_forge::PREPARE_KIND),
         Executor::Job(3),
         Executor::Job(4),
         Executor::Role(0),

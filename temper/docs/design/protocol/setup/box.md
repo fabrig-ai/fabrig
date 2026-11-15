@@ -86,9 +86,12 @@ temper-box
   `temper-box`, `fake-claude` beside it and the bundle's directory
   replaced while it was stopped. Every program the box runs is its own
   executable, run again for its steps and its agents' host, or a path
-  its configuration names, never a copy in its data, so the engine, its
-  agents, its adapters and the served bundle all run the new build, and
-  nothing the old. Its forges, an owned Forgejo or the fake forges with
+  its configuration names, never a copy in its data but one: its agents
+  run the worker's pin of that executable, copied into the worker's
+  `agent/` afresh as the worker starts, the previous copy removed first
+  (`../../domain/worker/README.md`, 5), so a start pins the build then
+  installed. So the engine, its agents, its adapters and the served
+  bundle all run the new build, and nothing the old. Its forges, an owned Forgejo or the fake forges with
   their state (5), its repositories, pull requests, checks and tasks come
   back as they were; a store the build cannot read refuses serve's start by
   name (`../store.md`, 5), a step's failure as 2 has it. The process

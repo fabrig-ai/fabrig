@@ -827,6 +827,22 @@ fn judgement_is_asked_once_per_member_and_all_must_hold() {
 }
 
 #[test]
+fn a_merged_member_waits_for_detection_before_its_change_can_close() {
+    let (mut landing, mut f) = stacked(1);
+    landing.phase = Phase::Turn { at: at(4) };
+    f.members[0].main = prefix(0);
+    let waiting = decide(&landing, &f);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
+    assert!(!waiting.landing.members[0].told);
+    f.members[0].merged = Some(prefix(0));
+    let landed = decide(&waiting.landing, &f);
+    assert_eq!(landed.decision, Decision::Landed { member: 0, prefix: prefix(0) });
+    assert!(landed.landing.members[0].told);
+    assert_eq!(decide(&landed.landing, &f).decision, Decision::Finish);
+}
+
+#[test]
 fn the_turn_rebuilds_stale_stacks_and_lands_each_member_at_its_prefix() {
     let (mut landing, mut f) = stacked(3);
     landing.phase = Phase::Turn { at: at(4) };
