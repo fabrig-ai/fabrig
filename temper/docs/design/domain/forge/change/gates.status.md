@@ -1,9 +1,15 @@
 # gates: status
 
-2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
+2026-11-15. Where the tree's code lags or departs from [gates.md](gates.md).
 
 - **Not yet:** 1: a follow's check, dispatched by its change with the
   followed source commit [in flight: change 111].
+- **Not yet:** 1, *A review's brief names what it judges*: a gate task's
+  words end with the change's title, carrying neither its request as
+  revised nor the answers given on it [in flight: change 3753].
+- **Not yet:** 1, *A review's brief names what it judges*: the review
+  charter has no second sentence saying what the change was asked
+  [in flight: change 3754].
 
 
 - **Not yet:**
