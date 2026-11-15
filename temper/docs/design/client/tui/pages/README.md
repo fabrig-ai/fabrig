@@ -196,7 +196,8 @@ chat, the running line above them.
     after "/" (section 2); "Still signing in" (*Typed before the
     sign-in lands*); the theme taken's (section 2, *`/theme`*); a goal
     proposed's (`design-session.md`, section 1, *`/goal`*); a talk left's
-    (`talk.md`, section 1, *Leaving*); a role not found's and a word filed's
+    (`talk.md`, section 1, *Leaving*); a chat closed's, "Closed TN · TITLE"
+    (`chat.md`, section 1, *Closing*); a role not found's and a word filed's
     (section 2, *`/talk`* and *`/tell`*); in front, a box's group
     started, "Forgejo started" (`../box.md`, *The box's state*). Its words are
     the TUI's own (`tui-signal`).
@@ -292,6 +293,20 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     a chat started from the launchpad is, and run as the project's way
     says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
     is drawn under the box, as a send's, and the launchpad stays.
+  - *Their name left in the box* (the user's request `tui-17`,
+    2026-11-15): wherever `/draft`, `/change`, `/ask` or `/tell`,
+    pressed or sent alone, leaves its name and a space in the box, the
+    caret stands after the space, at the words' end, so that the words
+    typed go after it: "/change" pressed, then "fix the README" typed,
+    is "/change fix the README", never "/changefix the README ". Sent
+    with nothing after the name but white space ("/change ", "/ask  "),
+    on a screen that offers the command, it starts nothing, sends
+    nothing and files nothing, gives no notice, and the box keeps its
+    words as they are, the caret where it was: the person has yet to
+    say the words. A screen that doesn't offer it takes such words as
+    any other words. No hint of the command's words is drawn after the
+    space (the request's third ask, left to the designer:
+    `../README.md`, 5, *A command's words hinted*).
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
@@ -399,7 +414,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - `/close` and `/start-over`: the confirmation's question as the head
     and its two acts as choices, "Close" or "Start over" first, then
     "Keep it open" or "Keep this one" (`shared::confirmation`):
-    `Act::Confirm` and `Act::Cancel`.
+    `Act::Confirm` and `Act::Cancel`. "Close" taken goes back to the
+    launchpad once the close is done (`chat.md`, section 1, *Closing*).
 - **`/help`'s note:** the commands the TUI offers there, each name
   padded with spaces to the longest and two more, then its words; then
   its keys, a line each: "Enter sends", "Tab completes a command", "PgUp
