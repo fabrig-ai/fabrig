@@ -168,7 +168,10 @@ impl Walk {
                 skein_fake_forge_domain::manual_merges(
                     &mut transport.forge.borrow_mut().domain,
                     b"acme/app",
-                    skein_fake_forge_domain::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+                    skein_fake_forge_domain::api::ManualMerges {
+                        allow_manual_merge: true,
+                        autodetect_manual_merge: true,
+                    },
                 );
                 service::command(
                     caller,

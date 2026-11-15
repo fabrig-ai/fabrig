@@ -3237,6 +3237,21 @@ pub(crate) fn outcome(
     keep_window && (item.operation == Operation::Dispatch || item.operation == Operation::Rerun)
 }
 pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
+    if let api::Change::Item(number) = hint.change {
+        for (task, row) in &d.landing.rows {
+            for member in &row.landing.members {
+                if repository(member) == hint.repository
+                    && member.pull == number
+                    && member.combined == Some(policy::Combine::Merge)
+                    && member.landed.is_some()
+                    && !member.told
+                {
+                    emit(out, Request::WakeProcedure { task: *task });
+                    break;
+                }
+            }
+        }
+    }
     if let api::Change::Commit(commit) = hint.change {
         for (_, flight) in &d.landing.flights {
             if flight.repository == hint.repository && flight.commit == commit {

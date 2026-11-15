@@ -1084,6 +1084,31 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
 }
 
 #[test]
+fn a_members_pull_hint_wakes_its_landing_until_the_detected_merge_is_told() {
+    use skein_forge::api;
+    for (repository, number, landed, told, wake) in [
+        (REPO, 1, Some(fixtures::HEAD), false, true),
+        (api::Repository { repository: 3, ..REPO }, 1, Some(fixtures::HEAD), false, false),
+        (REPO, 2, Some(fixtures::HEAD), false, false),
+        (REPO, 1, None, false, false),
+        (REPO, 1, Some(fixtures::HEAD), true, false),
+    ] {
+        let mut d = landing_fixture();
+        member_landing(&mut d);
+        let row = d.landing.rows.get_mut(&61).unwrap();
+        row.landing.phase = policy::Phase::Turn { at: Wall::EPOCH };
+        let member = row.landing.members.first_mut().unwrap();
+        member.combined = Some(policy::Combine::Merge);
+        member.landed = landed;
+        member.told = told;
+        let mut out = Queue::uncapped();
+        landing::hinted(&d, &api::Hint { repository, change: api::Change::Item(number), key: None }, &mut out);
+        assert_eq!(out.pop(), if wake { Some(Request::WakeProcedure { task: 61 }) } else { None });
+        assert_eq!(out.pop(), None);
+    }
+}
+
+#[test]
 fn landing_deadline_wakes_once_and_an_offered_step_clears_it() {
     let mut d = landing_fixture();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });

@@ -233,6 +233,7 @@ fn a_temper_merge_is_heard_with_its_pull_number() {
     let mut world = world(16);
     let before = row(&world).heard.expect("baseline");
     assert!(world.project_landing(5, change::Way::Turn, Box::new([])));
+    world.detect_manual_merges();
     world.produce_file(b"temper/51", b"src/a.c", b"own merge");
     world.status(b"temper/51", raw::Check::Passed);
     landings::ready_change(&mut world, 51, b"temper/51");

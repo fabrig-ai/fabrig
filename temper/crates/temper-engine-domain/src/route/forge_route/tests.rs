@@ -5089,8 +5089,14 @@ fn either_train_holds_the_units_first_change_in_dependency_order() {
         let (mut domain, env) = train_root(true);
         super::start_landing(&mut domain, &env, first);
         judge_trains(&mut domain, &env);
-        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("train C{first} must hold upstream C8"); };
-        assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle), "the other member is not held too");
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else {
+            panic!("train C{first} must hold upstream C8");
+        };
+        assert_eq!(
+            domain.core.tasks.task(7).unwrap().phase,
+            tasks::Phase::Active(tasks::Active::Idle),
+            "the other member is not held too"
+        );
         let revision = domain.core.tasks.task(8).unwrap().revisions.hold;
         for other in [7, 8] {
             super::start_landing(&mut domain, &env, other);
@@ -5104,7 +5110,9 @@ fn either_train_holds_the_units_first_change_in_dependency_order() {
             operation: tasks::Release { task: 8, again: None, message: None },
         }));
         judge_trains(&mut domain, &env);
-        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else { panic!("released unit must be held again"); };
+        let tasks::Phase::Held { .. } = domain.core.tasks.task(8).unwrap().phase else {
+            panic!("released unit must be held again");
+        };
         assert!(domain.core.tasks.task(8).unwrap().revisions.hold > revision);
         assert_eq!(domain.core.tasks.task(7).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
     }
