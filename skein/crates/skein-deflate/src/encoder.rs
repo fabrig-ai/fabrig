@@ -834,4 +834,3 @@ fn copy(out: &mut [u8], at: usize, bytes: &[u8]) -> Option<usize> {
     }
     Some(end)
 }
-

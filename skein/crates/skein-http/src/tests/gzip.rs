@@ -4,8 +4,7 @@
 //! one byte, runs of the longest match, a match at both ends of the window,
 //! a body of several blocks, incompressible bytes stored at exactly the
 //! bound, each block written the shortest way, the room asked for from both
-//! sides, determinism, the Huffman codes built and cut to their widest, and
-//! one golden member.
+//! sides, determinism, and one golden member.
 
 #![expect(clippy::disallowed_types, reason = "a test builds bodies and inflates members in a Vec")]
 #![expect(

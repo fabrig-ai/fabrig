@@ -79,10 +79,10 @@ fn trailing_bytes_and_truncated_streams_are_refused() {
 #[test]
 fn malformed_codes_and_distances_before_the_start_are_refused() {
     for data in [
-        b"\x07".as_slice(), // Reserved block type.
+        b"\x07".as_slice(),            // Reserved block type.
         b"\x01\x04\x00\xfa\xffa\nb\n", // Wrong stored length complement.
-        b"\x1b\x03", // Fixed literal/length symbol 286 is reserved.
-        b"\x03\x02\x00", // A length of three at distance one, with no output yet.
+        b"\x1b\x03",                   // Fixed literal/length symbol 286 is reserved.
+        b"\x03\x02\x00",               // A length of three at distance one, with no output yet.
     ] {
         let mut out = List::with_capacity(16);
         assert_eq!(decode(data, &mut out), None, "malformed stream: {data:?}");
@@ -94,7 +94,9 @@ fn malformed_codes_and_distances_before_the_start_are_refused() {
 
 #[test]
 fn decoding_clears_the_list_and_never_passes_its_capacity() {
-    for (data, capacity, expected) in [(STORED, 4, b"a\nb\n".as_slice()), (FIXED, 4, b"a\nb\n"), (DYNAMIC, 4096, &[b'x'; 4096])] {
+    for (data, capacity, expected) in
+        [(STORED, 4, b"a\nb\n".as_slice()), (FIXED, 4, b"a\nb\n"), (DYNAMIC, 4096, &[b'x'; 4096])]
+    {
         let mut out = List::with_capacity(capacity);
         out.push(0xff).unwrap();
         assert_eq!(decode(data, &mut out), Some(()), "fits exactly after clearing");

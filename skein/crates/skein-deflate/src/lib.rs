@@ -11,6 +11,6 @@ pub use decoder::decode;
 pub use encoder::{bound, encode};
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod fuzzy;
+#[cfg(test)]
+mod tests;

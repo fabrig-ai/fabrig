@@ -44,7 +44,9 @@ pub fn encode(input: &[u8], out: &mut [u8]) -> Option<usize>; // the input's raw
   answers its length. Room short of it may answer none.
 - **Deterministic:** the same input gives the same bytes, so a golden
   output holds them.
-- **An empty input** is one final stored block, as RFC 1951 allows.
+- **An empty input** is one final fixed-Huffman block holding only its
+  end of block, the two bytes `03 00`, as skein-http's encoder gave
+  and its gzip members keep.
 - **What it costs:** a pass of the input, a table of 2^15 heads, and a
   block's parse at a time, as skein-http's encoder did; its stack and
   heap are what that encoder measured.
