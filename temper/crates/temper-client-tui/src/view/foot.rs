@@ -25,6 +25,7 @@ pub(crate) use notes::{Notes, draw_notes, read_notes};
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent view facts read from the root, not a lifecycle")]
 pub(crate) struct Foot {
+    pub place: bool,
     pub talk_name: Option<Box<[u8]>>,
     pub talk_session: Option<Box<[u8]>>,
     pub tick: Option<Wall>,
@@ -53,7 +54,7 @@ pub(crate) struct Foot {
 pub(crate) struct Rule {
     pub project: Box<[u8]>,
     pub title: Box<[u8]>,
-    pub task: u64,
+    pub task: Option<u64>,
     pub place: Box<[u8]>,
 }
 #[derive(Debug)]
@@ -146,7 +147,14 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         Some(task) => task.result.is_some() || chats::ended(&task.chip),
         None => false,
     };
-    let placeholder = if let Some(talking) = talking {
+    let place = tui.place();
+    let place_words = match place {
+        Some(command) => crate::words::place(command),
+        None => None,
+    };
+    let placeholder = if let Some((_title, placeholder)) = place_words {
+        words.say(placeholder, &[])
+    } else if let Some(talking) = talking {
         words.say(
             if talking.open().is_some() { Word::TalkReply } else { Word::TalkTo },
             &[Hole::Name(super::talk::name(talking, words))],
@@ -164,7 +172,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         Some(chat) => chat.draft.is_some() || chat.writing,
         None => false,
     };
-    let standing = if signing_in || list.is_some() || !(session || pane || talking.is_some()) {
+    let standing = if place.is_some() || signing_in || list.is_some() || !(session || pane || talking.is_some()) {
         None
     } else {
         lists::reply(root, tui, words)
@@ -178,10 +186,17 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             list = Some(standing);
         }
     }
-    if list.is_none() && value.is_empty() && !signing_in {
+    if place.is_none() && list.is_none() && value.is_empty() && !signing_in {
         list = lists::proposal(root, tui, words);
     }
-    let rule = if talking.is_some() {
+    let rule = if let Some((title, _placeholder)) = place_words {
+        Some(Rule {
+            project: project_name(root, project).unwrap_or_default(),
+            title: words.say(title, &[]),
+            task: None,
+            place: crate::place(tui.address(), tui.front() || tui.boxed()),
+        })
+    } else if talking.is_some() {
         None
     } else {
         match (chat, task) {
@@ -198,7 +213,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
                 Some(Rule {
                     project,
                     title: conversation::cut(&shared::heading(task.chip.title.bytes()), words),
-                    task: chat.task,
+                    task: Some(chat.task),
                     place: crate::place(tui.address(), tui.front() || tui.boxed()),
                 })
             }
@@ -206,6 +221,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         }
     };
     Foot {
+        place: place.is_some(),
         talk_name,
         talk_session: match talking {
             Some(talking) => super::talk::session(talking, words, wall),
@@ -221,17 +237,25 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             None => None,
         },
         rule,
-        state: if (session || talking.is_some()) && root.client().link().state == Link::Live {
-            Box::default()
-        } else {
-            words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))])
-        },
+        state: words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]),
         style,
         composer: if signing_in {
             None
         } else {
             Some(Composer {
-                name: words.say(if chat.is_some() { Word::Message } else { Word::AskTemper }, &[]),
+                name: words.say(
+                    match place_words {
+                        Some((title, _placeholder)) => title,
+                        None => {
+                            if chat.is_some() {
+                                Word::Message
+                            } else {
+                                Word::AskTemper
+                            }
+                        }
+                    },
+                    &[],
+                ),
                 placeholder,
                 value,
                 written: tui.box_written(),
@@ -248,7 +272,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
                 },
             })
         },
-        running: if chat.is_some()
+        running: if place.is_none()
+            && chat.is_some()
             && match talking {
                 Some(talking) => talking.open().is_some(),
                 None => true,
@@ -271,7 +296,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         project: project_name(root, project),
         paused,
         session,
-        launchpad: chat.is_none(),
+        launchpad: place.is_none() && chat.is_none(),
         needs: if chat.is_none() {
             root.pages().needs().count_across(root.client(), root.forge().approvals())
         } else {
@@ -286,11 +311,17 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             None
         },
         columns: tui.columns(),
-        pane: match chat {
-            Some(chat) => super::pane::shown(chat, tui.columns()),
-            None => None,
+        pane: if place.is_some() {
+            None
+        } else {
+            match chat {
+                Some(chat) => super::pane::shown(chat, tui.columns()),
+                None => None,
+            }
         },
-        goal: if super::goal_offered(root) {
+        goal: if place.is_some() {
+            None
+        } else if super::goal_offered(root) {
             Some(words.say(Word::PaneGoal, &[]))
         } else {
             match chat {
@@ -343,7 +374,10 @@ fn width(bytes: &[u8]) -> u32 {
 }
 fn rule(b: &mut Builder, part: &Foot, words: &Words) {
     let Some(rule) = &part.rule else { return };
-    let number = concat(&[b" ", &words.view().say(Shared::Chat, &[Hole::Number(rule.task)])]);
+    let number = match rule.task {
+        Some(task) => concat(&[b" ", &words.view().say(Shared::Chat, &[Hole::Number(task)])]),
+        None => Box::default(),
+    };
     let between = words.say(Word::Between, &[]);
     let on = words.say(Word::On, &[]);
     let title_width = width(&rule.title).saturating_add(width(&number)).saturating_add(6);
@@ -431,16 +465,10 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let drafter = words.say(Word::Drafter, &[]);
     let mut left_width = width(&part.state);
     if let Some(name) = &part.talk_name {
-        left_width = left_width.saturating_add(width(name));
-        if !part.state.is_empty() {
-            left_width = left_width.saturating_add(width(&separator));
-        }
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(name));
     }
     if part.session {
-        left_width = left_width.saturating_add(width(&drafter));
-        if !part.state.is_empty() {
-            left_width = left_width.saturating_add(width(&separator));
-        }
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&drafter));
     }
     if let Some(project) = &part.project {
         left_width = left_width.saturating_add(width(project)).saturating_add(width(&separator));
@@ -475,34 +503,26 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     b.open(Role::ContentInfo);
     b.region(look::BOTTOM);
     b.open(Role::Status);
+    text(b, Role::Text, &part.state, Some(part.style));
     if narrow_notice {
-        text(b, Role::Text, part.notice.as_deref().expect("narrow notice is present"), Some(look::SIGNAL));
         text(b, Role::Text, &separator, Some(look::FAINT));
+        text(b, Role::Text, part.notice.as_deref().expect("narrow notice is present"), Some(look::SIGNAL));
     }
     if let Some(project) = &part.project {
-        text(b, Role::Text, project, Some(look::HINT));
         text(b, Role::Text, &separator, Some(look::FAINT));
+        text(b, Role::Text, project, Some(look::HINT));
     }
     if let Some(name) = &part.talk_name {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, name, Some(look::HINT));
-        if !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
     }
     if part.session {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, &drafter, Some(look::HINT));
-        if closed || !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
     }
     if closed {
+        text(b, Role::Text, &separator, Some(look::FAINT));
         text(b, Role::Text, part.closed.as_deref().expect("closed line is present"), Some(look::HINT));
-        if !part.state.is_empty() {
-            text(b, Role::Text, &separator, Some(look::FAINT));
-        }
-    }
-    if !part.state.is_empty() {
-        text(b, Role::Text, &part.state, Some(part.style));
     }
     b.close();
     b.open(Role::Paragraph);
@@ -532,8 +552,8 @@ pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Bind
     let Some(composer) = &part.composer else {
         b.open(Role::ContentInfo);
         b.region(look::BOTTOM);
-        text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
         text(b, Role::Status, &part.state, Some(part.style));
+        text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
         b.close();
         return None;
     };

@@ -739,11 +739,11 @@ fn notice_states() {
     let notice = crate::Notice::Unknown { words: b"/qiut".as_slice().into() };
     let phrase = "Unknown command /qiut · /help lists them";
     for (name, chat, state, box_state, playground, count, columns, left, right) in [
-        ("box", false, TaskState::Idle, true, false, 0, 110, "Demo · model · high · ● Live", phrase),
-        ("playground", false, TaskState::Idle, false, true, 0, 110, "Demo · model · high · ● Live", phrase),
-        ("paused", true, TaskState::Paused, false, false, 0, 110, "Demo · model · high · ● Live", phrase),
-        ("needs and walk", false, TaskState::Idle, false, false, 1, 110, "Demo · model · high · ● Live", phrase),
-        ("fits exactly", false, TaskState::Idle, false, false, 0, 72, "Demo · model · high · ● Live", phrase),
+        ("box", false, TaskState::Idle, true, false, 0, 110, "● Live · Demo · model · high", phrase),
+        ("playground", false, TaskState::Idle, false, true, 0, 110, "● Live · Demo · model · high", phrase),
+        ("paused", true, TaskState::Paused, false, false, 0, 110, "● Live · Demo · model · high", phrase),
+        ("needs and walk", false, TaskState::Idle, false, false, 1, 110, "● Live · Demo · model · high", phrase),
+        ("fits exactly", false, TaskState::Idle, false, false, 0, 72, "● Live · Demo · model · high", phrase),
         (
             "one short",
             false,
@@ -752,7 +752,7 @@ fn notice_states() {
             false,
             0,
             71,
-            "Unknown command /qiut · /help lists them · Demo · model · high · ● Live",
+            "● Live · Unknown command /qiut · /help lists them · Demo · model · high",
             "",
         ),
         (
@@ -763,7 +763,7 @@ fn notice_states() {
             true,
             1,
             40,
-            "Unknown command /qiut · /help lists them · Demo · model · high · ● Live",
+            "● Live · Unknown command /qiut · /help lists them · Demo · model · high",
             "",
         ),
     ] {
@@ -787,6 +787,7 @@ fn notice_states() {
         let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
         assert_eq!(first.role, Role::Status);
         assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert!(has(tree, look::LIVE, "● Live".as_bytes()), "{name}");
 
         assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
         assert!(has(tree, look::SIGNAL, phrase.as_bytes()), "{name}");
@@ -795,6 +796,26 @@ fn notice_states() {
         assert!(!has(tree, look::HINT, b"paused \xc2\xb7 a message resumes it"), "{name}");
         assert!(!has(tree, look::HINT, b"n to walk"), "{name}");
         assert!(!has(tree, look::SIGNAL, b"1 needs you"), "{name}");
+    }
+    let root = super::launchpad::home(None, &[]);
+    for (columns, left, right) in [
+        (55, "● Live · Hello · Claude Opus 5.5 · high", "Theme: dark."),
+        (54, "● Live · Theme: dark. · Hello · Claude Opus 5.5 · high", ""),
+        (40, "● Live · Theme: dark. · Hello · Claude Opus 5.5 · high", ""),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Notice {
+            notice: Some(crate::Notice::Theme { choice: crate::theme::ThemeChoice::Dark, terminal: None }),
+        });
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.columns = columns;
+        part.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
+        let view = draw(part);
+        let (first, second) = f::bottom_halves(view.tree());
+        assert_eq!(f::text(view.tree(), first).as_ref(), left.as_bytes(), "{columns}");
+        assert_eq!(f::text(view.tree(), second).as_ref(), right.as_bytes(), "{columns}");
+        assert!(has(view.tree(), look::LIVE, "● Live".as_bytes()));
+        assert!(has(view.tree(), look::SIGNAL, b"Theme: dark."));
     }
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Notice { notice: Some(crate::Notice::SigningIn) });
@@ -861,7 +882,7 @@ fn quiet_states() {
     );
     let view = draw(part);
     let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
-    assert_eq!(f::text(view.tree(), bottom).as_ref(), "Demo · model · high · ● Live".as_bytes());
+    assert_eq!(f::text(view.tree(), bottom).as_ref(), "● Live · Demo · model · high".as_bytes());
     for (name, project, picker, chat, task, columns, left, right) in [
         (
             "launchpad",
@@ -870,13 +891,22 @@ fn quiet_states() {
             false,
             TaskState::Idle,
             80,
-            "Demo · Claude Opus 5.5 · high · ● Live",
+            "● Live · Demo · Claude Opus 5.5 · high",
             "1 needs you · n to walk",
         ),
-        ("medium", true, true, false, TaskState::Idle, 60, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
-        ("narrow", true, true, false, TaskState::Idle, 40, "Demo · ● Live", "1 needs you"),
-        ("session", true, true, true, TaskState::Session, 80, "Demo · drafter · Claude Opus 5.5 · high", "1 needs you"),
-        ("session narrow", true, true, true, TaskState::Session, 30, "Demo · drafter", "1 needs you"),
+        ("medium", true, true, false, TaskState::Idle, 60, "● Live · Demo · Claude Opus 5.5 · high", "1 needs you"),
+        ("narrow", true, true, false, TaskState::Idle, 40, "● Live · Demo", "1 needs you"),
+        (
+            "session",
+            true,
+            true,
+            true,
+            TaskState::Session,
+            80,
+            "● Live · Demo · drafter · Claude Opus 5.5 · high",
+            "1 needs you",
+        ),
+        ("session narrow", true, true, true, TaskState::Session, 30, "● Live · Demo · drafter", "1 needs you"),
         (
             "session offline",
             true,
@@ -884,10 +914,10 @@ fn quiet_states() {
             true,
             TaskState::SessionOffline,
             110,
-            "Demo · drafter · Claude Opus 5.5 · high · ● Offline",
+            "● Offline · Demo · drafter · Claude Opus 5.5 · high",
             "1 needs you",
         ),
-        ("chat", true, true, true, TaskState::Idle, 80, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
+        ("chat", true, true, true, TaskState::Idle, 80, "● Live · Demo · Claude Opus 5.5 · high", "1 needs you"),
         (
             "paused",
             true,
@@ -895,10 +925,10 @@ fn quiet_states() {
             true,
             TaskState::Paused,
             110,
-            "Demo · Claude Opus 5.5 · high · ● Live",
+            "● Live · Demo · Claude Opus 5.5 · high",
             "paused · a message resumes it · 1 needs you",
         ),
-        ("no picker", true, false, false, TaskState::Idle, 80, "Demo · ● Live", "1 needs you · n to walk"),
+        ("no picker", true, false, false, TaskState::Idle, 80, "● Live · Demo", "1 needs you · n to walk"),
         ("no project", false, false, false, TaskState::Idle, 80, "● Live", ""),
     ] {
         let root = root_state(project, picker, chat, false, false, task);
@@ -912,6 +942,9 @@ fn quiet_states() {
         let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
         let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
         assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        let (state, style) =
+            if task == TaskState::SessionOffline { ("● Offline", look::DOWN) } else { ("● Live", look::LIVE) };
+        assert!(has(tree, style, state.as_bytes()), "{name}");
         assert_eq!(
             has(tree, look::HINT, b"drafter"),
             task == TaskState::Session || task == TaskState::SessionOffline,
@@ -925,7 +958,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Chat,
             110,
             false,
-            "Demo · model · high · ● Live",
+            "● Live · Demo · model · high",
             "pane: folded · Ctrl-P opens · 1 needs you",
         ),
         (
@@ -933,7 +966,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Split,
             110,
             false,
-            "Demo · model · high · ● Live",
+            "● Live · Demo · model · high",
             "pane: half · Ctrl-P widens · 1 needs you",
         ),
         (
@@ -941,7 +974,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Draft,
             110,
             false,
-            "Demo · model · high · ● Live",
+            "● Live · Demo · model · high",
             "pane: all · Ctrl-P folds · 1 needs you",
         ),
         (
@@ -949,7 +982,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Split,
             150,
             true,
-            "Demo · model · high · ● Live",
+            "● Live · Demo · model · high",
             "paused · a message resumes it · pane: half · Ctrl-P widens · 1 needs you",
         ),
         (
@@ -957,7 +990,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Split,
             65,
             false,
-            "Demo · model · high · ● Live",
+            "● Live · Demo · model · high",
             "pane: half · 1 needs you",
         ),
         (
@@ -965,7 +998,7 @@ fn quiet_states() {
             d::pages::chat::document::Mode::Split,
             40,
             false,
-            "Demo · ● Live",
+            "● Live · Demo",
             "pane: half · 1 needs you",
         ),
     ] {
@@ -997,7 +1030,7 @@ fn quiet_states() {
         (
             "goal offered",
             f::GoalCase::READY,
-            110,
+            120,
             1,
             "pane: half · Ctrl-P widens · /goal starts a goal from the draft · 1 needs you",
             Some("/goal starts a goal from the draft"),
@@ -1005,7 +1038,7 @@ fn quiet_states() {
         (
             "linked goal",
             f::GoalCase { linked: true, ..f::GoalCase::READY },
-            110,
+            120,
             0,
             "pane: half · Ctrl-P widens · goal Farewell line for… · /open opens it",
             Some("goal Farewell line for… · /open opens it"),
@@ -1013,16 +1046,16 @@ fn quiet_states() {
         (
             "goal fits exactly",
             f::GoalCase::READY,
-            96,
+            105,
             0,
             "pane: half · Ctrl-P widens · /goal starts a goal from the draft",
             Some("/goal starts a goal from the draft"),
         ),
-        ("goal one column short", f::GoalCase::READY, 95, 0, "pane: half · Ctrl-P widens", None),
+        ("goal one column short", f::GoalCase::READY, 104, 0, "pane: half · Ctrl-P widens", None),
         (
             "linked goal fits exactly",
             f::GoalCase { linked: true, ..f::GoalCase::READY },
-            102,
+            111,
             0,
             "pane: half · Ctrl-P widens · goal Farewell line for… · /open opens it",
             Some("goal Farewell line for… · /open opens it"),
@@ -1030,7 +1063,7 @@ fn quiet_states() {
         (
             "linked goal one column short",
             f::GoalCase { linked: true, ..f::GoalCase::READY },
-            101,
+            110,
             0,
             "pane: half · Ctrl-P widens",
             None,
@@ -1122,12 +1155,12 @@ fn rule_states() {
             let read = part.rule.as_ref().unwrap();
             assert_eq!(read.project.as_ref(), b"Demo");
             assert_eq!(read.place.as_ref(), b"box:40691");
-            assert_eq!(read.task, 9);
+            assert_eq!(read.task, Some(9));
             assert_eq!(part.list.is_some(), list);
             part.rule = Some(foot::Rule {
                 project: b"Hello".as_slice().into(),
                 title: title.as_bytes().into(),
-                task: 2,
+                task: Some(2),
                 place: b"box:40691".as_slice().into(),
             });
             let view = draw(part);
@@ -1548,7 +1581,7 @@ fn the_foots_are_their_goldens() {
             part.rule = Some(foot::Rule {
                 project: b"Demo".as_slice().into(),
                 title: b"Plan".as_slice().into(),
-                task: 9,
+                task: Some(9),
                 place: b"box".as_slice().into(),
             });
         }
@@ -1556,7 +1589,7 @@ fn the_foots_are_their_goldens() {
             part.rule = Some(foot::Rule {
                 project: b"Hello".as_slice().into(),
                 title: "What landed…".as_bytes().into(),
-                task: 2,
+                task: Some(2),
                 place: b"box".as_slice().into(),
             });
             part.list = foot::lists::question_list(question(Some(1), false), None, &words);
@@ -2637,4 +2670,93 @@ fn tell_outcomes_stand_under_the_box_and_are_said_once() {
     let part = foot::read(&root, &tui, &words, f::NOW);
     assert_eq!(part.notice.as_deref(), Some(b"Filed as finding 12 on Hello.".as_slice()));
     assert!(has(draw(part).tree(), look::SIGNAL, b"Filed as finding 12 on Hello."));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "each place embeds its generated frame")]
+fn the_places_before_their_first_words_are_empty_chats() {
+    use crate::Own;
+    use skein_ui_screen::{Focus, Size};
+    let rows = [
+        (
+            Own::Ask,
+            "Ask temper",
+            "Ask temper anything, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-ask-80x24-dark",
+            include_bytes!("golden/not-started-ask-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Change,
+            "New change",
+            "Say the change, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-change-80x24-dark",
+            include_bytes!("golden/not-started-change-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Draft,
+            "Design session",
+            "Say what to design, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-draft-80x24-dark",
+            include_bytes!("golden/not-started-draft-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Tell,
+            "Tell temper",
+            "Tell temper what's off, or Esc to go back.",
+            Scheme::Dark,
+            "not-started-tell-80x24-dark",
+            include_bytes!("golden/not-started-tell-80x24-dark.txt").as_slice(),
+        ),
+        (
+            Own::Ask,
+            "Ask temper",
+            "Ask temper anything, or Esc to go back.",
+            Scheme::Light,
+            "not-started-ask-80x24-light",
+            include_bytes!("golden/not-started-ask-80x24-light.txt").as_slice(),
+        ),
+    ];
+    let size = Size { columns: 80, rows: 24 };
+    for (command, title, placeholder, scheme, name, want) in rows {
+        let root = root(true, true, false, false, false);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Size { columns: size.columns });
+        tui.step(Told::Place { command: Some(command) });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        let field = f::find(view.tree(), Role::TextArea, title.as_bytes());
+        assert_eq!(field.placeholder.as_deref(), Some(placeholder.as_bytes()));
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"");
+        assert_eq!(field.focus, Some(tui.focus()));
+        assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
+        assert_eq!(crate::escape(&view), Some(TuiEvent::Back));
+        assert_eq!(crate::pane_key(&view), None);
+        assert_eq!(crate::walk_key(&view), None);
+        let part = foot::read(&root, &tui, &f::words(), f::NOW);
+        let rule = part.rule.unwrap();
+        assert_eq!(rule.title.as_ref(), title.as_bytes());
+        assert_eq!(rule.project.as_ref(), b"Demo");
+        assert_eq!(rule.task, None);
+        assert_eq!(rule.place.as_ref(), f::ADDRESS);
+        assert!(!part.launchpad);
+        assert!(part.pane.is_none());
+        assert!(part.running.is_none());
+        for node in view.tree().nodes() {
+            assert_ne!(node.region, Some(look::TOP));
+            assert_ne!(node.region, Some(look::HEADER));
+            assert_ne!(node.region, Some(look::SECTIONS));
+        }
+        goldens::check(&[goldens::Golden {
+            name,
+            tree: view.tree(),
+            scheme,
+            size,
+            background: Some(crate::theme::palette(scheme)[0].1),
+            focus: Focus::default(),
+            want,
+        }]);
+    }
 }

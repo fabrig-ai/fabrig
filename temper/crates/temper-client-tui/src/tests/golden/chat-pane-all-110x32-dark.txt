@@ -29,7 +29,7 @@ Replace raft with vsr in cowsql.
 ──────────────────────────────────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- cowsql · drafter · Opus 5.5 · xhigh            pane: all · Ctrl-P folds · /goal starts a goal from the draft
+ ● Live · cowsql · drafter · Opus 5.5 · xhigh   pane: all · Ctrl-P folds · /goal starts a goal from the draft
 --
 aaaaaaaaaaaaaa................................................................................................
 ..............................................................................................................
@@ -62,10 +62,11 @@ aaaaaaaaaaaaaa..................................................................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaacccaaaaaaaaaaaddddddddddccc
 bb............................................................................................................
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-.ddddddcccdddddddcccdddddddddddddddd............ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.
+.eeeeeecccddddddcccdddddddcccdddddddddddddddd...ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.
 --
 a: bold
 b: fore #E08A68
 c: fore #6A655C
 d: fore #9A9388
+e: fore #8FC28F
 cursor 29 3

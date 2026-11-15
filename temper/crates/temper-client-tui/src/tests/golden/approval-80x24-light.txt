@@ -21,7 +21,7 @@
 
 
 
- Ctrl+C to quit                                                    ● Signed out
+ ● Signed out                                                    Ctrl+C to quit
 --
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a..............................................................................a
@@ -46,7 +46,7 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
-.cccccccccccccc....................................................dddddddddddd.
+.dddddddddddd....................................................cccccccccccccc.
 --
 a: fore #B5AEA3
 b: fore #B8664E bold

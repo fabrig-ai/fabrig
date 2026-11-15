@@ -63,7 +63,7 @@ impl Tui {
         let mut tui = Self::start(world, who, None);
         tui.press(world, vec![Key::Paste(crate::front::printed_link()), Key::Enter]);
         tui.run(world, crate::fixtures::WITHIN);
-        assert!(tui.text().contains("Hello ·"), "{}", tui.text());
+        assert!(tui.status().starts_with("● Live · Hello"), "{}", tui.text());
         tui
     }
 
