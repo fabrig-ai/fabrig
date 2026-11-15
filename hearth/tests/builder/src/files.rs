@@ -99,11 +99,16 @@ impl Files {
             | Request::HardLink { owner, .. }
             | Request::Rename { owner, .. }
             | Request::Remove { owner, .. }
+            | Request::RemoveIn { owner, .. }
             | Request::List { owner, .. }
             | Request::ListPage { owner, .. } => *owner,
         };
         (owner, self.perform(request))
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the exhaustive file-request table includes both descriptor and token removal roots"
+    )]
     fn perform(&mut self, request: Request) -> Result<Event, Error> {
         assert!(
             !matches!(
@@ -178,6 +183,10 @@ impl Files {
                     self.call(Ask::Remove { dir: self.fd(to_root), name: to, directory: false })?;
                 }
                 Event::Renamed { owner }
+            }
+            Request::RemoveIn { owner, root, name, directory } => {
+                self.call(Ask::Remove { dir: self.handle(root), name, directory })?;
+                Event::Removed { owner }
             }
             Request::Remove { owner, root, name, directory } => {
                 self.call(Ask::Remove { dir: self.fd(root), name, directory })?;

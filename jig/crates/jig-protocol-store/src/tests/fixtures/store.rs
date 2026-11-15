@@ -490,6 +490,7 @@ pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_voc
             | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
+            | file::Request::RemoveIn { .. }
             | file::Request::ListPage { .. }
             | file::Request::Lock { .. }
             | file::Request::List { .. } => panic!("unexpected transcript write"),

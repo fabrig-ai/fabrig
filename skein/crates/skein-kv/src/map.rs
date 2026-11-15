@@ -90,7 +90,7 @@ impl Queued {
                 return Err(Refusal::TooLarge(Large::Key));
             }
             match op {
-            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
+                Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
                 Op::Put { value, .. } => {
                     if value.len() > usize_of(limits.value) {
                         return Err(Refusal::TooLarge(Large::Value));
@@ -164,7 +164,7 @@ fn has_later(ops: &[Op], index: usize, key: &[u8]) -> bool {
 
 fn op_charge(op: &Op) -> Option<i128> {
     match op {
-            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
+        Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
         Op::Put { key, value } => Some(charge(key, value)),
         Op::Erase { .. } => None,
     }

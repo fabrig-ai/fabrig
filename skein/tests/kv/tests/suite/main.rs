@@ -6,8 +6,8 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 mod census;
 mod disk;
 mod golden;
-mod memory;
 mod logs;
+mod memory;
 mod open;
 mod real;
 mod recovery;
@@ -16,5 +16,6 @@ mod target;
 
 mod fuzzy {
     mod census;
+    mod logs;
     mod map;
 }

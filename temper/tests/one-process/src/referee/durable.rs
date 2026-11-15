@@ -328,6 +328,9 @@ impl Store {
         let mut cold = None;
         for op in ops {
             match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, value } if *key == raw => {
                     cold = Some(self.layouts.serving(key, value.clone()).ok()?);
                 }
@@ -361,6 +364,9 @@ impl Store {
         let mut wires = false;
         for op in &ops {
             match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, value } => {
                     let value = self.layouts.serving(key, value.clone())?;
                     if let Some(key) = keys::decode(key) {

@@ -57,7 +57,13 @@ impl World {
         let pid = sim.spawn_process();
         let root = sim.root(pid, Handle::new(handle.raw()));
         let Limits { chunk, deadline, .. } = limits;
-        let file_limits = FileLimits { files: 8 + limits.logs, read: chunk.max(limits.record + 17), entries: 1024, whole: chunk, timeout: deadline };
+        let file_limits = FileLimits {
+            files: 8 + limits.logs,
+            read: chunk.max(limits.record + 17),
+            entries: 1024,
+            whole: chunk,
+            timeout: deadline,
+        };
         World {
             machine,
             sim,
@@ -91,15 +97,19 @@ impl World {
         let bytes = result.ok().map(|file| {
             let len = u32::try_from(self.machine.stat(file).size).expect("test file size");
             let bytes = self.machine.read(file, 0, len).expect("file reads").into_boxed_slice();
-            self.machine.close(file); bytes
+            self.machine.close(file);
+            bytes
         });
-        self.machine.close(root); bytes
+        self.machine.close(root);
+        bytes
     }
     pub fn overwrite(&mut self, path: &[u8], at: u64, bytes: &[u8]) {
         let root = self.machine.reopen_root(0);
         let file = self.machine.open(root, path, How::WriteNoFollow).expect("file exists");
-        self.machine.write(file, at, bytes).expect("overwrite"); self.machine.sync(file);
-        self.machine.close(file); self.machine.close(root);
+        self.machine.write(file, at, bytes).expect("overwrite");
+        self.machine.sync(file);
+        self.machine.close(file);
+        self.machine.close(root);
     }
 
     pub fn request(&mut self, request: Request) {
@@ -193,7 +203,9 @@ impl World {
         self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.io = FileIo::with_limits(&self.file_limits);
         self.store = Store::new(&self.env.limits);
-        if let Some(prefix) = &self.log_prefix { self.store.logs(skein_kv::LogRule { prefix: prefix.clone() }); }
+        if let Some(prefix) = &self.log_prefix {
+            self.store.logs(skein_kv::LogRule { prefix: prefix.clone() });
+        }
         self.above = Queue::with_capacity(128);
         self.below = Queue::with_capacity(128);
         self.file_events = Queue::with_capacity(128);
@@ -203,7 +215,9 @@ impl World {
 
     pub fn reopen(&mut self) {
         self.store = Store::new(&self.env.limits);
-        if let Some(prefix) = &self.log_prefix { self.store.logs(skein_kv::LogRule { prefix: prefix.clone() }); }
+        if let Some(prefix) = &self.log_prefix {
+            self.store.logs(skein_kv::LogRule { prefix: prefix.clone() });
+        }
         self.io = FileIo::with_limits(&self.file_limits);
         self.request(Request::Open { owner: Token::new(1), root: self.root });
     }

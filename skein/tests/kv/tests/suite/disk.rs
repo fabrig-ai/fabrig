@@ -62,7 +62,7 @@ fn commit_with_context(
     );
     for op in ops {
         match op {
-                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
             Op::Put { key, value } => {
                 model.insert(key, value);
             }

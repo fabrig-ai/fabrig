@@ -179,6 +179,7 @@ pub(super) fn owner_of(request: &file::Request) -> Token {
         | file::Request::HardLink { owner, .. }
         | file::Request::Rename { owner, .. }
         | file::Request::Remove { owner, .. }
+        | file::Request::RemoveIn { owner, .. }
         | file::Request::ListPage { owner, .. }
         | file::Request::List { owner, .. } => *owner,
     }
@@ -445,6 +446,7 @@ fn check_file(request: &file::Request, shape: u32) {
         | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. }
+        | file::Request::RemoveIn { .. }
         | file::Request::ListPage { .. }
         | file::Request::List { .. } => panic!("one private open, load or close"),
     }

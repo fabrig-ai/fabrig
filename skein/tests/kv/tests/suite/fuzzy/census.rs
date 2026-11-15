@@ -55,7 +55,7 @@ impl Model {
             self.spaces.insert(space.clone());
             if writes {
                 let count = match op {
-                Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
+                    Op::Append { .. } | Op::Drop { .. } => unreachable!("map-only fixture"),
                     Op::Put { key, value } => [1, 0, u64::try_from(key.len() + value.len()).expect("written bytes")],
                     Op::Erase { key } => [0, 1, u64::try_from(key.len()).expect("written bytes")],
                 };

@@ -187,9 +187,15 @@ fn commit_why(number: u64, why: CommitStop) -> String {
         CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Range))) => {
             "the store refused it: a range that ends before it starts".into()
         }
-        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Record))) => "the store refused it: a log's record past the record limit".into(),
-        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Log))) => "the store refused it: a log past its length limit".into(),
-        CommitStop::Store(CommitFailure::Refused(Refusal::Logs)) => "the store refused it: a log's operation its log rule refuses".into(),
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Record))) => {
+            "the store refused it: a log's record past the record limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Log))) => {
+            "the store refused it: a log past its length limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::Logs)) => {
+            "the store refused it: a log's operation its log rule refuses".into()
+        }
         CommitStop::Store(CommitFailure::Refused(Refusal::Busy)) => "the store refused it: its queue is full".into(),
         CommitStop::Store(CommitFailure::Refused(Refusal::Unavailable)) => {
             "the store refused it: the store is not open".into()

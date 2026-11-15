@@ -29,7 +29,9 @@ impl Op {
     pub fn key(&self) -> &[u8] {
         match self {
             Op::Put { key, .. } | Op::Erase { key } => key,
-            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated to extent rows before map operations"),
+            Op::Append { .. } | Op::Drop { .. } => {
+                unreachable!("payload ops are translated to extent rows before map operations")
+            }
         }
     }
 }
@@ -95,8 +97,15 @@ pub enum Event {
         rows: Box<[Row]>,
         next: Option<Box<[u8]>>,
     },
-    LogRead { owner: Token, records: Box<[LogRecord]>, next: Option<u64> },
-    LogUnread { owner: Token, at: u64 },
+    LogRead {
+        owner: Token,
+        records: Box<[LogRecord]>,
+        next: Option<u64>,
+    },
+    LogUnread {
+        owner: Token,
+        at: u64,
+    },
     Closed {
         owner: Token,
     },
@@ -155,7 +164,10 @@ pub enum Failure {
 
 /// Payload log traversal (skein/docs/design/data/kv.md, 6.3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Direction { Forward, Backward }
+pub enum Direction {
+    Forward,
+    Backward,
+}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LogRecord {
@@ -167,4 +179,6 @@ pub struct LogRecord {
 
 /// The store alone writes rows under this prefix (data/kv.md, 6.1).
 #[derive(Debug)]
-pub struct LogRule { pub prefix: Box<[u8]> }
+pub struct LogRule {
+    pub prefix: Box<[u8]>,
+}

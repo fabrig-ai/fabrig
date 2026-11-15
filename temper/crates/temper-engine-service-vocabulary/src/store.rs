@@ -153,6 +153,7 @@ pub fn layout(
     };
     protocol::sizes::fill(&mut kv, &sizes).ok_or(arithmetic)?;
     kv.page.bytes = page_bytes(&core, transcript, sizes.key, sizes.value).ok_or(arithmetic)?;
+    kv.record = kv.record.min(kv.page.bytes);
     if kv.page.bytes > page_ceiling {
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
         return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: page_ceiling });

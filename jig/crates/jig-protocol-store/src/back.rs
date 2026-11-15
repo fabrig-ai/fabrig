@@ -198,6 +198,8 @@ fn recovered(store: &mut Store, events: &mut Queue<skein_kv::Event>, above: &mut
             skein_kv::Event::OpenFailed { .. }
             | skein_kv::Event::Refused { .. }
             | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
             | skein_kv::Event::Got { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Committed { .. }

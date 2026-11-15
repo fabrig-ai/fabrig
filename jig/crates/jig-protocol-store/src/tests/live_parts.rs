@@ -105,7 +105,7 @@ fn making_claiming_and_ending_put_only_their_parts_and_reads_join_whole() {
     for key in [tasks::Key::Live(7), tasks::Key::LiveCold(7)] {
         assert!(ended_ops.iter().any(|op| match op {
             skein_kv::Op::Erase { key: found } => *found == raw(key),
-            skein_kv::Op::Put { .. } => false,
+            skein_kv::Op::Put { .. } | skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => false,
         }));
     }
     assert!(match put_value(&ended_ops, tasks::Key::Ended(7)) {
