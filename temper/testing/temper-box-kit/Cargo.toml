@@ -47,6 +47,7 @@ skein-fake-oauth.workspace = true
 skein-http.workspace = true
 jig-domain-tasks.workspace = true
 skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
 skein-llm.workspace = true
 temper-real-loop-world = { path = "../../tests/real-loop" }
 skein-throwaway-forgejo.workspace = true

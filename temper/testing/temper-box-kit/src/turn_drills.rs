@@ -12,7 +12,7 @@ use super::{
     person, turn_restart,
 };
 use serde_json::{Value, json};
-use skein_fake_llm_domain::api::{Line, Rule, Rules, Script};
+use skein_fake_llm_domain::api::{Line, Rule, Rules, Script, Scripts};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -198,10 +198,18 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
             .collect(),
         asked: Box::new([]),
     };
+    let peer = super::llm_recipe(recipe(scripts, rules));
+    peer.configure(root);
+    peer
+}
+
+fn recipe(scripts: Scripts, rules: Rules) -> temper_real_loop_world::llm::Recipe {
     let mut recipe = temper_real_loop_world::llm::scripted(Box::new([]));
     recipe.limits.connections = 16;
     recipe.limits.io.sockets = 32;
     recipe.domain_limits.calls = 16;
+    // Four held reviews and the readiness latch share the provider's call room.
+    recipe.protocol_limits.calls = recipe.domain_limits.calls;
     recipe.domain_limits.strict = true;
     recipe.limits.observations *= 8;
     recipe.limits.observation_bytes *= 8;
@@ -213,9 +221,65 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
         rules,
     )
     .expect("drill scripts");
-    let peer = super::llm_recipe(recipe);
-    peer.configure(root);
-    peer
+    recipe
+}
+
+/// The drill's concurrent held model calls fit its byte provider.
+pub mod tests {
+    use skein_fake_llm_protocol::provider;
+    use skein_lib::{
+        Env, Queue, Time, Token, Wall,
+        stream::{Down, Slice, Up},
+    };
+
+    pub fn four_reviews_and_the_latch_can_wait_on_the_model_together() {
+        let recipe = super::recipe(
+            super::Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([]) },
+            super::Rules { cued: Box::new([]), asked: Box::new([]) },
+        );
+        let credentials = [skein_llm::Credential::key(b"fixture".as_slice().into())];
+        let env = Env { now: Time::ZERO, wall: Wall::from_nanos(0), limits: recipe.protocol_limits };
+        let mut service = provider::Service::new(recipe.config, &env.limits).expect("drill provider");
+        let body = br#"{"model":"test","instructions":"work","input":[{"role":"user","content":[{"type":"input_text","text":"work"}]}],"stream":true,"store":false}"#;
+        assert!(
+            skein_fake_llm_protocol::documents::request_on(skein_llm::Provider::OpenAi, body, &env.limits.documents)
+                .is_ok()
+        );
+        let request = format!(
+            "POST /v1/responses HTTP/1.1\r\nHost: fixture\r\nAuthorization: Bearer fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+            body.len(),
+            std::str::from_utf8(body).expect("request text")
+        );
+        let mut servers = Vec::new();
+        for number in 0..5 {
+            let mut server = provider::Server::new(Token::new(number), &env.limits).expect("model connection");
+            let mut above = Queue::uncapped();
+            let mut below = Queue::uncapped();
+            let mut input = Slice::new(request.as_bytes());
+            let mut admitted = false;
+            provider::start(&mut server, &mut service, &credentials, &env, &mut above, &mut below);
+            for _ in 0..1000 {
+                while let Some(event) = above.pop() {
+                    if let provider::Event::Domain(skein_fake_llm_domain::Event::Call { .. }) = event {
+                        admitted = true;
+                    }
+                }
+                if admitted {
+                    break;
+                }
+                if let Some(Down::Demand { read, room }) = below.pop() {
+                    if let Some(event) = input.answer(read).or_else(|| (room > 0).then_some(Up::Room)) {
+                        provider::up(&mut server, &mut service, &credentials, &env, event, &mut above, &mut below);
+                    }
+                } else {
+                    provider::resume(&mut server, &mut service, &credentials, &env, &mut above, &mut below);
+                }
+            }
+            assert!(admitted, "held model call {} must reach the script domain", number + 1);
+            servers.push(server);
+        }
+        assert_eq!(service.calls(), 5, "four reviews and the latch remain pending together");
+    }
 }
 
 fn setup(root: &Path, drill: Drill) -> Vec<ctl::Step> {
