@@ -3,9 +3,6 @@
 2026-11-15. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
 
 - **Not yet:** 1: follows own watches too [in flight: change 105].
-- **Not yet:** 3, *Its facts are frozen*: `pull_changed`, `wake_pull_changes` and the hints match ended changes' rows, so an ended change's pull request closing drifts its branch's holder and a live change on it, and `change_on_held_branch` and head attribution exclude `Ended` alone, not every terminal state (`temper-engine-domain-forge/src/domain.rs`) [in flight: change 3486].
-- **Not yet:** 3, *A release reads in order*: a watch's answer to a read asked before a release is not fenced (skein-forge-client's `keep/answer.rs`) [in flight: change 3484].
-- **Not yet:** 3, *A change reads its own pull request*: a lookup by branches takes a closed match at the change's last head, and an opening's answer stores no number (`temper-engine-domain-forge/src/domain.rs`, `step_read`, `change_outcome`) [in flight: change 3485].
 
 - **Not yet:** 1, 2: a branch nothing has pushed: a change with no head reads its branch, its `PullFor` and its base's CI at every step; every commit's and item's hint concerns it; a hint matching no change wakes every change; its wait is `queue_window`; and a branch never there rests at `slow` (`temper-engine-domain-forge/src/domain/hints.rs`, `concerns`; `src/domain.rs`, `step_change`, `wait_change`; skein-forge-client's `keep/answer.rs`).
 - **Not yet:** 2, 3: a gather reads its pull request with its head's CI and the head's checks again, every pull read reads CI, and a commit's hint reads its pull request in the client beside the commit's news (`src/domain.rs`, `step_read`).
