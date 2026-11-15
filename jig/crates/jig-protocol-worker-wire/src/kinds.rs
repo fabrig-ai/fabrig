@@ -98,7 +98,12 @@ pub enum Overflow {
 
 fn kept() -> List<skein_codec::schema::Schema> {
     let mut schemas = List::uncapped();
-    for text in crate::patches::kept::jig_worker_wire::TEXTS {
+    let texts = crate::patches::kept::jig_worker_wire::TEXTS;
+    let count = usize::from(VERSION.checked_sub(crate::wire::FLOOR).expect("floor at or below current"))
+        .checked_add(1)
+        .expect("version count fits");
+    let skip = texts.len().checked_sub(count).expect("kept texts cover the floor");
+    for text in texts.iter().skip(skip) {
         schemas
             .push(skein_codec::schema::parse(text.as_bytes()).expect("valid kept worker schema"))
             .expect("uncapped schemas");
@@ -110,20 +115,9 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
     schema_from(limits, &kept())
 }
 
-/// The channel schema and statement share one parse of each kept worker text.
+/// The channel table and jig's spoken ranges.
 pub fn schema_and_spoken(limits: &v14::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
-    let schemas = kept();
-    let schema = schema_from(limits, &schemas)?;
-    let mut layouts = List::with_capacity(
-        u32::try_from(crate::patches::kept::jig_worker_wire::TEXTS.len()).expect("kept versions fit"),
-    );
-    for kept in &schemas {
-        if kept.version() >= crate::wire::FLOOR {
-            layouts.push(kept.fingerprints().family().digest()).expect("uncapped layouts");
-        }
-    }
-    let worker = crate::Spoken { name: crate::wire::FAMILY, lowest: crate::wire::FLOOR, layouts };
-    Ok((schema, crate::spoken::with_worker(worker)))
+    Ok((schema(limits)?, crate::spoken()))
 }
 
 fn schema_from(limits: &v14::Limits, schemas: &List<skein_codec::schema::Schema>) -> Result<Schema, Overflow> {
@@ -227,4 +221,33 @@ pub fn terms_gap(schema: &Schema, version: u16, role: Role, terms: &List<Term>) 
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn table_from_the_floor_equals_the_table_from_every_kept_text() {
+        let mut all = skein_lib::List::uncapped();
+        for text in crate::patches::kept::jig_worker_wire::TEXTS {
+            all.push(skein_codec::schema::parse(text.as_bytes()).expect("kept schema")).expect("uncapped schemas");
+        }
+        let kept = super::kept();
+        let mut versions = skein_lib::List::uncapped();
+        for schema in &kept {
+            versions.push(schema.version()).expect("uncapped versions");
+        }
+        let mut expected = skein_lib::List::uncapped();
+        for version in crate::wire::FLOOR..=crate::VERSION {
+            expected.push(version).expect("uncapped versions");
+        }
+        assert_eq!(versions, expected);
+        let limits = crate::tests::fixtures::LIMITS;
+        let table = super::schema(&limits).expect("floor table");
+        assert_eq!(table, super::schema_from(&limits, &all).expect("all texts table"));
+        let mut listed = skein_lib::List::uncapped();
+        for version in &table.versions {
+            listed.push(version.version).expect("uncapped versions");
+        }
+        assert_eq!(listed, expected);
+    }
 }

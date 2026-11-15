@@ -29,7 +29,7 @@ fn problem(path: Path, what: What) -> Problems {
     problems
 }
 pub fn build(
-    worker: Option<settings::Worker>,
+    worker: Option<(settings::Worker, crate::worker_settings::Prepared)>,
     agent: Option<&settings::Agent>,
     limits: &Limits,
     files: &settings::Files,
@@ -37,13 +37,14 @@ pub fn build(
     seed: u64,
 ) -> Result<Option<Worker>, Problems> {
     match worker {
-        Some(worker) => match Worker::new(
+        Some((worker, prepared)) => match Worker::prepared(
             &worker,
             agent.expect("checked local agent"),
             limits,
             files,
             runtime.ok_or(problem(indexed(0), What::Standalone))?,
             seed,
+            prepared,
         ) {
             Ok(worker) => Ok(Some(worker)),
             Err(found) => Err(Problems::jig(found, &Path::root())),
