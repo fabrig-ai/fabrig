@@ -228,15 +228,18 @@ What follows holds under either question route.
   or a second answer to one answered, receives the fallback feedback as
   before and is not passed.
 - **Durable as the answer relay.** Words taken are kept on the
-  change's record until a step passes them, in the order taken, each
-  with its sender, its number in the change's inbox and its words
-  whole. A step passes them oldest first while its message room holds
-  both the passing and its reply; what it leaves stays on the record,
-  and its next step is due at once. At the step that passes them, the
-  producer live then receives them; with none live, the requester
-  receives the fallback feedback in place of the reply, and the words
-  go no further. A refused step commits nothing: its words are taken,
-  or passed, again at the step after it. A step refused because the
+  change's record, in the order taken, each with its sender, its number
+  in the change's inbox, its words whole and the producer they were
+  passed to, if they were, until its requester has been told. A step works them oldest first,
+  each message as its message room holds it: it passes the words, then
+  tells the requester, the words dropped from the record once passed
+  and the entry once told, so that a step with room for one message
+  passes them and the next tells. What a step leaves stays on the
+  record, and its next step is due at once. At the step that passes
+  them, the producer live then receives them; with none live, the
+  requester receives the fallback feedback in place of the reply, and
+  the words go no further. A refused step commits nothing: its words
+  are taken, or passed, again at the step after it. A step refused because the
   producer's inbox or the requester's is full commits the failed-effect
   hold that a refused question commits (above), its words kept on the
   record, and the step after its release passes them. A restart resumes
