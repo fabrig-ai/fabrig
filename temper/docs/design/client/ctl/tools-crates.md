@@ -196,7 +196,9 @@ instead. From the readers at `960d207e53`:
   component, startup and stock crates' tests and `temper-engine-smith`'s its limits; the client's
   world, the engine domain's world and the real loop's world its root, table, limits or `key`. Each
   keeps `temper-client-tools`.
-- **`temper-service`'s** dev-dependency names nothing of the crate: it goes.
+- **`temper-service`'s** dev-dependency stays: its tests include the shared fixture
+  `temper/testing/reference_settings.rs`, which names the tools' limits and jig's settings file
+  through `temper-client-tools`.
 
 ## 7. Later and open questions
 
