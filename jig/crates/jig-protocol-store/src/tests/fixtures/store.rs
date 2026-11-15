@@ -38,7 +38,7 @@ pub fn limits() -> Limits {
     Limits {
         core: CORE_LIMITS,
         store: kv_limits(),
-        secrets: kv_limits(),
+        secrets: skein_kv::Limits { record: 1, ..kv_limits() },
         commits: crate::sizes::Commits { in_flight: 2, writes: 4 },
         joins: 32,
         queue: 2,

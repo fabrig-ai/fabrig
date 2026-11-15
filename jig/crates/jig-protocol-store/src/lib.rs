@@ -465,7 +465,7 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Read { owner, range } => view::ask(store, view::Ask::Read { owner, range }, above),
         Request::Secrets { owner, request } => secrets::secrets(store, env, owner, request, above, below),
         Request::Transcript { owner, read, rows, bytes } => {
-            view::ask(store, view::Ask::Transcript { owner, read, rows, bytes }, above);
+            transcripts::read::transcript(store, owner, read, rows, bytes, above, below);
         }
     }
 }

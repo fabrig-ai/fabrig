@@ -66,7 +66,7 @@ pub(crate) fn transcript(
     below: &mut Below,
 ) {
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
-    assert!(store.transcripts.reads.len() < store.limits.reads, "startup bounds cover transcript reads");
+    assert!(crate::view::count(store) < store.limits.reads, "startup bounds cover transcript reads");
     let Some(read) = prepare(store, owner, read, rows, bytes) else {
         above.push(Event::Unread { owner });
         return;
@@ -262,9 +262,17 @@ pub(crate) fn fire(store: &mut Store, above: &mut Queue<Event>, below: &mut Belo
         | Stage::DirectoryClose
         | Stage::Dropping => return,
     }
-    let owner = match store.transcripts.reads.first() {
-        Some((owner, _)) => *owner,
-        None => return,
+    let owner = match crate::view::owner(store) {
+        Some(owner) => {
+            if !store.transcripts.reads.contains_key(&owner) {
+                return;
+            }
+            owner
+        }
+        None => match store.transcripts.reads.first() {
+            Some((owner, _)) => *owner,
+            None => return,
+        },
     };
     let mut read = store.transcripts.reads.remove(&owner).expect("waiting reader");
     store.transcripts.reading = Some(owner);

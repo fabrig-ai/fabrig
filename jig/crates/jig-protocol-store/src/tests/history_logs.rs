@@ -9,7 +9,7 @@ use crate::{Event, Get, Phase, Request, Restore, Store, codec, keys, logs};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as core, Key, Record, reads};
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{List, Queue, Set, Token};
 
 pub(super) fn move_history(store: &mut Store, task: u64) {
     let ops = move_operations(store, task);
@@ -321,13 +321,19 @@ mod disk;
 #[test]
 fn every_generated_family_routes_only_its_history_keys() {
     let mut rng = skein_lib::Rng::new(71);
-    for _ in 0_u32..8192 {
+    let mut seen = Set::with_capacity(u32::try_from(keys::KEYSPACES.len()).unwrap());
+    for number in 0_u32..8192 {
         for key in [
             Key::Core(fixtures::core_key(&mut rng)),
             Key::Tasks(fixtures::tasks_key(&mut rng)),
             Key::People(fixtures::people_key(&mut rng)),
             Key::Notes(fixtures::notes_key(&mut rng)),
             Key::Accounts(fixtures::accounts_key(&mut rng)),
+            Key::People(jig_domain_people::Key::Deleted(number)),
+            Key::People(jig_domain_people::Key::Deletion(number)),
+            Key::People(jig_domain_people::Key::Public(number)),
+            Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [7; 16] })),
+            Key::Accounts(jig_domain_accounts::Key::Facts { account: number }),
         ] {
             let expected = if let Key::Core(
                 core::CoreKey::Terminal { task, .. }
@@ -351,13 +357,36 @@ fn every_generated_family_routes_only_its_history_keys() {
             };
             let encoded = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
             assert_eq!(keys::logged(&encoded), expected, "{key:?}");
+            key_family(&mut seen, &encoded);
         }
-        let own = fixtures::own(&mut rng);
-        assert_eq!(keys::logged(&keys::encode_own(&own, fixtures::KEY_LIMIT).unwrap()), None);
+        for own in [
+            fixtures::own(&mut rng),
+            keys::Own::Wires,
+            keys::Own::Opening("worker".into()),
+            keys::Own::Layout { family: "family".into(), number: u16::try_from(number).unwrap(), id: 1 },
+            keys::Own::Text([7; 32]),
+            keys::Own::Job { owner: crate::Owner::Application, name: "job".into() },
+        ] {
+            let encoded = keys::encode_own(&own, fixtures::KEY_LIMIT).unwrap();
+            assert_eq!(keys::logged(&encoded), None);
+            key_family(&mut seen, &encoded);
+        }
+    }
+    for key in [logs::extent_key(2), keys::installation(fixtures::KEY_LIMIT).unwrap()] {
+        assert_eq!(keys::logged(&key), None);
+        key_family(&mut seen, &key);
+    }
+    for &(prefix, name) in keys::KEYSPACES {
+        assert!(seen.contains(prefix), "generated family {name}");
     }
     for key in [Box::from([]), Box::from([1, 1, 6]), Box::from([1, 1, 24]), keys::application(&[1, 6], 32).unwrap()] {
         assert_eq!(keys::logged(&key), None);
     }
+}
+
+fn key_family(seen: &mut Set<Box<[u8]>>, key: &[u8]) {
+    let width = if key.first() == Some(&keys::COMPONENT) { 2 } else { 3 };
+    seen.insert(Box::from(key.get(..width).unwrap())).unwrap();
 }
 
 #[test]

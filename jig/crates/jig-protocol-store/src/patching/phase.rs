@@ -4,7 +4,7 @@ use crate::directory::{OWNER, Opening};
 use crate::generations::{Copying, Dropping, Map, Progress};
 use crate::{Arrived, Below, Event, Io, Limits, OpenRefusal, Phase, Root, Store, directory, generations, open};
 use alloc::boxed::Box;
-use skein_io::file;
+use skein_io::{file, kernel::Error};
 use skein_lib::{Env, List, Queue};
 mod jobs;
 mod sealing;
@@ -171,14 +171,33 @@ fn opened_copy(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, b
         None => refuse(store, above),
     }
 }
+fn recovering(store: &Store) -> bool {
+    match directory::patching(store) {
+        Some(Patching::Recovering { .. }) => true,
+        None
+        | Some(
+            Patching::Closing { .. }
+            | Patching::Dropping(_)
+            | Patching::Copying(_)
+            | Patching::Mapping { .. }
+            | Patching::Walking(_)
+            | Patching::Jobs(_)
+            | Patching::Sealing { .. }
+            | Patching::Checking(_),
+        ) => false,
+    }
+}
 pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     let (arrived, secret) = match io {
         Io::Store(arrived) => (arrived, false),
         Io::Secrets(arrived) => (arrived, true),
         Io::Transcripts(arrived) => return file_up(store, env, arrived, false, above, below),
     };
-    // KV's close accepts a failed file close; patching refuses every file fault.
-    if let file::Event::Failed { .. } = &arrived.event {
+    // KV recovery probes for logs that need not exist. Other file faults,
+    // including closing faults, refuse patching.
+    if let file::Event::Failed { error, .. } = &arrived.event
+        && (*error != Error::NotFound || arrived.event.owner() == OWNER || !recovering(store))
+    {
         return refuse(store, above);
     }
     if arrived.event.owner() == OWNER {

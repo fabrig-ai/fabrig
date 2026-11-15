@@ -1,7 +1,7 @@
 //! One held, rerunnable read over map rows and fetched history (protocol/store/logs.md, 4).
 mod fetch;
 mod rows;
-use crate::{Below, Cursor, Event, Get, Limits, Load, Phase, Restore, Store, TranscriptRead, Write};
+use crate::{Below, Cursor, Event, Get, Limits, Load, Phase, Restore, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::reads;
 pub(crate) use rows::{get, overlay, raw_get};
@@ -14,7 +14,6 @@ pub(crate) enum Ask {
     Get { owner: Token, key: Get },
     Load { owner: Token, range: Load, after: Option<Cursor>, rows: u32, bytes: u64 },
     Restore { owner: Token, range: Restore, after: Option<Cursor>, rows: u32, bytes: u64 },
-    Transcript { owner: Token, read: TranscriptRead, rows: u32, bytes: u64 },
 }
 impl Ask {
     fn owner(&self) -> Token {
@@ -22,8 +21,7 @@ impl Ask {
             Self::Read { owner, .. }
             | Self::Get { owner, .. }
             | Self::Load { owner, .. }
-            | Self::Restore { owner, .. }
-            | Self::Transcript { owner, .. } => *owner,
+            | Self::Restore { owner, .. } => *owner,
         }
     }
 }
@@ -96,19 +94,33 @@ fn covered(ranges: &List<Range>, range: &Range) -> bool {
     }
     false
 }
-pub(crate) fn ask(store: &mut Store, ask: Ask, above: &mut Queue<Event>) {
-    let mut count = u32::from(store.view.active.is_some());
+pub(crate) fn count(store: &Store) -> u32 {
+    let mut count = store.transcripts.reads.len();
+    if let Some(active) = &store.view.active
+        && !store.transcripts.reads.contains_key(&active.ask.owner())
+    {
+        count = count.saturating_add(1);
+    }
     for work in &store.view.queue {
         match work {
             Work::Read(_) => count = count.saturating_add(1),
             Work::Commit { .. } => {}
         }
     }
+    count
+}
+pub(crate) fn owner(store: &Store) -> Option<Token> {
+    match &store.view.active {
+        Some(active) => Some(active.ask.owner()),
+        None => None,
+    }
+}
+pub(crate) fn ask(store: &mut Store, ask: Ask, above: &mut Queue<Event>) {
     match ask {
-        Ask::Read { owner, .. } if count >= store.limits.reads => {
+        Ask::Read { owner, .. } if count(store) >= store.limits.reads => {
             above.push(Event::Read { owner, result: reads::Loaded::Busy });
         }
-        Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } | Ask::Restore { .. } | Ask::Transcript { .. } => {
+        Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } | Ask::Restore { .. } => {
             store.view.queue.push(Work::Read(ask));
         }
     }
@@ -193,18 +205,26 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
     let intervals =
         u64::from(store.limits.joins).saturating_add(u64::from(store.limits.core.tasks.tree_tasks)).saturating_add(16);
     let tasks = u64::from(store.stores.store.len()).saturating_add(1);
-    let work = u64::from(store.view.queue.len()).saturating_add(1);
+    let work =
+        u64::from(store.view.queue.len()).saturating_add(u64::from(store.transcripts.reads.len())).saturating_add(1);
     let steps = frames.saturating_mul(intervals).saturating_mul(tasks).saturating_mul(work);
     for _ in 0..steps {
         if store.phase == Phase::Stopped {
             return;
         }
         if store.view.active.is_none() {
+            let waiting = store.transcripts.reads.len();
+            if waiting > 0 {
+                crate::transcripts::read::fire(store, above, below);
+                if store.transcripts.reads.len() < waiting {
+                    continue;
+                }
+                return;
+            }
             if store.transcripts.current.is_some()
                 || !store.transcripts.queue.is_empty()
-                || !store.transcripts.reads.is_empty()
                 || match store.phase {
-                    Phase::Ready { next, .. } => next.saturating_sub(1) != store.stores.store.last(),
+                    Phase::Ready { next, .. } => next.saturating_sub(1) > store.stores.store.last(),
                     Phase::Closed | Phase::Stopped => false,
                 }
             {
@@ -268,9 +288,6 @@ fn run(store: &mut Store, env: &Env<Limits>, ask: Ask, above: &mut Queue<Event>,
                 below,
             );
         }
-        Ask::Transcript { owner, read, rows, bytes } => {
-            crate::transcripts::read::transcript(store, owner, read, rows, bytes, above, below);
-        }
     }
 }
 #[derive(Debug)]
@@ -293,7 +310,7 @@ fn fail(store: &mut Store, failure: Failure, above: &mut Queue<Event>) {
                 store.phase = Phase::Stopped;
                 above.push(Event::PageRefused { owner, failure });
             }
-            Ask::Get { .. } | Ask::Load { .. } | Ask::Transcript { .. } => crate::loads::corrupt(store, owner, above),
+            Ask::Get { .. } | Ask::Load { .. } => crate::loads::corrupt(store, owner, above),
         },
         Failure::Corrupt => match active.ask {
             Ask::Restore { .. } => {
@@ -305,7 +322,7 @@ fn fail(store: &mut Store, failure: Failure, above: &mut Queue<Event>) {
                     )),
                 });
             }
-            Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } | Ask::Transcript { .. } => {
+            Ask::Read { .. } | Ask::Get { .. } | Ask::Load { .. } => {
                 crate::loads::corrupt(store, owner, above);
             }
         },
