@@ -521,7 +521,8 @@ The default, for a project with no prepare command:
 
 - **A gate's result under a key:** passed or failed, the run (the
   forge's run, its number and its link), the candidate it ran at, and
-  when it ended.
+  when it ended; a failed one, the round's base too and each failed
+  job's id, attempt and name, at most 16.
 - **Made only from a run temper dispatched** for that key and saw end
   at exactly that candidate. A status someone else wrote, or a run
   temper did not dispatch, is never a receipt.
@@ -615,8 +616,9 @@ The default, for a project with no prepare command:
   read with each failed job's failed step and the end of its log
   (skein's `Read::Job`) as the landing makes it.
 - **A round of one unit:** its changes are repaired
-  (`forge/change/repairs.md`), each brief carrying the gate, its run's
-  link, the candidate and its base, and those steps and logs. Its
+  (`forge/change/repairs.md`), each one's words naming the run, the
+  candidate, its base and its failed tests and jobs, its brief those
+  steps and logs. Its
   members leave (4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not
   change hold by their receipts.
