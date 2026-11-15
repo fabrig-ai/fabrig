@@ -48,7 +48,7 @@ pub(crate) fn for_record(row: &crate::TaskRecord) -> Kept {
     match row.phase {
         Phase::Active(_) | Phase::Held { was: Was::Active(_), .. } => {
             let mut kept = pending(&row.waiting_on, row.flags.ended_by)
-                .with_question(question(&row.questions, row.requester))
+                .with_question(own_question(row))
                 .with_owing(row.spec.asks && !row.asked_requester);
             kept.agent_delegates = match row.executor {
                 Executor::Agent { .. } => !row.delegates.is_empty(),
@@ -75,6 +75,12 @@ pub(crate) fn pending(dependencies: &[u64], ended_by: crate::EndedBy) -> Kept {
         owes: false,
         agent_delegates: false,
     }
+}
+
+/// The oldest unanswered question addressed to this task's requester (domain/tasks/lifecycle.md, 8).
+#[must_use]
+pub fn own_question(row: &crate::TaskRecord) -> Option<u64> {
+    question(&row.questions, row.requester)
 }
 
 pub(crate) fn question(credits: &[crate::QuestionCredit], requester: crate::Party) -> Option<u64> {

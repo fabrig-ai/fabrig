@@ -1367,3 +1367,14 @@ fn an_answered_person_tasks_json_keeps_taken_by() {
     assert_eq!(json.token(holder).expect("holder token").kind, skein_json::Kind::Null);
     assert!(!shown.contains("answered by:"), "{shown}");
 }
+
+#[test]
+fn an_own_question_wait_prints_its_words_and_kind_named_json() {
+    let task = f::goal(f::TASK, c::WaitsOn::Question { number: 7 });
+    let text = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
+    assert_eq!(text.status, 0);
+    assert!(f::has(&text, b"\nwaiting on: Waiting for an answer to its question 7\n"), "{text:?}");
+    let json = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+    assert_eq!(json.status, 0);
+    assert!(f::has(&json, br#""waits_on":{"question":{"number":7}}"#), "missing question wait object");
+}

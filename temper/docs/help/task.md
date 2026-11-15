@@ -63,7 +63,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   run; retry classification and counters are unchanged.
 - A start past a host's limits is refused and frees its reservation.
 - **What it waits on** prints after `waiting on:`: `Kept by its
-  dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
+  dependencies`, `Waiting for delegates`, `Waiting for news`,
+  `Waiting for an answer to its question N`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
   For a held task that awaits nothing else, `waiting on:` prints `held`.
   When no account serves its next run, `next run:` stands alone above the lines

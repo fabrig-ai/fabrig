@@ -66,6 +66,9 @@ pub fn status_words(
         Some(wake) => Some(wake),
         None => Some(&chip.details.details.wake),
     };
+    if let WaitsOn::Question { number } = waits_on {
+        return (crate::look::STATUS_WAITING, words.say(Word::WaitingForQuestion, &[Hole::Number(*number)]));
+    }
     let narrowed = if (*waits_on == WaitsOn::Delegates || *waits_on == WaitsOn::News) && live > 0 {
         Some(words.say(Word::WaitingForDelegates, &[Hole::Number(u64::from(live))]))
     } else if *waits_on == WaitsOn::News
