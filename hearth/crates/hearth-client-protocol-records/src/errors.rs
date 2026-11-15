@@ -1,12 +1,16 @@
 //! Errors in the answer (hearth/docs/design/domain/render/errors.md, 1 to 3).
 mod ids;
 mod validation;
-use crate::form::{json::field, text::Lines};
+use crate::{
+    form::{json::field, text::Lines},
+    progress::StoreFull,
+};
 use alloc::boxed::Box;
 use collisions::collision_json;
 use collisions::collision_text;
 use composition::{composition_json, composition_text};
 use hearth_domain_render_vocabulary::{
+    diff::Side,
     errors::{
         Cause, Class, Composition, Declared, Decode, Error, Expected, ExportFault, Exported, Field, Kind, Limit,
         Object, Place, Schema, Takes,
@@ -26,24 +30,8 @@ use store::{store_error_json, store_error_text};
 use validation::{json_names, names, signed};
 
 pub(crate) fn text(item: &Error, lines: &mut Lines) {
-    if let Some(side) = item.side {
-        lines.put(crate::diff::side(side));
-        lines.put(b": ");
-    }
-    if let Some(at) = &item.at {
-        place_text(at, lines);
-        lines.put(b": ");
-    }
-    if let Some(target) = &item.target {
-        lines.put(target);
-        lines.put(b": ");
-    }
-    if let Some(task) = &item.task
-        && item.kind != Kind::Composition(Composition::Task)
-    {
-        lines.put(task);
-        lines.put(b": ");
-    }
+    let task = if item.kind == Kind::Composition(Composition::Task) { None } else { item.task.as_deref() };
+    text_start(item.side, item.at.as_ref(), item.target.as_deref(), task, lines);
     match &item.kind {
         Kind::Exported(exported) => exported_text(exported, lines),
         Kind::Ids(ids) => ids_text(ids, lines),
@@ -64,12 +52,7 @@ pub(crate) fn text(item: &Error, lines: &mut Lines) {
             lines.put(&guard.message);
         }
     }
-    if let Some(also) = &item.also {
-        lines.put(b" (");
-        place_text(also, lines);
-        lines.put(b")");
-    }
-    lines.put(b"\n");
+    text_end(item.also.as_ref(), lines);
     if let Some(tool) = item.kind.tool() {
         for line in &tool.tail {
             lines.put(b"  ");
@@ -79,10 +62,7 @@ pub(crate) fn text(item: &Error, lines: &mut Lines) {
     }
 }
 pub(crate) fn json(item: &Error, json: &mut Encoder) {
-    field(json, b"record", b"error");
-    if let Some(side) = item.side {
-        field(json, b"side", crate::diff::side(side));
-    }
+    json_start(item.side, json);
     match &item.kind {
         Kind::Reserved(reserved) => {
             field(json, b"kind", b"reserved");
@@ -110,7 +90,7 @@ pub(crate) fn json(item: &Error, json: &mut Encoder) {
             resolution_json(error, json);
         }
         Kind::Store(error) => {
-            field(json, b"kind", b"store");
+            store_kind_json(json);
             store_error_json(error, json);
         }
         Kind::Evaluation(kind) => {
@@ -151,26 +131,89 @@ pub(crate) fn json(item: &Error, json: &mut Encoder) {
             json.object_end();
         }
     }
+    json_end(item.class, item.at.as_ref(), item.also.as_ref(), item.target.as_deref(), item.task.as_deref(), json);
+}
+
+pub(crate) fn store_full_text(full: &StoreFull, lines: &mut Lines) {
+    text_start(None, None, None, None, lines);
+    store::full_text(&full.store, full.limit, full.most, lines);
+    text_end(None, lines);
+}
+
+pub(crate) fn store_full_json(full: &StoreFull, json: &mut Encoder) {
+    json_start(None, json);
+    store_kind_json(json);
+    store::full_json(&full.store, full.limit, full.most, json);
+    json_end(Class::Operational, None, None, None, None, json);
+}
+
+fn text_start(side: Option<Side>, at: Option<&Place>, target: Option<&[u8]>, task: Option<&[u8]>, lines: &mut Lines) {
+    if let Some(side) = side {
+        lines.put(crate::diff::side(side));
+        lines.put(b": ");
+    }
+    if let Some(at) = at {
+        place_text(at, lines);
+        lines.put(b": ");
+    }
+    if let Some(target) = target {
+        lines.put(target);
+        lines.put(b": ");
+    }
+    if let Some(task) = task {
+        lines.put(task);
+        lines.put(b": ");
+    }
+}
+
+fn text_end(also: Option<&Place>, lines: &mut Lines) {
+    if let Some(also) = also {
+        lines.put(b" (");
+        place_text(also, lines);
+        lines.put(b")");
+    }
+    lines.put(b"\n");
+}
+
+fn json_start(side: Option<Side>, json: &mut Encoder) {
+    field(json, b"record", b"error");
+    if let Some(side) = side {
+        field(json, b"side", crate::diff::side(side));
+    }
+}
+
+fn store_kind_json(json: &mut Encoder) {
+    field(json, b"kind", b"store");
+}
+
+fn json_end(
+    class: Class,
+    at: Option<&Place>,
+    also: Option<&Place>,
+    target: Option<&[u8]>,
+    task: Option<&[u8]>,
+    json: &mut Encoder,
+) {
     field(
         json,
         b"class",
-        match item.class {
+        match class {
             Class::Configuration => b"configuration",
             Class::Operational => b"operational",
         },
     );
-    if let Some(at) = &item.at {
+    if let Some(at) = at {
         json.key(b"at");
         place_json(at, json);
     }
-    if let Some(also) = &item.also {
+    if let Some(also) = also {
         json.key(b"also");
         place_json(also, json);
     }
-    if let Some(target) = &item.target {
+    if let Some(target) = target {
         field(json, b"target", target);
     }
-    if let Some(task) = &item.task {
+    if let Some(task) = task {
         field(json, b"task", task);
     }
 }
