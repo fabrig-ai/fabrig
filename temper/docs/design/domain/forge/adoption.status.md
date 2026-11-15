@@ -2,18 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
-- **Not yet:** 1, *A project deleted*, *A repository released* and *A
-  release in pages*: a project's release erases only its repositories'
-  rows, the client's listing marks and kept names, leaving their branch
-  heads, pull states, CI, tiers, verifications, landing logs, receipts,
-  changes, issues, holds, entries and retained adoption outcomes, and
-  retiring none of their reads or watches; a removed forge's and a
-  rolled-back adoption's erasures each cover less again; nothing pages
-  (`temper-engine-domain-forge/src/adoption.rs`, `release`)
-  [in flight: change 3717].
-- **Not yet:** 1, *A release in pages*: the engine domain stories of a
-  deleted project's restart, whole, cut part-way and asked again
-  [in flight: change 3718].
 
 - **Not yet:** the opening's first bullet: a context adoption of a
   repository another project writes, kept for its project and read by its
