@@ -98,6 +98,7 @@ fn derive(
     new: &Schema,
     ty: &crate::ValueType,
     new_held: &[&Schema],
+    dropping: bool,
 ) -> Result<Plan, Unplanned> {
     let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
@@ -121,10 +122,16 @@ fn derive(
     }
     match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
         Ok(plan) => Ok(plan),
+        Err(why) if dropping && why.why == Why::VariantDropped => {
+            match Plan::derive_dropping(old, old_root, old_held.as_slice(), new, new_root, new_held) {
+                Ok(plan) => Ok(plan),
+                Err(why) => Err(Unplanned::Underived(why)),
+            }
+        }
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
-fn job(store: &Store, key: &RowKey, row: &Row) -> bool {
+fn job(store: &Store, key: &RowKey, row: &Row) -> Option<&'static str> {
     for set in store.patch_sets.sets {
         for job in set.jobs {
             if let Some(converts) = &job.converts
@@ -132,14 +139,14 @@ fn job(store: &Store, key: &RowKey, row: &Row) -> bool {
                 && key.1 == converts.value_type
                 && row.value.layout() == &converts.from
             {
-                return true;
+                return Some(job.name);
             }
         }
     }
-    false
+    None
 }
 /// Log layouts remain held even when the map census is empty (logs.md, 8).
-fn history_type(family: &str, number: u16) -> bool {
+pub(super) fn history_type(family: &str, number: u16) -> bool {
     for held in crate::patch_set::STORE_FAMILIES {
         if held.name != family {
             continue;
@@ -178,7 +185,7 @@ fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::Valu
 }
 
 pub(super) fn plans(
-    store: &Store,
+    store: &mut Store,
     layouts: &mut Layouts,
     binary: &texts::Binary,
     work: &mut Workspace,
@@ -193,10 +200,20 @@ pub(super) fn plans(
             texts::clear(layouts);
             family = Some(key.0.as_ref());
         }
+        let dropping = settling(store, &key.0, key.1)?;
         let row = layouts.rows.get(key).expect("held row");
+        if row.retire {
+            continue;
+        }
         let declared = declaration(store, key);
+        let written = job(store, key, row);
         let found = match declared {
-            Some((index, _)) => Some(index),
+            Some((index, _)) => {
+                if let Some(name) = written {
+                    layouts.written.insert((index, key.2), name).expect("uncapped written ids");
+                }
+                Some(index)
+            }
             None => None,
         };
         let patches = match &store.directory.patch {
@@ -232,7 +249,7 @@ pub(super) fn plans(
             let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(layouts, row, new, declaration, held.as_slice())
+                derive(layouts, row, new, declaration, held.as_slice(), dropping)
             } else {
                 Err(Unplanned::Text)
             };
@@ -263,12 +280,79 @@ pub(super) fn plans(
         }
         if let Unplanned::Underived(_) = why
             && !history_type(&key.0, key.1)
-            && job(store, key, layouts.rows.get(key).expect("held row"))
+            && job(store, key, layouts.rows.get(key).expect("held row")).is_some()
         {
             continue;
         }
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });
     }
     texts::clear(layouts);
+    Ok(())
+}
+
+/// A log-held type can settle only before the store has task logs (jobs.md, 5.2).
+pub(super) fn settling(store: &mut Store, family: &str, number: u16) -> Result<bool, OpenRefusal> {
+    if history_type(family, number) && !logs_pending(store)? {
+        return Ok(false);
+    }
+    for set in store.patch_sets.sets {
+        for held in set.families {
+            if held.name != family {
+                continue;
+            }
+            for job in set.jobs {
+                if job.settles && !crate::jobs::kept::done(store, set.owner, job)? {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+fn logs_pending(store: &mut Store) -> Result<bool, OpenRefusal> {
+    match crate::jobs::kept::done(store, crate::Owner::Jig, &crate::jobs::task_logs::JOB) {
+        Ok(done) => Ok(!done),
+        Err(why) => Err(why),
+    }
+}
+pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
+    for set in store.patch_sets.sets {
+        for family in set.families {
+            for ty in family.retired {
+                for range in ty.keys {
+                    let from =
+                        super::whole(set.owner, range.from, store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+                    let to = super::whole(set.owner, range.to, store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+                    let ranges = [skein_kv::Range { start: from.clone(), end: Some(to.clone()) }];
+                    let page = match crate::pages::reader::walk_stored(store, &ranges, None, 1) {
+                        Ok(page) => page,
+                        Err(failure) => {
+                            store.open_failed(crate::restore::OpenFailure::Data(failure));
+                            return Err(OpenRefusal::Failed);
+                        }
+                    };
+                    if let Some(row) = page.rows.first() {
+                        return Err(OpenRefusal::Layout {
+                            family: Box::from(family.name),
+                            value_type: ty.number,
+                            id: super::head(&row.row.value).unwrap_or(0),
+                            values: None,
+                            why: Unplanned::Retired,
+                        });
+                    }
+                    layouts.retired.insert(from, to).expect("uncapped retired ranges");
+                }
+                let mut retired = List::uncapped();
+                for (key, _) in &layouts.rows {
+                    if key.0.as_ref() == family.name && key.1 == ty.number {
+                        retired.push(key.clone()).expect("uncapped retired rows");
+                    }
+                }
+                for key in &retired {
+                    layouts.rows.get_mut(key).expect("retired row").retire = true;
+                }
+            }
+        }
+    }
     Ok(())
 }

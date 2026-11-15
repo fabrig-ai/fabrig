@@ -206,10 +206,10 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
 fn key(key: &RowKey, limit: u32) -> Option<Box<[u8]>> {
     keys::encode_own(&keys::Own::Layout { family: key.0.clone(), number: key.1, id: key.2 }, limit)
 }
-pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
+pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
     let mut used = Map::uncapped();
     for (row_key, row) in &layouts.rows {
-        let key = key(row_key, store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let key = key(row_key, bound).ok_or(OpenRefusal::Failed)?;
         if row.retire {
             if row.stored {
                 layouts.pending.push(skein_kv::Op::Erase { key });
@@ -227,7 +227,7 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
         }
     }
     for (digest, text) in &layouts.texts {
-        let key = keys::encode_own(&keys::Own::Text(*digest), store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let key = keys::encode_own(&keys::Own::Text(*digest), bound).ok_or(OpenRefusal::Failed)?;
         if used.contains_key(digest) {
             if !text.stored {
                 let value = wire::Text::new(&wire::CEILINGS, wire::TextParts { text: text.bytes.clone() })
@@ -240,6 +240,23 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
         } else if text.stored {
             layouts.pending.push(skein_kv::Op::Erase { key });
         }
+    }
+    // Stage the resulting registry for a later settling retirement. Keep the
+    // rows and texts until jobs end: a written job's first page names them.
+    let mut row_keys = List::uncapped();
+    for (key, _) in &layouts.rows {
+        row_keys.push(key.clone()).expect("uncapped row keys");
+    }
+    for key in &row_keys {
+        let row = layouts.rows.get_mut(key).expect("held row");
+        row.stored = !row.retire;
+    }
+    let mut digests = List::uncapped();
+    for (digest, _) in &layouts.texts {
+        digests.push(*digest).expect("uncapped text digests");
+    }
+    for digest in &digests {
+        layouts.texts.get_mut(digest).expect("held text").stored = used.contains_key(digest);
     }
     Ok(())
 }

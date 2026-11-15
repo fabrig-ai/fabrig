@@ -39,7 +39,7 @@ pub use patch_set::{JIG_STORE_PATCH_SET, STORE_FAMILIES};
 mod rehearsal;
 pub use patching::Counts;
 pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
-pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, ValueType};
+pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, Retired, ValueType};
 mod reads;
 mod registry;
 pub mod restore;

@@ -10,6 +10,7 @@ use skein_lib::{Duration, Token};
 
 pub const SEED: u64 = 118;
 const TURN: KeptFamily = KeptFamily {
+    retired: &[],
     current: fixture::patches::kept::fixture_turn::TEXTS[0],
     types: &[],
     flights: &[],

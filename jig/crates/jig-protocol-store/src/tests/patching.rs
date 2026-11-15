@@ -12,6 +12,7 @@ use skein_codec::value::{Node, Value};
 use skein_lib::{Writer, bytes};
 
 const LABEL: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -22,6 +23,7 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -36,6 +38,7 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -46,6 +49,7 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    retired: &[],
     current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -629,6 +633,7 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
         level: Some(0),
         patches: &[],
         families: &[KeptFamily {
+            retired: &[],
             current: HOLDER,
             types: &[],
             flights: &[],
@@ -678,6 +683,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
             patches: &[PATCH],
             families: &[
                 KeptFamily {
+                    retired: &[],
                     current: A,
                     types: &[],
                     flights: &[],
@@ -688,6 +694,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
                     keys: &[],
                 },
                 KeptFamily {
+                    retired: &[],
                     current: B2,
                     types: &[],
                     flights: &[],
@@ -715,6 +722,7 @@ pub(super) const SMITH: PatchSet = PatchSet {
     level: Some(1),
     patches: jig_test_patches_smith::patches::PATCHES,
     families: &[KeptFamily {
+        retired: &[],
         current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
         types: &[],
         flights: &[],

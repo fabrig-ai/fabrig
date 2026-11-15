@@ -44,7 +44,12 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
         families: Box::leak(
             set.families
                 .iter()
-                .map(|family| crate::KeptFamily { types: &[], current: family.texts.last().unwrap(), ..*family })
+                .map(|family| crate::KeptFamily {
+                    retired: &[],
+                    types: &[],
+                    current: family.texts.last().unwrap(),
+                    ..*family
+                })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),

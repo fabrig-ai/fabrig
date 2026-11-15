@@ -1022,6 +1022,7 @@ const HEAD_OLD: &str =
 const HEAD_NEW: &str = "family heads 2\nrecord A { x: u8 } record B { x: u8 y: bool } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
 const HEAD_PATCH: &str = "patch 1\nowner heads 1\nfamily heads 1 to 2\nadd B.y bool true\n";
 const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    retired: &[],
     current: HEAD_NEW,
     types: &[],
     name: "heads",
@@ -1617,6 +1618,7 @@ fn assert_page_rows(store: &mut Store, last: u64) {
 const MANIFEST_FAMILIES: usize = 64;
 const MANIFEST_NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab";
 const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    retired: &[],
     current: "",
     types: &[],
     flights: &[],

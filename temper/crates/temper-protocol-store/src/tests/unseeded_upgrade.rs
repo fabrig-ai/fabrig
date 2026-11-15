@@ -36,7 +36,7 @@ fn old_sets() -> PatchSets {
                                     "temper-store" => &f.texts[..13], // v11 through the source fixture's v23.
                                     _ => f.texts,
                                 };
-                                KeptFamily { texts, current: texts.last().unwrap(), types: &[], ..*f }
+                                KeptFamily { retired: &[], texts, current: texts.last().unwrap(), types: &[], ..*f }
                             })
                             .collect::<Vec<_>>()
                             .into_boxed_slice(),

@@ -239,6 +239,7 @@ fn a_level_survives_an_empty_patch_array_in_first_commit_reopen_and_ahead() {
 fn a_job_only_upgrade_adds_the_floor_in_its_last_commit() {
     const JOB: crate::Job = crate::Job {
         name: "floor-fixture",
+        settles: false,
         keys: &[crate::KeyRange { from: b"l", to: b"m" }],
         converts: None,
         counts: &[],

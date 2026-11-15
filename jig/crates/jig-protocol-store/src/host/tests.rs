@@ -263,6 +263,7 @@ fn patching_world() -> World {
         owner: crate::Owner::Application,
         name: "fixture",
         families: &[crate::KeptFamily {
+            retired: &[],
             current: jig_test_patches::patches::kept::fixture_label::TEXTS[0],
             types: &[],
             name: "fixture-label",

@@ -347,6 +347,7 @@ pub enum Unplanned {
     Underived(skein_codec::layout::Underived),
     Text,
     Undeclared,
+    Retired,
 }
 
 /// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying

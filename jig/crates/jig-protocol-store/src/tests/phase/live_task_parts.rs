@@ -71,6 +71,7 @@ fn before() -> PatchSet {
                 })
                 .collect::<Vec<_>>();
             crate::KeptFamily {
+                retired: &[],
                 current: family.texts.last().unwrap(),
                 types: Box::leak(types.into_boxed_slice()),
                 ..*family

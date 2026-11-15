@@ -49,7 +49,12 @@ fn projection_parts_open_splits_whole_rows_keeps_milestones_and_runs_once() {
         families: Box::leak(
             set.families
                 .iter()
-                .map(|family| crate::KeptFamily { types: &[], current: family.texts.last().unwrap(), ..*family })
+                .map(|family| crate::KeptFamily {
+                    retired: &[],
+                    types: &[],
+                    current: family.texts.last().unwrap(),
+                    ..*family
+                })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),

@@ -9,8 +9,15 @@ use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchS
 )]
 pub const PATCH_SET: PatchSet = PatchSet {
     jobs: &[
-        Job { counts: &[], name: "change-parts", keys: &[KeyRange { from: &[12], to: &[13] }], converts: None },
         Job {
+            settles: false,
+            counts: &[],
+            name: "change-parts",
+            keys: &[KeyRange { from: &[12], to: &[13] }],
+            converts: None,
+        },
+        Job {
+            settles: false,
             name: "deleted-repository-forge-rows",
             keys: &[
                 KeyRange { from: &[1], to: &[2] },
@@ -45,6 +52,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
+            retired: &[],
             current: include_str!("../schema/store-v25.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
@@ -385,6 +393,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
             flights: &[Keys { from: &[crate::keys::FLIGHT], to: &[22], root: "Row" }],
         },
         KeptFamily {
+            retired: &[],
             current: temper_protocol_records::patches::kept::temper_secrets::TEXTS.last().expect("kept text"),
             types: &[],
             name: "temper-secrets",

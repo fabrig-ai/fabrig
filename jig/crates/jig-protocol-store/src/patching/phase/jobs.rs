@@ -5,6 +5,7 @@ use crate::{
     OpenRefusal, Owner, Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
+mod settling;
 use skein_lib::{Env, List, Queue, length::len_u64};
 
 #[derive(Debug)]
@@ -26,6 +27,7 @@ pub(crate) struct Running {
     waiting: Waiting,
     registered: bool,
     first: bool,
+    retiring: bool,
 }
 impl Running {
     pub(crate) fn writes_history(&self) -> bool {
@@ -74,6 +76,7 @@ impl Running {
                     self.index = self.index.checked_add(1).expect("bounded pending jobs");
                     self.after = None;
                     self.first = true;
+                    self.retiring = false;
                     self.rows = 0;
                     self.commits = 0;
                 }
@@ -122,6 +125,7 @@ pub(super) fn begin(
             waiting: Waiting::Ready,
             registered: false,
             first: true,
+            retiring: false,
         })),
     );
     resume(store, env, above, below);
@@ -259,6 +263,18 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         let Some(number) = store.stores.store.last().checked_add(1) else { return refuse(store, above) };
         running.sealing.number = number;
         return sealing::begin(store, env, running.sealing, above, below);
+    }
+    if running.ready() && running.current().1.settles {
+        let result = settling::run(store, &mut running);
+        match result {
+            Ok((number, ops, end)) => {
+                running.waiting = Waiting::Commit { number, end };
+                state(store, Patching::Jobs(running));
+                commits::submit(store, env, number, ops, above, below);
+                return;
+            }
+            Err(why) => return open::refuse(store, store.directory.owner, running.refusal(why), above),
+        }
     }
     if running.ready() && load(store, &mut running, above).is_none() {
         return refuse(store, above);

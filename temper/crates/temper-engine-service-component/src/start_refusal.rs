@@ -68,6 +68,15 @@ fn render(lines: &mut Lines, why: &OpenRefusal, deployment: &[u8]) {
         lines.put(words.as_bytes());
     }
     lines.put(b"\n");
+    if let OpenRefusal::Layout { family, value_type, id, why: jig_protocol_store::Unplanned::Retired, .. } = why {
+        lines.put(b"temper serve: family ");
+        lines.put(family.as_bytes());
+        lines.put(b" value type ");
+        lines.number(u64::from(*value_type));
+        lines.put(b" layout ");
+        lines.number(u64::from(*id));
+        lines.put(b": the value type is retired, and its keys hold a value\n");
+    }
     if let OpenRefusal::Job { owner, job, key, why } = why {
         let owner = match owner {
             jig_protocol_store::Owner::Skein => "skein",

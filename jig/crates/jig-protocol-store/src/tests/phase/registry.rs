@@ -6,8 +6,11 @@ use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod added_types;
 mod edges;
+mod retired;
+mod settling;
 
 const FAMILY: KeptFamily = KeptFamily {
+    retired: &[],
     name: "fixture-layouts",
     texts: &[FIRST, KEPT],
     current: CURRENT,
@@ -217,6 +220,7 @@ fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version()
 fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_texts() {
     use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, HOLDER};
     let holder = KeptFamily {
+        retired: &[],
         name: "fixture-holder",
         texts: &[HOLDER],
         current: HOLDER,
@@ -273,6 +277,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
+        settles: false,
         counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
@@ -549,8 +554,13 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job =
-    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
+const NOOP: crate::Job = crate::Job {
+    settles: false,
+    counts: &[],
+    name: "noop",
+    keys: &[KeyRange { from: b"a", to: b"b" }],
+    converts: None,
+};
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -684,6 +694,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
+        settles: false,
         counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,

@@ -49,6 +49,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .families
                 .iter()
                 .map(|family| KeptFamily {
+                    retired: &[],
                     current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
                     types: if !registered {
                         &[]

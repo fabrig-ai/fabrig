@@ -45,6 +45,14 @@ pub struct KeptFamily {
     pub current: &'static str,
     /// Registered value types; empty for a patched family (protocol/store/layouts.md, 2).
     pub types: &'static [ValueType],
+    pub retired: &'static [Retired],
+}
+
+/// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).
+#[derive(Clone, Copy, Debug)]
+pub struct Retired {
+    pub number: u16,
+    pub keys: &'static [crate::KeyRange],
 }
 
 /// A stable kind of value, distinguished by its keys (protocol/store/layouts.md, 2).
@@ -83,6 +91,7 @@ pub const JIG: PatchSet = PatchSet {
     patches: &[],
     fresh: None,
     families: &[KeptFamily {
+        retired: &[],
         current: "",
         types: &[],
         name: "jig-store-secrets",

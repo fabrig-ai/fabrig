@@ -12,6 +12,7 @@ const SETS: PatchSets = PatchSets {
         name: "jig",
         fresh: None,
         families: &[KeptFamily {
+            retired: &[],
             current: patches::kept::jig_store_settings::TEXTS.last().expect("kept text"),
             types: &[],
             name: "jig-store-settings",

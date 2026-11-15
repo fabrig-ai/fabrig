@@ -18,6 +18,7 @@ pub const JIG_PATCH_SET: PatchSet = {
             settings,
             secrets,
             KeptFamily {
+                retired: &[],
                 current: crate::patches::kept::jig_accounts::TEXTS.last().expect("kept text"),
                 types: &[],
                 name: "jig-accounts",

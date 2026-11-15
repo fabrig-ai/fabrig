@@ -20,6 +20,7 @@ fn family(owner: Owner) -> KeptFamily {
         Keys { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO, root: "Row" }
     };
     KeptFamily {
+        retired: &[],
         name: "fixture-values",
         texts: &[TEXT],
         current: TEXT,
@@ -225,6 +226,7 @@ fn written_jobs_name_a_registered_type_and_its_ranges() {
     for owner in [Owner::Application, Owner::Jig] {
         let base = family(owner);
         let job = Job {
+            settles: false,
             counts: &[],
             name: "convert",
             keys: base.types[0].keys,

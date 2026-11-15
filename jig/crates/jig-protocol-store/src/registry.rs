@@ -64,6 +64,8 @@ pub(crate) struct Layouts {
     types: List<Type>,
     ranges: Map<Box<[u8]>, Range>,
     rows: Map<RowKey, Row>,
+    retired: Map<Box<[u8]>, Box<[u8]>>,
+    written: Map<(u32, u16), &'static str>,
     texts: Map<Digest, Text>,
     pending: Queue<skein_kv::Op>,
 }
@@ -74,19 +76,30 @@ impl Layouts {
             types: List::uncapped(),
             ranges: Map::uncapped(),
             rows: Map::uncapped(),
+            retired: Map::uncapped(),
+            written: Map::uncapped(),
             texts: Map::uncapped(),
             pending: Queue::uncapped(),
         }
     }
-    fn resolve(&self, key: &[u8]) -> Option<&Type> {
+    fn resolve_index(&self, key: &[u8]) -> Option<u32> {
         use core::ops::Bound::{Included, Unbounded};
         let (_, range) = self.ranges.range::<[u8], _>((Unbounded, Included(key))).next_back()?;
         if key >= range.to.as_ref() {
             return None;
         }
-        self.types.get(range.ty)
+        Some(range.ty)
+    }
+    fn resolve(&self, key: &[u8]) -> Option<&Type> {
+        self.types.get(self.resolve_index(key)?)
     }
     pub(crate) fn write(&self, key: &[u8], value: &mut [u8]) -> Result<(), ()> {
+        use core::ops::Bound::{Included, Unbounded};
+        if let Some((_, to)) = self.retired.range::<[u8], _>((Unbounded, Included(key))).next_back()
+            && key < to.as_ref()
+        {
+            return Err(());
+        }
         if !self.active {
             return Ok(());
         }
@@ -141,6 +154,7 @@ impl Layouts {
         self.rows = Map::uncapped();
         self.texts = Map::uncapped();
         self.pending = Queue::uncapped();
+        self.written = Map::uncapped();
         for ty in self.types.iter_mut() {
             let keeping = core::mem::replace(&mut ty.keeping, List::uncapped());
             ty.keeping = List::from_boxed(keeping.into_boxed());
@@ -169,6 +183,9 @@ impl Layouts {
         }
         Some(())
     }
+    pub(crate) fn has_writes(&self) -> bool {
+        !self.pending.is_empty()
+    }
     pub(crate) fn batch(&mut self, limits: &crate::Limits) -> Option<Box<[skein_kv::Op]>> {
         let mut ops = List::with_capacity(limits.store.ops.min(limits.commits.writes));
         let mut bytes = u64::from(skein_kv::FRAME_BYTES);
@@ -186,6 +203,103 @@ impl Layouts {
             return None;
         }
         Some(ops.into_boxed())
+    }
+    /// Settling reads as stored, refusing rather than handing malformed bytes on (jobs.md, 5.1).
+    pub(crate) fn put_again(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        work: &mut ReadWork,
+    ) -> Result<Option<Box<[u8]>>, Box<str>> {
+        let index = self.resolve_index(key).expect("settling ranges resolve to value types");
+        let ty = self.types.get(index).expect("admitted value type");
+        let Some(id) = head(value) else {
+            return Err(reason(&[b"is at layout `0`, which the registry does not hold"]));
+        };
+        if id == ty.binary {
+            return Ok(None);
+        }
+        if let Some(name) = self.written.get(&(index, id)) {
+            return Err(reason(&[
+                b"is at layout `",
+                skein_lib::Decimal::of(u64::from(id)).as_bytes(),
+                b"`, which the written job `",
+                name.as_bytes(),
+                b"` converts",
+            ]));
+        }
+        if ty.keeping.as_slice().contains(&id) {
+            let mut value = Box::from(value);
+            rehead(&mut value, ty.version);
+            return Ok(Some(value));
+        }
+        let Some(plan) = ty.plans.get(&id) else {
+            return Err(reason(&[
+                b"is at layout `",
+                skein_lib::Decimal::of(u64::from(id)).as_bytes(),
+                b"`, which the registry does not hold",
+            ]));
+        };
+        match plan.convert(value, &mut work.buffer, &mut work.workspace) {
+            Ok(()) => Ok(Some(Box::from(work.buffer.as_slice()))),
+            Err(skein_codec::layout::Misconverted::Dropped(index)) => {
+                let (enumeration, variant) = plan.dropped(index).expect("plan's dropped name");
+                Err(reason(&[
+                    b"holds the variant `",
+                    variant.as_bytes(),
+                    b"` of `",
+                    enumeration.as_bytes(),
+                    b"`, which this build no longer has",
+                ]))
+            }
+            Err(why) => {
+                use skein_codec::layout::Misconverted;
+                let why = match why {
+                    Misconverted::Short => b"Short".as_slice(),
+                    Misconverted::Tag => b"Tag",
+                    Misconverted::Bool => b"Bool",
+                    Misconverted::Bound => b"Bound",
+                    Misconverted::Trailing => b"Trailing",
+                    Misconverted::Room => b"Room",
+                    Misconverted::Dropped(_) => unreachable!("dropped variants name their enumeration"),
+                };
+                Err(reason(&[
+                    b"does not convert from layout `",
+                    skein_lib::Decimal::of(u64::from(id)).as_bytes(),
+                    b"`: `",
+                    why,
+                    b"`",
+                ]))
+            }
+        }
+    }
+    pub(crate) fn retire_set(&mut self, set: &crate::PatchSet, logs_pending: bool, bound: u32) -> Option<u64> {
+        let mut retired = 0_u64;
+        for family in set.families {
+            for ty in family.types {
+                if check::history_type(family.name, ty.number) && !logs_pending {
+                    continue;
+                }
+                let from = whole(set.owner, ty.keys.first()?.from, bound)?;
+                let index = self.ranges.get(&from)?.ty;
+                let binary = self.types.get(index)?.binary;
+                let mut keys = List::uncapped();
+                for (key, row) in &self.rows {
+                    if key.0.as_ref() == family.name && key.1 == ty.number && key.2 != binary && !row.retire {
+                        keys.push(key.clone()).expect("uncapped retired rows");
+                    }
+                }
+                for key in &keys {
+                    self.rows.get_mut(key)?.retire = true;
+                    retired = retired.checked_add(1)?;
+                }
+                let planned = self.types.get_mut(index)?;
+                planned.keeping = List::uncapped();
+                planned.plans = Map::uncapped();
+            }
+        }
+        rows::operations(bound, self).ok()?;
+        Some(retired)
     }
     pub(crate) fn written(&self, job: &Job) -> Option<(u16, JobLayout)> {
         let converts = job.converts.as_ref()?;
@@ -254,7 +368,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     let mut registered = false;
     for set in store.patch_sets.sets {
         for family in set.families {
-            registered |= !family.types.is_empty();
+            registered |= !family.types.is_empty() || !family.retired.is_empty();
         }
     }
     if !seeded && !registered {
@@ -268,6 +382,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     if seeded {
         check::patches(store)?;
     }
+    check::retired(store, &mut layouts)?;
     let mut binary = texts::Binary::new(&store.patch_sets, &mut layouts)?;
     if !seeded && !empty {
         rows::seed(store, &mut layouts, &mut binary)?;
@@ -276,7 +391,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     let mut work = Workspace::new();
     check::plans(store, &mut layouts, &binary, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
-    rows::operations(store, &mut layouts)?;
+    rows::operations(store.limits.store.key, &mut layouts)?;
     if !writing && store.directory.patch.is_none() {
         // Retirement alone does not write: these erases wait for a writing open.
         layouts.pending = Queue::uncapped();
@@ -285,4 +400,18 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     *store.layout_work = ReadWork::fit(&layouts, work, store.limits.store.value);
     *store.registry = layouts;
     Ok(writing)
+}
+
+/// Refusal parts are checked names, decimal numbers and literal UTF-8 (jobs.md, 5.1).
+#[expect(clippy::disallowed_methods, reason = "refusal parts are valid UTF-8")]
+pub(crate) fn reason(parts: &[&[u8]]) -> Box<str> {
+    let mut bytes = 0_usize;
+    for part in parts {
+        bytes = bytes.checked_add(part.len()).expect("bounded refusal");
+    }
+    let mut writer = skein_lib::Writer::new(bytes);
+    for part in parts {
+        writer.put(part).expect("measured refusal");
+    }
+    Box::from(core::str::from_utf8(&writer.finish()).expect("UTF-8 refusal parts"))
 }

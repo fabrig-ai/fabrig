@@ -6,6 +6,7 @@ pub struct Job {
     pub name: &'static str,
     pub keys: &'static [KeyRange],
     pub converts: Option<Converts>,
+    pub settles: bool,
     pub counts: &'static [&'static str],
 }
 #[derive(Clone, Copy, Debug)]

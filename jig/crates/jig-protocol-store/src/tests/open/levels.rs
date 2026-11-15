@@ -252,6 +252,7 @@ const MOVED_JIG: PatchSets = PatchSets {
         fresh: None,
         families: &[
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-people 15\nversioned record Data { value: u8 }\n",
                 types: &[],
                 name: "jig-store-people",
@@ -265,6 +266,7 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
                 types: &[],
                 name: "jig-store-tasks",
@@ -278,6 +280,7 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
                 types: &[],
                 name: "jig-store-settings",

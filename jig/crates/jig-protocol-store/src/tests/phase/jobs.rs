@@ -5,19 +5,26 @@ use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, O
 use alloc::collections::VecDeque;
 
 const UPSTREAM_JOB: Job = Job {
+    settles: false,
     counts: &[],
     name: "notes-to-labels",
     keys: &[KeyRange { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO }],
     converts: None,
 };
 const APP_JOB: Job = Job {
+    settles: false,
     counts: &[],
     name: "consume-fixtures",
     keys: &[KeyRange { from: b"l", to: b"m" }, KeyRange { from: b"s", to: b"t" }],
     converts: None,
 };
-const FOLLOW: Job =
-    Job { counts: &[], name: "read-the-first-jobs-writes", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None };
+const FOLLOW: Job = Job {
+    settles: false,
+    counts: &[],
+    name: "read-the-first-jobs-writes",
+    keys: &[KeyRange { from: b"l", to: b"m" }],
+    converts: None,
+};
 const JOBS: PatchSets = PatchSets {
     // Deliberately downstream first: the component chooses Owner's order.
     sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
