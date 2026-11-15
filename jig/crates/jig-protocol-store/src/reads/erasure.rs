@@ -52,17 +52,7 @@ pub(super) fn read(
             last = Some(position);
             continue;
         }
-        let row = reads::Row {
-            value,
-            owner: None,
-            summary: None,
-            ancestors: Box::new([]),
-            related: None,
-            unjoined: None,
-            ended_read: None,
-            linked: Box::new([]),
-            inbox: None,
-        };
+        let row = plain(value);
         let bytes = match &row.value {
             // An ended read owns no heap bytes and is not a party-read value.
             core::Record::People(people::Stored::EndedRead { .. }) => u64::try_from(size_of::<reads::Row>())
@@ -113,4 +103,18 @@ fn belongs(store: &mut Store, value: &core::Record, task: u64, spent: &mut Spent
         | core::Record::Notes(_)
         | core::Record::Accounts(_) => true,
     })
+}
+
+pub(super) fn plain(value: core::Record) -> reads::Row {
+    reads::Row {
+        value,
+        owner: None,
+        summary: None,
+        ancestors: Box::new([]),
+        related: None,
+        unjoined: None,
+        ended_read: None,
+        linked: Box::new([]),
+        inbox: None,
+    }
 }

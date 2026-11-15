@@ -201,8 +201,25 @@ impl Store {
             } else if *key == installation {
                 codec::accounts::Installation::decode(value)
                     .map_err(|failure| inventory(key, format!("installation row: {failure:?}")))?;
+            } else if key.starts_with(&protocol::logs::EXTENTS) {
+                if key.len() != 10 || value.len() != 8 {
+                    return Err(inventory(key, "log extent key and value widths"));
+                }
+                Reader::new(value).u64().ok_or_else(|| inventory(key, "log extent"))?;
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
+                    keys::Own::History { .. } => {
+                        codec::component::HistoryLog::decode(value)
+                            .map_err(|failure| inventory(key, format!("history log: {failure:?}")))?;
+                    }
+                    keys::Own::TurnLog { .. } => {
+                        codec::component::TurnLog::decode(value)
+                            .map_err(|failure| inventory(key, format!("turn log: {failure:?}")))?;
+                    }
+                    keys::Own::LogAttempt { .. } => {
+                        codec::component::LogAttempt::decode(value)
+                            .map_err(|failure| inventory(key, format!("log attempt: {failure:?}")))?;
+                    }
                     keys::Own::Format => {
                         codec::component::Format::decode(value)
                             .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;

@@ -9,6 +9,7 @@ mod format;
 mod frames;
 mod generations;
 mod gets;
+mod history_logs;
 mod intervals;
 mod keys;
 mod live_parts;
@@ -97,6 +98,7 @@ fn valid_requires_room_for_transcript_work() {
         ("empty queue", crate::Limits { queue: 0, ..limits }, false),
         ("queue exceeds store", crate::Limits { queue: limits.store.queued.checked_add(1).unwrap(), ..limits }, false),
         ("empty files", crate::Limits { files: 0, ..limits }, false),
+        ("empty history fetch", crate::Limits { fetch: 0, ..limits }, false),
         ("empty orphan erases", crate::Limits { orphan_erases: 0, ..limits }, false),
         (
             "too few readers",

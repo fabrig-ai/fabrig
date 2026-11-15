@@ -174,7 +174,13 @@ fn task_rows_name_only_their_task() {
     let mut store = task_store();
     let mut range = fixtures::read(fixtures::ALICE, reads::Scope::TaskRows { task: TASK });
     range.rows = PAGE_ROWS;
-    assert_eq!(all(&mut store, range), task_rows(TASK));
+    let before = all(&mut store, range.clone());
+    let own = fixtures::read(fixtures::ALICE, reads::Scope::TaskOwnRows { task: TASK });
+    let own_before = all(&mut store, own.clone());
+    super::history_logs::move_history(&mut store, TASK);
+    assert_eq!(before, all(&mut store, range));
+    assert_eq!(own_before, all(&mut store, own));
+    assert_eq!(before, task_rows(TASK));
 }
 
 #[test]

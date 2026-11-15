@@ -279,6 +279,7 @@ pub fn limits() -> Limits {
         queue: 2,
         files: 2,
         reads: 4,
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }

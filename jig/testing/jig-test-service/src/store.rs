@@ -47,6 +47,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         queue: kv.queued,
         files: profile.files,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks)?,
+        fetch: profile.fetch,
         orphan_erases: profile.orphan_erases,
         held: profile.held,
     };

@@ -168,6 +168,7 @@ pub fn layout(
         queue: kv.queued,
         files: profile.files,
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
+        fetch: profile.fetch,
         orphan_erases: profile.orphan_erases,
     })
 }
