@@ -124,6 +124,8 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
+    Unprepared { run: Token, attempt: Token, failure: host::Preparation, detail: Box<[u8]> },
     /// A results file was absent or malformed; content-free diagnostic.
     ResultsIgnored { owner: Token, tag: u64, reason: Box<[u8]> },
     /// Encode temper’s check read before asking the hub.

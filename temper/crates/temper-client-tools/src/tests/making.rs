@@ -2,7 +2,7 @@ use super::fixtures as f;
 use crate::jig;
 use jig_client::{self as client, contract as c};
 use skein_lib::{Duration, List};
-use temper_client_domain::forge::{self, forges::Connection, making::Making};
+use temper_client_domain_forge::forge::{self, forges::Connection, making::Making};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const MAKE: &[&str] =

@@ -897,8 +897,10 @@ fn header_facts_are_optional_ordered_and_replayed() {
         assert_eq!(start.version.as_ref(), version);
         assert!(prove(&recording).is_ok(), "the header facts reproduce the frame");
         let frame = String::from_utf8(walk.host.frame().print().into_vec()).unwrap();
-        let expected = if plain { " temper" } else { " ▄█▀▀   temper" };
-        let first = frame.lines().next().unwrap();
+        let expected = if plain { " temper" } else { "  ▄█▀▀   temper" };
+        let mut lines = frame.lines();
+        assert_eq!(lines.next().unwrap().trim_end(), "");
+        let first = lines.next().unwrap();
         assert!(first.starts_with(expected));
         assert_eq!(first.contains("0.0.0"), !version.is_empty());
         for misplaced in [Line::Plain, Line::Version(b"build".as_slice().into())] {

@@ -34,6 +34,7 @@ pub(crate) mod read_session;
 mod rebase;
 #[path = "reds.rs"]
 pub(crate) mod reds;
+pub(crate) mod release;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -194,6 +195,7 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 #[expect(clippy::struct_excessive_bools, reason = "the volatile full-outbox mark is independent of connector phases")]
 pub struct Domain {
     retire_pending: bool,
+    pub(crate) releasing: release::State,
     watch_due: Option<skein_lib::Time>,
     pub(crate) machine: Option<crate::Machine>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
@@ -840,6 +842,7 @@ impl Domain {
             outage: None,
             machine: None,
             retire_pending: false,
+            releasing: release::State::new(l),
             watch_due: None,
             records: Map::with_capacity(l.forges),
             forge_number,
@@ -1045,7 +1048,13 @@ impl Domain {
     /// Earliest procedure or projection wait, reported to the root's clock.
     #[must_use]
     pub fn next_wall_deadline(&self) -> Option<skein_lib::Wall> {
-        if self.stopping || self.restore_phase == RestorePhase::Restoring {
+        if self.stopping {
+            return None;
+        }
+        if release::pending(self) {
+            return Some(skein_lib::Wall::from_nanos(0));
+        }
+        if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
         let mut next = read_session::deadline(self).into_iter().chain(crate::history::sweep::deadline(self)).min();
@@ -1705,11 +1714,11 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             out.push(Request::MarkedForges);
         }
         Event::SecretsErased { forge } => {
-            crate::removal::secrets_erased(d, forge, out);
+            crate::removal::secrets_erased(d, env, forge, out);
             crate::playground::removed(d, out);
         }
         Event::BoxRemoved { forge } => {
-            crate::removal::box_removed(d, forge, out);
+            crate::removal::box_removed(d, env, forge, out);
             crate::playground::removed(d, out);
         }
         Event::FollowChangeAmended { task, follows, words } => {
@@ -1874,7 +1883,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             held::drop_section(d, section);
             brief::drop_section(d, section);
         }
-        Event::ReleaseProject { project, request } => adoption::release(d, project, request, out),
+        Event::ReleaseProject { project, request } => adoption::release(d, env, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::ForgetAdoption { repository, restore } => match restore {
             Some(previous) => {
@@ -1883,12 +1892,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 emit(out, Request::MarkedForges);
             }
             None => {
-                if d.repositories.remove(&repository).is_some() {
-                    crate::landing_log::erased(d, repository, out);
-                    crate::drafts::erase_repository(d, repository, out);
-                    emit(out, Request::Erase { key: Key::Repository(repository) });
-                    emit(out, Request::MarkedForges);
-                }
+                release::repository(d, env, repository, out);
             }
         },
         Event::Names { task, resources } => {
@@ -1904,7 +1908,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Unnamed { task } => {
             if d.kept.remove(&task).is_some() {
                 emit(out, Request::Erase { key: Key::Names(task) });
-                crate::removal::unnamed(d, out);
+                release::first_write(d);
+                crate::removal::unnamed(d, env, out);
             } else {
                 unnamed(d, env, task, false, out);
             }
@@ -2160,6 +2165,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::ReadAfresh => read_afresh(d, env, out),
         Event::SettleOutbox => settle_outbox(d, env, out),
     }
+    release::first_page(d, env, out);
     if d.retire_pending {
         d.retire_pending = false;
         retire_ended(d, env, out);
@@ -2218,12 +2224,16 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restore_fit.is_some() {
         return;
     }
-    if d.restore_phase == RestorePhase::Restoring && !d.stopping {
-        return;
-    }
     if d.stopping {
         skein_forge_client::fire(&mut d.client, &child_env(env), &mut d.client_out);
         drain(d, env, out);
+        return;
+    }
+    if release::pending(d) {
+        release::page(d, env, out);
+        return;
+    }
+    if d.restore_phase == RestorePhase::Restoring {
         return;
     }
     crate::history::sweep::fire(d, env.wall, out);
@@ -2312,6 +2322,16 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 emit(out, Request::Settled { unfinished: unfinished.into_boxed() });
             }
             skein_forge_client::Request::Save { record } => {
+                let repository = match &record {
+                    skein_forge_client::Stored::Live(row) => Some(row.watch.resource.repository),
+                    skein_forge_client::Stored::Repository(row) => Some(row.repository),
+                    skein_forge_client::Stored::Writer(_) => None,
+                };
+                if let Some(repository) = repository
+                    && !d.repositories.contains_key(&repository)
+                {
+                    continue;
+                }
                 let record = match record {
                     skein_forge_client::Stored::Writer(row) => Stored::Writer(row),
                     row @ (skein_forge_client::Stored::Live(_) | skein_forge_client::Stored::Repository(_)) => {
@@ -2320,9 +2340,31 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 };
                 emit(out, Request::Save { read_afresh: None, release: None, record });
             }
-            skein_forge_client::Request::Erase { key } => emit(out, Request::Erase { key: Key::Client(key) }),
-            skein_forge_client::Request::Progress { entry } => keep_entry(d, entry, None, out),
+            skein_forge_client::Request::Erase { key } => {
+                match &key {
+                    skein_forge_client::Key::Repository(repository) => {
+                        if release::contains(d, *repository) {
+                            release::first_write(d);
+                        }
+                    }
+                    skein_forge_client::Key::Live(_) | skein_forge_client::Key::Writer(_) => {}
+                }
+                emit(out, Request::Erase { key: Key::Client(key) });
+            }
+            skein_forge_client::Request::Progress { entry } => {
+                if d.entries.contains_key(&entry.number) && d.repositories.contains_key(&entry.repository) {
+                    keep_entry(d, entry, None, out);
+                }
+            }
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
+                if !d.entries.contains_key(&entry) {
+                    // Keep the outbox's idempotent erasure, but no settled facts or terminal for an unheld entry.
+                    if d.releasing.withdrawing != Some(entry) {
+                        release::first_write(d);
+                        emit(out, Request::Erase { key: Key::Entry(entry) });
+                    }
+                    continue;
+                }
                 if outage::outcome(d, env, entry, outcome, out) {
                     continue;
                 }
@@ -2785,8 +2827,9 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Q
             keep_names(d, env, task, resources, out);
         } else {
             emit(out, Request::Erase { key: Key::Names(task) });
+            release::first_write(d);
         }
-        crate::removal::unnamed(d, out);
+        crate::removal::unnamed(d, env, out);
     }
     drain(d, env, out);
 }
@@ -3195,6 +3238,12 @@ fn lost_read(
     out: &mut Queue<Request>,
 ) {
     let Some(mut pending) = d.lost.remove(&owner) else { return };
+    if !d
+        .repositories
+        .contains_key(&skein_forge::api::Repository { forge: pending.name.forge, repository: pending.name.repository })
+    {
+        return;
+    }
     let Some(row) = d.holds.get(&pending.name) else { return };
     if !pending_writer(row, &pending) {
         // temper/docs/design/domain/forge/change/repairs.md, pinned pull
@@ -4613,8 +4662,12 @@ fn step_read(
     if d.stopping {
         return;
     }
-    arm_gather(d, env, &pending);
     let Some(row) = d.changes.get(&pending.task) else { return };
+    if !d.repositories.contains_key(&row.repository) {
+        return;
+    }
+    arm_gather(d, env, &pending);
+    let row = d.changes.get(&pending.task).expect("held change");
     if row.frozen() {
         d.read_sessions.remove(&pending.task);
         if let Some(decision) = change_terminal(row) {
@@ -8030,6 +8083,9 @@ fn ci_read(
     out: &mut Queue<Request>,
 ) {
     let Some(pending) = d.pending_ci.remove(&owner) else { return };
+    if !d.repositories.contains_key(&pending.repository) {
+        return;
+    }
     if let Ok(skein_forge::api::Answer::Checks(rows)) = result {
         let required = match d.repositories.get(&pending.repository) {
             Some(repository) => crate::ci::required(&repository.protection),
@@ -8054,6 +8110,9 @@ fn ci_observed(
     out: &mut Queue<Request>,
 ) {
     let topic = Topic::Ci { repository, head };
+    if !d.repositories.contains_key(&repository) {
+        return;
+    }
     let mut named = false;
     for (_, subscriber) in &d.subscriptions {
         if subscriber.topic == topic {
@@ -8083,6 +8142,9 @@ fn changed(
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     out: &mut Queue<Request>,
 ) {
+    if !d.repositories.contains_key(&resource.repository) {
+        return;
+    }
     match result {
         Ok(skein_forge::api::Answer::Commit(commit)) => branch_changed(d, env, resource, commit, out),
         Ok(skein_forge::api::Answer::Pull(pull)) => pull_changed(d, env, resource, pull, out),
@@ -8226,6 +8288,9 @@ fn branch_changed(
     commit: skein_forge::api::Commit,
     out: &mut Queue<Request>,
 ) {
+    if !d.repositories.contains_key(&resource.repository) {
+        return;
+    }
     let Some(name) = from_client(&resource, &env.limits) else { return };
     // A held goal's head is confirmed by its writers and merge outcomes.
     // An observation must not replace the baseline used to detect drift.
@@ -8376,6 +8441,9 @@ pub(crate) fn pull_changed(
     pull: skein_forge::api::Pull,
     out: &mut Queue<Request>,
 ) {
+    if !d.repositories.contains_key(&resource.repository) {
+        return;
+    }
     crate::landing::pull_changed(d, resource.repository, &pull, out);
     let name = from_client(&resource, &env.limits);
     let prior = match &name {
@@ -8979,6 +9047,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     crate::removal::restart(d, out);
+    crate::removal::restart_releases(d, env, out);
     emit(out, Request::RestartDone { stage: RestartStage::Restored });
 }
 
@@ -9060,47 +9129,18 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 // kept task names retain repository rows; live watches and release gates retire.
 /// Drop the forge's local reads now; the event's environment retires its watches before returning.
 pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    let mut repositories = List::with_capacity(d.repositories.len());
+    for (repository, _) in &d.repositories {
+        if repository.forge == forge {
+            repositories.push(*repository).expect("bounded repositories");
+        }
+    }
+    for repository in repositories.into_boxed() {
+        release::retire(d, repository);
+    }
     connection_wait::retire(d, forge);
     outage::retire(d, forge);
     goal_branch::retire(d, forge);
-    let mut removed = List::with_capacity(d.lost.capacity());
-    for (owner, pending) in &d.lost {
-        if pending.name.forge == forge {
-            removed.push(*owner).expect("bounded lost reads");
-        }
-    }
-    for owner in removed.into_boxed() {
-        d.lost.remove(&owner);
-    }
-    let mut ci = List::with_capacity(d.pending_ci.len());
-    for (owner, pending) in &d.pending_ci {
-        if pending.repository.forge == forge {
-            ci.push(*owner).expect("bounded CI reads");
-        }
-    }
-    for owner in ci.into_boxed() {
-        d.pending_ci.remove(&owner);
-    }
-    let mut files = List::with_capacity(d.goal_file_reads.capacity());
-    for (owner, pending) in &d.goal_file_reads {
-        if pending.repository.forge == forge {
-            files.push(*owner).expect("bounded goal file reads");
-        }
-    }
-    for owner in files.into_boxed() {
-        d.goal_file_reads.remove(&owner);
-    }
-    let mut steps = List::with_capacity(d.steps.capacity());
-    for (owner, pending) in &d.steps {
-        if let Some(row) = d.changes.get(&pending.task)
-            && row.repository.forge == forge
-        {
-            steps.push(*owner).expect("bounded change reads");
-        }
-    }
-    for owner in steps.into_boxed() {
-        d.steps.remove(&owner);
-    }
     d.retire_pending = true;
 }
 
@@ -9127,6 +9167,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
             settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
             not_made(d, number, out);
+            child(d, env, skein_forge_client::Event::Withdraw { entry: number }, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed
             {
@@ -9175,7 +9216,12 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 /// One pass over the forge's repositories (temper/docs/design/domain/forge/adoption.md, 1).
-pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> bool {
+pub(crate) fn erase_removed_repositories(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    forge: u16,
+    out: &mut Queue<Request>,
+) -> bool {
     let mut erased = List::with_capacity(d.repositories.capacity());
     let mut kept = false;
     for (repository, _) in &d.repositories {
@@ -9208,11 +9254,7 @@ pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Q
         }
     }
     for repository in erased.into_boxed() {
-        d.repositories.remove(&repository);
-        crate::landing_log::erased(d, repository, out);
-        crate::drafts::erase_repository(d, repository, out);
-        emit(out, Request::Erase { key: Key::Repository(repository) });
-        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(repository)) });
+        release::repository(d, env, repository, out);
     }
     !kept
 }

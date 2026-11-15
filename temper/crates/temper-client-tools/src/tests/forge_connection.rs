@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use jig_client::{self as client, contract as c};
 use skein_lib::{Reader, RequestEnvelope, Secret};
-use temper_client_domain::forge::forges::PASTED_PAYLOAD;
+use temper_client_domain_forge::forge::forges::PASTED_PAYLOAD;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const CONNECT: &[&str] = &["forge", "connect", "3", "github-app", "4242", "app.pem", "--key", "app"];
@@ -22,14 +22,14 @@ fn request(root: &f::Harness, call: u32) -> w::Request {
     };
     assert_eq!(record.family, wire::FORGE);
     assert_eq!(record.version, wire::CLIENT_VERSION);
-    let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("wire limits");
+    let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("wire limits");
     let mut reader = Reader::new(&record.bytes);
     let request = w::Requesting::decode(&limits, &mut reader).expect("request").into_parts().request;
     assert!(reader.is_empty());
     request
 }
 fn link() -> w::Outcome {
-    let limits = temper_client_domain::forge::wire_limits(&f::limits_root().domain.forge).expect("wire limits");
+    let limits = temper_client_domain_forge::forge::wire_limits(&f::limits_root().domain.forge).expect("wire limits");
     w::Outcome::Link(w::Link::new(&limits, w::LinkParts { address: ADDRESS.into() }).expect("link"))
 }
 
@@ -171,7 +171,7 @@ fn every_forge_refusal_prints_words_json_and_exit_two() {
                     None
                 };
                 let call = root.submit_prepared(f::call(words), json, value);
-                let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+                let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
                 root.adoption_answer(
                     call,
                     w::Outcome::ConnectRefused(
@@ -407,7 +407,7 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
         root.root.client(),
         &env,
         &client::Told::Kept {
-            key: client::Key { asker: temper_client_domain::owner::Owner::Forge.asker(), number: 5 },
+            key: client::Key { asker: temper_client_domain_forge::owner::Owner::Forge.asker(), number: 5 },
             request: root.adoption_bytes(call).clone(),
         },
         &mut out,
@@ -417,7 +417,7 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
 }
 
 fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstState, stop: Option<w::AdminStop>) {
-    let l = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).unwrap();
+    let l = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
     let first = w::FirstRepository::new(
         &l,
         w::FirstRepositoryParts {
@@ -457,7 +457,7 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
         .unwrap(),
     )
     .unwrap();
-    let subject = temper_client_domain::forge::forges::watch(&root.limits.domain.forge).unwrap();
+    let subject = temper_client_domain_forge::forge::forges::watch(&root.limits.domain.forge).unwrap();
     let watch = root.watch_token(&subject);
     root.client(client::Event::Up {
         up: client::Up::FamilyDelivered {
@@ -519,7 +519,7 @@ fn admin_first_makes_a_new_project_or_uses_its_number_or_name_then_prints_the_ad
             assert!(adoption.home);
             assert!(adoption.ci);
             assert_eq!(adoption.role, w::Role::Owned);
-            assert_eq!(root.sent_name(call), Some(temper_client_domain::forge::first_repository_key(3, false)));
+            assert_eq!(root.sent_name(call), Some(temper_client_domain_forge::forge::first_repository_key(3, false)));
             root.adoption_answer(call, f::adopted_with_unknown_protection());
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, 0);
@@ -579,7 +579,7 @@ fn admin_first_reruns_use_the_same_project_and_adoption_keys_and_keep_an_existin
             previous = Some(key);
             root.adoption_answer(call, f::forge_refused(w::ForgeReason::Refused));
             assert!(!root.sent_adoption(call).home);
-            assert_eq!(root.sent_name(call), Some(temper_client_domain::forge::first_repository_key(3, true)));
+            assert_eq!(root.sent_name(call), Some(temper_client_domain_forge::forge::first_repository_key(3, true)));
             root.adoption_answer(call, f::adopted_with_unknown_protection());
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, 0);
@@ -634,7 +634,7 @@ fn admin_first_refused_as_the_bot_s_login_exits_two_naming_the_remedy() {
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
         let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin connect") };
         assert_eq!(admin.first().as_ref().unwrap().org(), b"temper-bot");
-        let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).unwrap();
+        let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
         root.adoption_answer(
             call,
             w::Outcome::ConnectRefused(
@@ -667,7 +667,7 @@ fn accept_sends_the_existing_id_without_a_value_and_prints_its_next_call() {
             let w::Request::Accept(accept) = request(&root, call) else { panic!("accept") };
             assert_eq!((accept.forge(), accept.installation()), (3, 22));
             assert!(root.carried.is_empty());
-            let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+            let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
             root.adoption_answer(
                 call,
                 w::Outcome::Accepted(
@@ -728,7 +728,7 @@ fn a_stopped_accept_prints_its_reason_and_keeps_the_json_reason() {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(ACCEPT), json, None);
-            let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+            let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
             root.adoption_answer(
                 call,
                 w::Outcome::ForgeRefused(
@@ -759,7 +759,7 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
         record.request.request = root.adoption_bytes(call).clone();
         let mut root = f::started_with(records, f::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
-        let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+        let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
         root.adoption_answer(
             0,
             w::Outcome::Accepted(
@@ -885,7 +885,7 @@ fn tokens_file_layout_preserves_values_and_names_only_errors() {
     use crate::forges::tokens::Tokens;
     let file = b"git git placeholder  \nwebhook_secret hook placeholder\napi api placeholder";
     let Ok(bundle) = Tokens::read(file, true) else { panic!("connect tokens") };
-    let expected = temper_client_domain::forge::forges::pasted_tokens(
+    let expected = temper_client_domain_forge::forge::forges::pasted_tokens(
         Some(b"api placeholder"),
         Some(b"git placeholder  "),
         Some(b"hook placeholder"),
@@ -962,7 +962,8 @@ fn tokens_connect_carries_the_items_for_kept_and_new_connected_forges() {
     let items = token_items();
     let file = tokens_file(&items);
     let expected =
-        temper_client_domain::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2])).unwrap();
+        temper_client_domain_forge::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2]))
+            .unwrap();
     for json in [false, true] {
         for words in [TOKENS, NEW_TOKENS] {
             let mut root = f::signed_in(f::PARTY);
@@ -1068,19 +1069,19 @@ fn replace_carries_one_key_or_the_given_tokens_then_prints_the_wait() {
     pem.put(&items[0]).unwrap();
     let pem = pem.finish();
     for (file, expected) in [
-        (pem.as_ref(), temper_client_domain::forge::forges::pasted_app_key(&pem).unwrap()),
+        (pem.as_ref(), temper_client_domain_forge::forge::forges::pasted_app_key(&pem).unwrap()),
         (
             file.as_ref(),
-            temper_client_domain::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2]))
+            temper_client_domain_forge::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2]))
                 .unwrap(),
         ),
         (
             b"api api placeholder".as_slice(),
-            temper_client_domain::forge::forges::pasted_tokens(Some(b"api placeholder"), None, None).unwrap(),
+            temper_client_domain_forge::forge::forges::pasted_tokens(Some(b"api placeholder"), None, None).unwrap(),
         ),
         (
             b"git git placeholder".as_slice(),
-            temper_client_domain::forge::forges::pasted_tokens(None, Some(b"git placeholder"), None).unwrap(),
+            temper_client_domain_forge::forge::forges::pasted_tokens(None, Some(b"git placeholder"), None).unwrap(),
         ),
     ] {
         for json in [false, true] {
@@ -1129,7 +1130,7 @@ fn tokens_connect_and_replace_print_engine_refusals_with_exit_two() {
                 let items = token_items();
                 let mut root = f::signed_in(f::PARTY);
                 let call = root.submit_prepared(f::call(words), json, Some(Secret::new(tokens_file(&items))));
-                let bounds = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).unwrap();
+                let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
                 root.adoption_answer(
                     call,
                     w::Outcome::ConnectRefused(

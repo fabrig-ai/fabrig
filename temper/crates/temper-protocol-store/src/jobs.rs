@@ -4,10 +4,14 @@ use jig_protocol_store::{JobAnswer, JobPage, JobRefusal, JobWrite};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary::{ChangeRow, Key, Stored};
 
+mod deleted;
+pub use deleted::{Present, read_present};
+
 /// Dispatch an application's job at open.
-pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
+pub fn page(job: &str, page: &JobPage, present: &Present, bounds: &crate::Bounds) -> Result<JobAnswer, JobRefusal> {
     match job {
         "change-parts" => change_parts(page),
+        "deleted-repository-forge-rows" => deleted::page(page, present, bounds),
         _ => Err(refusal(None, "no such temper job")),
     }
 }
@@ -50,7 +54,7 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if through.is_none() {
                 return Err(refusal(Some(row.key.clone()), "change parts exceed the job edge"));
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         }
         bytes = cost.expect("cost checked");
         for write in row_writes {
@@ -58,7 +62,7 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         through = Some(row.key.clone());
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 
 fn legacy(key: &[u8], bytes: &[u8]) -> Option<ChangeRow> {

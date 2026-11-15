@@ -47,7 +47,7 @@
 
   | Region | Place | Arranged | Border | Padding | Holds |
   |---|---|---|---|---|---|
-  | `tui-header` | top | lines | none | 0 | the header, its mark and two lines, a blank row under it (`pages/README.md`, 3) |
+  | `tui-header` | top | lines | none | 1 | the header: a blank row, its mark and two lines, a blank row under it (`pages/README.md`, 3) |
   | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; a talk's head |
   | `tui-sections` | body | lines | none | 1 | the launchpad's sections and notes |
   | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages/design-session.md`, 1) |

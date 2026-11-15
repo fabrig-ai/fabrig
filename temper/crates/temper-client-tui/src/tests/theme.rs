@@ -67,7 +67,8 @@ fn the_themes_are_valid_and_name_every_look() {
                     0,
                 ),
                 (5, "tui-list", Place::Bottom, Arrange::Lines, None, 0),
-                (7, "tui-header", Place::Top, Arrange::Lines, None, 0),
+                (7, "tui-header", Place::Top, Arrange::Lines, None, 1),
+                (8, "tui-header-line", Place::Body, Arrange::Spread, None, 0),
                 (
                     6,
                     "tui-pane",

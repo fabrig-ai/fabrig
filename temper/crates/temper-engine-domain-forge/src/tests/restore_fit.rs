@@ -11,7 +11,7 @@ fn name(number: u32) -> Name {
     Name { forge: 1, repository: 2, what: What::Pull(u64::from(number)) }
 }
 #[expect(clippy::too_many_lines, reason = "one fixture per owned restore table")]
-fn row(kind: RecordKind, number: u32) -> Stored {
+pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
         RecordKind::Closer => Stored::Closer(CloserRow {

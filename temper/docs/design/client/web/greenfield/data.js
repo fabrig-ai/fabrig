@@ -346,9 +346,9 @@ window.MOCK.firstRun = {
     n: 3, name: 'Forgejo on this machine', web: 'http://127.0.0.1:8368', org: 'work', repo: 'hello', login: 'temper',
     versions: { forgejo: '17.0.0', runner: '13.2.0' },
     steps: [
-      { ms: 4000, doing: 'Fetching Forgejo 17.0.0 and its runner 13.2.0', done: 'Fetched Forgejo 17.0.0 and its runner 13.2.0' },
-      { ms: 3000, doing: 'Preparing its database, temper’s admin and your account', done: 'Prepared its database, temper’s admin and your account' },
-      { ms: 2500, doing: 'Starting Forgejo and its runner', done: 'Started Forgejo and its runner' },
+      { ms: 4000, doing: 'Fetching Forgejo', done: 'Fetched Forgejo' },
+      { ms: 3000, doing: 'Preparing Forgejo', done: 'Prepared Forgejo' },
+      { ms: 2500, doing: 'Starting Forgejo', done: 'Started Forgejo' },
       { ms: 2000, doing: 'Connecting as temper', done: 'Connected as temper' },
     ],
     // What it starts with, chosen in the sheet "Run on this machine" opens:

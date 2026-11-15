@@ -24,7 +24,10 @@ data outside the checkout. The merge job has no such input and leaves them
 unmerged. It also leaves unknown recordings and hand-written fixture inputs
 unmerged; it never infers a command from a conflicted file's contents or suffix.
 The result is `$TEMPER_JOB/result.json`; exit 0 means settled, 3 means conflicts
-remain. Baseline recounts require Python's standard library and git; recording
+remain. Left files are records of their kind, with the deleting or renaming
+side and commit where known, from the index and each side's history; the 512-byte result
+keeps whole records, with `more` for omissions (temper/docs/design/protocol/tooling.md, 4.1).
+Baseline recounts require Python's standard library and git; recording
 regeneration also requires the generator's build tools and dependencies.
 
 Run the scratch-repository tests with

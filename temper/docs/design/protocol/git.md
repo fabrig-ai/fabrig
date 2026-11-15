@@ -430,6 +430,11 @@ git clean -ffdxq                                                          only w
   directory, nested repositories included.
 - **Exit 0 from both:** `Succeeded`; any other exit of the checkout is
   classified by section 6's table, and of `git clean`, `Broken`.
+- **Told apart.** Both run under the operation's one remote deadline, and a
+  failure names the invocation it ended in (section 6): `checkout`, its
+  lazy fetch's time within it, or `clean`. So a deadline that passes
+  during the checkout and one that passes during the clean read apart in
+  the prepare's detail (`../domain/worker/checkouts.md`, 1.1).
 
 ### 4.6 Merge
 
@@ -745,7 +750,7 @@ two `Store`s of one store at once, which the cache never starts
   forge sent and references under the workspace's token.
 - **Never maintained:** `gc.auto=0` and `maintenance.auto=false` hold for
   it as for every repository, so nothing prunes an object a checkout may
-  borrow (`../domain/worker/checkouts.md`, section 1).
+  borrow (`../domain/worker/checkouts.md`, section 2).
 
 ### 4.12 Point
 
@@ -850,6 +855,18 @@ variable of the worker's own process reaches git.
   identity's value, a failed spawn of the first, a named program that
   fails its version, Make's file operations) ends `Failed { fault }`,
   but for no program, whose diagnostic names the host (section 3).
+- **The command it ended in.** The component names, on every
+  `FailedWithOutput` it ends with, the invocation the operation was in
+  when it failed (`PushDiagnostic::command`): git's subcommand as its argv
+  names it (section 4), `checkout`, `clean`, `fetch`, `merge-base` and the
+  rest, or, for one of the sequence's file operations, its word: `store`,
+  `install`, `alternates`, `reds`, `results` or `scan`. It is the
+  invocation running when the deadline passed, the cancel won or git
+  failed, or, once the next was asked of io, that one. A `Failed { fault }`
+  names none, nor does a diagnostic made outside the component (no
+  identity, an App not installed: section 2); a diagnostic's other
+  readers (a delivery's refusal, push verification) take its output and
+  cut alone, so no wire changes.
 - **The messages are git 2.47's** in the C locale, as the transcripts of
   section 9 record them; a version that words them otherwise classifies
   them `Broken`, which the domain retries as transient and the process
@@ -1032,4 +1049,4 @@ checks this document's contract:
   garbage collection and maintenance, which costs little while a new
   workstream makes its workspace again. A clone kept past one
   (`../domain/worker/checkouts.status.md`) gathers old objects until a make, and a
-  store gathers every fetch's for the worker's life (`../domain/worker/checkouts.md`, 1). Default: nothing collects them.
+  store gathers every fetch's for the worker's life (`../domain/worker/checkouts.md`, 2). Default: nothing collects them.

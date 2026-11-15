@@ -71,6 +71,7 @@ pub struct Worker {
     pub(crate) undecodable_values: u64,
     payload: temper_protocol_worker_wire::v1::Limits,
     pub(super) io: Queue<io::Request>,
+    name: Box<[u8]>,
     connection: Connection,
     notes: Queue<crate::worker_alone::Note>,
     socket: Option<Token>,
@@ -98,12 +99,22 @@ enum Connection {
 #[derive(Debug)]
 struct Remote {
     address: core::net::SocketAddr,
-    worker: Box<[u8]>,
     end: Option<crate::worker_alone::End>,
     hello_pending: bool,
     linked: bool,
     loss_pending: bool,
     last_refusal: Option<(core::net::SocketAddr, crate::Refusal)>,
+}
+/// The worker names itself within the hub's wire bound, keeping the head
+/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+fn hosted_detail(name: &[u8], detail: &[u8], bound: u32) -> Box<[u8]> {
+    let size = name.len().saturating_add(detail.len()).saturating_add(7);
+    let mut text = Writer::new(size.min(usize::try_from(bound).expect("u32 detail bound")));
+    for part in [b"host ".as_slice(), name, b": ", detail] {
+        let keep = part.len().min(text.room());
+        text.put(part.get(..keep).expect("bounded detail head")).expect("detail fits remaining room");
+    }
+    text.finish()
 }
 impl Worker {
     pub fn new(
@@ -195,11 +206,11 @@ impl Worker {
             undecodable_values: 0,
             payload: prepared.payload,
             io: Queue::uncapped(),
+            name: config.name.clone(),
             connection: match prepared.address {
                 io::Addr::InProcess(name) => Connection::InProcess(name),
                 io::Addr::Ip(address) => Connection::Socket(Box::new(Remote {
                     address,
-                    worker: config.name.clone(),
                     end: None,
                     hello_pending: false,
                     linked: false,
@@ -613,7 +624,7 @@ impl Worker {
                         if remote.loss_pending {
                             remote.loss_pending = false;
                             self.notes.push(crate::worker_alone::Note::Lost {
-                                worker: remote.worker.clone(),
+                                worker: self.name.clone(),
                                 address: Box::new(remote.address),
                                 why,
                             });
@@ -650,7 +661,7 @@ impl Worker {
                 {
                     remote.last_refusal = Some((remote.address, reason));
                     self.notes.push(crate::worker_alone::Note::Refused {
-                        worker: remote.worker.clone(),
+                        worker: self.name.clone(),
                         address: Box::new(remote.address),
                         reason,
                     });
@@ -685,10 +696,22 @@ impl Worker {
         &mut self,
         run: Token,
         attempt: Token,
-        answer: hub::RunAnswer,
+        mut answer: hub::RunAnswer,
         work: &root::wire::Work,
         preparation: Option<&root::wire::Preparation>,
     ) {
+        match &mut answer.ending {
+            hub::Ending::Failed { failure: hub::Failure::Unprepared(_), detail, .. } => {
+                *detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
+            }
+            hub::Ending::Failed {
+                failure: hub::Failure::Run(_) | hub::Failure::Agent(_) | hub::Failure::Cancelled(_),
+                ..
+            }
+            | hub::Ending::Refused(_)
+            | hub::Ending::Ended { .. }
+            | hub::Ending::Parked { .. } => {}
+        }
         let parts = worker_route::answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::Answer { run, attempt, answer }, parts });
     }
@@ -696,10 +719,27 @@ impl Worker {
         &mut self,
         run: Token,
         attempt: Token,
-        answer: hub::JobEnding,
+        mut answer: hub::JobEnding,
         work: &root::wire::Work,
         preparation: Option<&root::wire::Preparation>,
     ) {
+        match &mut answer {
+            hub::JobEnding::Failed { failure: hub::JobFailure::Unprepared(_), detail, .. } => {
+                *detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
+            }
+            hub::JobEnding::Failed {
+                failure:
+                    hub::JobFailure::Failed
+                    | hub::JobFailure::Deadline
+                    | hub::JobFailure::Result
+                    | hub::JobFailure::Unstarted
+                    | hub::JobFailure::Undelivered(_)
+                    | hub::JobFailure::Cancelled(_),
+                ..
+            }
+            | hub::JobEnding::Refused(_)
+            | hub::JobEnding::Finished { .. } => {}
+        }
         let kind = self.root.job_kind(run, attempt);
         let why = self.root.job_why(run, attempt);
         let ending = match &answer {
@@ -786,8 +826,20 @@ impl Worker {
         let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
         self.answered(settled);
     }
+    fn note_unprepared(&mut self, run: Token, attempt: Token, failure: hub::Preparation, detail: &[u8]) {
+        let detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
+        self.notes.push(crate::worker_alone::Note::Unprepared {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure: hub::Failure::Unprepared(failure),
+            detail,
+        });
+    }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Unprepared { run, attempt, failure, detail } => {
+                self.note_unprepared(run, attempt, failure, &detail);
+            }
             root::Request::ResultsIgnored { owner, tag, reason } => {
                 self.notes.push(crate::worker_alone::Note::ResultsIgnored { owner: owner.raw(), tag, reason });
             }
@@ -818,7 +870,7 @@ impl Worker {
                     remote.linked = true;
                     remote.loss_pending = false;
                     self.notes.push(crate::worker_alone::Note::Linked {
-                        worker: remote.worker.clone(),
+                        worker: self.name.clone(),
                         address: Box::new(remote.address),
                     });
                 }

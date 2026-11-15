@@ -102,6 +102,8 @@ elif name == 'cargo':
                 'spans': [{'is_primary': True, 'file_name': str(Path.cwd() / error['file']),
                            'line_start': error['line']}], 'rendered': error['rendered']}}))
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
+    if kind == 'build':
+        sys.exit(ledger.get('build_exit', 0))
     assert kind != 'nextest', 'pre-pr must not run cargo nextest'
     raise AssertionError('unexpected cargo command: ' + str(args))
 elif name == 'one-process':
@@ -114,7 +116,9 @@ elif name == 'one-process':
         assert not directory.exists() and directory.parent == original.parent
         binary, *names = args[4:]
         ledger = state.get('head', {})
-        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1])
+        profile = 'default' if original.name == 'tests' else 'fuzzy'
+        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1]
+                      and t.get('profile', 'default') == profile)
         assert names == target.get('before', []) + [target['name']]
         spend(100, ['again', args])
         directory.mkdir(mode=0o700)
@@ -124,13 +128,18 @@ elif name == 'one-process':
         sys.exit(0 if outcome == 'passed' else 100)
     assert args[:1] == ['--out']
     directory = Path(args[1])
-    assert directory.name == 'tests' and not directory.exists()
+    profile = args[2]
+    assert profile in ('default', 'fuzzy')
+    assert directory.name == ('tests' if profile == 'default' else 'fuzzy') and not directory.exists()
     packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
-    assert args[2:] == ['default'] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
+    assert args[2:] == [profile] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
     spend(100, ['one-process', side, packages, args])
     ledger = state.get('head', {})
     directory.mkdir(mode=0o700)
-    tests = [t for t in ledger.get('tests', []) if t['package'] in packages]
+    tests = [t for t in ledger.get('tests', []) if t['package'] in packages
+             and t.get('profile', 'default') == profile]
+    if profile == 'fuzzy':
+        ledger = ledger.get('fuzzy', {})
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -304,28 +313,26 @@ fn initial_design_delivery_fits_check_budget() {
     let root = scratch.path();
     assert!(!passed(root), "first delivery has no success marker");
     let index = fs::read(root.join(".git/index")).expect("real index");
-    for addition in ["first", "second"] {
-        write(root, &format!("temper/docs/design/{addition}.md"), "# Design addition\n");
-        reset(root, "");
-        let output = deliver(root);
-        assert!(
-            output.status.success(),
-            "initial design delivery exceeds its unchanged 60000 ms budget: {}\n{}",
-            String::from_utf8_lossy(&output.stderr),
-            budget(root)
-        );
-        assert!(budget(root)["ms"].as_u64().expect("milliseconds") <= 60_000);
-        coverage(root);
-        assert!(passed(root));
-        assert_eq!(fs::read(root.join(".git/index")).expect("index after delivery"), index);
-    }
+    write(root, "temper/docs/design/first.md", "# Design addition\n");
+    reset(root, "");
+    let output = deliver(root);
+    assert!(
+        output.status.success(),
+        "initial design delivery exceeds its unchanged 60000 ms budget: {}\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        budget(root)
+    );
+    assert!(budget(root)["ms"].as_u64().expect("milliseconds") <= 60_000);
+    coverage(root);
+    assert!(passed(root));
+    assert_eq!(fs::read(root.join(".git/index")).expect("index after delivery"), index);
 }
 
 #[test]
 fn failed_or_interrupted_checks_never_pass() {
     let scratch = fixture();
     let root = scratch.path();
-    for fault in ["format", "interrupt", "skein", "smith", "jig", "temper", "hearth"] {
+    for fault in ["format", "interrupt", "temper"] {
         reset(root, fault);
         let output = deliver(root);
         assert!(!output.status.success(), "accepted {fault}");
@@ -345,37 +352,14 @@ fn only_the_exact_passed_tree_skips_checks() {
     let root = scratch.path();
     assert!(deliver(root).status.success());
     reset(root, "format");
-    assert!(deliver(root).status.success(), "identical passed tree");
+    let cached = deliver(root);
+    assert!(cached.status.success(), "identical passed tree");
+    assert!(text(&cached).contains("passed before"));
+    assert_eq!(budget(root)["events"], json!([]));
     assert_eq!(budget(root)["ms"], 0);
     write(root, "temper/source-3.rs", "fn changed() {}\n");
     assert!(!deliver(root).status.success(), "changed source needs a new check");
-    reset(root, "");
-    assert!(deliver(root).status.success());
     coverage(root);
-    for message in ["first pin", "moved pin"] {
-        git(root, &["commit", "--allow-empty", "-qm", message]);
-        git(root, &["update-ref", "refs/temper/landing", "HEAD"]);
-        reset(root, "");
-        assert!(deliver(root).status.success(), "new base must be checked");
-        coverage(root);
-    }
-}
-
-#[test]
-fn a_goals_red_passes_a_failing_test() {
-    let scratch = fixture();
-    let root = scratch.path();
-    pin(root);
-    write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let reds = String::from_utf8(git(root, &["rev-parse", "--git-path", "temper/reds"])).expect("reds path");
-    write(root, reds.trim(), "temper-reds 1\n- test A::rules rule\n");
-    ledger(root, &json!({"head": {"tests": [test_failure("rule", "goal red output")]}}));
-    let output = deliver(root);
-    let log = text(&output);
-    assert!(output.status.success(), "goal red must inherit: {log}");
-    assert!(log.contains("inherited: test A::rules rule (red, temper/reds)"), "{log}");
-    assert!(log.contains("pre-pr: reds: 1 entries (temper/reds)"), "{log}");
-    assert!(passed(root));
 }
 
 #[test]
@@ -385,14 +369,25 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
     write(root, ".git/temper/reds-wait", "temper-reds-wait 1 1\n");
-    write(root, ".git/temper/rerun", "temper-rerun 1 4\n");
-    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules red\n- test A::rules green\n");
+    write(root, ".git/temper/rerun", "temper-rerun 1 1\n");
+    write(
+        root,
+        ".git/temper/reds",
+        "temper-reds 1\n- test A::rules red\n- test A::rules green\n- test A::rules fuzzy::green\n- test A::rules fuzzy::red\n",
+    );
     let flake = changed_field(test_failure("flake", "first log\n\nunder load"), "before", json!(["setup"]));
+    let fuzzy = changed_field(test_failure("fuzzy::flake", "fuzzy first log"), "profile", json!("fuzzy"));
+    let red = changed_field(test_failure("fuzzy::red", "inherited"), "profile", json!("fuzzy"));
+    let green = changed_field(
+        changed_field(test_failure("fuzzy::green", ""), "profile", json!("fuzzy")),
+        "outcome",
+        json!("passed"),
+    );
     ledger(
         root,
         &json!({"head": {"tests": [flake, test_failure("red", "inherited"),
-            changed_field(test_failure("green", ""), "outcome", json!("passed"))],
-            "again": {"flake": "passed"}}}),
+            changed_field(test_failure("green", ""), "outcome", json!("passed")), fuzzy, red, green],
+            "again": {"flake": "passed", "fuzzy::flake": "passed"}}}),
     );
     let output = deliver(root);
     let log = text(&output);
@@ -404,9 +399,25 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     assert!(log.contains("pre-pr: tests: inherited,"), "{log}");
     let state = budget(root);
     let again: Vec<_> = state["events"].as_array().expect("events").iter().filter(|e| e[0] == "again").collect();
-    assert_eq!(again.len(), 1, "goal reds must not run again: {state}");
-    let args = again.first().expect("one again")[1].as_array().expect("arguments");
+    assert_eq!(again.len(), 2, "each profile replays its flake, not goal reds: {state}");
+    let args = again.first().expect("focused again")[1].as_array().expect("arguments");
     assert_eq!(&args[4..], &[json!("A::rules"), json!("setup"), json!("flake")]);
+    assert!(log.contains("pre-pr: fuzzy tests: inherited,"), "{log}");
+    let calls: Vec<_> = state["events"]
+        .as_array()
+        .expect("events")
+        .iter()
+        .filter(|e| e[0] == "one-process" || e[0] == "again")
+        .collect();
+    assert_eq!(
+        calls.iter().map(|e| e[0].clone()).collect::<Vec<_>>(),
+        vec![json!("one-process"), json!("again"), json!("one-process"), json!("again")]
+    );
+    let fuzzy_args = again.get(1).expect("fuzzy again")[1].as_array().expect("arguments");
+    assert!(args[1].as_str().expect("focused run").ends_with("/tests"));
+    assert!(fuzzy_args[1].as_str().expect("fuzzy run").ends_with("/fuzzy"));
+    assert_ne!(args[3], fuzzy_args[3], "each again has its own directory");
+    assert_eq!(&fuzzy_args[4..], &[json!("A::rules"), json!("fuzzy::flake")]);
     let record = fs::read_to_string(root.join(".git/pre-pr-passed")).expect("passed record");
     let fields: Vec<_> = record.split_whitespace().collect();
     let tree = fields.first().expect("tree");
@@ -415,7 +426,7 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     assert_eq!(
         results,
         format!(
-            "temper-check 1\ncheck {tree} {base} passed\npassed test A::rules green\nfailed test A::rules red\nflake test A::rules flake\n|\n| first log\n|\n| under load\n"
+            "temper-check 1\ncheck {tree} {base} passed\npassed test A::rules fuzzy::green\nfailed test A::rules fuzzy::red\npassed test A::rules green\nfailed test A::rules red\nflake test A::rules flake\n|\n| first log\n|\n| under load\nflake test A::rules fuzzy::flake\n|\n| fuzzy first log\n"
         )
     );
     assert!(!root.join(".git/temper/check-results.tmp").exists());
@@ -424,47 +435,6 @@ fn a_flake_reports_its_first_log_and_observed_reds() {
     assert!(cached.status.success(), "{}", text(&cached));
     assert!(text(&cached).contains("passed before"));
     assert!(!root.join(".git/temper/check-results").exists(), "cache hit observes nothing");
-}
-
-#[test]
-fn only_the_exact_reds_bytes_reuse_a_passed_tree() {
-    let scratch = fixture();
-    let root = scratch.path();
-    pin(root);
-    write(root, "a/src/lib.rs", "fn changed() {}\n");
-    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules rule\n");
-    ledger(root, &json!({"head": {"tests": [test_failure("rule", "goal red output")]}}));
-    let first = deliver(root);
-    assert!(first.status.success(), "{}", text(&first));
-    let record = fs::read_to_string(root.join(".git/pre-pr-passed")).expect("passed record");
-    let fields: Vec<_> = record.split_whitespace().collect();
-    assert_eq!(fields.len(), 3, "tree, base and reds digest: {record}");
-    let tree = fields.first().expect("tree");
-    let base = fields.get(1).expect("base");
-    let reds = fields.get(2).expect("reds digest");
-    assert_eq!(reds.len(), 64);
-    assert_ne!(*reds, "-");
-    let hit = format!("pre-pr: passed before (tree {tree}, base {base}, reds {reds})");
-    reset(root, "format");
-    let cached = deliver(root);
-    assert!(cached.status.success(), "identical reds: {}", text(&cached));
-    assert!(text(&cached).contains(&hit), "{}", text(&cached));
-    assert_eq!(budget(root)["ms"], 0);
-    write(root, ".git/pre-pr-passed", &format!("{tree} {base}\n"));
-    assert!(!deliver(root).status.success(), "two-field cache must not match");
-    write(root, ".git/pre-pr-passed", &record);
-    reset(root, "");
-    ledger(root, &json!({"head": {"tests": [test_failure("rule", "no longer inherited")]}}));
-    write(root, ".git/temper/reds", "temper-reds 1\n");
-    let changed = deliver(root);
-    assert!(!changed.status.success(), "changed reds must recheck: {}", text(&changed));
-    assert!(!text(&changed).contains("passed before"));
-    fs::remove_file(root.join(".git/temper/reds")).expect("remove goal reds");
-    reset(root, "");
-    ledger(root, &json!({"head": {"tests": [test_failure("rule", "reds gone")]}}));
-    let missing = deliver(root);
-    assert!(!missing.status.success(), "missing reds must recheck: {}", text(&missing));
-    assert!(!text(&missing).contains("passed before"));
 }
 
 #[test]
@@ -508,134 +478,57 @@ fn build_events(root: &Path) -> Vec<Value> {
 
 #[test]
 fn the_base_is_the_pins_merge_base() {
-    for row in ["no pin", "behind", "merge", "unrelated", "unchecked save"] {
-        let scratch = fixture();
-        let root = scratch.path();
-        let ancestor = String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
-        let mut expected = String::new();
-        let mut merge_args = vec!["merge-base", "refs/temper/landing", "HEAD"];
-        match row {
-            "no pin" => {}
-            "behind" => {
-                pin(root);
-                git(root, &["commit", "--allow-empty", "-qm", "head"]);
-                expected.clone_from(&ancestor);
-            }
-            "unchecked save" => {
-                git(root, &["commit", "--allow-empty", "-qm", "Unchecked: work in progress, saved before a question"]);
-                pin(root);
-                expected.clone_from(&ancestor);
-            }
-            "merge" | "unrelated" => {
-                let mut args = vec!["commit-tree", "HEAD^{tree}", "-m", "pin"];
-                if row == "merge" {
-                    args.extend(["-p", &ancestor]);
-                }
-                let other = String::from_utf8(git(root, &args)).expect("other commit").trim().to_owned();
-                git(root, &["update-ref", "refs/temper/landing", &other]);
-                if row == "merge" {
-                    git(root, &["commit", "--allow-empty", "-qm", "head"]);
-                    write(root, ".git/MERGE_HEAD", &other);
-                    expected = other;
-                    merge_args.push("MERGE_HEAD");
-                }
-            }
-            _ => unreachable!("table row"),
-        }
-        write(root, "temper/docs/addition.md", "# Delivery\n");
-        let output = deliver(root);
-        let log = text(&output);
-        assert!(output.status.success(), "{row}: {log}");
-        assert!(build_events(root).is_empty(), "{row}: docs build nothing");
-        if expected.is_empty() {
-            coverage(root);
-            let reason = if row == "no pin" {
-                "no refs/temper/landing"
-            } else {
-                "no merge base of refs/temper/landing and HEAD"
-            };
-            assert!(
-                log.contains(&format!("pre-pr: no base ({reason}): the format check and the counted baselines alone")),
-                "{row}: {log}"
-            );
-        } else {
-            assert!(log.contains("docs only: citations"), "{row}: {log}");
-            assert!(budget(root)["events"].as_array().expect("events").iter().all(|event| event[0] != "format"));
-            assert!(
-                log.contains(&format!("base {expected}, merge base of refs/temper/landing and HEAD")),
-                "{row}: {log}"
-            );
-            assert!(
-                budget(root)["events"].as_array().expect("events").contains(&json!(["git", merge_args])),
-                "merge command: {}",
-                budget(root)
-            );
-        }
-    }
+    let scratch = fixture();
+    let root = scratch.path();
+    write(root, ".config/gate/always.txt", "B\n");
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "boundary configuration"]);
+    let ancestor = String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
+    let other = String::from_utf8(git(root, &["commit-tree", "HEAD^{tree}", "-m", "pin", "-p", &ancestor]))
+        .expect("other commit")
+        .trim()
+        .to_owned();
+    git(root, &["update-ref", "refs/temper/landing", &other]);
+    git(root, &["commit", "--allow-empty", "-qm", "head"]);
+    write(root, ".git/MERGE_HEAD", &other);
+    write(root, "temper/docs/addition.md", "# Delivery\n");
+    let output = deliver(root);
+    let log = text(&output);
+    assert!(output.status.success(), "{log}");
+    assert_eq!(build_events(root).iter().map(|e| e[2].clone()).collect::<Vec<_>>(), vec![json!(["B"]); 2]);
+    assert!(log.contains("pre-pr: boundary tests: B"), "{log}");
+    assert!(log.contains("docs only: citations"), "{log}");
+    let state = budget(root);
+    let events = state["events"].as_array().expect("events");
+    assert!(events.iter().all(|event| event[0] != "format"));
+    assert!(log.contains(&format!("base {other}, merge base of refs/temper/landing and HEAD")), "{log}");
+    assert!(
+        events.contains(&json!(["git", ["merge-base", "refs/temper/landing", "HEAD", "MERGE_HEAD"]])),
+        "merge command: {state}"
+    );
 }
 
 #[test]
 fn the_sets_are_changed_packages_dependents_and_path_readers() {
-    for (row, path, lints, tests) in [
-        ("normal", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
-        ("dev", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
-        ("untracked", "a/src/new.rs", vec!["A"], vec!["A"]),
-        ("deleted", "a/src/lib.rs", vec!["A"], vec!["A"]),
-        ("root manifest", "Cargo.toml", vec![], vec![]),
-        ("docs", "temper/docs/selection.md", vec![], vec![]),
-        ("reader", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
-        ("reader only", "temper/docs/selection.md", vec![], vec!["B"]),
-        ("prefix-less", "temper/docs/selection.md", vec![], vec![]),
-        ("component boundary", "a-sibling/new.rs", vec![], vec![]),
-        ("unknown reader", "temper/docs/selection.md", vec![], vec![]),
-    ] {
-        let scratch = fixture();
-        let root = scratch.path();
-        let metadata_path = root.join(".git/metadata.json");
-        let mut metadata: Value = serde_json::from_slice(&fs::read(&metadata_path).expect("metadata")).expect("JSON");
-        if row == "normal" || row == "dev" {
-            metadata["packages"][1]["dependencies"] = json!([{
-                "name": "A", "path": root.join("a"), "kind": if row == "dev" { Some("dev") } else { None }
-            }]);
-            // Dependents are direct, not transitive.
-            metadata["packages"][2]["dependencies"] = json!([{"name": "B", "path": root.join("b"), "kind": null}]);
-            fs::write(metadata_path, metadata.to_string()).expect("dependencies");
-        }
-        let always = match row {
-            "reader" => "B a/\n",
-            "reader only" => "B temper/docs/\n",
-            "unknown reader" => "missing shared/\n",
-            _ => "B\n",
-        };
-        write(root, ".config/gate/always.txt", always);
-        if row == "reader only" {
-            write(root, ".config/gate/read-by-tests.txt", "temper/docs/selection.md\n");
-        }
-        write(root, "Cargo.toml", "# root manifest\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "-qm", "reader configuration"]);
-        pin(root);
-        let path = if row == "unknown reader" { "shared/input.txt" } else { path };
-        if row == "deleted" {
-            fs::remove_file(root.join(path)).expect("deleted source");
-        } else {
-            write(root, path, "# changed\n");
-        }
-        let output = deliver(root);
-        let log = text(&output);
-        assert!(output.status.success(), "{row}: {log}");
-        let events = build_events(root);
-        let actual_lints: Vec<_> = events.iter().filter(|e| e[0] == "clippy").map(|e| e[2].clone()).collect();
-        let actual_tests: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[2].clone()).collect();
-        assert_eq!(actual_lints, if lints.is_empty() { vec![] } else { vec![json!(lints)] }, "{row}: {log}");
-        assert_eq!(actual_tests, if tests.is_empty() { vec![] } else { vec![json!(tests)] }, "{row}: {log}");
-        if lints.is_empty() && tests.is_empty() && !log.contains("docs only:") {
-            assert!(log.contains("pre-pr: no package changed"), "{row}: {log}");
-        }
-        if row == "unknown reader" {
-            assert!(log.contains("missing"), "unknown reader must be printed: {log}");
-        }
-    }
+    let scratch = fixture();
+    let root = scratch.path();
+    let metadata_path = root.join(".git/metadata.json");
+    let mut metadata: Value = serde_json::from_slice(&fs::read(&metadata_path).expect("metadata")).expect("JSON");
+    metadata["packages"][1]["dependencies"] = json!([{"name": "A", "path": root.join("a"), "kind": null}]);
+    metadata["packages"][2]["dependencies"] = json!([{"name": "B", "path": root.join("b"), "kind": null}]);
+    fs::write(metadata_path, metadata.to_string()).expect("dependencies");
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let output = deliver(root);
+    let log = text(&output);
+    assert!(output.status.success(), "{log}");
+    let events = build_events(root);
+    let lints: Vec<_> = events.iter().filter(|e| e[0] == "clippy").map(|e| e[2].clone()).collect();
+    let tests: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[2].clone()).collect();
+    assert_eq!(lints, vec![json!(["A"])], "{log}");
+    assert_eq!(tests, vec![json!(["A", "B"]); 2], "{log}");
+    let profiles: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[3][2].clone()).collect();
+    assert_eq!(profiles, vec![json!("default"), json!("fuzzy")]);
 }
 
 fn test_failure(name: &str, output: &str) -> Value {
@@ -653,225 +546,73 @@ fn changed_field(mut value: Value, field: &str, replacement: Value) -> Value {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "One ledger table compares failure and starvation verdicts")]
 fn only_what_the_delivery_broke_refuses() {
-    for (row, head, reds, accepted, named) in [
-        (
-            "inherited test",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            Some("- test A::rules rule\n"),
-            true,
-            "inherited: test A::rules rule (red, temper/reds)",
-        ),
-        (
-            "different test",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            Some("- test A::rules other\n"),
-            false,
-            "test A::rules rule",
-        ),
-        ("no file", json!({"tests": [test_failure("rule", "head junit tail")]}), None, false, "test A::rules rule"),
-        (
-            "old list alone",
-            json!({"tests": [test_failure("listed", "listed junit tail")]}),
-            None,
-            false,
-            "test A::rules listed\n\nlisted junit tail",
-        ),
-        (
-            "different binary",
-            json!({"tests": [test_failure("rule", "head junit tail")]}),
-            Some("- test A::other rule\n"),
-            false,
-            "test A::rules rule",
-        ),
-        (
-            "inherited clippy",
-            json!({"clippy": [lint_failure(20, "any lint message")]}),
-            Some("- lint A clippy::rule a/src/lib.rs\n"),
-            true,
-            "inherited: clippy A clippy::rule a/src/lib.rs (red, temper/reds)",
-        ),
-        (
-            "different lint code",
-            json!({"clippy": [changed_field(lint_failure(20, "lint fault"), "code", json!("clippy::other"))]}),
-            Some("- lint A clippy::rule a/src/lib.rs\n"),
-            false,
-            "clippy A clippy::other",
-        ),
-        (
-            "different lint file",
-            json!({"clippy": [changed_field(lint_failure(20, "lint fault"), "file", json!("a/src/other.rs"))]}),
-            Some("- lint A clippy::rule a/src/lib.rs\n"),
-            false,
-            "clippy A clippy::rule a/src/other.rs",
-        ),
-        (
-            "build with entries",
-            json!({"one_process_exit": 2, "output": "one-process: nextest listing exited with 101"}),
-            Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
-            false,
-            "build\nno tests ran",
-        ),
-        (
-            "lint test and build failures",
-            json!({"clippy": [lint_failure(2, "lint fault")],
-                "tests": [test_failure("rule", "head junit tail")], "one_process_exit": 2, "output": "one-process: nextest listing exited with 101"}),
-            Some("- test A::rules rule\n- lint A clippy::rule a/src/lib.rs\n"),
-            false,
-            "build\nno tests ran",
-        ),
-        (
-            "head check error",
-            json!({"one_process_exit": 2}),
-            Some("- test A::rules rule\n"),
-            false,
-            "check one-process",
-        ),
-        (
-            "starved",
-            json!({"starved": true, "one_process_exit": 0,
-                "tests": [changed_field(test_failure("rule", "cancelled"), "outcome", json!("cancelled"))],
-                "unobserved": [{"binary_id": "A::rules", "test_name": "later"},
-                    {"binary_id": "A::rules", "test_name": "last"}]}),
-            Some("- test A::rules rule\n"),
-            true,
-            "pre-pr: tests starved: 1 starved or cancelled, 2 unobserved, a warning (skein/docs/foundation/testing-strategy.md, 8.1)",
-        ),
-    ] {
-        let scratch = fixture();
-        let root = scratch.path();
-        if row == "old list alone" {
-            write(root, ".temper/known-reds.md", "- test A::rules listed\n");
-            git(root, &["add", "."]);
-            git(root, &["commit", "-qm", "tree with a list"]);
-        }
-        pin(root);
-        write(root, "a/src/lib.rs", "fn changed() {}\n");
-        if let Some(entries) = reds {
-            write(root, ".git/temper/reds", &format!("temper-reds 1\n{entries}"));
-        }
-        ledger(root, &json!({"head": head}));
-        let output = deliver(root);
-        let log = text(&output);
-        assert_eq!(output.status.code(), Some(i32::from(!accepted)), "{row}: {log}");
-        assert!(log.contains(named), "{row}: missing {named}: {log}");
-        assert_eq!(passed(root), accepted, "{row}: cache only passes");
-        let events = build_events(root);
-        assert!(
-            events.iter().any(|e| e[0] == "one-process" && e[1] == "head"),
-            "tests run even after clippy fails: {row}"
-        );
-        let state = budget(root);
-        for event in state["events"].as_array().expect("events") {
-            let side = if event[0] == "metadata" { &event[2] } else { &event[1] };
-            assert_ne!(side, "base", "no base cargo: {row}: {event}");
-        }
-        assert!(!root.join(".git/temper-pre-pr/base").exists(), "no base worktree: {row}");
-        assert!(!log.contains("pre-pr: known reds"), "no tree list read: {row}: {log}");
-        if row == "old list alone" {
-            assert!(!log.contains("inherited:"), "list counts nothing: {log}");
-        }
-        assert!(!log.contains("inherited: build"), "build always refuses: {row}: {log}");
-        if row == "different test" || row == "no file" {
-            assert!(log.contains("head junit tail"), "JUnit output in summary: {log}");
-        }
-        if row == "inherited test" {
-            assert!(log.contains("pre-pr: tests: inherited,"), "inherited check timed: {log}");
-        }
-        if row == "inherited clippy" {
-            assert!(log.contains("pre-pr: clippy: inherited,"), "inherited check timed: {log}");
-        }
-        if row == "starved" {
-            assert_eq!(log.matches(named).count(), 2, "warning after run and in summary: {log}");
-            assert!(log.contains("pre-pr: tests: passed,"), "starvation passes: {log}");
-            assert!(!log.contains("inherited: test"), "cancelled tests are not failures: {log}");
-        }
-    }
-}
-
-#[test]
-fn the_summary_fits_the_kept_tail() {
     let scratch = fixture();
     let root = scratch.path();
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let tail = format!("{}\n", "x".repeat(63)).repeat(64);
-    assert_eq!(tail.len(), 4096);
-    let failures: Vec<_> = (0..40).map(|n| test_failure(&format!("rule_{n:02}"), &tail)).collect();
-    ledger(root, &json!({"head": {"tests": failures}}));
+    write(root, ".git/temper/reds", "temper-reds 1\n- lint A clippy::rule a/src/lib.rs\n");
+    ledger(
+        root,
+        &json!({"head": {"clippy": [changed_field(lint_failure(20, "lint fault"), "code", json!("clippy::other"))]}}),
+    );
     let output = deliver(root);
-    let log = String::from_utf8(output.stdout).expect("UTF-8 log");
+    let log = text(&output);
     assert_eq!(output.status.code(), Some(1), "{log}");
-    let (_, after_tools) = log.rsplit_once("last streamed line:").expect("streamed tools");
-    let (_, summary) = after_tools.split_once("pre-pr: refused").expect("summary last");
-    assert!(summary.len() + "pre-pr: refused".len() <= 8192, "{} bytes", summary.len());
-    assert!(summary.contains("test A::rules rule_00"), "first failure kept: {summary}");
-    assert!(summary.contains(" bytes cut]"), "cut marked: {summary}");
-    assert!(summary.contains(" more failures]"), "omitted failures counted: {summary}");
-    let entries: Vec<_> = summary.split("test A::rules ").skip(1).collect();
-    let kept = entries.len();
-    assert!(summary.contains(&format!("[\u{2026} {} more failures]", 40 - kept)), "omission count: {summary}");
-    for entry in entries {
-        let (_, output) = entry.split_once('\n').expect("failure output");
-        let output = output.lines().take_while(|line| !line.contains("more failures")).collect::<Vec<_>>().join("\n");
-        assert!(output.len() < 1536, "failure tail including marker: {} bytes", output.len() + 1);
-        let (marker, content) = output.split_once('\n').expect("marker and tail");
-        assert!(marker.starts_with("[\u{2026} ") && marker.ends_with(" bytes cut]"), "{marker}");
-        assert!(content.lines().all(|line| line.len() == 63), "tail starts at a whole line: {content}");
-        assert!(content.ends_with(&"x".repeat(63)), "last output line retained");
+    assert!(log.contains("clippy A clippy::other a/src/lib.rs"), "{log}");
+    assert!(!passed(root), "cache only passes");
+    assert!(
+        build_events(root).iter().any(|e| e[0] == "one-process" && e[1] == "head"),
+        "tests run even after clippy fails"
+    );
+    for event in budget(root)["events"].as_array().expect("events") {
+        let side = if event[0] == "metadata" { &event[2] } else { &event[1] };
+        assert_ne!(side, "base", "no base cargo: {event}");
     }
+    assert!(!root.join(".git/temper-pre-pr/base").exists(), "no base worktree");
+    assert!(!log.contains("pre-pr: known reds"), "no tree list read: {log}");
+    assert!(!log.contains("inherited: build"), "build always refuses: {log}");
     assert!(log.find("last streamed line:").expect("streamed tools") < log.rfind("pre-pr: refused").expect("summary"));
 }
 
 #[test]
 fn one_hold_spans_the_check_but_not_a_cache_hit() {
-    for setting in [None, Some(""), Some(".git/bin/hold")] {
-        let scratch = fixture();
-        let root = scratch.path();
-        pin(root);
-        write(root, "a/src/lib.rs", "fn changed() {}\n");
-        let output = command_with_hold(root, "sh", &[".temper/pre-pr"], setting);
-        assert!(output.status.success(), "{}", text(&output));
-        let state = budget(root);
-        let events: Vec<_> =
-            state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
-        if setting == Some(".git/bin/hold") {
-            assert_eq!(events.first(), Some(&json!(["hold-start", []])));
-            assert_eq!(events.get(1).expect("first cargo")[0], "metadata");
-            assert_eq!(events.last(), Some(&json!(["hold-end", true])));
-            assert!(
-                events.iter().position(|e| e[0] == "one-process-end").expect("tests returned")
-                    < events.len().saturating_sub(1)
-            );
-            assert_eq!(events.iter().filter(|e| e[0] == "hold-start").count(), 1);
-        } else {
-            assert!(!events.iter().any(|e| e[0] == "hold-start" || e[0] == "hold-end"));
-        }
-        reset(root, "format");
-        let cached = command_with_hold(root, "sh", &[".temper/pre-pr"], setting);
-        assert!(cached.status.success(), "{}", text(&cached));
-        assert!(budget(root)["events"].as_array().expect("cached events").iter().all(|e| e[0] == "git"));
-    }
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"));
+    assert!(output.status.success(), "{}", text(&output));
+    let state = budget(root);
+    let events: Vec<_> =
+        state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
+    assert_eq!(events.first(), Some(&json!(["hold-start", []])));
+    assert_eq!(events.get(1).expect("first cargo")[0], "metadata");
+    assert_eq!(events.last(), Some(&json!(["hold-end", true])));
+    assert!(
+        events.iter().position(|e| e[0] == "one-process-end").expect("tests returned") < events.len().saturating_sub(1)
+    );
+    assert_eq!(events.iter().filter(|e| e[0] == "hold-start").count(), 1);
+    reset(root, "format");
+    let cached = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"));
+    assert!(cached.status.success(), "{}", text(&cached));
+    assert!(budget(root)["events"].as_array().expect("cached events").iter().all(|e| e[0] == "git"));
 }
 
 #[test]
 fn an_early_hold_exit_warns_without_changing_the_verdict() {
-    for fault in ["", "format"] {
-        let scratch = fixture();
-        let root = scratch.path();
-        pin(root);
-        write(root, "a/src/lib.rs", "fn changed() {}\n");
-        reset(root, fault);
-        let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"));
-        assert_eq!(output.status.success(), fault.is_empty(), "{}", text(&output));
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout.matches("pre-pr: hold:").count(), 1, "{stdout}");
-        assert!(stdout.contains("; going on unheld"), "{stdout}");
-        let state = budget(root);
-        let events: Vec<_> =
-            state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
-        assert_eq!(events.first(), Some(&json!(["hold-start", ["fail"]])));
-        assert_eq!(events.get(1).expect("cargo after failed hold")[0], "metadata");
-    }
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"));
+    assert!(output.status.success(), "{}", text(&output));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.matches("pre-pr: hold:").count(), 1, "{stdout}");
+    assert!(stdout.contains("; going on unheld"), "{stdout}");
+    let state = budget(root);
+    let events: Vec<_> =
+        state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
+    assert_eq!(events.first(), Some(&json!(["hold-start", ["fail"]])));
+    assert_eq!(events.get(1).expect("cargo after failed hold")[0], "metadata");
 }

@@ -2,7 +2,7 @@
 use crate::{Answered, Domain, ForgeRefusal, ForgeState, Key, Mode, RemoveAnswer, Request, forges};
 use alloc::boxed::Box;
 use jig_domain_people::Role;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{Env, List, Queue, Token};
 
 pub(crate) fn admit(
     d: &mut Domain,
@@ -82,15 +82,15 @@ pub(crate) fn begin(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> boo
     true
 }
 
-pub(crate) fn secrets_erased(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
-    answered(d, forge, true, out);
+pub(crate) fn secrets_erased(d: &mut Domain, env: &Env<crate::Limits>, forge: u16, out: &mut Queue<Request>) {
+    answered(d, env, forge, true, out);
 }
 
-pub(crate) fn box_removed(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
-    answered(d, forge, false, out);
+pub(crate) fn box_removed(d: &mut Domain, env: &Env<crate::Limits>, forge: u16, out: &mut Queue<Request>) {
+    answered(d, env, forge, false, out);
 }
 
-fn answered(d: &mut Domain, forge: u16, secrets: bool, out: &mut Queue<Request>) {
+fn answered(d: &mut Domain, env: &Env<crate::Limits>, forge: u16, secrets: bool, out: &mut Queue<Request>) {
     let Some(mut record) = d.record(forge).cloned() else { return };
     match record.state {
         ForgeState::Kept => {}
@@ -99,7 +99,8 @@ fn answered(d: &mut Domain, forge: u16, secrets: bool, out: &mut Queue<Request>)
             let box_removed = box_removed || !secrets;
             record.state = ForgeState::Ended { secrets_erased, box_removed };
             forges::save(d, record, out);
-            settle(d, forge, out);
+            crate::domain::release::first_write(d);
+            settle(d, env, forge, out);
         }
     }
 }
@@ -121,19 +122,20 @@ pub(crate) fn restart(d: &Domain, out: &mut Queue<Request>) {
 }
 
 /// Finish removal's rows and record once both kept steps are answered.
-pub(crate) fn settle(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
+pub(crate) fn settle(d: &mut Domain, env: &Env<crate::Limits>, forge: u16, out: &mut Queue<Request>) {
     let Some(record) = d.record(forge) else { return };
     let whole = match record.state {
         ForgeState::Kept => return,
         ForgeState::Ended { secrets_erased, box_removed } => secrets_erased && box_removed,
     };
-    if crate::domain::erase_removed_repositories(d, forge, out) && whole {
-        forges::erase(d, forge, out);
+    crate::domain::erase_removed_repositories(d, env, forge, out);
+    if whole {
+        crate::domain::release::forge(d, forge);
     }
 }
 
 /// A task's erased names can release repositories on any ended forge.
-pub(crate) fn unnamed(d: &mut Domain, out: &mut Queue<Request>) {
+pub(crate) fn unnamed(d: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
     let mut ended = List::with_capacity(d.records.capacity());
     for (forge, record) in &d.records {
         match record.state {
@@ -142,6 +144,24 @@ pub(crate) fn unnamed(d: &mut Domain, out: &mut Queue<Request>) {
         }
     }
     for forge in ended.into_boxed() {
-        settle(d, forge, out);
+        settle(d, env, forge, out);
+    }
+}
+
+/// Resume repository pages whose forge's kept removal steps are already answered.
+pub(crate) fn restart_releases(d: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
+    let mut whole = List::with_capacity(d.records.len());
+    for (forge, record) in &d.records {
+        match record.state {
+            ForgeState::Kept => {}
+            ForgeState::Ended { secrets_erased, box_removed } => {
+                if secrets_erased && box_removed {
+                    whole.push(*forge).expect("bounded ended forges");
+                }
+            }
+        }
+    }
+    for forge in whole.into_boxed() {
+        settle(d, env, forge, out);
     }
 }

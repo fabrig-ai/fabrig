@@ -9,6 +9,7 @@ use temper_shell::directories::{self, Directories, EnvironmentEntry};
 mod report;
 #[cfg(test)]
 mod tests;
+pub(crate) use report::job_counts;
 pub use report::{lines, owner};
 
 #[derive(Debug, PartialEq, Eq)]

@@ -171,8 +171,9 @@ runs as contained processes and whose output it parses.
   merges is kept, and nothing is pushed. The change it was for then
   waits for its dependencies to land (`../forge/change/questions.md`, 1).
   This is the one conflict a prepare refuses, and only an early producer's
-  start meets it; its detail says why, as
-  `merge: Conflicted: head <head> does not merge into <branch>`, `<head>`
+  start meets it; its detail (section 1) is stage and fault
+  `merge: Conflicted`, and its words say why,
+  `head <head> does not merge into <branch>`, `<head>`
   the head's full id in lowercase hexadecimal, 40 digits for a SHA-1 id and
   64 for a SHA-256 one, as a merge's title spells it
   (`../../protocol/channel.md`, 4), and `<branch>` the start's branch.
@@ -319,7 +320,106 @@ Each commit made while preparing a base with heads merged in has the title
 `Merge <head>`, where `<head>` is the merged head's full hexadecimal object
 ID (2026-11-04).
 
-## 1. Open questions
+## 1. A failed prepare says where and why
+
+A prepare that fails answers with a detail (`Prepared::Failed`'s `detail`):
+operator evidence, bytes never parsed, that says which workspace and
+repository, which stage and git command, and how long each part took, so
+that a timeout reads as the operation's own time or as time spent before
+it. It travels in jig's failure detail (`Failed.detail` and
+`JobFailed.detail`, at most 4,096 bytes, jig's worker wire), so no wire or
+stored format changes; the worker's line and serve's print it escaped
+(1.3, 1.4).
+
+### 1.1 Its form
+
+```
+<stage>: <fault> (workspace <w>, repository <i> <name>, command <command>, operation <o> ms of <d> ms, prepare <p> ms, queued <q> ms)[: <words>]
+```
+
+- **`<stage>`:** the step the prepare was in, in the words it has always had
+  (`make`, `store`, `clone`, `fetch`, `check out`, `fetch landing`,
+  `merge`, `check out merged`, a job's `fetch member` and the rest;
+  `hold.rs`, `preparation_detail`). A step that checks reds files fails
+  nothing and has no detail.
+- **`<fault>`:** git's fault as `git::Fault::name` writes it
+  (`Missing(Branch)`, `Unreachable`, `Broken`, `TimedOut`, ...), or
+  `Conflicted` for a head that does not merge.
+- **`workspace <w>`:** the workspace's token in decimal, as io names its
+  directory, `workspaces/<w>` (`../../protocol/git.md`, section 2).
+- **`repository <i> <name>`:** the repository the step names: its place in
+  the spec in decimal, and its directory's name. A step that names none
+  (`make`) says `repository none`.
+- **`command <command>`:** the invocation the failure ended in, as the git
+  component names it (`../../protocol/git.md`, section 6): git's subcommand,
+  so `checkout` and `clean` are told apart within the one `check out`
+  stage, or a file operation's word. A terminal that names none (one that
+  ran no invocation, as an operation the component received past its
+  deadline, and a conflict) says `command none`.
+- **`operation <o> ms of <d> ms`:** the operation's time, from when the hold
+  asked it of io to its terminal, against its deadline's length:
+  `checkout.remote_timeout_ms` for one that reaches the forge, the local
+  timeout otherwise (`git::Op::is_remote`).
+- **`prepare <p> ms, queued <q> ms`:** the prepare's time, from its arrival
+  to its failure, and the part of it spent queued for a permit, from its
+  arrival to its admission, 0 for one admitted at once. Earlier operations
+  and a wait for another hold's store are in `<p>` alone, so `<p> - <q> -
+  <o>` is what the admitted prepare spent before this operation.
+- **`<words>`:** the rest of why, last: git's diagnostic, the tail of its
+  stderr (`PushDiagnostic`), or, for a head that does not merge,
+  `head <head> does not merge into <branch>`. With nothing to say, the
+  detail ends at the parenthesis.
+
+Times are in whole milliseconds, rounded down, from the domain's clock at
+each step (`env.now`): the checkout arms no timer for them. For example,
+the stage that failed six times on 2026-11-15 would now read:
+
+```
+check out: TimedOut (workspace 3, repository 0 fabrig, command checkout, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms)
+```
+
+### 1.2 Its bound
+
+A detail is at most 2,048 bytes. Its stage, fault and fields come first and
+whole, but for a name past 256 bytes, cut to its first 256; its words take
+the room left, and past it keep their first bytes. With the default
+`name_bytes` (256) and a diagnostic's 512 bytes nothing is cut. Every cut
+on the way, this one, the worker's (1.3) and serve's line's (1.4), falls at
+the end, on the words: the fields keep their room. jig's hub keeps a
+detail's last `hub.detail_bytes` (4,096 by default), past which a detail
+of this bound never goes.
+
+### 1.3 The worker names itself and logs it
+
+- **The host.** As it answers a run or a job whose preparation failed
+  (jig's `Unprepared`), the worker service puts `host <name>: ` before the
+  detail, `<name>` its configured name (`workers[].name`, jig's
+  `protocol/configuration.md`, section 4), and cuts the whole
+  to `hub.detail_bytes`, its wire's bound, keeping its head. An answer the
+  hub sends again after a relink carries the same. A prepare refused at
+  the entrance or aborted (`prepare refused: Busy`, `prepare aborted`,
+  `README.md`, 4.3) takes the host too, with no fields.
+- **One line each.** The worker logs a line for each failed preparation, a
+  run's or a job's, through its notes (`worker_alone`'s `Note`), which its
+  shell writes, an in-process worker's among serve's:
+
+  ```
+  <binary> worker: run <run> attempt <attempt> failed <failure>: <detail>
+  ```
+
+  `<failure>` is jig's failure as serve's run-failure line writes it
+  (`Unprepared(Transient)`), and `<detail>` the detail with its host,
+  escaped as serve's lines escape theirs, one line. It is logged once,
+  when the answer first goes up: a kept answer sent again after a relink
+  logs none. A job's own line (`jobs.md`) stays beside it.
+
+### 1.4 Serve prints it whole
+
+Serve's run-failure line (`README.md`, 4.3) prints the detail whole, every
+byte escaped. The wire bounds it at 4,096 bytes; a longer one, which no
+wire carries, keeps its first 4,096, where the fields are.
+
+## 2. Open questions
 
 - **A goal's saved start overtaken by its change's repair** (`checkouts.md`):
   starting from saved work preserves its edits, but a repair or resolution

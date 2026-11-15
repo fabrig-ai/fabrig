@@ -2,6 +2,35 @@ use super::fixtures as f;
 use crate::{Browser, Local, Refusal, Signing, Told, Tui};
 use jig_client::Link;
 
+#[test]
+fn closed_chats_are_bounded_oldest_first_and_navigation_clears_only_the_pending_close() {
+    let mut tui = Tui::new(f::ADDRESS);
+    let closing = crate::Closing { task: 12, project: 3, title: Some(Box::from(*b"Away mode")) };
+    tui.step(Told::Closing { chat: Some(closing.clone()) });
+    assert_eq!(tui.closing(), Some(&closing));
+    let revision = tui.revision();
+    tui.step(Told::Closing { chat: Some(closing) });
+    assert_eq!(tui.revision(), revision);
+    for task in 1..=crate::limits::CLOSED_CHATS {
+        tui.step(Told::Closed { task: u64::from(task) });
+    }
+    let revision = tui.revision();
+    tui.step(Told::Closed { task: 1 });
+    assert_eq!(tui.revision(), revision, "a duplicate does not evict a chat");
+    let newest = u64::from(crate::limits::CLOSED_CHATS) + 1;
+    tui.step(Told::Closed { task: newest });
+    assert!(!tui.closed_chat(1), "the oldest leaves the bounded list");
+    assert!(tui.closed_chat(2));
+    assert!(tui.closed_chat(newest));
+    tui.step(Told::Went);
+    assert!(tui.closing().is_none());
+    assert!(tui.closed_chat(newest), "navigation retains this run's closes");
+    tui.step(Told::Closing { chat: Some(crate::Closing { task: 20, project: 3, title: None }) });
+    tui.step(Told::Closing { chat: None });
+    assert!(tui.closing().is_none());
+    assert!(!tui.closed_chat(20), "a failed close is not remembered as closed");
+}
+
 type Row<'a> = (&'a [Told], Told, Signing, &'a [u8], bool, bool, u64, u64, u64);
 type LocalRow<'a> = (&'a [Told], Told, Local, Signing, &'a [u8], bool, bool);
 type ApprovalRow<'a> = (&'a [Told], Told, Option<Browser>, bool, u64);

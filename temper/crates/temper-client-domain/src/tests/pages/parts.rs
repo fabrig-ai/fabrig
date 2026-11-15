@@ -101,7 +101,7 @@ fn project_parts_keep_to_begin_and_away_counts() {
             "brief and away",
             false,
             home::Needs::Count { count: 2, cut: false },
-            home::Status::Shown(Box::new(crate::tests::status::document(2, 1, Some(2)))),
+            home::Status::Shown(Box::new(crate::tests::fixtures::status::document(2, 1, Some(2)))),
             Some(crate::pages::decided::Shown {
                 more: false,
                 showing: 3,

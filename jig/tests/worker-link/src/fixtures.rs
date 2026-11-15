@@ -1,3 +1,4 @@
+//! Shared constants and per-reader copies (jig/docs/design/protocol/channel/README.md, 11).
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant, Hello, Hosting, Operation, Phase, Scheme};
 use jig_protocol_worker_link::{Credential, Limits};
 use skein_lib::{Duration, Secret};
@@ -76,12 +77,30 @@ pub fn limits() -> Limits {
 }
 #[must_use]
 pub fn channel_limits() -> skein_channel::Limits {
-    jig_protocol_worker_link::channel_limits(&LIMITS).expect("small channel")
+    *prepared_channel_limits()
+}
+fn prepared_channel_limits() -> &'static skein_channel::Limits {
+    static CHANNEL_LIMITS: std::sync::OnceLock<skein_channel::Limits> = std::sync::OnceLock::new();
+    CHANNEL_LIMITS.get_or_init(|| jig_protocol_worker_link::channel_limits(&LIMITS).expect("small channel"))
 }
 #[must_use]
 pub fn schema() -> skein_channel::Schema {
-    let codec = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small sizes");
-    jig_protocol_worker_wire::schema(&codec).expect("small schema")
+    prepared_schema().clone()
+}
+fn prepared_schema() -> &'static skein_channel::Schema {
+    static SCHEMA: std::sync::OnceLock<skein_channel::Schema> = std::sync::OnceLock::new();
+    SCHEMA.get_or_init(|| {
+        let codec = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small sizes");
+        jig_protocol_worker_wire::schema(&codec).expect("small schema")
+    })
+}
+#[must_use]
+pub fn spoken() -> List<wire::Spoken> {
+    prepared_spoken().clone()
+}
+fn prepared_spoken() -> &'static List<wire::Spoken> {
+    static SPOKEN: std::sync::OnceLock<List<wire::Spoken>> = std::sync::OnceLock::new();
+    SPOKEN.get_or_init(wire::spoken)
 }
 fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
     let mut peer = skein_fake_channel::ScriptedPeer::new(
@@ -97,29 +116,38 @@ fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
 }
 #[must_use]
 pub fn agreement() -> skein_channel::Frame {
-    let limits = codec();
-    let mut wires = List::with_capacity(5);
-    for spoken in &wire::spoken() {
+    frame(0x018d, prepared_agreement_body())
+}
+fn prepared_agreement_body() -> &'static [u8] {
+    static BODY: std::sync::OnceLock<Box<[u8]>> = std::sync::OnceLock::new();
+    BODY.get_or_init(|| {
+        let limits = codec();
+        let mut wires = List::with_capacity(5);
+        for spoken in prepared_spoken() {
+            wires
+                .push(
+                    wire::AgreedWire::new(
+                        &limits,
+                        wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
+                    )
+                    .expect("wire"),
+                )
+                .expect("four jig wires");
+        }
         wires
             .push(
                 wire::AgreedWire::new(
                     &limits,
-                    wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
+                    wire::AgreedWireParts { name: b"test-worker-wire".as_slice().into(), version: 3 },
                 )
                 .expect("wire"),
             )
-            .expect("four jig wires");
-    }
-    wires
-        .push(
-            wire::AgreedWire::new(
-                &limits,
-                wire::AgreedWireParts { name: b"test-worker-wire".as_slice().into(), version: 3 },
-            )
-            .expect("wire"),
-        )
-        .expect("application wire");
-    agreement_frame(wires)
+            .expect("application wire");
+        let record = wire::v14::Agreed::new(&limits, wire::v14::AgreedParts { wires }).expect("agreement");
+        let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
+        record.encode(&mut body).expect("measured agreement");
+        body.finish()
+    })
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {

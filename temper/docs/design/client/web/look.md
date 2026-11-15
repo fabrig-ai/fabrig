@@ -243,8 +243,14 @@
   wholly over them, the page's foot raised by the tabs' 64 px and the safe
   area (`../pages/README.md` and `../view.md`, 3). Needs you's open card takes the top bar
   with its own, `temper-needs-bar` (`../pages/README.md`, *Needs you*), as a
-  chat's bar does, the night switch keeping its place. The link's state
-  shows at the rail's foot, with its dot, while it is not live. The person's
+  chat's bar does, the night switch keeping its place. Over 760 px the
+  link's state is one word with its dot, 12.5 px, at the right of the rail's
+  first row, temper's name's, out of the foot's flow: "Live"; "Behind", its
+  dot amber, in place of "Live" while a page's watch reopens; or
+  "Connecting" or "Offline" alone, so that the foot's height and place
+  never move with it (`../view.md`, 3; the look request `rail-word`). Its
+  rules replace, where it stood, the one that hid the live link's region.
+  The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`../pages/README.md` and `../view.md`, 3
   ).
@@ -255,7 +261,7 @@
   under, inset as the entries are; the new box, "+ New draft or change" or
   "+ New change", the dashed box `div.temper-rail-new` keeps, one button or
   one link filling it, its menu the panel the box opened before; "Deployment"
-  at the foot, a row as the link's state's, above the person's row, its
+  at the foot, a row as the foot's others, above the person's row, its
   dots after its word. The switcher's menu ends at "Rename PROJECT" where
   offered and "New project" on a wide page; at 760 px and under it adds
   "Team for PROJECT" where Team shows, "How work runs for PROJECT" and

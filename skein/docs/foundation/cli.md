@@ -351,6 +351,10 @@ otherwise.
    names a component's patch set, a Rust constant
    (`temper/docs/design/protocol/baseline.md`, 4), never a variable,
    and is not a finding; a declared variable never takes that ending.
+   The check reads each file once and splits it into its words (maximal
+   runs of ASCII letters, digits and `_`) in one pass, looking each word
+   up among the trees' prefixes and the declared names: its cost grows
+   with the tree's bytes, not with the bytes times the names declared.
 6. **Documents:** each binary's generated documents match its table, in
    the tests of the crate that holds it.
 7. **Help,** in each binary's step tests:

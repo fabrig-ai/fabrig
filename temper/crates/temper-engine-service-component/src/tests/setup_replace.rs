@@ -214,7 +214,7 @@ fn admin_and_secret_only_replacements_stop_before_any_plan() {
 
 fn app_bundle() -> (Secret, Secret) {
     let pem = Secret::new(skein_fake_forge_github::keys::pem(skein_fake_forge_github::keys::KEYS[1]).unwrap());
-    let bundle = temper_client_domain::forge::forges::pasted_app_key(pem.expose()).unwrap();
+    let bundle = temper_client_domain_forge::forge::forges::pasted_app_key(pem.expose()).unwrap();
     (pem, bundle)
 }
 fn no_key_in_diagnostics(service: &crate::Service, pem: &Secret) {

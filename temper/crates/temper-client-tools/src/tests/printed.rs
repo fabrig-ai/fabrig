@@ -7,7 +7,7 @@ use super::fixtures as f;
 use crate::jig::{call::Parsed, render::outcome};
 use jig_client::{Answered, Ask, Outcome, contract as c};
 use skein_lib::List;
-use temper_client_domain::forge::forges::{Connection, Installation, Kind};
+use temper_client_domain_forge::forge::forges::{Connection, Installation, Kind};
 use temper_client_protocol_wire::v1 as w;
 
 #[test]

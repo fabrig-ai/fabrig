@@ -87,7 +87,7 @@ impl<'a> Tokens<'a> {
         } else if self.api.is_none() && self.git.is_none() {
             return Err(Error::missing(b"names no token"));
         }
-        temper_client_domain::forge::forges::pasted_tokens(self.api, self.git, self.webhook_secret)
+        temper_client_domain_forge::forge::forges::pasted_tokens(self.api, self.git, self.webhook_secret)
             .ok_or(Error::missing(b"exceeds the carried value bound"))
     }
 }

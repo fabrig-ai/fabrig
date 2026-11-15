@@ -377,6 +377,7 @@ fn start(
     };
     skein_fail_stop::before_report(None);
     run.restore_terminal();
+    say_recording(&directory, run.recording_save(), &mut std::io::stderr().lock());
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }
@@ -391,6 +392,15 @@ fn start(
         }
     }
     Ok(exit_code(&run, exit))
+}
+
+// The terminal has left before these words, and the box's closing words follow them.
+fn say_recording(directory: &Path, saved: Option<(&[u8], bool)>, stderr: &mut impl std::io::Write) {
+    if let Some((name, stored)) = saved {
+        let path = directory.join(std::ffi::OsStr::from_bytes(name));
+        let words = if stored { "recorded to" } else { "couldn't save the recording to" };
+        let _ = writeln!(stderr, "temper: {words} {}", path.display());
+    }
 }
 
 fn exit_code(run: &Run, exit: Exit) -> u8 {

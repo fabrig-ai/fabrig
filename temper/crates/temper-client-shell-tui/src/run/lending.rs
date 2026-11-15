@@ -174,8 +174,9 @@ impl Run {
                 kept.set_kept().expect("set kept terminal modes");
             }
             let mut line = CLEAR.to_vec();
-            line.extend_from_slice(&self.lending.lend.as_ref().expect("loan").line);
             line.push(b'\n');
+            line.extend_from_slice(&self.lending.lend.as_ref().expect("loan").line);
+            line.extend_from_slice(b"\n\n");
             self.lending.phase = Phase::Writing;
             self.lending.writes.push(Submit {
                 op: LINE,

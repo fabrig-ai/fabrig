@@ -104,7 +104,7 @@ fn a_task_with_no_goal_reads_no_goal_scoped_note() {
 #[test]
 fn each_tracked_subtree_feeds_its_own_projection() {
     let (core, limits) = nested();
-    for (goal, expected) in [(ROOT, &[ROOT][..]), (CHILD, &[CHILD, GRANDCHILD][..])] {
+    for (goal, expected) in [(ROOT, &[ROOT, CHILD, GRANDCHILD][..]), (CHILD, &[CHILD, GRANDCHILD][..])] {
         let mut numbers = List::with_capacity(limits.tasks.tree_tasks);
         for row in &core.projections.get(&goal).unwrap().plan {
             numbers.push(row.number).unwrap();

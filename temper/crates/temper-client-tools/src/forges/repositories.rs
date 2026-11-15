@@ -13,7 +13,7 @@ use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::family::{self, Page},
     owner::Owner,
 };
@@ -30,7 +30,7 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
     crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name == REPOSITORIES.name
 }
 fn request(forge: u16, installation: Option<u64>, page: u32, limits: &Limits) -> Option<Ask> {
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let request =
         w::Request::Reachable(w::Reachable::new(&bounds, w::ReachableParts { forge, installation, page }).ok()?);
     let request = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
@@ -62,7 +62,9 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
         Told::Kept { key, request: Ask::Family { scope: c::Scope::Deployment, record } }
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
-            let Some(bounds) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return false };
+            let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else {
+                return false;
+            };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
             let w::Request::Reachable(request) = request.into_parts().request else { return false };
             let request = request.into_parts();
@@ -162,7 +164,7 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         Outcome::Answered(Answered::Family(record))
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
-            let Some(bounds) = temper_client_domain::forge::wire_limits(&limits.domain.forge) else {
+            let Some(bounds) = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge) else {
                 return render::failure(b"repositories decoding failed", structured, 1);
             };
             let mut reader = skein_lib::Reader::new(&record.bytes);

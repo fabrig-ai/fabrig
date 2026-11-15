@@ -25,7 +25,7 @@ class DeliverySelection(unittest.TestCase):
         self.addCleanup(self.scratch.cleanup)
         self.root = Path(self.scratch.name)
         self.env = os.environ.copy()
-        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR'):
+        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR', 'TIERS_HOLD'):
             self.env.pop(name, None)
         self.command('git', 'init', '-q')
         self.command('git', 'config', 'user.name', 'Fixture')
@@ -68,11 +68,14 @@ sys.exit(int(count > 0))
 
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
-                build_answer=(0, ''), events=None):
+                build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None):
         calls = []
         events = [] if events is None else events
-        data = {'packages': [{'name': name, 'id': name, 'dependencies': [],
-                             'manifest_path': str(self.root / name / 'Cargo.toml')} for name in packages],
+        dependencies = {} if dependencies is None else dependencies
+        data = {'packages': [{'name': name, 'id': name,
+                              'dependencies': [dict(dependency, path=str(self.root / dependency['name'].lower()))
+                                               for dependency in dependencies.get(name, [])],
+                              'manifest_path': str(self.root / (directories or {}).get(name, name.lower()) / 'Cargo.toml')} for name in packages],
                 'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
 
         def run(arguments, cwd, env, output=None, stdout=False):
@@ -94,33 +97,195 @@ sys.exit(int(count > 0))
                     print(line.decode(), end='')
             return result.returncode, log.text()
 
+        # Judgement annotates errors; each delivery gets fresh program answers.
         def clippy_check(*args):
             events.append('clippy')
-            return clippy_answer
+            return clippy_answer[0], [error.copy() for error in clippy_answer[1]]
 
         run_tests = PRE_PR.one_process
 
         def test_check(*args):
             events.append('one-process')
-            return run_tests(*args) if one_process_answer is None else one_process_answer
+            if one_process_answer is None:
+                return run_tests(*args)
+            if args[6] != 'default':
+                return 0, [], None
+            code, errors, starved = one_process_answer
+            return code, [error.copy() for error in errors], starved
 
         captured = io.BytesIO()
         log = io.TextIOWrapper(captured, encoding="utf-8")
-        with contextlib.chdir(self.root), mock.patch.dict(os.environ, self.env, clear=True), \
+        holder = (mock.patch.object(PRE_PR.runpy, 'run_path', return_value={'hold': hold})
+                  if hold is not None else contextlib.nullcontext())
+        with contextlib.chdir(self.root), mock.patch.dict(os.environ, self.env, clear=True), holder, \
                 mock.patch.object(PRE_PR, 'metadata', return_value=data), \
-                mock.patch.object(PRE_PR, 'formatting', return_value=[]) as formatting, \
+                mock.patch.object(PRE_PR, 'formatting', return_value=list(formatting_answer)) as formatting, \
                 mock.patch.object(PRE_PR, 'clippy', side_effect=clippy_check) as clippy, \
                 mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
             result = PRE_PR.main()
+        self.clippy_mock = clippy
+        self.one_process_mock = one_process
         log.flush()
         if expected_bundle is not None:
-            self.assertTrue(clippy.called)
-            self.assertTrue(one_process.called)
+            self.assertTrue(clippy.called, captured.getvalue().decode())
+            self.assertTrue(one_process.called, captured.getvalue().decode())
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
+
+    def test_base_table(self):
+        for row in ('no pin', 'unrelated', 'behind'):
+            with self.subTest(row=row):
+                self.setUp()
+                ancestor = self.command('git', 'rev-parse', 'HEAD').strip()
+                if row == 'no pin':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                elif row == 'unrelated':
+                    other = self.command('git', 'commit-tree', 'HEAD^{tree}', '-m', 'pin').strip()
+                    self.command('git', 'update-ref', 'refs/temper/landing', other)
+                else:
+                    self.command('git', 'commit', '--allow-empty', '-qm', 'head')
+                self.write('temper/docs/addition.md', '# Delivery\n')
+                with mock.patch.object(PRE_PR, 'git', wraps=PRE_PR.git) as git:
+                    result, log, calls, code = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertFalse(self.clippy_mock.called)
+                self.assertFalse(self.one_process_mock.called)
+                counts = [cwd.name for args, cwd in calls if 'scripts/old_forms.py' in args]
+                if row == 'behind':
+                    self.assertIn(mock.call(['merge-base', 'refs/temper/landing', 'HEAD'], self.root, mock.ANY),
+                                  git.call_args_list)
+                    self.assertIn(f'base {ancestor}, merge base of refs/temper/landing and HEAD', log)
+                    self.assertIn('docs only: citations', log)
+                    self.assertEqual(code, (False, False, False))
+                    self.assertEqual(counts, [])
+                    self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
+                else:
+                    reason = ('no refs/temper/landing' if row == 'no pin' else
+                              'no merge base of refs/temper/landing and HEAD')
+                    self.assertIn(f'pre-pr: no base ({reason}): the format check and the counted baselines alone', log)
+                    self.assertEqual(code, (True, False, False))
+                    self.assertEqual(counts, ['skein', 'smith', 'jig', 'temper', 'hearth'])
+                    self.assertFalse(any('tools/citations/citations.py' in args for args, _ in calls))
+
+    def test_each_trees_count_refuses_without_a_base(self):
+        self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+        for tree in ('skein', 'smith', 'jig', 'temper', 'hearth'):
+            with self.subTest(tree=tree):
+                self.write(tree + '/count.txt', '1')
+                result, log, calls, code = self.deliver()
+                self.assertEqual(result, 1, log)
+                self.assertIn(f'old-forms {tree}', log)
+                self.assertIn(f'pre-pr: old-forms {tree}: failed,', log)
+                self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+                self.assertEqual(code, (True, False, False))
+                self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+                self.write(tree + '/count.txt', '0')
+
+    def test_selection_table(self):
+        rows = (
+            ('dev', 'a/src/lib.rs', 'B\n', '', ['A'], ['A', 'B']),
+            ('untracked', 'a/src/new.rs', 'B\n', '', ['A'], ['A', 'B']),
+            ('deleted', 'a/src/lib.rs', 'B\n', '', ['A'], ['A', 'B']),
+            ('root manifest', 'Cargo.toml', 'B\n', '', [], ['B']),
+            ('docs', 'temper/docs/selection.md', 'B\n', '', [], ['B']),
+            ('reader', 'a/src/lib.rs', 'B a/\n', '', ['A'], ['A', 'B']),
+            ('reader only', 'temper/docs/selection.md', 'B temper/docs/\n',
+             'temper/docs/selection.md\n', [], ['B']),
+            ('prefix-less', 'temper/docs/selection.md', 'B\n', '', [], ['B']),
+            ('component boundary', 'a-sibling/new.rs', 'B\n', '', [], ['B']),
+            ('unknown reader', 'shared/input.txt', 'missing shared/\n', '', [], []),
+        )
+        for row, path, always, inputs, lints, tests in rows:
+            with self.subTest(row=row):
+                self.setUp()
+                for name in ('a', 'b', 'p2'):
+                    self.write(name + '/Cargo.toml', '[package]\n')
+                    self.write(name + '/src/lib.rs', 'fn source() {}\n')
+                self.write('.config/gate/always.txt', always)
+                self.write('.config/gate/read-by-tests.txt', inputs)
+                self.pin()
+                if row == 'deleted':
+                    (self.root / path).unlink()
+                else:
+                    self.write(path, '# changed\n')
+                dependencies = {'B': [{'name': 'A', 'kind': 'dev'}],
+                                'P2': [{'name': 'B', 'kind': None}]} if row == 'dev' else {}
+                result, log, _, (_, linted, tested) = self.deliver(('A', 'B', 'P2'), dependencies=dependencies)
+                self.assertEqual(result, 0, log)
+                self.assertEqual(self.clippy_mock.call_args.args[0] if linted else [], lints)
+                self.assertEqual(self.one_process_mock.call_args.args[0] if tested else [], tests)
+                if not lints and not tests and 'docs only:' not in log:
+                    self.assertIn('pre-pr: no package changed', log)
+                if row == 'unknown reader':
+                    self.assertIn('pre-pr: path reader missing: not a workspace member, skipped', log)
+
+    def test_moved_pin_misses_the_cache(self):
+        for row in ('first pin', 'moved pin'):
+            with self.subTest(row=row):
+                self.setUp()
+                if row == 'first pin':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.command('git', 'commit', '--allow-empty', '-qm', row)
+                self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+                result, log, calls, code = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertTrue(code[0])
+                self.assertEqual(sum('scripts/old_forms.py' in args for args, _ in calls), 5)
+                self.assertNotIn('passed before', log)
+
+    def test_unset_or_empty_hold_starts_none(self):
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        for value in (None, ''):
+            with self.subTest(value=value):
+                self.setUp()
+                self.env.pop('TIERS_HOLD', None)
+                if value is not None:
+                    self.env['TIERS_HOLD'] = value
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                process = mock.Mock(spec=subprocess)
+                process.Popen.side_effect = AssertionError('unexpected hold start')
+                with mock.patch.dict(real_hold.__wrapped__.__globals__, subprocess=process):
+                    result, log, _, code = self.deliver(hold=real_hold)
+                    self.assertEqual(result, 0, log)
+                    self.assertTrue(all(code))
+                    process.Popen.assert_not_called()
+                    result, log, _, code = self.deliver(hold=real_hold)
+                    self.assertEqual(result, 0, log)
+                    self.assertIn('passed before', log)
+                    self.assertFalse(any(code))
+                    process.Popen.assert_not_called()
+
+    def test_early_hold_exit_keeps_a_refusal(self):
+        self.env['TIERS_HOLD'] = "python3 -c __import__('sys').exit(3)"
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        fault = PRE_PR.failure('format', 'format fault')
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        starts = []
+
+        @contextlib.contextmanager
+        def hold(prefix, *args, **kwargs):
+            starts.append(prefix)
+            with real_hold(prefix, *args, **kwargs):
+                # Cargo's metadata and the formatter start after the failed hold.
+                self.assertFalse(PRE_PR.metadata.called)
+                yield
+                self.assertTrue(PRE_PR.metadata.called)
+
+        result, log, _, code = self.deliver(formatting_answer=[fault], hold=hold)
+        self.assertEqual(starts, [['python3', '-c', "__import__('sys').exit(3)"]])
+        self.assertEqual(result, 1, log)
+        self.assertEqual(log.count('pre-pr: hold:'), 1, log)
+        self.assertIn('; going on unheld', log)
+        self.assertLess(log.index('pre-pr: hold:'), log.index('pre-pr: format …'))
+        self.assertEqual(code, (True, True, True))
+        self.assertIn('format fault', log)
+        self.assertFalse((self.root / '.git/pre-pr-passed').exists())
 
     def test_failure_file_keeps_mixed_keys_beyond_the_summary_cap(self):
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
@@ -240,6 +405,10 @@ sys.exit(int(count > 0))
             directory = Path(arguments[arguments.index('--out') + 1])
             directories.append(directory)
             directory.mkdir()
+            if directory.name == 'fuzzy':
+                (directory / 'run.json').write_text('{"starved": false}')
+                (directory / 'results.json').write_text('{"tests": [], "unobserved": []}')
+                return 0, 'fuzzy run\n'
             (directory / 'junit.xml').write_text('<testsuites><testsuite name="api::rules">' + ''.join(
                 f'<testcase name="{name}"><failure>fault</failure></testcase>' for name in names) +
                 '</testsuite></testsuites>')
@@ -252,7 +421,7 @@ sys.exit(int(count > 0))
         path = self.root / '.git/temper/pre-pr-failures.json'
 
         def summary(*args):
-            self.assertEqual(len(directories), 1)
+            self.assertEqual(len(directories), 2)
             self.assertFalse(directories[0].parent.exists())
             self.assertEqual(len(json.loads(path.read_text())['failures']), len(names))
             return summarize(*args)
@@ -260,7 +429,7 @@ sys.exit(int(count > 0))
         with mock.patch.object(PRE_PR, 'summary', side_effect=summary):
             result, log, _, _ = self.deliver(one_process_answer=None, process_answer=fake)
         self.assertEqual(result, 1, log)
-        self.assertEqual(len(directories), 1)
+        self.assertEqual(len(directories), 2)
         self.assertFalse(directories[0].parent.exists())
         record = json.loads(path.read_text())
         self.assertEqual([entry['key'] for entry in record['failures']],
@@ -382,16 +551,20 @@ sys.exit(int(count > 0))
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
-        self.pin()
-        self.write('smith/src/lib.rs', 'pub fn changed() {}\n')
-        events = []
-        result, log, calls, _ = self.deliver(('api', 'smith', 'smith-fake-claude'), events=events)
-        build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
-        self.assertEqual(result, 0, log)
-        self.assertEqual(events, ['clippy', build, 'one-process'])
-        self.assertIn((build, self.root), calls)
-        self.assertIn('pre-pr: test binaries …', log)
-        self.assertIn('pre-pr: test binaries: passed,', log)
+        self.write('.config/gate/always.txt', 'smith\n')
+        for path in ('smith/src/lib.rs', 'guide.md'):
+            with self.subTest(path=path):
+                self.pin()
+                self.write(path, '# changed\n')
+                events = []
+                result, log, calls, _ = self.deliver(('api', 'smith', 'smith-fake-claude'), events=events)
+                build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
+                self.assertEqual(result, 0, log)
+                self.assertEqual(events, (['clippy'] if path.endswith('.rs') else []) +
+                                 [build, 'one-process', 'one-process'])
+                self.assertIn((build, self.root), calls)
+                self.assertIn('pre-pr: test binaries …', log)
+                self.assertIn('pre-pr: test binaries: passed,', log)
 
     def test_unlisted_test_package_builds_no_prerequisites(self):
         self.write('tools/tiers/packages.toml', '[test-binaries]\nsmith = '
@@ -401,7 +574,7 @@ sys.exit(int(count > 0))
         events = []
         result, log, calls, _ = self.deliver(('api', 'smith'), events=events)
         self.assertEqual(result, 0, log)
-        self.assertEqual(events, ['clippy', 'one-process'])
+        self.assertEqual(events, ['clippy', 'one-process', 'one-process'])
         self.assertFalse(any(args[:2] == ['cargo', 'build'] for args, _ in calls))
         self.assertNotIn('pre-pr: test binaries', log)
 
@@ -460,7 +633,7 @@ sys.exit(int(count > 0))
         self.assertEqual(events, ['clippy',
                                  ['cargo', 'build', '-p', 'a-helper', '--bin', 'first'],
                                  ['cargo', 'build', '-p', 'z-helper', '--bin', 'last'],
-                                 'one-process'])
+                                 'one-process', 'one-process'])
 
     def test_tree_list_counts_nothing(self):
         test = PRE_PR.failure('test api::rules listed', 'test output', ('api::rules', 'listed'), 'api')
@@ -480,10 +653,15 @@ sys.exit(int(count > 0))
                             path.unlink()
                         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
                         answer = (101 if check == 'clippy' else 100, [error.copy()])
-                        result, log, _, _ = self.deliver(**{
+                        result, log, calls, _ = self.deliver(**{
                             'clippy_answer' if check == 'clippy' else 'one_process_answer':
                             answer if check == 'clippy' else (*answer, None)})
                         self.assertEqual(result, int(not goal), log)
+                        self.assertEqual((self.root / '.git/pre-pr-passed').exists(), goal)
+                        self.assertTrue(self.one_process_mock.called)
+                        self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
+                        self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
+                        self.assertNotIn('inherited: build', log)
                         summary = log.rsplit('pre-pr: passed (' if goal else 'pre-pr: refused (', 1)[1]
                         if goal:
                             self.assertIn('inherited: ' + error['name'] + ' (red, temper/reds)', summary)
@@ -527,6 +705,10 @@ sys.exit(int(count > 0))
                     'clippy_answer' if check == 'clippy' else 'one_process_answer':
                     answer if check == 'clippy' else (*answer, None)})
                 self.assertEqual(result, int(not accepted), log)
+                self.assertEqual((self.root / '.git/pre-pr-passed').exists(), accepted)
+                self.assertTrue(self.one_process_mock.called, 'tests run even after clippy fails')
+                self.assertNotIn('inherited: build', log)
+                self.assertNotIn('pre-pr: known reds', log)
                 self.assertIn('pre-pr: reds: 1 entries (temper/reds)', log)
                 summary = log.rsplit('pre-pr: passed (' if accepted else 'pre-pr: refused (', 1)[1]
                 self.assertIn(error['name'], summary)
@@ -535,6 +717,7 @@ sys.exit(int(count > 0))
                     self.assertIn(f'pre-pr: {check}: inherited,', log)
                 else:
                     self.assertNotIn('inherited: ' + error['name'], log)
+                    self.assertIn(error['log'], summary)
                 self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
                 self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
@@ -629,34 +812,48 @@ sys.exit(int(count > 0))
         self.write('api/src/lib.rs', 'pub fn changed() {}\n')
         content = b'temper-reds 1\n- test api::rules rule\n'
         path = self.goal_file('reds', content)
-        result, log, _, code = self.deliver()
+        error = PRE_PR.failure('test api::rules rule', 'goal red output', ('api::rules', 'rule'), 'api')
+        answer = (100, [error], None)
+        result, log, _, code = self.deliver(one_process_answer=answer)
         self.assertEqual(result, 0, log)
         self.assertTrue(all(code))
         cache = self.root / '.git/pre-pr-passed'
         tree, base, digest = cache.read_text().split()
         self.assertEqual(digest, hashlib.sha256(content).hexdigest())
         hit = f'pre-pr: passed before (tree {tree}, base {base}, reds {digest})'
-        result, log, _, code = self.deliver()
+        fault = [PRE_PR.failure('format', 'format fault')]
+        result, log, _, code = self.deliver(one_process_answer=answer, formatting_answer=fault)
         self.assertEqual(result, 0, log)
         self.assertFalse(any(code))
         self.assertIn(hit, log)
         self.assertLess(log.index('pre-pr: reds:'), log.index(hit))
+        record = cache.read_text()
+        cache.write_text(f'{tree} {base}\n')
+        result, log, _, code = self.deliver(formatting_answer=fault)
+        self.assertEqual(result, 1, log)
+        self.assertTrue(all(code), 'two-field records must not hit')
+        self.assertNotIn('passed before', log)
+        cache.write_text(record)
         for changed in (b'temper-reds 1\n', b'bad header\n', b'bad header changed\n', None):
             with self.subTest(changed=changed):
+                previous = cache.read_text()
                 if changed is None:
                     path.unlink()
                 else:
                     path.write_bytes(changed)
+                result, log, _, code = self.deliver(one_process_answer=answer)
+                self.assertEqual(result, 1, log)
+                self.assertTrue(all(code), log)
+                self.assertNotIn('passed before', log)
+                self.assertIn('test api::rules rule', log)
+                self.assertNotIn('inherited: test', log)
+                self.assertEqual(cache.read_text(), previous, 'refusal keeps the prior pass')
                 result, log, _, code = self.deliver()
                 self.assertEqual(result, 0, log)
                 self.assertTrue(all(code), log)
                 self.assertNotIn('passed before', log)
                 self.assertEqual(cache.read_text().split()[2],
                                  '-' if changed is None else hashlib.sha256(changed).hexdigest())
-        cache.write_text(f'{tree} {base}\n')
-        result, log, _, code = self.deliver()
-        self.assertEqual(result, 0, log)
-        self.assertTrue(all(code), 'two-field records must not hit')
 
     def test_one_process_reads_the_run_directory(self):
         self.write('client/Cargo.toml', '[package]\nname = "client"\n')
@@ -675,6 +872,7 @@ sys.exit(int(count > 0))
         rows = [
             dict(case='argv and pass', code=0),
             dict(case='failure', code=100, tests=[test], error='test api::rules rule', tail='stderr tail'),
+            dict(case='no file', code=100, tests=[test], reds=None, error='test api::rules rule', tail='stderr tail'),
             dict(case='error node', code=100, tests=[test], error='test api::rules rule',
                  files={'junit.xml': junit.replace('failure>', 'error>')}),
             dict(case='alone passed', code=100, tests=[dict(test, alone='passed', before=['first', 'second'])],
@@ -686,12 +884,14 @@ sys.exit(int(count > 0))
                  error='test api::rules rule'),
             dict(case='empty 100', code=100, error='check one-process', tail='exit 100 without JUnit failures',
                  files={'junit.xml': '<testsuites/>'}),
-            dict(case='build', code=2, output='compiler output\n' + build + '\n', error='build'),
+            dict(case='build', code=2, output='compiler output\n' + build + '\n', error='build', tail='no tests ran'),
+            dict(case='lint test and build failures', code=2, tests=[test],
+                 clippy=True, output=build + '\n', error='build', tail='no tests ran'),
             dict(case='build line not last', code=2, output=build + '\nmore output\n',
                  error='check one-process', tail='exit 2'),
             dict(case='refusal', code=2, error='check one-process', tail='exit 2'),
             dict(case='other exit', code=102, error='check one-process', tail='exit 102'),
-            dict(case='starved run', code=0, starved=True, warning=warning,
+            dict(case='starved run', code=0, starved=True, warning=warning, reds='- test api::rules rule',
                  tests=[dict(test, outcome='cancelled')], unobserved=[{}, {}]),
             dict(case='run flag alone', code=0, starved=True,
                  warning=warning.replace('1 starved', '0 starved').replace('2 unobserved', '0 unobserved')),
@@ -726,6 +926,11 @@ sys.exit(int(count > 0))
                     self.assertTrue(stdout)
                     self.assertIsNone(output)
                     directory = Path(arguments[arguments.index('--out') + 1])
+                    if directory.name == 'fuzzy':
+                        directory.mkdir()
+                        (directory / 'run.json').write_text('{"starved": false}')
+                        (directory / 'results.json').write_text('{"tests": [], "unobserved": []}')
+                        return 0, 'fuzzy run\n'
                     self.assertEqual(arguments, ['python3', '-I', '-B', 'tools/tiers/one-process',
                                                 '--out', str(directory), 'default', '-p', 'api',
                                                 '-p', 'client', '--no-tests=warn'])
@@ -748,8 +953,15 @@ sys.exit(int(count > 0))
 
                 entries = row.get('reds', '- test api::rules rule' if
                                   row.get('error') in ('build', 'check one-process') else '')
-                self.goal_file('reds', ('temper-reds 1\n' + (entries + '\n' if entries else '')).encode())
-                result, log, calls, _ = self.deliver(('api', 'client'), one_process_answer=None, process_answer=fake)
+                if row.get('error') == 'build':
+                    entries += '\n- lint api clippy::rule api/src/lib.rs'
+                path = self.goal_file('reds', ('temper-reds 1\n' + (entries + '\n' if entries else '')).encode())
+                if entries is None:
+                    path.unlink()
+                lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'lint fault',
+                                      ('api', 'clippy::rule', 'api/src/lib.rs', 'lint fault'), 'api')
+                result, log, calls, _ = self.deliver(('api', 'client'), one_process_answer=None, process_answer=fake,
+                                                    clippy_answer=(101, [lint]) if row.get('clippy') else (0, []))
                 self.assertEqual(result, int('error' in row), log)
                 self.assertEqual((self.root / '.git/pre-pr-passed').exists(), result == 0)
                 summary = log.rsplit('pre-pr: refused (' if result else 'pre-pr: passed (', 1)[1]
@@ -776,15 +988,24 @@ sys.exit(int(count > 0))
                     self.assertNotIn('pre-pr: tests starved:', log)
                 if row['case'] in ('cancelled 100', 'cancelled beside failure'):
                     self.assertNotIn('\ntest api::rules rule\n', summary)
+                self.assertNotIn('inherited: build', log)
+                self.assertNotIn('pre-pr: known reds', log)
+                self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
+                self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
                 self.assertFalse(any('cargo' in args and 'nextest' in args for args, _ in calls))
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
-    def ledger_run(self, tests, again=None, **kwargs):
+    def ledger_run(self, tests, again=None, runs=None, changed=True,
+                   failure_output='under load\n\nfirst log tail', **kwargs):
         """Fake only the one-process boundary, including fresh again directories."""
-        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        if changed:
+            self.write('api/src/lib.rs', 'pub fn changed() {}\n')
         self.again_calls = []
+        self.process_calls = []
+        self.run_directories = {}
         self.initial_run = None
         again = {} if again is None else again
+        runs = {} if runs is None else runs
 
         def fake(arguments, cwd, env, output, stdout):
             self.assertEqual(cwd, self.root)
@@ -793,14 +1014,19 @@ sys.exit(int(count > 0))
             self.assertNotIn('GIT_INDEX_FILE', env)
             directory = Path(arguments[arguments.index('--out') + 1])
             self.assertFalse(directory.exists())
+            self.process_calls.append(arguments)
             if '--again' in arguments:
                 self.again_calls.append(arguments)
+                original_run = Path(arguments[5])
+                self.assertIn(original_run, self.run_directories.values())
                 self.assertEqual(arguments[:8], ['python3', '-I', '-B', 'tools/tiers/one-process',
-                                                 '--again', str(self.initial_run), '--out', str(directory)])
-                self.assertTrue((self.initial_run / 'results.json').exists())
-                self.assertEqual(directory, self.initial_run.parent / f'again-{len(self.again_calls)}')
+                                                 '--again', str(original_run), '--out', str(directory)])
+                self.assertTrue((original_run / 'results.json').exists())
+                self.assertEqual(directory.parent, original_run.parent)
+                profile = 'default' if original_run.name == 'tests' else 'fuzzy'
                 binary, *names = arguments[8:]
-                original = next(t for t in tests if t['binary_id'] == binary and t['test_name'] == names[-1])
+                original = next(t for t in tests if t['binary_id'] == binary and t['test_name'] == names[-1]
+                                and t.get('profile', 'default') == profile)
                 self.assertEqual(names, original.get('before', []) + [original['test_name']])
                 answer = again.get((binary, names[-1]), {})
                 if answer.get('missing'):
@@ -809,21 +1035,181 @@ sys.exit(int(count > 0))
                 content = answer.get('content', json.dumps({'tests': [dict(original, outcome=answer.get('outcome', 'passed'))]}))
                 (directory / 'results.json').write_text(content)
                 return answer.get('code', 0), 'again output, not the failure log\n'
-            self.assertIsNone(self.initial_run)
-            self.initial_run = directory
+            profile = arguments[6]
+            self.assertIn(profile, ('default', 'fuzzy'))
+            self.assertEqual(directory.name, 'tests' if profile == 'default' else 'fuzzy')
+            self.assertNotIn(profile, self.run_directories)
+            self.run_directories[profile] = directory
+            if profile == 'default':
+                self.initial_run = directory
+            selected = [test for test in tests if test.get('profile', 'default') == profile]
+            answer = runs.get(profile, {})
             directory.mkdir()
-            (directory / 'run.json').write_text('{"starved": false}')
-            (directory / 'results.json').write_text(json.dumps({'tests': tests, 'unobserved': []}))
+            (directory / 'run.json').write_text(json.dumps({'starved': answer.get('starved', False)}))
+            (directory / 'results.json').write_text(json.dumps({'tests': selected,
+                                                              'unobserved': answer.get('unobserved', [])}))
             document = PRE_PR.ET.Element('testsuites')
-            for test in tests:
+            for test in selected:
                 suite = PRE_PR.ET.SubElement(document, 'testsuite', name=test['binary_id'])
                 case = PRE_PR.ET.SubElement(suite, 'testcase', name=test['test_name'])
                 if test['outcome'] in ('failed', 'crashed', 'cancelled'):
-                    PRE_PR.ET.SubElement(case, 'failure').text = 'under load\n\nfirst log tail'
+                    PRE_PR.ET.SubElement(case, 'failure').text = failure_output
             (directory / 'junit.xml').write_bytes(PRE_PR.ET.tostring(document))
-            return (100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0), 'first run\n'
+            for name, content in answer.get('files', {}).items():
+                (directory / name).write_text(content)
+            return answer.get('code', 100 if any(t['outcome'] in ('failed', 'crashed') for t in selected) else 0), \
+                answer.get('output', 'first run\n')
 
         return self.deliver(one_process_answer=None, process_answer=fake, **kwargs)
+
+    def test_boundary_selection(self):
+        rows = [
+            ('docs', 'notes.md', 'B\n', ('A', 'B'), [], ['B']),
+            ('code', 'a/src/lib.rs', 'B\n', ('A', 'B'), ['A'], ['A', 'B']),
+            ('implicit', 'notes.md', '', ('A', 'fabrig-boundary'), [], ['fabrig-boundary']),
+            ('missing', 'notes.md', 'missing\nB\n', ('A', 'B'), [], ['B']),
+            ('prefixed', 'a/src/lib.rs', 'B a/\n', ('A', 'B'), ['A'], ['A', 'B']),
+            ('neither', None, 'B\n', ('A', 'B'), [], []),
+            ('no base', 'notes.md', 'B\n', ('A', 'B'), [], []),
+            ('empty', 'notes.md', '', ('A',), [], []),
+        ]
+        for row, path, always, packages, lints, tests in rows:
+            with self.subTest(row=row):
+                self.write('.config/gate/always.txt', always)
+                self.write('row.txt', row)
+                self.pin()
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                if path:
+                    self.write(path, f'# {row}\n')
+                if row == 'no base':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                result, log, calls, checks = self.ledger_run([], changed=False, packages=packages,
+                                                           directories={'A': 'a', 'B': 'b'})
+                self.assertEqual(result, 0, log)
+                self.assertEqual(checks, (row in ('code', 'prefixed', 'no base'), bool(lints), bool(tests)))
+                self.assertIn('lints: ' + ' '.join(lints) + '\n', log)
+                self.assertIn('tests: ' + ' '.join(tests) + '\n', log)
+                expected = []
+                for profile in ('default', 'fuzzy') if tests else ():
+                    directory = self.run_directories[profile]
+                    expected.append(['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory),
+                                     profile] + PRE_PR.package_args(tests) + ['--no-tests=warn'])
+                self.assertEqual(self.process_calls, expected)
+                selected = [args for args, _ in calls if 'tools/tiers/one-process' in args
+                            or 'tools/citations/citations.py' in args]
+                if path and path.endswith('.md') and row != 'no base':
+                    self.assertEqual(selected[:-1], expected)
+                    self.assertIn('tools/citations/citations.py', selected[-1])
+                    self.assertIn('pre-pr: docs only: citations and design size limits', log)
+                    self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
+                else:
+                    self.assertEqual(selected, expected)
+                if row not in ('no base', 'neither'):
+                    boundary = ['B'] if always in ('B\n', 'missing\nB\n') else \
+                        ['fabrig-boundary'] if row == 'implicit' else []
+                    self.assertIn('pre-pr: boundary tests: ' + (' '.join(boundary) or 'none'), log)
+                else:
+                    self.assertNotIn('pre-pr: boundary tests:', log)
+                if row == 'missing':
+                    self.assertIn('pre-pr: boundary package missing: not a workspace member, skipped', log)
+                if lints:
+                    self.assertIn('clippy, focused and fuzzy tests (code input', log)
+
+    def test_fuzzy_follows_every_focused_exit_and_judges_its_own_failures(self):
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
+        fuzzy = dict(test, test_name='fuzzy::rule', profile='fuzzy')
+        build = 'one-process: nextest listing exited with 101\n'
+        for row, focused, tests, reds, statuses in (
+                ('passed', {}, [], '', ('passed', 'passed')),
+                ('failed', {}, [test], '', ('failed', 'passed')),
+                ('build', {'code': 2, 'output': build}, [], '', ('failed', 'passed')),
+                ('check', {'code': 2}, [], '', ('failed', 'passed')),
+                ('focused inherited', {}, [test, fuzzy], '- test api::rules rule\n', ('inherited', 'failed')),
+                ('fuzzy inherited', {}, [test, fuzzy], '- test api::rules fuzzy::rule\n', ('failed', 'inherited'))):
+            with self.subTest(row=row):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', ('temper-reds 1\n' + reds).encode())
+                result, log, _, _ = self.ledger_run(tests, runs={'default': focused})
+                self.assertEqual(result, int('failed' in statuses), log)
+                self.assertEqual([args[6:] for args in self.process_calls],
+                                 [[profile, '-p', 'api', '--no-tests=warn'] for profile in ('default', 'fuzzy')])
+                self.assertLess(log.index('pre-pr: tests …'), log.index('pre-pr: fuzzy tests …'))
+                for name, status in zip(('tests', 'fuzzy tests'), statuses):
+                    self.assertIn(f'pre-pr: {name}: {status},', log)
+                    self.assertEqual(log.count(f'pre-pr: {name}: '), 1, log)
+
+    def test_fuzzy_reads_failures_starvation_and_goal_results(self):
+        test = dict(binary_id='api::rules', test_name='fuzzy::rule', outcome='failed', profile='fuzzy')
+        warning = ('pre-pr: fuzzy tests starved: 1 starved or cancelled, 2 unobserved, '
+                   'a warning (skein/docs/foundation/testing-strategy.md, 8.1)')
+        rows = [
+            ('failure', [test], {}, '', 1, 'test api::rules fuzzy::rule'),
+            ('inherited', [test], {}, '- test api::rules fuzzy::rule\n', 0,
+             'inherited: test api::rules fuzzy::rule (red, temper/reds)'),
+            ('different binary', [test], {}, '- test api::other fuzzy::rule\n', 1, 'test api::rules fuzzy::rule'),
+            ('build', [], {'code': 2, 'output': 'one-process: nextest listing exited with 101\n'}, '', 1, 'build fuzzy'),
+            ('check', [], {'code': 2}, '', 1, 'check one-process fuzzy'),
+            ('empty 100', [], {'code': 100}, '', 1, 'check one-process fuzzy'),
+            ('malformed', [], {'files': {'run.json': 'bad json'}}, '', 1, 'check one-process fuzzy'),
+            ('starved', [dict(test, outcome='cancelled')], {'starved': True, 'unobserved': [{}, {}]}, '', 0, warning),
+            ('passed', [dict(test, outcome='passed')], {}, '- test api::rules fuzzy::rule\n', 0, 'failures: 0 new'),
+        ]
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        for row, tests, answer, reds, exit_code, named in rows:
+            with self.subTest(row=row):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', ('temper-reds 1\n' + reds).encode())
+                focused = dict(test, profile='default', test_name='stop', outcome='cancelled')
+                result, log, _, _ = self.ledger_run([focused] + tests, runs={'fuzzy': answer})
+                self.assertEqual(result, exit_code, log)
+                summary = log.rsplit('pre-pr: refused (' if result else 'pre-pr: passed (', 1)[1]
+                self.assertIn(named, summary)
+                status = 'inherited' if row == 'inherited' else 'failed' if exit_code else 'passed'
+                self.assertIn(f'pre-pr: fuzzy tests: {status},', log)
+                if row == 'starved':
+                    self.assertEqual(log.count(warning), 2, log)
+                    self.assertLess(summary.index('pre-pr: tests starved:'), summary.index(warning))
+                results = (self.root / '.git/temper/check-results').read_text().splitlines()[2:]
+                expected = ['failed test api::rules fuzzy::rule'] if row == 'inherited' else \
+                    ['passed test api::rules fuzzy::rule'] if row == 'passed' else []
+                self.assertEqual(results, expected)
+
+    def test_each_profiles_failures_run_again_under_its_own_bound(self):
+        self.goal_file('rerun', b'temper-rerun 1 1\n')
+        focused = dict(binary_id='api::rules', test_name='rule', outcome='failed', before=['setup'])
+        fuzzy = dict(focused, test_name='fuzzy::rule', profile='fuzzy')
+        result, log, _, _ = self.ledger_run([focused, fuzzy])
+        self.assertEqual(result, 0, log)
+        self.assertEqual([('--again' in args, Path(args[5]).name) for args in self.process_calls],
+                         [(False, 'tests'), (True, 'tests'), (False, 'fuzzy'), (True, 'fuzzy')])
+        self.assertEqual([args[8:] for args in self.again_calls],
+                         [['api::rules', 'setup', 'rule'], ['api::rules', 'setup', 'fuzzy::rule']])
+        self.assertEqual(len({args[7] for args in self.again_calls}), 2)
+        for name in ('tests', 'fuzzy tests'):
+            self.assertIn(f'pre-pr: {name}: inherited,', log)
+
+    def test_summary_fits_the_kept_tail(self):
+        output = ('x' * 63 + '\n') * 64
+        self.assertEqual(len(output.encode()), 4096)
+        tests = [dict(binary_id='api::rules', test_name=f'rule_{number:02}', outcome='failed')
+                 for number in range(40)]
+        result, log, _, _ = self.ledger_run(tests, failure_output=output)
+        self.assertEqual(result, 1, log)
+        summary = 'pre-pr: refused' + log.rsplit('pre-pr: refused', 1)[1]
+        self.assertLessEqual(len(summary.encode()), 8192)
+        self.assertIn('test api::rules rule_00', summary)
+        self.assertIn(' bytes cut]', summary)
+        entries = summary.split('test api::rules ')[1:]
+        self.assertIn(f'[… {40 - len(entries)} more failures]', summary)
+        for entry in entries:
+            with self.subTest(test=entry.splitlines()[0]):
+                lines = entry.split('\n', 1)[1].splitlines()
+                tail = '\n'.join(line for line in lines if ' more failures]' not in line)
+                self.assertLess(len(tail.encode()), 1536)
+                marker, content = tail.split('\n', 1)
+                self.assertRegex(marker, r'^\[… [0-9]+ bytes cut\]$')
+                self.assertTrue(all(len(line) == 63 for line in content.splitlines()), content)
+                self.assertTrue(content.endswith('x' * 63))
 
     def test_process_again_marks_only_a_passed_target_as_a_flake(self):
         self.goal_file('rerun', b'temper-rerun 1 4\n')
@@ -993,9 +1379,9 @@ sys.exit(int(count > 0))
         for path in ('guide.md', 'api/README.md', 'api/docs/diagram.svg'):
             with self.subTest(path=path):
                 self.write(path, '# Changed\n')
-                result, log, calls, code = self.deliver()
+                result, log, calls, code = self.deliver(('api', 'fabrig-boundary'))
                 self.assertEqual(result, 0, log)
-                self.assertEqual(code, (False, False, False))
+                self.assertEqual(code, (False, False, True))
                 self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
                 self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
                 self.assertIn('docs only: citations', log)
@@ -1034,18 +1420,18 @@ sys.exit(int(count > 0))
         self.write('skein/count.txt', '2')
         self.pin()
         self.write('guide.md', '# Changed\n')
-        result, log, calls, code = self.deliver()
+        result, log, calls, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 0, log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
         self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
 
     def test_new_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
-        result, log, _, code = self.deliver()
+        result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('missing.md', log)
         self.assertIn('1 new broken', log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
 
     def test_inherited_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
@@ -1105,10 +1491,10 @@ sys.exit(int(count > 0))
         self.write('skein/docs/reader.md', '# Reader\nSee `target.md`.\n')
         self.pin()
         (self.root / 'skein/docs/target.md').unlink()
-        result, log, _, code = self.deliver()
+        result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('reader.md', log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
 
     def test_new_citation_is_not_hidden_by_inherited_findings(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`.\n')

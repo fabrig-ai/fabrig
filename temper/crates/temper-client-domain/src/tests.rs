@@ -3,9 +3,7 @@ pub use temper_fixtures::client_documents as documents;
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod acts;
-mod address;
 mod admin;
-mod amend;
 mod approvals;
 mod approve;
 mod asked;
@@ -14,18 +12,13 @@ mod copy;
 mod decided;
 mod deployment;
 mod dismissed;
-mod drafts;
 mod playground;
-mod public;
-mod question;
-mod status;
+mod told;
 mod trials;
-mod views;
 
 pub(crate) mod fixtures;
 mod forge_stock_ways;
 mod forge_ways;
-mod forge_words;
 mod forges;
 mod form;
 mod pages;
@@ -156,8 +149,6 @@ fn dropped_work_goes_to_the_shell_with_its_count() {
     assert_eq!(out.pop(), Some(Request::Dropped { count: 2 }));
     assert!(out.is_empty());
 }
-
-mod change;
 
 mod connect;
 

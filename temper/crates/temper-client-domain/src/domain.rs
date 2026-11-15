@@ -242,3 +242,27 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
         out.push(Request::Show { address, replace: true });
     }
 }
+
+impl crate::pages::Root for Domain {
+    fn pages(&self) -> &crate::pages::Pages {
+        Domain::pages(self)
+    }
+    fn client(&self) -> &jig_client::Client {
+        Domain::client(self)
+    }
+    fn forge(&self) -> &forge::Side {
+        Domain::forge(self)
+    }
+    fn forges(&self) -> &forge::forges::State {
+        Domain::forges(self)
+    }
+    fn zone_minutes(&self) -> i32 {
+        Domain::zone_minutes(self)
+    }
+    fn away_on(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        Domain::away_on(self, project, wall)
+    }
+    fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        Domain::away_shown(self, project, wall)
+    }
+}

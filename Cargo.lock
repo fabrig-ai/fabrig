@@ -5635,14 +5635,45 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
- "skein-json",
  "skein-lib",
- "skein-ui",
  "skein-world",
+ "temper-client-domain-forge",
+ "temper-client-domain-pages",
  "temper-client-protocol-wire",
  "temper-fixtures",
  "temper-protocol-reaches",
  "temper-protocol-records",
+]
+
+[[package]]
+name = "temper-client-domain-forge"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-lib",
+ "skein-ui",
+ "temper-client-protocol-wire",
+ "temper-protocol-reaches",
+ "temper-protocol-records",
+]
+
+[[package]]
+name = "temper-client-domain-pages"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-json",
+ "skein-lib",
+ "temper-client-domain-forge",
+ "temper-client-protocol-wire",
+ "temper-fixtures",
+ "temper-protocol-reaches",
 ]
 
 [[package]]
@@ -5773,7 +5804,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-shell",
- "temper-client-domain",
+ "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-settings-form",
@@ -5878,7 +5909,7 @@ dependencies = [
  "skein-lib",
  "skein-push",
  "skein-ui",
- "temper-client-domain",
+ "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-docs",
@@ -6457,6 +6488,7 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
+ "skein-fake-machine",
  "skein-fake-oauth",
  "skein-forge",
  "skein-forge-client",
@@ -6473,13 +6505,14 @@ dependencies = [
  "skein-push",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
  "skein-tls",
  "skein-world",
  "smith-channel",
  "smith-charter",
  "smith-protocol-channel",
  "smith-protocol-translate",
- "temper-client-domain",
+ "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-engine-domain",
@@ -6628,7 +6661,7 @@ dependencies = [
  "smith-protocol-translate",
  "smith-transcript",
  "temper-box-machine",
- "temper-client-domain",
+ "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-engine-domain",
  "temper-engine-domain-forge",
@@ -7450,7 +7483,6 @@ dependencies = [
  "smith-transcript",
  "temper-box-machine",
  "temper-charter-set",
- "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-docs",

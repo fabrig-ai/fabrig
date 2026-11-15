@@ -126,6 +126,15 @@ fn configuration_help_gives_the_merge_commands_contract() {
         "`git add`",
         "**Exit 0:**",
         "**Exit 3:**",
+        "`{\"settled\":[PATH],\"left\":[LEFT]}`",
+        "`{\"path\":PATH,\"kind\":KIND}`",
+        "`modified`, `added`, `deleted`, `renamed` or `unknown`",
+        "`by` (`head` or `base`)",
+        "`from` or `to` for a rename",
+        "`commit`, the first twelve hexadecimal digits",
+        "`by` (`both`)",
+        "`\"more\":{\"left\":N,\"settled\":M,\"read\":\"git status --short; git log --name-status --diff-filter=DR HEAD...MERGE_HEAD\"}`",
+        "It settles no file one side deleted or renamed",
         "**Any other exit,**",
     ] {
         assert!(contract.contains(instruction), "merge command contract must explain: {instruction}");
