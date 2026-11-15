@@ -144,24 +144,22 @@ fn application(single: bool) -> Application {
             wire
         })
         .expect("bounded translation fixture");
-    let mut bridges = List::with_capacity(1);
-    bridges
-        .push(
-            skein_codec::bridge::Bridge::new(
-                skein_codec::patch::Capacity { versions: 2, patches: 2, text: 4096, bytes: 128, nodes: 32 },
-                &APP,
-                &["patch 1\nowner application 1\nfamily test-worker-wire 1 to 2\nwiden Value.n u8 u16\n"],
-                1,
-                no_sites,
-            )
-            .expect("bounded translation fixture"),
-        )
-        .expect("bounded translation fixture");
+    let mut kept = List::with_capacity(1);
+    kept.push(wire::Kept {
+        family: "test-worker-wire",
+        texts: &APP,
+        patches: &["patch 1\nowner application 1\nfamily test-worker-wire 1 to 2\nwiden Value.n u8 u16\n"],
+        floor: 1,
+        sites: no_sites,
+        names: &[],
+        values: List::uncapped(),
+    })
+    .expect("bounded translation fixture");
     let mut roots = List::with_capacity(1);
     roots
         .push(wire::Root { carried: wire::Carried::Left, wire: "test-worker-wire", declaration: "Value" })
         .expect("bounded translation fixture");
-    Application { spoken, bridges, roots }
+    Application { spoken, kept, roots }
 }
 #[test]
 fn a_newer_worker_checks_total_sends_after_the_statement_but_a_capped_worker_does_not() {
