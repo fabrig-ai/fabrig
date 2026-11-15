@@ -193,6 +193,18 @@ fn conflicting_goals_depart_and_resolve_in_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::Conflict);
 }
 
+/// temper/docs/design/domain/landing.md, 13: one owner revision keeps running work's settings.
+#[test]
+fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
+    support::turn_drills::run(support::turn_drills::Drill::GoLive);
+}
+
+/// temper/docs/design/domain/landing.md, 4.3: a moved head leaves a sealed batch of three.
+#[test]
+fn a_member_head_moves_during_a_three_goal_batch_proof() {
+    support::turn_drills::run(support::turn_drills::Drill::Moving);
+}
+
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {

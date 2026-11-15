@@ -164,7 +164,7 @@ struct StepInput {
 #[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,
-    held: bool,
+    pub(crate) held: bool,
     handoff: Handoff,
 }
 
@@ -2407,7 +2407,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
-            skein_forge_client::Request::OutboxDone => emit(out, Request::RestartDone { stage: RestartStage::Settled }),
+            skein_forge_client::Request::OutboxDone => {
+                crate::landing::restore_waits(d, env);
+                emit(out, Request::RestartDone { stage: RestartStage::Settled });
+            }
         }
     }
     read_afresh_complete(d, out);
@@ -5309,6 +5312,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
+    crate::readiness::way(d, &mut row);
     // Producing without a head uses no base facts except early starts and catch-ups.
     let base_tip = pending.base_tip.unwrap_or([0; 32]);
     row.pull = match &pending.pull {

@@ -168,7 +168,7 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     }
     if drill.is_batch() {
         batch::scripts(&mut scripts);
-        if matches!(drill, Drill::Breaking | Drill::Conflict | Drill::Moving) {
+        if matches!(drill, Drill::Breaking | Drill::Conflict) {
             departures::scripts(&mut scripts, drill);
         }
     }
@@ -274,6 +274,7 @@ struct Judge<'a> {
     go_live_revision: Option<u64>,
     go_live_call: Option<usize>,
     go_live_applied: bool,
+    go_live_seed_checked: bool,
     batch: batch::Batch,
     forge: &'a Throwaway,
     barrier: &'a JobBarrier,
@@ -666,7 +667,7 @@ impl Judge<'_> {
                     return Err(format!("one dispatch per landing: {runs}"));
                 }
                 if self.drill == Drill::Delivery {
-                    self.saved_result()?;
+                    self.file_result("walk/line-2", b"Saved work\nDelivered work\n")?;
                 }
                 self.stop(procs);
             }
@@ -704,7 +705,6 @@ impl Referee<Process> for Judge<'_> {
                         b"drill-saved",
                         b"drill-second",
                         b"drill-go-live",
-                        b"drill-moving",
                     ] {
                         let _released = peer.release(name);
                     }
@@ -717,7 +717,10 @@ impl Referee<Process> for Judge<'_> {
         if now < self.poll {
             return;
         }
-        self.poll = now.saturating_add(Duration::from_millis(100));
+        // The turn cut needs a short observation interval; stable waits do not.
+        let millis =
+            if self.drill == Drill::Phases && self.number == 3 && self.stage == Stage::Observe { 100 } else { 1000 };
+        self.poll = now.saturating_add(Duration::from_millis(millis));
         if let Err(why) = self.sample(procs) {
             self.failure = Some(why);
         }
@@ -796,6 +799,13 @@ impl Referee<Process> for Judge<'_> {
 
 /// Run a staging drill on an owned Forgejo, with separate engine and worker processes.
 pub fn run(drill: Drill) {
+    // A cut after an attempt's save can owe its whole finding lifetime
+    // (skein/docs/design/forge/client.md, 7.5), beside the other two landings.
+    let within = if drill == Drill::Phases {
+        super::LANDING.saturating_add(turn_restart::STAGING_LIFETIME)
+    } else {
+        super::LANDING
+    };
     let scratch = Scratch::new(&format!("turn-drill-{drill:?}"));
     let root = scratch.path();
     let barrier = JobBarrier::new(root);
@@ -823,6 +833,7 @@ pub fn run(drill: Drill) {
         go_live_revision: None,
         go_live_call: None,
         go_live_applied: false,
+        go_live_seed_checked: false,
         batch: batch::Batch::default(),
         forge: &forge,
         barrier: &barrier,
@@ -831,7 +842,7 @@ pub fn run(drill: Drill) {
         panel: None,
         run: None,
         poll: clock.now().now,
-        deadline: super::patience::Patience::watching("staging restart phases", super::LANDING, &binary),
+        deadline: super::patience::Patience::watching("staging restart phases", within, &binary),
         failure: None,
         failed_at: None,
         pending: None,
@@ -861,7 +872,7 @@ pub fn run(drill: Drill) {
     let worker_binary = super::cluster::Member::observing(super::serve(&worker));
     world.spawn_with_fds(worker_binary.descriptors(), || Process::Member(Box::new(worker_binary)));
     peer.spawn(&mut world);
-    let outcome = world.run(&clock, super::LANDING.saturating_add(Duration::from_secs(10)));
+    let outcome = world.run(&clock, within.saturating_add(Duration::from_secs(10)));
     assert!(outcome.procs.iter().all(Host::is_empty), "all drill actors drained");
     forge.stop();
     scratch.remove();

@@ -14,6 +14,7 @@ pub(super) struct Batch {
     run: Option<u64>,
     pub(super) departed: bool,
     pub(super) green_prefix: bool,
+    pub(super) moved: Option<String>,
 }
 #[derive(Debug, Default)]
 enum Phase {
@@ -24,7 +25,6 @@ enum Phase {
     Gates,
     Proof,
     Running,
-    Moving,
     Inspect,
     Recover,
     FinalPanel,
@@ -97,20 +97,6 @@ impl Judge<'_> {
             }
             Phase::Gates => self.batch_gates(procs)?,
             Phase::Proof => self.batch_proof(procs)?,
-            Phase::Moving => {
-                release(procs, b"drill-moving")?;
-                let panel = self.batch.panel.as_ref().ok_or("panel")?;
-                let task = panel["members"][1]["change"].as_u64().ok_or("moving change")?;
-                let original = panel["members"][1]["head"].as_str().ok_or("original head")?.to_owned();
-                if let Some(change) = self.read(procs, &["change", "show", &task.to_string()]) {
-                    let head = change["head"].as_str().ok_or("delivered head")?;
-                    // The change prints Forgejo's SHA-1; the landing prints its padded commit.
-                    if !original.starts_with(head) {
-                        self.barrier.release(self.batch.run.ok_or("held proof")?);
-                        self.batch.phase = Phase::Running;
-                    }
-                }
-            }
             Phase::Running => {
                 release(procs, b"drill-batch-reviews")?;
                 if matches!(self.drill, Drill::Breaking | Drill::Conflict | Drill::Moving)
@@ -132,7 +118,11 @@ impl Judge<'_> {
                 }
                 if panel["phase"] == "landed" {
                     self.batch.panel = Some(panel);
-                    self.batch.phase = if self.drill == Drill::BatchFour { Phase::Inspect } else { Phase::Recover };
+                    self.batch.phase = if matches!(self.drill, Drill::BatchFour | Drill::Moving) {
+                        Phase::Inspect
+                    } else {
+                        Phase::Recover
+                    };
                     self.batch.next = 0;
                 }
             }
@@ -279,14 +269,18 @@ impl Judge<'_> {
             return Err(format!("one four-member candidate: {panel}"));
         }
         eprintln!("batch {:?}: task {task}, {} members, proof run {run}", self.drill, self.drill.members());
+        if self.drill == Drill::Moving {
+            let branch = panel["members"][1]["branch"].as_str().ok_or("member branch")?;
+            self.forge.add_file_on(branch, "walk/moved", b"A person moved this head during proof.\n");
+            self.batch.moved = Some(
+                String::from_utf8(self.forge.branch_head(branch.as_bytes()).ok_or("moved branch")?.into_vec())
+                    .map_err(|why| why.to_string())?,
+            );
+        }
         self.batch.panel = Some(panel);
         self.batch.run = Some(run);
-        if self.drill == Drill::Moving {
-            self.batch.phase = Phase::Moving;
-        } else {
-            self.barrier.release(run);
-            self.batch.phase = Phase::Running;
-        }
+        self.barrier.release(run);
+        self.batch.phase = Phase::Running;
         Ok(())
     }
     fn batch_recover(&mut self, procs: &mut [Process]) -> Result<(), String> {
@@ -325,20 +319,28 @@ impl Judge<'_> {
         let panel = self.batch.panel.as_ref().ok_or("landed panel")?.clone();
         if let Some(task) = self.batch.members.get(self.batch.next).copied() {
             let Some(change) = self.read(procs, &["change", "show", &task.to_string()]) else { return Ok(()) };
-            if change["step"] != "landed" {
+            let moved = self.drill == Drill::Moving && self.batch.next == 1;
+            if moved {
+                if change["hold"] != "moved" {
+                    return Ok(());
+                }
+                if change["task_hold"].is_null() {
+                    return Err(format!("the external head move holds its task: {change}"));
+                }
+            } else if change["step"] != "landed" {
                 return Ok(());
             }
             let repaired = self.drill == Drill::Breaking && self.batch.next == 2;
             let resolved = self.drill == Drill::Conflict && self.batch.next == 1;
             if change["repairs"]["used"] != u64::from(repaired)
                 || change["resolutions"]["used"] != u64::from(resolved)
-                || !change["hold"].is_null()
+                || if moved { change["hold"] != "moved" } else { !change["hold"].is_null() }
             {
                 return Err(format!("batch change: {change}"));
             }
             let number = change["pull"]["number"].as_u64().ok_or("pull")?;
             let pull = self.forge.repository_observation("acme", "widget", &format!("pulls/{number}"));
-            if pull["merged"] != true {
+            if pull["merged"].as_bool() != Some(!moved) {
                 return Err(format!("member pull not merged: {number}"));
             }
             self.batch.next += 1;
@@ -352,10 +354,8 @@ impl Judge<'_> {
                 .collect();
             let expected = if self.drill == Drill::Breaking {
                 5
-            } else if self.drill == Drill::Conflict {
+            } else if matches!(self.drill, Drill::Conflict | Drill::Moving) {
                 2
-            } else if self.drill == Drill::Moving {
-                3
             } else {
                 1
             };
@@ -371,7 +371,16 @@ impl Judge<'_> {
             if self.forge.branch_head(b"main").as_deref() != Some(candidate.get(..40).ok_or("SHA")?.as_bytes()) {
                 return Err("main at candidate".into());
             }
-            eprintln!("batch {:?}: all {} member pulls merged, main at candidate", self.drill, self.drill.members());
+            if self.drill == Drill::Conflict {
+                self.file_result("walk/line-1", b"Changed 1\nResolved 2\n")?;
+            }
+            if self.drill == Drill::Moving {
+                self.file_result("walk/line-2", b"Before\n")?;
+            }
+            if self.drill == Drill::Moving && (!self.batch.departed || !self.batch.green_prefix) {
+                return Err("the moved member leaves before the unchanged members land".into());
+            }
+            eprintln!("batch {:?}: member outcomes checked, main at candidate", self.drill);
             self.stop(procs);
         }
         Ok(())

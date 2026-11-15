@@ -2,6 +2,65 @@ use super::*;
 
 mod empty_repair;
 
+/// Landing mode is selected at readiness, including work restored across a configuration change
+/// (temper/docs/design/domain/landing.md, 1).
+#[test]
+fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
+    use skein_forge::api::Answer;
+    use temper_engine_domain_forge_change as c;
+    for (state, since, way) in [
+        (c::State::Opening { requested: true }, None, c::Way::Turn),
+        (c::State::Checking { head: fixtures::HEAD }, None, c::Way::Turn),
+        (c::State::Gating { head: fixtures::HEAD, asked: Box::new([]) }, None, c::Way::Turn),
+        (c::State::Checking { head: fixtures::HEAD }, Some(env().wall), c::Way::Queue),
+        (c::State::Queued { head: fixtures::HEAD, ready_since: env().wall }, Some(env().wall), c::Way::Queue),
+    ] {
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = c::EffectResult::None;
+        row.pull = Some(1);
+        row.change.state = state;
+        row.change.ready_since = since;
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        assert!(d.project_landing(
+            5,
+            c::Way::Turn,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                },
+                bound: Duration::from_secs(7200),
+            },
+        ));
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        fixtures::step_change(&mut d);
+        let mut pull = fixtures::open_pull();
+        pull.ci = skein_forge::api::Ci::Pending;
+        for answer in [
+            Answer::Commit(fixtures::HEAD),
+            Answer::Commit(fixtures::BASE),
+            Answer::Pull(pull),
+            fixtures::checks(skein_forge::api::Check::Pending),
+            Answer::Commits { commits: Box::new([]), more: false },
+            Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+        ] {
+            fixtures::answer_next(&mut d, Ok(answer));
+        }
+        let row = d.change(fixtures::CHANGE).expect("ready change");
+        assert_eq!(row.change.way, way);
+        if way == c::Way::Turn {
+            assert_eq!(row.change.state, c::State::Ready { head: fixtures::HEAD, ready_since: env().wall });
+        }
+    }
+}
+
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
     use temper_engine_domain_forge_change::{Hold, State};
