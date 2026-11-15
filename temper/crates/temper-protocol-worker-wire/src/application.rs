@@ -7,7 +7,7 @@ use skein_lib::List;
 /// The worker wire's layouts, from this build's floor.
 #[must_use]
 pub fn spoken() -> Spoken {
-    Spoken::of(wire::FAMILY, patches::kept::temper_worker_wire::TEXTS, wire::FLOOR).expect("temper's kept worker wire")
+    Spoken::kept(wire::FAMILY, wire::FLOOR, patches::kept::temper_worker_wire::LAYOUTS)
 }
 
 /// The same kept wire and roots for the engine's workers and the worker's link.
