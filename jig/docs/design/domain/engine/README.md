@@ -313,7 +313,7 @@ step its last answer arrives.
 | a project made (a party's `MakeProject`, or the deployment's act) | people (the maker an owner of the deployment) → the core (the name in shape and free, a configured policy, room; the next number) → authority (the policy copied) → people (the maker its owner) → tasks (its first period, with no next start) | commit; the maker answered; the root hears the project made |
 | a task due | tasks → authority (the run may start) → brief, with its connectors gathering, and its transcript's current window loading → tasks (claim, with its inbox's messages for the start) → fleet (place) | commit the claim; assign |
 | a task closing | tasks → its connectors (release) | commit; releases made |
-| a goal changing | tasks → its projecting connectors | commit; projections made |
+| a goal or any task in its subtree changing | tasks → every enclosing goal’s projecting connectors, including a nested tracked task’s own | commit; whole plans and milestones made |
 | a project's period | authority (its spend within the policy) → tasks (the period's funding opened; recurring tasks' batches; standing allotments renewed) | commit; tasks started |
 | a timer | its child | as its child says |
 
@@ -449,6 +449,7 @@ answers to a run's reads.
 | parties: identities, sign-ins | people | those with a live sign-in or a role, at start; others as they sign in |
 | parties' requests' keys, with their answers, for a retention | people | at start, those within it |
 | tasks: every field of ../tasks/README.md, section 3 (its label, flags, last activity, LLM choice, kept account and revision among them), holds and their queues, writer slots, the last turn committed for a live attempt, and the revision a claim was prepared under (`settings.md`, 3) | tasks | live ones at start; ended ones on demand |
+| projection feeds: each tracked goal's hot header and words, its whole subtree's hot task rows and words, pending milestones and connector settlements; a nested tracked task remains in enclosing plans, with every save updating its phase and words there (`../connectors.md`, 8) | the core | at start; derived stale plan links repaired before the switch (`restart.md`) |
 | LLM accounts: each account's holder, LLM provider, subject and display name, uses, and its sources in their order, each with its kind, a program's name, its state and a limit's reset; never a program's login on a host, which hosts report (../accounts.md, 3.1 and 3.5) | accounts | at start |
 | the indexes of ended tasks: by requester, every ended task a party requested; by project, the ended tasks flagged listed; each saved in the decision that ends its task (`views.md`, 2; `../../protocol/store/loads.md`, 4) | tasks | on demand |
 | parties' read positions over conversations: a live one's; an ended one's, moved by the decision that ends the task and erased with it (`views.md`, 4) | people | live ones at start; ended ones on demand |
