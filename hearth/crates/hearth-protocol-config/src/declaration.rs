@@ -6,6 +6,7 @@ use crate::{
     names,
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::revision::declaration::Fragment;
 use skein_lib::List;
 
 /// An unescaped string at its opening quote, never read as an expression here.
@@ -48,11 +49,6 @@ pub struct Script {
     pub fragment: Fragment,
     pub at: Position,
     pub order: u16,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Fragment {
-    Customize,
-    Software,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Bless {

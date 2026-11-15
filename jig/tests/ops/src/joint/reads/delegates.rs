@@ -47,10 +47,8 @@ pub(super) fn history(store: &Store, task: u64, subtree: bool, tree_tasks: u32) 
                 tasks::Key::History { task: member, revision: 0 },
                 tasks::Key::History { task: member, revision: u64::MAX },
             ),
-            (
-                tasks::Key::Milestone { task: member, position: 0 },
-                tasks::Key::Milestone { task: member, position: u64::MAX },
-            ),
+            (tasks::Key::Attempt { task: member, attempt: 0 }, tasks::Key::Attempt { task: member, attempt: u64::MAX }),
+            (tasks::Key::Hold { task: member, position: 0 }, tasks::Key::Hold { task: member, position: u64::MAX }),
         ] {
             let first = root::Key::Core(core::Key::Tasks(first));
             let last = root::Key::Core(core::Key::Tasks(last));

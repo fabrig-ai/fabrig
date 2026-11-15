@@ -254,7 +254,7 @@ fn a_delegate_of_a_delegate_ending_feeds_the_whole_plan_once_and_closing_waits_f
             })
             .collect::<Vec<_>>();
         assert_eq!(ended.len(), 1, "one immutable terminal milestone");
-        assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Milestone(row))) if matches!(ended[0].identity, core::MilestoneId::Lifecycle { task, position } if task == row.task && position == row.position))));
+        assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) if matches!(ended[0].identity, core::MilestoneId::Lifecycle { task, position } if task == row.number && position == row.milestone))));
     }
     settle_tree(&mut world, goal, child, restart_configuration);
 }

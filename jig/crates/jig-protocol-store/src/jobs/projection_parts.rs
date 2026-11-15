@@ -15,7 +15,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         };
         if let Converted::Parts(hot, words) = parts {
             let next = parts_size(&hot, &words, bytes);
-            let fits = within(writes.len().checked_add(2), page.edge.writes) && within(next, page.edge.bytes);
+            let fits = within(writes.len().checked_add(2), page.room.writes) && within_bytes(next, page.room.bytes);
             if !fits {
                 if through.is_none() {
                     return Err(refusal(&row.key, "projection parts exceed job edge"));
@@ -43,6 +43,13 @@ enum Converted {
 fn within(value: Option<u32>, limit: u32) -> bool {
     match value {
         Some(value) => value <= limit,
+        None => false,
+    }
+}
+
+fn within_bytes(value: Option<u32>, limit: u64) -> bool {
+    match value {
+        Some(value) => u64::from(value) <= limit,
         None => false,
     }
 }

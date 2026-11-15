@@ -1,7 +1,7 @@
 //! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
 use super::{Patching, refuse, sealing, state, take};
 use crate::{
-    Below, Cursor, Event, Job, JobAnswer, JobEdge, JobPage, JobRefusal, JobRow, JobWrite, Limits, OpenRefusal, Owner,
+    Below, Cursor, Event, Job, JobAnswer, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits, OpenRefusal, Owner,
     Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
@@ -161,7 +161,7 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
         of,
         job: Box::from(job.name),
         page: JobPage {
-            edge: edge(store, of, &job, store.stores.store.last().checked_add(1)?)?,
+            room: room(store, of, &job)?,
             rows: rows.into_boxed(),
             end,
             layout: if running.first {
@@ -273,18 +273,17 @@ fn size(op: &skein_kv::Op, key: &[u8]) -> Option<u64> {
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))
 }
-fn edge(store: &Store, of: Owner, job: &Job, number: u64) -> Option<JobEdge> {
+fn room(store: &Store, of: Owner, job: &Job) -> Option<JobRoom> {
     let writes = store.limits.commits.writes.min(store.limits.store.ops).checked_sub(1)?;
-    let done = crate::jobs::kept::operation(store, of, job, number)?;
-    let tag = u32::try_from(whole(store, of, &[])?.len()).ok()?;
-    let bytes = store
-        .limits
-        .store
-        .commit
-        .checked_sub(skein_kv::FRAME_BYTES)?
-        .checked_sub(u32::try_from(size(&done, done.key())?).ok()?)?
-        .checked_sub(tag.checked_mul(writes)?)?;
-    Some(JobEdge { writes, bytes })
+    // A u64's largest encoding bounds the done row at any commit number.
+    let done = crate::jobs::kept::operation(store, of, job, u64::MAX)?;
+    let reserved = u64::from(skein_kv::FRAME_BYTES).checked_add(size(&done, done.key())?)?;
+    let mut bytes = u64::from(store.limits.store.commit).checked_sub(reserved)?;
+    if of == Owner::Application {
+        // JobWrite::bytes counts relative keys. Each whole key adds one tag.
+        bytes = bytes.checked_sub(u64::from(writes))?;
+    }
+    Some(JobRoom { writes, bytes })
 }
 fn operations(
     store: &Store,
@@ -294,7 +293,7 @@ fn operations(
     number: u64,
     end: bool,
 ) -> Result<Box<[skein_kv::Op]>, JobRefusal> {
-    let edge = edge(store, of, job, number).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
+    let edge = room(store, of, job).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
     if len_u64(writes.len()) > u64::from(edge.writes) {
         return Err(invalid(None, "job answer is past the store commit edge"));
     }
@@ -320,7 +319,7 @@ fn operations(
         bytes = bytes.checked_add(size).ok_or(invalid(None, "job write does not fit"))?;
         ops.push(op).expect("answer count checked");
     }
-    if bytes > u64::from(edge.bytes) {
+    if bytes > edge.bytes {
         return Err(invalid(None, "job answer is past the store commit byte bound"));
     }
     if end {

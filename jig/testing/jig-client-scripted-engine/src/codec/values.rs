@@ -76,9 +76,9 @@ pub(super) use inbox::*;
 #[path = "values/kind_order.rs"]
 mod kind_order;
 pub(super) use kind_order::*;
-#[path = "values/milestone.rs"]
-mod milestone;
-pub(super) use milestone::*;
+#[path = "values/lifecycle.rs"]
+mod lifecycle;
+pub(super) use lifecycle::*;
 #[path = "values/outcome.rs"]
 mod outcome;
 pub(super) use outcome::*;

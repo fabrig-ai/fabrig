@@ -306,6 +306,7 @@ pub fn live_task(number: u64) -> core::Record {
         started_from: Box::new([]),
         asked_requester: false,
         question_woken: 0,
+        open_attempt: None,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),

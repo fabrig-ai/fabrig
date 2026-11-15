@@ -55,6 +55,9 @@ pub struct Converts {
   the map, never the secrets' store; a written job's family a registered
   family of the set and its value type one of that family's, its ranges
   that value type's.
+- **jig's jobs:** `charter-versions`, a written job (4), and
+  `milestones`, which folds the tasks' milestones into their attempts
+  and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4).
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one
@@ -98,7 +101,7 @@ pub struct Converts {
   answers `Request::Job`. While a page is out, the owner may read other
   ranges of the map through `Store::patch_page`, as a written site's
   owner may.
-- **Its edge:** each page carries `edge`, what its answer may write:
+- **Its edge:** each page carries `room`, what its answer may write:
   `writes`, the commit edge's writes (`records.md`, 4: the lesser of
   `limits.commits.writes` and `limits.store.ops`) less one for the
   job's row; `bytes`, the store's commit bytes less the frame and the
@@ -112,7 +115,13 @@ pub struct Converts {
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
   job's row; and the last key of the page it consumed, `through`, none
-  meaning the whole page. The store commits the writes, one commit per
+  meaning the whole page.
+- **Its room:** each page says what its answer may hold, `room`: how
+  many writes and how many bytes, the commit edge's less the job's row
+  and the commit's frame, each write's bytes counted as the store counts
+  them (`JobWrite::bytes`). A job whose writes are not one per row
+  consumed (a fold erasing a row and putting another) fits its answer
+  to it by `through`. The store commits the writes, one commit per
   answer through the component's path (`commits::submit`, so each put
   takes the binary's layout id, `layouts.md`, 4), then reads its next
   page after `through`. An answer that consumes no row of a non-empty
@@ -133,8 +142,9 @@ pub struct Converts {
 Event::Job { owner: Token, of: Owner, job: Box<str>, page: JobPage }
 Request::Job { owner: Token, answer: Result<JobAnswer, JobRefusal> }
 Event::Ran { owner: Token, of: Owner, job: Box<str>, rows: u64, commits: u64 }
-pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub edge: JobEdge } // `layout`: a written job's, on its first page
-pub struct JobEdge { pub writes: u32, pub bytes: u32 }
+pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub room: JobRoom } // `layout`: a written job's, on its first page
+pub struct JobRoom { pub writes: u32, pub bytes: u64 } // what the answer's writes may hold together
+impl JobWrite { pub fn bytes(&self) -> u64; } // a write's bytes as the store counts them against `room.bytes`
 pub struct JobRow { pub key: Box<[u8]>, pub value: Box<[u8]> }
 pub struct JobLayout { pub root: Box<str>, pub variant: Option<Box<str>>, pub text: Box<[u8]>, pub held: Box<[Box<[u8]>]> }
 pub struct JobAnswer { pub writes: Box<[JobWrite]>, pub through: Option<Box<[u8]>> }

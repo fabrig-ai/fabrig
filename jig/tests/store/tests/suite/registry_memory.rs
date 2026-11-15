@@ -1,5 +1,5 @@
 //! Real registered sets at open (protocol/store/layouts.md, 7).
-use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, Write};
+use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, ValueType, Write};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 use skein_heap::Meter;
@@ -20,6 +20,25 @@ const SETS: PatchSets = PatchSets {
     ],
 };
 
+fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
+    let text = family.texts.last().copied().unwrap_or(family.current);
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
+    let mut kept: Vec<ValueType> = Vec::new();
+    for ty in family.types {
+        if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some() {
+            kept.push(*ty);
+        } else {
+            let previous = kept.last_mut().expect("new types append after kept types");
+            let mut ranges = previous.keys.to_vec();
+            let last = ranges.last_mut().expect("kept type's range");
+            assert_eq!(last.to, ty.keys.first().expect("new type's first range").from);
+            last.to = ty.keys.last().expect("new type's last range").to;
+            previous.keys = Box::leak(ranges.into_boxed_slice());
+        }
+    }
+    Box::leak(kept.into_boxed_slice())
+}
+
 fn sets(kept: bool, registered: bool) -> PatchSets {
     let sets = SETS
         .sets
@@ -32,25 +51,8 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                     current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
                     types: if !registered {
                         &[]
-                    } else if kept && family.name == "jig-store-tasks" {
-                        Box::leak(
-                            family
-                                .types
-                                .iter()
-                                .filter(|ty| ty.number != 19)
-                                .map(|ty| {
-                                    if ty.number == 18 {
-                                        jig_protocol_store::ValueType {
-                                            keys: &[jig_protocol_store::KeyRange { from: &[1, 1, 21], to: &[1, 2] }],
-                                            ..*ty
-                                        }
-                                    } else {
-                                        *ty
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .into_boxed_slice(),
-                        )
+                    } else if kept {
+                        kept_types(family)
                     } else {
                         family.types
                     },

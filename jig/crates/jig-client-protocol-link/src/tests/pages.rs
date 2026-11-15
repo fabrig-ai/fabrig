@@ -583,3 +583,73 @@ fn talk_words_take_the_message_bound_and_both_talk_acts_restore() {
         assert_eq!(translate::store::restore_ask(record, &limits).unwrap(), source);
     }
 }
+
+#[test]
+fn history_rows_keep_attempts_holds_and_their_absences() {
+    use skein_lib::Wall;
+    let base = fixtures::limits();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 3, ..*base.client() }, base.exchanges()).unwrap();
+    let page = translate::pages::history_page(jig_client_test_records::mixed_history_page(), &limits).unwrap();
+    assert!(page.cut);
+    let [c::HistoryRow::Change(change), c::HistoryRow::Attempt(attempt), c::HistoryRow::Hold(hold)] =
+        page.rows.as_slice()
+    else {
+        panic!("change, attempt, hold in page order")
+    };
+    assert_eq!((change.task, change.revision), (7, 19));
+    assert_eq!(
+        **attempt,
+        c::AttemptLine {
+            task: 7,
+            attempt: 2,
+            claimed: Some(Wall::from_nanos(14)),
+            started: Some(Wall::from_nanos(15)),
+            ended: Some(Wall::from_nanos(19)),
+            end: Some(c::RunEnd::Finished),
+            phases: Some(3)
+        }
+    );
+    assert_eq!(
+        **hold,
+        c::HoldLine {
+            task: 7,
+            position: 31,
+            at: Wall::from_nanos(37),
+            before: c::PriorPhase::Waiting,
+            why: c::HoldCategory::Deadline,
+            source: None,
+            ending: None
+        }
+    );
+    let absent = w::AttemptLine::new(
+        limits.wire(),
+        w::AttemptLineParts {
+            task: 0,
+            attempt: u64::MAX,
+            claimed: None,
+            started: None,
+            ended: None,
+            end: None,
+            phases: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        translate::pages::attempt_line_fields(&absent),
+        c::AttemptLine {
+            task: 0,
+            attempt: u64::MAX,
+            claimed: None,
+            started: None,
+            ended: None,
+            end: None,
+            phases: None
+        }
+    );
+    let mut source = jig_client_test_records::mixed_history_page().into_parts();
+    source.before = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: Box::from([0, 255]) }).unwrap());
+    source.after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: Box::from([254, 1]) }).unwrap());
+    let page = translate::pages::history_page(w::HistoryPage::new(limits.wire(), source).unwrap(), &limits).unwrap();
+    assert_eq!(page.before.unwrap().value.bytes(), &[0, 255]);
+    assert_eq!(page.after.unwrap().value.bytes(), &[254, 1]);
+}

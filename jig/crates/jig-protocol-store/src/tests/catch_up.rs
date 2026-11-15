@@ -34,6 +34,32 @@ fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8
     patcher.finish().expect("patched record").into()
 }
 
+fn current(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+    let old =
+        skein_codec::schema::parse(crate::patches::kept::jig_store_tasks::TEXTS.last().unwrap().as_bytes()).unwrap();
+    let mut text = None;
+    for family in crate::JIG_STORE_PATCH_SET.families {
+        if family.name == "jig-store-tasks" {
+            text = Some(family.current);
+        }
+    }
+    let new = skein_codec::schema::parse(text.unwrap().as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(root, None).unwrap(),
+        &[],
+        &new,
+        new.root(root, None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(131_072);
+    plan.convert(&bytes, &mut out, &mut work).unwrap();
+    Box::from(out.as_slice())
+}
+
 fn baseline_golden(name: &str) -> Box<[u8]> {
     let schema = skein_codegen::parse(crate::patches::kept::jig_store_tasks::TEXTS[0]).expect("old schema");
     for golden in skein_codegen::generate(&schema).goldens {
@@ -59,6 +85,7 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let bytes = patched(10, 2, b"Row", bytes);
     let bytes = patched(11, 4, b"Row", bytes);
     let bytes = patched(12, 5, b"Row", bytes);
+    let bytes = current(b"Row", bytes);
     let row = crate::tasks_v13::Row::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
     let crate::tasks_v13::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
@@ -75,6 +102,7 @@ fn a_stored_task_before_question_wakes_decodes_with_zero_woken() {
         include_bytes!("../../patches/golden/0005/jig-store-tasks/record_before_talk_full.bin").as_slice(),
     ] {
         let bytes = patched(12, 5, b"BeforeTalk", before.into());
+        let bytes = current(b"BeforeTalk", bytes);
         let wire =
             crate::tasks_v13::BeforeTalk::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
                 .expect("patched task");

@@ -121,6 +121,8 @@ fn prepare_record(
         }
         tasks::Stored::Live(_)
         | tasks::Stored::Milestone(_)
+        | tasks::Stored::Attempt(_)
+        | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::Writer(_)
         | tasks::Stored::Result(_)
@@ -169,6 +171,8 @@ fn task_saved(
                 tasks::Stored::Ended(_) => false,
                 tasks::Stored::Activity(_)
                 | tasks::Stored::Milestone(_)
+                | tasks::Stored::Attempt(_)
+                | tasks::Stored::Hold(_)
                 | tasks::Stored::PersonProposal(_)
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)
@@ -246,6 +250,8 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
         | tasks::Stored::Pool(_)
         | tasks::Stored::History(_)
         | tasks::Stored::Milestone(_)
+        | tasks::Stored::Attempt(_)
+        | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::LiveCold { .. }
@@ -277,6 +283,8 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
         | tasks::Stored::ClosedLedger(_)
         | tasks::Stored::History(_)
         | tasks::Stored::Milestone(_)
+        | tasks::Stored::Attempt(_)
+        | tasks::Stored::Hold(_)
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::LiveCold { .. }
@@ -286,12 +294,28 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
 
 fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut Queue<Request>) {
     match record {
-        tasks::Stored::Milestone(row) => crate::effects::projections::history(
+        tasks::Stored::Hold(row) => crate::effects::projections::history(
             core,
             &env.limits,
             row.task,
             crate::ProjectionMilestone {
                 identity: crate::MilestoneId::Lifecycle { task: row.task, position: row.position },
+                phase: Some(tasks::Phase::Held {
+                    was: row.held.was.clone(),
+                    why: row.held.why,
+                    source: row.held.source.clone(),
+                }),
+                change: None,
+                words: Box::new([]),
+            },
+            out,
+        ),
+        tasks::Stored::Ended(row) => crate::effects::projections::history(
+            core,
+            &env.limits,
+            row.number,
+            crate::ProjectionMilestone {
+                identity: crate::MilestoneId::Lifecycle { task: row.number, position: row.milestone },
                 phase: Some(row.phase.clone()),
                 change: None,
                 words: Box::new([]),
@@ -310,9 +334,10 @@ fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut
             },
             out,
         ),
-        tasks::Stored::Activity(_)
+        tasks::Stored::Milestone(_)
+        | tasks::Stored::Attempt(_)
+        | tasks::Stored::Activity(_)
         | tasks::Stored::Live(_)
-        | tasks::Stored::Ended(_)
         | tasks::Stored::PersonProposal(_)
         | tasks::Stored::Ledger(_)
         | tasks::Stored::Writer(_)

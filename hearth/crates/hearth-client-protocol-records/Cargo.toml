@@ -7,8 +7,12 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+hearth-domain-render-vocabulary.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
+
+[dev-dependencies]
+hearth-lib.workspace = true
 
 [lints]
 workspace = true

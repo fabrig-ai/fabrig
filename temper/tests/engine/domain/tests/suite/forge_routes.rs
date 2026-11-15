@@ -122,6 +122,7 @@ mod red_findings;
 mod tiers;
 mod triager_prover;
 
+mod brief_deadline;
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;
 
@@ -818,6 +819,18 @@ fn failed_ci_repair(
     branch: &[u8],
     checks: &[&[u8]],
 ) -> engine::Assignment {
+    start_failed_ci(world, producer, branch, checks);
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.len() >= 3 {
+            break;
+        }
+    }
+    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
+}
+
+/// Push the producer's head, fail the named checks and end the producer.
+fn start_failed_ci(world: &mut World, producer: &engine::Assignment, branch: &[u8], checks: &[&[u8]]) {
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -854,13 +867,6 @@ fn failed_ci_repair(
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..200 {
-        world.tick();
-        if world.assigned.len() >= 3 {
-            break;
-        }
-    }
-    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
 }
 
 /// The words of a repair's CI section.
@@ -1003,7 +1009,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
                 && world
                     .pending
                     .values()
-                    .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. })))
+                    .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. })))
             {
                 repair = Some(row.number);
                 break;
@@ -1446,7 +1452,7 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
     let engine::BriefBody::Text(words) = &pull.body else { panic!("pull text: {pull:?}") };
     let words = std::str::from_utf8(words).expect("pull text is UTF-8");
     assert!(words.contains(&omitted), "{words}");
-    assert!(words.contains("[comparison omitted: not read by the section's cutoff]"), "{words}");
+    assert!(words.contains("[comparison cut at the brief's deadline: not read; read it in your checkout]"), "{words}");
     let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = world
         .store
         .rows

@@ -765,7 +765,7 @@ fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, 
                 None
             } else {
                 match answer.expect("hunks settled") {
-                    Ok(hunks) => Some(RenderEvent::Hunks { request, hunks: translate::hunks::hunks(hunks) }),
+                    Ok(hunks) => Some(RenderEvent::Hunks { request, hunks }),
                     Err(()) => None,
                 }
             };

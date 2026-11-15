@@ -278,21 +278,21 @@ fn a_kept_delegate_resumes_with_its_committed_turns_and_its_journal_whole() {
     assert_eq!(live(&driver, kept).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert_eq!(live(&driver, kept).waiting_on.as_ref(), [sibling]);
     assert_eq!(assignments(&driver, kept), 1);
-    let milestones = |driver: &Driver| -> Vec<tasks::Milestone> {
+    let attempts = |driver: &Driver| -> Vec<tasks::AttemptRow> {
         driver
             .store
             .rows
             .values()
             .filter_map(|row| match row {
-                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Milestone(row))) if row.task == kept => {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Attempt(row))) if row.task == kept => {
                     Some(row.clone())
                 }
                 _ => None,
             })
             .collect()
     };
-    let before = milestones(&driver);
-    assert_eq!(before.last().expect("kept lifecycle journal").phase, tasks::Phase::Active(tasks::Active::Idle));
+    let before = attempts(&driver);
+    assert_eq!(before.last().expect("kept attempt").end, Some(tasks::EndKind::Parked));
     finish_report(&mut driver, &sibling_run, b"sibling done");
     assert_eq!(assignments(&driver, kept), 2);
     let resumed = driver.last_assignment();
@@ -307,8 +307,8 @@ fn a_kept_delegate_resumes_with_its_committed_turns_and_its_journal_whole() {
             .count(),
         1
     );
-    let after = milestones(&driver);
-    assert!(after.len() > before.len(), "the next attempt adds lifecycle milestones");
+    let after = attempts(&driver);
+    assert!(after.len() > before.len(), "the next claim opens another attempt row");
     assert!(after.starts_with(&before), "the kept journal remains an unchanged prefix: {before:?} -> {after:?}");
 }
 

@@ -33,18 +33,10 @@ fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {
     assert_eq!(met.kind, tasks::MessageKind::Met { dependency, removed: false });
     assert_eq!(met.from, tasks::Party::Task(dependency));
     assert_eq!(live_row(&world, kept).due_reason, tasks::Why::Message { message: met.number });
-    for phase in [tasks::Active::Due, tasks::Active::Preparing] {
-        assert!(
-            world.store.rows.values().any(|row| matches!(
-                row,
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Milestone(milestone)))
-                    if milestone.task == kept
-                        && milestone.position > parked_milestone
-                        && milestone.phase == tasks::Phase::Active(phase)
-            )),
-            "Met made the kept delegate {phase:?}"
-        );
-    }
+    let resumed = live_row(&world, kept);
+    let open = resumed.open_attempt.as_ref().expect("Met opened the next attempt");
+    assert_eq!(open.from, parked_milestone + 3, "Due, Preparing and Claimed each publish a phase");
+    assert_eq!(resumed.milestone, open.from + 1, "the next attempt is Running");
     let next_run = running(&world, kept);
     assert_ne!(next_run, kept_run);
     let assignment = world.assigned.as_ref().expect("kept delegate assigned again");

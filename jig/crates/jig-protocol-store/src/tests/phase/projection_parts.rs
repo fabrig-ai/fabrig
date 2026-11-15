@@ -84,7 +84,7 @@ fn projection_parts_open_splits_whole_rows_keeps_milestones_and_runs_once() {
             Event::Job { owner, of: Owner::Jig, job, page } => {
                 let answer = crate::jobs::page(&job, &page).unwrap();
                 if job.as_ref() == "projection-parts" {
-                    assert!(answer.writes.len() <= usize::try_from(page.edge.writes).unwrap());
+                    assert!(answer.writes.len() <= usize::try_from(page.room.writes).unwrap());
                     converted += answer.writes.len() / 2;
                     if !page.rows.is_empty() && answer.through.as_ref() != page.rows.last().map(|r| &r.key) {
                         partial += 1;

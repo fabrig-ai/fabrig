@@ -1294,6 +1294,8 @@ pub struct TaskRecord {
     pub asked_requester: bool,
     /// Newest open question that woke it at a park with a timer or live task watch; never lowered.
     pub question_woken: u64,
+    /// Current attempt (domain/tasks/lifecycle.md, 12.1).
+    pub open_attempt: Option<crate::OpenAttempt>,
 }
 
 pub use crate::index::Key;
@@ -1315,6 +1317,8 @@ pub enum Stored {
     Activity(crate::ActivityLine),
     /// One immutable lifecycle milestone, loaded on demand.
     Milestone(crate::Milestone),
+    Attempt(crate::AttemptRow),
+    Hold(crate::HoldRow),
     /// Pending person-origin goal proposal.
     PersonProposal(Box<crate::PersonProposal>),
     /// A decided person-origin goal proposal, loaded on demand.
@@ -1371,6 +1375,8 @@ impl Stored {
             Stored::History(row) => Key::History { task: row.task, revision: row.revision },
             Stored::Activity(row) => Key::Activity { task: row.task, position: row.position },
             Stored::Milestone(row) => Key::Milestone { task: row.task, position: row.position },
+            Stored::Attempt(row) => Key::Attempt { task: row.task, attempt: row.attempt },
+            Stored::Hold(row) => Key::Hold { task: row.task, position: row.position },
             Stored::Live(record) => Key::Live(record.number),
             Stored::LiveCold { number, .. } => Key::LiveCold(*number),
             Stored::Ended(record) => Key::Ended(record.number),

@@ -1,0 +1,14 @@
+== jig == 
+Held:
+  Held
+  Task: 18446744073709551615
+  Activity position: 18446744073709551615
+  Hold time: 0
+  Prior closing settled
+  Held budget
+  Hold source not supplied
+  Completed with result
+  Approval of the named state
+  `\xFF\x00\xFE`
+  `explain`
+  Supplied words incomplete

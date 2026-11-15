@@ -372,6 +372,7 @@ fn task_run(
             requester: value::party(&source.requester, limits)?,
             run_spent: source.run_spent,
             run_reserved: source.run_reserved,
+            open_attempt: super::lifecycle::open(source.open_attempt.as_ref(), limits)?,
         },
     )
 }
@@ -519,6 +520,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         ended_at: value::read_wall(history.ended_at),
         revision: history.revision,
         milestone: run.milestone,
+        open_attempt: super::lifecycle::read_open(run.open_attempt)?,
         activity: run.activity,
         due_reason: value::read_why(run.due_reason),
         narrowing: run.narrowing,
@@ -736,6 +738,7 @@ pub fn live_hot(
         revision,
         milestone,
         activity,
+        open_attempt,
         due_reason,
         narrowing,
         llm_changed,
@@ -824,6 +827,7 @@ pub fn live_hot(
         wire::TaskRunParts {
             milestone: *milestone,
             activity: *activity,
+            open_attempt: super::lifecycle::open(open_attempt.as_ref(), limits)?,
             due_reason: value::why(*due_reason, limits)?,
             reasons: reasons.0,
             offered: offered.0,

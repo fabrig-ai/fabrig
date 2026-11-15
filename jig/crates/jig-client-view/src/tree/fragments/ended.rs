@@ -202,7 +202,7 @@ pub fn render(b: &mut Builder, client: &Borrowed<'_>, value: &Ended, words: &Wor
                 }
             }
             match hold {
-                Some(value) => crate::tree::fragments::milestone::render(b, value, client, words, bindings),
+                Some(value) => crate::tree::fragments::lifecycle::hold(b, value, client, words, bindings),
                 None => label(b, words, P::HoldAbsent),
             }
         }
@@ -294,7 +294,7 @@ pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     let task = crate::sizes::sizes::owner_escalation_nodes(l, client)?
         .checked_add(result)?
         .checked_add(result.checked_mul(client.rows)?)?;
-    let escalation = task.checked_add(crate::tree::fragments::milestone::max_nodes(l, client)?)?.checked_add(12)?;
+    let escalation = task.checked_add(crate::tree::fragments::lifecycle::max_nodes(l, client)?)?.checked_add(12)?;
     let proposal = crate::tree::fragments::history::proposal_max_nodes(l, client)?;
     let person_goal = crate::tree::fragments::specification::nodes(l, client)?
         .checked_add(crate::tree::fragments::proposed_task::contract_nodes(l, client)?)?

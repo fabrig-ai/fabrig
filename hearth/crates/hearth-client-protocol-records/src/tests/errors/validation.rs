@@ -1,8 +1,12 @@
 use crate::{
-    errors::{Evaluation, Kind, Place, Position},
     form::Form,
     tests::fixtures::{self, SchemaInput},
 };
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Kind, Place};
+use render::evaluate::FaultKind as Evaluation;
+use render::revision::Position;
+
 use skein_lib::bytes::copy_of;
 const EVALUATIONS: &[(Evaluation, &str, &str)] = &[
     (
@@ -164,22 +168,22 @@ const REFERENCES: &[(SchemaInput, &str)] = &[
     (
         SchemaInput::Unlisted {
             reader: b"vpn",
-            root: crate::errors::Root::Tasks,
+            root: render::errors::Root::Tasks,
             task: b"core",
             setting: Some(b"domain"),
         },
         "tasks.core.domain is not in vpn's reads\n",
     ),
     (
-        SchemaInput::Unlisted { reader: b"mail", root: crate::errors::Root::Exports, task: b"mail", setting: None },
+        SchemaInput::Unlisted { reader: b"mail", root: render::errors::Root::Exports, task: b"mail", setting: None },
         "exports.mail is not in mail's reads\n",
     ),
     (
-        SchemaInput::Unlisted { reader: b"vpn", root: crate::errors::Root::Tasks, task: b"wifi", setting: None },
+        SchemaInput::Unlisted { reader: b"vpn", root: render::errors::Root::Tasks, task: b"wifi", setting: None },
         "tasks.wifi is not an optional read of vpn\n",
     ),
-    (SchemaInput::Dynamic(crate::errors::Root::Tasks), "tasks takes only literal names\n"),
-    (SchemaInput::Dynamic(crate::errors::Root::Exports), "exports takes only literal names\n"),
+    (SchemaInput::Dynamic(render::errors::Root::Tasks), "tasks takes only literal names\n"),
+    (SchemaInput::Dynamic(render::errors::Root::Exports), "exports takes only literal names\n"),
 ];
 #[test]
 fn an_unlisted_read_prints_the_reader_and_the_reference() {
@@ -195,7 +199,7 @@ const REFERENCES_JSON: &[(SchemaInput, &str)] = &[
     (
         SchemaInput::Unlisted {
             reader: b"vpn",
-            root: crate::errors::Root::Tasks,
+            root: render::errors::Root::Tasks,
             task: b"core",
             setting: Some(b"domain"),
         },
@@ -205,21 +209,21 @@ const REFERENCES_JSON: &[(SchemaInput, &str)] = &[
         ),
     ),
     (
-        SchemaInput::Unlisted { reader: b"mail", root: crate::errors::Root::Exports, task: b"mail", setting: None },
+        SchemaInput::Unlisted { reader: b"mail", root: render::errors::Root::Exports, task: b"mail", setting: None },
         concat!(
             r#"{"record":"error","kind":"schema","schema":{"kind":"unlisted","reader":"mail","root":"exports","setting":null,"task":"mail"},"class":"configuration"}"#,
             "\n"
         ),
     ),
     (
-        SchemaInput::Dynamic(crate::errors::Root::Tasks),
+        SchemaInput::Dynamic(render::errors::Root::Tasks),
         concat!(
             r#"{"record":"error","kind":"schema","schema":{"kind":"dynamic","root":"tasks"},"class":"configuration"}"#,
             "\n"
         ),
     ),
     (
-        SchemaInput::Dynamic(crate::errors::Root::Exports),
+        SchemaInput::Dynamic(render::errors::Root::Exports),
         concat!(
             r#"{"record":"error","kind":"schema","schema":{"kind":"dynamic","root":"exports"},"class":"configuration"}"#,
             "\n"

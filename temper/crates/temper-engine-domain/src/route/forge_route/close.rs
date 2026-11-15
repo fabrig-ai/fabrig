@@ -93,8 +93,13 @@ pub(crate) fn made(domain: &mut Domain, task: u64, fresh: u64) {
 }
 
 fn failed_words(phase: &tasks::Phase) -> Option<&[u8]> {
-    let tasks::Phase::Held { why: tasks::Hold::Failures(_), source: Some(source), .. } = phase else { return None };
-    let tasks::HoldSource::Preparation { words } = source.as_ref() else { return None };
+    let tasks::Phase::Held { why, source, .. } = phase else { return None };
+    preparation_words(*why, source.as_deref())
+}
+
+fn preparation_words(why: tasks::Hold, source: Option<&tasks::HoldSource>) -> Option<&[u8]> {
+    let tasks::Hold::Failures(_) = why else { return None };
+    let Some(tasks::HoldSource::Preparation { words }) = source else { return None };
     Some(words)
 }
 
@@ -122,9 +127,9 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
         let Some(task) = held_change(domain, child.requester, child.number) else { return };
         let Some(context) = domain.core.tasks.run_context(task) else { return };
         super::change_results(domain, &context, None);
-    } else if let jig_domain_core::Record::Tasks(tasks::Stored::Milestone(milestone)) = record {
-        let Some(words) = failed_words(&milestone.phase) else { return };
-        let Some(child) = domain.core.tasks.task(milestone.task) else { return };
+    } else if let jig_domain_core::Record::Tasks(tasks::Stored::Hold(hold)) = record {
+        let Some(words) = preparation_words(hold.held.why, hold.held.source.as_deref()) else { return };
+        let Some(child) = domain.core.tasks.task(hold.task) else { return };
         let Some(task) = held_change(domain, child.requester, child.number) else { return };
         domain.work.push(Work::Forge(forge::Event::DelegateResult {
             ended_at: None,

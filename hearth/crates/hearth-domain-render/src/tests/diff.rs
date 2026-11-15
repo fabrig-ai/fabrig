@@ -180,7 +180,7 @@ fn hunks_are_asked_only_for_two_files_under_1_mib_whose_digests_differ() {
     for FilePair { before, after, digest, expected } in FILE_PAIRS {
         let (mut entry, sizes_before, sizes_after) = fixtures::changed_file(*before, *after, *digest);
         assert_eq!(
-            entry.pair(&sizes_before, &sizes_after, crate::limits::SHIPPED.hunk_file),
+            config::pair(&mut entry, &sizes_before, &sizes_after, crate::limits::SHIPPED.hunk_file),
             *expected,
             "{before}/{after}/{digest:?}"
         );
@@ -189,7 +189,7 @@ fn hunks_are_asked_only_for_two_files_under_1_mib_whose_digests_differ() {
 #[test]
 fn two_changed_files_keep_their_cached_sizes() {
     let (mut entry, before, after) = fixtures::changed_file(9, 22, Digest([2; 32]));
-    entry.pair(&before, &after, crate::limits::SHIPPED.hunk_file);
+    config::pair(&mut entry, &before, &after, crate::limits::SHIPPED.hunk_file);
     let EntryChange::Changed { sizes, .. } = entry else { panic!("changed file") };
     assert_eq!(sizes, Some(config::Sizes { before: 9, after: 22 }));
 }
@@ -199,7 +199,11 @@ fn added_or_removed_files_never_request_hunks() {
     let mut change = config::change(Some(&before), Some(&after));
     let sizes = crate::call::Sizes::with_capacity(0);
     for entry in &mut change.tree {
-        assert_eq!(entry.pair(&sizes, &sizes, crate::limits::SHIPPED.hunk_file), None, "no pair of cached files");
+        assert_eq!(
+            config::pair(entry, &sizes, &sizes, crate::limits::SHIPPED.hunk_file),
+            None,
+            "no pair of cached files"
+        );
     }
 }
 #[test]

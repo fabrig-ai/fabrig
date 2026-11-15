@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:45709                                     │
+│ Sign in this terminal to 127.0.0.1:36339                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ RPTF-SJVM, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:45709/terminal?code=RPTF-SJVM                  │
+│ TKBG-SMXB, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:36339/terminal?code=TKBG-SMXB                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:45709/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:36339/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

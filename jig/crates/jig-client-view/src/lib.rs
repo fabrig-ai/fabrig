@@ -74,9 +74,9 @@ pub mod words {
     pub(crate) mod ended_words;
     pub(crate) mod history_words;
     pub(crate) mod inbox_words;
+    pub(crate) mod lifecycle_words;
     pub mod literal_segment;
     pub(crate) mod live_call_words;
-    pub(crate) mod milestone_words;
     pub(crate) mod outcome_words;
     pub(crate) mod person_task_words;
     pub mod phrases;

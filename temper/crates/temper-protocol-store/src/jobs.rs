@@ -35,7 +35,7 @@ fn change_parts(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         };
         let count = writes.len().checked_add(3);
         let fits = match (cost, count) {
-            (Some(cost), Some(count)) => cost <= page.edge.bytes && count <= page.edge.writes,
+            (Some(cost), Some(count)) => u64::from(cost) <= page.room.bytes && count <= page.room.writes,
             (None, _) | (_, None) => false,
         };
         if !fits {

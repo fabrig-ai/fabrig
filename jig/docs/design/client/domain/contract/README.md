@@ -335,6 +335,30 @@ party reads is therefore never lost by a crash.
   waits for the preceding commits to be durable and checks current
   sign-in and visibility when it completes; it never restores a retired
   row into the live set (`../../../domain/engine/README.md`, 5.2 and 5.3).
+- **A history page's rows** are a task's changes, its attempts and its
+  holds (`../../../domain/tasks/lifecycle.md`, 12), in the store's
+  order: for each task, its changes, then its attempts, then its holds.
+  On jig's wire, from version 23, where they replace version 22's
+  milestones:
+
+  ```
+  record AttemptLine { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option RunEnd phases: option u32 }
+  record HoldLine { task: u64 position: u64 at: u64 before: PriorPhase why: HoldCategory source: option Part ending: option ChipEnding }
+  record HistoryRowAttempt { value: AttemptLine }
+  record HistoryRowHold { value: HoldLine }
+  enum HistoryRow { change: boxed HistoryRowChange, attempt: HistoryRowAttempt, hold: HistoryRowHold }
+  record EndedValueEscalation { task: Task decision: EscalationDecisionRecord hold: option HoldLine }
+  ```
+
+  An attempt's times are wall nanoseconds, none where the store did not
+  record them (an attempt claimed before its task's milestones were
+  folded, or still live); `end` is how its run ended, as the activity's
+  `run_ended` line says it; `phases` how many phase changes it took. A
+  hold's `before`, `why`, `source` and `ending` are a held chip's
+  (`../objects.md`, 5). An escalation's `hold` is the hold row at its
+  task's latest hold. The activity's `milestone` line stays, its
+  `position` the task's phase change it marks, which at a hold is that
+  hold row's `position`.
 - **Notes are read by scope.** A note's scope on the client's side is
   `Deployment`, `Project`, `Resource`, `Task { project, task }`, the
   engine's goal scope, which also holds a chat's own

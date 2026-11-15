@@ -457,7 +457,9 @@ fn live_save(request: &Request) -> Option<crate::Key> {
     match record {
         crate::Stored::Live(row) => Some(crate::Key::Live(row.number)),
         crate::Stored::LiveCold { number, .. } => Some(crate::Key::LiveCold(*number)),
-        crate::Stored::PlacedHold(_)
+        crate::Stored::Attempt(_)
+        | crate::Stored::Hold(_)
+        | crate::Stored::PlacedHold(_)
         | crate::Stored::Update(_)
         | crate::Stored::Result(_)
         | crate::Stored::EndedByParty(_)

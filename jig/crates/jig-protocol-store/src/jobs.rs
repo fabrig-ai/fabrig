@@ -19,17 +19,18 @@ pub struct KeyRange {
     pub from: &'static [u8],
     pub to: &'static [u8],
 }
-#[derive(Clone, Copy, Debug)]
-pub struct JobEdge {
-    pub writes: u32,
-    pub bytes: u32,
-}
 #[derive(Debug)]
 pub struct JobPage {
     pub rows: Box<[JobRow]>,
     pub end: bool,
     pub layout: Option<JobLayout>,
-    pub edge: JobEdge,
+    pub room: JobRoom,
+}
+/// The answer's write and byte allowance, after the commit frame and job row.
+#[derive(Clone, Copy, Debug)]
+pub struct JobRoom {
+    pub writes: u32,
+    pub bytes: u64,
 }
 #[derive(Debug)]
 pub struct JobRow {
@@ -53,6 +54,29 @@ pub enum JobWrite {
     Put { key: Box<[u8]>, value: Box<[u8]> },
     Erase { key: Box<[u8]> },
 }
+impl JobWrite {
+    /// Encoded operation bytes. Application keys are relative to their tag;
+    /// the runner reserves that tag separately in the page's room.
+    #[must_use]
+    pub fn bytes(&self) -> u64 {
+        let (key, value) = match self {
+            Self::Put { key, value } => (key, Some(value)),
+            Self::Erase { key } => (key, None),
+        };
+        let Ok(key) = u32::try_from(key.len()) else { return u64::MAX };
+        let bytes = match value {
+            Some(value) => {
+                let Ok(value) = u32::try_from(value.len()) else { return u64::MAX };
+                skein_kv::put_bytes(key, value)
+            }
+            None => skein_kv::erase_bytes(key),
+        };
+        match bytes {
+            Some(bytes) => u64::from(bytes),
+            None => u64::MAX,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct JobRefusal {
     pub key: Option<Box<[u8]>>,
@@ -63,6 +87,9 @@ pub struct JobRefusal {
 pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "charter-versions" {
         return charter_versions::page(page);
+    }
+    if job == "milestones" {
+        return milestones::page(page);
     }
     if job == "live-task-parts" {
         return live_task_parts::page(page);
@@ -75,6 +102,7 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
 
 mod charter_versions;
 mod live_task_parts;
+mod milestones;
 mod projection_parts;
 
 pub(crate) mod admission;

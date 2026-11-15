@@ -162,14 +162,14 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
     panic!("jobs did not end")
 }
 fn assert_edge(page: &JobPage, of: Owner) {
-    assert_eq!(page.edge.writes, 7);
+    assert_eq!(page.room.writes, 7);
     // 1024 commit bytes minus 26 framing, the job put (20/21 key,
     // 10 value, 9 framing), and seven one-byte application tags.
-    assert_eq!(page.edge.bytes, if of == Owner::Jig { 959 } else { 951 });
+    assert_eq!(page.room.bytes, if of == Owner::Jig { 959 } else { 951 });
 }
 fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -> JobAnswer {
     // Unregistered keys keep value decoding out of this commit-edge test.
-    let mut writes: Vec<JobWrite> = (0..page.edge.writes + extra_writes)
+    let mut writes: Vec<JobWrite> = (0..page.room.writes + extra_writes)
         .map(|index| {
             let relative = format!("e/{index}").into_bytes();
             let key = if of == Owner::Jig { [b"\x02".as_slice(), &relative].concat() } else { relative };
@@ -178,8 +178,8 @@ fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -
         .collect();
     let bytes: u32 = writes.iter().map(put_bytes).sum();
     let JobWrite::Put { value, .. } = &mut writes[0] else { unreachable!() };
-    *value = vec![0; usize::try_from(1 + page.edge.bytes + extra_bytes - bytes).unwrap()].into();
-    assert_eq!(writes.iter().map(put_bytes).sum::<u32>(), page.edge.bytes + extra_bytes);
+    *value = vec![0; usize::try_from(1 + page.room.bytes + u64::from(extra_bytes) - u64::from(bytes)).unwrap()].into();
+    assert_eq!(u64::from(writes.iter().map(put_bytes).sum::<u32>()), page.room.bytes + u64::from(extra_bytes));
     JobAnswer { writes: writes.into_boxed_slice(), through: None }
 }
 fn put_bytes(write: &JobWrite) -> u32 {
@@ -257,6 +257,71 @@ fn job_pages_hand_both_owners_the_edge_the_answer_enforces_including_at_end() {
                 }
             }
         }
+    }
+}
+#[test]
+fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() {
+    assert_eq!(JobWrite::Put { key: Box::new([1, 2, 3]), value: Box::new([4, 5, 6, 7]) }.bytes(), 16);
+    assert_eq!(JobWrite::Erase { key: Box::new([1, 2, 3]) }.bytes(), 8);
+    for of in [Owner::Jig, Owner::Application] {
+        let sets = PatchSets {
+            sets: Box::leak(Box::new([
+                PatchSet { jobs: if of == Owner::Application { &[FOLLOW] } else { &[] }, ..BASE.sets[0] },
+                PatchSet { jobs: if of == Owner::Jig { &[UPSTREAM_JOB] } else { &[] }, ..BASE.sets[1] },
+            ])),
+        };
+        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut store = store(&disk, sets);
+        // Fit three puts, their frame and the done row exactly.
+        let writes: Box<[JobWrite]> = (0..3_u8)
+            .map(|n| JobWrite::Put {
+                key: if of == Owner::Application {
+                    vec![b'l', b'/', b'x' + n].into()
+                } else {
+                    vec![2, b'l', b'/', b'x' + n].into()
+                },
+                value: label(1),
+            })
+            .collect();
+        let declared = if of == Owner::Jig { UPSTREAM_JOB } else { FOLLOW };
+        let done_op = crate::jobs::kept::operation(&store, of, &declared, u64::MAX).unwrap();
+        let skein_kv::Op::Put { key, value } = done_op else { panic!("done put") };
+        let row = skein_kv::put_bytes(u32::try_from(key.len()).unwrap(), u32::try_from(value.len()).unwrap()).unwrap();
+        let bytes = writes.iter().map(JobWrite::bytes).sum::<u64>();
+        let tags = if of == Owner::Application { 3 } else { 0 };
+        let commit = u32::try_from(u64::from(skein_kv::FRAME_BYTES + row) + bytes + tags).unwrap();
+        let mut next = disk.open(&mut store);
+        // Recovery reads the baseline's larger frames before the job's tiny edge.
+        store.limits.store.commit = commit;
+        let (owner, ending) = loop {
+            assert!(
+                match next.first() {
+                    Some(Event::Job { .. }) => true,
+                    _ => false,
+                },
+                "{next:?}"
+            );
+            let (owner, found, name, page) = page(next);
+            assert_eq!((found, name.as_ref()), (of, declared.name));
+            if page.end {
+                break (owner, page);
+            }
+            next = disk.request(
+                &mut store,
+                Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+            );
+        };
+        assert_eq!(ending.room.writes, 3);
+        assert_eq!(ending.room.bytes, bytes);
+        let events = disk.request(&mut store, Request::Job { owner, answer: Ok(JobAnswer { writes, through: None }) });
+        assert!(
+            events.iter().any(|e| match e {
+                Event::Ran { of: found, .. } => *found == of,
+                _ => false,
+            }),
+            "{events:?}"
+        );
+        assert!(done(&mut store, of, declared.name).is_some());
     }
 }
 #[test]

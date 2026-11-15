@@ -1,10 +1,12 @@
 use crate::{
-    errors::{Format, Kind},
     form::{self, Form},
     limits,
     records::Record,
     tests::fixtures::{self, SchemaInput},
 };
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Format, Kind};
+
 const FAULTS: &[(SchemaInput, &str, &str)] = &[
     (
         SchemaInput::Malformed(Format::Path),
