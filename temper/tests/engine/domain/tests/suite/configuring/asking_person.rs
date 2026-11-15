@@ -388,7 +388,7 @@ fn an_asking_chat_reads_its_project_as_its_person() {
         (
             &person.owner,
             format!("task {change}"),
-            format!("task {change}, Implement CSV export · a change · idle, waiting for news"),
+            format!("task {change}, Implement CSV export · a change · ready"),
             "a procedure",
             Some("task N tree · task N activity · change N · tasks"),
         ),
@@ -416,7 +416,7 @@ fn an_asking_chat_reads_its_project_as_its_person() {
         (
             &person.owner,
             format!("change {change}"),
-            format!("change {change} · org/repo temper/1/c{change} into main · checking"),
+            format!("change {change} · org/repo temper/1/c{change} into main · opening"),
             "gate 1: waiting",
             Some("task N · task N activity · changes · settings gates OWNER/NAME"),
         ),

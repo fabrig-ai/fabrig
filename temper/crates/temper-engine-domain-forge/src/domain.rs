@@ -4662,14 +4662,21 @@ fn step_read(
                 Ok(skein_forge::api::Answer::Pull(pull)) => {
                     // Branch names can repeat across deployments and a repository's past.
                     let own = (pull.state == skein_forge::api::State::Open && pull.merged.is_none())
-                        || row.pull == Some(pull.number)
-                        || row.change.last_head == Some(pull.commit);
+                        || row.pull == Some(pull.number);
                     if own {
                         crate::change_history::observed_pull(d, env.wall, pending.task, &pull, out);
                     }
                     pending.pull = if own { Some(pull) } else { None };
                 }
-                Err(skein_forge::api::Error::Missing) => pending.pull = None,
+                Err(skein_forge::api::Error::Missing) => {
+                    if pull_number.is_some() {
+                        let mut row = row.clone();
+                        hold_owned_pull(d, env, &mut row, out);
+                        d.read_sessions.remove(&pending.task);
+                        return;
+                    }
+                    pending.pull = None;
+                }
                 Ok(_) | Err(_) => {
                     unreachable!("fresh read answer checked");
                 }
@@ -5940,6 +5947,10 @@ fn emit_change_effect(
         | change::Effect::Merge { .. } => change_write(row, effect, &pending.failed, &env.limits),
     };
     let Some(write) = write else {
+        if effect == change::Effect::Open && row.pull.is_some() {
+            hold_owned_pull(d, env, row, out);
+            return;
+        }
         emit(
             out,
             Request::ChangeDecision {
@@ -6018,6 +6029,29 @@ fn emit_change_effect(
     );
 }
 
+/// A numbered change never opens another pull (domain/forge/change/README.md, 2–3).
+fn hold_owned_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, out: &mut Queue<Request>) {
+    let before = crate::panel::ready(row);
+    let prior = row.change.clone();
+    row.change.state = relay_hold(&row.change.state, change::Hold::PullClosed);
+    row.change.released = None;
+    row.change.owns_turn = false;
+    crate::change_history::advanced(d, env.wall, row, &prior, out);
+    crate::landing::change_advanced(d, row, &prior, change::Decision::Hold(change::Hold::PullClosed), out);
+    d.changes.insert(row.task, row.clone()).expect("retained change");
+    wake_after_turn(d, row, prior.owns_turn);
+    save_queue_change(d, env, before, row.clone(), out);
+    emit(
+        out,
+        Request::ChangeDecision {
+            task: row.task,
+            decision: change::Decision::Hold(change::Hold::PullClosed),
+            entry: None,
+            evidence: None,
+        },
+    );
+}
+
 /// What a forge takes in a pull request's body, in bytes at most (a forge counts characters).
 /// temper/docs/design/domain/forge/change/README.md, 1.
 const PULL_BODY_BYTES: usize = 65_536;
@@ -6030,6 +6064,7 @@ fn change_write(
 ) -> Option<skein_forge::api::Write> {
     match effect {
         change::Effect::Rerun { head } => Some(skein_forge::api::Write::Rerun { attempt: failed.job(head)? }),
+        change::Effect::Open if row.pull.is_some() => None,
         change::Effect::Open => {
             // domain/forge/change/README.md, 1: fit the explicit title independently of the brief.
             let room = skein_lib::usize_of(limits.client.op_bytes)
@@ -6108,11 +6143,11 @@ pub(crate) fn change_outcome(
     if landed_commit(&d.changes.get(&task).expect("found change row").change.state).is_some() {
         return;
     }
-    let update = match d.entries.get(&entry) {
+    let (opening, update) = match d.entries.get(&entry) {
         Some(row) => match &row.entry.effect.write {
-            skein_forge::api::Write::Update { .. } => true,
+            skein_forge::api::Write::OpenPull { .. } => (true, false),
+            skein_forge::api::Write::Update { .. } => (false, true),
             skein_forge::api::Write::CreateIssue { .. }
-            | skein_forge::api::Write::OpenPull { .. }
             | skein_forge::api::Write::Post { .. }
             | skein_forge::api::Write::Review { .. }
             | skein_forge::api::Write::Edit { .. }
@@ -6124,27 +6159,39 @@ pub(crate) fn change_outcome(
             | skein_forge::api::Write::Dispatch { .. }
             | skein_forge::api::Write::Rerun { .. }
             | skein_forge::api::Write::CreateBranch { .. }
-            | skein_forge::api::Write::DeleteBranch { .. } => false,
+            | skein_forge::api::Write::DeleteBranch { .. } => (false, false),
         },
-        None => false,
+        None => (false, false),
     };
     rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
     let Some(row) = d.changes.get_mut(&task) else { unreachable!("found change row") };
-    let pull_closed = match outcome {
-        skein_forge_client::Outcome::Raced {
-            made: skein_forge_client::Made::Created(_),
-            why: skein_forge::api::Error::Closed,
-        } => true,
-        skein_forge_client::Outcome::Made { .. }
-        | skein_forge_client::Outcome::Failed(_)
-        | skein_forge_client::Outcome::Raced { .. }
-        | skein_forge_client::Outcome::Uncertain
-        | skein_forge_client::Outcome::Queued
-        | skein_forge_client::Outcome::Held
-        | skein_forge_client::Outcome::Withdrawn => false,
-    };
+    let closed_opening = opening
+        && match outcome {
+            skein_forge_client::Outcome::Raced {
+                made: skein_forge_client::Made::Created(_),
+                why: skein_forge::api::Error::Closed,
+            } => true,
+            skein_forge_client::Outcome::Made { .. }
+            | skein_forge_client::Outcome::Failed(_)
+            | skein_forge_client::Outcome::Raced { .. }
+            | skein_forge_client::Outcome::Uncertain
+            | skein_forge_client::Outcome::Queued
+            | skein_forge_client::Outcome::Held
+            | skein_forge_client::Outcome::Withdrawn => false,
+        };
+    if opening
+        && let skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Created(number), .. } = outcome
+    {
+        row.pull = Some(number);
+    }
     row.effect = match outcome {
+        skein_forge_client::Outcome::Raced { .. } if closed_opening => {
+            if row.change.state == (change::State::Opening { requested: true }) {
+                row.change.state = change::State::Opening { requested: false };
+            }
+            change::EffectResult::None
+        }
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
         skein_forge_client::Outcome::Failed(
@@ -6158,9 +6205,6 @@ pub(crate) fn change_outcome(
     };
     row.effect_account = account;
     row.pending = None;
-    if pull_closed {
-        row.drift = Some(change::Hold::PullClosed);
-    }
     let mut saved = row.clone();
     if update {
         let result = match outcome {
@@ -6203,21 +6247,6 @@ pub(crate) fn change_outcome(
     }
     d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved.clone());
-    if pull_closed {
-        let branch = skein_forge_client::Resource {
-            repository: saved.repository,
-            what: skein_forge_client::What::Branch(saved.branch.clone()),
-        };
-        if from_client(&branch, &env.limits).is_some() {
-            drift(
-                d,
-                env,
-                branch,
-                crate::DriftChange::PullClosed { number: saved.pull.expect("raced pull is known") },
-                out,
-            );
-        }
-    }
     match outcome {
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(commit), .. } => {
             record_change_head(d, env, &saved, commit, out);
