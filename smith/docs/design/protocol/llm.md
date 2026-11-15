@@ -138,11 +138,31 @@ A completion's prompt is built from what the domain gives:
 | `remove` | `path`, a file read at its current version or an empty directory (domain/tools.md, section 3) |
 | `shell` | `command`; optionally `timeout_seconds`, at most the effective maximum, `output_bytes`, at most the output ceiling, and `yield_seconds`, at most `job_wait` |
 | `job` | `job`, the number of a job its session answered `running`; optionally `wait_seconds`, by default `job_poll` and at most `job_wait`, `output_bytes`, at most the output ceiling, and `stop`, a boolean |
-| `finish` | the result contract's forms (below) |
+| `finish` | `outcome`, holding one of the result contract's forms (below) |
 | `deliver` | the change's required fields |
 | `wait` | nothing |
 | `sub_agent` | `brief` and `tools`, among the workspace's families; optionally `llm`, among the charter's models, `max_turns`, in completions, and `max_seconds` |
-| a host tool | what the charter declared, as it came |
+| a host tool | what the charter declared, with `"type": "object"` put at its top when it has none (below) |
+
+- **Every tool's schema is an object schema:** `"type": "object"` at
+  its top, and no `oneOf`, `allOf` or `anyOf` beside it, in every
+  dialect. Anthropic's Messages API refuses a request one of whose
+  tools' `input_schema` lacks the first, with
+  `tools.N.custom.input_schema.type: Field required`, and refuses the
+  second; the program backend serves its tools under the same rule
+  (programs.md, 5.3). smith's own schemas are written so, `finish`'s
+  included (below). A host tool's declared schema, an object, is
+  normalized as the program backend's server normalizes it:
+  - with no `type` at its top, it is sent with `"type":"object"` as
+    its first member and the declared members after it, in their
+    order: `{}` is sent as `{"type":"object"}`, and
+    `{"properties":{"a":{"type":"string"}}}` as
+    `{"type":"object","properties":{"a":{"type":"string"}}}`;
+  - with `"type":"object"` at its top, it is sent as it came;
+  - with another `type` at its top, a `type` there twice, or a top-level
+    `oneOf`, `allOf` or `anyOf`, it is refused when the prompt is
+    translated, as a schema whose root is not an object is, and no
+    request is made. Nested combinators, beneath a property, are kept.
 
 - **Descriptions say what the domain enforces, with units and limits.**
   Every parameter has a description, and each limit it meets is given
@@ -231,7 +251,15 @@ A completion's prompt is built from what the domain gives:
   - for a report or failure rule with no fields, no `fields` property or
     requirement.
 
-  The schema is written with skein's JSON writer, measured first.
+  These alternatives, a `oneOf`, go in one property, `outcome`,
+  required, beside nothing else, so that the tool's schema is an object
+  schema (above). The tool's schema is, byte for byte, the one the
+  program backend serves (programs.md, 5.3):
+  `{"type":"object","properties":{"outcome":ALTERNATIVES},"required":["outcome"],"additionalProperties":false}`,
+  ALTERNATIVES the `oneOf` object. The schema is written with skein's
+  JSON writer, measured first, and the counts the run admits it by
+  include the wrapper's bytes, since they count the schema as sent
+  (limits.md, 3.9).
 - **Names are unique across sources.** A charter that declares a host tool
   named like one of smith's is refused at the entrance (domain/run.md,
   5.1).
@@ -289,6 +317,12 @@ A completion's prompt is built from what the domain gives:
   bound, and is relayed as bytes (domain/run.md, 5.2).
 - **A result for `finish`** is decoded into the domain's result: its form,
   label, text, fields and items. The domain judges it against the contract.
+  The form is the input's `outcome` member, as the schema asks. An input
+  object with no `outcome` member is read as the form itself, so a
+  scripted peer's bare form, `{"form":"report","text":"done"}`, still
+  finishes; an input holding neither `outcome` nor `form` is invalid,
+  with the problem *missing field* `outcome`. Any other member beside
+  `outcome` is ignored, as unknown fields are.
   A report or failure rule with no fields accepts an absent `fields` as
   empty, and also accepts an empty `fields` object. A rule with fields
   requires the object.
