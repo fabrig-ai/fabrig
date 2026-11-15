@@ -236,7 +236,10 @@ fn a_scan_cancel_closes_the_open_file_before_its_terminal() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::FailedWithOutput { fault: git::Fault::Cancelled, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"scan")
+            }
         ))
     );
     assert!(component.below.out.io.is_empty());

@@ -338,7 +338,9 @@ impl Component {
                     let op = operation.op.as_ref().expect("no program is an operation failure");
                     let diagnostic = crate::invocation::no_program(op, &command);
                     let next = sequence::after(op, &command, 128, b"", &diagnostic, 0, &self.checkout);
-                    self.slots.get_mut(id).expect("live operation").command = command;
+                    let operation = self.slots.get_mut(id).expect("live operation");
+                    operation.word = Some(crate::invocation::word(&command));
+                    operation.command = command;
                     self.advance(id, next, out);
                     return;
                 }
@@ -378,6 +380,8 @@ impl Component {
             Next::InstallStore { directory, done } => {
                 let operation = self.slots.get_mut(id).expect("live index");
                 let Some(git::Op::Store { store, .. }) = &operation.op else { unreachable!("Store sequence") };
+                // Keep a clone's failure named while its temporary directory is discarded.
+                let done = Box::new(operation.named(*done));
                 let task = Task::install(*store, &directory, done);
                 operation.command = Command::Version;
                 self.file_start(id, task, out);
@@ -415,9 +419,12 @@ impl Component {
             }
         }
     }
+    /// Every terminal with output names where it ended
+    /// (temper/docs/design/protocol/git.md, section 6).
     fn finish(&mut self, id: Id<Operation>, done: git::Done, out: &mut Outputs) {
         let operation = self.slots.get(id).expect("live index");
         if !operation.aborted {
+            let done = operation.named(done);
             event(out, Event::Done { owner: operation.owner, done });
         }
         self.retire(id);
@@ -472,6 +479,7 @@ impl Component {
         }
     }
     fn file_start(&mut self, id: Id<Operation>, mut task: Task, out: &mut Outputs) {
+        self.slots.get_mut(id).expect("live operation").word = task.word;
         let action = task.first(&mut self.directories, &self.settings);
         self.file_action(id, task, action, out);
     }
