@@ -710,6 +710,29 @@ pub(super) fn open_goal(root: &mut Domain) {
     assert!(root.pages().start().is_some());
 }
 
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the notice's row has a left and right status")]
+fn a_closed_notice_is_on_the_quiet_lines_right_in_signal() {
+    let root = root_state(true, true, false, false, false, TaskState::Idle);
+    for (title, expected) in [(Some(b"Away mode".as_slice()), "Closed T12 · Away mode"), (None, "Closed T12")] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Notice { notice: Some(crate::Notice::Closed { task: 12, title: title.map(Into::into) }) });
+        let mut part = foot::read(&root, &tui, &f::words(), f::NOW);
+        part.columns = 110;
+        assert_eq!(part.notice.as_deref(), Some(expected.as_bytes()));
+        assert!(foot::read_notes(&root, &tui, &f::words()).lines.is_empty());
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id) + 1];
+        let second = &tree.nodes()[f::index(tree, first.id) + usize::try_from(first.size).unwrap()];
+        assert_eq!(first.role, Role::Status);
+        assert_eq!(second.role, Role::Paragraph);
+        assert_eq!(f::text(tree, second).as_ref(), expected.as_bytes());
+        assert!(has(tree, look::SIGNAL, expected.as_bytes()));
+    }
+}
+
 #[expect(clippy::disallowed_methods, reason = "notice rows inspect the quiet line's two children")]
 fn notice_states() {
     let words = f::words();

@@ -194,6 +194,7 @@ pub enum Word {
     SessionMinutes,
     LeftAfter,
     LeftNow,
+    ClosedChat,
     NoRole,
     LinkPending,
     StartingGroup,
@@ -210,7 +211,7 @@ pub enum Word {
     ProjectsReading,
     StartingFollowed,
 }
-pub(crate) const ALL: [Word; 199] = [
+pub(crate) const ALL: [Word; 200] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -397,6 +398,7 @@ pub(crate) const ALL: [Word; 199] = [
     Word::SessionMinutes,
     Word::LeftAfter,
     Word::LeftNow,
+    Word::ClosedChat,
     Word::NoRole,
     Word::StartingTemper,
     Word::BoxStarted,
@@ -672,6 +674,7 @@ impl Word {
             Self::ProjectsAhead => 199,
             Self::ProjectsReading => 200,
             Self::StartingFollowed => 201,
+            Self::ClosedChat => 202,
         }
     }
     const fn id(self) -> PhraseId {
@@ -699,6 +702,7 @@ impl Word {
             Self::SessionMinutes => (&[b"this session ", b" min"], &[Slot::Number]),
             Self::LeftAfter => (&[b"Left ", b" after ", b" min"], &[Slot::Title, Slot::Number]),
             Self::LeftNow => (&[b". It writes its Now."], &[]),
+            Self::ClosedChat => (&[b"Closed T", b""], &[Slot::Number]),
             Self::NoRole => (&[b"No role on ", b" is named ", b" \xc2\xb7 /talk lists them"], &[Slot::Title, Slot::Title]),
             Self::TeamHead => (&[b"Team on ", b""], &[Slot::Title]),
             Self::You => (&[b"You"], &[]),
@@ -1020,6 +1024,13 @@ impl Words {
                     ]);
                 }
                 skein_lib::bytes::concat(&[&line, &self.say(Word::LeftNow, &[])])
+            }
+            crate::Notice::Closed { task, title } => {
+                let line = self.say(Word::ClosedChat, &[Hole::Number(*task)]);
+                match title {
+                    Some(title) => skein_lib::bytes::concat(&[&line, &self.say(Word::Separator, &[]), title]),
+                    None => line,
+                }
             }
             crate::Notice::NoRole { project, words } => {
                 let bounded = skein_lib::bytes::utf8_prefix(

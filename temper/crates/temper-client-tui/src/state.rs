@@ -28,6 +28,8 @@ pub struct Tui {
     reply_aside: Option<TurnName>,
     start_chat: Option<u64>,
     notice: Option<Notice>,
+    closing: Option<Closing>,
+    closed_chats: Queue<u64>,
     lending: Option<Lending>,
     logins_taken: Set<u32>,
     tell_serial: u64,
@@ -102,6 +104,13 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
+/// A chat confirmed closed here, until its answer or another screen (client/tui/pages/chat.md, 1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Closing {
+    pub task: u64,
+    pub project: u32,
+    pub title: Option<Box<[u8]>>,
+}
 /// A one-line notice on the quiet line (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
@@ -113,6 +122,7 @@ pub enum Notice {
     LoginNotFinished,
     Proposed,
     Left { name: Box<[u8]>, minutes: u64, cost: Option<u64> },
+    Closed { task: u64, title: Option<Box<[u8]>> },
     NoRole { project: Box<[u8]>, words: Box<[u8]> },
     Filed { number: u32, project: Box<[u8]> },
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
@@ -145,6 +155,12 @@ pub enum Told {
         columns: u16,
     },
     Went,
+    Closing {
+        chat: Option<Closing>,
+    },
+    Closed {
+        task: u64,
+    },
     Starting {
         chat: Option<u64>,
     },
@@ -244,6 +260,8 @@ impl Tui {
             reply_aside: None,
             start_chat: None,
             notice: None,
+            closing: None,
+            closed_chats: Queue::with_capacity(limits::CLOSED_CHATS),
             lending: None,
             logins_taken: Set::with_capacity(u32::MAX),
             tell_serial: 0,
@@ -354,6 +372,21 @@ impl Tui {
     pub fn notice(&self) -> Option<&Notice> {
         self.notice.as_ref()
     }
+    #[must_use]
+    pub fn closing(&self) -> Option<&Closing> {
+        self.closing.as_ref()
+    }
+
+    #[must_use]
+    pub fn closed_chat(&self, task: u64) -> bool {
+        for closed in &self.closed_chats {
+            if *closed == task {
+                return true;
+            }
+        }
+        false
+    }
+
     #[must_use]
     pub const fn tell_serial(&self) -> u64 {
         self.tell_serial
@@ -766,7 +799,24 @@ impl Tui {
                 self.start_chat = chat;
                 changed
             }
+            Told::Closing { chat } => {
+                let changed = self.closing != chat;
+                self.closing = chat;
+                changed
+            }
+            Told::Closed { task } => {
+                if self.closed_chat(task) {
+                    false
+                } else {
+                    if self.closed_chats.len() == limits::CLOSED_CHATS {
+                        self.closed_chats.pop();
+                    }
+                    self.closed_chats.push(task);
+                    true
+                }
+            }
             Told::Went => {
+                self.closing = None;
                 self.tell_refusal = None;
                 self.start_chat = None;
                 let focus = self.focus.saturating_add(1);
