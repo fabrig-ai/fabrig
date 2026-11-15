@@ -29,9 +29,9 @@ impl Store {
                 .expect("header"),
             );
         }
-        let legacy =
+        let old_place =
             keys::encode_own(&keys::Own::Transcript { task }, self.component_limits.store.key).expect("file place");
-        if inventory.contains_key(&legacy) {
+        if inventory.contains_key(&old_place) {
             self.files.unread_transcript(task);
             return;
         }

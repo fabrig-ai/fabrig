@@ -62,7 +62,7 @@ fn written() -> World {
     limits.store.chunk = limits.store.chunk.max(PAGE + KV_CHUNK_OVERHEAD);
     sizes::check_commits(&limits.core, &root::APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
         .expect("shared page covers the world's row floor");
-    let mut world = super::legacy::world(SEED, &limits, &[root::LIVE]);
+    let mut world = super::map_held::world(SEED, &limits, &[root::LIVE]);
     for (index, turn) in turns().into_iter().enumerate() {
         // first() is commit 1; the three turns are commits 2, 3 and 4.
         let number = u64::try_from(index).expect("three turns") + 2;

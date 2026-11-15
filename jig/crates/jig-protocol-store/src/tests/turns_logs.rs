@@ -379,7 +379,7 @@ fn log_places_include_turns_queued_behind_a_files_sync() {
             2,
             Box::new([
                 fixtures::header(2),
-                Write::Save(Record::Core(CoreRecord::Turn(fixtures::turn(LIVE, 1, 1, b"legacy")))),
+                Write::Save(Record::Core(CoreRecord::Turn(fixtures::turn(LIVE, 1, 1, b"stored")))),
             ]),
         ),
         &mut above,

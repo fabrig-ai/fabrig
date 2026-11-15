@@ -88,10 +88,10 @@ fn a_crash_keeps_the_task_pin_and_claim_bindings_together() {
 
 #[test]
 fn a_frame_past_its_commit_is_cut_at_open() {
-    let mut complete = super::legacy::world(18, &root::limits(), &[LIVE]);
+    let mut complete = super::map_held::world(18, &root::limits(), &[LIVE]);
     assert_eq!(complete.commit(root::turn_commit(2, LIVE, 1, b"uncommitted frame")), Some(2));
     let synced = complete.transcript_sync().expect("frame sync before map commit");
-    let mut world = super::legacy::world(18, &root::limits(), &[LIVE]);
+    let mut world = super::map_held::world(18, &root::limits(), &[LIVE]);
     let writes = root::turn_commit(2, LIVE, 1, b"uncommitted frame");
     world.cut_at(synced);
     assert_eq!(world.commit(writes), None);

@@ -357,7 +357,7 @@ pub fn opened_with_transcripts() -> (Store, Below) {
 }
 
 pub fn committed_with_places(store: &mut Store, writes: Box<[Write]>, tasks: &[u64]) {
-    // These fixtures exercise files belonging to tasks written before turns logs.
+    // These fixtures exercise files belonging to tasks with transcript places.
     let number = store.stores.store.last().checked_add(1).expect("fixture commit");
     let crate::Phase::Ready { format_due, .. } = store.phase else { panic!("ready fixture") };
     let mut pending = crate::commits::operations(store, number, writes, format_due).expect("fixture operations");
@@ -367,10 +367,10 @@ pub fn committed_with_places(store: &mut Store, writes: Box<[Write]>, tasks: &[u
     }
     for task in tasks {
         ops.push(skein_kv::Op::Put {
-            key: keys::encode_own(&keys::Own::Transcript { task: *task }, KEY_LIMIT).expect("legacy place key"),
-            value: codec::component::Transcript { length: 0, window: 0 }.encode().expect("legacy place"),
+            key: keys::encode_own(&keys::Own::Transcript { task: *task }, KEY_LIMIT).expect("old_place key"),
+            value: codec::component::Transcript { length: 0, window: 0 }.encode().expect("old_place"),
         })
-        .expect("legacy place slot");
+        .expect("old_place slot");
     }
     pending.ops = ops.into_boxed();
     store.phase = crate::Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };

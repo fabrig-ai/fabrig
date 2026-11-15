@@ -51,7 +51,7 @@ fn candidates(
 ) -> Result<(Map<u64, Option<core::Record>>, bool), Failure> {
     let mut found = Map::uncapped();
     let mut more = false;
-    // Legacy stores still have ended rows in the map. Once moved, summaries
+    // Stores whose history is in the map have ended rows there. Once moved, summaries
     // name their point reads; no walk spans the ended records in task logs.
     for tag in [6, 30] {
         let mut range = Range::prefix(&[keys::JIG, 1, tag]);

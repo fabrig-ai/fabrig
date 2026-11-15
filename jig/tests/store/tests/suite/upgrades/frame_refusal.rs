@@ -41,7 +41,7 @@ fn opened(page: u32) -> World {
     // The world's drivers must read a full frame in one chunk.
     limits.store.chunk = limits.store.chunk.max(page + KV_CHUNK_OVERHEAD);
     checked(&limits).expect("every opened world passes the shell's size check");
-    super::super::legacy::world(SEED, &limits, &[TASK, TASK + 1])
+    super::super::map_held::world(SEED, &limits, &[TASK, TASK + 1])
 }
 
 fn refused(events: &[Event], number: u64, task: u64, limit: u32) -> u32 {
