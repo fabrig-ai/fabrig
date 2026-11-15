@@ -22,6 +22,8 @@ pub struct RelayHeard<'a> {
     pub ended: &'a [u64],
     /// The change was released from its questions hold since its last step.
     pub released: bool,
+    /// A pending dependency the task did not start from holds the answer.
+    pub held: bool,
 }
 
 /// What the root applies for a change's relay.
@@ -77,9 +79,11 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 done = done.saturating_add(1);
                 continue;
             }
-            if room == 0 {
+            if heard.held || room == 0 {
                 question.stands = Stands::Held { answer: bytes::copy_of(answer) };
-                more = true;
+                if !heard.held {
+                    more = true;
+                }
                 break;
             }
         }
@@ -191,7 +195,13 @@ fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32
             }
         }
         Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?) }),
-        Stands::Held { answer } => Some(RelayAct::Answer { asker, number, words: answer.clone() }),
+        Stands::Held { answer } => {
+            if heard.held {
+                None
+            } else {
+                Some(RelayAct::Answer { asker, number, words: answer.clone() })
+            }
+        }
     }
 }
 
