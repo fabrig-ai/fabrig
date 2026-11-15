@@ -117,10 +117,115 @@ fn a_deadline_kills_the_group_and_ends_timed_out_after_the_close() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::FailedWithOutput { fault: git::Fault::TimedOut, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::TimedOut,
+                diagnostic: git::PushDiagnostic::empty().named(b"fetch")
+            }
         ))
     );
 }
+/// temper/docs/design/protocol/git.md, 4.5 and 6: one deadline, distinct invocations.
+#[test]
+fn checkout_and_clean_deadlines_name_the_invocation_in_flight() {
+    for (during_clean, word) in [(false, b"checkout".as_slice()), (true, b"clean".as_slice())] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op: git::Op::CheckOut {
+                at: fixtures::at(),
+                commit: fixtures::COMMIT,
+                clean: true,
+                identity: 1,
+                account: None,
+            },
+            deadline: fixtures::DEADLINE,
+            identity: Some(fixtures::identity()),
+        });
+        if during_clean {
+            let (child, pipes) = component.spawned();
+            component.end(*pipes.first().expect("stdout"));
+            component.end(*pipes.get(1).expect("stderr"));
+            component.exited(child, 0);
+            component.closed(child, &pipes);
+            assert_eq!(component.done(), None);
+        }
+        let (child, pipes) = component.spawned();
+        component.fire(fixtures::DEADLINE);
+        assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+        assert_eq!(component.done(), None);
+        component.closed(child, &pipes);
+        let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault: git::Fault::TimedOut, diagnostic })) =
+            component.done()
+        else {
+            panic!("deadline ends with output after close");
+        };
+        assert_eq!(diagnostic.command(), Some(word));
+    }
+}
+
+/// temper/docs/design/protocol/git.md, section 6: queued spawns name the next invocation.
+#[test]
+fn a_cancel_during_a_queued_clean_spawn_names_clean() {
+    let mut component = fixtures::Started::new();
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None },
+        deadline: fixtures::DEADLINE,
+        identity: Some(fixtures::identity()),
+    });
+    let (child, pipes) = component.spawned();
+    component.end(*pipes.first().expect("stdout"));
+    component.end(*pipes.get(1).expect("stderr"));
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    component.down(Request::CancelIo { owner: fixtures::OWNER });
+    assert_eq!(component.done(), None);
+    let (child, pipes) = component.spawned();
+    assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+    component.closed(child, &pipes);
+    assert_eq!(
+        component.done(),
+        Some((
+            fixtures::OWNER,
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"clean"),
+            }
+        ))
+    );
+}
+
+/// temper/docs/design/protocol/git.md, section 6: classification retains its invocation.
+#[test]
+fn a_classified_fetch_failure_names_fetch() {
+    let mut component = fixtures::Started::new();
+    component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
+    let (child, pipes) = component.spawned();
+    let stderr = b"fatal: unable to access 'remote': Could not resolve host\n";
+    component.stdout(*pipes.get(1).expect("stderr"), stderr);
+    component.end(*pipes.first().expect("stdout"));
+    component.end(*pipes.get(1).expect("stderr"));
+    component.exited(child, 128);
+    component.closed(child, &pipes);
+    let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault: git::Fault::Unreachable, diagnostic })) =
+        component.done()
+    else {
+        panic!("fetch failure is classified from stderr");
+    };
+    assert_eq!(diagnostic.command(), Some(b"fetch".as_slice()));
+    assert_eq!(diagnostic.output(), stderr);
+}
+
+/// temper/docs/design/protocol/git.md, section 6: an entrance failure has no output.
+#[test]
+fn an_operation_received_past_its_deadline_fails_without_output() {
+    let mut component = fixtures::Started::new();
+    component.now = fixtures::DEADLINE;
+    component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
+    assert!(component.below.out.io.is_empty());
+    assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Failed { fault: git::Fault::TimedOut })));
+}
+
 #[test]
 fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
     let mut component = fixtures::Started::new();
@@ -160,7 +265,10 @@ fn a_cancel_between_invocations_starts_no_further_one() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::FailedWithOutput { fault: git::Fault::Cancelled, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"checkout")
+            }
         ))
     );
 }
@@ -179,7 +287,10 @@ fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Broken,
+                diagnostic: git::PushDiagnostic::empty().named(b"fetch")
+            }
         ))
     );
 }
@@ -223,7 +334,10 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
         component.exited(child, 0);
         component.closed(child, &pipes);
         let done = if merging {
-            git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Broken,
+                diagnostic: git::PushDiagnostic::empty().named(b"diff-files"),
+            }
         } else {
             git::Done::Conflicted {
                 files: Box::new([
@@ -315,7 +429,10 @@ fn standalone_ancestry_needs_no_identity_and_cancels_after_its_child_closes() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::FailedWithOutput { fault: git::Fault::Cancelled, diagnostic: git::PushDiagnostic::empty() }
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"merge-base")
+            }
         ))
     );
 }

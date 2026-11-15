@@ -23,6 +23,11 @@ A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
 (`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
+A failed workspace preparation says where and why: its detail names the
+worker, the workspace, the repository, the stage and git's command, with
+check out and clean told apart, and the operation's and the prepare's
+times, and the worker logs a line for it
+(`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's

@@ -1127,12 +1127,12 @@ fn refused_job_log_origin_note_names_only_the_origin() {
 }
 
 #[cfg(test)]
-fn failed_run_note(detail: &[u8]) -> temper_engine_service::Note {
+fn failed_run_note(detail: &[u8], failure: jig_domain_host::Failure) -> temper_engine_service::Note {
     temper_engine_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
         task: 3,
         run: 7,
         attempt: 2,
-        failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Model),
+        failure,
         detail: detail.into(),
     })
 }
@@ -1140,18 +1140,46 @@ fn failed_run_note(detail: &[u8]) -> temper_engine_service::Note {
 #[test]
 fn failed_run_stderr_escapes_control_bytes_on_one_line() {
     assert_eq!(
-        note_line("temper", failed_run_note(b"exit 1: bad\nstream\r\t\0\x1b\x7f\xff")),
+        note_line(
+            "temper",
+            failed_run_note(
+                b"exit 1: bad\nstream\r\t\0\x1b\x7f\xff",
+                jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Model),
+            ),
+        ),
         "temper serve: task 3 run 7 attempt 2 failed Run(Model): exit 1: bad\\nstream\\r\\t\\x00\\x1b\\x7f\\xff\n"
     );
 }
 
+const PREPARATION_DETAIL: &str = "host w1: check out: TimedOut (workspace 3, repository 0 quo\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x";
+
 #[test]
-fn failed_run_stderr_keeps_a_bounded_tail() {
-    let mut detail = vec![b'x'; 4097];
-    detail[0] = b'y';
-    let line = note_line("temper", failed_run_note(&detail));
+fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
+    let detail = [PREPARATION_DETAIL.as_bytes(), b"\n\0\xff"].concat();
+    let note = failed_run_note(&detail, jig_domain_host::Failure::Unprepared(jig_domain_host::Preparation::Transient));
+    assert_eq!(
+        note_line("temper", note),
+        "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): host w1: check out: TimedOut (workspace 3, repository 0 quo\\\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x\\n\\x00\\xff\n"
+    );
+}
+
+#[test]
+fn failed_run_stderr_keeps_a_bounded_head() {
+    // temper/docs/design/domain/worker/checkouts.md, 1.4: the bound counts input bytes.
+    const DETAIL_BYTES: usize = 4096;
+    const OVERSIZED_BYTES: usize = 5000;
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
-    assert_eq!(line, format!("{prefix}{}\n", "x".repeat(4096)));
+    let expected_detail = format!(
+        "host w1: check out: TimedOut (workspace 3, repository 0 quo\\\"ted, command clean, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms): error: x{}",
+        "x".repeat(DETAIL_BYTES - PREPARATION_DETAIL.len()),
+    );
+    for length in [DETAIL_BYTES, OVERSIZED_BYTES] {
+        let mut detail = PREPARATION_DETAIL.as_bytes().to_vec();
+        detail.resize(DETAIL_BYTES, b'x');
+        detail.resize(length, b'z');
+        let note = failed_run_note(&detail, jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Model));
+        assert_eq!(note_line("temper", note), format!("{prefix}{expected_detail}\n"));
+    }
 }
 
 #[cfg(test)]

@@ -330,11 +330,13 @@ impl Op {
 
 /// The last bytes of a failed git invocation's diagnostic output. The fixed
 /// protocol cap bounds every terminal, landing and reply without allocation.
+/// The command names the invocation it ended in (`temper/docs/design/protocol/git.md`, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PushDiagnostic {
     output: [u8; 512],
     length: u16,
     cut: u64,
+    command: Option<&'static [u8]>,
 }
 
 impl PushDiagnostic {
@@ -354,13 +356,26 @@ impl PushDiagnostic {
             output: tail,
             length: u16::try_from(length).expect("the fixed tail fits in a u16"),
             cut: cut.saturating_add(u64::try_from(dropped).expect("a byte length fits in u64")),
+            command: None,
         }
     }
 
     /// An invocation for which io has no diagnostic output.
     #[must_use]
     pub const fn empty() -> Self {
-        Self { output: [0; 512], length: 0, cut: 0 }
+        Self { output: [0; 512], length: 0, cut: 0, command: None }
+    }
+
+    /// Name the invocation it ended in (`temper/docs/design/protocol/git.md`, section 6).
+    #[must_use]
+    pub const fn named(self, command: &'static [u8]) -> PushDiagnostic {
+        Self { command: Some(command), ..self }
+    }
+
+    /// The invocation it ended in, or none (`temper/docs/design/protocol/git.md`, section 6).
+    #[must_use]
+    pub const fn command(&self) -> Option<&'static [u8]> {
+        self.command
     }
 
     /// The retained diagnostic tail.

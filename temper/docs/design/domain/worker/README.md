@@ -415,8 +415,11 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   something changes on the forge, naming the repository: the forge does
   not have it, a branch or a commit, or it refuses the identity. jig
   counts a transient one as an infrastructure failure, within its own
-  longer allowance, its detail naming the step and git's fault on the
-  task's hold (jig's `domain/tasks/lifecycle.md`, 6).
+  longer allowance, its detail on the task's hold (jig's
+  `domain/tasks/lifecycle.md`, 6). The detail names the worker, the
+  workspace, the repository, the step, git's command and fault, and the
+  operation's and the prepare's times (`checkouts.md`, 1), and the worker
+  logs a line for it (`checkouts.md`, 1.3).
 - **The run failed,** the **agent failed,** or the run was
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
@@ -426,9 +429,12 @@ on stderr, which the box keeps in `<data>/box/logs/serve.log`
 (`../../protocol/setup/box.md`, 2). The line names the task, run, attempt and
 failure class or typed refusal reason. A refusal distinguishes a busy host,
 an oversized charter, transcript, grants or messages, and an invalid start;
-the invalid start names its cause and carries its decoding words. The line
-includes the last at most 4,096 bytes of the worker's bounded failure detail
-or start words. Newlines, control bytes and non-ASCII bytes are escaped,
+the invalid start names its cause and carries its decoding words. A
+failed run's line prints the worker's bounded failure detail whole, which
+the wire bounds at 4,096 bytes; past them it keeps the first 4,096, where a
+failed preparation's fields are (`checkouts.md`, 1.4). A refusal's line
+includes the last at most 4,096 bytes of its start words. Newlines,
+control bytes and non-ASCII bytes are escaped,
 so the record is one line. Acceptance emits it once; resending a kept
 answer emits no second line. A full operator-note sink retains the diagnostic
 until the sink drains. In-process and socket workers share this
