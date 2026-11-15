@@ -100,6 +100,9 @@ impl Store {
             protocol::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
         let mut captured = None;
         loop {
+            if self.reached_kill() {
+                return Err(ReadbackFinding::NotQuiescent);
+            }
             let env = self.env();
             if let Some(disk) = &mut self.disk {
                 disk.drive(self.component.as_mut().expect("component"), &env, &mut above);

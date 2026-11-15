@@ -606,7 +606,7 @@ pub fn step_5_3() -> Vec<calls::Step> {
 }
 
 // Act 2, step 5.2 (testing/reference-case.md)
-const B_ENDED_5_2: usize = 21;
+const B_ENDED_5_2: usize = 22;
 pub const READS_5_2: &[(Read, usize)] = &[
     (Read::ImplementerRunning, 5),
     (Read::H1Running, 7),
@@ -616,12 +616,12 @@ pub const READS_5_2: &[(Read, usize)] = &[
     (Read::H1Held, 13),
     (Read::H1ReviewerHeld, 14),
     (Read::BStillHeld, 15),
-    (Read::ImplementerEnded, 19),
-    (Read::H1Ended, 20),
+    (Read::ImplementerEnded, 20),
+    (Read::H1Ended, 21),
     (Read::BEnded, B_ENDED_5_2),
-    (Read::BEndedEarlier, 22),
-    (Read::Ended, 23),
-    (Read::PauseEnded, 24),
+    (Read::BEndedEarlier, 23),
+    (Read::Ended, 24),
+    (Read::PauseEnded, 25),
 ];
 
 #[must_use]
@@ -703,6 +703,10 @@ pub fn step_5_2() -> Vec<calls::Step> {
         // Observe both new runs writing before releasing their scripted replies.
         calls::writing_task(D1, IMPLEMENTER),
         calls::writing_task(D1, H1_REVIEWER),
+        // Release also activates B. Let that activation park before either
+        // delegate finishes, so no result enters its release query mid-read.
+        // The world's patience bounds the phase watch and reports its argv.
+        call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle", "--json"]).succeeds(),
         calls::release_hold(IMPLEMENTER_HOLD),
         calls::release_hold(REVIEW_HOLD),
         calls::until(

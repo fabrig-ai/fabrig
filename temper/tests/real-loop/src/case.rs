@@ -511,6 +511,7 @@ pub fn fixture_5_3() -> forge::Fixture {
 // The chat delegates A, the helper, then B; only B creates descendants.
 // B delegates its implementer, then h1, which creates its coder and reviewer.
 pub const PAUSE_WORKERS: &[&str] = &["ws", "s1", "s2"];
+pub const CASE_5_2_WORKERS: &[&str] = &["ws", "s1", "s2", "s3"];
 pub const PAUSE: u64 = 1;
 pub const OWNER: u64 = 2;
 pub const HELPER: u64 = 3;
@@ -550,8 +551,9 @@ pub fn fixture_5_2() -> forge::Fixture {
         },
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
-            // One host call for each of the three one-slot workers.
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
+            // Four one-slot workers keep the chat, implementer, reviewer and
+            // B's release activation at once (testing/reference-case.md, act 2).
+            value["engine"]["limits"]["overrides"]["fleet.calls"] = CASE_5_2_WORKERS.len().into();
             // Initial adoption and forge hooks supply the listing changes,
             // as in fixture_check; repeating the listing adds no evidence.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);

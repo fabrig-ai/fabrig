@@ -370,7 +370,11 @@ impl Store {
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
             assert!(self.applied >= self.acknowledged, "acknowledged prefix survives");
-            let actual = self.readback()?;
+            let actual = self.readback();
+            if self.reached_kill() {
+                return Ok(());
+            }
+            let actual = actual?;
             assert_eq!(Some(&actual), self.prefixes.get(&self.applied), "recovery is one whole submitted prefix");
             self.rows = actual;
             self.prefixes.retain(|number, _| *number <= self.applied);

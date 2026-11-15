@@ -244,6 +244,62 @@ fn history_readback_discovers_logs_and_survives_a_memory_restart() {
     assert_eq!(store.rows, expected);
 }
 
+fn disk_history_store() -> Store {
+    let mut store = Store::on_disk(&jig_test_profile::limits(), &[]);
+    let header = core::Deployment {
+        id: [0; 16],
+        tasks: 1,
+        people: 0,
+        sign_ins: 0,
+        messages: 0,
+        runs: 1,
+        calls: 0,
+        connector_rows: 0,
+        projects: 0,
+        applications: 0,
+        commits: 1,
+    };
+    let attempt = jig_domain_tasks::AttemptRow {
+        task: 1,
+        attempt: 1,
+        claimed: Some(skein_lib::Wall::EPOCH),
+        started: None,
+        ended: None,
+        end: None,
+        phases: None,
+    };
+    store.submit(
+        1,
+        Box::new([
+            root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
+            root::Write::Save(root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Attempt(attempt)))),
+        ]),
+        0,
+    );
+    assert_eq!(store.tick(false), Ok(Some(1)));
+    store
+}
+
+#[test]
+fn a_kill_during_recovery_history_readback_can_restart_again() {
+    let mut reference = disk_history_store();
+    reference.crash(CRASH_SEED).expect("complete reference recovery");
+    // The last file operation fetches the log for the recovered inventory.
+    let last = reference.open_operation_count() - 1;
+    let expected = reference.rows.clone();
+    for operation in [0, last] {
+        let mut store = disk_history_store();
+        store.fault(Fault::Kill { from: super::KillFrom::Open, operation });
+        store.crash(CRASH_SEED).expect("a killed recovery yields to its caller");
+        assert!(store.reached_kill(), "cut {operation} reached");
+        assert_eq!(store.open_operation_count(), operation);
+        assert_eq!(store.rows, expected, "a killed readback does not replace the mirror");
+        store.crash(CRASH_SEED).expect("restart after the second kill");
+        assert!(!store.reached_kill());
+        assert_eq!(store.readback().expect("complete recovered history"), expected);
+    }
+}
+
 #[test]
 fn readback_rejects_unknown_actual_key() {
     let mut store = snapshot_store();
