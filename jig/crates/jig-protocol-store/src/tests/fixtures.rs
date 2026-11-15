@@ -5,7 +5,7 @@ use jig_domain_people as people;
 
 pub const KEY_LIMIT: u32 = 1024;
 mod keys;
-pub use keys::{key, own, pattern, pattern_key, tasks_key, within};
+pub use keys::{accounts_key, core_key, key, notes_key, own, pattern, pattern_key, people_key, tasks_key, within};
 
 /// Small notes bounds shared by codec round trips.
 pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {

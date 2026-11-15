@@ -747,6 +747,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         queue: 8,
         files: 8,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }
@@ -768,7 +769,7 @@ fn apply(rows: &mut BTreeMap<root::Key, root::Record>, writes: &[root::Write]) {
                     }
                 });
             }
-            root::Write::Wires => {}
+            root::Write::DropHistory { .. } | root::Write::Wires => {}
             root::Write::CopySettingsRevision(number) => {
                 use jig_domain_core as core;
                 let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));

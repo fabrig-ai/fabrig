@@ -12,6 +12,9 @@ pub enum Own {
     Job { owner: crate::Owner, name: Box<str> },
     Layout { family: Box<str>, number: u16, id: u16 },
     Text([u8; 32]),
+    History { task: u64 },
+    TurnLog { task: u64 },
+    LogAttempt { task: u64, attempt: u64 },
 }
 const fn owner_byte(owner: crate::Owner) -> u8 {
     match owner {
@@ -23,6 +26,19 @@ const fn owner_byte(owner: crate::Owner) -> u8 {
 }
 pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
     match key {
+        Own::History { task } => {
+            writer.tag(10);
+            writer.u64(*task);
+        }
+        Own::TurnLog { task } => {
+            writer.tag(11);
+            writer.u64(*task);
+        }
+        Own::LogAttempt { task, attempt } => {
+            writer.tag(12);
+            writer.u64(*task);
+            writer.u64(*attempt);
+        }
         Own::Layout { family, number, id } => {
             writer.tag(6);
             writer.bytes(family.as_bytes());
@@ -68,6 +84,9 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
 #[expect(clippy::disallowed_methods, reason = "the protocol key codec validates worker names as UTF-8")]
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
     Some(match reader.tag()? {
+        10 => Own::History { task: reader.u64()? },
+        11 => Own::TurnLog { task: reader.u64()? },
+        12 => Own::LogAttempt { task: reader.u64()?, attempt: reader.u64()? },
         0 => Own::Format,
         3 => Own::Layouts,
         4 => Own::Wires,

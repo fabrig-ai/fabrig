@@ -56,6 +56,8 @@ impl Record {
 pub enum Write {
     /// Drop a task transcript whole (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
     DropTranscript { task: u64 },
+    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
+    DropHistory { task: u64 },
     /// Atomically copy the old settings revision to history.
     CopySettingsRevision(u32),
     /// Save the shell-supplied start’s wires.

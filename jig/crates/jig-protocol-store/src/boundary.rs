@@ -65,6 +65,8 @@ pub enum Write {
     /// A task's transcript dropped whole (protocol/store/transcripts.md 5): its places erased,
     /// its file removed before the commit is submitted.
     DropTranscript { task: u64 },
+    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
+    DropHistory { task: u64 },
     /// The application's put: its key's bytes (without the tag) and its value's.
     Put { key: Box<[u8]>, value: Box<[u8]> },
     /// The application's erase.
@@ -72,7 +74,7 @@ pub enum Write {
 }
 
 /// What a restart step restores.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Restore {
     /// jig's ranges, in order: `RestoreRange::LIVE` for `LoadCore`, the
     /// census for `LoadInbox`. Rows are handed up typed; the census's are
@@ -83,7 +85,7 @@ pub enum Restore {
 }
 
 /// A child's range to load.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Load {
     /// The notes child's entry or a scope's lines.
     Notes(notes::Range),
@@ -92,7 +94,7 @@ pub enum Load {
 }
 
 /// A record to get.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Get {
     Jig(core::Key),
     /// The application's key, relative to its tag.

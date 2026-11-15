@@ -86,7 +86,10 @@ impl Referee {
                     root::Write::Erase(key) => {
                         self.rows.remove(key);
                     }
-                    root::Write::DropTranscript { .. } | root::Write::CopySettingsRevision(_) | root::Write::Wires => {}
+                    root::Write::DropHistory { .. }
+                    | root::Write::DropTranscript { .. }
+                    | root::Write::CopySettingsRevision(_)
+                    | root::Write::Wires => {}
                 }
             }
             self.endings(&previous, writes, limits.core.public);

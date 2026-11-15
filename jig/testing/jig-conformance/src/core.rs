@@ -216,7 +216,11 @@ impl SeenFence {
         let records = store.rows.values().copied().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 Write::Save(record) => Some(*record),
-                Write::Other | Write::Refresh | Write::Erase(_) | Write::DropTranscript { .. } => None,
+                Write::Other
+                | Write::Refresh
+                | Write::Erase(_)
+                | Write::DropHistory { .. }
+                | Write::DropTranscript { .. } => None,
             })
         }));
         for record in records {
@@ -624,7 +628,8 @@ impl Observer {
                         core::Key::Tasks(tasks::Key::Activity { .. } | tasks::Key::Ended(_))
                             | core::Key::Core(core::CoreKey::Terminal { .. })
                             | core::Key::People(people::Key::EndedRead { .. } | people::Key::ReadConversation { .. })
-                    ) | Write::DropTranscript { .. }
+                    ) | Write::DropHistory { .. }
+                        | Write::DropTranscript { .. }
                 )
             });
             if !erases_task {

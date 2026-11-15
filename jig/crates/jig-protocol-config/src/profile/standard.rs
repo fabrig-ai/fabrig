@@ -250,6 +250,7 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     commits: jig_protocol_store::sizes::Commits { in_flight: JOURNAL.commits, writes: JOURNAL.writes },
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
     joins: 16,
+    fetch: 64 * 1024 * 1024,
     reads: 48,
     ..small::STORE
 };

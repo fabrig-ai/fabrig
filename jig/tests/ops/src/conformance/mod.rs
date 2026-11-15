@@ -333,6 +333,7 @@ impl Application for Ops {
                                 }
                                 root::Write::Save(row)
                             }
+                            root::Write::DropHistory { task } => root::Write::DropHistory { task },
                             root::Write::DropTranscript { task } => root::Write::DropTranscript { task },
                             root::Write::CopySettingsRevision(_) => {
                                 unreachable!("this scripted ops world restarts with identical defaults")

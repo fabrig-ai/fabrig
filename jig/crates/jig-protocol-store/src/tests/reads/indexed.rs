@@ -107,7 +107,11 @@ fn ended_delegates_read_their_requesters_index() {
         ],
     );
     keep(&mut store, &[fixtures::ended_delegate(GOAL, CHILD), fixtures::ended_delegate(GRANDCHILD, GOAL)]);
-    let (rows, next) = page(load(&mut store, fixtures::read(ALICE, reads::Scope::EndedDelegates { task: GOAL })));
+    let (rows, next) = page(super::super::history_logs::same(
+        &mut store,
+        &[GOAL, CHILD],
+        fixtures::read(ALICE, reads::Scope::EndedDelegates { task: GOAL }),
+    ));
     assert_eq!(values(&rows).as_ref(), [fixtures::ended_delegate(GOAL, CHILD)]);
     assert_eq!(owner_numbers(&rows).as_ref(), [CHILD]);
     assert_eq!(linked_numbers(rows.first().unwrap()).as_ref(), [GOAL]);
@@ -117,7 +121,7 @@ fn ended_delegates_read_their_requesters_index() {
 #[test]
 fn subtree_history_walks_each_delegates_history_in_turn() {
     let mut store = subtree_store();
-    let (rows, next) = page(load(&mut store, subtree_range()));
+    let (rows, next) = page(super::super::history_logs::same(&mut store, &[GOAL, CHILD], subtree_range()));
     assert_eq!(
         values(&rows).as_ref(),
         [
@@ -429,7 +433,11 @@ fn ended_index_store() -> Store {
 #[test]
 fn ended_tasks_read_one_partys_label_newest_first() {
     let mut store = ended_index_store();
-    let result = load(&mut store, fixtures::read(ALICE, reads::Scope::Tasks { query: task_query() }));
+    let result = super::super::history_logs::same(
+        &mut store,
+        &[GOAL, CHILD, GRANDCHILD],
+        fixtures::read(ALICE, reads::Scope::Tasks { query: task_query() }),
+    );
     let (rows, next) = page(result);
     assert_eq!(owner_numbers(&rows).as_ref(), [GRANDCHILD, GOAL]);
     assert_eq!(next, None);

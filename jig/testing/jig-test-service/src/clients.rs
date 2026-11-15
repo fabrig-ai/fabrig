@@ -461,7 +461,8 @@ impl Clients {
                         self.endings.ended(number, sign_in);
                     }
                 }
-                root::Write::DropTranscript { .. }
+                root::Write::DropHistory { .. }
+                | root::Write::DropTranscript { .. }
                 | root::Write::Wires
                 | root::Write::Save(_)
                 | root::Write::CopySettingsRevision(_) => {}

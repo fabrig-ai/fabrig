@@ -57,6 +57,7 @@ fn assert_watch_spec_refused(world: &jig_ops_world::direct::Driver) {
             | root::Write::Wires
             | root::Write::Save(_)
             | root::Write::Erase(_)
+            | root::Write::DropHistory { .. }
             | root::Write::DropTranscript { .. } => None,
         })
         .expect("created watch procedure");
@@ -100,6 +101,7 @@ fn a_watch_spec_preserves_templates_in_the_u16_range() {
                 | root::Write::Wires
                 | root::Write::Save(_)
                 | root::Write::Erase(_)
+                | root::Write::DropHistory { .. }
                 | root::Write::DropTranscript { .. } => None,
             })
             .expect("valid watch spec starts a watch");

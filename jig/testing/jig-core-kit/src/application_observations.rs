@@ -57,9 +57,11 @@ pub(crate) fn submitted(store: &Store) -> Vec<r::Observed> {
                 .iter()
                 .find_map(|write| match write {
                     Write::Save(row) => marker(row, *number, token.raw()),
-                    Write::Wires | Write::Erase(_) | Write::CopySettingsRevision(_) | Write::DropTranscript { .. } => {
-                        None
-                    }
+                    Write::Wires
+                    | Write::Erase(_)
+                    | Write::CopySettingsRevision(_)
+                    | Write::DropHistory { .. }
+                    | Write::DropTranscript { .. } => None,
                 })
                 .or_else(|| store.rows.values().find_map(|row| marker(row, *number, token.raw())))
                 .expect("owner terminal has its shared key metadata");

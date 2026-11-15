@@ -230,7 +230,7 @@ impl Store {
                         }
                     });
                 }
-                root::Write::Wires => {}
+                root::Write::DropHistory { .. } | root::Write::Wires => {}
                 root::Write::CopySettingsRevision(number) => {
                     let key =
                         root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));
@@ -353,6 +353,8 @@ impl Store {
                 skein_kv::Op::Erase { key } => {
                     if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
+                    } else if let Some(keys::Own::History { task }) = keys::decode_own(key) {
+                        writes.push(root::Write::DropHistory { task });
                     } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(key) {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {

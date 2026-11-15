@@ -726,7 +726,11 @@ pub(crate) fn erased_revision(writes: &List<Write>, before: u32) -> bool {
             Write::Erase(crate::Key::Core(CoreKey::Settings(Key::Held(revision)))) if *revision < before => {
                 return true;
             }
-            Write::Save(_) | Write::Erase(_) | Write::CopySettingsRevision(_) | Write::DropTranscript { .. } => {}
+            Write::Save(_)
+            | Write::Erase(_)
+            | Write::CopySettingsRevision(_)
+            | Write::DropHistory { .. }
+            | Write::DropTranscript { .. } => {}
         }
     }
     false

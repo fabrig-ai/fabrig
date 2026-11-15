@@ -165,8 +165,13 @@ task logs this read has fetched. The jobs' pages read the map alone
 - **Run again:** once its fetches are read, the read runs again from
   its start with the fetched rows in its view; a run that misses
   nothing answers. A run may miss a task the last one could not see (a
-  join found by a fetched row), and fetches again: each round fetches
-  at least one log more, within the read's own join bound.
+  join found by a fetched row), or an interval of a task it fetched
+  that the last run could not name (a task's terminal key or activity
+  window, known once its ended record is read), and fetches again: a
+  task fetched before is read again for the intervals newly asked of
+  it, its kept rows those of every interval asked so far. Each round
+  fetches at least one task or interval more than the rounds before
+  it, so a read ends within its own join bound.
 - **Commits wait:** while a read fetches, the component holds its
   commits, as it holds them behind a transcript read (`transcripts.md`,
   6), so the map and the logs are as the read's runs found them.
