@@ -43,17 +43,22 @@ impl Walk {
         landed
     }
     fn landing_complete(&self) -> bool {
-        self.landed()
-            && (!super::TRACKED.with(Cell::get)
-                || self.store.borrow().rows.values().any(|record| {
-                    if let temper_engine_domain::Record::Forge { row } = record
-                        && let temper_engine_domain_forge::Stored::Landing(row) = row.as_ref()
-                    {
-                        row.landing.phase == temper_engine_domain_forge::LandingPhase::Landed
-                    } else {
-                        false
-                    }
-                }))
+        if !self.landed() {
+            return false;
+        }
+        let mut ended_landing = false;
+        for record in self.store.borrow().rows.values() {
+            if let temper_engine_domain::Record::Forge { row } = record
+                && let temper_engine_domain_forge::Stored::Landing(row) = row.as_ref()
+            {
+                match row.landing.phase {
+                    temper_engine_domain_forge::LandingPhase::Landed => ended_landing = true,
+                    temper_engine_domain_forge::LandingPhase::Cancelled => {}
+                    _ => return false,
+                }
+            }
+        }
+        !super::TRACKED.with(Cell::get) || ended_landing
     }
     pub fn diagnostic(&self) -> String {
         let tasks: Vec<_> = self
@@ -159,6 +164,12 @@ impl Walk {
                     }
                 }
                 crate::stories::prepare_merge_branch(transport);
+                // A turn's merged members are detected before their changes close.
+                skein_fake_forge_domain::manual_merges(
+                    &mut transport.forge.borrow_mut().domain,
+                    b"acme/app",
+                    skein_fake_forge_domain::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+                );
                 service::command(
                     caller,
                     &[
