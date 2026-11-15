@@ -58,6 +58,7 @@ class Merge(unittest.TestCase):
     def commit(self, message):
         self.git('add', '.')
         self.git('commit', '-qm', message)
+        return self.git('rev-parse', 'HEAD').stdout.decode().strip()
 
     def conflict(self, baseline=True, other=False, head_comment='# Head baseline\n',
                  base_comment='# Incoming baseline\n', trees=('temper',), delete=None,
@@ -89,13 +90,24 @@ class Merge(unittest.TestCase):
             self.write(path, content)
         self.commit('base')
         base = self.git('rev-parse', 'HEAD').stdout.decode().strip()
+        self.merge_conflict(head, base)
+
+    def merge_conflict(self, head, base):
         self.git('checkout', '-q', 'head')
-        merge = self.git('merge', '--no-edit', 'base', check=False)
+        merge = self.git('merge', '--no-edit', base, check=False)
         self.assertEqual(merge.returncode, 1, merge.stderr)
         (self.job / 'request.json').write_text(json.dumps(
             {'version': 1, 'head': head, 'base': base}), encoding='utf-8')
 
     def run_merge(self, settled, left, truncated=False):
+        left = [{'path': item, 'kind': 'modified'} if isinstance(item, str) else item
+                for item in left]
+        paths = [item['path'] for item in left]
+        previous = self.snapshot() if not settled else None
+        left_before = {path: ((self.repository / path).read_bytes()
+                              if (self.repository / path).is_file() else None,
+                              self.git('--literal-pathspecs', 'ls-files', '--stage', '-z',
+                                       '--', path).stdout) for path in paths}
         head = self.git('rev-parse', 'HEAD').stdout
         base = self.git('rev-parse', 'MERGE_HEAD').stdout
         execution = subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
@@ -105,28 +117,57 @@ class Merge(unittest.TestCase):
         self.assertLessEqual(len(encoded), 512)
         result = json.loads(encoded)
         if truncated:
-            listed = sorted(result['settled'] + result['left'])
-            paths = sorted(settled + left)
-            self.assertTrue(listed)
-            self.assertEqual(listed, paths[:len(listed)])
-            self.assertEqual(result['settled'], [path for path in listed if path in settled])
-            self.assertEqual(result['left'], [path for path in listed if path in left])
-            self.assertEqual(result['more'], len(paths) - len(listed))
-            self.assertGreater(result['more'], 0)
-            next_path = paths[len(listed)]
-            result['settled' if next_path in settled else 'left'].append(next_path)
-            result['more'] -= 1
-            self.assertGreater(len((json.dumps(result, separators=(',', ':')) + '\n').encode()), 512)
+            listed_left = result.get('left', [])
+            self.assertEqual(listed_left, left[:len(listed_left)])
+            self.assertEqual(result['settled'], settled[:len(result['settled'])])
+            more = {'left': len(left) - len(listed_left),
+                    'settled': len(settled) - len(result['settled']),
+                    'read': 'git status --short; git log --name-status '
+                            '--diff-filter=DR HEAD...MERGE_HEAD'}
+            self.assertEqual(result['more'], more)
+            self.assertGreater(more['left'] + more['settled'], 0)
+            expected = {'settled': result['settled']}
+            if listed_left:
+                expected['left'] = listed_left
+            expected['more'] = more
+            for group, entries in (('left', left), ('settled', settled)):
+                kept = len(result.get(group, []))
+                if kept < len(entries):
+                    candidate = json.loads(encoded)
+                    candidate.setdefault(group, []).append(entries[kept])
+                    candidate['more'][group] -= 1
+                    if not (candidate['more']['left'] or candidate['more']['settled']):
+                        del candidate['more']
+                    self.assertGreater(len(self.encode(candidate)), 512)
         else:
             expected = {'settled': settled}
             if left:
                 expected['left'] = left
-            self.assertEqual(result, expected)
+        self.assertEqual(encoded, self.encode(expected))
         self.assertEqual(self.git('diff', '--name-only', '--diff-filter=U', '-z').stdout,
-                         b''.join(os.fsencode(path) + b'\0' for path in left))
+                         b''.join(os.fsencode(path) + b'\0' for path in paths))
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout, head)
         self.assertEqual(self.git('rev-parse', 'MERGE_HEAD').stdout, base)
+        for path in paths:
+            self.assertEqual(((self.repository / path).read_bytes()
+                              if (self.repository / path).is_file() else None,
+                              self.git('--literal-pathspecs', 'ls-files', '--stage', '-z',
+                                       '--', path).stdout), left_before[path])
+        if previous is not None:
+            self.assertEqual(self.snapshot(), previous)
         return execution
+
+    @staticmethod
+    def encode(result):
+        return (json.dumps(result, ensure_ascii=True, separators=(',', ':')) + '\n').encode('ascii')
+
+    def assert_stages(self, expected):
+        stages = {}
+        for entry in self.git('ls-files', '--unmerged', '-z').stdout.split(b'\0'):
+            if entry:
+                metadata, path = entry.split(b'\t', 1)
+                stages.setdefault(os.fsdecode(path), set()).add(int(metadata.split()[2]))
+        self.assertEqual(stages, expected)
 
     def snapshot(self):
         paths = set(self.git('ls-files', '-z').stdout.split(b'\0')) - {b''}
@@ -269,7 +310,9 @@ class Merge(unittest.TestCase):
                               base_files=((path, '- test p incoming\n'),))
                 conflict = (self.repository / path).read_bytes()
                 stages = self.git('ls-files', '--stage', '--', path).stdout
-                execution = self.run_merge([BASELINE], [path])
+                execution = self.run_merge([BASELINE], [{'path': path, 'kind':
+                                                       'added' if path == '.temper/known-reds.md'
+                                                       else 'modified'}])
                 self.assert_recounted()
                 self.assertEqual((self.repository / path).read_bytes(), conflict)
                 self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout, stages)
@@ -283,7 +326,9 @@ class Merge(unittest.TestCase):
                               head_files=((path, '- test p head\n'),),
                               base_files=((path, '- test p incoming\n'),))
                 previous = self.snapshot()
-                execution = self.run_merge([], [path])
+                execution = self.run_merge([], [{'path': path, 'kind':
+                                                 'added' if path == '.temper/known-reds.md'
+                                                 else 'modified'}])
                 self.assertEqual(self.snapshot(), previous)
                 self.assertNotIn(f'{path}: left:', execution.stderr.decode())
 
@@ -334,17 +379,139 @@ class Merge(unittest.TestCase):
     def test_modify_delete_conflicts_are_left(self):
         self.conflict(delete='head')
         previous = self.snapshot()
-        self.run_merge([], [BASELINE])
+        self.assert_stages({BASELINE: {1, 3}})
+        commit = self.git('rev-parse', 'HEAD').stdout.decode().strip()
+        self.run_merge([], [{'path': BASELINE, 'kind': 'deleted', 'by': 'head',
+                             'commit': commit[:12]}])
         self.assertEqual(self.snapshot(), previous)
 
     def test_delete_modify_conflicts_are_left(self):
         self.conflict(delete='base')
         previous = self.snapshot()
-        self.run_merge([], [BASELINE])
+        self.assert_stages({BASELINE: {1, 2}})
+        commit = self.git('rev-parse', 'MERGE_HEAD').stdout.decode().strip()
+        self.run_merge([], [{'path': BASELINE, 'kind': 'deleted', 'by': 'base',
+                             'commit': commit[:12]}])
         self.assertEqual(self.snapshot(), previous)
 
+    def test_added_on_both_sides_is_named(self):
+        path = 'added.txt'
+        self.conflict(baseline=False, head_files=[(path, 'head\n')],
+                      base_files=[(path, 'base\n')])
+        self.assert_stages({path: {2, 3}})
+        self.run_merge([], [{'path': path, 'kind': 'added'}])
+
+    def test_deleting_commit_precedes_the_base_tip(self):
+        path = '.temper/known-reds.md'
+        self.write(path, '- shared red\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.write(path, '- shared red\n- head red\n')
+        head = self.commit('append red')
+        self.git('checkout', '-q', 'base')
+        self.git('rm', path)
+        deletion = self.commit('delete reds')
+        self.write('unrelated', 'later\n')
+        base = self.commit('later base tip')
+        self.merge_conflict(head, base)
+        self.assert_stages({path: {1, 2}})
+        self.run_merge([], [{'path': path, 'kind': 'deleted', 'by': 'base',
+                             'commit': deletion[:12]}])
+
+    def test_rename_before_rewrite_is_not_reported_as_deletion(self):
+        for by in ('base', 'head'):
+            with self.subTest(by=by):
+                self.setUp()
+                source = 'old\n"\\é[*].txt'
+                target = 'new\n"\\é[*].txt'
+                # A later deletion that a nonliteral pathspec could also match.
+                decoy = 'old\n"é*.txt'
+                self.write(source, 'common file\n' * 10)
+                self.write(decoy, 'decoy\n')
+                self.commit('common')
+                self.git('branch', 'base')
+                if by == 'base':
+                    self.write(source, 'common file\n' * 10 + 'head addition\n')
+                    head = self.commit('head modifies source')
+                    self.git('checkout', '-q', 'base')
+                self.git('mv', '--', source, target)
+                rename = self.commit('pure rename')
+                self.write(target, 'rewritten destination\n' * 10)
+                self.git('rm', '--', decoy)
+                renamed_tip = self.commit('rewrite destination and remove decoy')
+                if by == 'base':
+                    base = renamed_tip
+                else:
+                    head = renamed_tip
+                    self.git('checkout', '-q', 'base')
+                    self.write(source, 'common file\n' * 10 + 'base addition\n')
+                    base = self.commit('base modifies source')
+                self.merge_conflict(head, base)
+                self.assert_stages({source: {1, 2} if by == 'base' else {1, 3}})
+                self.run_merge([], [{'path': source, 'kind': 'renamed', 'by': by,
+                                     'to': target, 'commit': rename[:12]}])
+
+    def test_rename_into_an_added_path_names_its_source(self):
+        source = 'old\n"\\é[*].txt'
+        target = 'new\n"\\é[*].txt'
+        self.write(source, 'common file\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('mv', '--', source, target)
+        head = self.commit('rename on head')
+        self.git('checkout', '-q', 'base')
+        self.write(target, 'added on base\n')
+        base = self.commit('base adds destination')
+        self.merge_conflict(head, base)
+        self.assert_stages({target: {2, 3}})
+        self.run_merge([], [{'path': target, 'kind': 'renamed', 'by': 'head',
+                             'from': source, 'commit': head[:12]}])
+
+    def test_both_sides_rename_into_one_path(self):
+        target = 'destination'
+        self.write('first', 'first file\n')
+        self.write('second', 'second file\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('mv', 'first', target)
+        head = self.commit('head rename')
+        self.git('checkout', '-q', 'base')
+        self.git('mv', 'second', target)
+        base = self.commit('base rename')
+        self.merge_conflict(head, base)
+        self.assert_stages({target: {2, 3}})
+        self.run_merge([], [{'path': target, 'kind': 'renamed', 'by': 'both'}])
+
+    def test_both_sides_rename_away_from_one_path(self):
+        self.write('source', 'common file\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('mv', 'source', 'head-name')
+        head = self.commit('head rename')
+        self.git('checkout', '-q', 'base')
+        self.git('mv', 'source', 'base-name')
+        base = self.commit('base rename')
+        self.merge_conflict(head, base)
+        self.assert_stages({'source': {1}, 'head-name': {2}, 'base-name': {3}})
+        self.run_merge([], [{'path': 'base-name', 'kind': 'unknown'},
+                            {'path': 'head-name', 'kind': 'unknown'},
+                            {'path': 'source', 'kind': 'renamed', 'by': 'both'}])
+
+    def test_rename_delete_with_no_removal_of_index_path_is_unknown(self):
+        self.write('source', 'common file\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('mv', 'source', 'destination')
+        head = self.commit('head rename')
+        self.git('checkout', '-q', 'base')
+        self.git('rm', 'source')
+        base = self.commit('base deletes source')
+        self.merge_conflict(head, base)
+        self.assert_stages({'destination': {1, 2}})
+        self.run_merge([], [{'path': 'destination', 'kind': 'unknown'}])
+
     def test_path_with_newline_is_left(self):
-        path = 'temper/other\nfile.rs'
+        path = 'temper/other\n"\\é[*].rs'
         self.write(path, 'const X: u8 = 0;\n')
         self.conflict(baseline=False, other=True, other_path=path)
         previous = self.snapshot()
@@ -352,11 +519,29 @@ class Merge(unittest.TestCase):
         self.assertEqual(self.snapshot(), previous)
 
     def test_many_conflicts_list_the_paths_that_fit_and_count_the_rest(self):
-        paths = [f'temper/z{number:02d}-' + 'x' * 40 + '.rs' for number in range(20)]
+        paths = [f'temper/z{number:02d}-' + 'x' * 43 + '.rs' for number in range(20)]
         for path in paths:
             self.write(path, 'const X: u8 = 0;\n')
         self.conflict(other=True, other_path=paths[0], other_paths=paths[1:])
+        self.assert_stages({path: {1, 2, 3} for path in [BASELINE, *paths]})
         self.run_merge([BASELINE], paths, truncated=True)
+        result = json.loads((self.job / 'result.json').read_bytes())
+        self.assertTrue(result['left'])
+        self.assertEqual(result['settled'], [])
+        self.assertEqual(result['more']['settled'], 1)
+        self.assert_recounted()
+
+    def test_oversized_left_omits_later_records_but_not_settled(self):
+        path = 'a/' + ('x' * 200 + '/') * 3 + 'file'
+        self.write(path, 'common\n')
+        self.write('z', 'common\n')
+        self.conflict(other=True, other_path=path, other_paths=['z'])
+        self.assert_stages({BASELINE: {1, 2, 3}, path: {1, 2, 3}, 'z': {1, 2, 3}})
+        self.run_merge([BASELINE], [path, 'z'], truncated=True)
+        result = json.loads((self.job / 'result.json').read_bytes())
+        self.assertNotIn('left', result)
+        self.assertEqual(result['settled'], [BASELINE])
+        self.assertEqual(result['more']['left'], 2)
         self.assert_recounted()
 
     def test_one_path_larger_than_the_result_is_counted(self):
@@ -364,11 +549,10 @@ class Merge(unittest.TestCase):
         self.write(path, 'const X: u8 = 0;\n')
         self.conflict(baseline=False, other=True, other_path=path)
         previous = self.snapshot()
-        result = subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
-                                cwd=self.job, env=self.env, capture_output=True)
-        self.assertEqual(result.returncode, 3, result.stderr.decode())
-        self.assertEqual(json.loads((self.job / 'result.json').read_bytes()),
-                         {'settled': [], 'left': [], 'more': 1})
+        self.run_merge([], [path], truncated=True)
+        result = json.loads((self.job / 'result.json').read_bytes())
+        self.assertNotIn('left', result)
+        self.assertEqual(result['more']['left'], 1)
         self.assertEqual(self.snapshot(), previous)
 
 

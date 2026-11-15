@@ -205,13 +205,39 @@
   Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
+  **A deletion or a rename is intended content too**
+  (`../../../draft/merge-deletions.md`, 2): a file deleted on the base
+  stays deleted unless the requested change needs it; a file deleted on
+  the head, or renamed on either side, stays so, the other side's edits
+  carried where they still apply; and the agent reads the commit that
+  deleted a file before it restores anything. Keeping an intended
+  deletion removes no content, so the rule against removing content to
+  make a check pass holds beside it. The resolution's result says, for
+  each file deleted or renamed on either side, whether it kept the
+  deletion or restored the file, and why. The judgement is the agent's:
+  neither the merge job nor the change settles a file one side deleted
+  or renamed, since whether the change still needs it is a judgement
+  (`../../../protocol/tooling.md`, 4.1). The full instructions are
+  exactly:
+
+  > Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.
+
   The specification reserves its pinned parameters' bytes before its words.
   Where the full instructions do not fit, a compact instruction keeps both
-  sides and blank lines, with the full rule in the coding charter; where
-  neither fits, the change holds instead of issuing an oversized delegate.
+  sides, blank lines and each side's deletions and renames, with the full
+  rule in the coding charter:
+
+  > Resolve the merge conflict. Keep both sides, blank lines, deletions and renames. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.
+
+  Where neither fits, the change holds instead of issuing an oversized
+  delegate. Either form carries the deletion rule whole, with a merge
+  job's result after it or none.
   Required preservation instructions precede optional merge-job results. A
   result is appended only with room for its context and any truncation marker;
-  it never displaces the preservation instructions.
+  it never displaces the preservation instructions, so a result cut or
+  left out leaves the deletion rule whole. The merge job's records name
+  each left file's kind and, for a deletion, the side and the commit
+  that deleted it (`../../../protocol/tooling.md`, 4.1).
   Its pull section carries each of the pull's files whole, both sides, where
   they fit the room the section has left. A file that doesn't is named
   instead, never carried in part, for the resolver to read in its checkout,
