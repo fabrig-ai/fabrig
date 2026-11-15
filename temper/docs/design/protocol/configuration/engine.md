@@ -62,7 +62,7 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   a `gates` entry being
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
   "workflow": string, "ignored": [string], "blocking": boolean,
-  "base": boolean}],
+  "base": boolean, "artifact": string, "format": "junit" | "lines"}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
@@ -70,7 +70,10 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
   and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
-  7.1). A tier's `branch` is the
+  7.1). A gate's `artifact` and `format`, both or neither, none when
+  absent, are its report, read as a tier's are named and checked, and
+  read after a failed run for its failed cases
+  (`../../domain/landing-search-by-test.md`, 2). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
   judges no landing (`../../domain/after-landing.md`, section 2). Its
