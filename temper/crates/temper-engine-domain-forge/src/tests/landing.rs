@@ -1090,7 +1090,7 @@ fn a_members_pull_hint_wakes_its_landing_until_the_detected_merge_is_told() {
         (REPO, 1, Some(fixtures::HEAD), false, true),
         (api::Repository { repository: 3, ..REPO }, 1, Some(fixtures::HEAD), false, false),
         (REPO, 2, Some(fixtures::HEAD), false, false),
-        (REPO, 1, None, false, false),
+        (REPO, 1, None, false, true),
         (REPO, 1, Some(fixtures::HEAD), true, false),
     ] {
         let mut d = landing_fixture();
@@ -1102,10 +1102,41 @@ fn a_members_pull_hint_wakes_its_landing_until_the_detected_merge_is_told() {
         member.landed = landed;
         member.told = told;
         let mut out = Queue::uncapped();
-        landing::hinted(&d, &api::Hint { repository, change: api::Change::Item(number), key: None }, &mut out);
+        landing::hinted(&mut d, &api::Hint { repository, change: api::Change::Item(number), key: None }, &mut out);
         assert_eq!(out.pop(), if wake { Some(Request::WakeProcedure { task: 61 }) } else { None });
         assert_eq!(out.pop(), None);
     }
+}
+
+#[test]
+fn cached_merged_pull_news_wakes_a_landing_after_its_raw_hint() {
+    use crate::domain::pull_changed as cache_news;
+    use skein_forge::api;
+    let mut d = landing_fixture();
+    member_landing(&mut d);
+    let row = d.landing.rows.get_mut(&61).unwrap();
+    row.landing.phase = policy::Phase::Turn { at: Wall::EPOCH };
+    let member = row.landing.members.first_mut().unwrap();
+    member.combined = Some(policy::Combine::Merge);
+    member.landed = Some(fixtures::HEAD);
+    let mut hint = Queue::uncapped();
+    landing::hinted(&mut d, &api::Hint { repository: REPO, change: api::Change::Item(1), key: None }, &mut hint);
+    assert_eq!(hint.pop(), Some(Request::WakeProcedure { task: 61 }));
+    let resource = skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Pull(1) };
+    let mut pull = fixtures::open_pull();
+    pull.state = api::State::Closed;
+    // The object can already be closed before merged metadata arrives.
+    cache_news(&mut d, &env(), resource.clone(), pull.clone(), &mut Queue::uncapped());
+    pull.merged = Some(fixtures::HEAD);
+    let mut out = Queue::uncapped();
+    cache_news(&mut d, &env(), resource, pull, &mut out);
+    let mut woke = false;
+    while let Some(request) = out.pop() {
+        if request == (Request::WakeProcedure { task: 61 }) {
+            woke = true;
+        }
+    }
+    assert!(woke, "the cached merged fact must wake the landing even if the hint ran before it");
 }
 
 #[test]

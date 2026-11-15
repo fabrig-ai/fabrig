@@ -8031,13 +8031,14 @@ fn same_pull_facts(left: &skein_forge::api::Pull, right: &skein_forge::api::Pull
     left == *right
 }
 
-fn pull_changed(
+pub(crate) fn pull_changed(
     d: &mut Domain,
     env: &Env<Limits>,
     resource: skein_forge_client::Resource,
     pull: skein_forge::api::Pull,
     out: &mut Queue<Request>,
 ) {
+    crate::landing::pull_changed(d, resource.repository, &pull, out);
     let name = from_client(&resource, &env.limits);
     let prior = match &name {
         Some(name) => d.pulls.get(name).cloned(),

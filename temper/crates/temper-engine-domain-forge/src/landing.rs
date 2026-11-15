@@ -3236,21 +3236,56 @@ pub(crate) fn outcome(
     emit(out, Request::WakeProcedure { task });
     keep_window && (item.operation == Operation::Dispatch || item.operation == Operation::Rerun)
 }
-pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
-    if let api::Change::Item(number) = hint.change {
-        for (task, row) in &d.landing.rows {
-            for member in &row.landing.members {
-                if repository(member) == hint.repository
-                    && member.pull == number
-                    && member.combined == Some(policy::Combine::Merge)
-                    && member.landed.is_some()
-                    && !member.told
-                {
-                    emit(out, Request::WakeProcedure { task: *task });
-                    break;
+fn awaits_pull(row: &LandingRow, member: &policy::Member, provider: api::Repository, number: u64) -> bool {
+    let policy::Phase::Turn { .. } = row.landing.phase else { return false };
+    repository(member) == provider
+        && member.pull == number
+        && member.combined == Some(policy::Combine::Merge)
+        && member.candidate.is_some()
+        && !member.told
+}
+
+fn wake_member_pull(
+    d: &mut Domain,
+    provider: api::Repository,
+    number: u64,
+    merged: Option<api::Commit>,
+    out: &mut Queue<Request>,
+) {
+    for (task, row) in &d.landing.rows {
+        for (index, member) in row.landing.members.iter().enumerate() {
+            if awaits_pull(row, member, provider, number) {
+                if let Some(owner) = pending_for(d, *task) {
+                    let pending = d.landing.pending.get_mut(&owner).expect("landing's pending gather");
+                    let changed = match merged {
+                        None => true,
+                        Some(commit) => match pending.facts.get(index) {
+                            Some(fact) => fact.merged != Some(commit),
+                            None => false,
+                        },
+                    };
+                    if changed {
+                        pending.woken = true;
+                    }
                 }
+                emit(out, Request::WakeProcedure { task: *task });
+                break;
             }
         }
+    }
+}
+
+/// Merge metadata can arrive after the hint's wake read the old cached pull.
+pub(crate) fn pull_changed(d: &mut Domain, provider: api::Repository, pull: &api::Pull, out: &mut Queue<Request>) {
+    if let Some(merged) = pull.merged {
+        wake_member_pull(d, provider, pull.number, Some(merged), out);
+    }
+}
+
+pub(crate) fn hinted(d: &mut Domain, hint: &api::Hint, out: &mut Queue<Request>) {
+    if let api::Change::Item(number) = hint.change {
+        // The hint can precede main readback and invalidates an older gather.
+        wake_member_pull(d, hint.repository, number, None, out);
     }
     if let api::Change::Commit(commit) = hint.change {
         for (_, flight) in &d.landing.flights {
