@@ -16,7 +16,6 @@ const ATTEMPT: u64 = 1;
 const PRIOR: &[u8] = b"durable before refusal";
 // protocol/store/transcripts.md 1 declares transcript: bytes 33554432 in the current codec.
 const CODEC_TRANSCRIPT_CEILING: u32 = 33_554_432;
-const FIRST: u64 = 1;
 const DURABLE: u64 = 2;
 const REFUSED: u64 = 3;
 const KV_CHUNK_OVERHEAD: u32 = 20;
@@ -42,9 +41,7 @@ fn opened(page: u32) -> World {
     // The world's drivers must read a full frame in one chunk.
     limits.store.chunk = limits.store.chunk.max(page + KV_CHUNK_OVERHEAD);
     checked(&limits).expect("every opened world passes the shell's size check");
-    let mut world = World::unopened_observed(SEED, limits, None);
-    assert_eq!(world.open_switched(), Some(0), "open: {:?}", world.refusal());
-    world
+    super::super::map_held::world(SEED, &limits, &[TASK, TASK + 1])
 }
 
 fn refused(events: &[Event], number: u64, task: u64, limit: u32) -> u32 {
@@ -61,13 +58,12 @@ fn frame_bytes(transcript: &[u8]) -> u32 {
     let page = row_floor();
     let mut world = opened(page);
     let events =
-        world.request(Request::Commit { number: FIRST, writes: root::turn_commit(FIRST, TASK, 1, transcript) });
-    refused(&events, FIRST, TASK, page)
+        world.request(Request::Commit { number: DURABLE, writes: root::turn_commit(DURABLE, TASK, 1, transcript) });
+    refused(&events, DURABLE, TASK, page)
 }
 
 fn baseline(page: u32) -> World {
     let mut world = opened(page);
-    assert_eq!(world.commit(root::first()), Some(FIRST));
     assert_eq!(world.commit(root::turn_commit(DURABLE, TASK, 1, PRIOR)), Some(DURABLE));
     world
 }
@@ -150,7 +146,6 @@ fn a_frame_exactly_the_page_commits_and_reads_back_whole() {
     let payload = payload();
     let bytes = frame_bytes(&payload);
     let mut world = opened(bytes);
-    assert_eq!(world.commit(root::first()), Some(FIRST));
     let events =
         world.request(Request::Commit { number: DURABLE, writes: root::turn_commit(DURABLE, TASK, 1, &payload) });
     assert!(matches!(events.as_slice(), [Event::Committed { number: DURABLE, .. }]), "{events:?}");
@@ -262,7 +257,6 @@ fn the_frame_bound_covers_each_transcript_size() {
             eprintln!("transcript {size}: refused frame {actual}, bound {bound}");
         } else {
             let mut world = opened(floor);
-            assert_eq!(world.commit(root::first()), Some(FIRST));
             assert_eq!(world.commit(root::turn_commit(DURABLE, TASK, 1, &transcript)), Some(DURABLE));
             let expected = root::turn(TASK, ATTEMPT, 1, &transcript);
             for kind in starts() {

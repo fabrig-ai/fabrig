@@ -1345,3 +1345,15 @@ fn brief_head(row: &crate::ChangeRow) -> Option<skein_forge::api::Commit> {
     let (_, _, _, head) = row.review_target()?;
     Some(head)
 }
+
+pub(crate) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
+    let mut keys = List::with_capacity(d.brief_fetches.len());
+    for (key, row) in &d.brief_fetches {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded brief_fetches");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.brief_fetches.remove(&key).expect("collected brief_fetches");
+    }
+}

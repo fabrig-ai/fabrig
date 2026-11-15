@@ -38,7 +38,7 @@ impl Durable for Store {
                 root::Write::DropTranscript { task } => drops.push(task),
                 root::Write::Save(row) => rows.push(jig_fake_store::Write::Save { key: row.key(), row }),
                 root::Write::Erase(key) => rows.push(jig_fake_store::Write::Erase(key)),
-                root::Write::Wires => {}
+                root::Write::DropHistory { .. } | root::Write::Wires => {}
                 root::Write::CopySettingsRevision(_) => {
                     unreachable!("this scripted ops world restarts with identical defaults");
                 }

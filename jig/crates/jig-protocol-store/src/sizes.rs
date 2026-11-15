@@ -11,7 +11,7 @@ pub fn restore_bytes(limits: &crate::Limits) -> Option<u64> {
 }
 
 /// Largest current full turn frame for the admitted transcript byte bound,
-/// including metadata and framing (protocol/store/transcripts.md, 1 and 6).
+/// including metadata and either framing (protocol/store/logs.md, 5; transcripts.md, 1 and 6).
 /// Reject an out-of-codec bound or arithmetic overflow; never clamp it.
 #[must_use]
 pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
@@ -21,7 +21,7 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
     }
     limits.turn_record_transcript = transcript_bytes;
     let body = u32::try_from(core_v6::TurnRecord::encoded_bound(&limits)?).ok()?;
-    body.checked_add(crate::transcripts::frame::WRAPPER_BYTES)
+    body.checked_add(17) // skein-kv's uncompressed payload-log framing (skein's data/kv.md, 6.1)
 }
 
 /// Settings history with replaced values, framing and the model-name table
@@ -187,7 +187,7 @@ fn largest(
             .max(u64::from(application.value)),
     )
     .ok()?;
-    // Each journal write can produce two turn places; the first commit also
+    // Each journal write can produce a log append and two turn places; the first commit also
     // inserts Format, Layouts and the installation's identifier. Each put
     // uses skein-kv’s exported operation and frame sizes.
     let ops = crate::commits::most_ops(commits.writes, orphan_erases)?;

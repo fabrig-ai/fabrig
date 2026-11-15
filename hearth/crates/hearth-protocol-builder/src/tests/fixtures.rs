@@ -490,6 +490,7 @@ pub fn arriving() -> Layer {
                 | Request::HardLink { .. }
                 | Request::Rename { .. }
                 | Request::Remove { .. }
+                | Request::RemoveIn { .. }
                 | Request::List { .. }
                 | Request::ListPage { .. } => panic!("only the temporary is written before arrival"),
             };

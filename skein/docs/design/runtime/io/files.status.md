@@ -21,3 +21,9 @@
   states apart; moving every reader onto `file_layer::step` and removing the
   thin forms ended 133 lines of Rust up, 53 in code and 80 in tests, since each
   reader gained a kept `file_layer::Limits` and an `Env`.
+- **Departs:** section 1's requests: `Create` to `OpenDirectory`, `SyncDirectory`,
+  `List`, `Rename`, `HardLink` and `Remove` take their root as a descriptor (`Fd`), where
+  1 names a token. Removing one name from a directory an owner holds open by token is
+  `Request::RemoveIn { owner, root: Token, name, directory }`, the token-rooted `Remove`
+  that 1 describes. It sits beside the descriptor-rooted `Remove` and answers as that does.
+  skein-kv's payload logs need it (../../data/kv.md, 6.4) [in flight: change 3537].

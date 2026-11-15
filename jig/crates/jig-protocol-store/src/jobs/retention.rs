@@ -29,7 +29,7 @@ pub(super) fn rows(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if writes.is_empty() {
                 return Err(refusal(&row.key, "room cannot hold one task's retention rows"));
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         };
         bytes = total;
         through = Some(row.key.clone());
@@ -37,7 +37,7 @@ pub(super) fn rows(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             writes.push(write).expect("uncapped job writes");
         }
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 pub(super) fn proposals(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     let mut writes = List::uncapped();
@@ -71,13 +71,13 @@ pub(super) fn proposals(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if writes.is_empty() {
                 return Err(refusal(&row.key, "room cannot hold one proposal's retention row"));
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         };
         bytes = total;
         through = Some(row.key.clone());
         writes.push(write).expect("uncapped job writes");
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 fn room(page: &JobPage, writes: &List<JobWrite>, bytes: u64, added: &[JobWrite]) -> Option<u64> {
     let count = writes.len().checked_add(u32::try_from(added.len()).ok()?)?;

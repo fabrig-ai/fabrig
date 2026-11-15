@@ -7,6 +7,7 @@ pub const LOG_LINE: u32 = 512;
 pub const STEP: u32 = 64;
 pub const STARTING: u32 = 4;
 pub const WALK: u32 = 64;
+pub const CLOSED_CHATS: u32 = 16;
 pub const NOTICE: skein_lib::Duration = skein_lib::Duration::from_secs(6);
 
 #[must_use]

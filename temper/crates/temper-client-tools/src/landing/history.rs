@@ -177,7 +177,7 @@ pub(crate) fn read(query: w::HistoryRead) -> Readable {
 fn send(pending: &mut Pending, out: &mut Queue<Out>) {
     pending.serial = pending.serial.checked_add(1).expect("retry count within wait");
     let handle = Handle {
-        asker: temper_client_domain::owner::Owner::Forge.asker(),
+        asker: temper_client_domain_forge::owner::Owner::Forge.asker(),
         number: (u64::from(pending.called.call_number) << 32_u32) | u64::from(pending.serial),
     };
     pending.handle = Some(handle);
@@ -190,7 +190,7 @@ fn complete(state: &mut History, id: u32, printed: jig::Printed, out: &mut Queue
 }
 pub(crate) fn decode(page: &Readout, limits: &Limits) -> Option<w::HistoryReply> {
     let Readout::Family { family: wire::FORGE, record: Some(record) } = page else { return None };
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge).expect("checked wire limits");
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge).expect("checked wire limits");
     Some(wire::decode_history_answer(record, &bounds)?.into_parts().result)
 }
 pub(crate) fn told(state: &mut History, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {

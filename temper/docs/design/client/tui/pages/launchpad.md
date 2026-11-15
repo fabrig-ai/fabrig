@@ -17,8 +17,9 @@ the recording (`../../../draft/tui.md`, section 5).
 Illustrative, a person in two projects, Hello and shop:
 
 ```
- ▄█▀▀   temper 0.0.0 (b948f40d6df1)
-▄█▄█▄█  127.0.0.1:8367
+
+  ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+ ▄█▄█▄█  127.0.0.1:8367
 
  4 changes landed across two projects. Two things need you.
  Hello: CSV export is in review. shop: Coupons are two of three in.
@@ -202,7 +203,9 @@ The first of the sections: the term "Where you left off" (`tui-head`)
 and under it the conversations the person can go back to, across their
 projects, at most three, newest activity first, the lower task first
 between two of one time: of the person's chats (`LeftOff::chats`), those
-that have not ended; and the person's newest goal, of their goals
+that have not ended, and never one this run closed by `/close`, left
+out from the frame the TUI goes back to the launchpad on, before its row
+reads ended (`chat.md`, section 1, *Closing*); and the person's newest goal, of their goals
 (`LeftOff::goals`), the one not ended with the newest last activity,
 among the rows the read holds. Each is a row, an unnumbered item of a
 list under `tui-left-off`, whose mark is a space, so that its words

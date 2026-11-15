@@ -37,6 +37,7 @@ pub(crate) fn encoded_len(ops: &[Op]) -> Option<usize> {
     let mut total = FRAME_BYTES;
     for op in ops {
         let size = match op {
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
             Op::Put { key, value } => put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)?,
             Op::Erase { key } => erase_bytes(u32::try_from(key.len()).ok()?)?,
         };
@@ -55,6 +56,7 @@ pub(crate) fn encode(number: u64, ops: &[Op], limit: u32) -> Option<Box<[u8]>> {
     let mut body = Vec::with_capacity(capacity);
     for op in ops {
         match op {
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
             Op::Put { key, value } => {
                 body.push(1);
                 body.extend_from_slice(&u32::try_from(key.len()).ok()?.to_be_bytes());

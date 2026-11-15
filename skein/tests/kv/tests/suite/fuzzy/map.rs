@@ -18,6 +18,9 @@ fn limits() -> Limits {
         snapshot_after: 2048,
         chunk: 128,
         page: Page { rows: 4, bytes: 64 },
+        record: 1,
+        log: 1 << 40,
+        logs: 16,
         deadline: Duration::from_secs(1),
     }
 }

@@ -282,6 +282,8 @@ pub enum Write {
     /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     DropTranscript { task: u64 },
+    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
+    DropHistory { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
     /// Save one authentic core or child record.

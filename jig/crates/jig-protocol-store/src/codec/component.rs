@@ -286,3 +286,60 @@ pub(crate) fn kept_wires(bytes: &[u8]) -> Option<Box<[crate::KeptWire]>> {
     }
     Some(wires.into_boxed())
 }
+
+/// A task log's place (protocol/store/logs.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct HistoryLog {
+    pub record: Option<u64>,
+}
+impl HistoryLog {
+    pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
+        let row = wire::HistoryLog::new(&wire::CEILINGS, wire::HistoryLogParts { record: self.record })?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured log place");
+        Ok(writer.finish())
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
+        let wire::HistoryLogParts { record } =
+            wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        Ok(Self { record })
+    }
+}
+
+/// A task log's place (protocol/store/logs.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TurnLog {
+    pub window: Option<u64>,
+}
+impl TurnLog {
+    pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
+        let row = wire::TurnLog::new(&wire::CEILINGS, wire::TurnLogParts { window: self.window })?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured log place");
+        Ok(writer.finish())
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
+        let wire::TurnLogParts { window } =
+            wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        Ok(Self { window })
+    }
+}
+
+/// A task log's place (protocol/store/logs.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct LogAttempt {
+    pub first: u64,
+}
+impl LogAttempt {
+    pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
+        let row = wire::LogAttempt::new(&wire::CEILINGS, wire::LogAttemptParts { first: self.first })?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured log place");
+        Ok(writer.finish())
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
+        let wire::LogAttemptParts { first } =
+            wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        Ok(Self { first })
+    }
+}

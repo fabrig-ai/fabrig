@@ -8,9 +8,10 @@ use skein_heap::Meter;
 // Empty: peak 806,140, registry and read workspace retained 7,905 bytes.
 const EMPTY_PEAK: u64 = 1_100_000;
 const EMPTY_REGISTRY: u64 = 9_900;
-// Seeded at the last kept texts: peak 3,731,403, retained share 7,905 bytes.
-const SEEDED_PEAK: u64 = 4_700_000;
-const SEEDED_REGISTRY: u64 = 9_900;
+// Seeded at the last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
+// Log-held conversion plans retain their fitted workspace and value buffer.
+const SEEDED_PEAK: u64 = 7_000_000;
+const SEEDED_REGISTRY: u64 = 2_400_000;
 
 const SETS: PatchSets = PatchSets {
     sets: &[

@@ -275,3 +275,16 @@ fn names(entries: &[api::Entry]) -> Box<[Box<[u8]>]> {
     }
     names.into_boxed()
 }
+
+pub(crate) fn release_repository(d: &mut Domain, repository: api::Repository) {
+    let mut keys = List::with_capacity(d.workflows.reads.len());
+    for (key, row) in &d.workflows.reads {
+        if row.repository == repository {
+            keys.push(*key).expect("bounded workflows.reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.workflows.reads.remove(&key).expect("collected workflows.reads");
+    }
+    d.workflows.marked.remove(&repository);
+}

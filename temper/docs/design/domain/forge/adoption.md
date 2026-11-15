@@ -306,8 +306,9 @@
     token, the bot's tokens, the webhooks' secret and the App's key
     among them (`../../protocol/forge/engine.md`, 3);
   - *its records erased:* its writer and its outbox's entries in its
-    decision; each of its repositories' rows once no kept task names
-    it, live or ended (below), so that a chat that worked on one still
+    decision; each of its repositories, released (*A repository
+    released*, below) once no kept task names it, live or ended
+    (below), so that a chat that worked on one still
     reads its name until the chat itself is erased; and its record once
     both acts below are answered and its repositories' rows are gone,
     its number never given again;
@@ -345,9 +346,9 @@
   connector when a task is erased, in the decision that erases it whole
   (jig's `domain/connectors.md`, 3.4), and the root gives it
   `Unnamed { task }`: the connector erases the task's kept row, or a row
-  still live with its watches, then each ended forge's repositories'
-  rows that no task names any more, and the forge's record once it is
-  whole.
+  still live with its watches, then releases each ended forge's
+  repository that no task names any more (*A repository released*,
+  below), and erases the forge's record once it is whole.
 - **Their bound:** at most `forge.repositories` kept rows, beside the
   `forge.tasks` live ones, so that a kept row never takes a live task's
   room. A release that would keep one past it first erases, of the kept
@@ -358,17 +359,97 @@
   repositories. So a removed forge's repository's row stays at least
   while the last task that named it is kept.
 - **A project deleted** (jig's `domain/people/acts.md`, 2): when the core
-  asks the connector to release the project, the connector erases the
-  rows of the repositories the project adopted, and the forge client's
-  row of each, by a removed forge's rule (above), at once, since the
-  project's tasks that named them are erased by then; it takes those
-  repositories out of every kept row, erasing a row left with none, so
-  that a kept row names only repositories with rows, and lets go of an
-  ended forge whose last repository went, as `Unnamed` does; a row
-  another project adopted stays. temper's kinds' settings in the
-  project's scope go as `../../protocol/configuration/settings.md`, 2 says. It
-  answers the core once that has committed, and again, at once, when
-  asked again.
+  asks the connector to release the project, the connector releases
+  (below) each repository the project adopted that no other project
+  adopts as context, at once, since the project's tasks that named them
+  are erased by then, and lets go of an ended forge whose last
+  repository went, as `Unnamed` does. A row another project adopts as
+  context stays, with everything that names it: its writer becomes the
+  first of those projects, its other contexts kept, and only the deleted
+  project's own receipts of it go. temper's kinds' settings in the
+  project's scope go as `../../protocol/configuration/settings.md`, 2 says, and so do
+  the project's own records: its follows, findings, facts, looks,
+  aways, decisions, dismissals, landed drafts and receipts; its landing
+  history is swept after the answer, in pages, under its own mark
+  (`../landing-history.md`, 4.5). The connector answers the core once
+  its release's last page has committed (*A release in pages*, below),
+  and again when asked again: a release asked again, after a restart or
+  not, takes what is left of it and goes on, and one that finds nothing
+  left writes nothing and answers at once.
+- **A repository released** is erased with every record that names it,
+  through one helper that every path erasing a repository takes: a
+  project's release (above); a removed forge's, once no kept task names
+  the repository (*Removing a forge*, `Unnamed`); and an adoption rolled
+  back when its collaborators' seeding failed (the root's
+  `ForgetAdoption` with nothing to restore). Nothing on the forge itself
+  is touched: no branch, pull request, issue, hook or repository there is
+  deleted, closed or written. What goes, in the decision that releases
+  it:
+  - *its work retired,* as a removed forge's is (*Removing a forge*) but
+    for the one repository: each read of it in flight is dropped, and
+    its answer, when it comes, changes nothing and saves nothing (a
+    branch, pull, CI, item, tree, workflow, artifact, collaborator, file
+    or draft read; a lost writer's, a goal branch's, a tier's, a
+    landing's gather, a follow's, a closer's, a brief's); its waits and
+    deadlines go (a connection or outage wait, a change's, a landing's,
+    a tier's or a projection's due); and the client's watch set is
+    replaced by one without its resources, so that the client stops
+    reading them and erases their live rows;
+  - *its pending work ended, never carried out:* each outbox entry on it,
+    sent or not, withdrawn as a removed forge's are, with its flight, an
+    outcome that comes for it later saving nothing; each proposed effect
+    on it; each hold of one of its resources; each release whose pending
+    resource lies in it; each landing with a member in it; each goal's
+    issue projection kept in it; each tier on it, its run in flight
+    with it; and each change on it, live or ended, its two parts
+    together, with its red passes and the merges it recorded (`Landed`);
+  - *its observations:* its branch heads and pull states, its CI
+    verdicts and the subscriptions to its topics, its verifications, its
+    landing log, its receipts under any project, its landed drafts, the
+    client's live rows of its resources and its listing mark, and the
+    retained adoption outcomes that name it;
+  - *its place in others' rows:* it is taken out of every `Names` row,
+    a row left with none erased; a live task's names never name a
+    repository its project doesn't adopt, so a release finds it in kept
+    rows alone;
+  - *then its own row,* `Repository`, last.
+
+  Kept on purpose: a repository another project adopts as context, and
+  everything of it; what is deployment-wide: the forge's record, its
+  writer, the forge numbers, settings outside the project's scope,
+  bindings and devices; a project's landing history, whose events name
+  a repository by value and which its project's own sweep erases; a
+  kept project's follow, and its setting, whose source or target was a
+  removed forge's repository, until the setting's removal (`follows.md`,
+  9); a making into a deleted project, which fails its row (5); and the
+  deletion's own marks, jig's deletion row and the history's `removing`,
+  until their own steps end them. A removed forge's record goes as
+  *Removing a forge* says, once its repositories' last pages are
+  written.
+- **A release in pages.** In memory a released repository and
+  everything above go at once, in the decision that releases it. In the
+  store its writes go in that decision when they fit a page, 512 writes,
+  the client's erasures of its live rows aside, which the watch set's
+  replacement writes in that decision; past it, the erasures left go in
+  later decisions, at most 512 each, each page the connector's own
+  deadline, due at once, as the landing history's sweep pages
+  (`../landing-history.md`, 4.5). Every save goes in the first decision:
+  a kept `Names` row without the repository, a shared context's row
+  with its new writer. The erasures go in a fixed order that keeps each
+  page whole: pending work first, then observations, then the
+  `Repository` row; a change's two parts in one page; and no row before
+  a row that links to it, so that no page leaves a row linking to one
+  gone (`../root.md`, 8.1). A restart between pages so finds a
+  store whose every row links whole and starts; the core asks for the
+  release again once the start opens (jig's `domain/people/acts.md`,
+  2), and the release, finding the project's repositories still kept
+  with what is left of them, takes up the rest; a removed forge's
+  repositories that no kept task names are released again at the
+  start, beside its removal's steps asked again (*kept until whole*,
+  above). A project's answer
+  waits for the last page of each of its repositories. Nothing of a
+  release's progress is stored: what is left in the store is its
+  progress.
 - **An adoption on a forge not connected** is refused as such, before
   any read, and the client offers Connect; the picker offers none of
   that forge's repositories (3). One on a connecting forge waits for

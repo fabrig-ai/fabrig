@@ -258,7 +258,7 @@ enum AdoptionStage {
 #[derive(Hash, Debug)]
 pub(crate) struct PendingAdoption {
     request: Adoption,
-    repository: api::Repository,
+    pub(crate) repository: api::Repository,
     stage: AdoptionStage,
     permission: Option<api::Permission>,
     settings: Option<api::Settings>,
@@ -270,7 +270,9 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
     let Some(mut pending) = d.adoptions.remove(&reply_to) else { return };
     let request = &pending.request;
     let repository = pending.repository;
-    let invalid = !d.repositories.contains_key(&repository) && d.repositories.len() == env.limits.repositories;
+    let invalid = crate::domain::release::contains(d, repository)
+        || (!d.repositories.contains_key(&repository)
+            && d.repositories.len().saturating_add(crate::domain::release::reserved(d)) >= env.limits.repositories);
     if invalid {
         adopted(
             d,
@@ -659,7 +661,7 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 
 /// Release adoptions after the core has erased the project's tasks
 /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
-pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Queue<Request>) {
+pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {
         if row.project == project && (row.role != Role::Context || row.contexts.is_empty()) {
@@ -691,49 +693,28 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
                 out,
                 Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.as_ref().clone()) },
             );
+            crate::domain::release::first_write(d);
             changed = true;
         }
     }
     for provider in &repositories {
-        d.repositories.remove(provider);
-        emit(out, Request::Erase { key: Key::Repository(*provider) });
-        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(*provider)) });
+        crate::domain::release::repository(d, env, *provider, out);
     }
     if changed {
         emit(out, Request::MarkedForges);
     }
-    let mut changed_rows = List::with_capacity(d.kept.capacity());
-    for (task, names) in &d.kept {
-        let mut remaining = List::with_capacity(u32::try_from(names.len()).expect("bounded kept names"));
-        for name in names {
-            let provider = api::Repository { forge: name.forge, repository: name.repository };
-            if !repositories.as_slice().contains(&provider) {
-                remaining.push(name.clone()).expect("bounded kept names");
-            }
-        }
-        if remaining.as_slice() != names.as_ref() {
-            changed_rows.push((*task, remaining.into_boxed())).expect("bounded kept rows");
-        }
-    }
-    for (task, resources) in changed_rows.into_boxed() {
-        if resources.is_empty() {
-            d.kept.remove(&task);
-            emit(out, Request::Erase { key: Key::Names(task) });
-        } else {
-            d.kept.insert(task, resources.clone()).expect("replaces kept row");
-            emit(out, Request::Save { record: Stored::Names { task, resources }, release: None, read_afresh: None });
-        }
-    }
-    crate::removal::unnamed(d, out);
-    d.erase_project_settings(project, out);
-    crate::follows::erase_project(d, project, out);
-    crate::dismissed::erase_project(d, project, out);
-    crate::status::erase_project(d, project, out);
-    crate::away::erase_project(d, project, out);
-    crate::findings::erase_project(d, project, out);
-    crate::history::sweep::remove(d, project, out);
-    crate::drafts::erase_project(d, project, out);
-    emit(out, Request::ProjectReleased { request });
+    crate::removal::unnamed(d, env, out);
+    let mut writes = Queue::uncapped();
+    let out_project = &mut writes;
+    d.erase_project_settings(project, out_project);
+    crate::landing::erase_project_receipts(d, project, out_project);
+    crate::follows::erase_project(d, project, out_project);
+    crate::dismissed::erase_project(d, project, out_project);
+    crate::status::erase_project(d, project, out_project);
+    crate::away::erase_project(d, project, out_project);
+    crate::findings::erase_project(d, project, out_project);
+    crate::drafts::erase_project(d, project, out_project);
+    crate::domain::release::project(d, project, request, writes, out);
 }
 
 /// An act already names the made repository (domain/forge/adoption.md, 5).
@@ -809,4 +790,27 @@ fn human_collaborators(d: &Domain, forge: u16, collaborators: List<api::Collabor
         }
     }
     humans.into_boxed()
+}
+
+pub(crate) fn retire_repository(d: &mut Domain, repository: api::Repository) {
+    let mut tokens = List::with_capacity(d.application.pending.len());
+    for (token, pending) in &d.application.pending {
+        let adopted = match &pending.observed {
+            Some(ApplicationOutcome::Adopted(row)) => row.repository == repository,
+            Some(
+                ApplicationOutcome::CoreRefused(_)
+                | ApplicationOutcome::ForgeRefused(_)
+                | ApplicationOutcome::MakeKept
+                | ApplicationOutcome::Follow(_)
+                | ApplicationOutcome::MakeRefused(_),
+            )
+            | None => false,
+        };
+        if adopted {
+            tokens.push(*token).expect("bounded pending applications");
+        }
+    }
+    for token in tokens.into_boxed() {
+        d.application.pending.remove(&token);
+    }
 }

@@ -2196,7 +2196,7 @@ static HOLDS: [Holds; samples::N] = [
                 name: "Forgejo on this machine",
                 description: "Forge 3 · Forgejo · Setting up: preparing · work/hello",
             },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
@@ -3392,7 +3392,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "42%" },
-            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 42%" },
+            Part::Text { text: "Fetching Forgejo · 42%" },
         ],
     },
     Holds {
@@ -3410,7 +3410,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Link, name: "Connect a model" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Text { text: "41 MB" },
-            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 41 MB" },
+            Part::Text { text: "Fetching Forgejo · 41 MB" },
         ],
     },
     Holds {
@@ -3837,7 +3837,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
@@ -3931,7 +3931,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
-            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
+            Part::Text { text: "Preparing Forgejo" },
         ],
     },
     Holds {
@@ -6487,6 +6487,71 @@ fn the_accounts_tabs_sign_out_hides_over_a_phones_width_alone() {
         }
     }
     assert_eq!(hiding_rules, 1, "one desktop-only hiding rule");
+}
+
+#[test]
+fn the_rails_link_state_is_one_word_out_of_the_foot_over_a_phones_width_alone() {
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let foot = "#app > .temper-rail > .temper-rail-foot";
+    let rules = [
+        (
+            " > :is([data-region=temper-link], .temper-behind)",
+            "position:absolute;top:28px;right:20px;display:flex;align-items:center;min-height:24px;padding:0;font-size:12.5px;",
+        ),
+        (" > [data-region=temper-link] > *", "gap:6px;"),
+        (" > [data-region=temper-link]:has(> .temper-live)", "display:flex;"),
+        (":has(> .temper-behind) > [data-region=temper-link]:has(> .temper-live)", "display:none;"),
+        (":has(> [data-region=temper-link] > :not(.temper-live)) > .temper-behind", "display:none;"),
+        (" > .temper-behind", "gap:6px;"),
+        (
+            " > .temper-behind::before",
+            "content:\"\";width:7px;height:7px;border-radius:50%;flex:none;background:var(--temper-amber);",
+        ),
+    ];
+    let mut found = [false; 7];
+    let mut selectors = Vec::new();
+    let mut start = 0;
+    let mut query = None;
+    let mut hiding_rules = 0;
+    for (at, character) in css.char_indices() {
+        match character {
+            '{' => {
+                let selector = css[start..at].rsplit("*/").next().unwrap().trim();
+                selectors.push((selector, at));
+                start = at + 1;
+            }
+            '}' => {
+                let (selector, _) = selectors.pop().unwrap();
+                let declarations = css[start..at].split_whitespace().collect::<String>();
+                for (index, (suffix, expected)) in rules.iter().enumerate() {
+                    if selector == format!("{foot}{suffix}") {
+                        assert!(!found[index], "one rule for {selector}");
+                        found[index] = true;
+                        assert_eq!(declarations, *expected, "{selector}");
+                        let parent = selectors.last().expect("the word's rules are desktop-only");
+                        assert_eq!(parent.0, "@media (min-width: 761px)", "{selector}");
+                        assert_eq!(*query.get_or_insert(parent.1), parent.1, "one query for the word's rules");
+                    }
+                }
+                if selector.contains("[data-region=temper-link]:has(> .temper-live)")
+                    && declarations.contains("display:none")
+                {
+                    assert_eq!(
+                        selector,
+                        format!("{foot}:has(> .temper-behind) > [data-region=temper-link]:has(> .temper-live)"),
+                        "Live hides only when Behind replaces it"
+                    );
+                    hiding_rules += 1;
+                }
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    for ((suffix, _), found) in rules.iter().zip(found) {
+        assert!(found, "missing {foot}{suffix}");
+    }
+    assert_eq!(hiding_rules, 1, "only Behind replaces Live");
 }
 
 #[test]

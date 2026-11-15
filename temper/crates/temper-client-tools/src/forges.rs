@@ -290,7 +290,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Event, Handle, Key, Latest, Outcome, State, Told, Why};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue, Time};
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::{
         forges::{
             self as domain, Connection, First, FirstState, Offer, Row, SetUpAnswer, SetUpOutcome, SetUpRefusal, Step,
@@ -329,12 +329,12 @@ struct SettingUp {
 struct Adopting {
     project_name: Box<[u8]>,
     called: Called,
-    adoption: temper_client_domain::forge::Adoption,
+    adoption: temper_client_domain_forge::forge::Adoption,
 }
 #[derive(Debug)]
 struct Starting {
     called: Called,
-    value: temper_client_domain::forge::start::StartIn,
+    value: temper_client_domain_forge::forge::start::StartIn,
 }
 #[derive(Debug)]
 struct Watching {
@@ -615,7 +615,7 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     {
         return;
     }
-    let Some(limits) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return };
+    let Some(limits) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else { return };
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
     let intent = match request.into_parts().request {
         temper_client_protocol_wire::v1::Request::SetUp(request) => {
@@ -665,9 +665,9 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
 fn adopted(state: &mut Forges, env: &Env<Limits>, mut adopting: Adopting, outcome: &Outcome, out: &mut Queue<Out>) {
     if adopting.adoption.home && adoption_refused(outcome, &env.limits) {
         adopting.adoption.home = false;
-        let request = temper_client_domain::forge::ask(&adopting.adoption, &env.limits.domain.forge)
+        let request = temper_client_domain_forge::forge::ask(&adopting.adoption, &env.limits.domain.forge)
             .expect("the admitted adoption with only home cleared still encodes");
-        let name = temper_client_domain::forge::first_repository_key(adopting.adoption.forge, true);
+        let name = temper_client_domain_forge::forge::first_repository_key(adopting.adoption.forge, true);
         let key = Key { asker: Owner::Forge.asker(), number: (u64::from(adopting.called.call_number) << 32u32) | 4 };
         state.adopting.insert(key, adopting);
         out.push(Out::Client { event: Event::Send { key, name: Some(name), request } });
@@ -709,8 +709,10 @@ fn project_answer(out: &mut Text, json: bool, project: u64, name: &[u8], bytes: 
 }
 fn adoption_refused(outcome: &Outcome, limits: &Limits) -> bool {
     let Outcome::Answered(answer) = outcome else { return false };
-    temper_client_domain::forge::answer(&limits.domain, answer)
-        == Some(temper_client_domain::forge::Answer::ForgeRefused(temper_client_domain::forge::Reason::Refused))
+    temper_client_domain_forge::forge::answer(&limits.domain, answer)
+        == Some(temper_client_domain_forge::forge::Answer::ForgeRefused(
+            temper_client_domain_forge::forge::Reason::Refused,
+        ))
 }
 fn rows(client: &Client, handle: Handle, limits: &Limits) -> Option<Box<[Row]>> {
     let Latest::Family(record) = client.document(handle)?.latest? else { return None };
@@ -1419,13 +1421,13 @@ fn setup_changed(
                 jig::call::Project::Number(project) => project,
                 jig::call::Project::Name(_) => 0,
             };
-            let adoption = temper_client_domain::forge::Adoption {
+            let adoption = temper_client_domain_forge::forge::Adoption {
                 project,
                 forge: intent.forge,
                 owner: intent.org,
                 name: intent.repository,
                 landing: b"main".as_slice().into(),
-                role: temper_client_domain::forge::Role::Owned,
+                role: temper_client_domain_forge::forge::Role::Owned,
                 home: true,
                 ci: true,
                 prefix: b"temper/".as_slice().into(),
@@ -1445,13 +1447,13 @@ fn setup_changed(
                     send_adoption(state, env, watch.called, adoption, name, out);
                 }
                 jig::call::Project::Name(name) => {
-                    let value = temper_client_domain::forge::start::StartIn::new(adoption, name);
+                    let value = temper_client_domain_forge::forge::start::StartIn::new(adoption, name);
                     let Some(request) = value.ask(&env.limits.domain.forge) else {
                         let printed = render::failure(b"project encoding failed", watch.called.json, 1);
                         finish(watch.called, printed, out);
                         return;
                     };
-                    let name = temper_client_domain::forge::start_project_key(intent.forge, 0);
+                    let name = temper_client_domain_forge::forge::start_project_key(intent.forge, 0);
                     // Slot 5 belongs to the pasted Connect; project creation gets its own key.
                     let key =
                         Key { asker: Owner::Forge.asker(), number: (u64::from(watch.called.call_number) << 32u32) | 6 };
@@ -1467,16 +1469,16 @@ fn send_adoption(
     state: &mut Forges,
     env: &Env<Limits>,
     called: Called,
-    adoption: temper_client_domain::forge::Adoption,
+    adoption: temper_client_domain_forge::forge::Adoption,
     project_name: Box<[u8]>,
     out: &mut Queue<Out>,
 ) {
-    let Some(request) = temper_client_domain::forge::ask(&adoption, &env.limits.domain.forge) else {
+    let Some(request) = temper_client_domain_forge::forge::ask(&adoption, &env.limits.domain.forge) else {
         let printed = render::failure(b"adoption encoding failed", called.json, 1);
         finish(called, printed, out);
         return;
     };
-    let name = temper_client_domain::forge::first_repository_key(adoption.forge, false);
+    let name = temper_client_domain_forge::forge::first_repository_key(adoption.forge, false);
     let key = Key { asker: Owner::Forge.asker(), number: (u64::from(called.call_number) << 32u32) | 3 };
     state.adopting.insert(key, Adopting { project_name, called, adoption });
     out.push(Out::Client { event: Event::Send { key, name: Some(name), request } });
@@ -1520,7 +1522,7 @@ fn making_number(making: &temper_client_protocol_wire::v1::Making) -> u16 {
 }
 fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     use temper_client_protocol_wire::v1 as w;
-    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let forge = if intent.forge == 0 {
         w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Owned }).ok()?)
     } else {

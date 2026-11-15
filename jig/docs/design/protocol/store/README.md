@@ -61,8 +61,11 @@ section 11.
   requester party, and by their project for those flagged listed, each
   by label and newest ended first. Live tasks are the tasks child's
   memory, never the store's to list (`loads.md`, 3, 4).
-- **Transcripts are files, one per task,** each turn a frame written and
-  synced before the commit that accepts it. The map keeps where each
+- **History in task logs:** a task's history and its turns are two of
+  skein-kv's payload logs in the store's generation, each record synced
+  before the commit that accepts it, compressed, read through a view of
+  the map and the logs, and dropped whole (`logs.md`). Turns written
+  before them stay in files of their own; the map keeps where each
   task's current window starts, so a resumed run reads only its window
   (`transcripts.md`).
 - **Secrets in a second store,** in a directory only the engine's user
@@ -114,7 +117,7 @@ skein-io                        files: the ring, or the simulator's disk
 ├── active          the active generation's number: its decimal digits and a newline
 ├── generations/
 │   ├── 7/          the previous generation, kept until the next switch
-│   │   ├── store/      skein-kv: snapshot, log segments
+│   │   ├── store/      skein-kv: snapshot, log segments, task logs (logs/)
 │   │   ├── secrets/    the secrets' store: the directory 0o700, its files 0o600
 │   │   └── manifest    what made this generation (below)
 │   └── 8/          the active one, as 7
@@ -268,7 +271,7 @@ the application's part with the application's codecs.
 
 | Down, to the component | Up, from it |
 |---|---|
-| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (6.2); **failed** n, with why (section 5); or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 5) |
+| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript or history log dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (6.2); **failed** n, with why (section 5); or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 5) |
 | **restore** a restart step's range: jig's (the core's live families, `loads.md`, 2), or the application's, as byte intervals under its tag | jig's records, typed, then done; the application's rows as bytes, then done |
 | **load** a page of a child's range: jig's, or the application's intervals | the page's rows, typed or as bytes, and a cursor if more remain |
 | **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/README.md`, 5.3) | the page, each row with its joins, and its cursor; or busy, or gone |
@@ -317,7 +320,7 @@ The first byte of every key names its owner:
 
 | Tag | Owner | Then |
 |---|---|---|
-| 0 | the component's own rows | its family: the format row (`records.md`, 3), transcripts' places (`transcripts.md`, 1) |
+| 0 | the component's own rows | its family: the format row (`records.md`, 3), transcripts' places (`transcripts.md`, 1), task logs' extents and places (`logs.md`, 1) |
 | 1 | jig | the child's tag, in the order of the core's key: the core's own, then each child's; then the family's key; and one row of the component's, the installation's identifier, at its reserved key (4.4) |
 | 2 | the application | its own key bytes, which it encodes by the same rule, so that bytes sort as its keys do |
 
@@ -362,10 +365,10 @@ child puts live first.
 | core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
 | core | goals' projections (feed, plan rows, pending milestones, their words apart: `parts.md`, 3), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
-| core | turns (in transcripts' files, `transcripts.md`), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
+| core | turns (in turns logs or transcripts' files), terminals, decisions on proposals and escalations, each a task's in its history log but a party's proposals' (`logs.md`, 2) | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
 | tasks | live tasks, each with its revision and its claim's (`../../domain/engine/settings.md`, 3), each in a hot and a cold part (`parts.md`, 2), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../../domain/tasks/lifecycle.md`, 10): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
-| tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
+| tasks | ended tasks, past periods, decided proposals, history, attempts, holds and activity (`../../domain/tasks/lifecycle.md`, 12), each in its task's history log but past periods and decided proposals (`logs.md`, 2) | task, then a position, an attempt or a revision; funder, period; proposal | on demand |
 | tasks | ended tasks' summaries, and retention's rows, one per ended task or decided person proposal naming its next stage (`retention.md`, 3 and 4) | task; stage, since, number | on demand, by retention's passes |
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../../domain/people/public-reading.md`, 2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../../domain/people/acts.md`, 3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../../domain/people/acts.md`, 2), at most one per project the deployment has room for, erased with the deletion's last step; each deleted project's mark, its number alone, kept past its deletion, at most as many as the projects the deployment has room for, the lowest number's erased to make room (`../../domain/people/acts.md`, 2, *Marked deleted*) | as the people child keys them; a live conversation's position by party, then task; a deletion by its project; a mark by its project | at start |
 | people | ended conversations' read positions (`loads.md`, 4) | task, then party | at start, by the census, every row (`loads.md`, 2); otherwise on demand |
@@ -521,7 +524,8 @@ is its retention class, set from its template when it was made
   time, its rows first, a page at a time (its history, activity and
   terminals, with its replies' rows in its requester's updates), then
   its transcript dropped (`transcripts.md`, 5) with its rows in the ended indexes and
-  its ended read position, and its record and its summary last, so that
+  its ended read position, and its record, its history log and its summary last
+  (`logs.md`, 9: each task found by its summary), so that
   a deletion a restart cut finds the task's record and erases what is
   left of it. A task of the project that retention already shrank is
   found by its summary, and its summary goes with its rows in the ended
@@ -605,7 +609,8 @@ count up, and nothing of it is stored.
 ## 8. Limits and the worst case
 
 - **The component's limits:** both stores' (skein-kv's, their maps'
-  budgets among them), the fill's high-water mark, the open files,
+  budgets among them), the bytes a read fetches from task logs
+  (`Limits::fetch`, `logs.md`, 4), the fill's high-water mark, the open files,
   the frames' largest bytes (a turn's, from the domain's limits), the
   queue of commits behind transcripts' syncs, the reads in flight and the
   joins a page may make.

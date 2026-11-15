@@ -563,6 +563,19 @@ fn down_inner(
             }
             issue(io, Pending::Remove(owner), Op::Remove { dir: root, name, directory }, subs)
         }
+        Request::RemoveIn { owner, root, name, directory } => {
+            let Some(root) = io.file(root) else {
+                return terminal_failure(events, owner, Error::NotFound);
+            };
+            if name.len() > crate::kernel::LONGEST_NAME {
+                return terminal_failure(events, owner, Error::NameTooLong);
+            }
+            if !crate::kernel::is_name(&name) {
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
+            }
+            issue(io, Pending::Remove(owner), Op::Remove { dir: root, name, directory }, subs)
+        }
         Request::ListPage { owner, directory, max } => directory::page(io, env, owner, directory, max, events, subs),
         Request::List { owner, root } => issue(
             io,

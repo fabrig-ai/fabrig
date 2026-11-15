@@ -23,7 +23,11 @@ pub mod host;
 pub mod intervals;
 pub mod jobs;
 mod loads;
-pub use jobs::{Converts, Job, JobAnswer, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange};
+pub mod logs;
+mod view;
+pub use jobs::{
+    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange,
+};
 mod open;
 mod pages;
 mod patch_set;
@@ -62,6 +66,7 @@ pub struct Limits {
     pub commits: sizes::Commits,
     /// Point gets available to a party page's joins (protocol/store/README.md, 8).
     pub joins: u32,
+    pub fetch: u64,
     pub queue: u32,
     pub files: u32,
     pub reads: u32,
@@ -110,6 +115,8 @@ pub struct Store {
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     patch_sets: PatchSets,
+    /// Includes the first commit's job row while that commit waits for its sync.
+    history_routing: bool,
     wires: &'static [Wire],
     /// Accepted opening keys, including commits not yet durable.
     opening_keys: skein_lib::Map<Box<[u8]>, ()>,
@@ -121,6 +128,7 @@ pub struct Store {
     back: Option<back::State>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
     census: Box<census::State>,
+    view: Box<view::State>,
 }
 
 #[derive(Debug)]
@@ -224,9 +232,11 @@ impl Store {
         let census = Box::new(census::State::new());
         if stores.store.last() == 0 && stores.store.is_empty() {
             stores.store.count(census.rule);
+            stores.store.logs(skein_kv::LogRule { prefix: Box::from(logs::EXTENTS) });
         }
         Store {
             census,
+            view: Box::new(view::State::new()),
             limits: *limits,
             application,
             codec_limits,
@@ -242,6 +252,7 @@ impl Store {
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
             patch_sets: PatchSets::NONE,
+            history_routing: false,
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,
@@ -371,6 +382,8 @@ fn checked_codec(limits: &Limits) -> Option<codec::View> {
 fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {
     limits.queue > 0
         && limits.queue <= limits.store.queued
+        && limits.fetch > 0
+        && usize::try_from(limits.fetch).is_ok()
         && limits.files > 0
         && limits.orphan_erases > 0
         && limits.store.is_usable()
@@ -411,7 +424,10 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
-    down_inner(store, env, request, above, below);
+    let mut events = Queue::uncapped();
+    down_inner(store, env, request, &mut events, below);
+    view::events(store, &mut events, above);
+    view::fire(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn accounted(store: &mut Store, lengths: [u32; 3], above: &mut Queue<Event>, below: &mut Below) {
@@ -443,15 +459,15 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
             Phase::Closed | Phase::Stopped => patching::phase::site(store, env, owner, patcher, result, above, below),
         },
         Request::Job { owner, answer } => patching::phase::job(store, env, owner, answer, above, below),
-        Request::Commit { number, writes } => transcripts::write::begin(store, env, number, writes, above, below),
+        Request::Commit { number, writes } => view::commit(store, env, number, writes, above, below),
         Request::Restore { owner, range, after, rows, bytes } => {
-            restore::restore(store, env, owner, restore::Page { range, after, rows, bytes }, above, below);
+            view::ask(store, view::Ask::Restore { owner, range, after, rows, bytes }, above);
         }
         Request::Load { owner, range, after, rows, bytes } => {
-            loads::load(store, owner, range, after, rows, bytes, above);
+            view::ask(store, view::Ask::Load { owner, range, after, rows, bytes }, above);
         }
-        Request::Get { owner, key } => gets::get(store, owner, key, above),
-        Request::Read { owner, range } => reads::read(store, owner, range, above, below),
+        Request::Get { owner, key } => view::ask(store, view::Ask::Get { owner, key }, above),
+        Request::Read { owner, range } => view::ask(store, view::Ask::Read { owner, range }, above),
         Request::Secrets { owner, request } => secrets::secrets(store, env, owner, request, above, below),
         Request::Transcript { owner, read, rows, bytes } => {
             transcripts::read::transcript(store, owner, read, rows, bytes, above, below);
@@ -463,6 +479,13 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
 pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
+    let mut events = Queue::uncapped();
+    up_routed(store, env, io, &mut events, below);
+    view::events(store, &mut events, above);
+    view::fire(store, env, above, below);
+    accounted(store, lengths, above, below);
+}
+fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::arriving(store, &io);
     if rehearsal::closing(store) {
         rehearsal::closing_up(store, io, above, below);
@@ -476,13 +499,14 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     } else {
         up_inner(store, env, io, above, below);
     }
-    accounted(store, lengths, above, below);
 }
 fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     directory::up(store, env, io, above, below);
     if store.phase != Phase::Stopped {
         transcripts::read::fire(store, above, below);
-        transcripts::write::fire(store, env, above, below);
+        if !view::held(store) {
+            transcripts::write::fire(store, env, above, below);
+        }
         patching::switch::resume(store, env, below);
     }
 }
@@ -491,7 +515,10 @@ fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Even
 pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
-    fire_inner(store, env, above, below);
+    let mut events = Queue::uncapped();
+    fire_inner(store, env, &mut events, below);
+    view::events(store, &mut events, above);
+    view::fire(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
@@ -499,7 +526,9 @@ fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, be
         directory::fire(store, env, above, below);
         secrets::sweep(store, env, above, below);
         transcripts::read::fire(store, above, below);
-        transcripts::write::fire(store, env, above, below);
+        if !view::held(store) {
+            transcripts::write::fire(store, env, above, below);
+        }
         patching::switch::resume(store, env, below);
     }
 }

@@ -203,7 +203,8 @@ pub(crate) fn branch<'a>(d: &'a Domain, row: &'a FollowRow) -> Option<&'a [u8]> 
 }
 pub(crate) fn watches(d: &Domain, names: &mut List<Name>) {
     for (_, row) in &d.follow_rows {
-        if !d.forge_ended(row.source.forge)
+        if d.repositories.contains_key(&row.source)
+            && !d.forge_ended(row.source.forge)
             && let Some(branch) = branch(d, row)
         {
             let name = crate::tiers::name(row.source, branch);
@@ -310,6 +311,10 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(read) = d.follow_reads.remove(&owner) else { return };
+    let Some(row) = d.follow_rows.get(&read.key()) else { return };
+    if !d.repositories.contains_key(&row.source) {
+        return;
+    }
     let mut pending = match read {
         Pending::Range(range) => range,
         Pending::Baseline { key } => {
@@ -477,5 +482,32 @@ pub(crate) fn fire(d: &mut Domain, now: Time) {
     }
     for key in due.into_boxed() {
         d.follow_retry.remove(&key);
+    }
+}
+
+pub(crate) fn release_repository(d: &mut Domain, repository: Repository) {
+    let mut keys = List::with_capacity(d.follow_reads.len());
+    for (key, row) in &d.follow_reads {
+        if match d.follow_rows.get(&row.key()) {
+            Some(follow) => follow.source == repository,
+            None => false,
+        } {
+            keys.push(*key).expect("bounded follow_reads");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.follow_reads.remove(&key).expect("collected follow_reads");
+    }
+    let mut keys = List::with_capacity(d.follow_retry.len());
+    for (key, _row) in &d.follow_retry {
+        if match d.follow_rows.get(key) {
+            Some(follow) => follow.source == repository,
+            None => false,
+        } {
+            keys.push(*key).expect("bounded follow_retry");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _row = d.follow_retry.remove(&key).expect("collected follow_retry");
     }
 }

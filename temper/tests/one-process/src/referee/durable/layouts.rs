@@ -24,6 +24,9 @@ impl Layouts {
     pub(super) fn observe(&mut self, ops: &[skein_kv::Op]) {
         for op in ops {
             let key = match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, .. } | skein_kv::Op::Erase { key } => key,
             };
             if !matches!(keys::decode_own(key), Some(keys::Own::Layout { .. } | keys::Own::Text(_))) {
@@ -31,6 +34,9 @@ impl Layouts {
             }
             self.decoders.clear();
             match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, value } => {
                     self.rows.insert(key.to_vec(), value.clone());
                 }

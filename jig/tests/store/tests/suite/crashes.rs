@@ -11,7 +11,7 @@ fn committed(seed: u64) -> World {
     world
 }
 
-fn checked_cut(cut: u32, writes: Box<[Write]>, label: &str) -> (jig_store_world::Restored, Option<u64>) {
+pub(super) fn checked_cut(cut: u32, writes: Box<[Write]>, label: &str) -> (jig_store_world::Restored, Option<u64>) {
     let mut world = committed(u64::from(cut));
     world.cut_at(cut);
     let acknowledged = world.commit(writes);
@@ -22,26 +22,10 @@ fn checked_cut(cut: u32, writes: Box<[Write]>, label: &str) -> (jig_store_world:
     (restored, acknowledged)
 }
 
-fn operations(writes: Box<[Write]>) -> u32 {
+pub(super) fn operations(writes: Box<[Write]>) -> u32 {
     let mut world = committed(18);
     assert_eq!(world.commit(writes), Some(2));
     world.operation_count()
-}
-
-#[test]
-fn a_crash_at_each_file_operation_of_a_turn_keeps_a_whole_prefix() {
-    let count = operations(root::turn_commit(2, LIVE, 1, b"one turn"));
-    assert!(count <= 12, "turn commit's {count} file operations fit the prescribed cuts");
-    for cut in 0..=12 {
-        let label = "whole turn prefix";
-        let (restored, acknowledged) = checked_cut(cut, root::turn_commit(2, LIVE, 1, b"one turn"), label);
-        assert!(restored.last == 1 || restored.last == 2, "{label}, cut {cut}");
-        if acknowledged.is_some() {
-            assert_eq!(restored.last, 2, "acknowledged turn, cut {cut}");
-        }
-        let expected = if restored.last == 2 { vec![root::turn(LIVE, 1, 1, b"one turn")] } else { Vec::new() };
-        assert_eq!(restored.turns(LIVE), expected, "{label}, cut {cut}");
-    }
 }
 
 #[test]
@@ -104,10 +88,10 @@ fn a_crash_keeps_the_task_pin_and_claim_bindings_together() {
 
 #[test]
 fn a_frame_past_its_commit_is_cut_at_open() {
-    let mut complete = committed(18);
+    let mut complete = super::map_held::world(18, &root::limits(), &[LIVE]);
     assert_eq!(complete.commit(root::turn_commit(2, LIVE, 1, b"uncommitted frame")), Some(2));
     let synced = complete.transcript_sync().expect("frame sync before map commit");
-    let mut world = committed(18);
+    let mut world = super::map_held::world(18, &root::limits(), &[LIVE]);
     let writes = root::turn_commit(2, LIVE, 1, b"uncommitted frame");
     world.cut_at(synced);
     assert_eq!(world.commit(writes), None);

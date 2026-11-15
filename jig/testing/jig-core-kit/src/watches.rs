@@ -235,6 +235,7 @@ impl Parties {
                 | root::Write::Wires
                 | root::Write::Erase(_)
                 | root::Write::CopySettingsRevision(_)
+                | root::Write::DropHistory { .. }
                 | root::Write::DropTranscript { .. } => {}
             }
         }
@@ -307,7 +308,7 @@ impl Parties {
                     | Watched::Jig(_) => false,
                 },
 
-                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => false,
+                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) | root::Write::DropHistory { .. } | root::Write::DropTranscript { .. } => false,
             });
             if touched {
                 consumer.fence.changed(number);

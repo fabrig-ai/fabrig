@@ -28,7 +28,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         }
         through = Some(row.key.clone());
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through })
 }
 
 fn refusal(key: &[u8], why: &str) -> JobRefusal {

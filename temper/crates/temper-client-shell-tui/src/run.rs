@@ -230,6 +230,12 @@ impl Run {
         self
     }
 
+    /// The run's recording filename and whether its last save stored it.
+    #[must_use]
+    pub fn recording_save(&self) -> Option<(&[u8], bool)> {
+        self.recording.as_ref().map(|recording| (recording.save.path.as_ref(), recording.save.stored))
+    }
+
     /// The native shell's files refused the directory.
     #[must_use]
     pub const fn refused(&self) -> bool {
@@ -687,6 +693,9 @@ impl Run {
 
 impl Host for Run {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if let Some(recording) = &mut self.recording {
+            recording.start(wall);
+        }
         self.env.now = now;
         self.env.wall = wall;
         while self.io.is_ready() && self.raw.room() >= io::MAX_OUT_RESUME.submissions {
@@ -825,7 +834,17 @@ struct Recording {
 
 impl Recording {
     fn new(root: Fd, user: u32, seed: u64, notes: bool) -> Self {
-        Self { notes, save: FileSave::new(root, user, seed, b"recording"), recorder: None, seed, closing: false }
+        Self { notes, save: FileSave::new(root, user, seed, b""), recorder: None, seed, closing: false }
+    }
+
+    fn start(&mut self, wall: Wall) {
+        if self.save.path.is_empty() {
+            let mut name = skein_lib::Writer::new(26);
+            name.put(b"recording-").expect("recording prefix");
+            wall.write_basic_utc(&mut name).expect("sixteen UTC bytes");
+            self.save.path = name.finish();
+            self.save.retain = true;
+        }
     }
 }
 
@@ -834,10 +853,17 @@ impl Recording {
 enum SaveStage {
     Ready,
     Opening,
-    Writing,
+    Listing,
+    Removing,
+    Writing { recording: bool },
     ClosingPrivate,
     ClosingRoot,
     Closed,
+}
+
+struct SavedFile {
+    path: Box<[u8]>,
+    bytes: Box<[u8]>,
 }
 
 /// A private replace, serialized with later saves and drained before LEAVE.
@@ -850,18 +876,26 @@ struct FileSave {
     stage: SaveStage,
     events: Queue<io::file::Event>,
     pending: Option<Box<[u8]>>,
-    active: Option<(&'static [u8], Box<[u8]>)>,
+    active: Option<SavedFile>,
     noted: Option<Box<[u8]>>,
-    path: &'static [u8],
+    path: Box<[u8]>,
+    retain: bool,
+    removals: Vec<Box<[u8]>>,
+    stored: bool,
     submissions: Queue<Submit>,
     closing: bool,
 }
 
 impl FileSave {
-    fn new(root: Fd, user: u32, seed: u64, path: &'static [u8]) -> Self {
+    fn new(root: Fd, user: u32, seed: u64, path: &[u8]) -> Self {
         // Four descriptors cover the parent, private directory, target and temporary.
-        let limits =
-            io::file_layer::Limits { files: 4, read: 1, entries: 1, whole: u32::MAX, timeout: Duration::from_secs(30) };
+        let limits = io::file_layer::Limits {
+            files: 4,
+            read: 1,
+            entries: u32::MAX,
+            whole: u32::MAX,
+            timeout: Duration::from_secs(30),
+        };
         let mut io = io::file_layer::FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
         let root = io.adopt_root(root).expect("private save root room");
@@ -875,7 +909,10 @@ impl FileSave {
             pending: None,
             active: None,
             noted: None,
-            path,
+            path: path.into(),
+            retain: false,
+            removals: Vec::new(),
+            stored: false,
             submissions: Queue::with_capacity(4),
             closing: false,
         }
@@ -904,10 +941,32 @@ impl FileSave {
                         self.private = Some(file);
                     } else {
                         self.active = None;
+                        self.retain = false;
                     }
                     self.stage = SaveStage::Ready;
                 }
-                SaveStage::Writing => self.stage = SaveStage::Ready,
+                SaveStage::Listing => {
+                    self.retain = false;
+                    if let Event::Listed { entries, .. } = event {
+                        self.removals = entries
+                            .into_vec()
+                            .into_iter()
+                            .filter(|entry| entry.kind == io::kernel::Kind::File && recording_name(&entry.name))
+                            .map(|entry| entry.name)
+                            .collect();
+                        self.removals.sort();
+                        self.removals.truncate(self.removals.len().saturating_sub(9));
+                        self.removals.reverse();
+                    }
+                    self.stage = SaveStage::Ready;
+                }
+                SaveStage::Removing => self.stage = SaveStage::Ready,
+                SaveStage::Writing { recording } => {
+                    if recording {
+                        self.stored = matches!(event, Event::Stored { .. });
+                    }
+                    self.stage = SaveStage::Ready;
+                }
                 SaveStage::ClosingPrivate => {
                     assert!(matches!(event, Event::Closed { .. }), "private save directory closed");
                     self.private = None;
@@ -925,13 +984,26 @@ impl FileSave {
             return;
         }
         let owner = Token::new(1);
-        if self.active.is_some() || self.pending.is_some() || self.noted.is_some() {
+        if self.retain
+            || !self.removals.is_empty()
+            || self.active.is_some()
+            || self.pending.is_some()
+            || self.noted.is_some()
+        {
             if let Some(root) = self.private {
-                let (path, bytes) = self.active.take().or_else(|| self.next()).expect("queued save");
-                self.request(
-                    SaveStage::Writing,
-                    Request::Store { owner, root, path: path.into(), bytes, expected: Expect::Any, no_follow: true },
-                );
+                if self.retain {
+                    let root = self.io.descriptor(root).expect("open private directory");
+                    self.request(SaveStage::Listing, Request::List { owner, root });
+                } else if let Some(name) = self.removals.pop() {
+                    let root = self.io.descriptor(root).expect("open private directory");
+                    self.request(SaveStage::Removing, Request::Remove { owner, root, name, directory: false });
+                } else {
+                    let SavedFile { path, bytes } = self.active.take().or_else(|| self.next()).expect("queued save");
+                    self.request(
+                        SaveStage::Writing { recording: path == self.path },
+                        Request::Store { owner, root, path, bytes, expected: Expect::Any, no_follow: true },
+                    );
+                }
             } else {
                 self.active = self.next();
                 self.request(
@@ -955,11 +1027,14 @@ impl FileSave {
         }
     }
 
-    fn next(&mut self) -> Option<(&'static [u8], Box<[u8]>)> {
+    fn next(&mut self) -> Option<SavedFile> {
         if let Some(bytes) = self.noted.take() {
-            Some((b"sign-in", bytes))
+            Some(SavedFile { path: b"sign-in".as_slice().into(), bytes })
         } else {
-            self.pending.take().map(|bytes| (self.path, bytes))
+            self.pending.take().map(|bytes| {
+                self.stored = false;
+                SavedFile { path: self.path.clone(), bytes }
+            })
         }
     }
 
@@ -967,12 +1042,41 @@ impl FileSave {
         !self.submissions.is_empty()
             || !self.events.is_empty()
             || (self.stage == SaveStage::Ready
-                && (self.active.is_some() || self.pending.is_some() || self.noted.is_some() || self.closing))
+                && (self.retain
+                    || !self.removals.is_empty()
+                    || self.active.is_some()
+                    || self.pending.is_some()
+                    || self.noted.is_some()
+                    || self.closing))
     }
 
     fn closed(&self) -> bool {
         self.submissions.is_empty() && self.stage == SaveStage::Closed && self.io.open_files() == 0 && self.io.takes()
     }
+}
+
+// Only exact UTC basic timestamps name recordings, never a temporary or another TUI file.
+fn recording_name(name: &[u8]) -> bool {
+    let Some(time) = name.strip_prefix(b"recording-") else { return false };
+    if time.len() != 16 || time.get(8) != Some(&b'T') || time.get(15) != Some(&b'Z') {
+        return false;
+    }
+    let number = |range| {
+        let text = core::str::from_utf8(time.get(range)?).ok()?;
+        text.bytes().all(|byte| byte.is_ascii_digit()).then(|| text.parse::<u32>().ok()).flatten()
+    };
+    let date = number(0..4).zip(number(4..6)).zip(number(6..8));
+    let clock = number(9..11).zip(number(11..13)).zip(number(13..15));
+    let (Some(((year, month), day)), Some(((hour, minute), second))) = (date, clock) else { return false };
+    skein_lib::Civil {
+        year,
+        month: u8::try_from(month).expect("two decimal digits"),
+        day: u8::try_from(day).expect("two decimal digits"),
+    }
+    .valid()
+        && hour < 24
+        && minute < 60
+        && second < 60
 }
 
 // The namespace includes cancellation targets as well as file operations.
@@ -1192,7 +1296,9 @@ mod tests {
             Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
         run.started(None, Vec::new());
         let frame = String::from_utf8(run.host.frame().print().into_vec()).unwrap();
-        assert_eq!(frame.lines().next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
+        let mut rows = frame.lines();
+        assert_eq!(rows.next().unwrap().trim_end(), "");
+        assert_eq!(rows.next().unwrap().trim_end(), " temper 0.0.0 (b948f40d6df1)");
         let recorder = run.recording.as_ref().unwrap().recorder.as_ref().unwrap();
         let lines = journey::lines(&recorder.save(&mut run.host)).expect("recorded Start");
         assert!(lines.contains(&journey::Line::Plain));

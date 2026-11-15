@@ -118,7 +118,8 @@ merge train with a branch per member, proved once at the top, and
 landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
-next round (`domain/landing-search.md`). Its process stories and
+next round, each probe's gates given `temper_probe` so that they may
+stop at their first red (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
 
 The landing history's milestone H1, goal 2474, keeps each change's and
@@ -276,7 +277,14 @@ from the box's `starting`, `started` and `dormant` lines, a first run's
 start steps on the quiet line rather than in the welcome's body, a
 cleared screen when the terminal is lent to Claude Code's sign-in, and
 the TUI's two-line header after pi's, fabrig.ai's mark, the build and
-the place (`client/tui/pages/README.md`, 3).
+the place (`client/tui/pages/README.md`, 3). The requests `tui-15` to
+`tui-19` of the same day, goal 3597, add blank rows around temper's
+line when the terminal is lent, draw the header and the welcome as
+their mockups (a blank row on top, the mark at column 1, the link at
+"Welcome."'s column, "In the browser" on one line), put the caret after
+"/change " and start nothing on a command's name alone, go back to the
+launchpad once `/close` is done, and give each recording run its own
+file, the last ten kept (`client/tui/journeys.md`, 3.1).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
@@ -312,6 +320,13 @@ program-login` on the welcome's "Sign in to Claude Code", and the page
 follows the login to its end (`client/tui/box.status.md`,
 `client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
 
+A deleted project's repositories are released whole: each, through the
+one helper every path erasing a repository takes, goes with every
+record that names it, its reads, watches and pending work retired and
+its writes paged so that a restart part-way starts and resumes, while a
+context another project adopts stays (`domain/forge/adoption.md`, 1;
+`protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -322,6 +337,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
@@ -482,6 +498,7 @@ Drafts:
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/default-wall-230.md`](draft/default-wall-230.status.md)
+- [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/design-economy.md`](draft/design-economy.status.md)
@@ -517,6 +534,7 @@ Drafts:
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
+- [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
@@ -531,7 +549,7 @@ Drafts:
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
-- [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, seeded with no value rewritten, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them; jig's job at open `milestones` folds a store's milestones into them and erases them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; jobs at open writing the summaries and retention rows of what already ended; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed, a store's whole rows put into their parts by jobs at open; a store seeded in the upgrade that brings a new value type opens.
+- [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, seeded with no value rewritten, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them; jig's job at open `milestones` folds a store's milestones into them and erases them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; jobs at open writing the summaries and retention rows of what already ended; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed, a store's whole rows put into their parts by jobs at open; a store seeded in the upgrade that brings a new value type opens. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, moved out of the map by jig's job at open `task-logs`, linked into a new generation and dropped whole by retention; turns written before them stay in their files until retention drops them.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)

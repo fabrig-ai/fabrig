@@ -153,6 +153,7 @@ pub fn layout(
     };
     protocol::sizes::fill(&mut kv, &sizes).ok_or(arithmetic)?;
     kv.page.bytes = page_bytes(&core, transcript, sizes.key, sizes.value).ok_or(arithmetic)?;
+    kv.record = kv.record.min(kv.page.bytes);
     if kv.page.bytes > page_ceiling {
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
         return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: page_ceiling });
@@ -167,6 +168,7 @@ pub fn layout(
         queue: kv.queued,
         files: profile.files,
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
+        fetch: profile.fetch,
         orphan_erases: profile.orphan_erases,
     })
 }
@@ -282,8 +284,8 @@ mod sizing_tests {
     fn page_covers_map_or_full_current_frame() {
         let (_, core, _) = crate::tests::fixtures::store_limits();
         // Versioned TurnRecord: 52 bytes including Some(read), plus payload;
-        // two lengths and CRC add 12. No turn or frame buffer is allocated.
-        assert_eq!(page_bytes(&core, 8, 3, 4), Some(72));
+        // payload-log framing adds at most 17. No turn or frame buffer is allocated.
+        assert_eq!(page_bytes(&core, 8, 3, 4), Some(77));
         assert_eq!(page_bytes(&core, 8, 80, 4), Some(84));
     }
 
@@ -291,7 +293,7 @@ mod sizing_tests {
     fn page_refuses_codec_excess_and_checked_overflow() {
         let (_, core, _) = crate::tests::fixtures::store_limits();
         let ceiling = jig_protocol_store::core_v6::CEILINGS.turn_record_transcript;
-        assert_eq!(page_bytes(&core, ceiling, 3, 4), ceiling.checked_add(64));
+        assert_eq!(page_bytes(&core, ceiling, 3, 4), ceiling.checked_add(69));
         assert_eq!(page_bytes(&core, ceiling.checked_add(1).unwrap(), 3, 4), None);
         assert_eq!(page_bytes(&core, u32::MAX, 3, 4), None);
         assert_eq!(page_bytes(&core, 8, u32::MAX, 1), None);

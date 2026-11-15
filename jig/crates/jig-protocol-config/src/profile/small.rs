@@ -435,19 +435,22 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     // Settings history with 16 charters, 21 executor kinds and 32,768-byte run policies,
     // including replacement values and composed application settings, fits 4,580,852 bytes.
     value: 4_580_852,
-    // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
-    ops: 41_606,
-    // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
-    commit: 355_308_810,
+    // A log append and two places per journal write, three creation rows and an orphan erase: 3 * 20,801 + 4.
+    ops: 62_407,
+    // 256 MiB values + 62,407 operations * (2,079 key + 9 framing) + 26 frame bytes.
+    commit: 398_741_298,
     queued: 3,
     // Three queued commits; segment holds two, snapshot follows one.
-    queued_bytes: 1_065_926_430,
+    queued_bytes: 1_196_223_894,
     budget: 268_435_456,
-    segment: 710_617_620,
-    snapshot_after: 355_308_810,
+    segment: 797_482_596,
+    snapshot_after: 398_741_298,
     chunk: 4_582_951,
     // The revision envelope, including what its items replaced, fits with its key.
     page: skein_kv::Page { rows: 2, bytes: 4_582_931 },
+    record: 4_582_931,
+    log: 1 << 40,
+    logs: 16,
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
@@ -459,6 +462,7 @@ pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits 
     queue: 3,
     files: 8,
     reads: 12,
+    fetch: 16_777_216,
     orphan_erases: 1,
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
 };

@@ -263,6 +263,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
         converts: Some(crate::Converts { family: holder.name, value_type: 0, from }),
@@ -538,7 +539,8 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job = crate::Job { name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
+const NOOP: crate::Job =
+    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -547,7 +549,10 @@ fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<
         if let Event::Job { owner, .. } = event {
             pending.extend(disk.request(
                 store,
-                Request::Job { owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+                Request::Job {
+                    owner,
+                    answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+                },
             ));
         } else {
             terminal.push(event);
@@ -580,6 +585,53 @@ fn zero_count_unplanned_layouts_wait_for_a_writing_open_to_retire_with_unshared_
     assert_eq!(text(&mut store, hash(KEPT)), None);
     assert!(row(&mut store, 0, 2).is_some());
 }
+fn history_set(current: &'static str) -> PatchSet {
+    let family = KeptFamily { name: "jig-store-tasks", current, ..FAMILY };
+    PatchSet { families: Box::leak(Box::new([family])), ..SET }
+}
+fn history_layout_key() -> Box<[u8]> {
+    crate::keys::encode_own(&crate::keys::Own::Layout { family: "jig-store-tasks".into(), number: 0, id: 9 }, 1024)
+        .unwrap()
+}
+#[test]
+fn a_log_held_layout_without_map_values_survives_a_writing_open() {
+    let set = history_set(CURRENT);
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, set);
+    raw(&mut disk, &mut store, vec![old_row(9, "jig-store-tasks", 0), old_text()]);
+    let mut disk = Disk::new(&disk.items());
+    let mut store = self::store(&disk, PatchSet { jobs: &[NOOP], ..set });
+    let events = disk.open(&mut store);
+    let events = drive_empty(&mut disk, &mut store, events);
+    assert!(
+        events.iter().any(|event| if let Event::Opened { pending: true, .. } = event { true } else { false }),
+        "{events:?}"
+    );
+    store.registry.assert_settled();
+    assert!(fixtures::get_kv(&mut store, &history_layout_key()).is_some());
+    assert!(text(&mut store, hash(KEPT)).is_some());
+}
+#[test]
+fn a_log_held_layout_without_a_plan_refuses_even_without_map_values() {
+    let set = history_set(WRITTEN);
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, set);
+    raw(&mut disk, &mut store, vec![old_row(9, "jig-store-tasks", 0), old_text()]);
+    let mut disk = Disk::new(&disk.items());
+    let mut store = self::store(&disk, set);
+    let events = disk.open(&mut store);
+    let [
+        Event::OpenRefused {
+            why: OpenRefusal::Layout { family, value_type: 0, id: 9, values: None, why: Unplanned::Underived(_), .. },
+            ..
+        },
+    ] = events.as_ref()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(family.as_ref(), "jig-store-tasks");
+}
+
 #[test]
 fn a_seeded_store_refuses_a_pending_patch_of_a_registered_family() {
     let mut disk = Disk::new(&[]);
@@ -621,6 +673,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,
         converts: Some(crate::Converts { family: FAMILY.name, value_type: 0, from }),
@@ -652,7 +705,10 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
         // the owner's promise to convert its from-layout, not a new plan.
         events = disk.request(
             &mut store,
-            Request::Job { owner: *owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+            Request::Job {
+                owner: *owner,
+                answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+            },
         );
     }
     assert_eq!(pages, 2);

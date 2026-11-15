@@ -17,7 +17,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Event, Handle, Key, Latest, Outcome, State, Told, Why};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue, Time, Wall};
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::{self, drafts},
     owner::Owner,
 };

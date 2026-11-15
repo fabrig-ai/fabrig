@@ -36,6 +36,7 @@ pub struct Job {
     pub name: &'static str,             // unique within its owner, never reused: its identity, at most 64 bytes
     pub keys: &'static [KeyRange],      // the ranges its pages walk, in order (`layouts.md`, 2); the application's relative to its tag
     pub converts: Option<Converts>,     // a written job's layout (4)
+    pub counts: &'static [&'static str], // the names of what its answers count, in order (3); empty for a job that counts nothing
 }
 pub struct Converts {
     pub family: &'static str,           // a registered family of its set
@@ -54,12 +55,20 @@ pub struct Converts {
   owner's tag (the application's relative to it), a job's ranges in
   the map, never the secrets' store; a written job's family a registered
   family of the set and its value type one of that family's, its ranges
-  that value type's.
+  that value type's; a job's count names at most 16, each given once
+  within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
 - **jig's jobs:** `charter-versions`, a written job (4);
   `milestones`, which folds the tasks' milestones into their attempts
   and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4);
   and `live-task-parts` and `projection-parts`, which put a store's whole
-  live tasks and projection rows into their parts (`parts.md`, 4).
+  live tasks and projection rows into their parts (`parts.md`, 4); and,
+  last, `task-logs`, which moves a store's history out of the map into
+  its tasks' logs (`logs.md`, 6).
+- **temper's jobs** (temper's `protocol/store.md`, 4): `change-parts`,
+  then `deleted-repository-forge-rows`, the first job that counts: it
+  drops the forge rows naming a repository whose record is gone, its
+  answers counting them per family, and reads the repositories and
+  forges stored while each page is out (3).
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one
@@ -106,8 +115,10 @@ pub struct Converts {
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
-  job's row; and the last key of the page it consumed, `through`, none
-  meaning the whole page.
+  job's row; the last key of the page it consumed, `through`, none
+  meaning the whole page; and `counts`, one number per name the job
+  declares, in its order: what this answer counts, such as the rows its
+  writes drop. A job that declares none answers none.
 - **Its room:** each page says what its answer may hold, `room`: how
   many writes and how many bytes, the commit edge's less the job's row
   and the commit's frame, each write's bytes counted as the store counts
@@ -124,22 +135,27 @@ pub struct Converts {
 - **Refused:** the owner may refuse a page, naming a key and why; the
   start is refused, `OpenRefusal::Job { owner, job, key, why }`, with the
   active generation unchanged (`opening.md`, 1.8). So is an answer past
-  its bounds, an empty page's `through`, or a `through` that is not a
-  key of its page.
+  its bounds, an empty page's `through`, a `through` that is not a
+  key of its page, or `counts` that are not one per declared name.
 - **Counted:** as each job ends, the store answers `Event::Ran` with
-  its owner, name, the rows it was handed and the commits it made, for
-  the shell's line, as `Patched` is a patch's.
+  its owner, name, the rows it was handed, the commits it made and its
+  counts, each declared name with the sum of its answers' numbers, the
+  last page's included, a sum saturating at `u64::MAX`, in the job's
+  order, for the shell's line, as `Patched` is a patch's. The store
+  sums what the owner counts and judges none of it: what a count means
+  is its job's.
 
 ```rust
 Event::Job { owner: Token, of: Owner, job: Box<str>, page: JobPage }
 Request::Job { owner: Token, answer: Result<JobAnswer, JobRefusal> }
-Event::Ran { owner: Token, of: Owner, job: Box<str>, rows: u64, commits: u64 }
+Event::Ran { owner: Token, of: Owner, job: Box<str>, rows: u64, commits: u64, counts: Box<[JobCount]> }
+pub struct JobCount { pub name: Box<str>, pub count: u64 } // a declared name and its answers' sum
 pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub room: JobRoom } // `layout`: a written job's, on its first page
 pub struct JobRoom { pub writes: u32, pub bytes: u64 } // what the answer's writes may hold together
 impl JobWrite { pub fn bytes(&self) -> u64; } // a write's bytes as the store counts them against `room.bytes`
 pub struct JobRow { pub key: Box<[u8]>, pub value: Box<[u8]> }
 pub struct JobLayout { pub root: Box<str>, pub variant: Option<Box<str>>, pub text: Box<[u8]>, pub held: Box<[Box<[u8]>]> }
-pub struct JobAnswer { pub writes: Box<[JobWrite]>, pub through: Option<Box<[u8]>> }
+pub struct JobAnswer { pub writes: Box<[JobWrite]>, pub through: Option<Box<[u8]>>, pub counts: Box<[u64]> } // `counts`: one per the job's names
 pub enum JobWrite { Put { key: Box<[u8]>, value: Box<[u8]> }, Erase { key: Box<[u8]> } }
 pub struct JobRefusal { pub key: Option<Box<[u8]>>, pub why: Box<str> }
 // each owner's dispatch, jig's in jig_protocol_store::jobs, the application's in its store crate:
@@ -187,7 +203,10 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
   an answer that consumes nothing each refuse the start with the active
   generation unchanged, and the next start runs the job from its first
   page; a written job is handed only its layout's values, with its
-  texts, and its layout passes the check.
+  texts, and its layout passes the check; a job that declares counts
+  has its answers' numbers summed across its pages into `Ran`, by name
+  and in order, an answer with the wrong number of counts refusing the
+  start, and a set naming a count badly refused at admission.
 - **The shell's routing,** in temper's store route: `Event::Job` of each
   owner reaches that owner's dispatch and comes back as `Request::Job`.
 
@@ -196,6 +215,6 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 - **Progress across starts:** a job's progress lives and dies with its
   start's new generation. A job too long for one start would need its
   cursor kept in its row and the generation kept across starts.
-- **Files:** a job that writes files beside the store (S7's task logs)
-  needs them made in the new generation and synced before the commit
-  that names them; S7 designs it.
+- **Files:** a job writes no file of its own. `task-logs` writes task
+  logs through its answer's puts, which the commit path appends to them,
+  synced before the commit that names them (`logs.md`, 3 and 6).

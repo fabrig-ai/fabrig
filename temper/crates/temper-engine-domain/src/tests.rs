@@ -857,11 +857,12 @@ fn zero_watermark_refuses_startup_and_the_default_saturates() {
 }
 
 #[test]
-fn a_dropped_transcript_crosses_the_journal() {
+fn bulk_task_drops_cross_the_journal_without_replacing_record_erases() {
     use jig_domain_core as core;
     let (mut domain, env) = resume_fixture::root();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let erased = [
+        core::Key::Tasks(jig_domain_tasks::Key::Ended(7)),
         core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
         core::Key::Core(core::CoreKey::ProposalDecision {
             proposer: jig_domain_people::Proposer::Party(3),
@@ -870,6 +871,7 @@ fn a_dropped_transcript_crosses_the_journal() {
     ];
     let mut requests = Queue::uncapped();
     requests.push(core::Request::Write(core::Write::DropTranscript { task: 7 }));
+    requests.push(core::Request::Write(core::Write::DropHistory { task: 7 }));
     for key in &erased {
         requests.push(core::Request::Write(core::Write::Erase(key.clone())));
     }
@@ -879,6 +881,8 @@ fn a_dropped_transcript_crosses_the_journal() {
         panic!("the erasure reaches the store through its journal commit");
     };
     assert!(writes.contains(&Write::DropTranscript { task: 7 }));
+    assert!(writes.contains(&Write::DropHistory { task: 7 }));
+    assert_eq!(crate::store::owned_bytes(&Write::DropHistory { task: 7 }), Some(8));
     assert_eq!(crate::store::owned_bytes(&Write::DropTranscript { task: 7 }), Some(8));
     for key in erased {
         assert!(writes.contains(&Write::Erase(Key::Core(key))));

@@ -167,7 +167,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
             },
         );
     }
-    let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
+    let wanted = pages::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out
         .iter()
         .find_map(|r| {
@@ -951,7 +951,7 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
         },
     );
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
-    let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
+    let wanted = pages::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out
         .iter()
         .find_map(|r| {

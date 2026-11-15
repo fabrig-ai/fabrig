@@ -108,6 +108,8 @@ pub(crate) struct Caller {
     link: Option<Box<[u8]>>,
     pub commands: std::collections::VecDeque<Command>,
     pub answers: Vec<Answer>,
+    // The referee consumes answers before the next host turn, not during this one.
+    answer_ready: Option<()>,
     pub closed: bool,
     started: bool,
     pidfd: Option<Fd>,
@@ -192,6 +194,7 @@ impl Caller {
             link: None,
             commands: std::collections::VecDeque::new(),
             answers: Vec::new(),
+            answer_ready: None,
             closed: false,
             started: false,
             pidfd: None,
@@ -254,6 +257,7 @@ impl Caller {
 
 impl Host for Caller {
     fn iterate(&mut self, _now: Time, _wall: Wall) {
+        self.answer_ready = None;
         while let Some(complete) = self.completions.pop() {
             self.pending -= 1;
             if let Some(browser) = &mut self.browser {
@@ -321,6 +325,7 @@ impl Host for Caller {
                 exit: self.exit.take().expect("ctl exit"),
             });
             self.started = false;
+            self.answer_ready = Some(());
         }
         let Some(command) = self.commands.pop_front() else {
             if self.closed
@@ -341,7 +346,8 @@ impl Host for Caller {
         &mut self.submissions
     }
     fn work_pending(&self, _now: Time) -> bool {
-        !self.completions.is_empty()
+        self.answer_ready.is_some()
+            || !self.completions.is_empty()
             || (!self.finished && self.pending == 0 && (self.started || self.closed || !self.commands.is_empty()))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
@@ -437,5 +443,23 @@ impl Recorded {
     pub(crate) fn capturing(mut self) -> Self {
         self.wire = crate::referee::client::Wire::capturing();
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_answer_wakes_the_referee_without_waiting_for_a_timer() {
+        let mut caller = Caller::scripted(Fd::new(3));
+        // The command's pipes and pidfd have all closed in this host turn.
+        caller.started = true;
+        caller.exit = Some(Exit::Code(0));
+        caller.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(caller.answers.len(), 1);
+        assert!(caller.work_pending(Time::ZERO), "publishing an answer owes the referee a turn");
+        caller.iterate(Time::ZERO, Wall::EPOCH);
+        assert!(!caller.work_pending(Time::ZERO), "one referee turn does not become a busy loop");
     }
 }

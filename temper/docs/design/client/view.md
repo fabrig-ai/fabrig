@@ -25,8 +25,7 @@
     isn't (the look request `outside-pages`; `web/look.md`,
     *Outside a project*): temper's mark, "temper", a link to `/`; then,
     signed in, at its right: "Offline" while the link is offline and
-    "Behind" while a page's watch reopens, as the rail's foot shows them,
-    the person's name, "Sign out did not reach the engine." while that
+    "Behind" while a page's watch reopens, the person's name, "Sign out did not reach the engine." while that
     holds (`line.md`, 6), and "Sign out" once `me` is read or while that alert
     shows.
     Nothing else: no menu, no switcher, no navigation, no "Set up
@@ -281,10 +280,16 @@ navigation named by the open project, in this order:
 - at its foot: the Away switch, while `pages/README.md`, 2's *Away* shows it; while the
   playground runs and is not leaving (`forge/family.md`, 7),
   "Set up temper", the playground's way out (`pages/welcome.md`, 2); the link's state, as
-  1 has it, the browser hiding it while live; "Behind" while a
-  page's watch reopens, beside the link's region in the browser, so
-  that it shows while the link is live, and in the region in the
-  terminal, whose first line reads it (`line.md`, 4); "Deployment", to `Accounts`,
+  1 has it; "Behind" while a page's watch reopens, beside the link's
+  region in the browser, and in the region in the terminal, whose first
+  line reads it (`line.md`, 4). Over 760 pixels the browser draws the two
+  out of the foot's flow, as one word with its dot at the right of the
+  rail's first row, temper's name's, so that the foot keeps its height and
+  place in every state: "Live" while the link is live and no page's watch
+  reopens; "Behind", its dot amber, in place of "Live" while the link is
+  live and a page's watch reopens; otherwise the link's own word,
+  "Connecting" or "Offline", alone, with no "Behind" beside it (the look
+  request `rail-word`, the user's word of 2026-11-15); "Deployment", to `Accounts`,
   Deployment's first tab (`pages/settings.md`, 1), current on
   `Accounts`, `Forges`, `Models`, `Builders`, `Members`, `Limits`,
   `ConnectForge` and `ConnectModel`, with the dots "Forges" and "Accounts"
@@ -439,8 +444,13 @@ projects", in small type at its right how many, "4 projects". Pressed, it
 goes to a page across projects: on `Inbox`, its filter with the project
 taken out, where a sign-in lands, `/`, having none; anywhere else
 `AllHome` (`pages/home.md`, 1, *Home on All projects*). While the page is one across
-projects, `AllHome` or `Inbox` with no project, the switcher's summary
-names "All projects" and its row is the one pressed. "Home" and "Needs you"
+projects, `AllHome` or `Inbox` with no project, and the person is in two
+projects or more, the switcher's summary names "All projects" and its row
+is the one pressed. In one project, the switcher has no All projects row
+and never names it: its summary names that project and its row is the
+pressed one on every page, those across projects included, in the rail
+and a phone's top bar alike (the look request `one-project`, the user's
+word of 2026-11-15). "Home" and "Needs you"
 stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home",
 temper's name and the phone's "Home" go to `AllHome`, current on it; "Needs
 you" and the phone's "Needs" go to `Inbox` with no project, current on it,

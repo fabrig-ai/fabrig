@@ -99,6 +99,7 @@ impl Census {
             space.remove_head(value);
         }
         match op {
+            Op::Append { .. } | Op::Drop { .. } => unreachable!("payload ops are translated before map operations"),
             Op::Put { value, .. } => {
                 if folded {
                     self.folded = self.folded.checked_add(1).expect("folded rows fit the map");

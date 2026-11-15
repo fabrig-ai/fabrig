@@ -5,8 +5,11 @@ delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
-for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`, and,
-for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`. Coding agents run no build
+for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`,
+for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`, and,
+for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
+after a landing's gate caught three reds in tests no delivery had run.
+Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
 no CI, so this is a change's only check before it lands there; the landing's
@@ -27,13 +30,29 @@ boundary (smith's run.md, 8.1).
   delivery changed against its base, and their direct dependents in the
   workspace (section 3).
 - **Code, docs, or both:** code inputs select the format check, counted
-  baselines, clippy and focused tests; Markdown anywhere and every file
-  under a `docs/` directory select citations and design size limits.
-  Declared documentation inputs to tests select both (sections 3 and 4).
-- **A binary is a process.** The focused tests run through
-  `tools/tiers/one-process default`: each test binary's selected tests in
-  one process, one at a time, binaries in parallel, nextest only selecting
-  and building (section 4). A starved run is a warning.
+  baselines, clippy, and the focused and fuzzy tests; Markdown anywhere and
+  every file under a `docs/` directory select citations and design size
+  limits. Declared documentation inputs to tests select both (sections 3
+  and 4).
+- **The boundary packages, whatever was selected.** Every delivery that
+  selects either set also tests the boundary packages: `fabrig-boundary`
+  and each package on a `.config/gate/always.txt` line without a prefix,
+  whose tests read files across the tree. A docs-only delivery runs their
+  focused and fuzzy tests beside citations, so a name the outward rule
+  forbids (`AGENTS.md`, 1) never reaches a pushed branch unchecked
+  (section 3).
+- **A binary is a process.** The focused tests, then the fuzzy tests of
+  the same set, run through `tools/tiers/one-process default` and
+  `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
+  process, one at a time, binaries in parallel, nextest only selecting and
+  building (section 4). A starved run is a warning.
+- **A goal's design delivery too.** A goal run's `deliver` of Markdown
+  straight to its goal branch runs the project's checks before the worker
+  pushes, and a failure refuses the push with the check's output
+  (`temper/docs/design/domain/forge/branches.md`, 3; smith's run.md, 8.1).
+  The worker pins its checkout's `refs/temper/landing` at g's tip as for a
+  change, so a design delivery runs this check's docs set and the boundary
+  packages' tests, with no check of its own.
 - **One hold for the check.** With `TIERS_HOLD` set, the check holds its
   build directory from before its first build to its verdict, so the
   executables one-process built are still there when it runs them
@@ -135,12 +154,17 @@ boundary (smith's run.md, 8.1).
   classifies inputs here; it does not add package mappings to the
   selection below.
 - **Select the sets before running checks:** code inputs select checks
-  1–4, docs inputs select check 5, and both select both sets. With neither,
-  no check runs. Plain docs require no cargo metadata. Each selected set
-  gets one line naming its checks and a changed input that selected it:
+  1–4, docs inputs select check 5 and check 4 over the boundary packages
+  alone (below), and both select both sets. With neither, no check runs,
+  the boundary packages' tests included. Docs alone read cargo metadata
+  for the boundary packages and nothing else of cargo before check 4. Each
+  selected set gets one line naming its checks and a changed input that
+  selected it:
   `pre-pr: docs only: citations and design size limits (docs input …)`,
-  `pre-pr: code only: format, counted baselines, clippy, focused tests (code input …)`,
-  or a line each starting `pre-pr: code and docs:`. With neither, print
+  `pre-pr: code only: format, counted baselines, clippy, focused and fuzzy tests (code input …)`,
+  or a line each starting `pre-pr: code and docs:`; then, once, the
+  boundary line, `pre-pr: boundary tests: <packages>`, the boundary
+  packages joined by a space, or `none`. With neither, print
   `pre-pr: no code or docs inputs changed`.
 - **The workspace's packages:** `cargo metadata --offline --no-deps
   --format-version 1` at the tree. A member's directory is its
@@ -155,15 +179,25 @@ boundary (smith's run.md, 8.1).
   names a member of C by its package name.
 - **Path readers (R):** each `.config/gate/always.txt` line of the form
   `PACKAGE PATH-PREFIX` whose prefix, as written, starts a changed code input
-  adds its package, where it is a member. A line without a prefix runs
-  for every change in the gate, not here. A line naming no member is
+  adds its package, where it is a member. A line without a prefix names
+  a boundary package instead (A, below). A line naming no member is
   skipped and printed.
-- **The lints' set** is C; **the tests' set** is C ∪ D ∪ R. Each is
-  ordered by package name and passed as one `-p` per package.
-- **No package selected for code:** the lints' and tests' sets empty,
-  code still runs checks 1 and 2, printing `pre-pr: no package changed`.
-  Docs still run check 5 when selected. Without a base, section 2's
-  fallback remains checks 1 and 2 alone: selection needs a base.
+- **Boundary packages (A):** `fabrig-boundary`, then the package of each
+  `.config/gate/always.txt` line without a prefix, each where it is a
+  member; one that is not is skipped and printed, `pre-pr: boundary
+  package <name>: not a workspace member, skipped`. Their tests read
+  files of the whole tree by path (the outward rule, a kit's vocabulary),
+  so any change, prose included, can break them: every delivery that
+  selects either set adds them, whatever its inputs. A package on both a
+  prefixed and an unprefixed line is in A.
+- **The lints' set** is C; **the tests' set** is C ∪ D ∪ R ∪ A. Each is
+  ordered by package name and passed as one `-p` per package. A
+  docs-only delivery's C, D and R are empty: its tests' set is A.
+- **No package selected for code:** the lints' set and C ∪ D ∪ R empty,
+  code still runs checks 1 and 2, printing `pre-pr: no package changed`,
+  and check 4 over A. Docs still run check 5 and check 4 over A when
+  selected. Without a base, section 2's fallback remains checks 1 and 2
+  alone, with no boundary packages: selection needs a base.
 
 ## 4. What it runs
 
@@ -181,7 +215,7 @@ delivery hears every failure; the verdict is section 6's.
 3. **The lints:** `cargo clippy --all-targets --message-format=json -p … -- -D warnings`
    over the lints' set. The check prints each compiler message's
    `rendered` text as it arrives, and keeps each error's key (section 5).
-4. **The focused tests:** `tools/tiers/one-process --out <dir>/tests
+4. **The focused tests, then the fuzzy tests:** first `tools/tiers/one-process --out <dir>/tests
    default -p … --no-tests=warn` over the tests' set, from the tree's root,
    `<dir>` a private temporary directory removed at the end. Each test
    binary's selected tests run in one process, one at a time, and binaries
@@ -263,12 +297,38 @@ delivery hears every failure; the verdict is section 6's.
      read leaves it failed, judged as section 5 judges it, its log the
      first run's, its alone label included.
 
+   **Then the fuzzy tests** of the same tests' set: `tools/tiers/one-process
+   --out <dir>/fuzzy fuzzy -p … --no-tests=warn`, the same `-p` arguments in
+   the same order, `.config/nextest.toml`'s `fuzzy` profile its selection
+   and its `global-timeout` its only bound. It runs where the focused run
+   ran, whatever that ended in (a failure, a build failure, a failure of
+   the check itself), once the focused run and its tests again have ended;
+   where the focused run did not run (an empty tests' set, a failed build of
+   the other packages' binaries, no base), neither does it. It reuses the
+   other packages' binaries built for the focused run.
+   - **Its lines:** announced `pre-pr: fuzzy tests …` and ended `pre-pr:
+     fuzzy tests: passed|failed|inherited, <seconds> s`. Each run's end
+     line judges its own failures alone.
+   - **Read as the focused run is:** its exit decides as above, its test
+     failures from `<dir>/fuzzy`'s `junit.xml`, keyed by binary id and name
+     (a fuzzy test's name starts `fuzzy::`), a cancelled test starved, and
+     its starved line `pre-pr: fuzzy tests starved: <N> starved or
+     cancelled, <M> unobserved, a warning
+     (skein/docs/foundation/testing-strategy.md, 8.1)`. Its failures are
+     judged against the goal's reds (section 5) and run again as above,
+     `--again <dir>/fuzzy`, each with a fresh `--out` of its own, under
+     the same bound applied to its own failures alone.
+   - **Its own names** where they would be the focused run's: a build
+     failure is `build fuzzy`, a failure of the check itself `check
+     one-process fuzzy`.
+
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
    unstaged and untracked documentation. The checker also enforces the
    design size limit for `tools/citations/sized.txt`'s trees (`DESIGN.md`,
-   5). A docs-only delivery runs no formatter, counted baseline, clippy
-   or test. A code-only delivery runs no full citation checker; smith's
+   5). A docs-only delivery runs no formatter, counted baseline or clippy,
+   and check 4 over the boundary packages alone (section 3), before this
+   check. A code-only delivery runs no full citation checker; smith's
    counted `comment:dead_citation` baseline still checks Markdown path
    existence in Rust comments as part of check 2, as before
    (`tools/old_forms/README.md`).
@@ -379,9 +439,10 @@ cause.
 - **A failing test** is keyed by its binary id and its name. It is
   inherited when a `- test` entry gives both; otherwise, failing at the
   base or not, it is the delivery's.
-- **A build failure** (section 4's) is always the delivery's, whatever
-  the goal's reds hold; so is a failure of a check itself (`check clippy`,
-  `check one-process`, `check selection`).
+- **A build failure** (section 4's, `build` or `build fuzzy`) is always
+  the delivery's, whatever the goal's reds hold; so is a failure of a
+  check itself (`check clippy`, `check one-process`, `check one-process
+  fuzzy`, `check selection`).
 - **A starved test** is neither failed nor inherited: section 4's warning
   names it, and it refuses nothing, named by an entry or not.
 - **A flake,** a failing test that passed when its process ran again
@@ -420,7 +481,8 @@ cause.
     `temper/pre-pr-failures.json`, and `<error>` the error's first line,
     at most 512 bytes, cut at a character's end;
   - the sets: `lints: <packages>`, `tests: <packages>`;
-  - section 4's starved line, where the tests starved;
+  - section 4's starved lines, the focused run's then the fuzzy run's,
+    each where its tests starved;
   - why the base could not judge an exceeded count, where it could not
     (section 5).
 
@@ -430,7 +492,7 @@ cause.
   count. Then:
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
-    `check <name>` for a check that failed of itself), then the last lines
+    `build fuzzy`, `check <name>` for a check that failed of itself), then the last lines
     of its log: a test's JUnit output, with its alone label last where it
     has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
@@ -498,8 +560,9 @@ cause.
     failures line and changes nothing else: the exit, the summary's
     other lines and the results file are as they would have been.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
-  failures and flakes included; 1 otherwise. The tests' end line says
-  `inherited` where each of their failures was inherited or a flake.
+  failures and flakes included; 1 otherwise. Each tests run's end line,
+  the focused and the fuzzy, says `inherited` where each of its own
+  failures was inherited or a flake.
 - **The results file,** for temper (`temper/docs/design/domain/forge/reds.md`,
   5.5, its form): where the check found a marker `temper/reds-wait` of
   its form (section 5), after the summary, passed or refused, it writes
@@ -508,7 +571,7 @@ cause.
   - `temper-check 1`, then `check <tree> <base> passed|refused`, `<base>`
     `-` without one;
   - for each entry of `temper/reds` that the run selected: `passed <key>` or `failed <key>`, in key order. A `- test`
-    entry is selected where its test is in the run's `results.json`:
+    entry is selected where its test is in the focused or the fuzzy run's `results.json`:
     `passed` where its `outcome` is `passed`, `failed` where its
     failure is section 5's, inherited or not, and neither where it
     starved, was cancelled or went unobserved; an ignored test the run
@@ -547,8 +610,17 @@ tree that passed here.
 ## 8. Time
 
 - No `cargo clean` and no whole-workspace run: the sets are what the
-  delivery changed and their direct dependents, on the checkout's warm
-  target directory.
+  delivery changed, their direct dependents and the boundary packages, on
+  the checkout's warm target directory.
+- **What the boundary packages and the fuzzy run cost** every delivery
+  that selects a set: a docs-only one, which ran citations alone, builds
+  and runs the boundary packages' tests twice, focused then fuzzy, and a
+  code delivery adds the fuzzy run of its tests' set. That is the price
+  of catching before the push what the landing's gate would catch after
+  it (the user, 2026-11-15). Their seconds are on each run's end line; the
+  change that brought them measured them on its own delivery and said so
+  in its description. They count against the checks' deadline as every
+  check does (below).
 - **No build or test at the base.** A lint, test or build failure goes
   back to the delivery at once, judged against the goal's reds alone
   (section 5): a failing delivery takes no longer than a passing one. The
@@ -598,7 +670,8 @@ tests'. Its stories, a test each:
    its line and starts no program; a changed source checked again.
 4. **The base from git:** a merge in progress, whose base `git merge-base
    refs/temper/landing HEAD MERGE_HEAD` gives and the log names; a
-   docs-only delivery running the citation checker and building nothing.
+   docs-only delivery running the citation checker and the boundary packages'
+   focused and fuzzy tests, with no formatter, counted baseline or clippy.
 5. **The private index:** new sources the counts read through it, the
    real index unchanged.
 6. **The sets given to the tools:** a changed package and its direct
@@ -610,9 +683,11 @@ tests'. Its stories, a test each:
    tools' streamed output.
 8. **temper's files and a process again:** `temper/reds-wait`,
    `temper/rerun` and `temper/reds` read from the git directory; a failing
-   test no entry names run again through one-process's `--again` with its
-   `before`, a flake refusing nothing, and an entry's failure not run
-   again; `temper/check-results` written whole, its `.tmp` gone; then a
+   test no entry names in each of the focused and fuzzy runs run again
+   through one-process's `--again` with its `before`, each from its own
+   run directory under its own bound, a flake refusing nothing, and an
+   entry's failure not run again; `temper/check-results` written whole
+   with both runs' observed reds and flake logs, its `.tmp` gone; then a
    cache hit writing none.
 9. **The hold:** the hold program `TIERS_HOLD` names starts before the
    first `cargo` call and ends after one-process has returned, the pass
@@ -627,7 +702,8 @@ tests'. Its stories, a test each:
 and neither in scratch repositories. It runs the citation checker against
 private snapshots: new and inherited broken citations, a deleted cited
 document, and a design size violation. It checks that docs-only changes
-skip every code check even on a red baseline; unchanged red counts pass
+skip formatting, counted baselines and clippy even on a red baseline;
+unchanged red counts pass
 while a rising count or tighter limit refuses. Non-Markdown fixtures,
 declared docs inputs and check configuration select code. A pin at one or
 two unchecked saves steps to the checked head: the summary names that head,
@@ -643,7 +719,7 @@ deleted source; the root manifest, and a directory beside a package's
 whose name begins with it, selecting no package and saying so; a docs
 path; a reader in `.config/gate/always.txt` by its prefix; a reader
 alone, its input in `.config/gate/read-by-tests.txt`; a reader line
-without a prefix, selecting nothing; and a reader naming no package,
+without a prefix, selecting its boundary tests; and a reader naming no package,
 printed. Each tree's count failing refuses, naming its tree.
 
 It reads the goal's reds from the git directory: an entry of
@@ -703,6 +779,23 @@ one-process` otherwise; and the command: `default`, a `--out` that does not
 yet exist, one `-p` per package, `--no-tests=warn`, and no `--workspace`,
 `--profile` or `--tool-config-file`.
 
+It selects the boundary packages (section 3): a Markdown-only change runs
+one-process over them alone, focused then fuzzy, beside citations, and no
+format check, counted baseline or clippy; a package on an unprefixed
+`.config/gate/always.txt` line is in the tests' set of a code delivery
+that reaches nothing of it, and `fabrig-boundary`, a member, is in every
+set; a line naming no member is printed and skipped; no inputs, or no
+base, run neither. It runs the fuzzy tests after the focused ones, as
+section 4 gives them: `fuzzy`, a `--out` of its own, the same `-p`
+arguments in the same order; after a focused run that failed, or ended in
+a build failure, as after one that passed; and not where no focused run
+was selected (an empty tests' set, a failed build of the other packages'
+binaries). A fuzzy run's failure is read as a focused one's: keyed by
+binary id and name, inherited from a `- test` entry, its starved line
+printed and repeated in the summary, a failure no entry names run again
+from `<dir>/fuzzy`; its build failure is `build fuzzy`; and each run's end
+line judges its own failures alone.
+
 The summary keeps section 6's bound: forty failures of 4,096 bytes each
 refuse within 8,192 bytes, the first kept, each log's tail starting at a
 whole line under its `[… N bytes cut]` marker and keeping its last line,
@@ -719,8 +812,8 @@ refusal leaves the refusal.
 - **What no package owns** (the root manifest and lock, a tree's
   `clippy.toml`, `.config/nextest.toml`) selects the code set but no lint
   or test package; the landing's CI checks its consumers.
-- **The gate's other checks** (wasm32 clippy, the fuzzy suite, the lint
-  profiles) stay the landing's.
+- **The gate's other checks** (wasm32 clippy, the lint profiles) stay the
+  landing's.
 - **A test that cannot yet share its binary's process** fails every
   delivery whose tests' set holds its package, with the alone label
   (section 4). Its repair is its own tree's; until then the stopgap is the

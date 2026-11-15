@@ -30,7 +30,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     } else {
         Some(page.rows.get(usize_of(count).checked_sub(1).expect("nonempty prefix")).expect("page prefix").key.clone())
     };
-    Ok(JobAnswer { writes: fold.writes.into_boxed(), through })
+    Ok(JobAnswer { counts: Box::new([]), writes: fold.writes.into_boxed(), through })
 }
 
 fn prefix(page: &JobPage, milestones: &[Milestone]) -> Result<u32, JobRefusal> {

@@ -1,12 +1,15 @@
 //! Reads bounded by durable places, walking complete frames (protocol/store/transcripts.md, 3).
 use super::{File, Stage, frame};
-use crate::{Arrived, Below, Event, Limits, Phase, Store, TranscriptRead, codec, keys, open, reads};
+use crate::{Arrived, Below, Event, Limits, Phase, Store, TranscriptRead, codec, keys, reads};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
 use skein_io::file;
 use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};
 mod party;
+mod source;
+use source::Source;
+pub(crate) use source::{OWNER as LOG_OWNER, arrived as log_arrived, waiting as log_waiting};
 pub(crate) const OWNER: Token = Token::new(0x5453);
 #[derive(Debug)]
 pub(crate) struct Party {
@@ -26,6 +29,7 @@ enum Scan {
 #[derive(Debug)]
 enum Step {
     Waiting,
+    Log { max: u32, waiting: bool },
     Opening,
     Evicting { task: u64 },
     Length { offset: u64, bytes: Writer },
@@ -45,6 +49,7 @@ struct Decoded {
 #[derive(Debug)]
 pub(crate) struct Read {
     task: u64,
+    source: Source,
     end: u64,
     position: u64,
     backwards: bool,
@@ -66,7 +71,7 @@ pub(crate) fn transcript(
     below: &mut Below,
 ) {
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
-    assert!(store.transcripts.reads.len() < store.limits.reads, "startup bounds cover transcript reads");
+    assert!(crate::view::count(store) < store.limits.reads, "startup bounds cover transcript reads");
     let Some(read) = prepare(store, owner, read, rows, bytes) else {
         above.push(Event::Unread { owner });
         return;
@@ -154,9 +159,7 @@ pub(crate) fn activity(
         return Ok(Some(page.finish(false)));
     }
     let (task, attempt, turn) = page.identity().expect("pending turn line");
-    let key =
-        keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key).ok_or(reads::Failure::Corrupt)?;
-    if open::get(store, owner, key).or(Err(reads::Failure::Corrupt))?.is_none() {
+    if source::place(store, owner, task).or(Err(reads::Failure::Corrupt))?.is_none() {
         // Dropped transcripts leave every turn unread, not a cut at the first
         // frame (protocol/store/retention.md, 7; protocol/store/transcripts.md, 3).
         for _ in 0..page.rows.len() {
@@ -200,9 +203,7 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
             task
         }
     };
-    let key = keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key)?;
-    let row = open::get(store, owner, key).ok()??;
-    let place = codec::component::Transcript::decode(&row).ok()?;
+    let (source, place) = source::place(store, owner, task).ok()??;
     let (position, backwards, scan) = match request {
         TranscriptRead::Window { attempt, turn, after, .. } => {
             if place.window >= place.length
@@ -214,9 +215,7 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
             (place.window, false, Scan::Window { attempt, turn, after, checked: false })
         }
         TranscriptRead::Turn { attempt, turn, .. } => {
-            let key = keys::encode_own(&keys::Own::Attempt { task, attempt }, store.limits.store.key)?;
-            let row = open::get(store, owner, key).ok()??;
-            let offset = codec::component::Attempt::decode(&row).ok()?.first;
+            let offset = source::attempt(store, owner, source, task, attempt)?;
             if offset >= place.length {
                 return None;
             }
@@ -232,6 +231,7 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
     };
     Some(Read {
         task,
+        source,
         end: place.length,
         position,
         backwards,
@@ -245,6 +245,23 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
     })
 }
 pub(crate) fn fire(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
+    // A memory-log terminal can schedule its next demand immediately. Drain
+    // those steps without recursion; a disk demand stops at its outstanding IO.
+    // Each log frame is at least 17 bytes and can need one whole-record retry.
+    let mut steps = u64::from(store.transcripts.reads.len());
+    for (_, read) in &store.transcripts.reads {
+        if let Source::Log(_) = read.source {
+            steps = steps.saturating_add(read.end.saturating_div(17).saturating_mul(2).saturating_add(1));
+        }
+    }
+    for _ in 0..steps {
+        fire_one(store, above, below);
+        if store.transcripts.reading.is_some() || store.transcripts.reads.is_empty() {
+            break;
+        }
+    }
+}
+fn fire_one(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     if store.transcripts.reading.is_some() {
         return;
     }
@@ -262,12 +279,24 @@ pub(crate) fn fire(store: &mut Store, above: &mut Queue<Event>, below: &mut Belo
         | Stage::DirectoryClose
         | Stage::Dropping => return,
     }
-    let owner = match store.transcripts.reads.first() {
-        Some((owner, _)) => *owner,
-        None => return,
+    let owner = match crate::view::owner(store) {
+        Some(owner) => {
+            if !store.transcripts.reads.contains_key(&owner) {
+                return;
+            }
+            owner
+        }
+        None => match store.transcripts.reads.first() {
+            Some((owner, _)) => *owner,
+            None => return,
+        },
     };
     let mut read = store.transcripts.reads.remove(&owner).expect("waiting reader");
     store.transcripts.reading = Some(owner);
+    if let Source::Log(_) = read.source {
+        source::start(store, owner, read, above, below);
+        return;
+    }
     let ready = match store.transcripts.files.get(&read.task) {
         Some(file) if file.readable => next(store, &mut read, below),
         Some(file) => {
@@ -319,6 +348,13 @@ fn next(store: &mut Store, read: &mut Read, below: &mut Below) -> Result<bool, (
     };
     if read.turns.room() == 0 && !checking_window {
         return Ok(true);
+    }
+    if let Source::Log(_) = read.source {
+        read.step = Step::Log {
+            max: u32::try_from(read.budget.min(u64::from(store.limits.store.page.bytes))).or(Err(()))?.max(1),
+            waiting: false,
+        };
+        return Ok(false);
     }
     let offset = if read.backwards { read.position.checked_sub(4).ok_or(())? } else { read.position };
     if offset.checked_add(4).ok_or(())? > read.end {
@@ -443,7 +479,7 @@ fn advance(
                 frame::Decode::Patching(patch) => patching(store, read, offset, length, patch, above, below),
             }
         }
-        Step::Waiting | Step::Site { .. } => Err(()),
+        Step::Waiting | Step::Log { .. } | Step::Site { .. } => Err(()),
     }
 }
 fn window(read: &Read) -> bool {
@@ -789,6 +825,9 @@ fn settle(store: &mut Store, owner: Token, mut read: Read, result: Result<bool, 
     }
     match result {
         Ok(false) => {
+            if let Step::Log { waiting: false, .. } = read.step {
+                store.transcripts.reading = None;
+            }
             store.transcripts.reads.insert(owner, read).expect("active read retains its slot");
         }
         Ok(true) => {
@@ -897,7 +936,11 @@ fn patching(
 ) -> Result<bool, ()> {
     match patch.next(&mut store.transcripts.machines, &store.codec_limits).or(Err(()))? {
         frame::Progress::Written { of, site, at } => {
-            let key = keys::encode_own(&keys::Own::Transcript { task: read.task }, store.limits.store.key).ok_or(())?;
+            let own = match read.source {
+                Source::File => keys::Own::Transcript { task: read.task },
+                Source::Log(_) => keys::Own::TurnLog { task: read.task },
+            };
+            let key = keys::encode_own(&own, store.limits.store.key).ok_or(())?;
             let mut name = Writer::new(key.len().checked_add(8).ok_or(())?);
             name.put(&key).or(Err(()))?;
             name.put(&offset.to_be_bytes()).or(Err(()))?;
@@ -966,6 +1009,7 @@ pub(crate) fn site(
             Some(read) => match read.step {
                 Step::Site { .. } => true,
                 Step::Waiting
+                | Step::Log { .. }
                 | Step::Opening
                 | Step::Evicting { .. }
                 | Step::Length { .. }
@@ -997,6 +1041,7 @@ pub(crate) fn site(
             if result.is_err() { Err(()) } else { patching(store, &mut read, offset, length, patch, above, below) }
         }
         Step::Waiting
+        | Step::Log { .. }
         | Step::Opening
         | Step::Evicting { .. }
         | Step::Length { .. }

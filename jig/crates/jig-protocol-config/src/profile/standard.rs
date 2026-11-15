@@ -229,16 +229,18 @@ const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 1
 // every commit that grows it, before the fill mark refuses new party work.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     value: 100_881_496,
-    ops: 303_350,
-    // 1 GiB values + 303,350 operations * (2,079 key + 9 framing) + 26 frame bytes.
-    commit: 1_707_136_650,
+    ops: 455_023,
+    // 1 GiB values + 455,023 operations * (2,079 key + 9 framing) + 26 frame bytes.
+    commit: 2_023_829_874,
     // Three queued commits; segment holds two, snapshot follows one.
-    queued_bytes: 5_121_409_950,
+    queued_bytes: 6_071_489_622,
     budget: CORE.fill_mark,
-    segment: 3_414_273_300,
-    snapshot_after: 1_707_136_650,
+    segment: 4_047_659_748,
+    snapshot_after: 2_023_829_874,
     chunk: 100_883_595,
     page: skein_kv::Page { rows: 2, bytes: 100_883_575 },
+    record: 100_883_575,
+    logs: 64,
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
@@ -248,6 +250,7 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     commits: jig_protocol_store::sizes::Commits { in_flight: JOURNAL.commits, writes: JOURNAL.writes },
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
     joins: 16,
+    fetch: 64 * 1024 * 1024,
     reads: 48,
     ..small::STORE
 };

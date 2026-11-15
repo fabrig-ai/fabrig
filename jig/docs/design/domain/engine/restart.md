@@ -120,7 +120,17 @@ one rule for every child and the store:
   record judged.
 - **It rebuilds** derived state, never refusing: the waits judged
   whole and a waiter on a circle held (../tasks/holds.md, 7), people's expired
-  rows erased, the release's settings revision.
+  rows erased, the release's settings revision, and projection plans. After
+  assembling every projection, a plan row at a waiting, active or held phase
+  (except a held closing phase) whose task has no live row takes its own
+  projection header's phase when that projection is retained. Without one,
+  the row leaves the plan and both its stored TaskHot and TaskWords are
+  erased. A changed plan marks its goal changed, so connectors receive the
+  repaired whole plan. These writes commit in Link, before the sweep and
+  switch, through the start's ordinary commits; the next start finds the
+  repaired rows. This is derived feed state (`../connectors.md`, 8), repaired
+  at every start rather than by a job pending once per store
+  (`../../protocol/store/jobs.md`, 2).
 - **An expired row,** one whose time has passed at the start's time
   (people's expiries among them), is decoded, never counted against the live
   set's limits, never linked and never held past its page, and the sweep
@@ -137,7 +147,9 @@ one rule for every child and the store:
   that revision lacks (`settings.md`, 7), a name reserved by another source
   (../accounts.md, 3.4), an ended read position whose task is missing
   or whose task's record is not that party's conversation (the census's
-  pair, `../../protocol/store/loads.md`, 2), a projection or a connector's row naming what it lacks, a person
+  pair, `../../protocol/store/loads.md`, 2), a projection header or part
+  naming what it lacks after the derived plan repair, a connector's row
+  naming what it lacks, a person
   whose identity another person's row holds (the second row naming
   the first).
 - **It no longer checks** a family's rules, a record's shape beyond its
@@ -151,9 +163,10 @@ one rule for every child and the store:
   that reason, never a panic (the user, request `store-crash-safe` of
   11-09, which replaces the assertion of 10-28). Each child's link
   check answers the same way, through its own restore refusal, and the
-  core names it in `Failure::Link`. The store stays as it was:
-  nothing repairs it, and leaving such a record out so that the start
-  goes on is open (`README.md`, section 10). Every link is made before any sweep runs
+  core names it in `Failure::Link`. A refused start leaves the active
+  store unchanged. Derived projection plans are repaired as above;
+  leaving any other unlinked record out so the start can open remains an
+  open question (`README.md`, section 10). Every link is made before any sweep runs
   (`../../protocol/store/secrets.md`), so the refusal erases no value,
   and a release that repairs the writer, or the store, starts it.
 - **The checks are tests** (`README.md`, section 9): every world story ends with a

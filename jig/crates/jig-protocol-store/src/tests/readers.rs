@@ -271,7 +271,7 @@ fn malformed_join_keys_and_disagreeing_owners_stay_distinct() {
     let raw_target = keys::encode(&target_key, fixtures::KEY_LIMIT).expect("target key");
     match &mut wrong {
         skein_kv::Op::Put { key, .. } => *key = raw_target.clone(),
-        skein_kv::Op::Erase { .. } => panic!("put"),
+        skein_kv::Op::Erase { .. } | skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => panic!("put"),
     }
     let mut store = raw_store(&[put(result()), wrong]);
     let error = restore::page(&mut store, census(), None, ROWS, BYTES).expect_err("owner mismatch");

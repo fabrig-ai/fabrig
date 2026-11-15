@@ -458,6 +458,7 @@ fn first_claim_host(world: &World) -> jig_domain_fleet::HostKind {
                 Some(proof.host)
             }
             root::Write::Save(_)
+            | root::Write::DropHistory { .. }
             | root::Write::DropTranscript { .. }
             | root::Write::Wires
             | root::Write::Erase(_)

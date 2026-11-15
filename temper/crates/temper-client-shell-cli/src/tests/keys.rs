@@ -1,6 +1,6 @@
 use super::fixtures;
 use skein_io::kernel::{Error, Exit, Kind, Stat};
-use temper_client_domain::forge::forges::PASTED_PAYLOAD;
+use temper_client_domain_forge::forge::forges::PASTED_PAYLOAD;
 const ADD: &[&[u8]] = &[b"account", b"add-key", b"1", b"/linked-parent/link-file", b"--deployment", b"--key", b"key"];
 const AT_BOUND: &[u8] = &[b'k'; 4096];
 const OVER_BOUND: &[u8] = &[b'k'; 4097];
@@ -299,8 +299,8 @@ fn tokens_connect_and_replace_read_one_private_file_and_carry_its_bundle() {
     let api = &file[4..20];
     let git = &file[25..41];
     let secret = &file[57..];
-    let expected =
-        temper_client_domain::forge::forges::pasted_tokens(Some(api), Some(git), Some(secret)).expect("tokens bundle");
+    let expected = temper_client_domain_forge::forge::forges::pasted_tokens(Some(api), Some(git), Some(secret))
+        .expect("tokens bundle");
     for words in [TOKENS, NEW_TOKENS, REPLACE] {
         for contents in [TOKENS_FILE, TOKENS_NEWLINE] {
             let mut f = fixtures::Frame::act(words);
@@ -377,7 +377,7 @@ fn tokens_connect_and_replace_accept_files_at_the_payload_bound() {
     let file = FILE;
     let api = &file[4..PASTED_PAYLOAD.checked_sub(b"\ngit g".len()).expect("payload holds the layout")];
     let expected =
-        temper_client_domain::forge::forges::pasted_tokens(Some(api), Some(b"g"), None).expect("tokens bundle");
+        temper_client_domain_forge::forge::forges::pasted_tokens(Some(api), Some(b"g"), None).expect("tokens bundle");
     for words in [TOKENS, NEW_TOKENS, REPLACE] {
         let mut f = fixtures::Frame::act(words);
         f.link = file;
@@ -392,7 +392,7 @@ fn tokens_connect_and_replace_accept_files_at_the_payload_bound() {
 fn replace_reads_an_rsa_key_as_one_carried_app_key() {
     const PEM: &[u8] = b"-----BEGIN RSA PRIVATE KEY-----\nqnzjljfywwrvidah";
     let pem = PEM;
-    let expected = temper_client_domain::forge::forges::pasted_app_key(pem).expect("App key bundle");
+    let expected = temper_client_domain_forge::forge::forges::pasted_app_key(pem).expect("App key bundle");
     let mut f = fixtures::Frame::act(REPLACE);
     f.link = pem;
     f.sign_in_then_deliver_me();

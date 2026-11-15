@@ -156,7 +156,8 @@ pub fn theme(scheme: Scheme, background: Option<Rgb>) -> Theme {
         placeholder: fore(faint),
         active: Paint { back, ..Paint::NONE },
         regions: Box::new([
-            region(look::HEADER, Place::Top, Arrange::Lines, 0, None),
+            region(look::HEADER, Place::Top, Arrange::Lines, 1, None),
+            region(look::HEADER_LINE, Place::Body, Arrange::Spread, 0, None),
             region(look::TOP, Place::Top, Arrange::Lines, 1, Some(border)),
             region(look::BOTTOM, Place::Bottom, Arrange::Spread, 1, None),
             region(look::SECTIONS, Place::Body, Arrange::Lines, 1, None),

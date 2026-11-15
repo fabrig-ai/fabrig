@@ -10,7 +10,7 @@ use skein_lib::{List, Reader, Writer, length::usize_of};
 
 pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if page.rows.is_empty() {
-        return Ok(JobAnswer { writes: Box::default(), through: None });
+        return Ok(JobAnswer { counts: Box::new([]), writes: Box::default(), through: None });
     }
     // The dispatch has no per-open state. Later pages name the same immutable
     // kept layout that this job's `from` fingerprint pins.
@@ -34,13 +34,13 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
             if writes.is_empty() {
                 return Err(refusal(Some(row.key.clone()), "room cannot hold one charter version"));
             }
-            return Ok(JobAnswer { writes: writes.into_boxed(), through });
+            return Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through });
         }
         bytes = total;
         through = Some(row.key.clone());
         writes.push(write).expect("uncapped job writes");
     }
-    Ok(JobAnswer { writes: writes.into_boxed(), through: None })
+    Ok(JobAnswer { counts: Box::new([]), writes: writes.into_boxed(), through: None })
 }
 fn refusal(key: Option<Box<[u8]>>, why: &str) -> JobRefusal {
     JobRefusal { key, why: Box::from(why) }

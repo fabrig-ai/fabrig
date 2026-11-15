@@ -13,6 +13,7 @@ skein-codec
 skein-io
 skein-sim
 skein-shell
+skein-deflate
 skein-http
 skein-json
 skein-channel
@@ -33,6 +34,8 @@ jig-client
 jig-client-test-shell-web
 temper-client-protocol-wire
 temper-client-domain
+temper-client-domain-forge
+temper-client-domain-pages
 temper-client-view
 temper-client-view-words
 temper-client-view-parts

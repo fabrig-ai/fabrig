@@ -12,6 +12,7 @@ pub enum Request {
     Commit { owner: Token, ops: Box<[Op]> },
     Get { owner: Token, key: Box<[u8]> },
     Load { owner: Token, range: Range, max: Page },
+    ReadLog { owner: Token, log: u64, at: u64, direction: Direction, max: u32 },
     Close { owner: Token },
 }
 
@@ -19,6 +20,8 @@ pub enum Request {
 pub enum Op {
     Put { key: Box<[u8]>, value: Box<[u8]> },
     Erase { key: Box<[u8]> },
+    Append { log: u64, frame: crate::LogFrame },
+    Drop { log: u64 },
 }
 
 impl Op {
@@ -26,6 +29,9 @@ impl Op {
     pub fn key(&self) -> &[u8] {
         match self {
             Op::Put { key, .. } | Op::Erase { key } => key,
+            Op::Append { .. } | Op::Drop { .. } => {
+                unreachable!("payload ops are translated to extent rows before map operations")
+            }
         }
     }
 }
@@ -91,6 +97,15 @@ pub enum Event {
         rows: Box<[Row]>,
         next: Option<Box<[u8]>>,
     },
+    LogRead {
+        owner: Token,
+        records: Box<[LogRecord]>,
+        next: Option<u64>,
+    },
+    LogUnread {
+        owner: Token,
+        at: u64,
+    },
     Closed {
         owner: Token,
     },
@@ -116,6 +131,7 @@ pub enum Refusal {
     Full(Exhausted),
     Busy,
     Unavailable,
+    Logs,
 }
 
 /// What passed its limit (skein/docs/design/data/kv.md, 2).
@@ -127,6 +143,8 @@ pub enum Large {
     Frame,
     Page,
     Range,
+    Record,
+    Log,
 }
 
 /// What the commit would exhaust (skein/docs/design/data/kv.md, 2).
@@ -142,4 +160,25 @@ pub enum Failure {
     Io,
     Corrupt,
     Full,
+}
+
+/// Payload log traversal (skein/docs/design/data/kv.md, 6.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Direction {
+    Forward,
+    Backward,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct LogRecord {
+    pub at: u64,
+    pub end: u64,
+    pub length: u32,
+    pub record: Option<Box<[u8]>>,
+}
+
+/// The store alone writes rows under this prefix (data/kv.md, 6.1).
+#[derive(Debug)]
+pub struct LogRule {
+    pub prefix: Box<[u8]>,
 }

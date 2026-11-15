@@ -1,4 +1,5 @@
 //! Parties' bounded durable reads and joins (protocol/store/loads.md, 3).
+mod archived;
 mod erasure;
 mod indexed;
 mod joins;
@@ -35,8 +36,8 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
     }
     let mut spent = Spent { rows: range.rows, bytes: range.bytes, joins: store.limits.joins };
     let result = match range.scope {
-        Scope::EndedTasks
-        | Scope::TaskSummaries
+        Scope::EndedTasks => archived::read(store, &range, &mut spent),
+        Scope::TaskSummaries
         | Scope::Retention { .. }
         | Scope::ErasureKeys { .. }
         | Scope::ProposalRemains { .. }
@@ -61,6 +62,9 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
             let result = paged::activity(store, &range, task, &mut spent);
             let result = match result {
                 Ok(Loaded::Page { rows, next }) => {
+                    if crate::view::missing(store) {
+                        return answer(store, owner, Ok(Some(empty())), above);
+                    }
                     crate::transcripts::read::activity(store, owner, rows, next, &range, above, below)
                 }
                 Ok(value) => Ok(Some(value)),

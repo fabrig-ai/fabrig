@@ -64,6 +64,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             let mut translated = List::with_capacity(u32::try_from(writes.len()).ok()?);
             for write in writes {
                 let write = match write {
+                    root::Write::DropHistory { task } => store::Write::DropHistory { task },
                     root::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     root::Write::Wires => store::Write::Wires,
                     root::Write::CopySettingsRevision(number) => {

@@ -69,7 +69,7 @@ fn activity(position: u64, line: w::Activity) -> w::DecodedActivityLine {
         w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: ROLE, position, at: 0, line }).unwrap();
     w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None }).unwrap()
 }
-fn talk_host(open: bool, cost: bool) -> Host {
+pub(super) fn talk_host(open: bool, cost: bool) -> Host {
     talk_fixture(open, cost, false, false)
 }
 #[expect(

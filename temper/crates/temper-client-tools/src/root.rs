@@ -3,17 +3,17 @@ use crate::jig::{self, runner};
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Told};
 use skein_lib::{Env, List, Queue, Time};
-use temper_client_domain::owner::Owner;
+use temper_client_domain_forge::owner::Owner;
 pub(crate) const DIAGNOSTIC_PREFIX: &[u8] = b"temper ctl";
 pub const RUNNER: Owner = Owner::Runner;
 #[derive(Debug)]
 pub struct Limits {
-    pub domain: temper_client_domain::Limits,
+    pub domain: temper_client_domain_forge::Limits,
     pub tools: jig::Limits,
 }
 impl Limits {
     #[must_use]
-    pub fn new(domain: temper_client_domain::Limits, tools: jig::Limits) -> Self {
+    pub fn new(domain: temper_client_domain_forge::Limits, tools: jig::Limits) -> Self {
         Self { domain, tools }
     }
 }
@@ -68,7 +68,7 @@ pub enum Request {
         printed: jig::Printed,
     },
     Fact {
-        fact: temper_client_domain::Fact,
+        fact: temper_client_domain_forge::owner::Fact,
     },
 }
 impl Root {
@@ -500,7 +500,9 @@ fn route_owner(
             crate::drafts::told(&mut root.drafts, &root.client, env, &told, child);
             crate::forge::told(&mut root.adopter, &env.limits, told, child);
         }
-        Some(Owner::Pages) | None => out.push(Request::Fact { fact: temper_client_domain::Fact::UnknownAsker }),
+        Some(Owner::Pages) | None => {
+            out.push(Request::Fact { fact: temper_client_domain_forge::owner::Fact::UnknownAsker });
+        }
     }
     if me_changed {
         crate::push::ready(&mut root.devices, &root.client, env, child);
@@ -599,7 +601,7 @@ impl jig::render::Parts for Parts {
         b"the engine's log names each failure (temper help hold), then "
     }
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook {
-        temper_client_domain::words::phrasebook(text)
+        temper_client_domain_forge::words::phrasebook(text)
     }
     fn release_again_refusal(&self, task: &jig_client::contract::Task) -> Option<&'static [u8]> {
         if task.chip.executor

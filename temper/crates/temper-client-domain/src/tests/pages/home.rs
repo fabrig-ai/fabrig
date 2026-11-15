@@ -1133,7 +1133,7 @@ fn skip_respects_its_page_and_request_bounds() {
 }
 
 fn status_document(f: &mut Fixture, document: &w::ProjectStatus) -> Queue<Request> {
-    up(&mut f.root, Up::FamilyDelivered { watch: f.status, record: crate::tests::status::record(document) })
+    up(&mut f.root, Up::FamilyDelivered { watch: f.status, record: crate::tests::fixtures::status::record(document) })
 }
 fn look_sends(out: &Queue<Request>) -> u32 {
     let expected = forge::status::ask(f::PROJECT, &f::limits().forge).unwrap();
@@ -1219,7 +1219,7 @@ fn a_look_goes_once_when_the_facts_are_delivered() {
         let key = look_key(&f);
         assert_eq!(key.number, serial + 1, "last fact {last} sends one look");
         assert!(f.root.client().pending(key).is_some(), "Pages owns the look key");
-        let document = crate::tests::status::document(3, 1, None);
+        let document = crate::tests::fixtures::status::document(3, 1, None);
         assert_eq!(look_sends(&status_document(&mut f, &document)), 0, "not resent while out");
         assert_eq!(look_sends(&looked(&mut f, key, family_answer(w::Outcome::Looked))), 0);
         assert_eq!(look_sends(&status_document(&mut f, &document)), 0, "not resent after the answer");
@@ -1241,7 +1241,7 @@ fn no_look_goes_while_to_begin_shows() {
     ready(&mut f);
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     assert_eq!(f.root.pages().serial, serial);
-    let document = crate::tests::status::document(3, 1, None);
+    let document = crate::tests::fixtures::status::document(3, 1, None);
     assert_eq!(look_sends(&status_document(&mut f, &document)), 0);
     assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
 }
@@ -1313,7 +1313,7 @@ fn a_refused_watch_leaves_status_unknown() {
         let mut f = enter_skipped();
         let key = look_key(&f);
         looked(&mut f, key, family_answer(w::Outcome::Looked));
-        let document = crate::tests::status::document(3, 1, None);
+        let document = crate::tests::fixtures::status::document(3, 1, None);
         status_document(&mut f, &document);
         assert_eq!(
             home::facts(&f.root, f::PROJECT, Wall::EPOCH).status,
@@ -1336,7 +1336,7 @@ fn status_waits_for_the_looks_answer() {
     for document_first in [true, false] {
         let mut f = enter_skipped();
         let key = look_key(&f);
-        let document = crate::tests::status::document(3, 1, Some(3));
+        let document = crate::tests::fixtures::status::document(3, 1, Some(3));
         if document_first {
             status_document(&mut f, &document);
         }
@@ -1357,7 +1357,7 @@ fn status_waits_for_the_looks_answer() {
             status_document(&mut f, &document);
         }
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
-        let next = crate::tests::status::document(4, 1, Some(4));
+        let next = crate::tests::fixtures::status::document(4, 1, Some(4));
         status_document(&mut f, &next);
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(next)));
         assert_eq!(home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).status, home::Status::Unknown);
@@ -1370,7 +1370,7 @@ fn a_refused_look_still_shows_the_document() {
     {
         let mut f = enter_skipped();
         let key = look_key(&f);
-        let document = crate::tests::status::document(3, 1, None);
+        let document = crate::tests::fixtures::status::document(3, 1, None);
         status_document(&mut f, &document);
         assert_eq!(look_sends(&looked(&mut f, key, answer)), 0);
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
@@ -1381,7 +1381,7 @@ fn landed_since_saturates() {
     let mut facts = home::facts(&fixture().root, f::PROJECT, Wall::EPOCH);
     assert_eq!(facts.landed_since(), 0);
     for (landed, seen, expected) in [(4, 2, 2), (2, 2, 0), (1, 2, 0), (u64::MAX, 0, u64::MAX)] {
-        facts.status = home::Status::Shown(Box::new(crate::tests::status::document(landed, seen, None)));
+        facts.status = home::Status::Shown(Box::new(crate::tests::fixtures::status::document(landed, seen, None)));
         assert_eq!(facts.landed_since(), expected);
     }
 }
@@ -1396,7 +1396,7 @@ fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
         (Some(2), Some(100), false),
         (Some(3), None, true),
     ] {
-        let mut parts = crate::tests::status::document(4, 2, brief).into_parts();
+        let mut parts = crate::tests::fixtures::status::document(4, 2, brief).into_parts();
         parts.previous = previous;
         let document = w::ProjectStatus::new(&w::CEILINGS, parts).unwrap();
         facts.status = home::Status::Shown(Box::new(document.clone()));
@@ -1459,7 +1459,7 @@ fn a_status_document_must_name_this_project() {
     let mut f = enter_skipped();
     let key = look_key(&f);
     looked(&mut f, key, family_answer(w::Outcome::Looked));
-    let document = crate::tests::status::document(3, 1, None);
+    let document = crate::tests::fixtures::status::document(3, 1, None);
     let mut other = document.clone().into_parts();
     other.project = OTHER_PROJECT;
     status_document(&mut f, &w::ProjectStatus::new(&w::CEILINGS, other).unwrap());
@@ -2237,7 +2237,7 @@ fn spell_does_not_require_a_showing_decision() {
         (None, Some(200), 200 + DAY, Some(200), false),
     ] {
         let mut f = fixture();
-        status_document(&mut f, &crate::tests::status::document(9, 2, None));
+        status_document(&mut f, &crate::tests::fixtures::status::document(9, 2, None));
         spell(&mut f, off, until, 3);
         let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall));
         assert!(facts.decided.is_none());
@@ -2304,7 +2304,7 @@ fn landed_is_since_the_rows_count() {
     let mut f = fixture();
     decisions(&mut f, &[decision(1, 100)]);
     assert_eq!(spell_landed(&f), None);
-    status_document(&mut f, &crate::tests::status::document(9, 2, None));
+    status_document(&mut f, &crate::tests::fixtures::status::document(9, 2, None));
     assert_eq!(spell_landed(&f), None);
     spell(&mut f, None, None, 3);
     assert_eq!(spell_landed(&f), Some(6), "uses status even before looked");

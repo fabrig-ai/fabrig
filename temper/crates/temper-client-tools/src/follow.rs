@@ -12,7 +12,7 @@ use crate::{
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Event, Handle, Latest, State, Told, Watchable, Why};
 use skein_lib::{Env, Queue};
-use temper_client_domain::{
+use temper_client_domain_forge::{
     forge::{self, follows},
     owner::Owner,
 };

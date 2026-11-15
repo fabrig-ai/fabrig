@@ -24,7 +24,7 @@ fn a_stopped_owner_holds_its_delegates_and_its_release_resumes_them_and_its_news
     // Nothing acts on the results until B's one release; the person's tour of
     // every owner's work is left out (testing/reference-case.md's 5.2 row).
     let ran = run_cluster_forge(
-        case::PAUSE_WORKERS,
+        case::CASE_5_2_WORKERS,
         &[],
         case::fixture_5_2(),
         case::scripts::step_5_2,

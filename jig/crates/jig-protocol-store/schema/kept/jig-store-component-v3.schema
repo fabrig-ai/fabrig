@@ -33,6 +33,9 @@ versioned record Manifest {
 }
 versioned record Transcript { length: u64 window: u64 }
 versioned record Attempt { first: u64 }
+versioned record HistoryLog { record: option u64 }
+versioned record TurnLog { window: option u64 }
+versioned record LogAttempt { first: u64 }
 versioned record Layouts {
     component: fixed 32
     core: fixed 32

@@ -28,6 +28,10 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[0, 6], "component.registry-layouts"),
     (&[0, 7], "component.registry-texts"),
     (&[0, 8], "component.jobs"),
+    (&[0, 9], "component.logs"),
+    (&[0, 10], "component.histories"),
+    (&[0, 11], "component.turn-logs"),
+    (&[0, 12], "component.log-attempts"),
     (&[1, 0, 0], "core.deployment"),
     (&[1, 0, 1], "core.projections"),
     (&[1, 0, 2], "core.run-proofs"),
@@ -180,4 +184,25 @@ pub fn of_application(bytes: &[u8]) -> Option<&[u8]> {
         return None;
     }
     Some(key)
+}
+
+/// The task whose history log holds this key (protocol/store/logs.md, 2).
+#[must_use]
+pub fn logged(key: &[u8]) -> Option<u64> {
+    let (task, tail) = logged_prefix(key)?;
+    let ended = key.starts_with(&[JIG, 1, 6]);
+    if tail.len() != if ended { 0 } else { 8 } {
+        return None;
+    }
+    Some(task)
+}
+
+/// An interval can start at a family's task prefix, before any row's suffix.
+pub(crate) fn logged_prefix(key: &[u8]) -> Option<(u64, &[u8])> {
+    let ([JIG, 0, 5 | 7, rest @ ..] | [JIG, 1, 6 | 9 | 10 | 11 | 22 | 23, rest @ ..] | [JIG, 0, 6, 0, rest @ ..]) = key
+    else {
+        return None;
+    };
+    let (task, tail) = rest.split_first_chunk::<8>()?;
+    Some((u64::from_be_bytes(*task), tail))
 }

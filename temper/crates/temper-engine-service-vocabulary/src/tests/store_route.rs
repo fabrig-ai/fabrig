@@ -924,7 +924,7 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
         assert!(why.key.is_none());
         route::up(
             &mut routes,
-            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2 },
+            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2, counts: Box::new([]) },
             &mut out,
         );
         assert!(out.is_empty());
@@ -1091,7 +1091,7 @@ fn archive_turn_pages_keep_the_longest_prefix_and_its_exact_resume_key() {
 }
 
 #[test]
-fn a_dropped_transcript_and_decision_erases_reach_the_store() {
+fn bulk_task_drops_and_decision_erases_reach_the_store() {
     let escalation = core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 });
     let proposal = core::Key::Core(core::CoreKey::ProposalDecision {
         proposer: jig_domain_people::Proposer::Party(3),
@@ -1101,6 +1101,7 @@ fn a_dropped_transcript_and_decision_erases_reach_the_store() {
         number: 4,
         writes: Box::new([
             engine::Write::DropTranscript { task: 7 },
+            engine::Write::DropHistory { task: 7 },
             engine::Write::Erase(engine::Key::Core(escalation.clone())),
             engine::Write::Erase(engine::Key::Core(proposal.clone())),
         ]),
@@ -1111,6 +1112,7 @@ fn a_dropped_transcript_and_decision_erases_reach_the_store() {
     assert_eq!(number, 4);
     let [
         store::Write::DropTranscript { task: 7 },
+        store::Write::DropHistory { task: 7 },
         store::Write::Erase(actual_escalation),
         store::Write::Erase(actual_proposal),
     ] = writes.as_ref()

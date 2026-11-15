@@ -144,7 +144,14 @@ fn file_heap(event: &file::Event) -> u64 {
 fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 3], FileLimits) {
     let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
     jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
-    let files = FileLimits { files: 8, read: limits.store.chunk, entries: 32, whole, timeout: limits.store.deadline };
+    // A rehearsal's patch holds deployment/scratch/transcript roots, three directory pairs, and two copy files.
+    let files = FileLimits {
+        files: 11,
+        read: limits.store.chunk.max(limits.store.record.saturating_add(17)),
+        entries: 32,
+        whole,
+        timeout: limits.store.deadline,
+    };
     let drivers = std::array::from_fn(|_| {
         let mut io = FileIo::with_limits(&files).with_effective_user(0);
         assert_eq!(io.adopt_root(root), Some(Token::new(1)));
@@ -416,6 +423,53 @@ impl World {
             after.clone_from(next);
             if after.is_none() {
                 break;
+            }
+        }
+        // Places, not the referee's expected rows, discover task history.
+        for (key, _) in self.retained() {
+            let Some(jig_protocol_store::keys::Own::History { task }) = jig_protocol_store::keys::decode_own(&key)
+            else {
+                continue;
+            };
+            let mut after = None;
+            loop {
+                let events = self.request(Request::Read {
+                    owner: OWNER,
+                    range: core::reads::Range {
+                        party: 0,
+                        scope: core::reads::Scope::TaskOwnRows { task },
+                        after: after.take(),
+                        backwards: false,
+                        rows: self.env.limits.store.page.rows,
+                        bytes: u64::from(self.env.limits.store.page.bytes),
+                    },
+                });
+                let [Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. }] = events.as_slice()
+                else {
+                    panic!("history page: {events:?}")
+                };
+                for row in rows {
+                    let key = jig_protocol_store::keys::encode(&row.value.key(), self.env.limits.store.key)
+                        .expect("history key");
+                    if jig_protocol_store::keys::logged(&key) == Some(task) {
+                        assert!(
+                            restored.rows.insert(row.value.key(), row.value.clone()).is_none(),
+                            "unique history row"
+                        );
+                    }
+                }
+                after.clone_from(next);
+                if after.is_none() {
+                    break;
+                }
+            }
+            let events = self.request(Request::Get {
+                owner: OWNER,
+                key: Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::Ended(task))),
+            });
+            let [Event::Got { row, .. }] = events.as_slice() else { panic!("ended get: {events:?}") };
+            if let Some(Row::Jig(row)) = row {
+                assert!(restored.rows.insert(row.key(), row.clone()).is_none(), "unique ended row");
             }
         }
         for record in restored.rows.values() {

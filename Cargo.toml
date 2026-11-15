@@ -33,6 +33,7 @@ members = [
     "skein/crates/skein-forge-client",
     "skein/crates/skein-forge-connection",
     "skein/crates/skein-forge-setup",
+    "skein/crates/skein-deflate",
     "skein/crates/skein-http",
     "skein/crates/skein-io",
     "skein/crates/skein-json",
@@ -342,6 +343,8 @@ members = [
     "temper/testing/temper-client-view-kit",
     "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
+    "temper/crates/temper-client-domain-forge",
+    "temper/crates/temper-client-domain-pages",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
@@ -484,6 +487,7 @@ skein-codegen = { path = "skein/testing/skein-codegen" }
 skein-channel = { path = "skein/crates/skein-channel" }
 skein-io = { path = "skein/crates/skein-io" }
 skein-kv = { path = "skein/crates/skein-kv" }
+skein-deflate = { path = "skein/crates/skein-deflate" }
 skein-http = { path = "skein/crates/skein-http" }
 skein-json = { path = "skein/crates/skein-json" }
 skein-llm = { path = "skein/crates/skein-llm" }
@@ -729,6 +733,8 @@ temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
+temper-client-domain-forge = { path = "temper/crates/temper-client-domain-forge" }
+temper-client-domain-pages = { path = "temper/crates/temper-client-domain-pages" }
 temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }

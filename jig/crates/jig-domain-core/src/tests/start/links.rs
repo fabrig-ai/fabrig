@@ -636,16 +636,8 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
         ] {
             assert_eq!(core.restore_core(CoreRecord::Projection(row), &env.limits), Restored::Live);
         }
-        if live {
-            unmade(
-                &mut core,
-                &env,
-                Key::Core(crate::CoreKey::Projection(crate::ProjectionKey::Task { goal: 1, task: 2 })),
-                Linked::Record(Key::Tasks(tasks::Key::Live(2))),
-            );
-        } else {
-            linked(link(&mut core, &env));
-        }
+        linked(link(&mut core, &env));
+        assert_eq!(core.projections.get(&1).expect("linked projection").plan.is_empty(), live);
     }
 }
 

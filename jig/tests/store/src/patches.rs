@@ -111,11 +111,12 @@ pub fn limits() -> jig_protocol_store::Limits {
     for map in [&mut limits.store, &mut limits.secrets] {
         map.key = 64;
         map.value = 1024;
-        map.ops = 64;
+        map.ops = 100;
         map.commit = 4096;
         map.queued_bytes = 8192;
         map.chunk = 4096;
         map.page.bytes = 2048;
+        map.record = map.page.bytes;
     }
     limits.secrets.ops = 2;
     limits

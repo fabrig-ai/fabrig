@@ -27,6 +27,9 @@ pub fn component_limits() -> jig_protocol_store::Limits {
         snapshot_after: 4_294_967_295,
         chunk: 16_778_260,
         page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
+        record: 16_778_240,
+        log: 1 << 40,
+        logs: 16,
         deadline: skein_lib::Duration::from_secs(1),
     };
     jig_protocol_store::Limits {
@@ -38,6 +41,7 @@ pub fn component_limits() -> jig_protocol_store::Limits {
         queue: 8,
         files: 8,
         reads: 4,
+        fetch: 16_777_216,
         orphan_erases: 1,
         held: 2,
     }

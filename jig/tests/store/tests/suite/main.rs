@@ -16,6 +16,7 @@ mod in_flight;
 mod installation;
 mod joins;
 mod layout_golden;
+mod map_held;
 mod mark_gate;
 mod openings;
 mod orphan_memory;

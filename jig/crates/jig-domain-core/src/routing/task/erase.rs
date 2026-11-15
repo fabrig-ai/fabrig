@@ -37,7 +37,6 @@ impl Erasures {
 struct Walk {
     select: Select,
     after: Option<u64>,
-    summaries: bool,
     task: Option<Erasing>,
     retention: retention::Pass,
 }
@@ -50,20 +49,19 @@ struct Erasing {
 #[derive(Clone, Copy, Hash, Debug)]
 enum Mode {
     Whole,
-    Remains,
     Record { row: tasks::RetentionRow, whole: bool },
     Forgotten(tasks::RetentionRow),
 }
 impl Mode {
     fn whole(self) -> bool {
         match self {
-            Self::Whole | Self::Remains | Self::Forgotten(_) => true,
+            Self::Whole | Self::Forgotten(_) => true,
             Self::Record { whole, .. } => whole,
         }
     }
     fn scope(self, task: u64) -> reads::Scope {
         match self {
-            Self::Whole | Self::Remains => reads::Scope::TaskRows { task },
+            Self::Whole => reads::Scope::TaskRows { task },
             Self::Record { .. } | Self::Forgotten(_) => reads::Scope::TaskOwnRows { task },
         }
     }
@@ -90,20 +88,16 @@ pub(crate) fn scan(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>,
     begin(core, env, out, select);
 }
 fn begin(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, select: Select) {
-    let walk = Walk { select, after: None, summaries: false, task: None, retention: retention::Pass::new() };
+    let walk = Walk { select, after: None, task: None, retention: retention::Pass::new() };
     next_record(core, env, out, walk);
 }
 fn next_record(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, walk: Walk) {
     match walk.select {
         Select::Retention => retention::next(core, env, out, walk),
         Select::Project(_) => {
-            let scope = if walk.summaries { reads::Scope::TaskSummaries } else { reads::Scope::EndedTasks };
+            let scope = reads::Scope::TaskSummaries;
             let after = match walk.after {
-                Some(task) => Some(reads::Position::Owner(Key::Tasks(if walk.summaries {
-                    tasks::Key::Summary(task)
-                } else {
-                    tasks::Key::Ended(task)
-                }))),
+                Some(task) => Some(reads::Position::Owner(Key::Tasks(tasks::Key::Summary(task)))),
                 None => None,
             };
             core.erasures.walk = Some(walk);
@@ -151,26 +145,10 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: re
             Select::Project(project) => {
                 for row in rows {
                     match row.value {
-                        crate::Record::Tasks(tasks::Stored::Ended(record)) => {
-                            walk.after = Some(record.number);
-                            if record.project == project {
-                                walk.task = Some(Erasing {
-                                    record: Box::new(tasks::TaskSummary::of(&record)),
-                                    mode: Mode::Whole,
-                                    phase: Phase::Rows,
-                                });
-                            }
-                        }
                         crate::Record::Tasks(tasks::Stored::Summary(summary)) => {
                             walk.after = Some(summary.number);
-                            if summary.project == project
-                                && summary.flags.retention == tasks::Retention::ForgottenOnceRead
-                            {
-                                // A Seen may have removed only the record; deletion takes its remains too.
-                                walk.task = Some(Erasing { record: summary, mode: Mode::Remains, phase: Phase::Rows });
-                            } else if summary.project == project {
-                                erase_ended_indexes(&summary, &mut out);
-                                out.push(Request::Write(Write::Erase(Key::Tasks(tasks::Key::Summary(summary.number)))));
+                            if summary.project == project {
+                                walk.task = Some(Erasing { record: summary, mode: Mode::Whole, phase: Phase::Rows });
                             }
                         }
                         crate::Record::Tasks(_)
@@ -183,10 +161,6 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: re
                 if walk.task.is_some() {
                     own_rows(core, env, &mut out, walk, None);
                 } else if next.is_some() {
-                    next_record(core, env, &mut out, walk);
-                } else if !walk.summaries {
-                    walk.summaries = true;
-                    walk.after = None;
                     next_record(core, env, &mut out, walk);
                 } else {
                     finish(core, env, &mut out, walk.select);
@@ -238,6 +212,7 @@ fn task_rows(
         }
         Phase::Record => {
             assert!(rows.is_empty() && next.is_none(), "rows gone before owner");
+            out.push(Request::Write(Write::DropHistory { task: number }));
             if let Mode::Whole | Mode::Record { .. } = task.mode {
                 out.push(Request::Write(Write::Erase(Key::Tasks(tasks::Key::Ended(number)))));
                 unname(core, number, out);
@@ -246,7 +221,7 @@ fn task_rows(
                 out.push(Request::Write(Write::Erase(Key::Tasks(tasks::Key::Summary(number)))));
             }
             match task.mode {
-                Mode::Whole | Mode::Remains => {}
+                Mode::Whole => {}
                 Mode::Record { row, whole } => {
                     retention::move_row(out, row, if whole { None } else { Some(tasks::RetentionStage::Summary) });
                 }

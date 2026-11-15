@@ -2,6 +2,7 @@
 pub(crate) mod cut;
 pub(crate) mod drop;
 pub mod frame;
+pub(crate) mod log;
 pub(crate) mod patches;
 pub(crate) mod read;
 pub(crate) mod write;
@@ -25,6 +26,12 @@ pub(crate) struct Pending {
 pub(crate) struct Place {
     pub number: u64,
     pub row: codec::component::Transcript,
+}
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LogPlace {
+    pub number: u64,
+    pub end: u64,
+    pub row: codec::component::TurnLog,
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct File {
@@ -54,6 +61,7 @@ pub(crate) struct State {
     pub current: Option<Pending>,
     pub frame: Option<Frame>,
     pub places: Map<u64, Place>,
+    pub logs: Map<u64, LogPlace>,
     pub attempts: Map<(u64, u64), u64>,
     pub files: Map<u64, File>,
     pub stage: Stage,
@@ -73,6 +81,7 @@ impl State {
             current: None,
             frame: None,
             places: Map::with_capacity(count),
+            logs: Map::with_capacity(count),
             attempts: Map::with_capacity(count),
             files: Map::with_capacity(limits.files),
             stage: Stage::Idle,
@@ -127,6 +136,7 @@ pub(crate) fn place(
     Ok(offset)
 }
 pub(crate) fn committed(store: &mut Store, number: u64) {
+    log::committed(store, number);
     let mut tasks = List::with_capacity(store.transcripts.places.len());
     for (task, place) in &store.transcripts.places {
         if place.number <= number {

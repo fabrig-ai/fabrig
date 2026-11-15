@@ -510,3 +510,9 @@ pub(super) fn read_failed(
     crate::refusal::read(out, pending.task, operation, row.repository, &read, error);
     true
 }
+
+/// Replace the full union without changing any task's names.
+pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let watches = plan(d, &env.limits, u64::MAX, &[]).expect("a smaller watch union fits");
+    child(d, env, skein_forge_client::Event::Keep { owner: Token::new(u64::MAX), watches }, out);
+}

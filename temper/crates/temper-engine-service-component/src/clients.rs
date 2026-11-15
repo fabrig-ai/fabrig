@@ -797,7 +797,8 @@ impl Clients {
                         self.endings.ended(number, sign_in);
                     }
                 }
-                root::Write::DropTranscript { .. }
+                root::Write::DropHistory { .. }
+                | root::Write::DropTranscript { .. }
                 | root::Write::Wires
                 | root::Write::Opening(_)
                 | root::Write::CopySettingsRevision(_)

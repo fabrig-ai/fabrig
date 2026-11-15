@@ -234,21 +234,33 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     world.crash(SEED);
     let (path, bytes) = before
         .iter()
-        .find(|(path, bytes)| path.starts_with(b"transcripts/") && bytes.is_some())
-        .expect("committed transcript");
+        .find(|(path, bytes)| path.starts_with(b"generations/1/store/logs/") && bytes.is_some())
+        .expect("committed turns log");
     let mut tail = bytes.as_ref().expect("transcript bytes").clone();
     tail.extend_from_slice(b"uncommitted tail");
     world.rewrite(path, &tail);
     let events = world.back();
-    assert_eq!(world.contents().get(path).and_then(Option::as_ref), Some(&tail), "Back does not cut transcripts");
+    assert_eq!(world.contents().get(path).and_then(Option::as_ref), Some(&tail), "Back does not cut turns logs");
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
     world.patch_sets(patches::FRESH_BEFORE);
     world.open().expect("previous generation opens");
-    for (path, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"transcripts/")) {
-        assert_eq!(world.contents().get(path), Some(bytes), "previous transcript length");
+    for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
+        if name == path {
+            assert_eq!(
+                world.contents().get(name).and_then(Option::as_ref),
+                Some(&tail),
+                "past the extent stays garbage"
+            );
+        } else {
+            assert_eq!(world.contents().get(name), Some(bytes), "previous turns log");
+        }
     }
+    let turns =
+        world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
+    let stored = patches::fixture_turn(1, patches::FRESH_SAID, patches::FRESH_REPLAY, 0);
+    assert_eq!(turns, [root::turn(root::LIVE, 1, 1, &stored), root::turn(root::LIVE, 1, 2, &stored)]);
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
 }
 

@@ -1,7 +1,9 @@
 name: Gate
 # The landing's gate under `by: turn`: dispatched by temper alone, at a
 # landing's candidate, with the round's base. What it runs is the runner
-# host's `$CI_GATE`, the same as ci.yml's.
+# host's `$CI_GATE`, the same as ci.yml's. temper also dispatches it at a
+# search's probes, with `temper_probe` `yes`, given to `$CI_GATE` as
+# `CI_GATE_PROBE` so that it may stop at its first red.
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +14,9 @@ on:
       temper_base:
         required: false
         default: ""
+      temper_probe:
+        required: false
+        default: ""
 jobs:
   gate:
     runs-on: dogfood
@@ -19,6 +24,7 @@ jobs:
       - run: '"$CI_GATE" "${{ inputs.temper_commit }}" "${{ inputs.temper_base }}"'
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_GATE_PROBE: ${{ inputs.temper_probe }}
       - uses: actions/upload-artifact@v3
         if: always()
         with:

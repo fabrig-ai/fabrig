@@ -21,10 +21,13 @@ fn current_frame_sizing_includes_metadata_and_wrapper_and_rejects_codec_excess()
     let mut turn = fixtures::turn(fixtures::LIVE, 1, 1, b"tiny");
     turn.read = Some(1);
     let bytes = frame::encode(&turn, &fixtures::codec_limits()).expect("tiny current frame");
-    assert_eq!(crate::sizes::frame(&domain, 4), Some(u32::try_from(bytes.len()).expect("tiny frame length")));
+    assert_eq!(
+        crate::sizes::frame(&domain, 4),
+        Some(u32::try_from(bytes.len()).expect("tiny frame length").checked_add(5).expect("log framing"))
+    );
     assert_eq!(bytes.len(), 68);
     let ceiling = crate::core_v6::CEILINGS.turn_record_transcript;
-    assert_eq!(crate::sizes::frame(&domain, ceiling), ceiling.checked_add(64));
+    assert_eq!(crate::sizes::frame(&domain, ceiling), ceiling.checked_add(69));
     assert_eq!(crate::sizes::frame(&domain, ceiling.checked_add(1).expect("one past codec ceiling")), None);
     assert_eq!(crate::sizes::frame(&domain, u32::MAX), None);
 }

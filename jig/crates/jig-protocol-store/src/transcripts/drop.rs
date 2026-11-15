@@ -13,6 +13,7 @@ struct Orphan {
     task: u64,
     after: Option<u64>,
     through: u64,
+    log: bool,
 }
 #[derive(Debug)]
 enum Step {
@@ -40,7 +41,7 @@ fn capacity(limits: &Limits) -> Option<u32> {
     // Each task needs at least one 18-byte attempt key in the map or a reservation.
     u32::try_from(limits.store.budget.checked_div(18)?).ok()?.checked_add(super::reservation_count(limits)?)
 }
-fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Option<keys::Own>, CommitCheck> {
+fn attempt_key(store: &mut Store, task: u64, after: Option<u64>, log: bool) -> Result<Option<keys::Own>, CommitCheck> {
     let first = match after {
         Some(last) => match last.checked_add(1) {
             Some(next) => next,
@@ -48,12 +49,19 @@ fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Optio
         },
         None => 0,
     };
-    let start = keys::encode_own(&keys::Own::Attempt { task, attempt: first }, store.limits.store.key)
-        .ok_or(CommitCheck::Encoding)?;
+    let own =
+        if log { keys::Own::LogAttempt { task, attempt: first } } else { keys::Own::Attempt { task, attempt: first } };
+    let start = keys::encode_own(&own, store.limits.store.key).ok_or(CommitCheck::Encoding)?;
     let end = match task.checked_add(1) {
-        Some(next) => keys::encode_own(&keys::Own::Attempt { task: next, attempt: 0 }, store.limits.store.key)
-            .ok_or(CommitCheck::Encoding)?,
-        None => Box::new([keys::COMPONENT, 3]),
+        Some(next) => {
+            let own = if log {
+                keys::Own::LogAttempt { task: next, attempt: 0 }
+            } else {
+                keys::Own::Attempt { task: next, attempt: 0 }
+            };
+            keys::encode_own(&own, store.limits.store.key).ok_or(CommitCheck::Encoding)?
+        }
+        None => Box::new([keys::COMPONENT, if log { 13 } else { 3 }]),
     };
     let page = pages::load(store, skein_kv::Range { start, end: Some(end) }).or(Err(CommitCheck::Reads))?;
     let Some(row) = page.rows.into_iter().next() else {
@@ -62,8 +70,12 @@ fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Optio
     Ok(Some(keys::decode_own(&row.key).ok_or(CommitCheck::Reads)?))
 }
 pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Result<(), CommitCheck> {
+    queue_source(store, task, through, false)?;
+    queue_source(store, task, through, true)
+}
+fn queue_source(store: &mut Store, task: u64, through: u64, log: bool) -> Result<(), CommitCheck> {
     for orphan in &store.transcripts.drop.orphans {
-        if orphan.task == task {
+        if orphan.task == task && orphan.log == log {
             return Ok(());
         }
     }
@@ -74,10 +86,10 @@ pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Result<(), Co
             break;
         }
     }
-    if !pending && attempt_key(store, task, None)?.is_none() {
+    if !pending && attempt_key(store, task, None, log)?.is_none() {
         return Ok(());
     }
-    store.transcripts.drop.orphans.push(Orphan { task, after: None, through });
+    store.transcripts.drop.orphans.push(Orphan { task, after: None, through, log });
     Ok(())
 }
 pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<(), CommitCheck> {
@@ -87,20 +99,22 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<
             store.transcripts.drop.orphans.push(orphan);
             break;
         }
-        match attempt_key(store, orphan.task, orphan.after)? {
-            Some(key @ keys::Own::Attempt { task, attempt }) => {
+        match attempt_key(store, orphan.task, orphan.after, orphan.log)? {
+            Some(key @ (keys::Own::Attempt { task, attempt } | keys::Own::LogAttempt { task, attempt })) => {
                 if task != orphan.task {
                     return Err(CommitCheck::Reads);
                 }
                 let key = keys::encode_own(&key, store.limits.store.key).ok_or(CommitCheck::Encoding)?;
                 ops.push(skein_kv::Op::Erase { key }).or(Err(CommitCheck::Capacity))?;
                 orphan.after = Some(attempt);
-                if attempt_key(store, orphan.task, orphan.after)?.is_some() {
+                if attempt_key(store, orphan.task, orphan.after, orphan.log)?.is_some() {
                     store.transcripts.drop.orphans.push(orphan);
                 }
             }
             Some(
-                keys::Own::Format
+                keys::Own::History { .. }
+                | keys::Own::TurnLog { .. }
+                | keys::Own::Format
                 | keys::Own::Layouts
                 | keys::Own::Wires
                 | keys::Own::Opening(_)
@@ -117,17 +131,26 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<
     Ok(())
 }
 pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
-    let mut start: Box<[u8]> = Box::new([keys::COMPONENT, 2]);
+    restore_source(store, false)?;
+    restore_source(store, true)
+}
+fn restore_source(store: &mut Store, log: bool) -> Result<(), ()> {
+    let mut start: Box<[u8]> = Box::new([keys::COMPONENT, if log { 12 } else { 2 }]);
     for _ in 0..=capacity(&store.limits).ok_or(())? {
-        let page =
-            pages::load(store, skein_kv::Range { start, end: Some(Box::new([keys::COMPONENT, 3])) }).or(Err(()))?;
+        let page = pages::load(
+            store,
+            skein_kv::Range { start, end: Some(Box::new([keys::COMPONENT, if log { 13 } else { 3 }])) },
+        )
+        .or(Err(()))?;
         let Some(row) = page.rows.into_iter().next() else {
             return Ok(());
         };
         let key = keys::decode_own(&row.key).ok_or(())?;
         let task = match key {
-            keys::Own::Attempt { task, .. } => task,
-            keys::Own::Format
+            keys::Own::Attempt { task, .. } | keys::Own::LogAttempt { task, .. } => task,
+            keys::Own::History { .. }
+            | keys::Own::TurnLog { .. }
+            | keys::Own::Format
             | keys::Own::Layouts
             | keys::Own::Wires
             | keys::Own::Opening(_)
@@ -136,12 +159,21 @@ pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
             | keys::Own::Text(_)
             | keys::Own::Transcript { .. } => return Err(()),
         };
-        let place = keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key).ok_or(())?;
+        let own = if log { keys::Own::TurnLog { task } } else { keys::Own::Transcript { task } };
+        let place = keys::encode_own(&own, store.limits.store.key).ok_or(())?;
         let Ok(place) = open::get(store, OWNER, place) else {
             return Err(());
         };
-        if place.is_none() {
-            queue(store, task, 0).or(Err(()))?;
+        let extent = if log {
+            match crate::logs::turns(task) {
+                Some(log) => open::get(store, OWNER, crate::logs::extent_key(log)).or(Err(()))?,
+                None => None,
+            }
+        } else {
+            None
+        };
+        if place.is_none() && extent.is_none() {
+            queue_source(store, task, 0, log).or(Err(()))?;
         }
         start = pages::past(&row.key).ok_or(())?;
     }

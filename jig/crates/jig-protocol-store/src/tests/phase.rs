@@ -32,6 +32,7 @@ mod live_task_parts;
 mod milestones;
 mod projection_parts;
 mod registry;
+mod task_logs;
 mod value_types;
 
 const CHUNK: u32 = 4096;
@@ -223,7 +224,7 @@ fn trace(driver: usize, request: &file::Request) -> Trace {
         file::Request::Store { path, .. } => Trace::Store(path.clone()),
         file::Request::Load { path, .. } => Trace::Load(path.clone()),
         file::Request::Cut { .. } => Trace::Cut,
-        file::Request::Remove { name, .. } => Trace::Remove(name.clone()),
+        file::Request::Remove { name, .. } | file::Request::RemoveIn { name, .. } => Trace::Remove(name.clone()),
         _ => Trace::Other,
     }
 }

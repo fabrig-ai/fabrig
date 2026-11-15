@@ -58,6 +58,9 @@ impl Store {
         }
         for op in ops {
             let key = match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, .. } | skein_kv::Op::Erase { key } => key,
             };
             if snapshot && generation.touched.get(key.as_ref()).is_some_and(|written| *written > number) {
@@ -67,6 +70,9 @@ impl Store {
                 generation.touched.insert(key.to_vec(), number);
             }
             match op {
+                skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
+                    unreachable!("decoded commit frames contain map operations")
+                }
                 skein_kv::Op::Put { key, value } => {
                     generation.rows.insert(key.to_vec(), value.to_vec());
                 }
@@ -178,10 +184,11 @@ impl Store {
                 files: self
                     .files
                     .iter()
-                    .filter(|(path, _)| path.starts_with(b"transcripts/"))
+                    .filter(|(path, _)| path.starts_with(b"transcripts/") || super::history::is_payload(path))
                     .map(|(path, bytes)| (path.clone(), bytes.clone()))
                     .collect(),
                 restoring: true,
+                active: self.active.clone(),
                 layouts: source_layouts,
                 ..Store::default()
             };

@@ -84,7 +84,12 @@ Each list has one entry per line; `#` starts a comment line.
   selecting the packages a change reaches runs these too. The branch adding such
   a test adds its package; adding a line runs that package's tests for every change.
   A line `PACKAGE PATH-PREFIX` runs them only for a change to a path that starts with
-  the prefix, as written: for a test whose reads all lie under it.
+  the prefix, as written: for a test whose reads all lie under it. The delivery
+  check reads the list too (`tools/pre-pr/design.md`, 3): a line without a prefix
+  is a boundary package, whose focused and fuzzy tests run, with
+  `fabrig-boundary`'s, for every delivery that selects a check, a docs-only one
+  included; a prefixed line adds its package where a changed code input starts
+  with the prefix.
 - **`.config/gate/read-by-tests.txt`:** checkout-root globs of the inputs, under
   `docs/` (any format) or elsewhere, that tests compile in or read (`AGENTS.md`, 2).
   A matching change changes test inputs and runs their tests as for code; Markdown,

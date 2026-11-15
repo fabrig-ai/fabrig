@@ -828,6 +828,8 @@ pub struct WorkerOpening {
 pub enum Write {
     /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
     DropTranscript { task: u64 },
+    /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
+    DropHistory { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
     /// A worker's accepted statement since the start's wires (protocol/wires.md, 10.1).
@@ -849,6 +851,11 @@ impl Write {
             Write::CopySettingsRevision(number) => Key::Core(jig_domain_core::Key::Core(
                 jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
             )),
+            // Revision zero is outside task history's numbered revisions, so the
+            // bulk drop cannot replace the ended-record erase in this decision.
+            Write::DropHistory { task } => {
+                Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::History { task: *task, revision: 0 }))
+            }
             Write::DropTranscript { task } => Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
                 task: *task,
                 attempt: 0,
@@ -1134,7 +1141,7 @@ fn note_entry_bytes(entry: &jig_domain_notes::Entry) -> Option<u64> {
 pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
     match write {
         Write::CopySettingsRevision(_) => u64::try_from(size_of::<u32>()).ok(), // The store copies the payload; only the number crosses this boundary.
-        Write::DropTranscript { .. } => Some(8),
+        Write::DropHistory { .. } | Write::DropTranscript { .. } => Some(8),
         Write::Opening(opening) => {
             let mut bytes = skein_lib::len_u64(opening.worker.len())
                 .checked_add(
