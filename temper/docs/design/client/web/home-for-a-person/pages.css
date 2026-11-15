@@ -1,0 +1,38 @@
+/* Milestones, for the mockups alone: the strip, the tag, the card's marks. */
+#app > .temper-work-page .temper-work-headline { font-size: 32px; line-height: 1.25; font-weight: 500; letter-spacing: -.02em; }
+@media (max-width: 760px) { #app > .temper-work-page .temper-work-headline { font-size: 25px; line-height: 1.3; } }
+#app .temper-ms-strip { display: flex; gap: 3px; margin: 4px 0 2px; }
+#app .temper-ms-strip > i { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font: 10.5px/1 var(--gf-mono); font-style: normal; color: var(--gf-faint); }
+#app .temper-ms-strip > i::before { content: ''; height: 6px; border-radius: 3px; background: var(--gf-line); }
+#app .temper-ms-strip > i > b { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+#app .temper-ms-strip > i[data-s=landed]::before { background: var(--gf-ink); }
+#app .temper-ms-strip > i[data-s=live]::before { background: var(--gf-goal-running); }
+#app .temper-ms-strip > i[data-s=needs]::before { background: var(--gf-signal); }
+#app .temper-ms-strip > i[data-s=waits]::before { background: transparent; box-shadow: inset 0 0 0 1px var(--gf-line-2); }
+#app .temper-ms-strip > i[data-s=room]::before { background: repeating-linear-gradient(135deg, var(--gf-line-2) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--gf-line-2); }
+#app .temper-ms-strip > i:is([data-s=live], [data-s=needs]) > b { color: var(--gf-ink); }
+#app .temper-ms-strip > i[data-s=needs] > b { color: var(--gf-signal); }
+#app > .temper-home .temper-ms-row .temper-ms-strip { margin: 6px 0 4px; }
+#app .temper-ms-tag { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 4px; background: var(--gf-ink); color: var(--gf-paper); font: 500 11px/1.7 var(--gf-sans); letter-spacing: .02em; }
+#app .temper-goals-top > span:first-child { color: var(--gf-ink-2); }
+.temper-work-milestone { display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px; border-radius: 5px; font-weight: 500; white-space: nowrap; background: var(--gf-ink); color: var(--gf-paper); }
+.temper-ms-card .temper-ms-strip { margin: 2px 0 0; }
+.temper-ms-mark { font: 13px/1.6 var(--gf-mono); color: var(--gf-faint); }
+.temper-ms-landed .temper-ms-mark { color: var(--gf-good); }
+.temper-ms-live .temper-ms-mark { color: var(--gf-goal-running); }
+.temper-ms-live > a { font-weight: 500; }
+.temper-ms-waits > a { color: var(--gf-muted) !important; }
+.temper-ms-fold { margin: 0; font-size: 13px; color: var(--gf-muted); }
+.temper-ms-fold > summary { cursor: pointer; width: fit-content; padding: 6px 0 2px; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+.temper-ms-change { padding: 6px 0 !important; font-size: 13.5px !important; }
+.temper-ms-change > a { padding-left: 18px; color: var(--gf-ink-2) !important; }
+.temper-ms-change .temper-ms-mark { visibility: hidden; }
+.temper-ms-done > a { font-weight: 500; }
+.temper-ms-done > a::before { content: 'milestone'; display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 4px; background: var(--gf-ink); color: var(--gf-paper); font: 500 11px/1.7 var(--gf-sans); vertical-align: 1px; }
+.temper-ms-goal { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--gf-line); }
+.temper-ms-goal .temper-goal-line a { color: var(--gf-ink); text-decoration: none; }
+.temper-ms-goal .temper-goal-line a:hover { text-decoration: underline; }
+.temper-goal-report .temper-goal-landed-fold > .temper-ms-goal:first-of-type { margin-top: 6px; }
+.temper-ms-from { color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+.temper-ms-notes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.6; }
+.temper-ms-notes b { font-weight: 600; }
