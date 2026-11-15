@@ -2,13 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "A repair" and "A resolution": the preservation words
-  yield to nothing, and a repair's and a resolution's words carry
-  neither the change's request as revised nor the answers given on it
-  [in flight: change 3753].
-- **Not yet:** "A resolution": the shared coding charter's preservation
-  line has no proviso for the request as revised and its answers
-  [in flight: change 3754].
 
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).

@@ -7,10 +7,6 @@
   answers its requester's words with the fallback feedback whatever its
   producer, and keeps no words to pass on its record [in flight: change
   3544].
-- **Not yet:** 1, *Its answers, kept for later work* and *What later work
-  is told*: a change keeps no answer once relayed, and its later
-  reviews, repairs and resolutions carry neither its answers nor its
-  request as revised [in flight: change 3753].
 - **Not yet:** 1, *Passed up*: a requester's run that reads the change's
   question and ends without answering leaves later runs no sight of it,
   and the requester idle with it [in flight: change 838].
