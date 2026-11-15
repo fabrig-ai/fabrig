@@ -12,6 +12,7 @@ use skein_throwaway_forgejo::Exchange;
 use std::{path::Path, time::Duration};
 
 mod actions;
+mod artifacts;
 mod git;
 const REPO: &str = "/api/v1/repos/fixture/turn";
 
@@ -68,12 +69,14 @@ pub(crate) fn record(f: &Fixture, out: &Path, mask: &mut Mask, secrets: &mut Sec
     let mut p = Probe { recorder: Recorder { f, out, mask, secrets }, facts: Vec::new() };
     git::record(&mut p)?;
     actions::record(&mut p)?;
+    artifacts::record(&mut p)?;
     Ok(p.facts)
 }
 
 pub(crate) fn unchecked() -> Vec<Fact> {
     NAMES
         .iter()
+        .chain(artifacts::NAMES)
         .map(|name| Fact { name, outcome: crate::facts::Outcome::Unchecked("--runner not supplied".into()) })
         .collect()
 }
@@ -108,5 +111,7 @@ const NAMES: &[&str] = &[
     "actions-dispatch-run-jobs-list-both-outcomes",
     "actions-dispatch-job-steps-setup-first-completion-last",
     "actions-dispatch-input-reaches-job-log",
+    "actions-dispatch-multiline-input-reaches-job-log",
+    "actions-dispatch-undeclared-input-is-ignored",
     "actions-runs-filter-workflow-and-head-newest-first",
 ];

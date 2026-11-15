@@ -10,8 +10,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut create_repository = false;
     let mut admin_scopes = false;
     let mut migrate = false;
+    let mut dispatch_inputs = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
+        if arg == "--dispatch-inputs" {
+            dispatch_inputs = true;
+            continue;
+        }
         if arg == "--migrate" {
             migrate = true;
             continue;
@@ -40,7 +45,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let forgejo = forgejo.ok_or("--forgejo required")?;
     let scratch = scratch.ok_or("--scratch required")?;
     let out = out.ok_or("--out required")?;
-    if migrate {
+    if dispatch_inputs {
+        forgejo_conformance::dispatch_inputs(&forgejo, &runner.ok_or("--runner required")?, &scratch, &out)
+    } else if migrate {
         forgejo_conformance::migrate::run(&forgejo, runner.as_deref(), &scratch, &out)
     } else if admin_scopes {
         forgejo_conformance::admin_scopes::run(&forgejo, &scratch, &out)
