@@ -5073,6 +5073,7 @@ dependencies = [
 name = "smith-protocol-llm"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-io",
  "skein-json",
  "skein-lib",
