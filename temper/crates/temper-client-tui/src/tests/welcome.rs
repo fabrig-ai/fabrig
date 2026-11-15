@@ -494,6 +494,324 @@ fn the_welcomes_are_their_goldens() {
     goldens::check(&rows);
 }
 
+fn starting_tui() -> Tui {
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Front { set_up: true, box_log: b"/srv/temper/box/logs/box.log".as_slice().into() });
+    tui.step(Told::Local { local: Local::Signing });
+    tui.header(false, b"0.0.0 (b948f40d6df1)".as_slice().into());
+    tui
+}
+fn starting_root(live: bool) -> Domain {
+    use jig_client_protocol_wire::{self as j, SignInAnswer};
+    if live {
+        return f::live(None).0;
+    }
+    let (mut root, exchange) = f::asking();
+    f::answer(
+        &mut root,
+        exchange,
+        SignInAnswer::SignedIn(
+            j::SignedIn::new(
+                &j::CEILINGS,
+                j::SignedInParts { token: Some(Secret::new(Box::new([7; 40]))), party: 73, expires: 600_000_000_000 },
+            )
+            .unwrap(),
+        ),
+    );
+    assert!(root.pages().me(root.client()).is_none());
+    root
+}
+#[test]
+#[expect(clippy::large_stack_arrays, reason = "the fact rows own a client root each")]
+#[expect(clippy::disallowed_methods, reason = "the test reads validated quiet-line text as UTF-8")]
+#[expect(clippy::too_many_lines, reason = "one fact table checks the starting steps, tokens, failure and quiet line")]
+fn the_starting_steps_follow_the_facts() {
+    use crate::BoxStage;
+    use jig_client_protocol_wire::SignInAnswer;
+    let (mut offline, watch) = f::live(None);
+    f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
+    let rows = [
+        (
+            BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
+            f::signed_out(),
+            [
+                "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
+                "temper starting",
+                "Signing in",
+                "Your projects",
+            ],
+            [look::STEP_NOW, look::STEP_AHEAD, look::STEP_AHEAD, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            f::signed_out(),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper starting…",
+                "Signing in",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            f::refused(SignInAnswer::NotReady),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper starting…",
+                "Signing in",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            f::refused(SignInAnswer::Busy),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper starting…",
+                "Signing in",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            f::refused(SignInAnswer::LinkUsed),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper started",
+                "Signing in…",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            starting_root(false),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper started",
+                "Signing in…",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            offline,
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper started",
+                "Signing in…",
+                "Your projects",
+            ],
+            [look::STEP_DONE, look::STEP_DONE, look::STEP_NOW, look::STEP_AHEAD],
+        ),
+        (
+            BoxStage::Running,
+            starting_root(true),
+            [
+                "The box started · its log in /srv/temper/box/logs/box.log",
+                "temper started",
+                "Signed in",
+                "Your projects…",
+            ],
+            [look::STEP_DONE, look::STEP_DONE, look::STEP_DONE, look::STEP_NOW],
+        ),
+    ];
+    for (stage, root, labels, marks) in rows {
+        let mut tui = starting_tui();
+        tui.step(Told::Stage { stage });
+        tui.step(Told::BoxLine { line: BoxLine::Starting { name: b"Forgejo".as_slice().into() } });
+        tui.step(Told::BoxLine { line: BoxLine::Log { line: b"00:00:00Z Not on the quiet line".as_slice().into() } });
+        let view = build(&root, &tui);
+        let tree = view.tree();
+        assert_eq!(f::find(tree, Role::Paragraph, b"Starting temper").styles.as_slice(), &[look::HEAD]);
+        assert_eq!(
+            f::find(tree, Role::Paragraph, b"This screen follows the box as it starts. /log shows its log.")
+                .styles
+                .as_slice(),
+            &[look::HINT]
+        );
+        let mut steps = List::with_capacity(4);
+        for node in tree.nodes() {
+            if node.role == Role::Item {
+                steps.push(node).unwrap();
+            }
+        }
+        assert_eq!(steps.len(), 4);
+        for ((node, label), mark) in steps.iter().zip(labels).zip(marks) {
+            assert_eq!(
+                f::text(tree, node).as_ref(),
+                label.as_bytes(),
+                "stage {:?}, link {:?}",
+                tui.box_stage(),
+                root.client().link().state
+            );
+            assert_eq!(node.styles.as_slice(), &[mark], "{label}");
+        }
+        if tui.box_stage() == &BoxStage::Running {
+            assert_eq!(
+                f::find(tree, Role::Text, " · its log in /srv/temper/box/logs/box.log".as_bytes()).styles.as_slice(),
+                &[look::HINT]
+            );
+        }
+        let mut bottom = None;
+        for node in tree.nodes() {
+            if node.region == Some(look::BOTTOM) {
+                bottom = Some(node);
+            }
+        }
+        let line = f::text(tree, bottom.unwrap());
+        let line = core::str::from_utf8(&line).unwrap();
+        assert!(line.contains("● Connecting"));
+        assert!(line.contains("Forgejo starting…"));
+        assert!(!line.contains("Not on the quiet line"));
+        assert!(!line.contains("Downloading"));
+        super::limits::fits(tree, &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+    }
+    let mut tui = starting_tui();
+    tui.step(Told::Stage { stage: BoxStage::Failed { why: b"fetch failed".as_slice().into() } });
+    let root = f::signed_out();
+    let view = build(&root, &tui);
+    let tree = view.tree();
+    let failed = body(tree);
+    let expected = [
+        b"Starting temper".as_slice(),
+        b"temper-box could not start: fetch failed",
+        b"Ctrl+C closes; temper then says what to do.",
+        b"temper starting",
+        b"Signing in",
+        b"Your projects",
+    ];
+    assert_eq!(failed.len(), u32::try_from(expected.len()).unwrap());
+    for (line, expected) in failed.iter().zip(expected) {
+        assert_eq!(line.as_ref(), expected);
+    }
+    assert_eq!(
+        f::find(tree, Role::Paragraph, b"temper-box could not start: fetch failed").styles.as_slice(),
+        &[look::REFUSED]
+    );
+    assert_eq!(
+        f::find(tree, Role::Paragraph, b"Ctrl+C closes; temper then says what to do.").styles.as_slice(),
+        &[look::HINT]
+    );
+    for node in tree.nodes() {
+        if node.role == Role::Item {
+            assert_eq!(node.styles.as_slice(), &[look::STEP_AHEAD]);
+        }
+    }
+}
+
+#[test]
+fn the_starting_screen_gives_way_once() {
+    let root = f::signed_out();
+    let mut tui = starting_tui();
+    assert!(crate::view::starting::shown(&root, &tui));
+    assert!(!crate::view::welcome::shown(&root, &tui));
+    tui.step(Told::Front { set_up: false, box_log: Box::default() });
+    assert!(!crate::view::starting::shown(&root, &tui));
+    assert!(crate::view::welcome::shown(&root, &tui));
+    tui.step(Told::Front { set_up: true, box_log: Box::default() });
+    tui.step(Told::Local { local: Local::Ended });
+    assert!(crate::sign_in_drawn(&root, &tui));
+    assert!(!crate::view::starting::shown(&root, &tui));
+    tui.step(Told::Local { local: Local::Signing });
+    let (mut stale, _) = f::starting();
+    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+    assert!(!crate::view::starting::shown(&stale, &tui));
+    assert!(crate::view::welcome::shown(&stale, &tui));
+    let cases: [&[&[u8]]; 2] = [&[], &[b"project"]];
+    for projects in cases {
+        let mut tui = starting_tui();
+        let (mut live, _) = f::live(Some(f::me(projects)));
+        assert!(!crate::view::starting::shown(&live, &tui));
+        assert_eq!(crate::view::welcome::shown(&live, &tui), projects.is_empty());
+        tui.step(Told::MeRead);
+        let revision = tui.revision();
+        tui.step(Told::MeRead);
+        assert_eq!(tui.revision(), revision);
+        f::client(&mut live, jig_client::Event::Unwatch { handle: d::pages::me_handle() });
+        assert!(live.pages().me(live.client()).is_none());
+        assert!(!crate::view::starting::shown(&live, &tui));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test reads the rendered frame as UTF-8")]
+fn the_starting_path_is_lossy_whole_and_wrapped() {
+    let root = f::signed_out();
+    let mut tui = starting_tui();
+    let path = b"/srv/temper/a-long-directory/another-long-directory/box/logs/box-\xff.log";
+    tui.step(Told::Front { set_up: true, box_log: path.as_slice().into() });
+    tui.step(Told::Stage { stage: crate::BoxStage::Running });
+    let view = build(&root, &tui);
+    let detail = " · its log in /srv/temper/a-long-directory/another-long-directory/box/logs/box-�.log";
+    f::find(view.tree(), Role::Text, detail.as_bytes());
+    let size = skein_ui_screen::Size { columns: 40, rows: 24 };
+    let mut frame = skein_ui_screen::Frame::new(size);
+    skein_ui_screen::render(
+        view.tree(),
+        &crate::theme(Scheme::Dark, None),
+        size,
+        &mut skein_ui_screen::Focus::default(),
+        &mut frame,
+    );
+    let text = frame.text();
+    let text = core::str::from_utf8(&text).unwrap();
+    assert!(text.contains("/srv/temper/a-long-directory/"), "{text}");
+    let mut joined = List::with_capacity(u32::try_from(text.len()).unwrap());
+    for line in text.lines() {
+        for byte in line.trim().as_bytes() {
+            joined.push(*byte).unwrap();
+        }
+    }
+    assert!(
+        skein_lib::bytes::find(
+            joined.as_slice(),
+            "/srv/temper/a-long-directory/another-long-directory/box/logs/box-�.log".as_bytes()
+        )
+        .is_some(),
+        "the whole path wraps rather than cuts: {text}"
+    );
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the golden table embeds its generated frames")]
+fn the_starting_screens_are_their_goldens() {
+    let root = f::signed_out();
+    let mut fetching = starting_tui();
+    fetching.step(Told::Stage { stage: crate::BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) } });
+    let mut running = starting_tui();
+    running.step(Told::Stage { stage: crate::BoxStage::Running });
+    running.step(Told::BoxLine { line: BoxLine::Starting { name: b"Forgejo".as_slice().into() } });
+    let mut failed = starting_tui();
+    failed.step(Told::Stage { stage: crate::BoxStage::Failed { why: b"fetch failed".as_slice().into() } });
+    let views = [build(&root, &fetching), build(&root, &running), build(&root, &failed)];
+    let mut rows = List::with_capacity(3);
+    for ((name, want), view) in [
+        ("starting-fetching-80x24-dark", include_bytes!("golden/starting-fetching-80x24-dark.txt").as_slice()),
+        ("starting-temper-80x24-dark", include_bytes!("golden/starting-temper-80x24-dark.txt").as_slice()),
+        ("starting-failed-80x24-dark", include_bytes!("golden/starting-failed-80x24-dark.txt").as_slice()),
+    ]
+    .into_iter()
+    .zip(&views)
+    {
+        rows.push(goldens::Golden {
+            name,
+            tree: view.tree(),
+            scheme: Scheme::Dark,
+            background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+            size: FULL,
+            focus: skein_ui_screen::Focus::default(),
+            want,
+        })
+        .unwrap();
+    }
+    goldens::check(rows.as_slice());
+}
+
 fn connected() -> w::Connection {
     w::Connection::Connected(
         w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() }).unwrap(),

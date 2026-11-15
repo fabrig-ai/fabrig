@@ -2062,6 +2062,67 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
     }
 }
 
+#[test]
+fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
+    for projects in [false, true] {
+        let mut host = host();
+        let start = host.report(Report::Start(Start {
+            set_up: true,
+            box_log: b"/srv/temper/box/logs/box.log".as_slice().into(),
+            front: true,
+            size: Size { columns: 80, rows: 24 },
+            scheme: Some(Scheme::Dark),
+            background: None,
+            plain: false,
+            version: Box::default(),
+            boxed: true,
+            address: b"127.0.0.1:8367".as_slice().into(),
+            local: true,
+            kept: Vec::new(),
+            credential: None,
+            note: None,
+        }));
+        assert!(start.local);
+        assert!(text(&mut host).contains("Starting temper"));
+        empty(&give(&mut host, Event::Log));
+        assert!(text(&mut host).contains("Nothing yet."));
+        empty(&host.report(Report::Key(Key::Char('a'))));
+        assert!(text(&mut host).contains("❯ a"));
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a");
+        assert!(text(&mut host).contains("Still signing in"));
+        let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+        host.report(Report::Stage(BoxStage::Running));
+        assert!(text(&mut host).contains("temper starting…"));
+        let duties = reply(&mut host, local_exchange(&signing), sign_in_bytes(&signed_in_answer()));
+        admit(&mut host, duties);
+        assert!(text(&mut host).contains("✓ temper started"));
+        assert!(text(&mut host).contains("▸ Signing in…"));
+        let hello = hello_for(&host);
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+        let duties = admit(&mut host, duties);
+        let me = watch(&duties, &w::Subject::Me);
+        assert!(text(&mut host).contains("Starting temper"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
+        admit(&mut host, duties);
+        let drawn = text(&mut host);
+        assert!(!drawn.contains("Starting temper"), "{drawn}");
+        assert_eq!(host.words(), b"a");
+        if projects {
+            assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+            assert!(!drawn.contains("Welcome. Set temper up"));
+        } else {
+            assert!(drawn.contains("Welcome. Set temper up"), "{drawn}");
+        }
+        host.report(Report::Heard(jig_client::Event::StreamGone));
+        host.report(Report::Heard(jig_client::Event::Unwatch { handle: root::pages::me_handle() }));
+        host.report(Report::Resize(Size { columns: 79, rows: 24 }));
+        assert!(host.root.pages().me(host.root.client()).is_none());
+        assert!(!text(&mut host).contains("Starting temper"), "never returns after losing me");
+    }
+}
+
 fn no_project_keys(words: &str) {
     let (mut host, _, _) = signed_host(false);
     key_words(&mut host, words);
@@ -3493,7 +3554,7 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
         for command in [false, true] {
             let mut host = host();
             let duties = host.report(Report::Start(Start {
-                set_up: false,
+                set_up: true,
                 box_log: Box::default(),
                 front: true,
                 size: Size { columns: 80, rows: 24 },

@@ -290,6 +290,9 @@ impl Host {
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
         self.route(&mut duties);
+        if self.state().front() && self.root.pages().me(self.root.client()).is_some() {
+            self.tell(Told::MeRead);
+        }
         self.launchpad(project);
         self.route(&mut duties);
         if self.state().start_chat().is_some() && self.root.pages().start().is_none() {
