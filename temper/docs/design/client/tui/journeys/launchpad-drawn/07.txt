@@ -1,6 +1,7 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:37071 ─╮
-│ Nothing needs you.                                                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper
+▄█▄█▄█  127.0.0.1:37071
+
+ Nothing needs you.
 
  Where you left off
    Hello   Add a CSV export to the report, a chat · today 01:57 ·…     /chats 1
@@ -10,7 +11,6 @@
    /change   one change, run as Hello's way says
    /ask      Ask temper
  Nothing else needs you.
-
 
 
 

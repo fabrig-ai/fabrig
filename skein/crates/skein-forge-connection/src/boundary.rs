@@ -60,6 +60,8 @@ pub enum Request {
     /// Takes a forge at runtime (skein/docs/design/forge/connection.md, 3.1).
     /// An existing number or an addition past `Limits::forges` is ignored.
     Add(crate::settings::Forge),
+    /// Appends a resolved log origin (skein/docs/design/forge/connection.md, 3.1).
+    LogOrigin { forge: u16, origin: crate::settings::LogOrigin },
     /// Drops a forge and ends its calls `Unavailable` (skein/docs/design/forge/connection.md, 3.1).
     Remove { forge: u16 },
     /// Hands or replaces a forge's access (forge/connection.md, 3.5): at most one

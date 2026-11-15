@@ -36,7 +36,7 @@ pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     let mut bottom = false;
     let mut feet = 0_u32;
     for node in tree.nodes() {
-        top |= node.region == Some(look::TOP);
+        top |= node.region == Some(look::TOP) || node.region == Some(look::HEADER);
         bottom |= node.region == Some(look::BOTTOM) || node.region == Some(look::LIST);
         if node.role == Role::ContentInfo || node.region == Some(look::LIST) {
             feet = feet.checked_add(1).unwrap();
@@ -150,7 +150,7 @@ fn the_trees_fit_their_limits() {
         (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
         (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
         (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),
-        (Word::BoxPurpose, &[][..], "on this machine, to try it".as_bytes()),
+        (Word::BoxPurpose, &[][..], "a whole deployment on this machine".as_bytes()),
         (Word::WelcomeOpen, &[][..], "Welcome. Set temper up in your browser: open this link on this machine.".as_bytes()),
         (Word::LinkOnce, &[][..], "It signs you in as this temper's owner, once, within 2 hours.".as_bytes()),
         (Word::InTheBrowser, &[][..], "In the browser".as_bytes()),

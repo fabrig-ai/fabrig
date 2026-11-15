@@ -12,6 +12,9 @@ pub enum BoxLine {
     Restarting { step: Box<[u8]> },
     Running { step: Box<[u8]> },
     GaveUp { step: Box<[u8]> },
+    Starting { name: Box<[u8]> },
+    Started { name: Box<[u8]> },
+    Dormant { name: Box<[u8]> },
 }
 impl BoxLine {
     /// The line's bound, including the line feed that `read` never sees.
@@ -35,6 +38,9 @@ impl BoxLine {
             b"restarting" => Some(Self::Restarting { step: copy_of(field) }),
             b"running" => Some(Self::Running { step: copy_of(field) }),
             b"gave-up" => Some(Self::GaveUp { step: copy_of(field) }),
+            b"starting" => Some(Self::Starting { name: copy_of(field) }),
+            b"started" => Some(Self::Started { name: copy_of(field) }),
+            b"dormant" => Some(Self::Dormant { name: copy_of(field) }),
             _ => None,
         }
     }
@@ -48,6 +54,9 @@ impl BoxLine {
             Self::Restarting { step } => (b"restarting", step),
             Self::Running { step } => (b"running", step),
             Self::GaveUp { step } => (b"gave-up", step),
+            Self::Starting { name } => (b"starting", name),
+            Self::Started { name } => (b"started", name),
+            Self::Dormant { name } => (b"dormant", name),
         };
         concat(&[word, b" ", field])
     }

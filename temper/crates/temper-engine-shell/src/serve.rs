@@ -1,5 +1,5 @@
 //! The engine's start for serve (temper/docs/design/protocol/binaries.md, 1 and 2 and temper/docs/design/protocol/components.md).
-use crate::{address, path, prefixed, setup};
+use crate::{path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -80,16 +80,17 @@ pub fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, Str
     accounts_runtime::resolve(engine, |host, port| (host, port).to_socket_addrs().ok()?.next())
 }
 
-/// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration/engine.md).
+/// Hand GitHub's names to the serving engine unresolved (temper/docs/design/protocol/forge/README.md, 2.6).
 pub fn github_runtime(
-    binary: &str,
     machine: Option<&temper_forge_setup::machine::GitHubMachine>,
     roots: &skein_tls::Config,
-    resolve: fn(&config::Address) -> Result<std::net::SocketAddr, String>,
 ) -> Result<service::ForgeRuntime, String> {
     let default = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
     let api = machine.map_or(&default, |machine| &machine.api);
-    let address = resolve(api).unwrap_or(service::forge::HELD_ADDRESS);
+    let address = match api {
+        config::Address::Host { .. } => service::forge::HELD_ADDRESS,
+        config::Address::Addr(address) => address.socket().ok_or("requires a socket address")?,
+    };
     let transport = if machine.is_none_or(|machine| machine.tls) {
         let name = match api {
             config::Address::Host { name, .. } => server_name(name)?,
@@ -101,8 +102,7 @@ pub fn github_runtime(
     } else {
         skein_forge_connection::settings::Transport::Plaintext { name: None }
     };
-    let log_origins =
-        if machine.is_none() { github_logs::resolve_for(binary, None, resolve)? } else { List::with_capacity(0) };
+    let log_origins = if machine.is_none() { github_logs::defaults() } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
 pub fn prepare(
@@ -146,7 +146,7 @@ fn prepare_given(
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = settings(bytes, directories, given);
-    let Runtimes { roots, github } = runtimes(binary, &named.machine)?;
+    let Runtimes { roots, github } = runtimes(&named.machine)?;
     let user = skein_shell::effective_user();
     let Inputs { files, google, bundle } = before_root(
         &mut named.files,
@@ -282,9 +282,9 @@ pub struct Runtimes {
     pub roots: skein_tls::Config,
     pub github: service::ForgeRuntime,
 }
-pub fn runtimes(binary: &str, machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
+pub fn runtimes(machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
     let roots = trust(None)?;
-    let github = github_runtime(binary, machine.github.as_ref(), &roots, address)?;
+    let github = github_runtime(machine.github.as_ref(), &roots)?;
     Ok(Runtimes { roots, github })
 }
 /// Engine inputs checked after agent preflight and before the worker root.

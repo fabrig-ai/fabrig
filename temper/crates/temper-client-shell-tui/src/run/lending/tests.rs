@@ -14,6 +14,8 @@ fn ready(found: bool) -> Run {
         directory: b"tui".as_slice().into(),
         address: b"127.0.0.1:8367".as_slice().into(),
         scheme: Some(Scheme::Dark),
+        plain: false,
+        version: Box::default(),
         boxed: true,
         link_file: None,
         note: None,
@@ -24,6 +26,7 @@ fn ready(found: bool) -> Run {
         opener: None,
         record: Some(Fd::new(8)),
         front: Some(Front {
+            set_up: false,
             executable: b"/bin/temper".as_slice().into(),
             directories: temper_shell::directories::Directories {
                 config: b"/config".as_slice().into(),

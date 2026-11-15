@@ -8,6 +8,7 @@ mod fixtures;
 mod foot;
 mod front;
 mod goldens;
+mod header;
 mod launchpad;
 mod limits;
 mod note;

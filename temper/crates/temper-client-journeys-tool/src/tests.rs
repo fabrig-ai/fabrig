@@ -628,12 +628,16 @@ impl TuiWorld {
     pub(super) fn sized(address: &[u8], size: skein_ui_screen::Size) -> Self {
         use temper_client_shell_tui::journey::{Facts, Recorder};
         let facts = Facts {
+            set_up: false,
+            box_log: Box::default(),
             seed: 7,
             now: Time::ZERO,
             wall: Wall::EPOCH,
             size,
             scheme: Some(temper_client_tui::Scheme::Dark),
             background: None,
+            plain: false,
+            version: Box::default(),
             boxed: false,
             address: address.into(),
             front: false,

@@ -73,8 +73,8 @@ take; **returned**, an answer handed back in the domain's drain; an
 **offer**, when the domain has room; a forge **added**, with its values
 (3.1), and a forge **removed**, while the component runs (3.1); a
 forge's **connect**, with its access (3.5); a GitHub forge's
-**installations**, the ones the owner accepted (4.4); and the
-**close**, its last act.
+**installations**, the ones the owner accepted (4.4), and one more
+**log origin** (3.1); and the **close**, its last act.
 
 Up, to the owner: **answered**, a call's one terminal with its token,
 cost and result; a **hint**, after its delivery's response is queued
@@ -166,6 +166,9 @@ it makes and removes without a restart:
   never offered. Its rows in the tables go as any do, the one used
   longest ago first (4.2, 4.3). A number the component does not hold
   is ignored, and a number removed may be added again, as a new forge.
+- **`LogOrigin`** appends a resolved origin to a GitHub forge's list
+  (4.5), checked as an `Add`'s; one listed already, past
+  `log_origins` or refused is ignored.
 
 The component makes each request's `Host` from the address and the
 transport's name (forgejo.md, section 1.1); the owner hands no `Host`. It
@@ -447,9 +450,8 @@ and port of `Location`, and its target is the path and query.
 
 - **Followed once,** and only to an origin the owner configured for the
   forge, `log_origins`: tls alike, host alike in ASCII case, port alike.
-  Each origin comes with its address, which the shell resolved at start,
-  since io connects to addresses alone and resolves no name at runtime
-  (../runtime/io/README.md, section 3). The configured origins are at most `log_origins`.
+  Each origin comes with its address, which its owner resolved, since
+  io resolves no name (../runtime/io/README.md, section 3). The configured origins are at most `log_origins`.
   An empty list, the default, reads no job log:
   a job's read answers `Refused`.
 - **To another host,** the call fails `Refused` at once, and
@@ -459,7 +461,7 @@ and port of `Location`, and its target is the path and query.
   the oldest forgotten first when full, and forgets them all at the
   forge's next connect. A fact is a diagnostic: no decision rests on it,
   and a call fails alike whether its origin was said or not. The origins
-  are settings, unchanged until a restart, so the client does not retry.
+  only grow (3.1); the client does not retry.
 - **The request** carries no credential and no `Range`, which that host
   ignores. It runs on a connection of the pool to the origin's address,
   as a call's do, with TLS to the origin's host and the forge's trust,
@@ -1100,9 +1102,9 @@ The owner's domain owes:
   it. Default: the host keeps its clock, and the diagnostic says to
   check it. Measuring the life from the mint's `Date` answer instead
   would take skew out of the tokens, not the JWT.
-- **Runtime DNS** for a job log's origin. Its address is resolved once,
-  at start (4.5), so a host whose address moves is refused until the
-  owner restarts. Default: until io resolves names (../runtime/io/README.md, section 3).
+- **Runtime DNS** for a job log's origin. Its address is resolved once
+  (4.5), so a host whose address moves is refused until the owner
+  restarts. Default: until io resolves names.
 - **A listener over TLS,** for a forge on another host, waits for
   skein-tls's server side (../net/tls.md). Default: that forge polls alone
   until then.

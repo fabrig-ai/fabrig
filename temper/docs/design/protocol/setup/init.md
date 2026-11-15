@@ -500,7 +500,9 @@ override.
   playground's fake one by trying it (`playground.md`), an owned Forgejo by setting
   it up under the box (`owned.md`, 5), GitHub or a Forgejo elsewhere by connecting
   it (`github.md`, `reconcile.md`, section 5). A start resolves each kept forge's `api` name
-  once (../README.md, section 11); a name that does not resolve, GitHub's
+  once (../README.md, section 11), but GitHub's place's, which the
+  engine resolves once it serves, the forge waiting meanwhile, neither
+  connected nor refused (../forge/README.md, 2.6); a name that does not resolve, GitHub's
   on a machine without DNS, refuses no start: that forge starts not
   connected, and each connect of it, restored or asked, is answered
   unreachable, naming the host, until a start that resolves it. The

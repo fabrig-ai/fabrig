@@ -78,6 +78,15 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
         "temper serve: forge 7: not connected: its records were made for forgejo at fake.test:443\n"
     );
 
+    for (note, words) in [
+        (
+            Note::GitHubLogOriginUnresolved { host: b"productionresultssa7.blob.core.windows.net".as_slice().into() },
+            "GitHub log origin https://productionresultssa7.blob.core.windows.net:443: unresolved; skipped",
+        ),
+        (Note::GitHubLogOriginsUnresolved, "GitHub log origins: none resolved; no job log will be fetched"),
+    ] {
+        assert_eq!(note_line("custom", note), format!("custom serve: {words}\n"));
+    }
     assert_eq!(
         note_line("temper", Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"

@@ -2266,29 +2266,111 @@ fn a_github_record_restored_at_start_uses_its_resolved_tls_endpoint() {
     assert_github_paste_is_admitted(&mut service);
 }
 #[test]
-fn a_held_github_setup_entry_is_replaced_when_the_shell_resolves_its_name() {
-    for host_started in [false, true] {
+fn a_waiting_github_setup_run_is_released_with_its_entry_on_the_records_port() {
+    for kept_while_serving in [false, true] {
         let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+        if kept_while_serving {
+            load_routing(&mut service);
+            service.engine.as_mut().unwrap().forge.serving = Some(());
+        }
         let engine = service.engine.as_mut().unwrap();
-        let record = tls_github_record();
+        let mut record = tls_github_record();
+        record.place.api.port = 8443;
         fixtures::restore_forge(engine, record.clone());
-        crate::forges::record(engine, record);
-        if host_started {
+        crate::route::request(engine, root::Request::ForgeKept(record));
+        if !kept_while_serving {
+            assert!(engine.unresolved_github().is_none());
+            assert!(engine.unresolved().is_empty());
             load_routing(&mut service);
-            assert_github_entry_removed(&mut service);
-            assert_tls_github_entry(&mut service, crate::forge::HELD_ADDRESS);
+            service.engine.as_mut().unwrap().forge.serving = Some(());
         }
-        let address = ([192, 0, 2, 7], 443).into();
-        service.resolved(2, Some(address));
-        if !host_started {
-            let (settings, _) = service.engine.as_ref().unwrap().setup.pending.as_ref().unwrap();
-            assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(address));
-            load_routing(&mut service);
+        let engine = service.engine.as_mut().unwrap();
+        assert_eq!(engine.setup.served.get(&2).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
+        for _ in 0..engine.setup.membership.len() {
+            let _initial = engine.setup.membership.pop();
         }
+        let before = engine.events.len();
+        start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+        let engine = service.engine.as_mut().unwrap();
+        assert!(!engine.setup.staged.contains_key(&Token::new(94)));
+        assert!(engine.setup.runs.is_empty());
+        assert!(engine.setup.above.is_empty());
+        assert!(engine.setup.io.is_empty());
+        assert!(engine.forge.starts.is_empty());
+        assert!(engine.notes.is_empty());
+        assert_eq!(engine.forge.github_waiting.get(&2).unwrap().plans.len(), 1);
+        assert_eq!(engine.events.len(), before, "asking the waiting run emits no terminal");
+        advance(engine);
+        assert_eq!(engine.events.len(), before, "the waiting run neither ends nor reaches the host");
+        engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 7], 443).into()));
+        let address = ([192, 0, 2, 7], 8443).into();
         assert_github_entry_removed(&mut service);
         assert_tls_github_entry(&mut service, address);
+        let root::SetupEnd::Done { forge: 2, outcome: root::SetupOutcome::Manifest { .. } } = terminal(&mut service)
+        else {
+            panic!("the waiting manifest goes down once answered")
+        };
         assert_github_paste_is_admitted(&mut service);
     }
+}
+
+#[test]
+fn a_failed_github_api_ends_waiting_and_later_setup_runs_unreachable() {
+    let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+    let engine = service.engine.as_mut().unwrap();
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::forges::record(engine, record);
+    load_routing(&mut service);
+    service.engine.as_mut().unwrap().forge.serving = Some(());
+    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+    service.engine.as_mut().unwrap().resolved_github(b"api.github.com", None);
+    for run in [94, 95] {
+        if run == 95 {
+            start(&mut service, run, host::Plan::Install { forge: 2 });
+        }
+        let root::SetupEnd::Stopped { forge: 2, reason } = terminal(&mut service) else {
+            panic!("failed API ends the run")
+        };
+        assert_eq!(reason.as_ref(), b"unreachable: api.github.com");
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.io.is_empty());
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.unresolved_github().is_none());
+}
+
+#[test]
+fn a_new_github_manifest_connect_waits_for_names_then_answers_with_its_link() {
+    let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+    load_routing(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.serving = Some(());
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::route::request(engine, root::Request::ForgeKept(record));
+    crate::route::request(engine, root::Request::Manifest { forge: 2, request: Token::new(94), back: None });
+    assert_eq!(engine.setup.public.len(), 1);
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.above.is_empty());
+    assert!(engine.setup.io.is_empty());
+    engine.resolved_github(b"api.github.com", Some(([192, 0, 2, 7], 443).into()));
+    for _ in 0_u32..4 {
+        advance(engine);
+    }
+    assert!(engine.setup.public.is_empty());
+    let mut linked = false;
+    for event in &engine.events {
+        if let root::Event::Forge(event) = event
+            && let domain::Event::ConnectAnswered { forge: 2, request, answer: domain::ConnectAnswer::Link(_) } =
+                event.as_ref()
+        {
+            assert_eq!(*request, Token::new(94));
+            linked = true;
+        }
+    }
+    assert!(linked, "the first Connect's manifest reaches the host only after DNS answers");
 }
 
 #[test]

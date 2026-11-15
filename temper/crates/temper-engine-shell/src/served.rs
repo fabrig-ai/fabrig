@@ -39,6 +39,12 @@ pub fn resolve(service: &mut service::Engine) {
             .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
         service.resolved_push(token, address);
     }
+    if let Some((name, port)) = service.unresolved_github() {
+        let address = std::str::from_utf8(&name)
+            .ok()
+            .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
+        service.resolved_github(&name, address);
+    }
 }
 /// Read and remove only the handovers the engine asks for.
 pub fn handover(service: &mut service::Engine) {

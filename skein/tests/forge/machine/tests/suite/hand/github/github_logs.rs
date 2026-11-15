@@ -4,7 +4,7 @@ use skein_forge::{
     github::redirect::Origin,
 };
 use skein_forge_connection::seam::Access;
-use skein_forge_connection::{Event, Fact, settings::LogOrigin};
+use skein_forge_connection::{Event, Fact, Request, settings::LogOrigin};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, List};
 use std::boxed::Box;
@@ -37,9 +37,20 @@ fn settings() -> skein_forge_connection::Settings {
     settings
 }
 fn harness(settings: skein_forge_connection::Settings) -> Harness {
-    let mut h = Harness::new(settings);
+    ready(Harness::new(settings))
+}
+fn added_harness(origins: List<LogOrigin>) -> Harness {
+    let mut h = Harness::new(settings());
+    let mut forge = settings().forges.into_boxed().into_iter().next().expect("forge");
+    forge.log_origins = origins;
+    h.send(Request::Remove { forge: FORGE });
+    h.send(Request::Add(forge));
+    ready(h)
+}
+fn ready(mut h: Harness) -> Harness {
     let api = *h.endpoints.get(0).expect("API endpoint");
-    h.endpoints = List::with_capacity(2);
+    // API, first origin and an appended origin's distinct address.
+    h.endpoints = List::with_capacity(3);
     h.endpoints.push(api).expect("API endpoint");
     h.endpoints.push((configured().address, LOG_ENDPOINT)).expect("log endpoint");
     h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
@@ -110,6 +121,103 @@ fn configured_origin_matches_case_and_keeps_only_tail() {
     );
     assert!(origins(&h).is_empty());
 }
+#[test]
+fn appended_origin_follows_without_retrying_an_earlier_refusal() {
+    let mut h = added_harness(List::with_capacity(0));
+    h.call(1, REPO, job());
+    terminal(&mut h, 1, 0, Err(Error::Refused));
+    h.send(Request::LogOrigin { forge: FORGE, origin: configured() });
+    log_read(&mut h, 2);
+    h.answer(FORGE, &redirect(b"LOGS.EXAMPLE.TEST"));
+    h.run(Duration::ZERO);
+    h.connected(LOG_ENDPOINT);
+    h.answer(LOG_ENDPOINT, &f::ok(b"0123456789"));
+    terminal(
+        &mut h,
+        2,
+        3,
+        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(*b"6789"), truncated: true }),
+    );
+    let deadline = h.env.limits.deadline;
+    h.run(deadline);
+    terminal(&mut h, 1, 0, Err(Error::Refused));
+    assert!(origins(&h).is_empty());
+}
+
+#[test]
+fn appended_origin_keeps_the_first_origins_pool_and_index() {
+    const SECOND_ENDPOINT: u16 = 3;
+    let mut initial = List::with_capacity(1);
+    initial.push(configured()).expect("first origin");
+    let mut h = added_harness(initial);
+    follow(&mut h);
+    h.answer(LOG_ENDPOINT, &f::ok(b"log"));
+    h.run(Duration::ZERO);
+    let opened = h.connections_opened();
+    let second = LogOrigin {
+        origin: origin(b"other.example.test"),
+        address: skein_io::Addr::Ip(([127, 0, 0, 2], LOG_PORT).into()),
+    };
+    h.endpoints.push((second.address, SECOND_ENDPOINT)).expect("second endpoint");
+    h.send(Request::LogOrigin { forge: FORGE, origin: second });
+    log_read(&mut h, 2);
+    h.answer(FORGE, &redirect(LOG_HOST));
+    h.run(Duration::ZERO);
+    h.answer(LOG_ENDPOINT, &f::ok(b"log"));
+    terminal(
+        &mut h,
+        2,
+        3,
+        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(*b"log"), truncated: false }),
+    );
+    assert_eq!(h.connections_opened(), opened);
+    assert_eq!(h.connections_for(LOG_ENDPOINT), 1);
+    log_read(&mut h, 3);
+    h.answer(FORGE, &redirect(b"other.example.test"));
+    h.run(Duration::ZERO);
+    h.connected(SECOND_ENDPOINT);
+    assert!(f::contains(&h.request_bytes(SECOND_ENDPOINT), b"Host: other.example.test:8080\r\n"));
+    h.answer(SECOND_ENDPOINT, &f::ok(b"next"));
+    terminal(
+        &mut h,
+        3,
+        3,
+        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(*b"next"), truncated: false }),
+    );
+}
+
+#[test]
+fn appending_preserves_the_said_origins_queue_and_its_order() {
+    let mut h = harness(settings());
+    for (call, host) in [(1, b"one.test".as_slice()), (2, b"two.test")] {
+        log_read(&mut h, call);
+        h.answer(FORGE, &redirect(host));
+        terminal(&mut h, call, 2, Err(Error::Refused));
+    }
+    let mut appended = configured();
+    appended.origin = origin(b"ONE.TEST");
+    h.send(Request::LogOrigin { forge: FORGE, origin: appended });
+    let remembered = h.component.test_github().said_origins.iter().cloned().collect::<Box<[_]>>();
+    assert_eq!(remembered.as_ref(), &[origin(b"one.test"), origin(b"two.test")]);
+    for (call, host) in [(3, b"two.test".as_slice()), (4, b"three.test"), (5, b"two.test")] {
+        log_read(&mut h, call);
+        h.answer(FORGE, &redirect(host));
+        terminal(&mut h, call, 2, Err(Error::Refused));
+    }
+    log_read(&mut h, 6);
+    h.answer(FORGE, &redirect(b"one.test"));
+    h.run(Duration::ZERO);
+    h.connected(LOG_ENDPOINT);
+    h.answer(LOG_ENDPOINT, &f::ok(b"log"));
+    terminal(
+        &mut h,
+        6,
+        3,
+        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(*b"log"), truncated: false }),
+    );
+    assert_eq!(origins(&h).as_slice(), &[origin(b"one.test"), origin(b"two.test"), origin(b"three.test")]);
+}
+
 #[test]
 fn followed_bytes_carry_no_authorization_range_or_forge_secret() {
     let mut h = harness(settings());

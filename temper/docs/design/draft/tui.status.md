@@ -138,5 +138,17 @@
     words" reads two ways, the design draws the notice first, at the
     row's start, and cuts the line's own words after it
     (`../client/tui/pages/README.md`, 1, *The notice*).
+  - 1 and 3, the user's requests of 2026-11-15 (`tui-11` to `tui-14`),
+    after `temper box`'s tries of 11-09 to 11-15 (emacs vterm, 150 by
+    39): the header is two unframed lines after pi's, fabrig.ai's mark,
+    "temper" and its build, then the place, "temper box · a whole
+    deployment on this machine" in front, and names no project, where
+    the draft frames a header with the project and the deployment
+    (`../client/tui/pages/README.md`, 3); what it held is the
+    launchpad's first section (`../client/tui/pages/launchpad.md`, 3). A
+    box set up before shows a starting screen until the TUI has read
+    `me`, the box's start steps on a first run's welcome stand on the
+    quiet line, a group starting is the box's state, and lending the
+    terminal clears it first (`../client/tui/box.md`).
 - **Open:**
   - 3: a need from elsewhere on a chat, the web's hand-off and a checkout's project, refined on recorded frames as the launchpad and a chat were.

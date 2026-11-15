@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
 
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
