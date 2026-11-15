@@ -63,13 +63,13 @@ fn new_value_types_register_at_the_seed_and_read_back() {
     };
     const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], patches: &[], ..SET };
     let mut disk = Disk::new(&[]);
-    let mut legacy = fresh(
+    let mut before = fresh(
         &mut disk,
         PatchSet { families: &[KeptFamily { current: KEPT_NEW, types: &[], ..NEW_FAMILY }], ..NEW_SET },
     );
     raw(
         &mut disk,
-        &mut legacy,
+        &mut before,
         vec![skein_kv::Op::Put { key: b"\x02a/2".as_slice().into(), value: Box::from([0, 2, 0]) }],
     );
     let mut disk = Disk::new(&disk.items());
