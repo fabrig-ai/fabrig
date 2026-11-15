@@ -5,7 +5,6 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
-- **Not yet:** 2: there is no `temper-client-domain-pages` or `temper-client-domain-forge`: `temper-client-domain` holds the pages and the forge's side [in flight: change 3592].
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
 
