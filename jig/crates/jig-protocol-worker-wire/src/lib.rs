@@ -13,7 +13,7 @@ pub mod v14;
 mod application;
 mod kinds;
 mod spoken;
-pub use application::{Application, Carried, Root};
+pub use application::{Application, Carried, Kept, Root};
 pub mod translation;
 pub use spoken::{Agreed, Spoken, spoken};
 mod loss;
