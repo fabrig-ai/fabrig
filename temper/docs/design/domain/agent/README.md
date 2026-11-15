@@ -288,7 +288,7 @@ host:
   the bounds and direct the run to pull-file pages and selected file reads,
   until a real landing shows that recovery cannot serve the change.
 - A cancel's grace: `tools.md`, section 3.
-- **A code graph** for a workspace (../worker/checkouts.md, section 1), as an MCP
+- **A code graph** for a workspace (../worker/checkouts.md, section 2), as an MCP
   tool source once smith has one.
 - A change produced by a job of any kind: `tools.md`, section 3.
 - A document moved within one call: `ask-temper.md`, section 5.

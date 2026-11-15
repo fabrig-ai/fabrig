@@ -526,7 +526,13 @@ instead (`../landing.md`, section 5).
   dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, and the change is
   resolved (`change/repairs.md`): by the merge job, where its project names one, then
-  a resolution for what the job leaves.
+  a resolution for what the job leaves. The job's result names each file
+  it leaves with its kind and, for a file one side deleted, the side and
+  the commit that deleted it (`../../protocol/tooling.md`, 4.1). It settles no
+  file one side deleted or renamed: the resolution's agent judges
+  whether the change still needs it, a file the base deleted staying
+  deleted unless it does, and its result says what it kept and why
+  (`change/repairs.md`).
 - **A catch-up** takes a base's commit into a branch that no update
   reaches, a goal's own (`branches.md`, 1): a change into that branch, made by the
   goal's coordinator naming the commit (`../agent/tools.md`, 1), main's

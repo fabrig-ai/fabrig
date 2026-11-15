@@ -115,6 +115,59 @@ def regenerate(repository, path, stages, conflicts):
     return True
 
 
+def history_change(repository, side, other, path, removed):
+    commit = git(repository, '--literal-pathspecs', 'log', '-1', '-z', '--format=%H',
+                 '--diff-filter=D' if removed else '--diff-filter=A', '--no-renames',
+                 side, '^' + other, '--', path).split(b'\0', 1)[0].strip()
+    if not commit:
+        return None
+    commit = commit.decode('ascii')
+    changes = iter(git(repository, 'diff-tree', '-r', '-z', '-M', '--name-status',
+                       commit + '^1', commit).split(b'\0'))
+    for status in changes:
+        if not status:
+            continue
+        source = os.fsdecode(next(changes))
+        if status.startswith(b'R'):
+            target = os.fsdecode(next(changes))
+            if removed and source == path:
+                return {'kind': 'renamed', 'to': target, 'commit': commit[:12]}
+            if not removed and target == path:
+                return {'kind': 'renamed', 'from': source, 'commit': commit[:12]}
+        elif removed and status == b'D' and source == path:
+            return {'kind': 'deleted', 'commit': commit[:12]}
+    return None
+
+
+def left_record(repository, path, stages, head, base):
+    changes = {}
+    for name, stage, side, other in (('head', 2, head, base), ('base', 3, base, head)):
+        if (1 in stages) != (stage in stages):
+            changes[name] = history_change(repository, side, other, path, stage not in stages)
+        else:
+            changes[name] = None
+    record = {'path': path, 'kind': 'unknown'}
+    renamed = [name for name, change in changes.items()
+               if change is not None and change['kind'] == 'renamed']
+    if len(renamed) == 2:
+        return {'path': path, 'kind': 'renamed', 'by': 'both'}
+    for name, other_stage, other in (('head', 3, 'base'), ('base', 2, 'head')):
+        change = changes[name]
+        if change is not None and other_stage in stages and changes[other] is None:
+            record['kind'] = change['kind']
+            record['by'] = name
+            for member in ('from', 'to', 'commit'):
+                if member in change:
+                    record[member] = change[member]
+            return record
+    if not any(changes.values()):
+        if set(stages) == {1, 2, 3}:
+            record['kind'] = 'modified'
+        elif set(stages) == {2, 3}:
+            record['kind'] = 'added'
+    return record
+
+
 def result_bytes(settled, left):
     def encode(result):
         return (json.dumps(result, ensure_ascii=True, separators=(',', ':')) + '\n').encode('utf-8')
@@ -125,17 +178,26 @@ def result_bytes(settled, left):
     encoded = encode(result)
     if len(encoded) <= 512:
         return encoded
-    paths = sorted((path, group) for group in result for path in result[group])
-    result = {group: [] for group in result}
-    result['more'] = len(paths)
-    for path, group in paths:
-        result[group].append(path)
-        result['more'] -= 1
-        if len(encode(result)) > 512:
-            result[group].pop()
-            result['more'] += 1
-            break
-    return encode(result)
+    kept = {'settled': [], 'left': []}
+
+    def bounded():
+        result = {'settled': kept['settled']}
+        if kept['left']:
+            result['left'] = kept['left']
+        omitted = {'left': len(left) - len(kept['left']),
+                   'settled': len(settled) - len(kept['settled'])}
+        if any(omitted.values()):
+            result['more'] = {**omitted, 'read': 'git status --short; git log --name-status '
+                                               '--diff-filter=DR HEAD...MERGE_HEAD'}
+        return encode(result)
+
+    for group, entries in (('left', left), ('settled', settled)):
+        for entry in entries:
+            kept[group].append(entry)
+            if len(bounded()) > 512:
+                kept[group].pop()
+                break
+    return bounded()
 
 
 def main():
@@ -159,7 +221,8 @@ def main():
                 settled.append(path)
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             print(f'{path}: {error}', file=sys.stderr)
-    left = sorted(unmerged(repository))
+    left = [left_record(repository, path, stages, request['head'], request['base'])
+            for path, stages in unmerged(repository).items()]
     (Path(os.environ['TEMPER_JOB']) / 'result.json').write_bytes(result_bytes(settled, left))
     return 3 if left else 0
 

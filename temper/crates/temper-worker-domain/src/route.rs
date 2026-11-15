@@ -256,8 +256,28 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
             out.push(Request::Source { owner, name, operation, deadline });
         }
         host::Request::SourceFault => out.push(Request::SourceFault),
-        host::Request::Up(host::LinkUp::Answer { run, attempt, answer }) => answered(domain, run, attempt, answer, out),
+        host::Request::Up(host::LinkUp::Answer { run, attempt, answer }) => {
+            note_unprepared(run, attempt, &answer.ending, out);
+            answered(domain, run, attempt, answer, out);
+        }
         host::Request::Up(host::LinkUp::JobAnswer { run, attempt, answer }) => {
+            match &answer {
+                host::JobEnding::Failed { failure: host::JobFailure::Unprepared(failure), detail, .. } => {
+                    out.push(Request::Unprepared { run, attempt, failure: *failure, detail: detail.clone() });
+                }
+                host::JobEnding::Failed {
+                    failure:
+                        host::JobFailure::Failed
+                        | host::JobFailure::Deadline
+                        | host::JobFailure::Result
+                        | host::JobFailure::Unstarted
+                        | host::JobFailure::Undelivered(_)
+                        | host::JobFailure::Cancelled(_),
+                    ..
+                }
+                | host::JobEnding::Refused(_)
+                | host::JobEnding::Finished { .. } => {}
+            }
             jobs::answered(domain, run, attempt, answer, env.limits.host.detail_bytes, out);
         }
         host::Request::Up(up) => out.push(Request::Link(up)),
@@ -313,6 +333,23 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
             jobs::deliver(domain, env, owner, workspace, &delivery);
         }
         host::Request::Agent(request) => agents::to_agent(domain, env, request, out),
+    }
+}
+
+/// The first answer logs a failed preparation; replay only sends the answer
+/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+fn note_unprepared(run: Token, attempt: Token, ending: &host::Ending, out: &mut Queue<Request>) {
+    match ending {
+        host::Ending::Failed { failure: host::Failure::Unprepared(failure), detail, .. } => {
+            out.push(Request::Unprepared { run, attempt, failure: *failure, detail: detail.clone() });
+        }
+        host::Ending::Failed {
+            failure: host::Failure::Run(_) | host::Failure::Agent(_) | host::Failure::Cancelled(_),
+            ..
+        }
+        | host::Ending::Refused(_)
+        | host::Ending::Ended { .. }
+        | host::Ending::Parked { .. } => {}
     }
 }
 

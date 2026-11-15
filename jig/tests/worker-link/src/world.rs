@@ -50,7 +50,7 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(limits: &Limits, seed: u64) -> Self {
-        Self::with_wires(limits, seed, jig_protocol_worker_wire::spoken())
+        Self::with_wires(limits, seed, fixtures::spoken())
     }
     #[must_use]
     pub fn with_wires(limits: &Limits, seed: u64, wires: skein_lib::List<jig_protocol_worker_wire::Spoken>) -> Self {

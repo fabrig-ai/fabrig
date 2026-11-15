@@ -1,8 +1,8 @@
 //! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
 use super::{Patching, refuse, sealing, state, take};
 use crate::{
-    Below, Cursor, Event, Job, JobAnswer, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits, OpenRefusal, Owner,
-    Store, commits, keys, open, pages,
+    Below, Cursor, Event, Job, JobAnswer, JobCount, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits,
+    OpenRefusal, Owner, Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, length::len_u64};
@@ -22,6 +22,7 @@ pub(crate) struct Running {
     after: Option<Cursor>,
     rows: u64,
     commits: u64,
+    counts: List<JobCount>,
     waiting: Waiting,
     registered: bool,
     first: bool,
@@ -52,12 +53,14 @@ impl Running {
                 self.commits = self.commits.checked_add(1).expect("commits bounded by commit number");
                 if end {
                     let (of, job) = self.current();
+                    let counts = core::mem::replace(&mut self.counts, List::uncapped());
                     above.push(Event::Ran {
                         owner: token,
                         of,
                         job: Box::from(job.name),
                         rows: self.rows,
                         commits: self.commits,
+                        counts: counts.into_boxed(),
                     });
                     self.index = self.index.checked_add(1).expect("bounded pending jobs");
                     self.after = None;
@@ -106,6 +109,7 @@ pub(super) fn begin(
             after: None,
             rows: 0,
             commits: 0,
+            counts: List::uncapped(),
             waiting: Waiting::Ready,
             registered: false,
             first: true,
@@ -139,6 +143,11 @@ fn relative(owner: Owner, key: &[u8]) -> Option<&[u8]> {
 }
 fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> Option<()> {
     let (of, job) = running.current();
+    if running.first {
+        for name in job.counts {
+            running.counts.push(JobCount { name: Box::from(*name), count: 0 }).expect("admitted count names");
+        }
+    }
     let ranges = ranges(store, of, &job)?;
     let written = store.registry.written(&job);
     let id = match &written {
@@ -347,6 +356,10 @@ pub(crate) fn answer(
         Ok(answer) => answer,
         Err(why) => return open::refuse(store, owner, running.refusal(why), above),
     };
+    if answer.counts.len() != job.counts.len() {
+        let why = invalid(None, "job answer's counts are not one per declared name");
+        return open::refuse(store, owner, running.refusal(why), above);
+    }
     let through = match consumed(of, &rows, answer.through) {
         Ok(through) => through,
         Err(why) => return open::refuse(store, owner, running.refusal(why), above),
@@ -356,6 +369,9 @@ pub(crate) fn answer(
         Ok(ops) => ops,
         Err(why) => return open::refuse(store, owner, running.refusal(why), above),
     };
+    for (total, count) in running.counts.iter_mut().zip(answer.counts) {
+        total.count = total.count.saturating_add(count);
+    }
     running.after = through;
     running.waiting = Waiting::Commit { number, end };
     state(store, Patching::Jobs(running));

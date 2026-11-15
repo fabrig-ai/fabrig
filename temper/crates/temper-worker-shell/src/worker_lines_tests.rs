@@ -44,6 +44,37 @@ fn worker_job_words_keep_the_binary_prefix_and_reason() {
         "temper-worker worker: run 7 attempt 2 job 3 merge failed Deadline: deadline\n"
     );
 }
+/// temper/docs/design/domain/worker/checkouts.md, 1.3: one escaped operator line.
+#[test]
+fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
+    for (detail, expected) in [
+        (
+            b"host w1: check out: TimedOut (workspace 3, repository 0 fabrig, command checkout, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms)".as_slice(),
+            "temper worker: run 5 attempt 1 failed Unprepared(Transient): host w1: check out: TimedOut (workspace 3, repository 0 fabrig, command checkout, operation 60000 ms of 60000 ms, prepare 63120 ms, queued 2950 ms)\n",
+        ),
+        (
+            b"host w1: prepare refused: Busy\n\0\"\xff".as_slice(),
+            "temper worker: run 5 attempt 1 failed Unprepared(Transient): host w1: prepare refused: Busy\\n\\x00\\\"\\xff\n",
+        ),
+    ] {
+        let note = worker::Note::Unprepared {
+            run: 5, attempt: 1,
+            failure: jig_domain_host::Failure::Unprepared(jig_domain_host::Preparation::Transient), detail: detail.into(),
+        };
+        assert_eq!(worker_note_words("temper", note), expected);
+    }
+    let note = worker::Note::Unprepared {
+        run: 6,
+        attempt: 2,
+        failure: jig_domain_host::Failure::Unprepared(jig_domain_host::Preparation::Permanent { resource: None }),
+        detail: b"host w1: prepare aborted".as_slice().into(),
+    };
+    assert_eq!(
+        worker_note_words(BINARY, note),
+        "temper-worker worker: run 6 attempt 2 failed Unprepared(Permanent { resource: None }): host w1: prepare aborted\n"
+    );
+}
+
 #[test]
 fn stop_bound_words_count_the_abandoned_turns_and_answers() {
     assert_eq!(

@@ -3922,18 +3922,27 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
 fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
     let words = concat!(
         "Resolve the merge conflict. Preserve the requested change and unrelated content ",
-        "already landed on the base, including both independent appended lines and existing blank lines, ",
-        "and do not remove content to make a check pass, unless the change's request as revised, ",
-        "or an answer given on it, says otherwise. The worker commits and pushes the resolved merge."
+        "already landed on the base, including both independent appended lines and existing blank lines. ",
+        "A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted ",
+        "unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, ",
+        "the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. ",
+        "Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. ",
+        "In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, ",
+        "and why. The worker commits and pushes the resolved merge."
     )
     .as_bytes();
     let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
     // The coding charter carries the full preservation rule when the spec is small.
-    let compact = b"Resolve the merge conflict. Keep both sides and blank lines unless the request as revised or an answer says otherwise.";
+    let compact = concat!(
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. ",
+        "Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; ",
+        "say in your result which you kept or restored, and why."
+    )
+    .as_bytes();
     let opening = if words.len() <= room {
         words
     } else if compact.len() <= room {
-        compact.as_slice()
+        compact
     } else {
         return None;
     };

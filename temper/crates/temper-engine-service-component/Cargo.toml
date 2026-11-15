@@ -50,6 +50,8 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+skein-fake-machine.workspace = true
+skein-sim.workspace = true
 temper-engine-domain-forge-change.workspace = true
 jig-protocol-worker-link.workspace = true
 temper-worker-service.workspace = true

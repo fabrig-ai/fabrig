@@ -3260,8 +3260,8 @@ fn asked_now_keeps_its_fixed_lines_whole_or_gives_nothing() {
 #[test]
 fn preservation_words_yield_to_the_current_request_and_answers() {
     assert_eq!(super::REPAIR_PRESERVATION, b" Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.");
-    assert_eq!(super::resolution_words(None, &[], 4096).unwrap().as_ref(), b"Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise. The worker commits and pushes the resolved merge.");
-    let compact = b"Resolve the merge conflict. Keep both sides and blank lines unless the request as revised or an answer says otherwise.";
+    assert_eq!(super::resolution_words(None, &[], 4096).unwrap().as_ref(), b"Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.");
+    let compact = b"Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.";
     assert_eq!(super::resolution_words(None, &[], u32::try_from(compact.len()).unwrap()).unwrap().as_ref(), compact);
     assert!(super::resolution_words(None, &[], u32::try_from(compact.len() - 1).unwrap()).is_none());
 }
@@ -3360,6 +3360,51 @@ fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_boun
     }
 }
 
+/// temper/docs/design/domain/forge/change/repairs.md: required words stay whole before an optional result.
+#[test]
+fn resolution_words_keep_deletions_with_or_without_a_merge_result() {
+    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const RESULT: &[u8] = b"{\"settled\":[],\"left\":[\"file\"]}";
+    let full = concat!(
+        "Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, ",
+        "including both independent appended lines and existing blank lines. A deletion or a rename on either side is ",
+        "an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a ",
+        "file deleted on the head or renamed on either side stays so, the other side's edits carried where they still ",
+        "apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a ",
+        "check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed ",
+        "on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes ",
+        "the resolved merge.",
+    )
+    .as_bytes();
+    let compact = concat!(
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
+        "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
+        "kept or restored, and why.",
+    )
+    .as_bytes();
+    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
+    for opening in [full, compact] {
+        for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12, PREFIX.len() + RESULT.len()] {
+            let bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
+            let without_result = super::resolution_words(None, &parameters, bound).unwrap();
+            assert_eq!(without_result.as_ref(), opening);
+            let with_result = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
+            assert!(with_result.starts_with(opening));
+            assert!(with_result.len() + 40 <= usize::try_from(bound).unwrap());
+            if remaining < PREFIX.len() + 3 {
+                assert_eq!(with_result.as_ref(), opening);
+            } else {
+                assert_eq!(&with_result[opening.len()..opening.len() + PREFIX.len()], PREFIX);
+                if remaining < PREFIX.len() + RESULT.len() {
+                    assert!(with_result.ends_with(b"..."));
+                } else {
+                    assert!(with_result.ends_with(RESULT));
+                }
+            }
+        }
+    }
+}
+
 /// temper/docs/design/domain/forge/change/repairs.md: a resolution carries the job's result within its words' room.
 #[test]
 #[expect(clippy::disallowed_methods, reason = "unit fixtures compare bounded resolution text")]
@@ -3368,7 +3413,15 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
     const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
     let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
     let opening = super::resolution_words(None, &parameters, 4096).unwrap();
-    for expected in ["requested change", "unrelated content", "independent appended lines", "blank lines"] {
+    for expected in [
+        "requested change",
+        "unrelated content",
+        "independent appended lines",
+        "blank lines",
+        "a file deleted on the base stays deleted unless the requested change needs it",
+        "Read the commit that deleted a file before you restore anything",
+        "Do not remove content just to make a check pass",
+    ] {
         assert!(core::str::from_utf8(&opening).unwrap().contains(expected));
     }
     let bound = u32::try_from(opening.len() + PREFIX.len() + RESULT.len() + 40).unwrap();
@@ -4185,25 +4238,23 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
         Parameter::Bytes { name: 3, value: Box::from(b"temper/1/c2".as_slice()) },
         Parameter::Bytes { name: 6, value: commit_text(&SHA1) },
     ];
-    let words = super::resolution_words(Some(b"merge job result"), &parameters, 192).unwrap();
-    assert_eq!(words.as_ref(), b"Resolve the merge conflict. Keep both sides and blank lines unless the request as revised or an answer says otherwise.");
+    let words = super::resolution_words(Some(b"merge job result"), &parameters, 352).unwrap();
+    assert_eq!(words.as_ref(), concat!(
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
+        "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
+        "kept or restored, and why.",
+    )
+    .as_bytes());
     let mut bytes = words.len();
     for parameter in &parameters {
         if let Parameter::Bytes { value, .. } = parameter {
             bytes += value.len();
         }
     }
-    assert!(bytes <= 192, "resolution and pinned parameters need {bytes} spec bytes");
+    assert_eq!(bytes, 352, "resolution and pinned parameters need {bytes} spec bytes");
     assert!(
         super::resolution_words(Some(b"merge job result"), &parameters, u32::try_from(bytes - 1).unwrap()).is_none()
     );
-    for expected in [b"both sides".as_slice(), b"blank lines".as_slice()] {
-        let mut found = false;
-        for part in words.windows(expected.len()) {
-            found |= part == expected;
-        }
-        assert!(found, "bounded instructions preserve content");
-    }
 }
 
 #[test]

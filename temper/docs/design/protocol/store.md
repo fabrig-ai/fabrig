@@ -396,7 +396,59 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   patched as before. The application's jobs at open (jig's
   `protocol/store/jobs.md`) are dispatched by
   `temper_protocol_store::jobs::page`, which names `change-parts`
-  (section 2, a change's two parts).
+  (section 2, a change's two parts), then
+  `deleted-repository-forge-rows` (below), in that order.
+- **The job `deleted-repository-forge-rows`** drops what a project's
+  deletion left naming a repository whose `Repository` row is gone
+  (`../draft/deleted-repository-rows.md`), so that the restart's link
+  check (`../domain/root.md`, 8.1) meets none of it; the check stays
+  strict for everything else. It judges by the store alone, never by
+  the deployment's configuration:
+  - **Present:** a repository with a row in family 2. **An ended
+    forge:** one whose `Forge` row (25) reads ended, or that has none
+    while its number is 1 to `ForgeNumber`'s `last` (26): the link
+    check's judgement at a start that configures no forge outside its
+    records, as every deployment's does.
+  - **Exempt,** kept as the link check keeps it: a row of a kind it
+    keeps as history (`BranchHead`, `PullState`, `Ci`, `Change` and
+    `ChangeCold`, `Issue`, `Application`, `Landing`, `Receipt`,
+    `Follow`, `Tier`, `Verification`, `LandingLog`) naming a missing
+    repository of an ended forge.
+  - **Dropped,** naming a missing repository and not exempt: rows of
+    `BranchHead` 6, `PullState` 7, `Ci` 8, the client's `Live` (11,
+    variant 0), `Receipt` 24, `Tier` 28, `Verification` 29 and
+    `LandingLog` 30, erased whole, each judged by its key; an
+    `Application` row (15) whose `Adopted` outcome names one, erased
+    whole, judged by its value: a settled answer for a project that is
+    gone, whose retry the forge would refuse; and a `Names`
+    row (4) loses each resource naming one, put again with the rest, or
+    erased when none is left, as a release does. None of these has a
+    partner keyed apart from its repository, so pairs go together.
+  - **Refused:** any other row the link check judges by a repository,
+    naming a missing one and not exempt: `ProposedEffect` 1, `Hold` 3,
+    `Subscription` 5, `Entry` 10, the client's `Repository` (11,
+    variant 1), `Issue` 13, `Release` 14 (its pending name),
+    `Landing` 23 (each
+    member), `Follow` 42 and `ChangeCold` 47; they may stand for a
+    pending effect, a live owner or a kept answer, and a person clears
+    them. The page is refused, `key` the row's and `why`
+    `{family} names deleted repository {forge}/{repository}`
+    (`Hold names deleted repository 1/20`), so the start is refused
+    `OpenRefusal::Job` naming it, the store unchanged.
+  - **Its ranges:** families 1, 3 to 8, 10, 11, 13 to 15, 23, 24, 28
+    to 30, 42 and 47, in key order; family 12 is empty once
+    `change-parts` has run. **What it reads:** while each page is out,
+    families 2, 25 and 26 whole, through `Store::patch_page` (jig's
+    `protocol/store/jobs.md`, 3), bounded by `repositories` and
+    `forges`; a row of them that does not decode refuses, naming it.
+  - **Its answers** fit `room` as `change-parts`' do: an answer stops
+    before a row whose writes would not fit and names `through`; a row
+    that cannot fit alone refuses.
+  - **Its counts,** in order: `dropped`, then `BranchHead`,
+    `PullState`, `Ci`, `Client`, `Receipt`, `Tier`, `Verification`,
+    `LandingLog`, `Application` and `Names`: the rows each answer erased of that
+    family, `Names` the resources removed, and `dropped` their sum
+    (`binaries.md`, 2, prints them).
 - **A repository's tag** is its forge's number and its id, packed
   (`../domain/forge/adoption.md`): the tasks' resource parameters and
   saved resources jig keeps name the pair.

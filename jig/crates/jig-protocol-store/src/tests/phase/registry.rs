@@ -263,6 +263,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
         converts: Some(crate::Converts { family: holder.name, value_type: 0, from }),
@@ -303,6 +304,31 @@ fn an_underived_layout_refuses_before_the_copy_with_its_census_count() {
     };
     assert_eq!(family.as_ref(), FAMILY.name);
     assert_eq!(why.why, skein_codec::layout::Why::NoDefault);
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    assert_eq!(snapshot(&mut disk), before);
+    assert!(!disk.tree().iter().any(|(p, ..)| p.as_ref() == b"generations/2"));
+}
+#[test]
+fn a_wrong_tasks_version_refuses_before_an_underived_layout_without_writing() {
+    let mut disk = Disk::new(&base(false, true));
+    let family = KeptFamily { current: KEPT, types: &[], ..FAMILY };
+    let mut old = store(&disk, PatchSet { families: Box::leak(Box::new([family])), ..SET });
+    assert_opened(&disk.open(&mut old), 1);
+    let key = crate::keys::encode_own(&crate::keys::Own::Format, old.limits.store.key).expect("format key fits");
+    let bytes = fixtures::get_kv(&mut old, &key).expect("format row exists");
+    let mut format = crate::codec::component::Format::decode(&bytes).expect("format fixture");
+    let wanted = format.tasks;
+    format.tasks = wanted.checked_add(1).expect("next tasks version fits");
+    raw(&mut disk, &mut old, vec![skein_kv::Op::Put { key, value: format.encode().expect("format fits") }]);
+    let mut disk = Disk::new(&disk.items());
+    let before = snapshot(&mut disk);
+    let mut store = store(&disk, written_set());
+    let events = disk.open(&mut store);
+    let [Event::OpenRefused { why, .. }] = events.as_ref() else { panic!("{events:?}") };
+    assert_eq!(
+        *why,
+        OpenRefusal::Format { family: crate::Family::Tasks, found: u32::from(format.tasks), wanted: u32::from(wanted) }
+    );
     assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     assert_eq!(snapshot(&mut disk), before);
     assert!(!disk.tree().iter().any(|(p, ..)| p.as_ref() == b"generations/2"));
@@ -513,7 +539,8 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job = crate::Job { name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
+const NOOP: crate::Job =
+    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -522,7 +549,10 @@ fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<
         if let Event::Job { owner, .. } = event {
             pending.extend(disk.request(
                 store,
-                Request::Job { owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+                Request::Job {
+                    owner,
+                    answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+                },
             ));
         } else {
             terminal.push(event);
@@ -596,6 +626,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
+        counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,
         converts: Some(crate::Converts { family: FAMILY.name, value_type: 0, from }),
@@ -627,7 +658,10 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
         // the owner's promise to convert its from-layout, not a new plan.
         events = disk.request(
             &mut store,
-            Request::Job { owner: *owner, answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None }) },
+            Request::Job {
+                owner: *owner,
+                answer: Ok(crate::JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None }),
+            },
         );
     }
     assert_eq!(pages, 2);

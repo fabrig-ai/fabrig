@@ -2427,11 +2427,20 @@ fn third_append_conflict() -> (World, u64, Box<[u8]>) {
 
 fn assert_preserving_assignment(world: &World, run: &engine::Assignment, context: &[u8]) {
     let words = &live_task(world, run.task).spec.words;
-    for expected in [
-        b"Preserve the requested change".as_slice(),
-        b"independent appended lines and existing blank lines",
-        b"do not remove content to make a check pass",
-    ] {
+    let expected = if words.starts_with(b"Resolve the merge conflict.") {
+        [
+            b"Keep both sides, blank lines, deletions and renames".as_slice(),
+            b"Restore a file the base deleted only if the change needs it, after reading the commit that deleted it",
+            b"say in your result which you kept or restored, and why",
+        ]
+    } else {
+        [
+            b"Preserve the requested change".as_slice(),
+            b"independent appended lines and existing blank lines",
+            b"do not remove content to make a check pass",
+        ]
+    };
+    for expected in expected {
         let words = core::str::from_utf8(words).expect("task words").to_ascii_lowercase();
         let expected = core::str::from_utf8(expected).expect("expected words").to_ascii_lowercase();
         assert!(words.contains(&expected), "{words}");

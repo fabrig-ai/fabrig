@@ -973,7 +973,7 @@ fn stock_charters_put_revised_requests_and_answers_first() {
     assert_eq!(
         implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
         Some(
-            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included; restore losses a review names; never remove content to pass checks; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule."
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
         )
     );
 }
@@ -1387,7 +1387,14 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     assert!(
         words.contains("keep the requested change and unrelated base content, appended lines and blank lines included")
     );
-    assert!(words.contains("restore losses a review names; never remove content to pass checks;"));
+    assert!(words.contains("each side's intended deletions and renames"));
+    assert!(words.contains("a file the base deleted stays deleted unless the requested change needs it"));
+    assert!(words.contains("read the commit that deleted it before you restore anything"));
+    assert!(words.contains("Restore losses a review names; never remove content just to pass a check"));
+    assert!(words.contains("keeping an intended deletion removes none"));
+    assert!(words.contains(
+        "for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why"
+    ));
     assert!(words.contains("Until then it has no pull request:"));
 }
 

@@ -826,6 +826,20 @@ ones in the fuzzy suite.
   forwarded body. Its trace fixture admits a malformed `TurnBusy` to
   the real decoder, which never decodes it as a valid busy before the
   component sees it.
+- **What the machine worlds' fixtures prepare once.** A value the two
+  worlds' fixtures and harness derive from constants alone is built the
+  first time a test reads it, kept in a `std::sync::OnceLock`, and
+  copied to each reader: the channel's schema and limits, jig's kept
+  wires as `jig_protocol_worker_wire::spoken` states them, the kept
+  wires a worker's statement carries, and the agreement a scripted
+  engine plays. Such a value is a constant
+  (`skein/docs/foundation/testing-strategy.md`, 8): nothing a test sets
+  reaches it, and each reader changes only its own copy. Each peer
+  still takes its version's own wire and its credential's encoding, and
+  every connection, loss and assertion runs as before: the fifty-loss
+  row makes each of its peers, but parses the kept texts once, not for
+  each. One focused test in each world checks every prepared value
+  against one built afresh.
 - **A frame past the room, in the machine worlds,** their scripted
   streams granting room up to a cap and leaving a larger ask unanswered,
   as io does. The engine's world, one table: an assignment and a job at

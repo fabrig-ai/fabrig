@@ -354,7 +354,14 @@ settings (decided 2026-11-03).
       levels, and read for the baseline above.
 
     Every refusal comes before anything is written but skein-kv's
-    recovery (`opening.md`, 1). A row at a component version past the binary's
+    recovery (`opening.md`, 1). The families' versions are compared
+    before the registry is read (`layouts.md`, 5): a store at another
+    version is refused `Format` without its registry's rows read, its
+    layouts planned or the set's bounds checked there. A store behind
+    takes its versions at its level from its pending plan (`opening.md`,
+    2), so the comparison follows the set's checks and that plan; the
+    refusals before it keep their order, and the registry's follow it.
+    A row at a component version past the binary's
     is a later jig's, since from the baseline the component's version
     moves only by jig's patches: `Ahead { owner: Jig, found: None,
     wanted }`, its levels unread.
