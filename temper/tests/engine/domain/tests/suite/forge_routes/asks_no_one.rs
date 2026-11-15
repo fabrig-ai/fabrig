@@ -98,6 +98,24 @@ fn replies(world: &World, target: u64, change: u64) -> Vec<&tasks::Word> {
     live_task(world, target).inbox.iter().filter(|word| word.from == tasks::Party::Task(change)).collect()
 }
 
+fn assert_passed(world: &World, requester: u64, producer: u64, change: u64) {
+    let found = replies(world, requester, change);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].kind, tasks::MessageKind::Words);
+    assert_eq!(found[0].words.as_ref(), format!("Passed to task {producer}, this change's producer.").as_bytes());
+    let sent = replies(world, producer, change);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].kind, tasks::MessageKind::Words);
+    assert_eq!(
+        sent[0].words.as_ref(),
+        format!(
+            "From task {requester}, your change's requester:\n\n{}",
+            core::str::from_utf8(MESSAGE).expect("story UTF-8")
+        )
+        .as_bytes()
+    );
+}
+
 fn assert_reply(world: &World, target: u64, change: u64, chat: u64, kind: &tasks::MessageKind) {
     let found = replies(world, target, change);
     assert_eq!(found.len(), 1, "exactly one reply: {found:?}");
@@ -124,7 +142,7 @@ fn words_to_a_change_are_answered_naming_its_requester() {
             break;
         }
     }
-    assert_reply(&world, chat.task, change, chat.task, &tasks::MessageKind::Words);
+    assert_passed(&world, chat.task, producer.task, change);
     assert_eq!(world.assigned.len(), assigned, "no duplicate delegate");
     assert_eq!(world.merges, 0, "no effect from the extra step");
     let Some(Record::Forge { row }) = world.store.rows.get(&forge_key) else { panic!("change record") };
@@ -170,7 +188,7 @@ fn a_retried_step_answers_once() {
     for _ in 0..MAX_TICKS {
         world.tick();
     }
-    assert_reply(&world, chat.task, change, chat.task, &tasks::MessageKind::Words);
+    assert_passed(&world, chat.task, producer.task, change);
     assert_eq!(world.assigned.len(), 2);
     assert_eq!(world.merges, 0);
 }
@@ -186,11 +204,11 @@ fn replies_past_the_batch_are_capped() {
     let mut row = Box::new(live_task(&world, change).clone());
     assert!(row.inbox.is_empty());
     let mut inbox = Vec::new();
-    for index in 0..=batch {
+    for _ in 0..=batch {
         header.messages += 1;
         inbox.push(tasks::Word {
             number: header.messages,
-            from: tasks::Party::Task(if index < batch { chat.task } else { producer.task }),
+            from: tasks::Party::Task(producer.task),
             kind: tasks::MessageKind::Words,
             words: MESSAGE.into(),
             at: world.env.wall,
@@ -220,8 +238,8 @@ fn replies_past_the_batch_are_capped() {
         }
     }
     assert!(live_task(&world, change).inbox.is_empty(), "one step takes all offered words");
-    assert_eq!(replies(&world, chat.task, change).len(), batch as usize, "the oldest words get batch replies");
-    assert!(replies(&world, producer.task, change).is_empty(), "the newest word is taken unanswered");
+    assert_eq!(replies(&world, producer.task, change).len(), batch as usize, "fallback replies fit the batch");
+    assert!(replies(&world, chat.task, change).is_empty(), "others' words do not pass");
     while let Some(fact) = world.root.pop_fact() {
         assert!(
             !matches!(fact, engine::Fact::StepRefused { task, .. } if task == change),

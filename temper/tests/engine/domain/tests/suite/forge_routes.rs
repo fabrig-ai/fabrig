@@ -63,6 +63,7 @@ mod asks_no_one;
 
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
+mod producer_words;
 #[path = "forge_routes/questions.rs"]
 mod questions;
 

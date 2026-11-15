@@ -400,6 +400,12 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 held = held.checked_add(bytes(answer))?;
             }
         }
+        held = held.checked_add(
+            skein_lib::len_u64(value.waiting.len()).checked_mul(u64::try_from(size_of::<change::Waiting>()).ok()?)?,
+        )?;
+        for word in &value.waiting {
+            held = held.checked_add(bytes(&word.words))?;
+        }
         Some(held)
     }
     fn early(value: &change::Early) -> Option<u64> {

@@ -98,6 +98,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         change_row_report: forge.client.op_bytes,
         held_answer: forge.client.op_bytes,
         open_words: forge.client.op_bytes,
+        waiting_words: forge.client.op_bytes,
         dispatch_input_name: 255,
         dispatch_input_value: forge.client.op_bytes,
         dispatch_write_workflow: 255,

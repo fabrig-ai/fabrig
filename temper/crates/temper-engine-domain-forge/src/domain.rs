@@ -8728,8 +8728,11 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     let mut changes = List::with_capacity(env.limits.changes);
-    for (task, _) in &d.changes {
+    for (task, row) in &d.changes {
         changes.push(*task).expect("change capacity");
+        if !row.questions.waiting.is_empty() {
+            emit(out, Request::WakeProcedure { task: *task });
+        }
     }
     for task in &changes {
         topics::refresh(d, env, *task, out);

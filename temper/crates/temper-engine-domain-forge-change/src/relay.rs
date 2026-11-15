@@ -128,7 +128,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
     Relayed {
-        questions: Questions { route: questions.route, taken, open: Box::from(remaining) },
+        questions: Questions { taken, open: Box::from(remaining), ..questions.clone() },
         acts: acts.into_boxed(),
         more,
     }

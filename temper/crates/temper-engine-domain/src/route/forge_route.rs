@@ -2612,7 +2612,7 @@ pub(super) fn start_recovered_change(
                 review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
-                questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
+                questions: forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2673,7 +2673,10 @@ pub(super) fn start_recovered_change(
     if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: None, relayed: None, refusal: None, released: true, passing: None },
+            )
             .expect("one released relay per change step");
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
@@ -4731,7 +4734,10 @@ fn delegate_change_step(
     } else {
         domain
             .forge_delegating
-            .insert((task, step), ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false })
+            .insert(
+                (task, step),
+                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false, passing: None },
+            )
             .expect("one forge procedure delegate");
     }
     let decision = append_change_replies(

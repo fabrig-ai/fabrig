@@ -28,7 +28,7 @@ fn open(asker: u64, number: u64, stands: Stands) -> Open {
 }
 
 fn head(stands: Stands) -> Questions {
-    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]) }
+    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]), waiting: Box::new([]) }
 }
 
 fn asked() -> Asked<'static> {
