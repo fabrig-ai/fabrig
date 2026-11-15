@@ -14,6 +14,9 @@ mod census;
 pub mod codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
+
+/// The oldest store this build serves (protocol/store/records.md, 3).
+pub const FLOOR: u32 = 1;
 mod directory;
 pub mod ended;
 pub mod format;
@@ -115,6 +118,7 @@ pub struct Store {
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     patch_sets: PatchSets,
+    build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
     history_routing: bool,
     wires: &'static [Wire],
@@ -252,6 +256,7 @@ impl Store {
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
             patch_sets: PatchSets::NONE,
+            build_name: "",
             history_routing: false,
             wires: &[],
             mark: Mark::Waiting,
@@ -290,6 +295,15 @@ impl Store {
         if self.start_open_failure.is_none() {
             self.start_open_failure = Some(Box::new(failure));
         }
+    }
+
+    /// The build writing the floor row (protocol/store/records.md, 3), cut at 64 UTF-8 bytes.
+    pub fn build_name(&mut self, name: &'static str) {
+        let mut end = name.len().min(64);
+        while !name.is_char_boundary(end) {
+            end = end.checked_sub(1).expect("zero is a character boundary");
+        }
+        self.build_name = name.get(..end).expect("character boundary");
     }
 
     /// Supplies the owners' static patch data (protocol/store/opening.md 3).

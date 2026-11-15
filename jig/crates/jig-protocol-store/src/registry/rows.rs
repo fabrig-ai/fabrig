@@ -42,6 +42,7 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                     | keys::Own::TurnLog { .. }
                     | keys::Own::LogAttempt { .. }
                     | keys::Own::Format
+                    | keys::Own::Floor
                     | keys::Own::Layouts
                     | keys::Own::Wires
                     | keys::Own::Opening(_)

@@ -181,6 +181,13 @@ pub(crate) fn operations(
         }
     }
     if format_due {
+        ops.push(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Floor, store.limits.store.key)
+                .ok_or(Refusal::Check(CommitCheck::Encoding))?,
+            value: codec::component::floor(store.build_name),
+        })
+        .ok()
+        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
         store.registry.first(&mut ops).ok_or(Refusal::Check(CommitCheck::Capacity))?;
         crate::jobs::kept::first(store, &mut ops, number).ok_or(Refusal::Check(CommitCheck::Encoding))?;
         let id = deployment.expect("the first root commit saves its deployment header");
@@ -344,10 +351,10 @@ fn operation_key(op: &skein_kv::Op) -> Box<[u8]> {
 
 /// A commit's most operations: a log append and two turn places per write,
 /// or a history drop and its place, the first commit's
-/// own rows (Format, Layouts and the installation's identifier), and the
+/// own rows (Format, Floor, Layouts and the installation's identifier), and the
 /// orphans' erases it carries.
 pub(crate) fn most_ops(writes: u32, orphan_erases: u32) -> Option<u32> {
-    writes.checked_mul(3)?.checked_add(3)?.checked_add(orphan_erases)
+    writes.checked_mul(3)?.checked_add(4)?.checked_add(orphan_erases)
 }
 
 fn copy(

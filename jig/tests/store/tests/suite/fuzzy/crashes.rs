@@ -10,6 +10,7 @@ fn history_world() -> World {
     // binary's job and key ranges, without registering unrelated layouts.
     const SETS: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
         sets: &[jig_protocol_store::PatchSet {
+            level: None,
             patches: &[],
             jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
             families: &[

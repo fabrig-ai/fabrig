@@ -19,6 +19,7 @@ pub(crate) const SETS: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
+            level: Some(2),
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
@@ -36,6 +37,7 @@ pub(crate) const SETS: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
+            level: Some(1),
             patches: smith::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
@@ -62,11 +64,7 @@ pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, 
     let codec = codec::limits(&limits.core).expect("codec");
     let mut fmt = format::current(root::APPLICATION.version, root::DEPLOYMENT);
     for set in sets.sets {
-        let mut kept = false;
-        for family in set.families {
-            kept |= !family.texts.is_empty();
-        }
-        let level = if kept { Some(u32::try_from(set.patches.len()).expect("patch count")) } else { None };
+        let level = set.level;
         match set.owner {
             Owner::Jig => fmt.levels.jig = level,
             Owner::Smith => fmt.levels.smith = level,

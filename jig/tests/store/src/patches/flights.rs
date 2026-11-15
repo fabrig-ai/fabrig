@@ -24,6 +24,7 @@ pub const CHANGES_FLIGHT: PatchSets = PatchSets {
             },
             TOKEN,
         ],
+        level: Some(1),
         patches: &[app::PATCHES[0]],
         ..APPLICATION
     }],
@@ -41,6 +42,7 @@ pub const CHANGES_OTHER: PatchSets = PatchSets {
                 ..TOKEN
             },
         ],
+        level: Some(1),
         patches: &[TOKEN_PATCH],
         ..APPLICATION
     }],

@@ -110,7 +110,7 @@ fn baseline_fixture_sets() -> PatchSets {
             jig_protocol_store::SKEIN_PATCH_SET,
             jig_protocol_store::SMITH_PATCH_SET,
             patches::SETS.sets[0],
-            PatchSet { patches: texts, families: Box::leak(families.into_boxed_slice()), ..jig },
+            PatchSet { level: Some(6), patches: texts, families: Box::leak(families.into_boxed_slice()), ..jig },
         ])),
     }
 }

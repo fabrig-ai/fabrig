@@ -40,6 +40,7 @@ fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
         owner,
         name: if owner == Owner::Application { "fixture" } else { "jig-fixture" },
         families: Box::leak(Box::new([family])),
+        level: Some(0),
         patches: &[],
         fresh: None,
         jobs,

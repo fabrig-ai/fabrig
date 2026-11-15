@@ -24,6 +24,7 @@ const SET: PatchSet = PatchSet {
     owner: Owner::Application,
     name: "fixture-layouts",
     families: &[FAMILY],
+    level: Some(1),
     patches: &[PATCH],
     fresh: None,
     jobs: &[],
@@ -45,7 +46,12 @@ fn base(first: bool, values: bool) -> Vec<Item> {
         types: &[],
         ..FAMILY
     };
-    let set = PatchSet { families: Box::leak(Box::new([family])), patches: if first { &[] } else { &[PATCH] }, ..SET };
+    let set = PatchSet {
+        families: Box::leak(Box::new([family])),
+        level: Some(u32::from(!first)),
+        patches: if first { &[] } else { &[PATCH] },
+        ..SET
+    };
     let mut store = store(&disk, set);
     assert_opened(&disk.open(&mut store), 0);
     let mut writes = vec![fixtures::header(1)];
@@ -224,8 +230,12 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
         ],
     };
     let child = KeptFamily { name: "fixture-child", texts: &[CHILD], current: CHILD, keys: &[], types: &[], ..holder };
-    let set =
-        PatchSet { families: Box::leak(Box::new([KeptFamily { types: &[], ..holder }, child])), patches: &[], ..SET };
+    let set = PatchSet {
+        families: Box::leak(Box::new([KeptFamily { types: &[], ..holder }, child])),
+        level: Some(0),
+        patches: &[],
+        ..SET
+    };
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, set);
     raw(
@@ -636,7 +646,8 @@ fn a_log_held_layout_without_a_plan_refuses_even_without_map_values() {
 fn a_seeded_store_refuses_a_pending_patch_of_a_registered_family() {
     let mut disk = Disk::new(&[]);
     let family = KeptFamily { texts: &[FIRST], current: FIRST, ..FAMILY };
-    let store = fresh(&mut disk, PatchSet { families: Box::leak(Box::new([family])), patches: &[], ..SET });
+    let store =
+        fresh(&mut disk, PatchSet { families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET });
     assert_eq!(store.stores.store.last(), 1);
     let mut disk = Disk::new(&disk.items());
     let before = snapshot(&mut disk);

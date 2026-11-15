@@ -24,13 +24,14 @@ const SMITH: PatchSet = PatchSet {
     owner: Owner::Smith,
     name: fixture::NAME,
     families: &[TURN],
+    level: Some(0),
     patches: &[],
     fresh: Some(fixture::FRESH),
 };
 pub const BEFORE: PatchSets = PatchSets { sets: &[SMITH] };
 pub const MARKS: &[&str] =
     &["patch 1\nowner fixture-smith 1\nmark fresh-windows\n", "patch 1\nowner fixture-smith 2\nmark fresh-windows\n"];
-pub const AFTER: PatchSets = PatchSets { sets: &[PatchSet { patches: &[MARKS[0]], ..SMITH }] };
+pub const AFTER: PatchSets = PatchSets { sets: &[PatchSet { level: Some(1), patches: &[MARKS[0]], ..SMITH }] };
 // The fixture binary renders the said field of each loaded v1 turn.
 pub const TAIL: &[u8] = b"closed windowwindow continuation";
 

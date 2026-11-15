@@ -22,6 +22,18 @@ pub(crate) fn wires(wires: &[crate::Wire]) -> Box<[u8]> {
     writer.finish()
 }
 
+/// The floor row written at creation or by the seal (protocol/store/records.md, 3).
+pub(crate) fn floor(build: &str) -> Box<[u8]> {
+    let row = wire::Floor::new(
+        &wire::CEILINGS,
+        wire::FloorParts { number: crate::FLOOR, build: Box::from(build.as_bytes()) },
+    )
+    .expect("Store::build_name bounded the name");
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).expect("measured floor row");
+    writer.finish()
+}
+
 /// Each owner's applied patch level (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Levels {

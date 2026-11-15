@@ -19,6 +19,7 @@ pub(super) const SETS: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
+            level: Some(2),
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
@@ -36,6 +37,7 @@ pub(super) const SETS: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
+            level: Some(1),
             patches: smith::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
@@ -431,6 +433,7 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
                     texts: &[OTHER],
                     ..SETS.sets[0].families[0]
                 }],
+                level: Some(0),
                 patches: &[],
                 ..SETS.sets[0]
             },
@@ -474,11 +477,13 @@ fn empty_kept_sets_make_no_machine_and_the_same_requests() {
         sets: &[
             PatchSet {
                 families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[0].families[0] }],
+                level: None,
                 patches: &[],
                 ..SETS.sets[0]
             },
             PatchSet {
                 families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[1].families[0] }],
+                level: None,
                 patches: &[],
                 ..SETS.sets[1]
             },
@@ -643,6 +648,7 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
     const LAST: &str = "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { nodes: list 64 Empty }\n";
     const SMITH: PatchSet = PatchSet {
         families: &[KeptFamily { current: LAST, texts: &[FIRST, LAST], ..SETS.sets[1].families[0] }],
+        level: Some(1),
         patches: &[PATCH],
         ..SETS.sets[1]
     };
@@ -719,6 +725,7 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     const BASE: PatchSets = PatchSets {
         sets: &[
             PatchSet {
+                level: Some(0),
                 patches: &[],
                 families: &[KeptFamily {
                     current: jig::kept::fixture_frame::TEXTS[0],
@@ -728,6 +735,7 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
                 ..SETS.sets[0]
             },
             PatchSet {
+                level: Some(0),
                 patches: &[],
                 families: &[KeptFamily {
                     current: smith::kept::fixture_turn::TEXTS[0],

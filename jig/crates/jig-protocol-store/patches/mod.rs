@@ -326,6 +326,9 @@ versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }
 versioned record TurnLog { window: option u64 }
 versioned record LogAttempt { first: u64 }
+
+# 00 0d: the store floor (protocol/store/records.md, 3).
+versioned record Floor { number: u32 build: text 64 }
 versioned record Layouts {
     component: fixed 32
     core: fixed 32
@@ -407,18 +410,23 @@ versioned record Layouts {
                 use skein_codec::schema::FieldIx;
                 pub const FIRST: FieldIx = FieldIx::new(33);
             }
+            pub mod floor {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(34);
+                pub const BUILD: FieldIx = FieldIx::new(35);
+            }
             pub mod layouts {
                 use skein_codec::schema::FieldIx;
-                pub const COMPONENT: FieldIx = FieldIx::new(34);
-                pub const CORE: FieldIx = FieldIx::new(35);
-                pub const TASKS: FieldIx = FieldIx::new(36);
-                pub const PEOPLE: FieldIx = FieldIx::new(37);
-                pub const NOTES: FieldIx = FieldIx::new(38);
-                pub const ACCOUNTS: FieldIx = FieldIx::new(39);
-                pub const SETTINGS: FieldIx = FieldIx::new(40);
-                pub const SECRETS: FieldIx = FieldIx::new(41);
-                pub const SKEIN_OAUTH: FieldIx = FieldIx::new(42);
-                pub const SMITH_TRANSCRIPT: FieldIx = FieldIx::new(43);
+                pub const COMPONENT: FieldIx = FieldIx::new(36);
+                pub const CORE: FieldIx = FieldIx::new(37);
+                pub const TASKS: FieldIx = FieldIx::new(38);
+                pub const PEOPLE: FieldIx = FieldIx::new(39);
+                pub const NOTES: FieldIx = FieldIx::new(40);
+                pub const ACCOUNTS: FieldIx = FieldIx::new(41);
+                pub const SETTINGS: FieldIx = FieldIx::new(42);
+                pub const SECRETS: FieldIx = FieldIx::new(43);
+                pub const SKEIN_OAUTH: FieldIx = FieldIx::new(44);
+                pub const SMITH_TRANSCRIPT: FieldIx = FieldIx::new(45);
             }
         }
     }

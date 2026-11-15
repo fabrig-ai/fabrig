@@ -22,6 +22,7 @@ const MID: PatchSets = PatchSets {
     sets: &[
         PatchSet {
             families: &[SETS.sets[0].families[0], BASE.sets[0].families[1]],
+            level: Some(1),
             patches: &[jig_test_patches::patches::PATCHES[0]],
             ..SETS.sets[0]
         },
@@ -31,6 +32,7 @@ const MID: PatchSets = PatchSets {
 const WRONG_OWNER: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            level: Some(1),
             patches: &[
                 "patch 1\nowner stranger 1 after fixture-jig 0\n\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
             ],
@@ -42,6 +44,7 @@ const WRONG_OWNER: PatchSets = PatchSets {
 const PIN_TOO_FAR: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            level: Some(1),
             patches: &[
                 "patch 1\nowner fixture 1 after fixture-jig 3\n\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
             ],

@@ -15,6 +15,7 @@ const MID: PatchSets = PatchSets {
     sets: &[
         PatchSet {
             families: &[SETS.sets[0].families[0], BASE.sets[0].families[1], BASE.sets[0].families[2]],
+            level: Some(1),
             patches: &[jig_test_patches::patches::PATCHES[0]],
             ..SETS.sets[0]
         },

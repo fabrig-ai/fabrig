@@ -435,16 +435,16 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     // Settings history with 16 charters, 21 executor kinds and 32,768-byte run policies,
     // including replacement values and composed application settings, fits 4,580,852 bytes.
     value: 4_580_852,
-    // A log append and two places per journal write, three creation rows and an orphan erase: 3 * 20,801 + 4.
-    ops: 62_407,
-    // 256 MiB values + 62,407 operations * (2,079 key + 9 framing) + 26 frame bytes.
-    commit: 398_741_298,
+    // A log append and two places per journal write, four creation rows and an orphan erase: 3 * 20,801 + 5.
+    ops: 62_408,
+    // 256 MiB values + 62,408 operations * (2,079 key + 9 framing) + 26 frame bytes.
+    commit: 398_743_386,
     queued: 3,
     // Three queued commits; segment holds two, snapshot follows one.
-    queued_bytes: 1_196_223_894,
+    queued_bytes: 1_196_230_158,
     budget: 268_435_456,
-    segment: 797_482_596,
-    snapshot_after: 398_741_298,
+    segment: 797_486_772,
+    snapshot_after: 398_743_386,
     chunk: 4_582_951,
     // The revision envelope, including what its items replaced, fits with its key.
     page: skein_kv::Page { rows: 2, bytes: 4_582_931 },

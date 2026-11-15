@@ -28,15 +28,7 @@ impl Levels {
 pub(crate) fn binary(sets: &PatchSets) -> Levels {
     let mut levels = Levels { skein: None, smith: None, jig: None, application: None };
     for set in sets.sets {
-        let mut kept = false;
-        for family in set.families {
-            if !family.texts.is_empty() {
-                kept = true;
-            }
-        }
-        if kept {
-            levels.set(set.owner, Some(u32::try_from(set.patches.len()).expect("static patch count fits u32")));
-        }
+        levels.set(set.owner, set.level);
     }
     levels
 }
@@ -102,6 +94,7 @@ fn read(set: &PatchSet, patch: u32) -> Result<Header, Unplanned> {
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused as patch 0. Judged before the plan and before a first start writes.
 pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
+    check_levels(sets)?;
     let ceilings = &crate::component_v3::CEILINGS;
     let name = skein_lib::length::usize_of(ceilings.count_family);
     let mut families = 0_u32;
@@ -122,6 +115,23 @@ pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
     crate::jobs::admission::check(sets)?;
     frames(sets)?;
     holds(sets)
+}
+/// Levels are admitted before the store's levels are compared (opening.md, 3).
+pub(crate) fn check_levels(sets: &PatchSets) -> Result<(), Unplanned> {
+    for set in sets.sets {
+        let mut kept = false;
+        for family in set.families {
+            if !family.texts.is_empty() {
+                kept = true;
+            }
+        }
+        if set.level.is_some() != kept
+            || (!set.patches.is_empty() && set.level != u32::try_from(set.patches.len()).ok())
+        {
+            return Err(Unplanned { owner: set.owner, patch: 0 });
+        }
+    }
+    Ok(())
 }
 fn validate(sets: &PatchSets, found: &Levels, wanted: &Levels) -> Result<u32, Unplanned> {
     bounds(sets)?;

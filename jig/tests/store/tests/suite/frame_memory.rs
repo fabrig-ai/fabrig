@@ -9,6 +9,7 @@ const BODY_ONLY: PatchSets = PatchSets {
         SETS.sets[0],
         PatchSet {
             families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[1].families[0] }],
+            level: None,
             patches: &[],
             ..SETS.sets[1]
         },

@@ -41,7 +41,13 @@ fn old_sets() -> PatchSets {
                             .collect::<Vec<_>>()
                             .into_boxed_slice(),
                     );
-                    PatchSet { patches, families, jobs: &[], ..*set }
+                    PatchSet {
+                        level: set.level.map(|_| u32::try_from(patches.len()).unwrap()),
+                        patches,
+                        families,
+                        jobs: &[],
+                        ..*set
+                    }
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
@@ -50,7 +56,7 @@ fn old_sets() -> PatchSets {
 }
 fn component(disk: &Disk, sets: PatchSets) -> Store {
     let mut app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-    app.version = if sets.sets.last().unwrap().patches.len() == 12 { 23 } else { crate::STORE_VERSION };
+    app.version = if sets.sets.last().unwrap().level == Some(12) { 23 } else { crate::STORE_VERSION };
     let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
     store.patch_sets(sets);
     store

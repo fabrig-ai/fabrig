@@ -16,6 +16,8 @@ pub struct PatchSet {
     pub families: &'static [KeptFamily],
     /// Patch texts in number order.
     pub patches: &'static [&'static str],
+    /// The owner's level, retained when its patch texts are dropped.
+    pub level: Option<u32>,
     /// The owner's mark across which windows start fresh.
     pub fresh: Option<&'static str>,
     pub jobs: &'static [crate::jobs::Job],
@@ -77,6 +79,7 @@ pub const JIG: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Jig,
     name: "jig",
+    level: None,
     patches: &[],
     fresh: None,
     families: &[KeptFamily {

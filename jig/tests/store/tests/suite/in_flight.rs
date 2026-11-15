@@ -146,6 +146,7 @@ fn the_first_family_follows_patch_order_before_family_order() {
     const BOTH: PatchSets = PatchSets {
         sets: &[PatchSet {
             families: &[CHANGES_FLIGHT.sets[0].families[0], SECRET_FLIGHT.sets[0].families[1]],
+            level: Some(2),
             patches: &[CHANGES_OTHER.sets[0].patches[0], LABEL_SECOND],
             ..CHANGES_FLIGHT.sets[0]
         }],

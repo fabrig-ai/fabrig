@@ -55,6 +55,7 @@ const APPLICATION: PatchSet = PatchSet {
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
+    level: Some(2),
     patches: app::PATCHES,
 };
 const JIG: PatchSet = PatchSet {
@@ -63,6 +64,7 @@ const JIG: PatchSet = PatchSet {
     owner: Owner::Jig,
     name: upstream::NAME,
     families: &[NOTE],
+    level: Some(2),
     patches: jig::PATCHES,
 };
 pub const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
@@ -86,6 +88,7 @@ pub const BASE: PatchSets = PatchSets {
                     ..TOKEN
                 },
             ],
+            level: Some(0),
             patches: &[],
             ..APPLICATION
         },
@@ -95,6 +98,7 @@ pub const BASE: PatchSets = PatchSets {
                 texts: &[jig::kept::fixture_note::TEXTS[0]],
                 ..NOTE
             }],
+            level: Some(0),
             patches: &[],
             ..JIG
         },
@@ -402,6 +406,7 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
+            level: Some(2),
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
@@ -419,6 +424,7 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
+            level: Some(1),
             patches: jig_test_patches_smith::patches::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
@@ -438,6 +444,7 @@ pub const FRESH_BEFORE: PatchSets = PatchSets {
     sets: &[
         FRESH_AFTER.sets[0],
         PatchSet {
+            level: Some(0),
             patches: &[],
             families: &[KeptFamily {
                 current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],

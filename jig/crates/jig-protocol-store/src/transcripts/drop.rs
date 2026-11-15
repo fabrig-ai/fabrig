@@ -115,6 +115,7 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<
                 keys::Own::History { .. }
                 | keys::Own::TurnLog { .. }
                 | keys::Own::Format
+                | keys::Own::Floor
                 | keys::Own::Layouts
                 | keys::Own::Wires
                 | keys::Own::Opening(_)
@@ -151,6 +152,7 @@ fn restore_source(store: &mut Store, log: bool) -> Result<(), ()> {
             keys::Own::History { .. }
             | keys::Own::TurnLog { .. }
             | keys::Own::Format
+            | keys::Own::Floor
             | keys::Own::Layouts
             | keys::Own::Wires
             | keys::Own::Opening(_)

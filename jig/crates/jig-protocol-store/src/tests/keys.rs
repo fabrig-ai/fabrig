@@ -299,6 +299,7 @@ fn a_deletion_key_round_trips_under_tag_nine() {
 
 #[test]
 fn every_written_family_has_one_unique_census_name() {
+    assert_eq!(crate::census::name(&[0, 13], crate::Keyspaces::NONE), "component.floor");
     assert_eq!(crate::census::name(&[0, 0], crate::Keyspaces::NONE), "component.format");
     assert_eq!(crate::census::name(&[1, 0, 5], crate::Keyspaces::NONE), "core.terminals");
     for (index, &(prefix, name)) in keys::KEYSPACES.iter().enumerate() {

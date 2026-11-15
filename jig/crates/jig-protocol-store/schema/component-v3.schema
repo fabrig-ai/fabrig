@@ -36,6 +36,9 @@ versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }
 versioned record TurnLog { window: option u64 }
 versioned record LogAttempt { first: u64 }
+
+# 00 0d: the store floor (protocol/store/records.md, 3).
+versioned record Floor { number: u32 build: text 64 }
 versioned record Layouts {
     component: fixed 32
     core: fixed 32

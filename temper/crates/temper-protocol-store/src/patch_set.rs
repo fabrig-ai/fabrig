@@ -40,6 +40,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
     ],
     owner: Owner::Application,
     name: "temper",
+    level: Some(14),
     patches: crate::patches::PATCHES,
     fresh: None,
     families: &[

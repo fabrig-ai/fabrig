@@ -51,6 +51,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     ],
     owner: Owner::Jig,
     name: "jig",
+    level: Some(6),
     patches: patches::PATCHES,
     fresh: None,
     families: &STORE_FAMILIES,

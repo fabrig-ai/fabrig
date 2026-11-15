@@ -27,6 +27,7 @@ use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod charter_versions;
+mod floor;
 mod jobs;
 mod live_task_parts;
 mod milestones;
@@ -1035,12 +1036,14 @@ const HEAD_SET: crate::PatchSet = crate::PatchSet {
     name: "heads",
     owner: crate::Owner::Application,
     families: &[HEAD_FAMILY],
+    level: Some(1),
     patches: &[HEAD_PATCH],
     fresh: None,
 };
 const HEAD_BASE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
         families: &[crate::KeptFamily { current: HEAD_OLD, texts: &[HEAD_OLD], ..HEAD_FAMILY }],
+        level: Some(0),
         patches: &[],
         ..HEAD_SET
     }],
@@ -1144,8 +1147,8 @@ fn heads_alone_put_kept_kinds_without_decode_and_count_every_paged_record() {
 // A binary with only the first application patch landed.
 const ONE: crate::PatchSets = crate::PatchSets {
     sets: &[
-        crate::PatchSet { patches: &[app::PATCHES[0]], ..SETS.sets[0] },
-        crate::PatchSet { patches: &[], ..SETS.sets[1] },
+        crate::PatchSet { level: Some(1), patches: &[app::PATCHES[0]], ..SETS.sets[0] },
+        crate::PatchSet { level: Some(0), patches: &[], ..SETS.sets[1] },
     ],
 };
 fn fixture_store(disk: &Harness, writes: u32, commit: u32, wanted: crate::patching::plan::Levels) -> Store {
@@ -1629,6 +1632,7 @@ const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
     owner: crate::Owner::Application,
     name: "manifest-bounds",
     families: &[],
+    level: None,
     patches: &[],
 };
 
@@ -2054,6 +2058,7 @@ fn a_closing_write_fault_refuses_failed_without_switching() {
 const FRESH_AFTER: crate::PatchSets = crate::PatchSets { sets: &[super::patching::SMITH] };
 const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
+        level: Some(0),
         patches: &[],
         families: &[crate::KeptFamily {
             current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],

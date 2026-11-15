@@ -16,6 +16,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
     }
+    if let Err(why) = plan::check_levels(&store.patch_sets) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {

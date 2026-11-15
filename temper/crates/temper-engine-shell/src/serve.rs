@@ -123,7 +123,7 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false)
+    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false, "")
 }
 #[expect(clippy::too_many_arguments, reason = "startup carries the command recording switch beside process facts")]
 fn prepare_given(
@@ -135,6 +135,7 @@ fn prepare_given(
     owned: &mut Vec<Fd>,
     given: &service::stock::Given,
     record: bool,
+    build_name: &'static str,
 ) -> Result<(service::Service, Box<[u8]>), String> {
     if matches!(
         service::startup::nearest(bytes),
@@ -171,6 +172,7 @@ fn prepare_given(
         program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    service.engine_component().build_name(build_name);
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
@@ -210,7 +212,7 @@ pub fn prepare_in_with(
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false)
+    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false, "")
         .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
@@ -228,7 +230,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false)
+    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "")
         .map(|(service, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
@@ -239,6 +241,7 @@ pub fn run(
     working: &[u8],
     directories: &Directories,
     record: bool,
+    build_name: &'static str,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -256,6 +259,7 @@ pub fn run(
                 owned,
                 &service::stock::Given::Stock,
                 record,
+                build_name,
             )
             .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
         },
