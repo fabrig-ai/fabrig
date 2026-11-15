@@ -764,6 +764,7 @@ fn operation(value: &[u8]) -> Option<Operation> {
         b"status" => Operation::Status,
         b"dispatch" => Operation::Dispatch,
         b"rerun" => Operation::Rerun,
+        b"cancel" => Operation::Cancel,
         b"put_page" => Operation::PutPage,
         b"delete_page" => Operation::DeletePage,
         b"clone" => Operation::Clone,

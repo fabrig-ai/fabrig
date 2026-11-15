@@ -119,8 +119,11 @@ landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
 next round, each probe's gates given `temper_probe` so that they may
-stop at their first red (`domain/landing-search.md`). Its process stories and
-staging walks follow landing (`draft/merge-queue.status.md`).
+stop at their first red (`domain/landing-search.md`). Its behaviours are
+checked in the engine's worlds; the process tier keeps two stories on
+the fake forge and two on the owned Forgejo, run by choice
+(`testing/process-tier.md`); its staging walks follow landing
+(`draft/merge-queue.status.md`).
 
 The landing history's milestone H1, goal 2474, keeps each change's and
 each landing's steps as events after their rows go

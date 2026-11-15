@@ -57,6 +57,7 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+temper-engine-domain-forge-landing.workspace = true
 temper-engine-service-startup.workspace = true
 smith-transcript.workspace = true
 jig-engine-clients-kit.workspace = true

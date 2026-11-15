@@ -536,7 +536,7 @@ fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
     let mut h = Harness::with(Config { runner_labels: Some(Box::new([])), ..calm() }, configured);
     h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"wf"), branch: copy_of(MAIN), inputs: Box::new([]) }));
     let bytes = h.domain.image().unwrap();
-    assert_eq!(bytes.get(..8), Some(b"FORGEIM2".as_slice()));
+    assert_eq!(bytes.get(..8), Some(b"FORGEIM3".as_slice()));
     let mut other = restored(&h);
     let Answer::Jobs(jobs) = other.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
     assert_eq!((jobs[0].labels.as_ref(), jobs[0].wait), (names(&[b"docker"]).as_ref(), Some(JobWait::Runner)));
@@ -546,6 +546,21 @@ fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
     let Answer::Jobs(jobs) = other.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
     assert_eq!(jobs[0].wait, None);
     assert_eq!(jobs[0].steps[1].status, crate::api::StepStatus::Running);
+
+    let cancellations = skein_lib::bytes::find(&bytes, b"CANCEL01").expect("cancellation extension");
+    let mut previous = copy_of(&bytes[..cancellations]);
+    for (out, byte) in previous.iter_mut().zip(b"FORGEIM2") {
+        *out = *byte;
+    }
+    let previous = Domain::from_image(&h.env.limits, &previous).unwrap();
+    let Answer::Run(run) = previous.inspect(&h.env.limits, &repository(), &Read::Run { run: 1 }).unwrap() else {
+        panic!("previous run")
+    };
+    assert_eq!(run.cancelled_by, None);
+    assert_eq!(
+        previous.inspect(&h.env.limits, &repository(), &Read::Jobs { run: 1 }),
+        h.inspect(&Read::Jobs { run: 1 })
+    );
 
     let extension = skein_lib::bytes::find(&bytes, b"JOBST001").expect("job-state extension");
     let mut legacy = copy_of(&bytes[..extension]);

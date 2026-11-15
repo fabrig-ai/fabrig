@@ -52,8 +52,8 @@
   the restore and file-handshake decisions are the lower worlds'. It
   needs no Forgejo, change, CI or reviewer.
 
-- **Owned variants share their setup.** Runner cancellation contains the
-  main-advanced and mid-proof/restarted turn-landing checks. The owned
+- **Owned variants share their setup.** The owned turn landing's
+  cancelled run contains its restart while proving. The owned
   welcome includes program login and key admission. One setup-cut story
   walks fetch, preparation, run and started cuts using one scratch and
   cache, makes one final setup, then restarts across its removal cut. Its
@@ -66,36 +66,112 @@
   The plan-face landing remains separate as the offline proof of the
   shared live driver's model face (`live-tier.md`).
 
-- **A queue that lands green** (`../draft/merge-queue.md`, 12;
-  `../domain/landing.md`, 5 and 8), one story on the owned turn
-  landing's setup, which it shares with the runner cancellation story,
-  never a copy of it: a project landing by `turn` with `batch` 3, its
-  repository's gate a dispatch-only workflow on the owned runner; three
-  changes into main ready at once, made through the fake model as the
-  turn landing's change is, form one landing; temper's merge train
-  stacks them on a worker by real git, a branch per member in the
-  landing; one gate run at the top proves them, and one fast-forward of
-  the landing's pull request lands them; every member's pull request
-  reads merged, each change landed at its own prefix; a fourth change
-  ready while the batch proves waits, and lands in the next landing.
-  Its proof is the forge's state read through Forgejo's API and the
-  landings read through ctl. It needs the worker's merge train on real
-  git, the owned runner and a dispatched run, so it is this profile's.
+- **Landing by turn's behaviours are the engine's worlds'**
+  (skein/docs/foundation/testing-strategy.md, 1 and 2.9; the user's
+  request of 2026-11-15): what a landing does, forming, batches,
+  stacking, proof and its keys, narrowing, leaving, repairs and
+  resolutions, restarts in each phase, settings and ceilings, is
+  checked in the engine's domain world
+  (`tests/engine/domain/tests/suite/forge_routes/`, D below) and its
+  forge world (`tests/engine/forge/tests/suite/`, F below), on the fake
+  forge, with faults and tiny limits (`../domain/landing.md`, 16). This
+  tier keeps two stories on the fake forge for what processes show, and
+  two on the owned Forgejo, run by choice, for what only a real Forgejo
+  shows (both below). The sixteen stories it held on the owned Forgejo
+  are gone, each once its behaviour had a scenario below it, and live
+  here now (a module marked new is this re-layering's, a scenario of
+  its own):
 
-- **A red narrowed** (`../draft/merge-queue.md`, 12;
-  `../domain/landing-search.md`), on the same setup as the queue that
-  lands green, never a copy of it: three changes into main ready at
-  once form one landing, the second's file making the gate's `check.sh`
-  fail by its content, the first's and the third's passing it; the run
-  at the top fails, the search probes boundary 1, which passes, then
-  boundary 2, which fails; the first change lands by a fast-forward of
-  a pull request from its branch in the landing, the gate's status on
-  its prefix; the second leaves blamed, its change repairing; the third
-  is stacked on the new tip in the next round, proved and landed. Its
-  proof is the forge's state, its runs, statuses, branches and pull
-  requests, read through Forgejo's API, and the landing read through
-  ctl. It is written and compiled with the search, and runs in this
-  profile after landing.
+  | Former story | What it checked | Where it lives |
+  |---|---|---|
+  | `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts` | restarts in preparing, proving and turn; a run cancelled outside temper dispatched afresh, its key and candidate kept, never repaired; a candidate on a main moved before forming | F `landing_batches.rs`, `batches_restart_preparing_proving_turn_recording_and_ended_without_repeating_writes`; F `landing.rs`, `a_restart_finds_the_dispatched_run_without_dispatching_again`; F `landing_cancelled.rs`, `a_persons_cancellation_dispatches_afresh_and_restart_finds_that_run` and `cancellations_past_the_gate_retry_bound_hold_without_repair`; the owned runner's cancellation, trimmed, by choice (below) |
+  | `an_engine_restarts_in_each_turn_landing_phase` | the engine restarted in preparing, proving and turn, the worker's prepare job living on | D `landing_restarts.rs`, `an_engine_restarts_in_each_turn_landing_phase`; D `landing_trains.rs`, `drill_14_a_dependency_across_goal_and_main_trains_survives_restart`; the engine killed as a process, the fake forge's first story (below) |
+  | `an_engine_and_worker_restart_during_delivery_beside_proof` | a producer's saved delivery across its worker's loss and an engine restart, beside a proving landing | D `landing_delivery_restart.rs`, `a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof`; the worker restarted as a process, the fake forge's second story (below) |
+  | `four_goals_land_together_after_loading_batch_four` | `batch` raised to 4 at a restart; four goals' changes in one landing, one run, one fast-forward | D `landing_restarts.rs`, `four_goals_land_together_after_loading_batch_four` |
+  | `a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four` | four units, the third red: narrowed, the rest landed, the third repaired and landed later | F `landing_red_four.rs`, `a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later`; F `train_drills.rs`, `drill_18_five_units_with_the_third_breaking_probe_two_then_three` |
+  | `conflicting_goals_depart_and_resolve_in_batch_four` | a member conflicting with an earlier one leaves, the rest land, its resolution lands later | F `landing_batches.rs`, `drill_9_an_earlier_conflict_keeps_first_place_then_resolves_only_against_the_branch`; D `landing_merge_drill.rs`, `drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent` |
+  | `a_project_with_its_own_roles_goes_live_by_turn_with_running_stays` | a project with its own roles moved from `queue` to `turn` by one owner revision, running work keeping its settings, across a restart | D `landing_go_live.rs`, `a_project_with_its_own_roles_goes_live_by_turn_with_running_stays`; D `landing_trains.rs`, `drill_15_an_owner_widens_its_own_project_roles_for_template_four_goal_trains` |
+  | `a_member_head_moves_during_a_three_goal_batch_proof` | a member's head moved by another hand mid-proof leaves, held as moved; the rest land | F `landing_batches.rs`, `a_middle_head_move_keeps_the_lower_prefix_and_rebuilds_only_above_it`; F `landing_leaving.rs`, `a_head_pushed_by_another_hand_leaves_and_holds_its_change_as_drift` |
+  | `a_batch_of_three_lands_by_one_fast_forward` | three stacked, one run at the top, one fast-forward; a fourth ready meanwhile waits for the next landing | F `landing_batches.rs`, `three_prefixes_land_by_one_top_fast_forward`; F `trains.rs`, `a_formed_batch_is_sealed_against_a_later_ready_change` |
+  | `a_red_batch_is_narrowed_before_the_remaining_change_lands` | three, the second red: probes, the first landed, the second repairing, the third in round 2 | F `landing_batches.rs`, `a_red_middle_unit_is_blamed_the_green_prefix_lands_and_the_suffix_stacks_again` and `each_probe_tells_every_prefixed_member_once_and_blame_tells_its_red_and_green`; the owned runner's probes and a merged pull's head, trimmed, by choice (below) |
+  | `a_copied_projects_red_member_repairs_and_lands_later` | a project on a copy of the stock's policy, without the branch-delete grant: a red member leaves, its repair lands later | D `landing_copied.rs`, `a_copied_projects_red_member_repairs_and_lands_later`; D `landing.rs`, `a_red_only_member_frees_its_round_branch_without_a_delete_grant` |
+  | `a_deployment_sized_repository_root_lands_by_turn` | a root of a deployment's size, on the shipped capacities | D `landing_copied.rs`, `a_deployment_sized_repository_root_lands_by_turn` |
+  | `two_conflicting_changes_resolve_and_land_by_turn` | a change conflicting with main after another landed resolves and lands later | F `landing_rounds.rs`, `a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing`; D `landing.rs`, `the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution` |
+  | `a_goal_delivering_mid_proof_leaves_and_lands_its_new_head` | a goal's landing into main left when a delivery into the goal's branch moves its head mid-proof; its new head lands under a new key | D `landing_goal_midproof.rs`, `a_goal_delivering_mid_proof_leaves_and_lands_its_new_head`; F `landing_proofs.rs`, `leaving_mid_proof_supersedes_the_open_interval_once` |
+  | `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run` | the same, the delivery in an ignored path: the successor's key the departed one's, its run shared | D `landing_goal_midproof.rs`, `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run`; F `landing_proofs.rs`, `a_departed_landings_run_proves_a_successor_with_the_same_key` |
+  | `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` | four, the second red, on the shipped capacities and a copied policy: narrowed, the rest landed in round 2 | D `landing_copied.rs`, `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` |
+
+- **Landing by turn on the fake forge,** two stories of
+  `bin/temper-box/tests/process.rs`, on the cluster's processes
+  (`testing/temper-box-kit/src/cluster.rs`; the cluster, below): the
+  deployment's binaries (`Cluster::deployment_binaries`), the engine
+  alone, one worker alone and its agents, each a process started by its
+  own `main`, on `temper-box fake forge` and `temper-box fake llm`, the
+  box's fake backends, and the fake git program. The fake forge's
+  document declares the gate's dispatch-only workflow, its verdict by
+  what the dispatched commit holds (`{"declared": ".fake-forge/gate"}`),
+  and manual merges detected (`fakes.md`, 2); the project lands by
+  `turn` with `batch` 1. They share one setup, never a copy of it:
+  - *a change lands by turn across an engine killed mid-proof:* a
+    chat's change, made through the fake model, ready; its landing
+    prepared by the worker's merge train and its gate dispatched; once
+    ctl reads the landing `proving`, the engine is killed
+    (`Members::kill`) and, once it has ended, started again on its
+    directories (`Members::restart`); the landing, found again
+    (`../domain/landing.md`, 15), lands: one dispatch of the gate, at
+    the candidate; main at the candidate; the change's pull request
+    merged; the change landed and the landing ended landed, read
+    through ctl and the fake forge's API. The fake forge's CI is paced
+    (its document's `pace`, `ci_ms`; `../protocol/setup/playground.md`)
+    so that the landing proves long enough for the kill to fall in it;
+    a story that reads the landing past proving before its kill fails,
+    naming the pace, and never passes;
+  - *a worker restarted mid-delivery:* a change's producer, scripted
+    through the fake model, writes a line and saves, then writes a
+    second and delivers; the worker's git program, a wrapper of the
+    fake git that the story writes, holds the delivery's push until the
+    story lets it go; once the push is held, the worker is stopped
+    (`Members::stop_one`), the push let go, and the worker drains and
+    exits 0; started again on its directories, the change lands by
+    `turn` with both lines on main, delivered once: one pull request,
+    one landing, one dispatch.
+
+  Each is within the tier's 60 CPU s (`tools/tiers/budgets.toml`). Their
+  referee is the cluster's: what the engine records, read through ctl,
+  the fake forge's state through its API, and no process of the cluster
+  outliving it. Like the cluster's stories, they need delegated cgroups.
+
+- **Landing by turn on a real Forgejo, by choice:** two of the owned
+  turn landing's former stories, trimmed to what only a real Forgejo
+  and its runner show, each `#[ignore = "real Forgejo by choice: ...;
+  run by name with --run-ignored only"]`, its reason naming what it
+  shows, as the live suite's name theirs (`live-tier.md`), run by name
+  with `--run-ignored only` and in no budgeted run:
+  - `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`:
+    one change into main; its gate's dispatch-only run on the owned
+    runner held, then cancelled through Forgejo's API; a fresh dispatch
+    at the same candidate, triggered by temper as `workflow_dispatch`;
+    one restart while it is held, which finds it; let go, the landing
+    lands: two runs of the gate at the candidate, both dispatched by
+    temper; the status `temper/gate/<name>` passed, its words and link
+    the receipt's; the round's pull request merged at the candidate;
+    the member's pull request read merged at its prefix, its head kept,
+    as Forgejo's detection marks it once the turn has moved main;
+  - `a_red_batch_is_narrowed_before_the_remaining_change_lands`: three
+    changes into main in one landing, the second's file making the
+    gate's `check.sh` fail; the top's and the probes' runs dispatch-only
+    runs on the owned runner, at the top and at the prefixes; the first
+    change landed by a fast-forward of a pull request from its prefix's
+    branch; the third landed in the next round, its round's pull
+    request read at the proved head once its branch is gone, by its
+    branch or `refs/pull/N/head` as Forgejo keeps a merged pull's head;
+    each landed member's pull request read merged at its prefix once
+    Forgejo's detection marks it; four runs in all.
+
+  Their setup is the owned turn landing's
+  (`testing/temper-box-kit/src/turn_restart.rs`), the gate's run held
+  by `forgejo::JobBarrier`; they need `TEMPER_TEST_FORGEJO` and
+  `TEMPER_TEST_FORGEJO_RUNNER`, as every owned-Forgejo story does.
 
 - **The playground and the set up, in and out,** each a story of its
   own (../protocol/setup/testing.md, 4): a first run into the playground and

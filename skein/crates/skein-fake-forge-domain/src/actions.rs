@@ -21,6 +21,7 @@ pub enum RunState {
 pub enum Conclusion {
     Success,
     Failure,
+    Cancelled,
 }
 
 /// Why a pending job has not started (forge/job-state.md, 5).
@@ -38,6 +39,7 @@ pub struct Run {
     pub workflow: Option<Box<[u8]>>,
     pub event: RunEvent,
     pub user: u64,
+    pub cancelled_by: Option<u64>,
     pub state: RunState,
     pub conclusion: Option<Conclusion>,
     pub created: Time,
@@ -84,6 +86,7 @@ pub(crate) fn start(
         workflow: None,
         event: if pull.is_some() { RunEvent::PullRequest } else { RunEvent::Push },
         user,
+        cancelled_by: None,
         state: RunState::Running,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
@@ -215,7 +218,7 @@ pub(crate) fn jobs(domain: &Domain, limits: &crate::Limits, repository: &Reposit
         if kept.run.workflow.is_none() && job.state == RunState::Completed {
             let state = match job.conclusion {
                 Some(Conclusion::Success) => Check::Passed,
-                Some(Conclusion::Failure) => Check::Failed,
+                Some(Conclusion::Failure | Conclusion::Cancelled) => Check::Failed,
                 None => unreachable!("a completed CI job has a conclusion"),
             };
             let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");

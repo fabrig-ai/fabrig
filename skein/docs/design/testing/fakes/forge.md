@@ -182,7 +182,11 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   again, at its next attempt. A fault draws a job failed in its set-up
   step (`setup_faults`), or a run lost with no step failed (`lost`), so a
   world reaches the runner's faults; `Cue::Message` fails a job's
-  workflow step, as a test would.
+  workflow step, as a test would. A run in flight cancelled by a user
+  ends each job not completed cancelled, with no step failed, and
+  completes `Cancelled`, naming who cancelled it, so a world reaches a
+  run cancelled by someone other than its dispatcher; a completed run
+  is not cancelled.
 - **A job's state** (`../../forge/job-state.md`, section 5): a job names
   the runner labels it asks for and the jobs it needs, and the world the
   labels its runners serve, all by default. A job asking for a label no

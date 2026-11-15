@@ -888,12 +888,6 @@ pub fn live_adopt_and_change(forge: &super::forgejo::Throwaway) -> Script {
     script
 }
 
-/// Reconnect the native client without awaiting a change that the referee cuts.
-#[must_use]
-pub(super) fn signed_in() -> Script {
-    Script { begin: Begin::Token, steps: Box::new([]) }
-}
-
 #[must_use]
 pub fn found() -> Script {
     Script {

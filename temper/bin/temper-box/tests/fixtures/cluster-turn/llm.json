@@ -1,0 +1,255 @@
+{{
+  "listen": {{
+    "socket": "{story.llm}"
+  }},
+  "key": "{proc.llm.dir}/llm.key",
+  "tls": {{
+    "root": "{proc.llm.dir}/root.der"
+  }},
+  "models": [
+    {{
+      "name": "gpt-6.1-sol",
+      "window": 1048576,
+      "output": 8192
+    }}
+  ],
+  "cued": [
+    {{
+      "cue": "## Task\n\n@coding NOTICE",
+      "turns": [
+        {{
+          "lines": [
+            {{
+              "call": "read",
+              "arguments": {{
+                "path": "NOTICE"
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "write",
+              "arguments": {{
+                "path": "NOTICE",
+                "content": "Saved work\n"
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "save",
+              "arguments": {{}}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "write",
+              "arguments": {{
+                "path": "NOTICE",
+                "content": "Saved work\nDelivered work\n"
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "deliver",
+              "arguments": {{
+                "fields": {{
+                  "title": "Keep saved work",
+                  "body": "Both lines delivered."
+                }}
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }},
+        {{
+          "lines": [
+            {{
+              "call": "finish",
+              "arguments": {{
+                "form": "change",
+                "fields": {{
+                  "title": "Keep saved work",
+                  "body": "Both lines delivered."
+                }}
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 1
+        }}
+      ]
+    }}
+  ],
+  "asked": [
+    {{
+      "cue": "Add a file NOTICE to widget",
+      "turns": [
+        {{
+          "lines": [
+            {{
+              "call": "delegate",
+              "arguments": {{
+                "batch": [
+                  {{
+                    "executor": {{
+                      "kind": "procedure",
+                      "connector": 1,
+                      "code": 2
+                    }},
+                    "spec": {{
+                      "words": "@coding NOTICE",
+                      "parameters": [
+                        {{
+                          "name": 1,
+                          "kind": "resource",
+                          "connector": 1,
+                          "resource": 4294967297
+                        }},
+                        {{
+                          "name": 2,
+                          "kind": "bytes",
+                          "value": "main"
+                        }}
+                      ]
+                    }},
+                    "contract": {{
+                      "kind": "change",
+                      "connector": 1,
+                      "change_kind": 1,
+                      "words": 128
+                    }},
+                    "authority": {{
+                      "tools": 1,
+                      "grants": [
+                        {{
+                          "connector": 1,
+                          "kind": 2,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 3,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 4,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 10,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 11,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }},
+                        {{
+                          "connector": 1,
+                          "kind": 12,
+                          "segments": [
+                            "forge",
+                            "{proc.forge.ready.address}"
+                          ],
+                          "terminal": "open",
+                          "last": "fake"
+                        }}
+                      ],
+                      "delegation": {{
+                        "kinds": [
+                          {{
+                            "kind": "agent",
+                            "number": 2
+                          }}
+                        ],
+                        "tasks": 4,
+                        "depth": 2
+                      }},
+                      "budget": {{
+                        "spend": 10
+                      }},
+                      "notes": 0
+                    }}
+                  }}
+                ]
+              }}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }},
+        {{
+          "lines": [
+            {{
+              "text": "I asked for the change; its task follows it."
+            }},
+            {{
+              "call": "wait",
+              "arguments": {{}}
+            }}
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }},
+        {{
+          "lines": [
+            {{
+              "text": "The change's task has ended; it says how."
+            }}
+          ],
+          "finish": "stop",
+          "tokens": 20
+        }}
+      ]
+    }}
+  ],
+  "otherwise": [
+    "This model makes one change. Ask a chat for it in these words: Add a file NOTICE to widget holding one line: Maintained by temper."
+  ]
+}}
