@@ -122,6 +122,263 @@ sys.exit(int(count > 0))
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
 
+    def test_failure_file_keeps_mixed_keys_beyond_the_summary_cap(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        path = self.root.resolve() / '.git/temper/pre-pr-failures.json'
+        for count in (26, 194, 349):
+            with self.subTest(count=count):
+                errors, expected = [], []
+                for index in range(count):
+                    name = f'rule_{index:03}'
+                    cases = [
+                        (f'test api::rules {name}', ('api::rules', name),
+                         {'kind': 'test', 'binary': 'api::rules', 'test': name}),
+                        (f'clippy api E0001 {name}.rs', ('api', 'E0001', name + '.rs', name),
+                         {'kind': 'lint', 'package': 'api', 'code': 'E0001', 'file': name + '.rs', 'message': name}),
+                        (f'old-forms skein {name}', ('skein', name, index + 1, index),
+                         {'kind': 'old-forms', 'tree': 'skein', 'form': name, 'count': index + 1, 'baseline': index}),
+                        ('check ' + name, None, None),
+                    ]
+                    display, key, structured = cases[index % len(cases)]
+                    error = PRE_PR.failure(display, 'failure log\n' * 150, key)
+                    kind = 'new'
+                    if index < 3:
+                        error['inherited'] = True
+                        if index == 0:
+                            error['flake'] = (2, 0.125)
+                        kind = 'inherited'
+                    elif index % 4 == 0:
+                        error['flake'] = (2, 0.125)
+                        kind = 'flake'
+                    errors.append(error)
+                    expected.append({'class': kind, 'name': display, 'key': structured})
+                expected = ([entry for entry in expected if entry['class'] == 'new'] +
+                            sorted((entry for entry in expected if entry['class'] == 'flake'),
+                                   key=lambda entry: entry['key']['test']) +
+                            [entry for entry in expected if entry['class'] == 'inherited'])
+                counts = {kind: sum(entry['class'] == kind for entry in expected)
+                          for kind in ('new', 'flake', 'inherited')}
+                # Large sets exercise the header's cut after its two kept lines.
+                with mock.patch.object(PRE_PR, 'judge_base', return_value=''), \
+                        mock.patch.object(PRE_PR, 'select', return_value=(['é' * 3000], ['api'])):
+                    result, log, _, _ = self.deliver(one_process_answer=(100, errors, None))
+                self.assertEqual(result, 1, log)
+                text = path.read_text(encoding='utf-8')
+                record = json.loads(text)
+                self.assertEqual(record['failures'], expected)
+                self.assertEqual(record['counts'], counts)
+                self.assertEqual(record['form'], 'pre-pr-failures 1')
+                self.assertEqual(record['base'], self.command('git', 'rev-parse', 'HEAD').strip())
+                self.assertEqual(record['verdict'], 'refused')
+                self.assertFalse(record['cached'])
+                lines = text.splitlines()
+                self.assertTrue(lines[0].endswith(', "failures": ['))
+                self.assertEqual([json.loads(line.rstrip(',')) for line in lines[1:-1]], expected)
+                self.assertEqual(lines[-1], ']}')
+                summary = 'pre-pr: refused (' + log.rsplit('pre-pr: refused (', 1)[1]
+                header = summary.splitlines()
+                self.assertTrue(header[0].startswith('pre-pr: refused (base '))
+                self.assertEqual(header[1], f'failures: {counts["new"]} new, {counts["flake"]} flakes, '
+                                 f'{counts["inherited"]} inherited; every key in {path}')
+                self.assertLessEqual(len(summary.encode()), 8192)
+                before_failure, _ = summary.split('\n' + expected[0]['name'] + '\n', 1)
+                self.assertLessEqual(len(before_failure.encode()) + 1, 4096)
+                self.assertIn(' more failures]', summary)
+
+    def test_failure_file_keeps_all_450_test_keys_in_class_order(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        errors = []
+        for index in range(450):
+            name = f'rule_{index:03}'
+            error = PRE_PR.failure('test api::rules ' + name, 'fault\n' * 300, ('api::rules', name), 'api')
+            if index < 10:
+                error['inherited'] = True
+            elif index < 15:
+                error['flake'] = (2, 0.125)
+            errors.append(error)
+        errors.reverse()
+        result, log, _, _ = self.deliver(one_process_answer=(100, errors, None))
+        self.assertEqual(result, 1, log)
+        path = self.root.resolve() / '.git/temper/pre-pr-failures.json'
+        record = json.loads(path.read_text())
+        self.assertEqual(record['counts'], {'new': 435, 'flake': 5, 'inherited': 10})
+        indices = list(range(449, 14, -1)) + list(range(10, 15)) + list(range(9, -1, -1))
+        self.assertEqual(record['failures'], [
+            {'class': 'new' if index >= 15 else 'flake' if index >= 10 else 'inherited',
+             'name': f'test api::rules rule_{index:03}',
+             'key': {'kind': 'test', 'binary': 'api::rules', 'test': f'rule_{index:03}'}}
+            for index in indices])
+        summary = 'pre-pr: refused (' + log.rsplit('pre-pr: refused (', 1)[1]
+        self.assertEqual(summary.splitlines()[1],
+                         f'failures: 435 new, 5 flakes, 10 inherited; every key in {path}')
+        self.assertLessEqual(len(summary.encode()), 8192)
+
+    def test_failure_file_preserves_long_unicode_and_surrogate_keys(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        name = '規則_é' * 2000
+        message = '不正な値 é ' + '\ud800'
+        errors = [PRE_PR.failure('test api::rules ' + name, 'fault', ('api::rules', name)),
+                  PRE_PR.failure('clippy api  ', 'fault', ('api', '', '', message))]
+        result, log, _, _ = self.deliver(one_process_answer=(100, errors, None))
+        self.assertEqual(result, 1, log)
+        raw = (self.root / '.git/temper/pre-pr-failures.json').read_bytes()
+        record = json.loads(raw)
+        self.assertEqual(record['failures'], [
+            {'class': 'new', 'name': errors[0]['name'],
+             'key': {'kind': 'test', 'binary': 'api::rules', 'test': name}},
+            {'class': 'new', 'name': errors[1]['name'],
+             'key': {'kind': 'lint', 'package': 'api', 'code': '', 'file': '', 'message': message}}])
+        self.assertIn(name.encode(), raw)
+        self.assertIn(b'\\ud800', raw)
+
+    def test_failure_file_outlives_the_one_process_directory(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        names = [f'rule_{index:03}' for index in range(26)]
+        directories = []
+
+        def fake(arguments, cwd, env, output, stdout):
+            directory = Path(arguments[arguments.index('--out') + 1])
+            directories.append(directory)
+            directory.mkdir()
+            (directory / 'junit.xml').write_text('<testsuites><testsuite name="api::rules">' + ''.join(
+                f'<testcase name="{name}"><failure>fault</failure></testcase>' for name in names) +
+                '</testsuite></testsuites>')
+            (directory / 'results.json').write_text(json.dumps({'tests': [
+                dict(binary_id='api::rules', test_name=name, outcome='failed') for name in names], 'unobserved': []}))
+            (directory / 'run.json').write_text('{"starved": false}')
+            return 100, 'fake run\n'
+
+        summarize = PRE_PR.summary
+        path = self.root / '.git/temper/pre-pr-failures.json'
+
+        def summary(*args):
+            self.assertEqual(len(directories), 1)
+            self.assertFalse(directories[0].parent.exists())
+            self.assertEqual(len(json.loads(path.read_text())['failures']), len(names))
+            return summarize(*args)
+
+        with mock.patch.object(PRE_PR, 'summary', side_effect=summary):
+            result, log, _, _ = self.deliver(one_process_answer=None, process_answer=fake)
+        self.assertEqual(result, 1, log)
+        self.assertEqual(len(directories), 1)
+        self.assertFalse(directories[0].parent.exists())
+        record = json.loads(path.read_text())
+        self.assertEqual([entry['key'] for entry in record['failures']],
+                         [{'kind': 'test', 'binary': 'api::rules', 'test': name} for name in names])
+
+    def test_failure_file_uses_the_linked_worktrees_git_directory(self):
+        main = self.root
+        linked = main / 'linked'
+        self.command('git', 'worktree', 'add', '--detach', str(linked), 'HEAD')
+        self.root = linked
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        error = PRE_PR.failure('format', 'fault')
+        result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+        self.assertEqual(result, 1, log)
+        path = main.resolve() / '.git/worktrees/linked/temper/pre-pr-failures.json'
+        self.assertEqual(json.loads(path.read_text())['failures'],
+                         [{'class': 'new', 'name': 'format', 'key': None}])
+        self.assertIn('every key in ' + str(path), log)
+        self.assertFalse((main / '.git/temper/pre-pr-failures.json').exists())
+
+    def test_failure_file_write_error_preserves_verdict_and_other_output(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n')
+        error = PRE_PR.failure('test api::rules rule', 'fault', ('api::rules', 'rule'))
+        for errors in ([error], []):
+            with self.subTest(refused=bool(errors)):
+                path = self.root.resolve() / '.git/temper/pre-pr-failures.json'
+                path.unlink(missing_ok=True)
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                good, good_log, _, _ = self.deliver(one_process_answer=(100, errors, None))
+                results = (self.root / '.git/temper/check-results').read_bytes()
+                path.unlink()
+                path.mkdir()
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                bad, bad_log, _, _ = self.deliver(one_process_answer=(100, errors, None))
+                self.assertEqual(bad, good)
+                self.assertEqual(bad, int(bool(errors)))
+                self.assertEqual((self.root / '.git/temper/check-results').read_bytes(), results)
+                verdict = 'refused' if errors else 'passed'
+                before = good_log.rsplit('pre-pr: ' + verdict + ' (', 1)[1].splitlines()
+                after = bad_log.rsplit('pre-pr: ' + verdict + ' (', 1)[1].splitlines()
+                self.assertEqual(after[:1] + after[2:], before[:1] + before[2:])
+                self.assertTrue(after[1].startswith(f'failures: {len(errors)} new, 0 flakes, 0 inherited; '
+                                                   f'not written to {path}: '), after[1])
+                self.assertIn('directory', after[1].lower())
+                path.rmdir()
+
+    def test_failure_file_lookup_and_write_exceptions_are_bounded(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        error = PRE_PR.failure('format', 'fault')
+        lookup = PRE_PR.git
+        message = 'x' + 'é' * 300 + '界' + '\nnot the first line'
+        for cause in ('git exit', OSError(message), ValueError(message), UnicodeError(message)):
+            with self.subTest(cause=cause):
+                def git(arguments, cwd, env):
+                    if arguments == ['rev-parse', '--git-path', 'temper/pre-pr-failures.json']:
+                        if cause == 'git exit':
+                            return subprocess.CompletedProcess(arguments, 128, b'', message.encode())
+                        raise cause
+                    return lookup(arguments, cwd, env)
+
+                with mock.patch.object(PRE_PR, 'git', side_effect=git):
+                    result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+                self.assertEqual(result, 1, log)
+                summary = log.rsplit('pre-pr: refused (', 1)[1].splitlines()
+                self.assertEqual(summary[1], 'failures: 1 new, 0 flakes, 0 inherited; '
+                                 'not written to temper/pre-pr-failures.json: x' + 'é' * 255)
+                self.assertIn('format\nfault\n', '\n'.join(summary) + '\n')
+        path = self.root.resolve() / '.git/temper/pre-pr-failures.json'
+        for cause in (OSError(message), ValueError(message), UnicodeError(message)):
+            with self.subTest(write=cause), mock.patch.object(Path, 'write_bytes', side_effect=cause):
+                result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+                self.assertEqual(result, 1, log)
+                self.assertIn(f'not written to {path}: x' + 'é' * 255 + '\n', log)
+
+    def test_failure_file_is_replaced_by_a_pass_and_a_cache_hit(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        error = PRE_PR.failure('format', 'fault')
+        result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+        self.assertEqual(result, 1, log)
+        path = self.root.resolve() / '.git/temper/pre-pr-failures.json'
+        refused = json.loads(path.read_text())
+        self.assertEqual(refused['verdict'], 'refused')
+        replacements = []
+        replace = Path.replace
+
+        def replacing(source, target):
+            if source.name == 'pre-pr-failures.json.tmp':
+                self.assertEqual(json.loads(path.read_text()), refused)
+                replacements.append(json.loads(source.read_text()))
+            return replace(source, target)
+
+        with mock.patch.object(Path, 'replace', replacing):
+            result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        passed = json.loads(path.read_text())
+        tree, base, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        self.assertEqual(passed, {'form': 'pre-pr-failures 1', 'tree': tree, 'base': base,
+                                 'cached': False, 'verdict': 'passed',
+                                 'counts': {'new': 0, 'flake': 0, 'inherited': 0}, 'failures': []})
+        self.assertEqual(replacements, [passed])
+        self.assertFalse(path.with_name('pre-pr-failures.json.tmp').exists())
+        # Removing the prior file proves a hit writes, rather than just reusing it.
+        path.unlink()
+        result, log, _, code = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertFalse(any(code))
+        self.assertEqual(json.loads(path.read_text()), dict(passed, cached=True))
+        lines = log.splitlines()
+        hit = next(index for index, line in enumerate(lines) if line.startswith('pre-pr: passed before ('))
+        self.assertEqual(lines[hit + 1], f'failures: a cached pass, none observed; in {path}')
+        path.unlink()
+        path.mkdir()
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertIn(f'failures: a cached pass, none observed; not written to {path}: ', log)
+
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
