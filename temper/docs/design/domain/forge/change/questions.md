@@ -39,6 +39,8 @@ stored setting naming it is refused, not read, naming the setting
   the one before is answered. A question from any
   other task, and any other task's words, receive fallback feedback naming
   the enabled route and the answer form; words do not settle a question.
+  Its requester's words while it has a live producer are passed to that
+  producer instead (*Its requester's words and amendments*, below).
 - **Its own agents' words.** Its agent's report goes in its `finish`,
   and the question form is its one use of `message` to its change. Its
   words settle nothing, and in a run that may wait, what reaches it
@@ -104,10 +106,12 @@ stored setting naming it is refused, not read, naming the setting
   The change answers its asker's question with the answer's words
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
-  widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`)
-  or make a new change and add it as the change's dependency, which
-  orders the change's merge after it and holds the answer until it
-  lands (below); its answer then says so.
+  widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`),
+  which reaches a live producer (*Its requester's words and
+  amendments*, below), or add a change as the change's dependency, one
+  it makes now or one it already has, a sibling change of the same
+  goal among them, which orders the change's merge after it and holds
+  the answer until it lands (below); its answer then says so.
 - **Held for a dependency it did not start from.** An answer the
   change takes is held on its record (where it stands: its answer
   held) while some pending dependency of the change is not among those
@@ -175,6 +179,101 @@ down stay on the record even when the step has no message room.
 Passing up after release does not check the spent allowance again. Ask and
 answer messages share the step's `tasks.batch` with its other replies. Work left solely for lack of message room makes the
 next step due at once (2026-11-04).
+
+### Its requester's words and amendments
+
+A change's requester reaches the change's live producer through the
+change: by words, and by amending the change. Neither answers a
+question (2026-11-15, `../../../draft/producer-reach.md`, 2 and 3). The
+change's producer is its producing task (`README.md`, 2, step 1), live
+from its making until it closes: waiting, active (running, parked, or
+kept by its own question) or held (jig's `domain/tasks/lifecycle.md`).
+Its repairs and resolutions are not its producer: their briefs are made
+from what failed, not from the change's words, and words to the change
+while one of them is its only live agent receive the fallback feedback.
+What follows holds under either question route.
+
+- **Its requester's words pass to its live producer.** Words in the
+  words form from its requester, a task, taken at a step while the
+  change has a live producer, are passed to that producer in the words
+  form, and the change tells its requester so, in words, in the same
+  step:
+  - to the producer, `From task R, your change's requester:`, a blank
+    line, then the words whole, R the requester's number, the whole cut
+    from its end to the message bound and marked `…`;
+  - to the requester, `Passed to task P, this change's producer.`, P
+    the producer's number. Where the record holds an open question of
+    P's, taken or asked, the reply goes on: ` Its question still waits,
+    and words do not answer it: LINE. Answer it with message
+    form=answer; read_task on this change gives the question's
+    number.`, LINE the first line, as the record keeps it, of the
+    first such question. The reply is cut from its end to the message
+    bound and marked `…`.
+
+  With no live producer, the requester's words receive the fallback
+  feedback as before: the enabled route's (above), or a change with
+  `none`'s (`README.md`, 1). Any other task's words receive the
+  fallback feedback, and its own agents' words the words of *Its own
+  agents' words* (above), as before. A party's words, a requester's
+  among them, stay as `README.md`, 1 has them, taken and dropped: a
+  procedure's step messages tasks alone (jig's
+  `domain/tasks/messages.md`, 5), so it could not tell a party its
+  words were passed.
+- **Words never answer.** Passing words settles and clears no
+  question: a question asked of the requester stays asked, an answer
+  held stays held, and a producer kept by its own open question stays
+  kept (jig's `domain/tasks/lifecycle.md`, 8), the words waiting in its
+  inbox until that question's answer lets it go on. An answer from the
+  requester that the relay does not take, to no question asked of it
+  or a second answer to one answered, receives the fallback feedback as
+  before and is not passed.
+- **Durable as the answer relay.** Words taken are kept on the
+  change's record until a step passes them, in the order taken, each
+  with its sender, its number in the change's inbox and its words
+  whole. A step passes them oldest first while its message room holds
+  both the passing and its reply; what it leaves stays on the record,
+  and its next step is due at once. At the step that passes them, the
+  producer live then receives them; with none live, the requester
+  receives the fallback feedback in place of the reply, and the words
+  go no further. A refused step commits nothing: its words are taken,
+  or passed, again at the step after it. A step refused because the
+  producer's inbox or the requester's is full commits the failed-effect
+  hold that a refused question commits (above), its words kept on the
+  record, and the step after its release passes them. A restart resumes
+  them from the record, a change holding words to pass having its next
+  step due at once. Each is passed once.
+- **Bounded.** The record keeps at most 16 words to pass. Words taken
+  past them are not kept: the requester is answered at once, in words,
+  `Not passed: 16 words already wait to reach this change's producer;
+  send yours again once they are passed.`, as fallback feedback is,
+  where the step has message room.
+- **An amendment reaches its live producer.** An amendment of the
+  change (jig's `domain/tasks/changes.md`), by whoever may amend it,
+  taken at a step while the change has a live producer whose spec words
+  are not those the change would give a new producer now (`README.md`,
+  2, step 1: its words, then its scope), amends that producer in the
+  same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
+  with those words, naming its spec's revision as the core last told
+  the change, and with the reason `Task C, your change, was amended to
+  spec revision R. Your spec now holds its amended words; work to them
+  from here on. Its reason: REASON`, C the change's number, R the
+  change's spec revision after the amendment, REASON the amendment's
+  own words, the whole cut from its end to the message bound and
+  marked `…`. jig tells the producer as it tells any amended executor:
+  a live run hears it as it arrives, a parked one is woken, and one
+  kept by its own question hears it once that question is answered
+  (jig's `domain/tasks/changes.md`, *An amendment is a message*). The
+  producer's next run's brief reads the amended spec. Amendments taken
+  at one step make one amendment of the producer, its reason the last
+  one's. An amendment that leaves the producer's words as they are (its
+  dependencies, its authority or its wake alone) amends nothing of it.
+  With no live producer, nothing is amended: the next producer is made
+  from the change's words as they stand. The amendment commits with the
+  step that takes it, so a refused step leaves it in the change's inbox
+  for the next, which names the revision as it then stands.
+- **An amendment never answers.** It settles and clears no question:
+  the change's question stays asked of its requester, and the
+  producer's stays open.
 
 ### Early starts
 

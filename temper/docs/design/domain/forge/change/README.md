@@ -110,12 +110,16 @@ A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
 takes no questions and that its requester is task R; a task's words are
-answered with words saying the same, to that task; each reply commits
-with the step that takes what it answers, so a retried step answers
-once. A party's words stay unanswered, since a procedure's step
+answered with words saying the same, to that task, but its requester's
+while it has a live producer, which pass to that producer under either
+route (`questions.md`, 1, *Its requester's words and amendments*); each
+reply commits with the step that takes what it answers, so a retried
+step answers once. A party's words stay unanswered, since a procedure's step
 messages tasks alone (jig's `domain/tasks/messages.md`, 5): they are taken and
-dropped, and the change's page says that a change takes no words. Its
-amendments and cancels are its own (2, 4).
+dropped, and the change's page says that a change takes no words. An
+amendment of its words reaches its live producer under either route
+(`questions.md`, 1, *Its requester's words and amendments*); its
+cancels are its own (4).
 
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
