@@ -1,10 +1,11 @@
 # The delivery check
 
-Provisional, 2026-11-14. What fabrig's `.temper/pre-pr` runs when a run
+Provisional, 2026-11-15. What fabrig's `.temper/pre-pr` runs when a run
 delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md` and, for the goal's reds,
-its flakes and its results, `temper/docs/design/draft/branch-reds.md`. Coding agents run no build
+its flakes and its results, `temper/docs/design/draft/branch-reds.md`, and,
+for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`. Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
 no CI, so this is a change's only check before it lands there; the landing's
@@ -50,9 +51,14 @@ boundary (smith's run.md, 8.1).
   nothing else of the check running, at most temper's `temper/rerun`
   bound; passing then, it failed under load: a flake, named, refusing
   nothing (sections 4 and 5).
-- **A summary last,** within the host's kept tail: each failing check and
-  test with its log's tail, then the flakes and the inherited ones
-  (section 6).
+- **A summary last,** within a cap of its own: its verdict, then a line
+  that counts the failures by class and names the failures file, then
+  each failing check and test with its log's tail, then the flakes and
+  the inherited ones (section 6).
+- **Every failure's key kept.** Before the summary prints, it writes every
+  failure it found, new, flake and inherited alike, with its key, to
+  `temper/pre-pr-failures.json` in the git directory, never the tree;
+  the file stays until the next completed check replaces it (section 6).
 - **Its results for temper.** Under temper's marker it writes
   `temper/check-results` at its end, passed or refused: its tree, base
   and verdict, the goal's reds it passed or failed, and its flakes with
@@ -396,12 +402,31 @@ cause.
 - **As it goes:** section 3's selection lines, each selected check's
   announcement, then what its tools print,
   so a stopped check's tail shows where it was (smith's run.md, 8.1).
-- **The summary, last,** at most 8,192 bytes, which smith's kept tail
-  holds (smith's `protocol/limits.md`, `shell_tail`):
+- **The summary, last,** at most 8,192 bytes. The cap is pre-pr's own,
+  apart from what the host keeps: smith keeps a longer tail of a check's
+  output (smith's `protocol/limits.md`, `shell_tail`, 48 KiB by default),
+  but a session may later fit those words to a shorter prefix, so the
+  summary's start is what survives, and what must never be lost comes
+  first:
   - `pre-pr: passed` or `pre-pr: refused`, with the base (`base <id>,
     merge base of refs/temper/landing and HEAD`) or that there was none;
+  - the failures line, naming the failures file (below) and counting
+    its entries by class, the same counts as the file's:
+    `failures: <N> new, <F> flakes, <I> inherited; every key in <path>`,
+    `<path>` the file's absolute path. Where the file could not be
+    written: `failures: <N> new, <F> flakes, <I> inherited; not written
+    to <path>: <error>`, `<path>` as far as it was found, else
+    `temper/pre-pr-failures.json`, and `<error>` the error's first line,
+    at most 512 bytes, cut at a character's end;
   - the sets: `lints: <packages>`, `tests: <packages>`;
   - section 4's starved line, where the tests starved;
+  - why the base could not judge an exceeded count, where it could not
+    (section 5).
+
+  The first two lines are kept whole; what follows them before the first
+  failure is cut to keep these lines within 4,096 bytes, at a
+  character's end, so that a large set leaves room for a failure and the
+  count. Then:
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
     `check <name>` for a check that failed of itself), then the last lines
@@ -418,7 +443,59 @@ cause.
     exceeded counts as `inherited: old-forms <tree> <form>`, and the
     inherited citation total;
   - past 8,192 bytes, the failures it has not room for are counted in
-    one line, `[… N more failures]`, the first kept whole.
+    one line, `[… N more failures]`, the first kept whole; the
+    failures file holds each of them.
+- **The failures file** holds every failure the run found, new, flake
+  and inherited alike, so that a key the summary had no room for is
+  still there to read once the run's directories are gone:
+  - **Where:** `git rev-parse --git-path temper/pre-pr-failures.json`,
+    read from the checkout's root as the results file's path is: the git
+    directory, never the tree, and in a linked worktree that worktree's
+    own git directory (`temper/` is none of git's shared paths). It is
+    written through `temper/pre-pr-failures.json.tmp` renamed over it,
+    `temper/` made where it is missing, so a reader sees one check's
+    file whole.
+  - **When:** after the checks and before the summary prints, by every
+    run that prints a summary, passed or refused, with no failure as with
+    hundreds, with or without temper's marker; and by a cache hit, marked
+    as one (section 7). A run stopped, interrupted or failed before its
+    summary writes none, so the last completed check's file stays until
+    the next completed check replaces it.
+  - **Its form:** one JSON object in UTF-8, text as itself, non-ASCII
+    included (a string no UTF-8 can hold, a lone surrogate, keeps its
+    `\uXXXX` escape). Its members before `failures` and the list's
+    opening on the first line, each failure on a line of its own, and
+    `]}` on the last, so that it reads and searches by line:
+
+    ```
+    {"form": "pre-pr-failures 1", "tree": "<tree>", "base": "<base>", "cached": false, "verdict": "refused", "counts": {"new": 2, "flake": 0, "inherited": 1}, "failures": [
+    {"class": "new", "name": "test A::rules rule_00", "key": {"kind": "test", "binary": "A::rules", "test": "rule_00"}},
+    {"class": "new", "name": "format", "key": null},
+    {"class": "inherited", "name": "clippy api clippy::rule api/src/lib.rs", "key": {"kind": "lint", "package": "api", "code": "clippy::rule", "file": "api/src/lib.rs", "message": "<message>"}}
+    ]}
+    ```
+
+    - `tree`, the tree the check ran on (section 3; the cache's
+      `<tree>`), and `base`, section 2's base, or `null` without one;
+    - `cached`, `true` on a cache hit alone; `verdict`, `passed` or
+      `refused`, as the summary's first line;
+    - `counts`, the entries of each class;
+    - `failures`, one entry for each failure the summary shows or would
+      show with room, in its order: the new ones, then the flakes, then
+      the inherited ones. `class` is `new` (this delivery's, refusing),
+      `flake` (section 5) or `inherited`; `name` is the summary's name
+      for it; `key` its structured key: a test's `{"kind": "test",
+      "binary", "test"}`, a lint's `{"kind": "lint", "package", "code",
+      "file", "message"}` (`code` and `file` empty where the compiler
+      gave none), an exceeded count's `{"kind": "old-forms", "tree",
+      "form", "count", "baseline"}`, its numbers as numbers, and `null`
+      for any other failure (`format`, `build`, `check <name>`, an
+      old-forms run's failure, citations), whose name says it whole.
+
+    It holds no log: the summary keeps the logs that fit.
+  - **A write that fails,** the path's lookup included, is named in the
+    failures line and changes nothing else: the exit, the summary's
+    other lines and the results file are as they would have been.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
   failures and flakes included; 1 otherwise. The tests' end line says
   `inherited` where each of their failures was inherited or a flake.
@@ -458,8 +535,13 @@ under a red that has ended is never reused. A failure, an interruption or
 a timeout never writes it. An earlier record of another shape, the
 two-field one included, matches nothing. A cache hit observes nothing:
 it writes no `temper/check-results` (section 6), so temper keeps what the
-check's last pass reported. The record holds the last pass alone, so a
-hit is always of the last tree that passed here.
+check's last pass reported. It does write the failures file (section 6),
+saying so: `cached` `true`, `verdict` `passed`, the tree and base it
+reused, zero counts and no failures, since it observed none; after its
+line it prints `failures: a cached pass, none observed; in <path>`, or
+`…; not written to <path>: <error>` as the summary's failures line does.
+The record holds the last pass alone, so a hit is always of the last
+tree that passed here.
 
 ## 8. Time
 
@@ -540,6 +622,21 @@ It writes the results file only under a marker: its header and check
 line, passed and refused; a `temper/reds` entry passed, failed (inherited)
 and starved (neither), a lint entry passed and failed; a flake's `|` lines; nothing on a cache hit,
 and nothing without a marker.
+
+It writes the failures file (section 6) at every summary and on a cache
+hit, marker or none, and its tests are this file's alone: with 26, 194,
+349 and 450 failures of mixed classes and kinds, the file holds every key
+in the summary's order with its class, its counts match, and the summary
+stays within 8,192 bytes with its first two lines the verdict and the
+failures line, which names the file's path and the counts; a test name
+of several kilobytes and keys with non-ASCII text are kept whole and read
+back equal; from a fake one-process run, the file still holds every
+failure once the run's temporary directory is gone; in a linked
+worktree, the file is in that worktree's git directory and not in the
+main one's; a write that fails, the file's place taken by a directory, is
+named in the failures line and leaves the exit and the rest of the
+summary as they would be; a later passing check replaces a refused one's
+file, and a cache hit writes one marked `cached`.
 
 It reads a one-process run's directory as section 4 does, from a fake run
 that writes the files: failures from `junit.xml`, keyed by binary id and
