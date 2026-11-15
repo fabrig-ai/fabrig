@@ -27,6 +27,7 @@ pub enum Line {
     Copy { token: u32, words: Box<[u8]> },
     Copied { token: u32, written: temper_client_domain::copy::Written },
     Place(Box<[u8]>),
+    Returned(Box<[u8]>),
     Heard(Heard),
     Carried { writes: u32 },
     Written(Box<[u8]>),
@@ -108,6 +109,7 @@ impl Line {
             | Self::Path(bytes)
             | Self::Secret(bytes)
             | Self::Place(bytes)
+            | Self::Returned(bytes)
             | Self::Written(bytes)
             | Self::Unwritten(bytes)
             | Self::Erase(bytes)
@@ -200,6 +202,7 @@ impl Line {
             Self::Copy { .. } => "copy",
             Self::Copied { .. } => "copied",
             Self::Place(_) => "place",
+            Self::Returned(_) => "returned",
             Self::Heard(_) => "heard",
             Self::Carried { .. } => "carried",
             Self::Written(_) => "written",
@@ -506,6 +509,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"tab-close" => Line::TabClose,
         b"tab-refused" => Line::TabRefused,
         b"place" => Line::Place(r.bytes()?),
+        b"returned" => Line::Returned(r.bytes()?),
         b"heard" => Line::Heard(match r.word()?.as_ref() {
             b"answered" => {
                 Heard::Answered { exchange: r.count()?, status: r.status()?, body: r.bytes()?, headers: Vec::new() }
@@ -615,6 +619,7 @@ impl Clone for Line {
             Self::Copy { token, words } => Self::Copy { token: *token, words: words.clone() },
             Self::Copied { token, written } => Self::Copied { token: *token, written: *written },
             Self::Place(value) => Self::Place(value.clone()),
+            Self::Returned(value) => Self::Returned(value.clone()),
             Self::Heard(value) => Self::Heard(clone_heard(value)),
             Self::Carried { writes } => Self::Carried { writes: *writes },
             Self::Written(value) => Self::Written(value.clone()),

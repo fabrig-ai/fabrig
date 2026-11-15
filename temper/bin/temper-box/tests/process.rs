@@ -363,17 +363,25 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let gate = &landed.landing["members"][0]["gates"][0];
     let receipt = &gate["proof"]["passed"];
     assert_eq!(receipt["run"], proof.run, "the restart found the dispatched run");
-    let merged = forge.merged_pull().expect("merged pull");
+    let round = landed.landing["round"]["pull"]["number"].as_u64().expect("round pull");
     let main = forge.branch_head(b"main").expect("main tip");
     assert_eq!(main.as_ref(), commit.as_bytes());
     assert!(forge.main_readme().ends_with(support::EDIT), "the produced edit reached main");
-    let pull = forge.repository_observation("acme", "widget", &format!("pulls/{merged}"));
+    let pull = forge.repository_observation("acme", "widget", &format!("pulls/{round}"));
+    assert_eq!(pull["merged"], true, "the round pull merged");
     assert_eq!(pull["head"]["sha"], commit);
     assert_eq!(pull["merge_commit_sha"], commit);
     let parents = forge.repository_observation("acme", "widget", &format!("git/commits/{commit}"));
     assert_eq!(parents["parents"].as_array().expect("parents").len(), 2);
     assert_eq!(parents["parents"][0]["sha"], proof.moved);
     assert_eq!(parents["parents"][1]["sha"], proof.original);
+    let member = &landed.landing["members"][0];
+    assert_eq!(member["pull"]["number"], 1);
+    let pull = forge.repository_observation("acme", "widget", "pulls/1");
+    assert_eq!(pull["head"]["sha"], proof.original, "the member pull keeps its head");
+    assert_eq!(pull["merged"], true, "the forge detected the member's merge");
+    let prefix = member["landed"].as_str().expect("member landed prefix");
+    assert_eq!(pull["merge_commit_sha"], &prefix[..40]);
     let runs = forge.repository_observation("acme", "widget", &format!("actions/runs?head_sha={commit}&limit=100"));
     let runs: Vec<_> = runs["workflow_runs"]
         .as_array()

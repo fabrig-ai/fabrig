@@ -61,7 +61,7 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
     config["application"]["landing"]["projects"] = json!([]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let forge = forge.with_repository(scratch, 20, landing_by_turn::WORKFLOW);
-    forge.enable_turn_merges();
+    forge.detect_manual_merges();
     forge
 }
 
@@ -479,7 +479,10 @@ impl Judge<'_> {
         eprintln!("stalled tasks: {}", read(self.root, &["task", "list", "--project", "1"])?);
         let forge = self.chat.forge.ok_or(String::from("forge"))?;
         let pull = forge.repository_observation("acme", "widget", "pulls/1");
-        eprintln!("stalled pull head: {}", pull["head"]["sha"]);
+        eprintln!(
+            "stalled member pull #1: head={}, merged={}, merge commit={}",
+            pull["head"]["sha"], pull["merged"], pull["merge_commit_sha"]
+        );
         let branch = forge.repository_observation("acme", "widget", "branches/temper/2/c3");
         let head = branch["commit"]["id"].as_str().ok_or(String::from("branch head"))?;
         let commit = forge.repository_observation("acme", "widget", &format!("git/commits/{head}"));
@@ -522,8 +525,8 @@ impl Judge<'_> {
             "final"
         };
         Err(format!(
-            "turn restart stalled ({sitting}, main advanced={}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
-            self.advanced.is_some(),
+            "turn restart stalled ({sitting}, first sitting moved-main witness={}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            moved_main(self.advanced.as_ref(), self.previous).is_some(),
             person.steps_seen(),
             person.finished,
             self.chat.forge.ok_or(String::from("forge"))?.failure_state()

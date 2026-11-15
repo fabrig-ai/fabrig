@@ -22,6 +22,7 @@ pub enum Report {
     TabRefused,
     Act { node: NodeId, act: Act },
     Place { path: Box<[u8]> },
+    Returned { path: Box<[u8]> },
     Heard(Heard),
     Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
 }
@@ -203,6 +204,10 @@ impl Host {
             Report::TabRefused => self.event(Event::TabRefused),
             Report::Act { node, act } => self.act(node, act),
             Report::Place { path } => self.went(&path),
+            Report::Returned { path } => {
+                self.address = self.opened(&path);
+                self.event(Event::Returned { place: parse(&path) });
+            }
             Report::Heard(heard) => self.heard(heard),
             Report::Carried { reports, writes } => self.carried(reports, writes),
         }

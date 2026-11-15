@@ -155,18 +155,6 @@ impl Throwaway {
         }
     }
 
-    /// Turn landing's repository capabilities (domain/landing.md, 13.2).
-    pub(super) fn enable_turn_merges(&self) {
-        request(
-            &self.instance,
-            self.person.as_ref().expect("fixture person"),
-            "PATCH",
-            "/api/v1/repos/acme/widget",
-            &json!({"autodetect_manual_merge":true,"allow_manual_merge":true}),
-            200,
-        );
-    }
-
     /// Forgejo's pid, which `temper forge run` became.
     #[must_use]
     pub fn pid(&self) -> u32 {
@@ -642,7 +630,7 @@ impl Throwaway {
         let response = self
             .instance
             .exchange(&Outgoing::get(
-                &format!("/api/v1/repos/{org}/{name}/{suffix}"),
+                format!("/api/v1/repos/{org}/{name}/{suffix}").trim_end_matches('/'),
                 Some(&self.instance.admin().token),
             ))
             .expect("elsewhere repository answer");

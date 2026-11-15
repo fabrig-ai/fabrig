@@ -273,7 +273,11 @@ impl App for Temper {
     }
     fn window_changed(event: &Event) -> bool {
         match event.root() {
-            Some(domain::Event::Went { .. } | domain::Event::Act { action: Action::Forge(_) }) => true,
+            Some(
+                domain::Event::Went { .. }
+                | domain::Event::Returned { .. }
+                | domain::Event::Act { action: Action::Forge(_) },
+            ) => true,
             Some(domain::Event::Act { action: Action::Pages(act) }) => matches!(
                 act,
                 domain::pages::Act::Project { .. }
@@ -454,6 +458,7 @@ impl App for Temper {
             | domain::Event::Copied { .. }
             | domain::Event::Start { .. }
             | domain::Event::Went { .. }
+            | domain::Event::Returned { .. }
             | domain::Event::Act { .. }
             | domain::Event::Forge(_)
             | domain::Event::AccountKey { .. }
