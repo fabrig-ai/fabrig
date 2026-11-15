@@ -4,6 +4,7 @@
     clippy::disallowed_methods,
     reason = "ordinary diagnostic fixtures render exact expected text"
 )]
+mod drop_job;
 mod pre_settings;
 use super::fixtures;
 use crate::{End, Stop};
