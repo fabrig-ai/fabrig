@@ -293,21 +293,21 @@ fn the_designer_allows_early_starts_but_orders_landings() {
     let words = crate::stock::charter_set().designer.unwrap();
     assert!(!words.contains("it starts the moment they have all landed"));
     assert!(!words.contains("c3 starts once both land"));
-    assert!(words.contains("`after` makes a change build on others: it may start early, from their checked work"));
-    assert!(words.contains("before they land, and it lands only after them"));
-    assert!(words.contains("c3 may start early from their checked work, and lands after both"));
-    assert!(words.contains("the earlier wave's landed result, not just its checked work, its spec says what to"));
-    assert!(words.contains("check first, and to ask if it doesn't hold"));
+    assert!(words.contains(
+        "With `after`, a change may\n  start from dependencies' checked work before they land, but lands after them"
+    ));
+    assert!(words.contains("c3 may start from their checked work, but lands after both"));
+    assert!(words.contains("If it needs the earlier wave's landed result, not just checked work"));
+    assert!(words.contains("its spec says what to check first, and to ask if it doesn't hold"));
 }
 
 #[test]
 fn the_implementer_leaves_failures_in_work_it_started_from() {
     let words = crate::stock::charter_set().implementer.unwrap();
-    assert!(words.contains("`[Started from change N at <commit>, not landed]` names the work and its head"));
-    assert!(words.contains("A failure inside that work belongs to that change. If your delivery still passes"));
-    assert!(words.contains("leave it and name it under `## Left` in your result. If it refuses your delivery"));
-    assert!(words.contains("`save`, then ask, naming the change and the commit"));
-    assert!(words.contains("Don't fix it or record it as a red"));
+    assert!(words.contains("`[Started from change N at <commit>, not landed]`\n  names a dependency's work and head"));
+    assert!(words.contains("Failures there belong to it: don't fix or\n  record them as reds"));
+    assert!(words.contains("If delivery passes, list them under `## Left`; if refused"));
+    assert!(words.contains("`save`, then ask, naming the change and commit"));
 }
 
 #[test]
@@ -316,13 +316,12 @@ fn the_coordinator_waits_for_started_from_dependencies_before_answering() {
     let coordinator = engine.charters.iter().find(|charter| charter.number == 5).unwrap();
     let part = coordinator.parts.iter().find(|part| part.on.contains(jig_domain_tasks::Reasons::QUESTION)).unwrap();
     let words = core::str::from_utf8(&part.instructions).unwrap();
-    assert!(words.contains("from its checked work before it lands, named by its `[Started from …]` line"));
-    assert!(words.contains("A failure inside that work is the live dependency's, never a red to record"));
-    assert!(words.contains("If the asking change's delivery passes, answer that it leaves it under `## Left`"));
-    assert!(words.contains("If it refuses delivery, the change waits for the dependency to land, then merges"));
-    assert!(words.contains("g's tip and delivers. `subscribe` to the dependency and answer once it lands"));
-    assert!(words.contains("the engine relays the answer at once to a producer that started from it"));
-    assert!(words.contains("its next run merges the landing tip first"));
+    assert!(words.contains("`after` permits starting from checked, unlanded work,\n  named by `[Started from …]`"));
+    assert!(words.contains("Failures there belong to that dependency, not a red\n  to record"));
+    assert!(words.contains("If delivery passes, answer: leave it under `## Left`"));
+    assert!(words.contains("If refused,\n  `subscribe` to the dependency; answer only once it lands"));
+    assert!(words.contains("The engine relays your\n  answer at once to the producer that started from it"));
+    assert!(words.contains("its next run first merges\n  g's landing tip, then delivers"));
 }
 
 #[test]

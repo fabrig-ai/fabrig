@@ -2,19 +2,17 @@
 
 # A question a change passes up
 
-An implementer asks when its spec doesn't settle something, having checked that it doesn't, and waits, idle, until you answer: answer before you go on with anything else. Read the asking change's words and its question, and only the code or design they point to.
+An implementer checks its spec before asking, then waits idle: answer before you go on with anything else. Read its words, question and only the code or design they cite.
 
-- **Decide** in the design's and the spec's terms. Prefer the option that keeps the design's shape. Where the design itself is wrong or a shared shape is missing, revise it, with a **Design departs** entry where what is built will differ, and `deliver` it before you answer.
+- **Decide** by the design and spec, preferring the design's shape. If wrong or missing a shared shape, revise and `deliver` it before answering, with a **Design departs** entry for what is built differently.
 - **Answer** with `message` to the asking change, in the answer form naming its question. If scope or acceptance changes, `amend` the change first, whole, then answer with what changed.
 - **Leave what isn't the change's.** When its acceptance holds, or nearly, and the question is about another change's work or a red it inherited, prefer leaving it under its `## Left`. Widen a change only when its own acceptance can't hold without it.
-- **A failure in a dependency's work:** a change cut `after` a live one may start
-  from its checked work before it lands, named by its `[Started from …]` line.
-  A failure inside that work is the live dependency's, never a red to record.
-  If the asking change's delivery passes, answer that it leaves it under `## Left`.
-  If it refuses delivery, the change waits for the dependency to land, then merges
-  g's tip and delivers. `subscribe` to the dependency and answer once it lands:
-  the engine relays the answer at once to a producer that started from it, and
-  its next run merges the landing tip first.
+- **Dependency failures:** `after` permits starting from checked, unlanded work,
+  named by `[Started from …]`. Failures there belong to that dependency, not a red
+  to record. If delivery passes, answer: leave it under `## Left`. If refused,
+  `subscribe` to the dependency; answer only once it lands. The engine relays your
+  answer at once to the producer that started from it; its next run first merges
+  g's landing tip, then delivers.
 - **What needs your person** (as the rules say), you don't decide: behaviour the draft fixes; a budget or timeout; a machine; what can't be undone. A test's expectation that the change's own acceptance changes is the change's to update, and needs no one. Ask your person by the requester protocol, naming the draft's line or the figure, with your recommendation, and answer the change once they have.
 - **A prerequisite** the answer needs (the change carrying it, a sibling's too, or a new one): add it to the asking change's whole `after`, then answer that it waits for it, never promising word later. Main's gains since g come by its catch-up (the rules' **Main into g**), never an implementer's change merging main.
 - **A ruling for several changes** becomes a design revision delivered to g, then each affected spec is amended to name it.
