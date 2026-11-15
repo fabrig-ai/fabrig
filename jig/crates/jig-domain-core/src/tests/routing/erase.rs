@@ -99,7 +99,7 @@ fn every_connector_is_told_in_the_decision_that_erases_the_record() {
     assert!(unnamed(&rows).is_empty());
     let (cleanup, record_out) = finish_rows(&mut core, &limits, &rows);
     assert!(unnamed(&cleanup).is_empty());
-    assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9))]);
+    assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
     assert_eq!(unnamed(&record_out).as_ref(), &[(1, 9), (2, 9)]);
 }
 
@@ -156,7 +156,7 @@ fn an_ended_task_is_erased_whole_and_its_record_last() {
         }
     }
     assert!(dropped);
-    assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9))]);
+    assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
     assert_eq!(load(&record_out).1.scope, crate::reads::Scope::EndedTasks);
 }
 
@@ -222,7 +222,7 @@ fn the_walk_erases_only_the_selected_projects_tasks() {
             Key::Tasks(tasks::Key::Delegate { requester: 1, task: 9 }),
         ]
     );
-    assert_eq!(erases(&record).as_ref(), &[Key::Tasks(tasks::Key::Ended(9))]);
+    assert_eq!(erases(&record).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
 }
 
 #[test]
@@ -232,7 +232,9 @@ fn a_walk_with_nothing_selected_ends_at_once() {
     let other = fixtures::ended_report(9, tasks::Party::Person(1));
     let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(other)))]), None);
     assert!(erases(&out).is_empty());
-    assert!(out.is_empty(), "the empty walk finishes in its page's decision");
+    assert_eq!(load(&out).1.scope, crate::reads::Scope::TaskSummaries);
+    let out = page(&mut core, &limits, &out, Box::new([]), None);
+    assert!(out.is_empty(), "the empty walk finishes after records and summaries");
     let out = start(&mut core, &limits, 1);
     assert_eq!(load(&out).1.scope, crate::reads::Scope::EndedTasks, "completion releases the next walk");
 }
@@ -283,9 +285,12 @@ fn a_second_selection_waits_for_the_active_walk() {
     let (mut core, limits) = make_tree();
     let first = start(&mut core, &limits, 1);
     assert!(start(&mut core, &limits, 2).is_empty());
-    let second = page(&mut core, &limits, &first, Box::new([]), None);
+    let summaries = page(&mut core, &limits, &first, Box::new([]), None);
+    assert_eq!(load(&summaries).1.scope, crate::reads::Scope::TaskSummaries);
+    let second = page(&mut core, &limits, &summaries, Box::new([]), None);
     assert_eq!(load(&second).1.scope, crate::reads::Scope::EndedTasks);
-    let ended = page(&mut core, &limits, &second, Box::new([]), None);
+    let summaries = page(&mut core, &limits, &second, Box::new([]), None);
+    let ended = page(&mut core, &limits, &summaries, Box::new([]), None);
     assert!(ended.is_empty());
 }
 

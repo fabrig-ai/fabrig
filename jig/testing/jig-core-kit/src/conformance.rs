@@ -337,7 +337,8 @@ fn core_write(write: &root::Write) -> conformance::Write<'_> {
         root::Write::Save(root::Record::Connector { .. })
         | root::Write::Erase(root::Key::Connector { .. })
         | root::Write::Wires => conformance::Write::Other,
-        root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => conformance::Write::Refresh,
+        root::Write::CopySettingsRevision(_) => conformance::Write::Refresh,
+        root::Write::DropTranscript { task } => conformance::Write::DropTranscript { task: *task },
     }
 }
 
@@ -519,10 +520,12 @@ mod view_tests {
     use std::cell::Cell;
 
     #[test]
-    fn a_bulk_core_write_requests_whole_projection() {
-        for write in [root::Write::CopySettingsRevision(1), root::Write::DropTranscript { task: 1 }] {
-            assert_eq!(core_write(&write), conformance::Write::Refresh, "{write:?}");
-        }
+    fn bulk_core_writes_keep_projection_and_retirement_evidence() {
+        assert_eq!(core_write(&root::Write::CopySettingsRevision(1)), conformance::Write::Refresh);
+        assert_eq!(
+            core_write(&root::Write::DropTranscript { task: 1 }),
+            conformance::Write::DropTranscript { task: 1 },
+        );
     }
 
     #[test]

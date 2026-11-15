@@ -7,7 +7,8 @@ pub(super) fn check(before: &Snapshot, after: &Snapshot) -> Result<(), Violation
             old.source == Source::Person(*party) && matches!(new.source, Source::Person(to) if to != *party)
         });
         let erasing = after.tasks.get(task).is_some_and(|row| {
-            matches!(row.phase, Phase::Done | Phase::Ended) && after.deleting.contains(&row.project)
+            matches!(row.phase, Phase::Done | Phase::Ended)
+                && (after.deleting.contains(&row.project) || after.retiring_reads.contains(task))
         });
         if after.tasks.contains_key(task) && !moved && !erasing {
             require(

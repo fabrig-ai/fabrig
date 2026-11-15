@@ -254,6 +254,12 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `core.public.lines`: count, 0. Bounds public lines per goal and delegates per card.
 - `core.public.depth`: count, 0. Bounds the lineage of a public card.
 
+## retention
+
+- `retention.turns_ms`: milliseconds, 1,209,600,000. Bounds how long ended tasks keep their transcripts.
+- `retention.records_ms`: milliseconds, 2,592,000,000. Bounds how long ended tasks keep their full records and decided person proposals.
+- `retention.summaries_ms`: milliseconds, 31,536,000,000. Bounds how long ended tasks keep their summaries.
+
 ## link
 
 - `link.chunk`: bytes, 16,384. Bounds the channel bytes read at once.

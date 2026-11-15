@@ -171,6 +171,11 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        retention: RetentionLimits {
+            turns: Duration::from_secs(14 * 86_400),
+            records: Duration::from_secs(30 * 86_400),
+            summaries: Duration::from_secs(365 * 86_400),
+        },
         public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {

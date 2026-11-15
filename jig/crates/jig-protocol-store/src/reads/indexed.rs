@@ -61,6 +61,11 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => None,
     }
@@ -87,6 +92,11 @@ fn history_root(scope: &reads::Scope) -> Option<u64> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => None,
     }

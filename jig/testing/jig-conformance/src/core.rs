@@ -216,7 +216,7 @@ impl SeenFence {
         let records = store.rows.values().copied().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 Write::Save(record) => Some(*record),
-                Write::Other | Write::Refresh | Write::Erase(_) => None,
+                Write::Other | Write::Refresh | Write::Erase(_) | Write::DropTranscript { .. } => None,
             })
         }));
         for record in records {
@@ -283,6 +283,8 @@ pub struct Observer {
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
     forgetting: BTreeMap<u64, Vec<u64>>,
+    retiring: BTreeMap<u64, Vec<r::Receipt>>,
+    retiring_reads: BTreeMap<u64, BTreeSet<u64>>,
     recorded: Option<Vec<r::Observed>>,
 }
 
@@ -370,6 +372,8 @@ impl Observer {
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
             forgetting: BTreeMap::new(),
+            retiring: BTreeMap::new(),
+            retiring_reads: BTreeMap::new(),
             recorded: None,
             intents: intents::Intents::default(),
             project_makes: projects::Makes::new(configuration),
@@ -535,6 +539,8 @@ impl Observer {
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
         self.forgetting.retain(|commit, _| *commit <= store.applied);
+        self.retiring.retain(|commit, _| *commit <= store.applied);
+        self.retiring_reads.retain(|commit, _| *commit <= store.applied);
         self.activity_erases.retain(|commit, _| *commit <= store.applied);
         let receipts = store
             .rows
@@ -612,7 +618,14 @@ impl Observer {
                 }
             }
             let erases_task = pending.writes.iter().any(|write| {
-                matches!(write, Write::Erase(core::Key::Tasks(tasks::Key::Activity { .. } | tasks::Key::Ended(_))))
+                matches!(
+                    write,
+                    Write::Erase(
+                        core::Key::Tasks(tasks::Key::Activity { .. } | tasks::Key::Ended(_))
+                            | core::Key::Core(core::CoreKey::Terminal { .. })
+                            | core::Key::People(people::Key::EndedRead { .. } | people::Key::ReadConversation { .. })
+                    ) | Write::DropTranscript { .. }
+                )
             });
             if !erases_task {
                 return Ok(());
@@ -620,8 +633,33 @@ impl Observer {
             let store = store();
             let mut tasks = Vec::new();
             for write in &pending.writes {
+                match write {
+                    Write::Erase(core::Key::People(
+                        people::Key::EndedRead { task, .. } | people::Key::ReadConversation { task, .. },
+                    )) => {
+                        self.retiring_reads.entry(pending.number).or_default().insert(*task);
+                    }
+                    Write::DropTranscript { task } => {
+                        for row in store.rows.values() {
+                            if let core::Record::Core(core::CoreRecord::Turn(turn)) = row
+                                && turn.task == *task
+                            {
+                                self.retiring.entry(pending.number).or_default().push(r::Receipt::Turn(
+                                    *task,
+                                    turn.attempt,
+                                    turn.turn,
+                                ));
+                            }
+                        }
+                    }
+                    Write::Erase(core::Key::Core(core::CoreKey::Terminal { task, attempt })) => {
+                        self.retiring.entry(pending.number).or_default().push(r::Receipt::Terminal(*task, *attempt));
+                    }
+                    _ => {}
+                }
                 if let Write::Erase(core::Key::Tasks(tasks::Key::Activity { task, position })) = write
-                    && store.rows.contains_key(&core::Key::Tasks(tasks::Key::Ended(*task)))
+                    && (store.rows.contains_key(&core::Key::Tasks(tasks::Key::Ended(*task)))
+                        || store.rows.contains_key(&core::Key::Tasks(tasks::Key::Summary(*task))))
                 {
                     self.activity_erases.entry(pending.number).or_default().push((*task, *position));
                 }
@@ -851,8 +889,18 @@ impl Observer {
                 return Err("immutable activity row disappeared".into());
             }
         }
+        let retired_reads: Vec<_> = self.retiring_reads.keys().copied().filter(|commit| *commit <= number).collect();
+        for commit in retired_reads {
+            snapshot.retiring_reads.extend(self.retiring_reads.remove(&commit).expect("submitted read erasure"));
+        }
         self.observe(now, r::Observed::Durable { number, snapshot })?;
         self.applied = number;
+        let retired: Vec<_> = self.retiring.keys().copied().filter(|commit| *commit <= number).collect();
+        for commit in retired {
+            for receipt in self.retiring.remove(&commit).expect("submitted erasure") {
+                self.observe(now, r::Observed::Retired { receipt })?;
+            }
+        }
         let applied: Vec<_> = self.forgetting.keys().copied().filter(|commit| *commit <= number).collect();
         for number in applied {
             for task in self.forgetting.remove(&number).expect("submitted retention") {

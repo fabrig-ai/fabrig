@@ -117,6 +117,11 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
 };
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    retention: core::RetentionLimits {
+        turns: skein_lib::Duration::from_secs(14 * 86_400),
+        records: skein_lib::Duration::from_secs(30 * 86_400),
+        summaries: skein_lib::Duration::from_secs(365 * 86_400),
+    },
     public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {

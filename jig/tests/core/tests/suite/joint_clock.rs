@@ -86,6 +86,8 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
         clock: Some((now, wall)),
         ..Setup::default()
     });
+    // Settle the core's startup retention pass before isolating the People alarm.
+    world.fire_due(now, wall);
     sign_in(&mut world, 7);
     let due = Time::from_nanos(now.as_nanos() + limits.core.people.sign_in_lifetime.as_nanos());
     assert_eq!(world.domain.core().next_deadline(world.clocks().0, world.clocks().1), Some(due));

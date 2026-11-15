@@ -65,6 +65,16 @@ pub enum Scope {
     /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/README.md, 6.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     EndedTasks,
+    /// Summary-only deletion sweep (protocol/store/README.md, 6.1).
+    TaskSummaries,
+    /// Due stage prefix (protocol/store/retention.md, 4–5).
+    Retention { stage: tasks::RetentionStage, through: Wall },
+    /// Unjoined internal point reads, held behind preceding decisions.
+    ErasureKeys { keys: Box<[Key]> },
+    /// Bounded fallback for the decision and update of a missing decided proposal.
+    ProposalRemains { proposal: u64 },
+    /// Only ranges keyed by this task (protocol/store/retention.md, 6.2).
+    TaskOwnRows { task: u64 },
     /// History, milestones, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
     /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).

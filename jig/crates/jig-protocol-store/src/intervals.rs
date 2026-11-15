@@ -162,18 +162,20 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
         Scope::EndedTasks => Box::new([Range::prefix(&[keys::JIG, 1, 6])]),
-        Scope::TaskRows { task } => Box::new([
-            numbered_prefix(&[keys::JIG, 0, 5], *task),
-            numbered_prefix(&[keys::JIG, 0, 6, 0], *task),
-            Range::prefix(&[keys::JIG, 0, 6, 1]),
-            numbered_prefix(&[keys::JIG, 0, 7], *task),
-            Range::prefix(&[keys::JIG, 1, 8]),
-            numbered_prefix(&[keys::JIG, 1, 9], *task),
-            numbered_prefix(&[keys::JIG, 1, 10], *task),
-            numbered_prefix(&[keys::JIG, 1, 11], *task),
-            Range::prefix(&[keys::JIG, 1, 12]),
-            numbered_prefix(&[keys::JIG, 2, 7], *task),
-        ]),
+        Scope::TaskSummaries => Box::new([Range::prefix(&[keys::JIG, 1, 30])]),
+        Scope::Retention { stage, through } => Box::new([retention(*stage, *through)]),
+        Scope::ProposalRemains { .. } => {
+            Box::new([Range::prefix(&[keys::JIG, 0, 6, 1]), Range::prefix(&[keys::JIG, 1, 12])])
+        }
+        Scope::ErasureKeys { keys } => {
+            let mut ranges = List::with_capacity(u32::try_from(keys.len()).expect("bounded internal keys"));
+            for key in keys {
+                ranges.push(point(key)).expect("one range per key");
+            }
+            ranges.into_boxed()
+        }
+        Scope::TaskRows { task } => task_rows(*task, true),
+        Scope::TaskOwnRows { task } => task_rows(*task, false),
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {
@@ -249,6 +251,16 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
         | Scope::Activity { .. } => return None,
     })
 }
+fn retention(stage: jig_domain_tasks::RetentionStage, through: skein_lib::Wall) -> Range {
+    Range {
+        start: encoded(&core::Key::Tasks(jig_domain_tasks::Key::Retention {
+            stage,
+            since: skein_lib::Wall::EPOCH,
+            number: 0,
+        })),
+        end: point(&core::Key::Tasks(jig_domain_tasks::Key::Retention { stage, since: through, number: u64::MAX })).end,
+    }
+}
 fn numbered_prefix(prefix: &[u8], number: u64) -> Range {
     let mut writer = KeyWriter::new(u32::MAX);
     for &byte in prefix {
@@ -282,4 +294,31 @@ fn ended_tasks(query: &core::documents::TaskQuery) -> Box<[Range]> {
         writer.u64(u64::from(label));
     }
     Box::new([Range::prefix(&writer.finish().expect("fixed-width ended prefix"))])
+}
+
+/// The task-numbered families are shared by deletion and retention
+/// (jig/docs/design/protocol/store/retention.md, 6.2).
+fn task_rows(task: u64, broad: bool) -> Box<[Range]> {
+    let mut ranges = List::with_capacity(10);
+    for range in [
+        numbered_prefix(&[keys::JIG, 0, 5], task),
+        numbered_prefix(&[keys::JIG, 0, 6, 0], task),
+        numbered_prefix(&[keys::JIG, 0, 7], task),
+        numbered_prefix(&[keys::JIG, 1, 9], task),
+        numbered_prefix(&[keys::JIG, 1, 10], task),
+        numbered_prefix(&[keys::JIG, 1, 11], task),
+        numbered_prefix(&[keys::JIG, 2, 7], task),
+    ] {
+        ranges.push(range).expect("seven own ranges");
+    }
+    if broad {
+        for range in [
+            Range::prefix(&[keys::JIG, 0, 6, 1]),
+            Range::prefix(&[keys::JIG, 1, 8]),
+            Range::prefix(&[keys::JIG, 1, 12]),
+        ] {
+            ranges.push(range).expect("three broad ranges");
+        }
+    }
+    ranges.into_boxed()
 }
