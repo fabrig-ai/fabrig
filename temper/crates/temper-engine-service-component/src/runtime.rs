@@ -194,10 +194,25 @@ impl engine::Engine {
         {
             let engine = &mut *self;
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
+            engine.forge.github_api = if github.address == forge::HELD_ADDRESS {
+                forge::github::Api::Pending
+            } else {
+                forge::github::Api::Ready
+            };
             engine.forge.github = Some(github);
             engine.clients.pushes.roots = Some(roots.clone());
             engine.forge.roots = Some(roots);
         }
+    }
+
+    /// At most one GitHub name per names stage, only once serving (protocol/forge/README.md, 2.6).
+    #[must_use]
+    pub fn unresolved_github(&self) -> Option<(Box<[u8]>, u16)> {
+        forge::github::unresolved(self)
+    }
+    /// Answer only the GitHub name currently wanted; failures hold its forges for the run.
+    pub fn resolved_github(&mut self, name: &[u8], address: Option<core::net::SocketAddr>) {
+        forge::github::resolved(self, name, address);
     }
 
     /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
@@ -236,23 +251,7 @@ impl engine::Engine {
         }
         engine.forge.resolving.remove(&forge);
         let Some(address) = address else { return };
-        let Some(configured) = engine.workers.forges.remove(forge) else { return };
-        engine.forge.down(skein_forge_connection::Request::Remove { forge });
-        if let jig_protocol_config::Address::Host { name, .. } = &configured.api {
-            engine.forge.names.insert(name.clone(), address.ip()).expect("kept host capacity");
-        }
-        let Some(mut endpoint) = forges::endpoint(engine, &configured) else {
-            assert!(engine.workers.forges.insert(configured), "removed forge has table room");
-            return;
-        };
-        endpoint.address = skein_io::Addr::Ip(address);
-        engine.forge.endpoints.insert(forge, endpoint).expect("kept forge capacity");
-        if forges::keep(engine, configured) {
-            engine.setup.replace_endpoint(forge, address);
-            if engine.forge_records.done() {
-                forge::records::connect(engine, forge);
-            }
-        }
+        forges::resolved(engine, forge, address, None);
     }
 }
 

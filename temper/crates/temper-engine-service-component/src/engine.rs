@@ -388,7 +388,7 @@ impl Engine {
             || effects && self.setup.work_pending(now)
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)
-            || effects && self.forge.work_pending(now)
+            || effects && (self.forge.work_pending(now) || self.unresolved_github().is_some())
             || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
             || !self.workers.notes.is_empty() && notes_room > 0
             || effects
