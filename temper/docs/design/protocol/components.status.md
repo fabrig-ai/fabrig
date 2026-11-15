@@ -2,7 +2,7 @@
 
 2026-11-15. Where the tree's code lags or departs from [components.md](components.md).
 
-- **Not yet:** `crates/temper-client-tools-jig`: `temper-client-tools` holds jig's part of the tools (`../client/ctl/tools-crates.status.md`).
+- **Not yet:** `crates/temper-client-tools-jig`: `temper-client-tools` holds jig's part of the tools (`../client/ctl/tools-crates.status.md`) [in flight: change 4087].
 
 
 - **Not yet:** `crates/temper-service-core`, `crates/temper-engine-service`, `crates/temper-worker-service` and `crates/temper-service`: one crate, `temper-service`, holds both halves and their composition, the worker's half its `worker` feature (`services.status.md`).

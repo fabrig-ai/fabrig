@@ -2,7 +2,7 @@
 
 2026-11-15. Where the tree's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 1: the boundary test is `temper-client-tools`' and reads its `src/jig/`: there is no `temper-client-tools-jig` (`tools-crates.status.md`).
+- **Not yet:** 1: the boundary test is `temper-client-tools`' and reads its `src/jig/`: there is no `temper-client-tools-jig` (`tools-crates.status.md`) [in flight: change 4087].
 
 - **Not yet:** 2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and

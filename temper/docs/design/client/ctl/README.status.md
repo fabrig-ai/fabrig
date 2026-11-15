@@ -2,7 +2,7 @@
 
 2026-11-15. Remaining gaps between temper's code and [README.md](README.md).
 
-- **Not yet:** 4: there is no `temper-client-tools-jig`: `temper-client-tools` holds the module `jig` and its boundary test (`tools-crates.status.md`).
+- **Not yet:** 4: there is no `temper-client-tools-jig`: `temper-client-tools` holds the module `jig` and its boundary test (`tools-crates.status.md`) [in flight: change 4087].
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
 `ui-reaches`: `temper ctl settings show project-classes` and a settings

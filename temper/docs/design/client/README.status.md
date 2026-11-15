@@ -5,7 +5,7 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
-- **Not yet:** 2: there is no `temper-client-tools-jig`: `temper-client-tools` holds jig's part of the tools (`ctl/tools-crates.status.md`).
+- **Not yet:** 2: there is no `temper-client-tools-jig`: `temper-client-tools` holds jig's part of the tools (`ctl/tools-crates.status.md`) [in flight: change 4087].
 
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
