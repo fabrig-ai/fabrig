@@ -81,7 +81,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
                     [
                         "Fetching Forgejo",
                         "Fetched Forgejo",
-                        "Preparing:",
+                        "Preparing Forgejo",
                         "Starting Forgejo",
                         "Connecting as temper",
                         "Making the first repository",

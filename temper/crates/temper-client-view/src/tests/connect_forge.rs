@@ -287,9 +287,9 @@ fn setting_up_marks_the_rows_step() {
         words_in_order(
             view.tree(),
             &[
-                if done == 0 { "Fetching Forgejo and its runner" } else { "Fetched Forgejo and its runner" },
-                "Preparing: its database, temper’s admin, your account",
-                "Starting Forgejo and its runner",
+                if done == 0 { "Fetching Forgejo" } else { "Fetched Forgejo" },
+                "Preparing Forgejo",
+                "Starting Forgejo",
                 "Connecting as temper",
                 "Making the first repository",
             ],
@@ -590,7 +590,7 @@ fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     deliver(&mut root, watch, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
     words_in_order(view.tree(), &["Making work/hello"]);
-    words_in_order(view.tree(), &["Starting Forgejo and its runner", "Connecting"]);
+    words_in_order(view.tree(), &["Starting Forgejo", "Connecting"]);
     assert!(!f::text(view.tree()).windows(b"Connecting, and making".len()).any(|w| w == b"Connecting, and making"));
 }
 #[test]
@@ -1321,13 +1321,10 @@ fn owned_details_draw_the_forgejo_pin_and_keep_the_unpinned_words() {
 }
 
 #[test]
-fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
-    for (pins, runner, fetching, fetched) in [
-        (true, true, "Fetching Forgejo 17.0.0 and its runner 11.2.1", "Fetched Forgejo 17.0.0 and its runner 11.2.1"),
-        (true, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
-        (false, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
-    ] {
-        for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
+fn owned_fetch_steps_name_no_version() {
+    for (pins, runner) in [(true, true), (false, false)] {
+        for (step, expected) in [(w::SetUpStep::Fetch, "Fetching Forgejo"), (w::SetUpStep::Prepare, "Fetched Forgejo")]
+        {
             let connection = w::Connection::SettingUp(
                 w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
             );
@@ -1338,8 +1335,77 @@ fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
             for view in [f::page_view(&root), f::browser_page_view(&root)] {
                 words_in_order(
                     view.tree(),
-                    &[expected, "Preparing", "Starting Forgejo and its runner", "Connecting", "Making"],
+                    &[expected, "Preparing Forgejo", "Starting Forgejo", "Connecting as temper", "Making"],
                 );
+            }
+        }
+    }
+}
+
+#[test]
+fn setup_step_words_name_only_forgejo_with_each_fetch_figure() {
+    for (total, expected) in [(Some(150_000_000), "Fetching Forgejo · 27%"), (None, "Fetching Forgejo · 41 MB")] {
+        for pins in [false, true] {
+            let connection = w::Connection::SettingUp(
+                w::SettingUp::new(
+                    &w::CEILINGS,
+                    w::SettingUpParts {
+                        step: Some(w::SetUpStep::Fetch),
+                        fetched: Some(
+                            w::SetUpFetched::new(
+                                &w::CEILINGS,
+                                w::SetUpFetchedParts { binary: w::SetUpBinary::Forgejo, done: 41_000_000, total },
+                            )
+                            .unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            );
+            let mut parts = pinned_rows(connection, pins, pins).get(0).unwrap().clone().into_parts();
+            parts.first = first_rows(w::Connection::Connecting, w::FirstState::Making).get(0).unwrap().first().clone();
+            let mut rows = List::with_capacity(1);
+            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            for address in [
+                Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
+                Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } },
+                Address::Welcome { step: Step::Model { way: None } },
+            ] {
+                let root = f::forge_root(address, rows.clone());
+                for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                    let nodes = view.tree().nodes();
+                    let (start, list) = nodes
+                        .iter()
+                        .enumerate()
+                        .find(|(_, n)| {
+                            n.styles.as_slice().contains(&crate::look::FLOW_PROGRESS)
+                                || n.styles.as_slice().contains(&crate::look::CONNECT_LIVE)
+                        })
+                        .unwrap();
+                    let body = &nodes[start..start + usize::try_from(list.size).unwrap()];
+                    let labels: Vec<_> = body
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, n)| n.role == Role::Item)
+                        .map(|(at, item)| {
+                            let label = body[at..at + usize::try_from(item.size).unwrap()]
+                                .iter()
+                                .find(|n| !n.text.is_empty())
+                                .unwrap();
+                            core::str::from_utf8(&label.text.as_slice()[0].text).unwrap()
+                        })
+                        .collect();
+                    assert_eq!(
+                        labels,
+                        [
+                            expected,
+                            "Preparing Forgejo",
+                            "Starting Forgejo",
+                            "Connecting as temper",
+                            "Making work/hello"
+                        ]
+                    );
+                }
             }
         }
     }

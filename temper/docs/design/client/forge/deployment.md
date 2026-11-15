@@ -108,11 +108,10 @@ and `connect-forge.html`.
   playground is reset, it shows nowhere.
 - **Owned setup versions** come from the forge row's `owned` pins.
   Details names the Forgejo version in what temper box downloads;
-  the first of Each step's five lines names both Forgejo and runner
-  versions, "Fetching" until fetched, then "Fetched". Without `owned`,
-  Details keeps "Forgejo and its runner"; without `owned.runner`,
-  that first step keeps its unversioned wording. These are shared by
-  Connect a forge and the welcome. Preparing names no future login.
+  without `owned`, it keeps "Forgejo and its runner". Each step names
+  no version, even with `owned.runner`: "Fetching Forgejo" until
+  fetched, then "Fetched Forgejo". These are shared by Connect a forge
+  and the welcome. Preparing names no future login.
 - **Connecting a forge,** `ConnectForge { forge }` (the request
   `connect-flows`): the welcome's cards, panels and words, under Settings'
   path and in its column, with no list of steps; one or two pages, then the

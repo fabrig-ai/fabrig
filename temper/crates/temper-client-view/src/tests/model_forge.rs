@@ -150,11 +150,7 @@ fn the_first_step_says_the_figure_until_it_is_fetched() {
                     };
                     let first = list.iter().find(|n| !n.text.is_empty()).unwrap();
                     let verb = if step == w::SetUpStep::Fetch { "Fetching" } else { "Fetched" };
-                    let versions = if pins { "Forgejo 17.0.1 and its runner 13.2.1" } else { "Forgejo and its runner" };
-                    assert_eq!(
-                        first.text.as_slice()[0].text.as_ref(),
-                        [verb, " ", versions, suffix].concat().as_bytes()
-                    );
+                    assert_eq!(first.text.as_slice()[0].text.as_ref(), [verb, " Forgejo", suffix].concat().as_bytes());
                 }
             }
         }

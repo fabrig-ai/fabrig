@@ -382,9 +382,9 @@ pub fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why: &str) 
     let items: Vec<_> = tree.nodes()[start..end].iter().filter(|n| n.role == Role::Item).collect();
     assert_eq!(items.len(), 5);
     let labels = [
-        if failed > Some(0) { "Fetched Forgejo and its runner" } else { "Fetching Forgejo and its runner" },
-        "Preparing: its database, temper’s admin, your account",
-        "Starting Forgejo and its runner",
+        if failed > Some(0) { "Fetched Forgejo" } else { "Fetching Forgejo" },
+        "Preparing Forgejo",
+        "Starting Forgejo",
         "Connecting as temper",
         "Making work/hello",
     ];
