@@ -2,6 +2,12 @@
 
 ## 1. A file per task
 
+From milestone S7 a task's turns go to its turns log, one of its task
+logs (`logs.md`, 5), read by every kind of 3 as a file's frames are.
+The files this document keeps are those of tasks that had one before:
+such a task goes on writing its file until it ends, and no file is
+converted; retention drops them as it drops a turns log.
+
 - **One file per task,** named by the task's number, in directories by
   the number's high bits, so each directory holds a bounded number of
   files. The name is derived: nothing lists the files.

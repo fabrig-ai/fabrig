@@ -243,13 +243,18 @@ registry's commit and the jobs alone. From the active generation `A` to
    new segment at every open, never appending to an older one, cutting
    it or writing it in place (skein's `data/kv.md`, sections 3 and 5), so a shared
    file stays as `A` left it, whatever `A + 1` commits, snapshots or
-   removes.
+   removes. A task log is the one shared file `A + 1` writes again, and
+   only past `A`'s extent of it, which `A` reads as garbage (skein's
+   `data/kv.md`, 6.4; `logs.md`, 7).
    - **Linked:** `A`'s `snapshot` and each of its log segments but the
      newest (`log-<20 digits>`, the newest the one whose number is
      largest), each given a second name in `A + 1`'s `store/` by io's
      `HardLink` (skein's `runtime/io/files.md`; `runtime/kernel.md`,
      6.4). The newest is found over every page of `A`'s `store/`
-     before the first link is made.
+     before the first link is made. So is each task log in `A`'s
+     `store/logs/`: `logs/` and each directory in it made in `A + 1`'s
+     `store/`, each log file linked there, and each such directory
+     synced once its links are made (`logs.md`, 7).
    - **Copied,** file by file, each read and written in bounded chunks
      through the file driver (io has no copy), each file created
      exclusively 0o600 and synced: the newest segment, which the draft
@@ -708,7 +713,8 @@ deployment's lock as a start does (1, step 1).
   generation's maps, copies them into a scratch deployment as that
   generation, file by file and never by links (the directory it is
   given may be a backup on another file system, and a link would
-  change its files' links), and opens the
+  change its files' links), its task logs among them (`logs.md`, 7),
+  and opens the
   scratch as any start does (1 and 2), with its patch sets, the
   transcripts read where they are and never cut, and no generation
   dropped. The plan, the copy, the patches, the registry's commit and

@@ -2,6 +2,9 @@
 
 2026-11-14. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 1, 3 and 4.4: a task's history is in the map and its turns in its transcript file; no task log holds either (`logs.md`). [in flight: change 3549]
+- **Not yet:** 8: the component has no `Limits::fetch`. [in flight: change 3547]
+- **Not yet:** 6.1: a deleted project's tasks are found by their ended records, and no history log goes with a task. [in flight: change 3548]
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
 - **Not yet:** 8: the worst case (`sizes.rs`) does not count the registry's rows held at open, their parsed schema texts, the derived plans' tables or the one `Workspace` fitted to them (`layouts.md`, 7); change 2846 left it, its memory bounded by the registered families' texts.

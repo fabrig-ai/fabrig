@@ -59,7 +59,9 @@ pub struct Converts {
   `milestones`, which folds the tasks' milestones into their attempts
   and holds and erases them (`../../domain/tasks/lifecycle.md`, 12.4);
   and `live-task-parts` and `projection-parts`, which put a store's whole
-  live tasks and projection rows into their parts (`parts.md`, 4).
+  live tasks and projection rows into their parts (`parts.md`, 4); and,
+  last, `task-logs`, which moves a store's history out of the map into
+  its tasks' logs (`logs.md`, 6).
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one
@@ -196,6 +198,6 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 - **Progress across starts:** a job's progress lives and dies with its
   start's new generation. A job too long for one start would need its
   cursor kept in its row and the generation kept across starts.
-- **Files:** a job that writes files beside the store (S7's task logs)
-  needs them made in the new generation and synced before the commit
-  that names them; S7 designs it.
+- **Files:** a job writes no file of its own. `task-logs` writes task
+  logs through its answer's puts, which the commit path appends to them,
+  synced before the commit that names them (`logs.md`, 3 and 6).

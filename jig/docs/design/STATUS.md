@@ -42,7 +42,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, moved out of the map by the job at open `task-logs`, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); turns written before them stay in their files until retention drops them. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
@@ -213,6 +213,7 @@ Design documents:
 - [`protocol/store/layouts.md`](protocol/store/layouts.status.md)
 - [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
 - [`protocol/store/parts.md`](protocol/store/parts.status.md)
+- [`protocol/store/logs.md`](protocol/store/logs.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:
