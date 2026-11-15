@@ -1,3 +1,4 @@
+//! Prepared constants and per-reader copies (protocol/channel/README.md, 11).
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
 use skein_io::digest::digest;
@@ -20,22 +21,7 @@ pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
 #[must_use]
 pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
     use jig_protocol_worker_wire as wire;
-    let mut wires = skein_lib::List::with_capacity(16);
-    for spoken in &wire::spoken() {
-        wires
-            .push(
-                wire::Wire::new(
-                    &wire::CEILINGS,
-                    wire::WireParts {
-                        name: spoken.name.as_bytes().into(),
-                        lowest: spoken.lowest,
-                        layouts: spoken.layouts.clone(),
-                    },
-                )
-                .expect("wire"),
-            )
-            .expect("wire slot");
-    }
+    let mut wires = prepared_statement_wires().clone();
     let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
     wires
         .push(
@@ -51,6 +37,30 @@ pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire
         )
         .expect("wire slot");
     wires
+}
+
+fn prepared_statement_wires() -> &'static skein_lib::List<jig_protocol_worker_wire::Wire> {
+    use jig_protocol_worker_wire as wire;
+    static WIRES: std::sync::OnceLock<skein_lib::List<wire::Wire>> = std::sync::OnceLock::new();
+    WIRES.get_or_init(|| {
+        let mut wires = skein_lib::List::with_capacity(16);
+        for spoken in prepared_kept_wires() {
+            wires
+                .push(
+                    wire::Wire::new(
+                        &wire::CEILINGS,
+                        wire::WireParts {
+                            name: spoken.name.as_bytes().into(),
+                            lowest: spoken.lowest,
+                            layouts: spoken.layouts.clone(),
+                        },
+                    )
+                    .expect("wire"),
+                )
+                .expect("wire slot");
+        }
+        wires
+    })
 }
 
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
@@ -139,24 +149,44 @@ pub fn limits() -> Limits {
 }
 #[must_use]
 pub fn channel_limits() -> skein_channel::Limits {
-    let codec = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec");
-    let cap = jig_protocol_worker_wire::sizes::worker_cap(&SIZES).expect("small cap").cap;
-    skein_channel::Limits {
-        chunk: 64,
-        credential: u32::try_from(
-            jig_protocol_worker_wire::Credential::encoded_bound(&codec).expect("small credential"),
-        )
-        .expect("fits"),
-        skip: 64,
-        output_bytes: cap.bytes,
-        output_frames: cap.frames,
-        kinds: u32::try_from(jig_protocol_worker_wire::KINDS.len()).expect("kinds fit"),
-    }
+    *prepared_channel_limits()
+}
+fn prepared_channel_limits() -> &'static skein_channel::Limits {
+    static LIMITS: std::sync::OnceLock<skein_channel::Limits> = std::sync::OnceLock::new();
+    LIMITS.get_or_init(|| {
+        let codec = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec");
+        let cap = jig_protocol_worker_wire::sizes::worker_cap(&SIZES).expect("small cap").cap;
+        skein_channel::Limits {
+            chunk: 64,
+            credential: u32::try_from(
+                jig_protocol_worker_wire::Credential::encoded_bound(&codec).expect("small credential"),
+            )
+            .expect("fits"),
+            skip: 64,
+            output_bytes: cap.bytes,
+            output_frames: cap.frames,
+            kinds: u32::try_from(jig_protocol_worker_wire::KINDS.len()).expect("kinds fit"),
+        }
+    })
 }
 #[must_use]
 pub fn schema() -> skein_channel::Schema {
-    jig_protocol_worker_wire::schema(&jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec"))
-        .expect("small schema")
+    prepared_schema().clone()
+}
+fn prepared_schema() -> &'static skein_channel::Schema {
+    &prepared_channel().0
+}
+#[must_use]
+pub fn kept_wires() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
+    prepared_kept_wires().clone()
+}
+fn prepared_kept_wires() -> &'static skein_lib::List<jig_protocol_worker_wire::Spoken> {
+    &prepared_channel().1
+}
+fn prepared_channel() -> &'static (skein_channel::Schema, skein_lib::List<jig_protocol_worker_wire::Spoken>) {
+    static CHANNEL: std::sync::OnceLock<(skein_channel::Schema, skein_lib::List<jig_protocol_worker_wire::Spoken>)> =
+        std::sync::OnceLock::new();
+    CHANNEL.get_or_init(|| jig_protocol_worker_wire::schema_and_spoken(&codec()).expect("small schema and kept wires"))
 }
 #[must_use]
 pub fn peer(
