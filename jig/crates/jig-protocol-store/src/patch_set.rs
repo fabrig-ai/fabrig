@@ -3,18 +3,21 @@ use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet,
 
 /// The store's part of jig's owner set; accounts adds its kept family.
 pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
-    jobs: &[Job {
-        name: "charter-versions",
-        keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
-        converts: Some(Converts {
-            family: "jig-store-settings",
-            value_type: 4,
-            from: [
-                0x6e, 0x0c, 0x3b, 0xa3, 0x49, 0x0f, 0x65, 0xbc, 0x43, 0xe0, 0xae, 0x0e, 0xc2, 0x7d, 0xe2, 0x3f, 0x38,
-                0xaf, 0x27, 0x02, 0x03, 0x51, 0x74, 0xba, 0x8c, 0x38, 0x93, 0xc7, 0x9b, 0xf7, 0xd9, 0x89,
-            ],
-        }),
-    }],
+    jobs: &[
+        Job {
+            name: "charter-versions",
+            keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
+            converts: Some(Converts {
+                family: "jig-store-settings",
+                value_type: 4,
+                from: [
+                    0x6e, 0x0c, 0x3b, 0xa3, 0x49, 0x0f, 0x65, 0xbc, 0x43, 0xe0, 0xae, 0x0e, 0xc2, 0x7d, 0xe2, 0x3f,
+                    0x38, 0xaf, 0x27, 0x02, 0x03, 0x51, 0x74, 0xba, 0x8c, 0x38, 0x93, 0xc7, 0x9b, 0xf7, 0xd9, 0x89,
+                ],
+            }),
+        },
+        Job { name: "milestones", keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }], converts: None },
+    ],
     owner: Owner::Jig,
     name: "jig",
     patches: patches::PATCHES,
@@ -229,7 +232,19 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 number: 18,
                 root: "Row",
                 variant: Some("placed_hold"),
-                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 2] }],
+                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 1, 22] }],
+            },
+            ValueType {
+                number: 19,
+                root: "Row",
+                variant: Some("attempt"),
+                keys: &[KeyRange { from: &[1, 1, 22], to: &[1, 1, 23] }],
+            },
+            ValueType {
+                number: 20,
+                root: "Row",
+                variant: Some("hold"),
+                keys: &[KeyRange { from: &[1, 1, 23], to: &[1, 2] }],
             },
         ],
         name: "jig-store-tasks",

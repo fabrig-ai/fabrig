@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::translate;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v22 as w;
+use jig_client_protocol_wire::v23 as w;
 use jig_client_test_records as records;
 use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_people as p;
@@ -56,6 +56,40 @@ fn a_project_document_becomes_its_record() {
     assert_eq!(
         translate::document(&answer, &[], &crate::Private::none(), &fixtures::wire_limits()),
         Ok(w::ReadValue::Project(records::owner_project_record()))
+    );
+}
+
+#[test]
+fn an_escalations_hold_keeps_its_lifecycle_facts() {
+    use jig_domain_tasks as t;
+    use skein_lib::Wall;
+    let mut source = fixtures::decided_escalation(p::EscalationDecision::Release);
+    let reads::EndedValue::Escalation { hold, .. } = &mut source.value else { panic!("escalation") };
+    *hold = Some(d::HoldLine {
+        task: 7,
+        position: 31,
+        at: Wall::from_nanos(37),
+        before: d::PriorPhase::Active(t::Active::Running { attempt: 3 }),
+        why: t::Hold::Stopped,
+        source: None,
+        ending: None,
+    });
+    let limits = fixtures::wire_limits();
+    let w::ReadValue::Ended(value) =
+        translate::document(&reads::Answer::Ended(Box::new(source)), &[], &crate::Private::none(), &limits).unwrap()
+    else {
+        panic!("ended")
+    };
+    let w::EndedValue::Escalation(value) = value.value() else { panic!("escalation") };
+    let hold = value.hold().as_ref().unwrap();
+    assert_eq!(hold.task(), 7);
+    assert_eq!(hold.position(), 31);
+    assert_eq!(hold.at(), 37);
+    assert_eq!(hold.why(), &w::HoldCategory::Stopped);
+    let w::PriorPhase::Active(active) = hold.before() else { panic!("running before hold") };
+    assert_eq!(
+        active.value(),
+        &w::RunStage::Running(w::RunStageRunning::new(&limits, w::RunStageRunningParts { attempt: 3 }).unwrap())
     );
 }
 

@@ -1,0 +1,11 @@
+== jig == 
+Attempt:
+  Attempt
+  Task: 18446744073709551615
+  Attempt number: 2
+  Claimed: 14
+  Started: 15
+  Ended: 19
+  End: failed
+  Class: invalid
+  Phase changes: 3

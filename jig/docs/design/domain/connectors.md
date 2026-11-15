@@ -693,7 +693,9 @@ procedure, but a mechanism of the connector's, keyed to the goal.
 - **Fed by the root:** the goal's state, its plan as its subtree's tasks
   and their phases, and its milestones as the tree's history records
   them, in the connector's own terms, whenever they change: a change to
-  any task of the subtree, not only to the goal's own. Milestones come
+  any task of the subtree, not only to the goal's own. Its milestones
+  are the changes made to its subtree's tasks, and their holds and ends
+  (tasks/lifecycle.md, 12.3), never a wake's phase. Milestones come
   as they are recorded, each with an identity of its own, so the
   connector keeps what it has written and adds to it; the plan comes
   whole, within the tree's limits (tasks/README.md, section 6). The last

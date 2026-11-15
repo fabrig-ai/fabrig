@@ -108,7 +108,7 @@ fn history(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     let line = markdown(l, client)?.checked_mul(2)?.checked_add(authority(l, client)?)?.checked_add(24)?;
     let row = line
         .max(crate::tree::fragments::history::max_nodes(l, client)?)
-        .max(crate::tree::fragments::milestone::max_nodes(l, client)?);
+        .max(crate::tree::fragments::lifecycle::max_nodes(l, client)?);
     row.checked_add(3)?.checked_mul(client.rows)?.checked_add(18)
 }
 /// Task header, lineage and the largest available executor section.

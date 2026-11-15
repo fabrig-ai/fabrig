@@ -265,7 +265,18 @@ fn ended_escalation_decisions_keep_opaque_rejection_and_independent_optional_hol
         EscalationDecision::Reject { reason: super::text(b"") },
         EscalationDecision::Reject { reason: super::text(UTF8_TEXTS[0]) },
     ] {
-        for hold in [None, Some(MilestoneLine { task: 8, position: 0, phase: MilestonePhase::Waiting, at: None })] {
+        for hold in [
+            None,
+            Some(HoldLine {
+                task: 8,
+                position: 0,
+                at: Wall::EPOCH,
+                before: PriorPhase::Waiting,
+                why: HoldCategory::Deadline,
+                source: None,
+                ending: None,
+            }),
+        ] {
             let record = EscalationDecisionRecord {
                 project: PROJECT,
                 requester: u64::MAX,

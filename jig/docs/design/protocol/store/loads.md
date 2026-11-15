@@ -121,11 +121,11 @@ a page, and each turn's line its turn (below).
 |---|---|
 | a task, a person task, a result | the task's record, by key, with its last attempt's terminal |
 | a proposal | a party's: its record, by key, with its decision; a task's: the row of its proposer's history that keeps it |
-| an escalation | its decision, by the revision its task's record names, with the hold's milestone |
+| an escalation | its decision, by the revision its task's record names, with the hold row at its task's `hold` (`../../domain/tasks/lifecycle.md`, 12.2) |
 | a question, a reply | the task's activity line, by its position, with the line that answers a question, where its answer was heard (below), or the turn a reply was (from the transcript, `transcripts.md`, 3) |
 | a turn | the task's transcript (`transcripts.md`, 3) |
 | a task's activity, newest first, or the page beside one of its lines | the activity family, read backwards or, for the lines after a position, forwards (4); each turn's line with its turn, from the transcript (`transcripts.md`, 3); its owner task joined once for the page, and no row's ancestry or links, since an activity line names its task alone |
-| a task's history, or a subtree's | the history and milestone families; a subtree's by the index of its delegates, task by task: the task's own rows, then each delegate's in that index's order, each task's rows in its own history's order |
+| a task's history, or a subtree's | the history, attempt and hold families (`../../domain/tasks/lifecycle.md`, 12.3); a subtree's by the index of its delegates, task by task: the task's own rows, then each delegate's in that index's order, each task's rows its changes, then its attempts, then its holds |
 | a task's ended delegates | the index of ended delegates by requester |
 | an inbox group | the index of the party's inbox, by time: what needs them oldest first, updates newest first; a group, and the filter, select within it |
 | a task query's live tasks | not the store's: the tasks child's live tasks, scanned in memory |

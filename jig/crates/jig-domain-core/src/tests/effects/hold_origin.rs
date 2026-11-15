@@ -18,12 +18,18 @@ fn held_connector_parts_keep_exact_origin_and_refuse_shortened_retained_keys() {
     assert_eq!(part.kind, PartKind::Resource);
     let PartKey::Path(path) = part.key else { panic!("whole path") };
     assert_eq!(path.get(0).unwrap().as_ref(), b"whole");
-    let milestone = tasks::Milestone { task: 2, position: row.milestone, phase: row.phase.clone(), at: env.wall };
-    let line = milestone_from_row(&limits, &milestone).unwrap();
-    let MilestonePhase::Held { source: Some(_), .. } = line.phase else { panic!("retained source") };
+    let tasks::Phase::Held { was, why, source } = &row.phase else { panic!("held") };
+    let hold = tasks::HoldRow {
+        task: 2,
+        position: row.hold,
+        held: tasks::Held { was: was.clone(), why: *why, source: source.clone() },
+        at: env.wall,
+    };
+    let line = hold_from_row(&limits, &hold).unwrap();
+    assert!(line.source.is_some());
     limits.documents.text_bytes = 4;
     assert_eq!(chip_from_row(&limits, row), Err(Missing::TooLarge));
-    assert_eq!(milestone_from_row(&limits, &milestone), Err(Missing::TooLarge));
+    assert_eq!(hold_from_row(&limits, &hold), Err(Missing::TooLarge));
 }
 
 #[test]

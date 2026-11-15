@@ -3,7 +3,7 @@ use super::*;
 use crate::Release;
 
 #[test]
-fn a_held_task_names_the_milestone_of_its_hold() {
+fn a_held_task_names_the_position_of_its_hold_row() {
     let mut h = Harness::new();
     h.make(vec![task(1, &[])]);
     assert_eq!(live(&h, 1).hold, 0);
@@ -20,9 +20,8 @@ fn a_held_task_names_the_milestone_of_its_hold() {
     assert_eq!(live(&h, 1).hold, 3);
     h.send(Event::Hold { task: 1, why: Hold::Budget });
     assert_eq!(live(&h, 1).hold, 5);
-    let Stored::Milestone(row) = &h.stored[&Key::Milestone { task: 1, position: 5 }] else { panic!() };
-    let crate::Phase::Held { why, .. } = &row.phase else { panic!("held milestone") };
-    assert_eq!(*why, Hold::Budget);
+    let Stored::Hold(row) = &h.stored[&Key::Hold { task: 1, position: 5 }] else { panic!() };
+    assert_eq!(row.held.why, Hold::Budget);
 }
 
 #[test]

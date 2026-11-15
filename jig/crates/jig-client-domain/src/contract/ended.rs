@@ -3,9 +3,9 @@
 //! Raw person goals are admitted with recurrence absent at both entry and restore;
 //! their boundary translator must refuse an unadmitted recurrence before copying.
 use super::{
-    Activity, ActivityLine, Authority, Bytes, Executor, Funder, MessageKind, MessageProposalKind, MilestoneLine,
-    Numbers, ObjectKey, PersonTask, ProposalChoice, ProposalHistory, ProposalHistoryState, ProposalKey, Proposer,
-    Question, Requester, Result, Specification, Task, TaskContractDocument, Text, WakePolicy,
+    Activity, ActivityLine, Authority, Bytes, Executor, Funder, HoldLine, MessageKind, MessageProposalKind, Numbers,
+    ObjectKey, PersonTask, ProposalChoice, ProposalHistory, ProposalHistoryState, ProposalKey, Proposer, Question,
+    Requester, Result, Specification, Task, TaskContractDocument, Text, WakePolicy,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -80,7 +80,7 @@ pub enum EndedValue {
     Task { document: Box<Task>, result: Box<Result> },
     Proposal(ProposalHistory),
     PersonProposal { proposal: Box<PersonProposal>, decision: Option<ProposalDecision> },
-    Escalation { task: Box<Task>, decision: EscalationDecisionRecord, hold: Option<MilestoneLine> },
+    Escalation { task: Box<Task>, decision: EscalationDecisionRecord, hold: Option<HoldLine> },
     Question { question: Question, answer: Option<ActivityLine>, ending: Option<Box<Result>> },
     PersonTask { document: Box<PersonTask>, result: Box<Result> },
 }

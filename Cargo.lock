@@ -6973,6 +6973,7 @@ dependencies = [
  "jig-test-store-files",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
