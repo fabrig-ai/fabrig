@@ -128,6 +128,112 @@ fn task(world: &World, change: u64) -> u64 {
     world.change(change).change.landing.expect("train formed")
 }
 
+fn search_example(count: u64, breaking: u64, expected_probes: &[u16]) {
+    let mut world = landings::turn_in(World::search_turn(18, super::landing_batches::workflow(true)));
+    world.batch(u16::try_from(count).expect("small batch"));
+    world.push_file(b"main", b"file", b"fixed");
+    let base = world.branch(b"main");
+    for index in 1..=count {
+        let change = 50 + index;
+        let name = format!("temper/c{change}");
+        branch(&mut world, name.as_bytes());
+        world.push_file(name.as_bytes(), format!("safe{index}").as_bytes(), b"safe");
+        if index == breaking {
+            world.push_file(name.as_bytes(), b"file", b"broken");
+        }
+        landings::ready_change(&mut world, change, name.as_bytes());
+    }
+    Trains::default().judge(&mut world);
+    let landing = task(&world, 51);
+    let mut probes = Vec::new();
+    let mut reached_second = false;
+    let mut prefix_turns = 0;
+    for entry in 1000..1200 {
+        let decision = landings::step_landing(&mut world, landing, entry);
+        for change in 51..51 + count {
+            if !matches!(world.change(change).change.state, change::State::Repairing { requested: true, .. }) {
+                changes::change_step_task(
+                    &mut world,
+                    change,
+                    entry * 10 + change,
+                    change::Status::Passed,
+                    Box::new([]),
+                    false,
+                    false,
+                );
+            }
+        }
+        let row = &world.landing(landing).landing;
+        if row.preparation == 2 {
+            let landed = row.members.iter().filter(|member| member.landed.is_some()).count();
+            assert_eq!(landed, usize::try_from(breaking - 1).expect("green prefix size"));
+            let blamed = &row.members[usize::try_from(breaking - 1).expect("blamed index")];
+            assert!(matches!(blamed.left, Some(landing::Leave::Blamed { .. })));
+            assert_eq!(world.change(blamed.change).change.repairs, 1);
+            assert!(
+                row.members
+                    .iter()
+                    .skip(usize::try_from(breaking).expect("suffix"))
+                    .all(|member| member.landed.is_none())
+            );
+            assert_eq!(prefix_turns, u32::from(breaking > 1));
+            assert_eq!(probes, expected_probes);
+            if breaking == 1 {
+                assert_eq!(world.branch(b"main"), base);
+            }
+            reached_second = true;
+            break;
+        }
+        if let landing::Decision::Dispatch { member, .. } = decision {
+            if row.round.search.is_some() {
+                probes.push(member + 1);
+            }
+            let raw::Answer::Runs(runs) =
+                world.inspect(&raw::Read::Runs { workflow: None, commit: None, number: None, page: 1, limit: 8 })
+            else {
+                panic!("runs")
+            };
+            assert!(
+                runs.iter().filter(|run| run.state != raw::RunState::Completed).count() <= 1,
+                "one proof or probe at a time"
+            );
+        }
+        if matches!(decision, landing::Decision::Merge { .. }) {
+            prefix_turns += 1;
+            assert_eq!(probes, expected_probes, "green prefix lands on the probe receipts");
+            let calls = world.take_calls();
+            assert_eq!(
+                calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
+                expected_probes.len() + 1
+            );
+        }
+    }
+    assert!(reached_second, "first round ends");
+    let maximum = u64::BITS - (count - 1).leading_zeros();
+    assert!(probes.len() <= usize::try_from(maximum).expect("logarithmic bound"));
+    landings::drive_landing(&mut world, landing);
+    assert_eq!(world.landing(landing).landing.phase, landing::Phase::Landed);
+    assert_eq!(world.landing(landing).landing.preparation, 2);
+    for member in &world.landing(landing).landing.members {
+        if member.change == 50 + breaking {
+            assert!(member.landed.is_none());
+            assert!(matches!(world.change(member.change).change.state, change::State::Repairing { .. }));
+        } else {
+            assert!(member.landed.is_some());
+        }
+    }
+}
+
+#[test]
+fn drill_18_five_units_with_the_third_breaking_probe_two_then_three() {
+    search_example(5, 3, &[2, 3]);
+}
+
+#[test]
+fn drill_18_three_units_with_the_first_breaking_land_nothing_in_round_one() {
+    search_example(3, 1, &[1]);
+}
+
 #[test]
 fn drill_13_two_goal_trains_and_main_progress_independently() {
     let mut world = landings::turn_in(World::parallel_trains());

@@ -256,6 +256,27 @@ impl World {
         world.restart();
         world
     }
+    /// The search's five-unit example retains the initial and probe statuses together.
+    #[must_use]
+    pub fn search_turn(seed: u64, workflow: raw::Workflow) -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.statuses = 16;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            Some(workflow),
+            config,
+            None,
+            5,
+        )
+    }
     pub fn project_landing(
         &mut self,
         project: u32,
