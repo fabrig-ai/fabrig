@@ -25,6 +25,20 @@ fn an_address_is_an_engine_on_loopback_and_never_a_link() {
 }
 
 #[test]
+fn the_recording_line_names_the_whole_path_and_last_result() {
+    let name = b"recording-20261115T090032Z".as_slice();
+    for (saved, expected) in [
+        (None, ""),
+        (Some((name, true)), "temper: recorded to /state/temper/tui/recording-20261115T090032Z\n"),
+        (Some((name, false)), "temper: couldn't save the recording to /state/temper/tui/recording-20261115T090032Z\n"),
+    ] {
+        let mut stderr = Vec::new();
+        super::say_recording(std::path::Path::new("/state/temper/tui"), saved, &mut stderr);
+        assert_eq!(stderr, expected.as_bytes());
+    }
+}
+
+#[test]
 fn recording_requires_a_nonempty_captured_variable() {
     for (entries, expected) in [
         (vec![], false),

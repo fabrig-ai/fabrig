@@ -227,7 +227,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
 #[test]
 fn a_save_is_a_replacement_even_when_its_bytes_are_unchanged() {
     let scratch = Scratch::new("tui-again-save");
-    let path = scratch.path().join("recording");
+    let path = scratch.path().join("recording-20261115T090032Z");
     assert!(replaced(&path, None).expect("no first save").is_none());
     fs::write(&path, b"same save").expect("first save");
     let earlier = File::open(&path).expect("hold earlier inode");
@@ -236,6 +236,35 @@ fn a_save_is_a_replacement_even_when_its_bytes_are_unchanged() {
     fs::write(&next, b"same save").expect("next save");
     fs::rename(next, &path).expect("replace save");
     assert_eq!(replaced(&path, Some(&earlier)).expect("replacement"), Some(b"same save".to_vec()));
+}
+
+#[test]
+fn the_runs_recording_is_found_among_other_files() {
+    let scratch = Scratch::new("tui-again-find-save");
+    let directory = scratch.path().join("tui");
+    assert!(recording_file(&directory).expect("no directory yet").is_none());
+    fs::create_dir(&directory).expect("TUI directory");
+    for name in [
+        "recording",
+        "recording-notatime",
+        "recording-20261115T090032Z.skein-1a2b",
+        "recording-20260229T000000Z",
+        "recording-20261115T240000Z",
+        "token",
+        "store",
+        "address",
+        "sign-in",
+    ] {
+        fs::write(directory.join(name), b"other file").expect("other entry");
+    }
+    fs::create_dir(directory.join("recording-20000101T000000Z")).expect("not a file");
+    assert!(recording_file(&directory).expect("not yet saved").is_none());
+    let path = directory.join("recording-20261115T090032Z");
+    fs::write(&path, b"save").expect("first save");
+    assert_eq!(recording_file(&directory).expect("find run's file"), Some(path.clone()));
+    assert_eq!(replaced(&path, None).expect("appearance is a save"), Some(b"save".to_vec()));
+    fs::write(directory.join("recording-20261116T090032Z"), b"another run").expect("ambiguous");
+    assert!(recording_file(&directory).is_err(), "an attempt has only one run");
 }
 
 #[test]

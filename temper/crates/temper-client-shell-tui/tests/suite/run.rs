@@ -59,12 +59,16 @@ struct World {
     connects: Vec<io::Addr>,
     run: Run,
     now: Time,
+    wall: Wall,
     bytes: Vec<u8>,
     engine: Option<Engine>,
     outcome: Outcome,
     spawns: usize,
     draining: bool,
     refuse_save: bool,
+    refuse_remove: bool,
+    listed: usize,
+    removed: Vec<Box<[u8]>>,
     recording_sync: Option<Handle>,
     saved: usize,
     leave_after: usize,
@@ -133,6 +137,7 @@ impl World {
             note,
             front,
             Config::calm(),
+            None,
         )
     }
 
@@ -153,9 +158,16 @@ impl World {
         note: Option<Note>,
         front: bool,
         config: Config,
+        files: Option<Machine>,
     ) -> Self {
-        let mut files = Machine::for_user(USER);
-        let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
+        let (mut files, root) = if let Some(mut files) = files {
+            let root = files.reopen_root(0);
+            (files, root)
+        } else {
+            let mut files = Machine::for_user(USER);
+            let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
+            (files, root)
+        };
         let mut sim = Sim::new(SEED, config);
         let pid = sim.spawn_process();
         let recording = (record == Recording::Root).then(|| {
@@ -231,12 +243,16 @@ impl World {
             connects: Vec::new(),
             run,
             now: Time::ZERO,
+            wall: Wall::EPOCH,
             bytes: Vec::new(),
             engine,
             outcome,
             spawns: 0,
             draining: false,
             refuse_save: false,
+            refuse_remove: false,
+            listed: 0,
+            removed: Vec::new(),
             recording_sync: None,
             saved: 0,
             leave_after: 0,
@@ -244,6 +260,25 @@ impl World {
             held_note: None,
             horizon: Time::ZERO.saturating_add(limits::BACKGROUND).saturating_add(Duration::from_millis(40)),
         }
+    }
+
+    fn on_files(files: Machine, record: Recording, wall: Wall) -> Self {
+        let mut world = Self::front_configured(
+            false,
+            false,
+            false,
+            Outcome::Success,
+            record,
+            Some(Scheme::Dark),
+            None,
+            false,
+            None,
+            false,
+            Config::calm(),
+            Some(files),
+        );
+        world.wall = wall;
+        world
     }
 
     fn settle(&mut self) {
@@ -284,7 +319,7 @@ impl World {
                     }
                     self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
                 }
-                self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
+                self.run.iterate(self.now, Wall::from_nanos(self.wall.as_nanos() + self.now.as_nanos()));
                 runnable = self.run.work_pending(self.now);
             }
             self.inspect_submissions();
@@ -414,6 +449,16 @@ impl World {
         self.sim.calls(&mut calls);
         let mut answers = Queue::with_capacity(64);
         while let Some(call) = calls.pop() {
+            if matches!(&call.ask, Ask::List { .. }) {
+                self.listed += 1;
+            }
+            if let Ask::Remove { name, .. } = &call.ask {
+                self.removed.push(name.clone());
+                if self.refuse_remove {
+                    answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::Permission) });
+                    continue;
+                }
+            }
             if let Ask::Rename { to, .. } = &call.ask
                 && to.as_ref() == b"sign-in"
             {
@@ -430,7 +475,7 @@ impl World {
                 }
             }
             if let Ask::Rename { to_dir, to, .. } = &call.ask
-                && to.as_ref() == b"recording"
+                && to.starts_with(b"recording-")
             {
                 if std::mem::take(&mut self.refuse_save) {
                     answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::Permission) });
@@ -855,6 +900,7 @@ impl World {
             None,
             true,
             Config { buffer, ..Config::calm() },
+            None,
         );
         world.settle();
         world
@@ -904,7 +950,10 @@ impl World {
     }
 
     fn recording_file(&mut self) -> Option<(Vec<u8>, u32)> {
-        self.file(b"tui/recording")
+        let mut name = skein_lib::Writer::new(30);
+        name.put(b"tui/recording-").expect("recording prefix");
+        self.wall.write_basic_utc(&mut name).expect("recording name");
+        self.file(&name.finish())
     }
 
     fn file(&mut self, path: &[u8]) -> Option<(Vec<u8>, u32)> {
@@ -944,13 +993,16 @@ fn recording_keys_save_whole_and_closing_saves_again() {
     use temper_client_shell_tui::journey::Line;
     for (mark, save) in [(b"\x1bM", b"\x1bS"), (b"\x1bm", b"\x1bs")] {
         let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
+        world.wall = Wall::from_nanos(1_794_733_232_000_000_000);
         world.settle();
         world.keys(&[mark.as_slice(), save.as_slice()].concat());
-        let (first, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: save key writes recording"));
+        let (first, mode) = world
+            .file(b"tui/recording-20261115T090032Z")
+            .unwrap_or_else(|| panic!("{mark:?}: save key writes recording"));
         assert_eq!(mode, 0o600, "{mark:?}: recording is private");
         let lines = replay(&first);
         assert!(lines.contains(&Line::Seed(SEED)), "{mark:?}");
-        assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }), "{mark:?}");
+        assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: world.wall }), "{mark:?}");
         assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Some(Scheme::Dark) }), "{mark:?}");
         assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())), "{mark:?}");
         assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))), "{mark:?}");
@@ -959,20 +1011,158 @@ fn recording_keys_save_whole_and_closing_saves_again() {
             !lines.iter().any(|line| matches!(line, Line::Key { key: skein_ui_screen_terminal::Key::Alt(_), .. })),
             "{mark:?}: recording keys never reach the host"
         );
+        world.wall = Wall::from_nanos(1_794_819_632_000_000_000);
         world.keys(&[b"\t".as_slice(), save.as_slice()].concat());
-        let (second, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: second save"));
+        let (second, mode) =
+            world.file(b"tui/recording-20261115T090032Z").unwrap_or_else(|| panic!("{mark:?}: second save"));
         assert_eq!(mode, 0o600, "{mark:?}");
         assert!(second.len() > first.len(), "{mark:?}: second save includes more reports");
         replay(&second);
         world.draining = true;
         world.leave_after = world.saved + 1;
         world.keys(b"\x03");
-        let (closed, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: closing save"));
+        let (closed, mode) =
+            world.file(b"tui/recording-20261115T090032Z").unwrap_or_else(|| panic!("{mark:?}: closing save"));
         assert_eq!(mode, 0o600, "{mark:?}");
         assert!(closed.len() > second.len(), "{mark:?}: closing saves the final reports");
         assert!(replay(&closed).contains(&Line::Quit), "{mark:?}");
         world.drained(false);
     }
+}
+
+#[test]
+fn recording_runs_keep_distinct_files() {
+    let mut first = World::recording(false, true, false, Outcome::Success, Recording::Root);
+    first.wall = Wall::from_nanos(1_794_733_232_000_000_000);
+    first.settle();
+    first.keys(b"\x03");
+    first.drained(false);
+    let saved = first.recording_file().expect("first run saved");
+    let mut second = World::on_files(first.files, Recording::Root, Wall::from_nanos(1_794_819_632_000_000_000));
+    second.settle();
+    second.keys(b"\x1bs");
+    assert!(second.file(b"tui/recording-20261115T090032Z") == Some(saved.clone()), "second run leaves first alone");
+    replay(&second.recording_file().expect("second run's own file").0);
+    second.keys(b"\x03");
+    assert!(second.file(b"tui/recording-20261115T090032Z") == Some(saved), "closing also leaves the first run alone");
+    second.drained(false);
+}
+
+const OTHER_RECORDING_FILES: &[&[u8]] = &[
+    b"recording",
+    b"recording-20261101T000000Z.skein-1a2b",
+    b"recording-notatime",
+    b"recording-20260229T000000Z",
+    b"recording-20261101T240000Z",
+    b"recording-20261101T006000Z",
+    b"recording-20261101T000060Z",
+    b"recording-20261101T000000Z-extra",
+    b"token",
+    b"store",
+    b"address",
+    b"sign-in",
+];
+
+fn other_recording_bytes(name: &[u8]) -> &'static [u8] {
+    match name {
+        b"token" => &[7; 40],
+        b"store" => &[0; 4],
+        _ => b"untouched",
+    }
+}
+
+fn earlier_recordings(count: u32) -> Machine {
+    let mut items = vec![Item::directory(b"tui").mode(0o700)];
+    for day in 1..=count {
+        items.push(Item::file(format!("tui/recording-202611{day:02}T000000Z").as_bytes(), b"earlier").mode(0o600));
+    }
+    for name in OTHER_RECORDING_FILES {
+        let path = [b"tui/".as_slice(), name].concat();
+        items.push(Item::file(&path, other_recording_bytes(name)).mode(0o600));
+    }
+    items.push(Item::directory(b"tui/recording-20000101T000000Z").mode(0o700));
+    items.push(Item::link(b"tui/recording-20000102T000000Z", b"recording"));
+    let mut files = Machine::for_user(USER);
+    let root = files.lay(&items);
+    files.close(root);
+    files
+}
+
+#[test]
+fn recording_retains_nine_earlier_files_and_ignores_other_entries() {
+    for (record, count) in [(Recording::Root, 12), (Recording::Root, 9), (Recording::Root, 2), (Recording::None, 12)] {
+        let mut world = World::on_files(earlier_recordings(count), record, Wall::from_nanos(1_794_733_232_000_000_000));
+        world.settle();
+        let removed = if record == Recording::Root { count.saturating_sub(9) } else { 0 };
+        assert_eq!(world.removed.len(), usize::try_from(removed).unwrap(), "pruned before any save");
+        for save in [false, true] {
+            if save {
+                world.keys(b"\x1bs");
+            }
+            for day in 1..=count {
+                let path = format!("tui/recording-202611{day:02}T000000Z");
+                let expected = (day > removed).then(|| (b"earlier".to_vec(), 0o600));
+                assert_eq!(world.file(path.as_bytes()), expected, "{path}");
+            }
+            for name in OTHER_RECORDING_FILES {
+                assert_eq!(
+                    world.file(&[b"tui/".as_slice(), name].concat()),
+                    Some((other_recording_bytes(name).to_vec(), 0o600)),
+                    "{name:?}"
+                );
+            }
+        }
+        assert_eq!(world.listed > 0, record == Recording::Root, "only recording lists the directory");
+        assert_eq!(world.recording_file().is_some(), record == Recording::Root);
+        let listed = world.listed;
+        world.keys(b"\x03");
+        assert_eq!(world.listed, listed, "retention is once per run, not per save");
+        world.drained(false);
+    }
+}
+
+#[test]
+fn failed_recording_removals_are_silent_and_do_not_prevent_saving() {
+    let mut world =
+        World::on_files(earlier_recordings(12), Recording::Root, Wall::from_nanos(1_794_733_232_000_000_000));
+    world.refuse_remove = true;
+    world.settle();
+    assert_eq!(world.removed.len(), 3, "each old recording's removal attempted despite failures");
+    let drawn = world.bytes.len();
+    world.keys(b"\x1bs");
+    assert_eq!(world.bytes.len(), drawn, "no removal failure drawn");
+    replay(&world.recording_file().expect("save goes on").0);
+    for day in 1..=12 {
+        assert_eq!(
+            world.file(format!("tui/recording-202611{day:02}T000000Z").as_bytes()),
+            Some((b"earlier".to_vec(), 0o600))
+        );
+    }
+    world.keys(b"\x03");
+    world.drained(false);
+}
+
+#[test]
+fn closing_save_reports_its_own_outcome() {
+    for refuse in [false, true] {
+        let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
+        world.settle();
+        world.keys(b"\x1bs");
+        assert_eq!(world.run.recording_save(), Some((b"recording-19700101T000000Z".as_slice(), true)));
+        world.refuse_save = refuse;
+        world.keys(b"\x03");
+        world.drained(false);
+        assert_eq!(
+            world.run.recording_save(),
+            Some((b"recording-19700101T000000Z".as_slice(), !refuse)),
+            "closing result after LEAVE, not the earlier save's"
+        );
+    }
+    let mut world = World::new(false);
+    world.settle();
+    world.keys(b"\x03");
+    world.drained(false);
+    assert_eq!(world.run.recording_save(), None);
 }
 
 #[test]
