@@ -5444,6 +5444,7 @@ dependencies = [
  "serde_json",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-fake-person",
