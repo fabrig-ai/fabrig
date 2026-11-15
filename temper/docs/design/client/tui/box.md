@@ -128,19 +128,25 @@ start and stop are this section's own.
     `temper`, and the box stops by itself
     (`../../protocol/setup/box.md`, 6).
 
-**The box's stages**, illustrative (the box's start, then its stop):
+**The box's stages**, illustrative (a first run's start, then a stop):
 
 ```
-╭─ temper ─────────────────────────────────────────────────────────────── box ─╮
-│ temper box · on this machine, to try it                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  temper box · a whole deployment on this machine
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
-   Downloading temper-box, once for this build: 12.3 of 24.1 MB
+   The link comes here once the box has started.
+
+   It signs you in as this temper's owner, once, within 2 hours.
 
  In the browser
    1 Welcome · 2 Forge · 3 Model · 4 Ready
+...
+────────────────────────────────────────────────────────────────────────────────
+❯ / for commands
+────────────────────────────────────────────────────────────────────────────────
+ ● Connecting      Downloading temper-box, once for this build: 12.3 of 24.1 MB
 ```
 
 ```
@@ -158,21 +164,36 @@ start and stop are this section's own.
   `BoxEnd::Exited { code }` or `BoxEnd::Killed { signal }`; and `Failed
   { why }`, its start failed, `why` its first line, cut at 512 bytes,
   `limits::LOG_LINE`.
-- **On the welcome,** before the box's first `link` line, the link's
-  place, two columns in, holds the stage's line in the link's stead, and
-  "It signs you in…" is left out: "Finding temper-box…", "Downloading
+- **The stage's line:** "Finding temper-box…", "Downloading
   temper-box, once for this build: DONE of TOTAL MB", or with no size
   "Downloading temper-box, once for this build: DONE MB", DONE and TOTAL
-  in millions of bytes with one decimal, and "Starting the box…", each
-  `tui-hint`; and once failed, "temper-box could not start: WHY"
-  (`tui-refused`), WHY read as UTF-8 with a replacement for each invalid
-  byte, and under it "Ctrl+C closes; temper then says what to do."
-  (`tui-hint`). Running with no `link` line yet draws nothing there.
-- **The box's steps as they come:** until the TUI is signed in by the
-  handed link, the box's last `log` line, if any, stands under the
-  welcome's link section, two columns in (`tui-hint`), cut to the
-  window's columns, so the person sees the box start its steps; once
-  signed in, it is `/log`'s alone.
+  in millions of bytes with one decimal, and "Starting the box…"; once
+  failed, "temper-box could not start: WHY" (`tui-refused`), WHY read as
+  UTF-8 with a replacement for each invalid byte, and under it "Ctrl+C
+  closes; temper then says what to do." (`tui-hint`). Running, the
+  stage has no line.
+- **On the welcome,** the user's request `tui-13` of 2026-11-15, so
+  that its body keeps its size while the box starts: before the box's
+  first `link` line, the link's place, two columns in, holds "The link
+  comes here once the box has started." (`tui-hint`), with the link's
+  blank rows and "It signs you in…" under it as with the link; the
+  stage's line stands on the quiet line's right (*The box's start on
+  the quiet line*, below). A failed start's two lines stand in the
+  link's place, "It signs you in…" left out, and on the quiet line
+  nothing of the stage: the failure is the body's, for good.
+- **The box's start on the quiet line,** on the welcome alone, until
+  the TUI is signed in by the handed link, first at the quiet line's
+  right (`pages/README.md`, 1, *The quiet line*), in `tui-hint`: the
+  stage's line, before the box runs; then the box's last `log` line,
+  once it runs and has one, its time and the space after it left out
+  ("23:32:06Z Starting serve" stands as "Starting serve"), a line with
+  no such time standing whole; so the person sees the box start its
+  steps where the notice stands, and the body does not move. Read as
+  UTF-8 with a replacement for each invalid byte, and cut by skein
+  where the row lacks the room (`pages/README.md`, 1, *A narrow
+  terminal*). A notice stands in its place for its time. Once signed
+  in, the log is `/log`'s alone; the starting screen draws the stage
+  in its own steps and never here (*The starting screen*, below).
 - **Stopping:** from "Stop the box" taken, or a quit with nothing to
   ask (*Quitting*), until the box has ended: a note of its own, after the
   others, standing for good: the head "Stopping the box…" (`tui-head`),
@@ -185,9 +206,8 @@ start and stop are this section's own.
 signed in, and 02, after):
 
 ```
-╭─ temper ─────────────────────────────────────────────────────────────── box ─╮
-│ temper box · on this machine, to try it                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  temper box · a whole deployment on this machine
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
@@ -210,31 +230,31 @@ signed in, and 02, after):
  The steps are the browser's; this screen follows them.
 ```
 
-- **When:** in front, from the first frame, while the sign-in screen is
-  not drawn and `me`, read or not, names no project: in the no-project
-  launchpad's place (`pages/launchpad.md`, 7), "Connecting" included.
-  Once `me` names a project the host goes to its launchpad (`README.md`, 3, *Its
-  pages*), and once it names none again, the welcome stands again.
-- **Its header,** the region `tui-top`, as the launchpad's: "temper" in
-  its border and, at the border's end, the place (*The place*, below),
-  with no project; inside it, temper box's line, "temper box"
-  (`tui-name`; the view's word, `../pages/welcome.md`, 1, *Its frame*), " · "
-  (`tui-faint`) and "on this machine, to try it" (`tui-hint`), the
-  browser's line with its links left out. Out of date, the view's line
-  stands in its place, as on the launchpad.
+- **When:** in front, while the sign-in screen and the starting screen
+  are not drawn and `me`, read or not, names no project: in the
+  no-project launchpad's place (`pages/launchpad.md`, 7), "Connecting"
+  included; on a first run, from the first frame, since the person needs
+  its link (*The starting screen*, below). Once `me` names a project the
+  host goes to its launchpad (`README.md`, 3, *Its pages*), and once it
+  names none again, the welcome stands again.
+- **Its header** is the TUI's (`pages/README.md`, 3), in front: "temper
+  box · a whole deployment on this machine" under the mark's first line.
+  Out of date, the view's line is the welcome's first section, before
+  its others, as on the launchpad.
 - **Before the person signed in** by the printed link
   (`welcome::signed_in`, below), its sections (`tui-sections`,
   `tui-spaced`):
   - "Welcome. Set temper up in your browser: open this link on this
-    machine."; under it, two columns in, the printed link, the URL of
-    the box's latest `link` line, drawn whole and wrapped at the
-    window's columns; and "It signs you in as this temper's owner, once,
-    within 2 hours." (`tui-hint`), the box's own words for it
-    (`../../protocol/setup/box.md`, 2). Before the box's first `link` line,
-    the link's place holds the box's stage (*The box's stages*, above),
-    and its line is left out. The TUI never opens the link nor
-    gives it to its opener: the person opens it, in a browser on this
-    machine.
+    machine."; under it, one blank row, then two columns in the printed
+    link, the URL of the box's latest `link` line, drawn whole and
+    wrapped at the window's columns, then one blank row (the user's
+    request `tui-14`); and "It signs you in as this temper's owner,
+    once, within 2 hours." (`tui-hint`), the box's own words for it
+    (`../../protocol/setup/box.md`, 2). Before the box's first `link`
+    line, the link's place holds "The link comes here once the box has
+    started.", or a failed start's lines (*The box's stages*, above).
+    The TUI never opens the link nor gives it to its opener: the person
+    opens it, in a browser on this machine.
   - "In the browser" (`tui-head`) and, two columns in, the welcome's four
     steps on one line, numbered, none started, "1 Welcome · 2 Forge · 3
     Model · 4 Ready" (`tui-hint`), their labels the view's (`../pages/welcome.md`, 1, *Its
@@ -404,10 +424,11 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   run reported it.
 
 ```
-╭─ temper · Demo ─────────────────────────────────────────── playground · box ─╮
-│ This is the playground: a scripted model and in-memory forge. Set            │
-│ temper up in your browser when you're ready to leave it.                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ ▄█▀▀   temper 0.0.0 (b948f40d6df1)
+▄█▄█▄█  temper box · a whole deployment on this machine
+
+ This is the playground: a scripted model and in-memory forge. Set
+ temper up in your browser when you're ready to leave it.
 ...
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask temper
@@ -419,17 +440,16 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
   chat's, is the running playground's (`../forge/family.md`, 7: its read's `project` while
   it runs), in front of a box or not. The TUI works in it as in any
   project.
-- **The header,** on the launchpad: at the border's end, before the
-  place, "playground" (`tui-playground`) and " · " (`tui-end-faint`),
-  the three left out whole together where the border lacks the room
-  (skein's `ui/screen.md`, 5.2). Inside it, in the place of Home's brief
-  and headline, which are not drawn while the playground runs, the TUI's
-  "This is the playground: a scripted model and in-memory forge. Set
-  temper up in your browser when you're ready to leave it.": the
-  browser's banner (`../pages/welcome.md`, 2), whose way out is the browser's. Its project is
-  a demonstration, and the banner is what the person needs of it.
-  "Connecting", out of date and a sign-in not kept are drawn as on any
-  launchpad, and the sections below as on any project.
+- **The headline,** on the launchpad (`pages/launchpad.md`, 3): in the
+  place of Home's brief and headline, which are not drawn while the
+  playground runs, the TUI's "This is the playground: a scripted model
+  and in-memory forge. Set temper up in your browser when you're ready
+  to leave it.": the browser's banner (`../pages/welcome.md`, 2), whose
+  way out is the browser's. Its project is a demonstration, and the
+  banner is what the person needs of it. "Connecting", out of date and
+  a sign-in not kept are drawn as on any launchpad, and the sections
+  below as on any project. The header names no playground
+  (`pages/README.md`, 3): the quiet line does.
 - **The quiet line,** on the launchpad and a chat: " · " and
   "playground" (`tui-hint`) after the box's state, if any, and before
   the needs' count (`pages/README.md`, 1, *The quiet line*). A chat's top line is as on
@@ -543,8 +563,8 @@ Stop the box? csv-export's running task stops with it.
 **The place.** In front, the TUI is on a box: it names its place
 "box" at the default port, 8367, and "box:PORT" at another,
 `temper_client_tui::place(address, true)`, as the look request
-`tui-chat-title-below` names a box's; the welcome draws it at its
-header's border end with no project, as the frames show.
+`tui-chat-title-below` names a box's, in the rule above a chat's box.
+The header says "temper box" in its stead (`pages/README.md`, 3).
 
 **Its state, events, words and tokens:**
 
@@ -604,10 +624,10 @@ header's border end with no project, as the frames show.
   | `tui-step-done` | none | the mark `✓`, good | "Signed in as the owner", a step ticked |
   | `tui-step-now` | bold | the mark `▸`, accent | the step under way |
   | `tui-step-ahead` | dim | the mark `·`, faint | a step not reached |
-  | `tui-playground` | accent | aligned to the end | "playground" in a title |
-  | `tui-end-faint` | faint | aligned to the end | " · " between it and the place |
 
-  The rest is `theme.md`'s: `tui-signal` carries a step restarting and
+  `tui-playground` and `tui-end-faint`, which carried "playground" and
+  its " · " in the framed header's border, went with it (the user's
+  request `tui-14`). The rest is `theme.md`'s: `tui-signal` carries a step restarting and
   the box stopping too, `tui-down` a step given up and the box stopped,
   `tui-refused` the give up's and the end's notes and a failed start,
   and `tui-head`, `tui-hint` and `tui-note` what this section says.
