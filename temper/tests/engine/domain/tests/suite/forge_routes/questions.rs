@@ -3,6 +3,8 @@ use super::*;
 use temper_engine_domain_forge_change::{Route, Stands, State};
 
 const TICKS: u32 = 200;
+// A complete pair of landings includes fresh reads and queue turns.
+const LAND_TICKS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
 const QUESTION: &[u8] = b"Which behavior should hold?\nChoose the documented behavior or widen the change.\nI recommend keeping the documented behavior.";
 const ANSWER: &[u8] = b"Keep the documented behavior.\nLeave the wider work for later.";
@@ -858,10 +860,11 @@ fn a_producers_finish_waits_for_its_requesters_answer() {
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
+// questions.md, 1, Relayed at once, kept or not (kept-change-answers.md, 2026-11-15): dependencies order only the merge.
 #[test]
-fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
+fn an_answer_with_a_new_dependency_goes_down_while_the_merge_waits() {
     let (mut world, requester, change, producer) = up_world(None);
-    ask(&mut world, &producer, change);
+    let question = ask(&mut world, &producer, change);
     park_after_turn(&mut world, &producer, None, 0);
     let dependency = make_change(&mut world, &requester, CALL + 1, engine::ChangeQuestions::None);
     let upstream = next_producer(&mut world, dependency);
@@ -876,22 +879,173 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
         engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
     );
     answer(&mut world, &requester, change, CALL + 3);
+    wait_answer(&mut world, producer.task, change);
+    let resumed = resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+    finish_producing(&mut world, change, &resumed);
     for _ in 0..TICKS {
         world.tick();
-        if row(&world, change).questions.open.first().is_some_and(|q| matches!(q.stands, Stands::Held { .. })) {
-            break;
-        }
     }
-    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Held { answer: ANSWER.into() });
-    assert_eq!(replies(&world, producer.task, change).len(), 0);
+    assert_pending_dependency(&world, change, dependency);
     let branch = row(&world, dependency).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"prerequisite", b"ready", 1)
         .expect("prerequisite pushed");
     super::delegates::fixtures::answer_producer(&mut world, &upstream);
+    both_land(&mut world, change, dependency);
+}
+
+fn assert_pending_dependency(world: &World, change: u64, dependency: u64) {
+    assert_eq!(live_task(world, change).waiting_on.as_ref(), &[dependency]);
+    assert!(world.root.tasks().task(dependency).is_some());
+    assert!(!matches!(live_task(world, dependency).phase, tasks::Phase::Ended(_) | tasks::Phase::Closing(_)));
+    assert_eq!(world.merges, 0);
+}
+
+fn resumed_producer(
+    world: &mut World,
+    change: u64,
+    producer: &engine::Assignment,
+    question: u64,
+) -> engine::Assignment {
+    for _ in 0..TICKS {
+        world.tick();
+        if let Some(run) = world.assigned.iter().find(|run| run.task == producer.task && run.attempt > producer.attempt)
+        {
+            assert!(
+                run.messages
+                    .iter()
+                    .any(|word| word.kind == tasks::MessageKind::Answer { question } && word.words.as_ref() == ANSWER)
+            );
+            assert!(row(world, change).questions.open.is_empty());
+            return run.clone();
+        }
+    }
+    panic!("the producer starts its next attempt after the answer");
+}
+
+fn both_land(world: &mut World, change: u64, dependency: u64) {
+    for _ in 0..LAND_TICKS {
+        world.tick();
+        if matches!(row(world, change).change.state, State::Landed { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(row(world, dependency).change.state, State::Landed { .. }));
+    assert!(matches!(row(world, change).change.state, State::Landed { .. }));
+    assert_eq!(world.merges, 2);
+}
+
+struct EarlyQuestion {
+    world: World,
+    requester: engine::Assignment,
+    dependency: u64,
+    change: u64,
+    upstream: engine::Assignment,
+    producer: engine::Assignment,
+    head: u64,
+    question: u64,
+}
+
+fn early_question() -> EarlyQuestion {
+    let (mut world, requester) = plan_world(None);
+    let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
+    let upstream = next_producer(&mut world, dependency);
+    let head = super::early_start::push(&mut world, &upstream, 1, b"prerequisite");
+    super::early_start::observe_push(&mut world, &upstream);
+    let mut spec = engine::ChangeCall::words(b"Use the prerequisite".as_slice().into(), None);
+    spec.questions = Some(engine::ChangeQuestions::Up);
+    spec.after = Box::new([engine::ChangeAfter::Task(dependency)]);
+    call(&mut world, &requester, CALL + 1, engine::Tool::Change { changes: Box::new([spec]) });
+    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("dependent made") };
+    let change = made[0].task;
+    let producer = next_producer(&mut world, change);
+    assert_eq!(
+        producer.workspace.repositories[0].start,
+        engine::ForgeStart::Merged {
+            branch: row(&world, change).base.clone(),
+            heads: Box::new([translate::commit(head)])
+        }
+    );
+    assert_pending_dependency(&world, change, dependency);
+    let question = ask(&mut world, &producer, change);
+    park_after_turn(&mut world, &producer, None, 0);
+    world.until(Until::Ready);
+    EarlyQuestion { world, requester, dependency, change, upstream, producer, head, question }
+}
+
+fn finish_early_pair(
+    world: &mut World,
+    change: u64,
+    dependency: u64,
+    producer: &engine::Assignment,
+    upstream: &engine::Assignment,
+    head: u64,
+) {
+    super::early_start::push(world, producer, head, b"dependent");
+    super::delegates::fixtures::answer_producer(world, producer);
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_pending_dependency(world, change, dependency);
+    super::delegates::fixtures::answer_producer(world, upstream);
+    both_land(world, change, dependency);
+}
+
+#[test]
+fn an_early_producers_answer_arrives_while_its_dependency_is_pending() {
+    let EarlyQuestion { mut world, requester, dependency, change, upstream, producer, head, question } =
+        early_question();
+    let activity = live_task(&world, producer.task).last_activity;
+    let attempts = world.assigned.iter().filter(|run| run.task == producer.task).count();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(99)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [99; 16],
+        ask: people::Ask::Say { project: 1, task: producer.task, words: b"Please continue".as_slice().into() },
+    }));
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(live_task(&world, producer.task).last_activity > activity);
+    assert_eq!(world.assigned.iter().filter(|run| run.task == producer.task).count(), attempts);
+    assert_eq!(live_task(&world, producer.task).questions[0].number, question);
+    answer(&mut world, &requester, change, CALL + 2);
     wait_answer(&mut world, producer.task, change);
-    assert_eq!(world.merges, 1);
-    assert_eq!(replies(&world, producer.task, change)[0].words.as_ref(), ANSWER);
+    let resumed = resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+    finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
+}
+
+#[test]
+fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
+    let EarlyQuestion { mut world, requester: _, dependency, change, upstream, producer, head, question } =
+        early_question();
+    world.drain_cut();
+    // A committed answer left held by an earlier build: jig has spent the change's question credit.
+    let mut saved = row(&world, change).clone();
+    saved.questions.open[0].stands = Stands::Held { answer: ANSWER.into() };
+    let mut task = Box::new(live_task(&world, change).clone());
+    task.questions = Box::new([]);
+    let mut header = world.store.header();
+    header.commits += 1;
+    world.store.pending.push_back((
+        header.commits,
+        Box::new([
+            engine::Write::Save(Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(saved))) }),
+            engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))),
+            engine::Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+                header,
+            )))),
+        ]),
+    ));
+    world.store.apply();
+    world.restart(true, true);
+    wait_answer(&mut world, producer.task, change);
+    let resumed = resumed_producer(&mut world, change, &producer, question);
+    assert_pending_dependency(&world, change, dependency);
+    finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
 }
 
 #[test]

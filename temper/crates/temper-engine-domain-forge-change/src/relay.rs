@@ -20,8 +20,6 @@ pub struct RelayHeard<'a> {
     pub answer: Option<&'a [u8]>,
     /// Askers among the open questions' that have ended.
     pub ended: &'a [u64],
-    /// The change's task is kept by a pending dependency.
-    pub kept: bool,
     /// The change was released from its questions hold since its last step.
     pub released: bool,
 }
@@ -79,8 +77,9 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 done = done.saturating_add(1);
                 continue;
             }
-            if heard.kept {
+            if room == 0 {
                 question.stands = Stands::Held { answer: bytes::copy_of(answer) };
+                more = true;
                 break;
             }
         }
@@ -192,13 +191,7 @@ fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32
             }
         }
         Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?) }),
-        Stands::Held { answer } => {
-            if heard.kept {
-                None
-            } else {
-                Some(RelayAct::Answer { asker, number, words: answer.clone() })
-            }
-        }
+        Stands::Held { answer } => Some(RelayAct::Answer { asker, number, words: answer.clone() }),
     }
 }
 
