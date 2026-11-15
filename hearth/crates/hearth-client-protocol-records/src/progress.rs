@@ -55,37 +55,6 @@ pub enum StoreLimit {
     Layers,
     CacheFiles,
 }
-impl StoreFull {
-    pub(crate) fn text(&self, lines: &mut Lines) {
-        lines.put(b"the store ");
-        lines.put(&self.store);
-        lines.put(b" is full: ");
-        lines.decimal(u64::from(self.most));
-        lines.put(match self.limit {
-            StoreLimit::Resolutions => b" resolutions",
-            StoreLimit::Layers => b" layers",
-            StoreLimit::CacheFiles => b" cache files",
-        });
-        lines.put(b"\n");
-    }
-    pub(crate) fn json(&self, json: &mut Encoder) {
-        field(json, b"record", b"error");
-        field(json, b"kind", b"store");
-        field(json, b"store", &self.store);
-        field(
-            json,
-            b"limit",
-            match self.limit {
-                StoreLimit::Resolutions => b"resolutions",
-                StoreLimit::Layers => b"layers",
-                StoreLimit::CacheFiles => b"cache_files",
-            },
-        );
-        json.key(b"most");
-        json.unsigned(u64::from(self.most));
-        field(json, b"class", b"operational");
-    }
-}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Resolving {
