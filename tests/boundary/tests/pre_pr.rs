@@ -102,6 +102,8 @@ elif name == 'cargo':
                 'spans': [{'is_primary': True, 'file_name': str(Path.cwd() / error['file']),
                            'line_start': error['line']}], 'rendered': error['rendered']}}))
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
+    if kind == 'build':
+        sys.exit(ledger.get('build_exit', 0))
     assert kind != 'nextest', 'pre-pr must not run cargo nextest'
     raise AssertionError('unexpected cargo command: ' + str(args))
 elif name == 'one-process':
@@ -114,7 +116,9 @@ elif name == 'one-process':
         assert not directory.exists() and directory.parent == original.parent
         binary, *names = args[4:]
         ledger = state.get('head', {})
-        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1])
+        profile = 'default' if original.name == 'tests' else 'fuzzy'
+        target = next(t for t in ledger['tests'] if t['binary'] == binary and t['name'] == names[-1]
+                      and t.get('profile', 'default') == profile)
         assert names == target.get('before', []) + [target['name']]
         spend(100, ['again', args])
         directory.mkdir(mode=0o700)
@@ -124,13 +128,18 @@ elif name == 'one-process':
         sys.exit(0 if outcome == 'passed' else 100)
     assert args[:1] == ['--out']
     directory = Path(args[1])
-    assert directory.name == 'tests' and not directory.exists()
+    profile = args[2]
+    assert profile in ('default', 'fuzzy')
+    assert directory.name == ('tests' if profile == 'default' else 'fuzzy') and not directory.exists()
     packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
-    assert args[2:] == ['default'] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
+    assert args[2:] == [profile] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
     spend(100, ['one-process', side, packages, args])
     ledger = state.get('head', {})
     directory.mkdir(mode=0o700)
-    tests = [t for t in ledger.get('tests', []) if t['package'] in packages]
+    tests = [t for t in ledger.get('tests', []) if t['package'] in packages
+             and t.get('profile', 'default') == profile]
+    if profile == 'fuzzy':
+        ledger = ledger.get('fuzzy', {})
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -511,6 +520,9 @@ fn the_base_is_the_pins_merge_base() {
     for row in ["no pin", "behind", "merge", "unrelated", "unchecked save"] {
         let scratch = fixture();
         let root = scratch.path();
+        write(root, ".config/gate/always.txt", "B\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "-qm", "boundary configuration"]);
         let ancestor = String::from_utf8(git(root, &["rev-parse", "HEAD"])).expect("commit").trim().to_owned();
         let mut expected = String::new();
         let mut merge_args = vec!["merge-base", "refs/temper/landing", "HEAD"];
@@ -546,8 +558,8 @@ fn the_base_is_the_pins_merge_base() {
         let output = deliver(root);
         let log = text(&output);
         assert!(output.status.success(), "{row}: {log}");
-        assert!(build_events(root).is_empty(), "{row}: docs build nothing");
         if expected.is_empty() {
+            assert!(build_events(root).is_empty(), "{row}: no base builds no tests");
             coverage(root);
             let reason = if row == "no pin" {
                 "no refs/temper/landing"
@@ -560,6 +572,9 @@ fn the_base_is_the_pins_merge_base() {
             );
         } else {
             assert!(log.contains("docs only: citations"), "{row}: {log}");
+            let events = build_events(root);
+            assert_eq!(events.iter().map(|e| e[2].clone()).collect::<Vec<_>>(), vec![json!(["B"]); 2]);
+            assert!(log.contains("pre-pr: boundary tests: B"), "{row}: {log}");
             assert!(budget(root)["events"].as_array().expect("events").iter().all(|event| event[0] != "format"));
             assert!(
                 log.contains(&format!("base {expected}, merge base of refs/temper/landing and HEAD")),
@@ -579,15 +594,20 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
     for (row, path, lints, tests) in [
         ("normal", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
         ("dev", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
-        ("untracked", "a/src/new.rs", vec!["A"], vec!["A"]),
-        ("deleted", "a/src/lib.rs", vec!["A"], vec!["A"]),
-        ("root manifest", "Cargo.toml", vec![], vec![]),
-        ("docs", "temper/docs/selection.md", vec![], vec![]),
+        ("untracked", "a/src/new.rs", vec!["A"], vec!["A", "B"]),
+        ("deleted", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
+        ("root manifest", "Cargo.toml", vec![], vec!["B"]),
+        ("docs", "notes.md", vec![], vec!["B"]),
         ("reader", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
         ("reader only", "temper/docs/selection.md", vec![], vec!["B"]),
-        ("prefix-less", "temper/docs/selection.md", vec![], vec![]),
-        ("component boundary", "a-sibling/new.rs", vec![], vec![]),
+        ("prefix-less", "a/src/lib.rs", vec!["A"], vec!["A", "B"]),
+        ("component boundary", "a-sibling/new.rs", vec![], vec!["B"]),
         ("unknown reader", "temper/docs/selection.md", vec![], vec![]),
+        ("unknown boundary", "notes.md", vec![], vec!["B"]),
+        ("implicit boundary", "notes.md", vec![], vec!["fabrig-boundary"]),
+        ("empty", "notes.md", vec![], vec![]),
+        ("neither", "", vec![], vec![]),
+        ("no base", "notes.md", vec![], vec![]),
     ] {
         let scratch = fixture();
         let root = scratch.path();
@@ -599,12 +619,17 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
             }]);
             // Dependents are direct, not transitive.
             metadata["packages"][2]["dependencies"] = json!([{"name": "B", "path": root.join("b"), "kind": null}]);
-            fs::write(metadata_path, metadata.to_string()).expect("dependencies");
         }
+        if row == "implicit boundary" {
+            metadata["packages"][2]["name"] = json!("fabrig-boundary");
+        }
+        fs::write(metadata_path, metadata.to_string()).expect("metadata");
         let always = match row {
             "reader" => "B a/\n",
             "reader only" => "B temper/docs/\n",
             "unknown reader" => "missing shared/\n",
+            "unknown boundary" => "missing\nB\n",
+            "implicit boundary" | "empty" => "",
             _ => "B\n",
         };
         write(root, ".config/gate/always.txt", always);
@@ -616,9 +641,12 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
         git(root, &["commit", "-qm", "reader configuration"]);
         pin(root);
         let path = if row == "unknown reader" { "shared/input.txt" } else { path };
+        if row == "no base" {
+            git(root, &["update-ref", "-d", "refs/temper/landing"]);
+        }
         if row == "deleted" {
             fs::remove_file(root.join(path)).expect("deleted source");
-        } else {
+        } else if !path.is_empty() {
             write(root, path, "# changed\n");
         }
         let output = deliver(root);
@@ -628,12 +656,29 @@ fn the_sets_are_changed_packages_dependents_and_path_readers() {
         let actual_lints: Vec<_> = events.iter().filter(|e| e[0] == "clippy").map(|e| e[2].clone()).collect();
         let actual_tests: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[2].clone()).collect();
         assert_eq!(actual_lints, if lints.is_empty() { vec![] } else { vec![json!(lints)] }, "{row}: {log}");
-        assert_eq!(actual_tests, if tests.is_empty() { vec![] } else { vec![json!(tests)] }, "{row}: {log}");
-        if lints.is_empty() && tests.is_empty() && !log.contains("docs only:") {
+        assert_eq!(actual_tests, if tests.is_empty() { vec![] } else { vec![json!(tests); 2] }, "{row}: {log}");
+        let profiles: Vec<_> = events.iter().filter(|e| e[0] == "one-process").map(|e| e[3][2].clone()).collect();
+        assert_eq!(profiles, if tests.is_empty() { vec![] } else { vec![json!("default"), json!("fuzzy")] });
+        if row == "root manifest" || row == "component boundary" || row == "unknown reader" {
             assert!(log.contains("pre-pr: no package changed"), "{row}: {log}");
         }
         if row == "unknown reader" {
             assert!(log.contains("missing"), "unknown reader must be printed: {log}");
+        }
+        if row == "unknown boundary" {
+            assert!(log.contains("pre-pr: boundary package missing: not a workspace member, skipped"), "{log}");
+        }
+        if row == "docs" {
+            assert!(log.contains("pre-pr: docs only: citations and design size limits"), "{log}");
+            assert!(log.contains("pre-pr: boundary tests: B"), "{log}");
+            assert!(
+                !budget(root)["events"]
+                    .as_array()
+                    .expect("events")
+                    .iter()
+                    .any(|e| e[0] == "format" || e[0] == "baseline")
+            );
+            assert!(log.find("pre-pr: fuzzy tests: passed,") < log.find("pre-pr: citations …"), "{log}");
         }
     }
 }
@@ -788,6 +833,144 @@ fn only_what_the_delivery_broke_refuses() {
             assert!(!log.contains("inherited: test"), "cancelled tests are not failures: {log}");
         }
     }
+}
+
+#[test]
+fn focused_and_fuzzy_runs_judge_their_own_failures() {
+    let focused = test_failure("rule", "focused log");
+    let fuzzy = changed_field(test_failure("fuzzy::rule", "fuzzy log"), "profile", json!("fuzzy"));
+    let build = json!({"one_process_exit": 2, "output": "one-process: nextest listing exited with 101"});
+    let cancelled = changed_field(fuzzy.clone(), "outcome", json!("cancelled"));
+    for (row, head, reds, accepted, statuses, named) in [
+        ("passed", json!({}), "", true, ["passed", "passed"], ""),
+        ("focused failed", json!({"tests": [focused.clone()]}), "", false, ["failed", "passed"], "test A::rules rule"),
+        ("focused build", build.clone(), "", false, ["failed", "passed"], "build\nno tests ran"),
+        ("focused check", json!({"one_process_exit": 2}), "", false, ["failed", "passed"], "check one-process"),
+        (
+            "focused inherited",
+            json!({"tests": [focused.clone(), fuzzy.clone()]}),
+            "- test A::rules rule\n",
+            false,
+            ["inherited", "failed"],
+            "test A::rules fuzzy::rule",
+        ),
+        (
+            "fuzzy inherited",
+            json!({"tests": [focused, fuzzy.clone()]}),
+            "- test A::rules fuzzy::rule\n",
+            false,
+            ["failed", "inherited"],
+            "inherited: test A::rules fuzzy::rule (red, temper/reds)",
+        ),
+        ("fuzzy build", json!({"fuzzy": build}), "", false, ["passed", "failed"], "build fuzzy\nno tests ran"),
+        (
+            "fuzzy check",
+            json!({"fuzzy": {"one_process_exit": 2}}),
+            "",
+            false,
+            ["passed", "failed"],
+            "check one-process fuzzy",
+        ),
+        (
+            "fuzzy starved",
+            json!({"tests": [cancelled], "fuzzy": {"starved": true, "unobserved": [{}]}}),
+            "",
+            true,
+            ["passed", "passed"],
+            "pre-pr: fuzzy tests starved: 1 starved or cancelled, 1 unobserved, a warning (skein/docs/foundation/testing-strategy.md, 8.1)",
+        ),
+        (
+            "different binary",
+            json!({"tests": [fuzzy]}),
+            "- test A::other fuzzy::rule\n",
+            false,
+            ["passed", "failed"],
+            "test A::rules fuzzy::rule",
+        ),
+        ("prerequisite failed", json!({"build_exit": 101}), "", false, ["", ""], "build\nhelper/helper: exit 101"),
+    ] {
+        let scratch = fixture();
+        let root = scratch.path();
+        if row == "prerequisite failed" {
+            write(root, "tools/tiers/packages.toml", "[test-binaries]\nA = [{package='helper', bin='helper'}]\n");
+            git(root, &["add", "."]);
+            git(root, &["commit", "-qm", "test binaries"]);
+        }
+        pin(root);
+        write(root, "a/src/lib.rs", "fn changed() {}\n");
+        write(root, ".git/temper/reds", &format!("temper-reds 1\n{reds}"));
+        ledger(root, &json!({"head": head}));
+        let output = deliver(root);
+        let log = text(&output);
+        assert_eq!(output.status.success(), accepted, "{row}: {log}");
+        assert!(log.contains(named), "{row}: {log}");
+        let events = build_events(root);
+        let runs: Vec<_> = events.iter().filter(|e| e[0] == "one-process").collect();
+        if row == "prerequisite failed" {
+            assert!(runs.is_empty(), "failed test binaries select neither run: {log}");
+            continue;
+        }
+        assert_eq!(runs.len(), 2, "{row}: {log}");
+        assert_eq!(runs.first().expect("focused")[3][2], "default");
+        assert_eq!(runs.get(1).expect("fuzzy")[3][2], "fuzzy");
+        assert_eq!(runs.first().expect("focused")[2], runs.get(1).expect("fuzzy")[2]);
+        for (name, status) in ["tests", "fuzzy tests"].into_iter().zip(statuses) {
+            assert!(log.contains(&format!("pre-pr: {name}: {status},")), "{row}: {log}");
+            assert_eq!(log.matches(&format!("pre-pr: {name}: ")).count(), 1, "{row}: {log}");
+        }
+        if row == "fuzzy starved" {
+            assert_eq!(log.matches(named).count(), 2, "printed after run and in summary: {log}");
+        }
+    }
+}
+
+#[test]
+fn each_run_replays_its_failures_and_reports_its_observed_reds() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    write(root, ".git/temper/reds-wait", "temper-reds-wait 1 1\n");
+    write(root, ".git/temper/rerun", "temper-rerun 1 1\n");
+    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules fuzzy::green\n- test A::rules fuzzy::red\n");
+    let focused = changed_field(test_failure("flake", "focused first log"), "before", json!(["setup"]));
+    let fuzzy = changed_field(test_failure("fuzzy::flake", "fuzzy first log"), "profile", json!("fuzzy"));
+    let red = changed_field(test_failure("fuzzy::red", "inherited"), "profile", json!("fuzzy"));
+    let green = changed_field(
+        changed_field(test_failure("fuzzy::green", ""), "profile", json!("fuzzy")),
+        "outcome",
+        json!("passed"),
+    );
+    ledger(
+        root,
+        &json!({"head": {"tests": [focused, fuzzy, red, green],
+        "again": {"flake": "passed", "fuzzy::flake": "passed"}}}),
+    );
+    let output = deliver(root);
+    let log = text(&output);
+    assert!(output.status.success(), "{log}");
+    assert!(log.contains("pre-pr: tests: inherited,"), "{log}");
+    assert!(log.contains("pre-pr: fuzzy tests: inherited,"), "{log}");
+    let state = budget(root);
+    let calls: Vec<_> = state["events"]
+        .as_array()
+        .expect("events")
+        .iter()
+        .filter(|e| e[0] == "one-process" || e[0] == "again")
+        .collect();
+    assert_eq!(
+        calls.iter().map(|e| e[0].clone()).collect::<Vec<_>>(),
+        vec![json!("one-process"), json!("again"), json!("one-process"), json!("again")]
+    );
+    let focused_args = &calls.get(1).expect("focused again")[1];
+    let fuzzy_args = &calls.get(3).expect("fuzzy again")[1];
+    assert!(focused_args[1].as_str().expect("focused run").ends_with("/tests"));
+    assert!(fuzzy_args[1].as_str().expect("fuzzy run").ends_with("/fuzzy"));
+    assert_ne!(focused_args[3], fuzzy_args[3], "each again has its own directory");
+    let results = fs::read_to_string(root.join(".git/temper/check-results")).expect("results");
+    assert!(results.contains("passed test A::rules fuzzy::green\nfailed test A::rules fuzzy::red\n"), "{results}");
+    assert!(results.contains("flake test A::rules flake\n|\n| focused first log\n"), "{results}");
+    assert!(results.contains("flake test A::rules fuzzy::flake\n|\n| fuzzy first log\n"), "{results}");
 }
 
 #[test]

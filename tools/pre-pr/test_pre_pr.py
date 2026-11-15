@@ -68,11 +68,11 @@ sys.exit(int(count > 0))
 
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
-                build_answer=(0, ''), events=None):
+                build_answer=(0, ''), events=None, directories=None):
         calls = []
         events = [] if events is None else events
         data = {'packages': [{'name': name, 'id': name, 'dependencies': [],
-                             'manifest_path': str(self.root / name / 'Cargo.toml')} for name in packages],
+                             'manifest_path': str(self.root / (directories or {}).get(name, name) / 'Cargo.toml')} for name in packages],
                 'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
 
         def run(arguments, cwd, env, output=None, stdout=False):
@@ -102,7 +102,9 @@ sys.exit(int(count > 0))
 
         def test_check(*args):
             events.append('one-process')
-            return run_tests(*args) if one_process_answer is None else one_process_answer
+            if one_process_answer is None:
+                return run_tests(*args)
+            return one_process_answer if args[6] == 'default' else (0, [], None)
 
         captured = io.BytesIO()
         log = io.TextIOWrapper(captured, encoding="utf-8")
@@ -116,8 +118,8 @@ sys.exit(int(count > 0))
             result = PRE_PR.main()
         log.flush()
         if expected_bundle is not None:
-            self.assertTrue(clippy.called)
-            self.assertTrue(one_process.called)
+            self.assertTrue(clippy.called, captured.getvalue().decode())
+            self.assertTrue(one_process.called, captured.getvalue().decode())
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
@@ -240,6 +242,10 @@ sys.exit(int(count > 0))
             directory = Path(arguments[arguments.index('--out') + 1])
             directories.append(directory)
             directory.mkdir()
+            if directory.name == 'fuzzy':
+                (directory / 'run.json').write_text('{"starved": false}')
+                (directory / 'results.json').write_text('{"tests": [], "unobserved": []}')
+                return 0, 'fuzzy run\n'
             (directory / 'junit.xml').write_text('<testsuites><testsuite name="api::rules">' + ''.join(
                 f'<testcase name="{name}"><failure>fault</failure></testcase>' for name in names) +
                 '</testsuite></testsuites>')
@@ -252,7 +258,7 @@ sys.exit(int(count > 0))
         path = self.root / '.git/temper/pre-pr-failures.json'
 
         def summary(*args):
-            self.assertEqual(len(directories), 1)
+            self.assertEqual(len(directories), 2)
             self.assertFalse(directories[0].parent.exists())
             self.assertEqual(len(json.loads(path.read_text())['failures']), len(names))
             return summarize(*args)
@@ -260,7 +266,7 @@ sys.exit(int(count > 0))
         with mock.patch.object(PRE_PR, 'summary', side_effect=summary):
             result, log, _, _ = self.deliver(one_process_answer=None, process_answer=fake)
         self.assertEqual(result, 1, log)
-        self.assertEqual(len(directories), 1)
+        self.assertEqual(len(directories), 2)
         self.assertFalse(directories[0].parent.exists())
         record = json.loads(path.read_text())
         self.assertEqual([entry['key'] for entry in record['failures']],
@@ -382,16 +388,20 @@ sys.exit(int(count > 0))
     def test_selected_test_binaries_build_between_lints_and_tests(self):
         inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
         self.write('tools/tiers/packages.toml', inventory.read_text())
-        self.pin()
-        self.write('smith/src/lib.rs', 'pub fn changed() {}\n')
-        events = []
-        result, log, calls, _ = self.deliver(('api', 'smith', 'smith-fake-claude'), events=events)
-        build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
-        self.assertEqual(result, 0, log)
-        self.assertEqual(events, ['clippy', build, 'one-process'])
-        self.assertIn((build, self.root), calls)
-        self.assertIn('pre-pr: test binaries …', log)
-        self.assertIn('pre-pr: test binaries: passed,', log)
+        self.write('.config/gate/always.txt', 'smith\n')
+        for path in ('smith/src/lib.rs', 'guide.md'):
+            with self.subTest(path=path):
+                self.pin()
+                self.write(path, '# changed\n')
+                events = []
+                result, log, calls, _ = self.deliver(('api', 'smith', 'smith-fake-claude'), events=events)
+                build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
+                self.assertEqual(result, 0, log)
+                self.assertEqual(events, (['clippy'] if path.endswith('.rs') else []) +
+                                 [build, 'one-process', 'one-process'])
+                self.assertIn((build, self.root), calls)
+                self.assertIn('pre-pr: test binaries …', log)
+                self.assertIn('pre-pr: test binaries: passed,', log)
 
     def test_unlisted_test_package_builds_no_prerequisites(self):
         self.write('tools/tiers/packages.toml', '[test-binaries]\nsmith = '
@@ -401,7 +411,7 @@ sys.exit(int(count > 0))
         events = []
         result, log, calls, _ = self.deliver(('api', 'smith'), events=events)
         self.assertEqual(result, 0, log)
-        self.assertEqual(events, ['clippy', 'one-process'])
+        self.assertEqual(events, ['clippy', 'one-process', 'one-process'])
         self.assertFalse(any(args[:2] == ['cargo', 'build'] for args, _ in calls))
         self.assertNotIn('pre-pr: test binaries', log)
 
@@ -460,7 +470,7 @@ sys.exit(int(count > 0))
         self.assertEqual(events, ['clippy',
                                  ['cargo', 'build', '-p', 'a-helper', '--bin', 'first'],
                                  ['cargo', 'build', '-p', 'z-helper', '--bin', 'last'],
-                                 'one-process'])
+                                 'one-process', 'one-process'])
 
     def test_tree_list_counts_nothing(self):
         test = PRE_PR.failure('test api::rules listed', 'test output', ('api::rules', 'listed'), 'api')
@@ -726,6 +736,11 @@ sys.exit(int(count > 0))
                     self.assertTrue(stdout)
                     self.assertIsNone(output)
                     directory = Path(arguments[arguments.index('--out') + 1])
+                    if directory.name == 'fuzzy':
+                        directory.mkdir()
+                        (directory / 'run.json').write_text('{"starved": false}')
+                        (directory / 'results.json').write_text('{"tests": [], "unobserved": []}')
+                        return 0, 'fuzzy run\n'
                     self.assertEqual(arguments, ['python3', '-I', '-B', 'tools/tiers/one-process',
                                                 '--out', str(directory), 'default', '-p', 'api',
                                                 '-p', 'client', '--no-tests=warn'])
@@ -779,12 +794,16 @@ sys.exit(int(count > 0))
                 self.assertFalse(any('cargo' in args and 'nextest' in args for args, _ in calls))
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
-    def ledger_run(self, tests, again=None, **kwargs):
+    def ledger_run(self, tests, again=None, runs=None, changed=True, **kwargs):
         """Fake only the one-process boundary, including fresh again directories."""
-        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        if changed:
+            self.write('api/src/lib.rs', 'pub fn changed() {}\n')
         self.again_calls = []
+        self.process_calls = []
+        self.run_directories = {}
         self.initial_run = None
         again = {} if again is None else again
+        runs = {} if runs is None else runs
 
         def fake(arguments, cwd, env, output, stdout):
             self.assertEqual(cwd, self.root)
@@ -793,14 +812,19 @@ sys.exit(int(count > 0))
             self.assertNotIn('GIT_INDEX_FILE', env)
             directory = Path(arguments[arguments.index('--out') + 1])
             self.assertFalse(directory.exists())
+            self.process_calls.append(arguments)
             if '--again' in arguments:
                 self.again_calls.append(arguments)
+                original_run = Path(arguments[5])
+                self.assertIn(original_run, self.run_directories.values())
                 self.assertEqual(arguments[:8], ['python3', '-I', '-B', 'tools/tiers/one-process',
-                                                 '--again', str(self.initial_run), '--out', str(directory)])
-                self.assertTrue((self.initial_run / 'results.json').exists())
-                self.assertEqual(directory, self.initial_run.parent / f'again-{len(self.again_calls)}')
+                                                 '--again', str(original_run), '--out', str(directory)])
+                self.assertTrue((original_run / 'results.json').exists())
+                self.assertEqual(directory.parent, original_run.parent)
+                profile = 'default' if original_run.name == 'tests' else 'fuzzy'
                 binary, *names = arguments[8:]
-                original = next(t for t in tests if t['binary_id'] == binary and t['test_name'] == names[-1])
+                original = next(t for t in tests if t['binary_id'] == binary and t['test_name'] == names[-1]
+                                and t.get('profile', 'default') == profile)
                 self.assertEqual(names, original.get('before', []) + [original['test_name']])
                 answer = again.get((binary, names[-1]), {})
                 if answer.get('missing'):
@@ -809,21 +833,158 @@ sys.exit(int(count > 0))
                 content = answer.get('content', json.dumps({'tests': [dict(original, outcome=answer.get('outcome', 'passed'))]}))
                 (directory / 'results.json').write_text(content)
                 return answer.get('code', 0), 'again output, not the failure log\n'
-            self.assertIsNone(self.initial_run)
-            self.initial_run = directory
+            profile = arguments[6]
+            self.assertIn(profile, ('default', 'fuzzy'))
+            self.assertEqual(directory.name, 'tests' if profile == 'default' else 'fuzzy')
+            self.assertNotIn(profile, self.run_directories)
+            self.run_directories[profile] = directory
+            if profile == 'default':
+                self.initial_run = directory
+            selected = [test for test in tests if test.get('profile', 'default') == profile]
+            answer = runs.get(profile, {})
             directory.mkdir()
-            (directory / 'run.json').write_text('{"starved": false}')
-            (directory / 'results.json').write_text(json.dumps({'tests': tests, 'unobserved': []}))
+            (directory / 'run.json').write_text(json.dumps({'starved': answer.get('starved', False)}))
+            (directory / 'results.json').write_text(json.dumps({'tests': selected,
+                                                              'unobserved': answer.get('unobserved', [])}))
             document = PRE_PR.ET.Element('testsuites')
-            for test in tests:
+            for test in selected:
                 suite = PRE_PR.ET.SubElement(document, 'testsuite', name=test['binary_id'])
                 case = PRE_PR.ET.SubElement(suite, 'testcase', name=test['test_name'])
                 if test['outcome'] in ('failed', 'crashed', 'cancelled'):
                     PRE_PR.ET.SubElement(case, 'failure').text = 'under load\n\nfirst log tail'
             (directory / 'junit.xml').write_bytes(PRE_PR.ET.tostring(document))
-            return (100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0), 'first run\n'
+            for name, content in answer.get('files', {}).items():
+                (directory / name).write_text(content)
+            return answer.get('code', 100 if any(t['outcome'] in ('failed', 'crashed') for t in selected) else 0), \
+                answer.get('output', 'first run\n')
 
         return self.deliver(one_process_answer=None, process_answer=fake, **kwargs)
+
+    def test_boundary_selection(self):
+        rows = [
+            ('docs', 'notes.md', 'B\n', ('A', 'B'), [], ['B']),
+            ('code', 'a/src/lib.rs', 'B\n', ('A', 'B'), ['A'], ['A', 'B']),
+            ('implicit', 'notes.md', '', ('A', 'fabrig-boundary'), [], ['fabrig-boundary']),
+            ('missing', 'notes.md', 'missing\nB\n', ('A', 'B'), [], ['B']),
+            ('prefixed', 'a/src/lib.rs', 'B a/\n', ('A', 'B'), ['A'], ['A', 'B']),
+            ('neither', None, 'B\n', ('A', 'B'), [], []),
+            ('no base', 'notes.md', 'B\n', ('A', 'B'), [], []),
+            ('empty', 'notes.md', '', ('A',), [], []),
+        ]
+        for row, path, always, packages, lints, tests in rows:
+            with self.subTest(row=row):
+                self.write('.config/gate/always.txt', always)
+                self.write('row.txt', row)
+                self.pin()
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                if path:
+                    self.write(path, f'# {row}\n')
+                if row == 'no base':
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                result, log, calls, checks = self.ledger_run([], changed=False, packages=packages,
+                                                           directories={'A': 'a', 'B': 'b'})
+                self.assertEqual(result, 0, log)
+                self.assertEqual(checks, (row in ('code', 'prefixed', 'no base'), bool(lints), bool(tests)))
+                self.assertIn('lints: ' + ' '.join(lints) + '\n', log)
+                self.assertIn('tests: ' + ' '.join(tests) + '\n', log)
+                expected = []
+                for profile in ('default', 'fuzzy') if tests else ():
+                    directory = self.run_directories[profile]
+                    expected.append(['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory),
+                                     profile] + PRE_PR.package_args(tests) + ['--no-tests=warn'])
+                self.assertEqual(self.process_calls, expected)
+                selected = [args for args, _ in calls if 'tools/tiers/one-process' in args
+                            or 'tools/citations/citations.py' in args]
+                if path and path.endswith('.md') and row != 'no base':
+                    self.assertEqual(selected[:-1], expected)
+                    self.assertIn('tools/citations/citations.py', selected[-1])
+                    self.assertIn('pre-pr: docs only: citations and design size limits', log)
+                    self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
+                else:
+                    self.assertEqual(selected, expected)
+                if row not in ('no base', 'neither'):
+                    boundary = ['B'] if always in ('B\n', 'missing\nB\n') else \
+                        ['fabrig-boundary'] if row == 'implicit' else []
+                    self.assertIn('pre-pr: boundary tests: ' + (' '.join(boundary) or 'none'), log)
+                else:
+                    self.assertNotIn('pre-pr: boundary tests:', log)
+                if row == 'missing':
+                    self.assertIn('pre-pr: boundary package missing: not a workspace member, skipped', log)
+                if lints:
+                    self.assertIn('clippy, focused and fuzzy tests (code input', log)
+
+    def test_fuzzy_follows_every_focused_exit_and_judges_its_own_failures(self):
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
+        fuzzy = dict(test, test_name='fuzzy::rule', profile='fuzzy')
+        build = 'one-process: nextest listing exited with 101\n'
+        for row, focused, tests, reds, statuses in (
+                ('passed', {}, [], '', ('passed', 'passed')),
+                ('failed', {}, [test], '', ('failed', 'passed')),
+                ('build', {'code': 2, 'output': build}, [], '', ('failed', 'passed')),
+                ('check', {'code': 2}, [], '', ('failed', 'passed')),
+                ('focused inherited', {}, [test, fuzzy], '- test api::rules rule\n', ('inherited', 'failed')),
+                ('fuzzy inherited', {}, [test, fuzzy], '- test api::rules fuzzy::rule\n', ('failed', 'inherited'))):
+            with self.subTest(row=row):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', ('temper-reds 1\n' + reds).encode())
+                result, log, _, _ = self.ledger_run(tests, runs={'default': focused})
+                self.assertEqual(result, int('failed' in statuses), log)
+                self.assertEqual([args[6:] for args in self.process_calls],
+                                 [[profile, '-p', 'api', '--no-tests=warn'] for profile in ('default', 'fuzzy')])
+                self.assertLess(log.index('pre-pr: tests …'), log.index('pre-pr: fuzzy tests …'))
+                for name, status in zip(('tests', 'fuzzy tests'), statuses):
+                    self.assertIn(f'pre-pr: {name}: {status},', log)
+                    self.assertEqual(log.count(f'pre-pr: {name}: '), 1, log)
+
+    def test_fuzzy_reads_failures_starvation_and_goal_results(self):
+        test = dict(binary_id='api::rules', test_name='fuzzy::rule', outcome='failed', profile='fuzzy')
+        warning = ('pre-pr: fuzzy tests starved: 1 starved or cancelled, 2 unobserved, '
+                   'a warning (skein/docs/foundation/testing-strategy.md, 8.1)')
+        rows = [
+            ('failure', [test], {}, '', 1, 'test api::rules fuzzy::rule'),
+            ('inherited', [test], {}, '- test api::rules fuzzy::rule\n', 0,
+             'inherited: test api::rules fuzzy::rule (red, temper/reds)'),
+            ('different binary', [test], {}, '- test api::other fuzzy::rule\n', 1, 'test api::rules fuzzy::rule'),
+            ('build', [], {'code': 2, 'output': 'one-process: nextest listing exited with 101\n'}, '', 1, 'build fuzzy'),
+            ('check', [], {'code': 2}, '', 1, 'check one-process fuzzy'),
+            ('empty 100', [], {'code': 100}, '', 1, 'check one-process fuzzy'),
+            ('malformed', [], {'files': {'run.json': 'bad json'}}, '', 1, 'check one-process fuzzy'),
+            ('starved', [dict(test, outcome='cancelled')], {'starved': True, 'unobserved': [{}, {}]}, '', 0, warning),
+            ('passed', [dict(test, outcome='passed')], {}, '- test api::rules fuzzy::rule\n', 0, 'failures: 0 new'),
+        ]
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        for row, tests, answer, reds, exit_code, named in rows:
+            with self.subTest(row=row):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                self.goal_file('reds', ('temper-reds 1\n' + reds).encode())
+                focused = dict(test, profile='default', test_name='stop', outcome='cancelled')
+                result, log, _, _ = self.ledger_run([focused] + tests, runs={'fuzzy': answer})
+                self.assertEqual(result, exit_code, log)
+                summary = log.rsplit('pre-pr: refused (' if result else 'pre-pr: passed (', 1)[1]
+                self.assertIn(named, summary)
+                status = 'inherited' if row == 'inherited' else 'failed' if exit_code else 'passed'
+                self.assertIn(f'pre-pr: fuzzy tests: {status},', log)
+                if row == 'starved':
+                    self.assertEqual(log.count(warning), 2, log)
+                    self.assertLess(summary.index('pre-pr: tests starved:'), summary.index(warning))
+                results = (self.root / '.git/temper/check-results').read_text().splitlines()[2:]
+                expected = ['failed test api::rules fuzzy::rule'] if row == 'inherited' else \
+                    ['passed test api::rules fuzzy::rule'] if row == 'passed' else []
+                self.assertEqual(results, expected)
+
+    def test_each_profiles_failures_run_again_under_its_own_bound(self):
+        self.goal_file('rerun', b'temper-rerun 1 1\n')
+        focused = dict(binary_id='api::rules', test_name='rule', outcome='failed', before=['setup'])
+        fuzzy = dict(focused, test_name='fuzzy::rule', profile='fuzzy')
+        result, log, _, _ = self.ledger_run([focused, fuzzy])
+        self.assertEqual(result, 0, log)
+        self.assertEqual([('--again' in args, Path(args[5]).name) for args in self.process_calls],
+                         [(False, 'tests'), (True, 'tests'), (False, 'fuzzy'), (True, 'fuzzy')])
+        self.assertEqual([args[8:] for args in self.again_calls],
+                         [['api::rules', 'setup', 'rule'], ['api::rules', 'setup', 'fuzzy::rule']])
+        self.assertEqual(len({args[7] for args in self.again_calls}), 2)
+        for name in ('tests', 'fuzzy tests'):
+            self.assertIn(f'pre-pr: {name}: inherited,', log)
 
     def test_process_again_marks_only_a_passed_target_as_a_flake(self):
         self.goal_file('rerun', b'temper-rerun 1 4\n')
@@ -993,9 +1154,9 @@ sys.exit(int(count > 0))
         for path in ('guide.md', 'api/README.md', 'api/docs/diagram.svg'):
             with self.subTest(path=path):
                 self.write(path, '# Changed\n')
-                result, log, calls, code = self.deliver()
+                result, log, calls, code = self.deliver(('api', 'fabrig-boundary'))
                 self.assertEqual(result, 0, log)
-                self.assertEqual(code, (False, False, False))
+                self.assertEqual(code, (False, False, True))
                 self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
                 self.assertTrue(any('--base' in args and '--head' in args for args, _ in calls))
                 self.assertIn('docs only: citations', log)
@@ -1034,18 +1195,18 @@ sys.exit(int(count > 0))
         self.write('skein/count.txt', '2')
         self.pin()
         self.write('guide.md', '# Changed\n')
-        result, log, calls, code = self.deliver()
+        result, log, calls, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 0, log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
         self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
 
     def test_new_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
-        result, log, _, code = self.deliver()
+        result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('missing.md', log)
         self.assertIn('1 new broken', log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
 
     def test_inherited_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')
@@ -1105,10 +1266,10 @@ sys.exit(int(count > 0))
         self.write('skein/docs/reader.md', '# Reader\nSee `target.md`.\n')
         self.pin()
         (self.root / 'skein/docs/target.md').unlink()
-        result, log, _, code = self.deliver()
+        result, log, _, code = self.deliver(('api', 'fabrig-boundary'))
         self.assertEqual(result, 1, log)
         self.assertIn('reader.md', log)
-        self.assertEqual(code, (False, False, False))
+        self.assertEqual(code, (False, False, True))
 
     def test_new_citation_is_not_hidden_by_inherited_findings(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`.\n')
