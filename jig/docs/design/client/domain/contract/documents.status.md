@@ -3,8 +3,6 @@
 2026-11-15. Where the tree's code lags or departs from [documents.md](documents.md).
 
 
-- **Not yet:** 1, *What a task waits on*: no wait names a task's own
-  question [in flight: change 3449].
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan

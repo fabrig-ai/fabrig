@@ -3,8 +3,6 @@
 2026-11-15. Where the tree's code lags or departs from [areas.md](areas.md).
 
 
-- **Not yet:** area 6, `change show`: a held answer prints `answered, held for
-  dependencies` [in flight: change 3437].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
