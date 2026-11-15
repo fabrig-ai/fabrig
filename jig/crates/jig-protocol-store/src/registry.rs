@@ -9,6 +9,8 @@ use skein_lib::{Buffer, List, Map, Queue};
 mod check;
 pub(crate) mod rehearsal;
 mod rows;
+#[cfg(test)]
+mod tests;
 mod texts;
 
 /// Fitted at open beside the plans (protocol/store/layouts.md, 7). A store
@@ -38,6 +40,7 @@ struct Text {
     bytes: Box<[u8]>,
     schema: Option<Schema>,
     stored: bool,
+    current: bool,
 }
 #[derive(Debug)]
 struct Row {
@@ -262,7 +265,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         *store.layout_work = ReadWork::new();
         return Ok(false);
     }
-    if let Err(why) = crate::patching::plan::bounds(&store.patch_sets) {
+    if let Err(why) = crate::patching::plan::checked(store) {
         return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch });
     }
     if seeded {

@@ -1,13 +1,11 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
 //! (temper/docs/design/domain/landing.md, 7 and 15;
 //! temper/docs/design/protocol/forge/engine.md, 1).
-pub mod cuts;
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},
     landing_by_turn, landing_scripts, native_settings_setup, person, serve, write_private,
 };
-use cuts::Cut;
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
@@ -76,9 +74,9 @@ pub fn configure(root: &Path, repository: u64) {
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
-pub(super) const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
+const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
 
-/// Staging's deployment limits, shared by the owned turn drills.
+/// Staging's deployment limits, shared by the owned Forgejo stories.
 /// temper/docs/design/protocol/configuration/limits.md.
 pub fn staging_limits(value: &mut Value) {
     value["engine"]["limits"]["profile"] = "standard".into();
@@ -114,7 +112,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     config["application"]["landing"]["projects"] = json!([{
         "project":1,"by":"turn","batch":batch,
         "gates":[{"forge":1,"repository":repository,
-            "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true,"base":true}]}]
+            "gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}]}]
     }]);
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
@@ -155,30 +153,6 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     write_private(&path, &serde_json::to_vec(&settings).expect("settings JSON"));
 }
 
-/// Hold the first run's blocking review until main has moved, before readiness.
-fn held_review_scripts(forge: &Throwaway) -> Box<[skein_fake_llm_domain::api::Script]> {
-    use skein_fake_llm_domain::api::{Line, Piece};
-    let mut scripts = landing_scripts(ANSWER, forge);
-    let review = scripts
-        .iter_mut()
-        .find(|script| script.cue.as_ref() == b"Review this change at the named head")
-        .expect("review script");
-    let mut verdict = review.turns[0].clone();
-    let mut lines = verdict.lines.into_vec();
-    lines.insert(
-        0,
-        Line::Pieces {
-            pieces: Box::new([Piece {
-                text: b"Checked the change at the original head.".as_slice().into(),
-                hold: Some(b"turn-restart-review".as_slice().into()),
-            }]),
-        },
-    );
-    verdict.lines = lines.into_boxed_slice();
-    review.turns = Box::new([verdict]);
-    scripts
-}
-
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
 pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     let mut steps = native_settings_setup(root);
@@ -196,15 +170,10 @@ pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
 pub struct Proof {
     pub reads: Reads,
     pub original: String,
-    pub moved: String,
     pub run: u64,
 }
 
-fn moved_main<'a>(advanced: Option<&'a (String, String)>, previous: Option<&'a Proof>) -> Option<&'a str> {
-    advanced.map(|(_, base)| base.as_str()).or_else(|| previous.map(|proof| proof.moved.as_str()))
-}
-
-/// Witness selection is checked without starting the owned forge or runner.
+/// Configuration is checked without starting the owned forge or runner.
 pub mod tests {
     /// A turn's task carriers must admit the prepare kind and its worker's result.
     pub fn turn_configuration_declares_the_prepare_job() {
@@ -233,21 +202,6 @@ pub mod tests {
         );
         scratch.remove();
     }
-
-    /// A cold retry retains the previous base; a new observation takes precedence.
-    pub fn keeps_the_moved_main_witness_on_retry() {
-        let previous = super::Proof {
-            reads: super::Reads { landing: serde_json::Value::Null, change: serde_json::Value::Null },
-            original: "original".into(),
-            moved: "previous main".into(),
-            run: 1,
-        };
-        let advanced = ("head".into(), "current main".into());
-        assert_eq!(super::moved_main(None, Some(&previous)), Some("previous main"), "retry keeps its base");
-        assert_eq!(super::moved_main(Some(&advanced), None), Some("current main"));
-        assert_eq!(super::moved_main(Some(&advanced), Some(&previous)), Some("current main"));
-        assert_eq!(super::moved_main(None, None), None);
-    }
 }
 
 struct Judge<'a> {
@@ -259,146 +213,57 @@ struct Judge<'a> {
     landed: &'a Cell<Option<Reads>>,
     previous: Option<&'a Proof>,
     retry: bool,
-    cut: Cut,
     ready: bool,
-    advanced: Option<(String, String)>,
+    released: bool,
     poll: Time,
     progress: (u32, super::patience::Patience),
 }
 impl Judge<'_> {
-    #[expect(clippy::too_many_lines, reason = "the restart observations return their findings in causal order")]
     fn sample(&mut self) -> Result<bool, String> {
-        Ok({
-            let forge = self.chat.forge.ok_or(String::from("owned forge"))?;
-            if let Some(previous) = self.previous
-                && !self.retry
-                && self.cut != Cut::Prepared
-            {
-                if self.cut == Cut::Turn {
-                    let (landing, change) = self.members()?;
-                    let reads = reads(self.root, landing, change)?;
-                    if reads.landing["phase"] != "turn" {
-                        return Ok(false);
-                    }
-                    self.proof.set(Some(Proof {
-                        reads,
-                        original: previous.original.clone(),
-                        moved: previous.moved.clone(),
-                        run: previous.run,
-                    }));
-                    return Ok(true);
-                }
-                let landing = previous.reads.landing["task"].as_u64().ok_or(String::from("landing task"))?;
-                let change = previous.reads.change["task"].as_u64().ok_or(String::from("change task"))?;
-                // Let the outer world drive its peers and binary pipes between reads.
-                let change = read(self.root, &["change", "show", &change.to_string()])?;
-                if change["step"] != "landed" {
-                    return Ok(false);
-                }
-                let landing = read(self.root, &["landing", "show", &landing.to_string()])?;
-                if landing["phase"] != "landed" {
-                    return Ok(false);
-                }
-                landing_by_turn::check_history(self.root, 1, &landing, Some("private"))?;
-                self.landed.set(Some(Reads { landing, change }));
-                return Ok(true);
-            }
-            if self.previous.is_none() && self.advanced.is_none() {
-                let pulls = forge.repository_observation("acme", "widget", "pulls?state=open&limit=2");
-                let Some(pull) = pulls.as_array().ok_or(String::from("pull list"))?.first() else { return Ok(false) };
-                let original = pull["head"]["sha"].as_str().ok_or(String::from("original head"))?.to_owned();
-                let change = read(self.root, &["change", "show", "3"])?;
-                let gate = &change["gates"][0];
-                if gate["verdict"] != "pending" {
-                    return Ok(false);
-                }
-                {
-                    let (left, right) = (&(change["step"]), &("gating"));
-                    if left != right {
-                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                    }
-                }
-                {
-                    let (left, right) = (&(gate["number"]), &(1));
-                    if left != right {
-                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                    }
-                }
-                {
-                    let (left, right) = (&(gate["kind"]), &("review"));
-                    if left != right {
-                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                    }
-                }
-                {
-                    let (left, right) = (&(gate["blocks"]), &(true));
-                    if left != right {
-                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                    }
-                }
-                {
-                    let (left, right) = (&(change["head"]), &(original));
-                    if left != right {
-                        return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                    }
-                }
-                let list = read(self.root, &["landing", "list", "--project", "1"])?;
-                if !list["landings"].as_array().ok_or(String::from("landing rows"))?.is_empty() {
-                    return Err(String::from("review holds readiness"));
-                }
-                let before = forge.repository_observation("acme", "widget", "branches/main");
-                let before = before["commit"]["id"].as_str().ok_or(String::from("main before move"))?;
-                forge.add_file("notes.txt", landing_by_turn::NOTES);
-                let main = forge.repository_observation("acme", "widget", "branches/main");
-                let moved = main["commit"]["id"].as_str().ok_or(String::from("moved main"))?;
-                if before == moved {
-                    return Err(String::from("notes moved main"));
-                }
-                let compare = forge.repository_observation("acme", "widget", &format!("compare/{original}...{moved}"));
-                if compare["commits"].as_array().ok_or(String::from("comparison commits"))?.is_empty() {
-                    return Err(String::from("original lacks moved main"));
-                }
-                eprintln!(
-                    "turn restart: main moved from {before} to {moved} while the review held readiness at {original}"
-                );
-                self.advanced = Some((original, moved.to_owned()));
-            }
-            if self.cut == Cut::Preparing && self.root.join("prepare-started").is_file() {
-                let (landing, change) = self.members()?;
-                let reads = reads(self.root, landing, change)?;
-                if reads.landing["phase"] != "preparing" {
-                    return Err("git barrier is inside preparing".into());
-                }
-                let (original, moved) = self.advanced.clone().ok_or("main advanced before prepare")?;
-                self.proof.set(Some(Proof { reads, original, moved, run: 0 }));
-                return Ok(true);
-            }
-            let Some(run) = self.waiting_gate(forge)? else { return Ok(false) };
+        let forge = self.chat.forge.ok_or(String::from("owned forge"))?;
+        if let Some(previous) = self.previous
+            && !self.retry
+        {
             let (landing, change) = self.members()?;
-            let reads = reads(self.root, landing, change)?;
-            let gate = &reads.landing["members"][0]["gates"][0];
-            if self.retry && (gate["faults"] != 1 || gate["proof"]["dispatched"]["attempt"] != 2) {
+            let current = reads(self.root, landing, change)?;
+            if !self.released {
+                let gate = &current.landing["members"][0]["gates"][0];
+                if current.landing["phase"] != "proving" || gate["proof"]["dispatched"]["run"] != previous.run {
+                    return Ok(false);
+                }
+                let run = forge.repository_observation("acme", "widget", &format!("actions/runs/{}", previous.run));
+                if run["status"] != "running" {
+                    return Err("the restarted sitting finds the held run".into());
+                }
+                self.barrier.release(previous.run);
+                self.released = true;
+            }
+            if current.change["step"] != "landed" || current.landing["phase"] != "landed" {
                 return Ok(false);
             }
-            let candidate = reads.landing["members"][0]["candidate"].as_str().ok_or(String::from("candidate"))?;
-            let statuses =
-                forge.repository_observation("acme", "widget", &format!("commits/{}/status", &candidate[..40]));
-            if !statuses["statuses"]
-                .as_array()
-                .ok_or(String::from("statuses"))?
-                .iter()
-                .any(|status| status["context"] == "temper/gate/gate" && status["status"] == "pending")
-            {
-                return Ok(false);
-            }
-            let (original, moved) = if let Some(previous) = self.previous {
-                (previous.original.clone(), previous.moved.clone())
-            } else {
-                self.advanced.clone().ok_or(String::from("main advanced"))?
-            };
-            self.proof.set(Some(Proof { reads, original, moved, run }));
-            true
-        })
+            self.landed.set(Some(current));
+            return Ok(true);
+        }
+        let Some(run) = self.waiting_gate(forge)? else { return Ok(false) };
+        let (landing, change) = self.members()?;
+        let reads = reads(self.root, landing, change)?;
+        let gate = &reads.landing["members"][0]["gates"][0];
+        if gate["proof"]["dispatched"]["run"] != run {
+            return Ok(false);
+        }
+        let candidate = reads.landing["members"][0]["candidate"].as_str().ok_or("candidate")?;
+        let statuses = forge.repository_observation("acme", "widget", &format!("commits/{}/status", &candidate[..40]));
+        if !statuses["statuses"]
+            .as_array()
+            .ok_or("statuses")?
+            .iter()
+            .any(|status| status["context"] == "temper/gate/gate" && status["status"] == "pending")
+        {
+            return Ok(false);
+        }
+        let original = reads.change["head"].as_str().ok_or("original head")?.get(..40).ok_or("head sha")?.into();
+        self.proof.set(Some(Proof { reads, original, run }));
+        Ok(true)
     }
 
     fn waiting_gate(&self, forge: &Throwaway) -> Result<Option<u64>, String> {
@@ -412,7 +277,7 @@ impl Judge<'_> {
             }
             // Only the dispatched landing gate takes the runner and reaches the barrier.
             {
-                let (left, right) = (&(actual["workflow_id"]), &("gate.yaml"));
+                let (left, right) = (&(actual["workflow_id"]), &("gate.yml"));
                 if left != right {
                     return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
                 }
@@ -454,18 +319,13 @@ impl Judge<'_> {
         let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
         let setup = procs.iter().find_map(|proc| match proc {
             Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
-            Process::Member(_)
-            | Process::Binary(_)
+            Process::Binary(_)
             | Process::Stdout(_)
             | Process::Person(_)
             | Process::Peer(_)
             | Process::Issuer(_)
             | Process::Visitor(_) => None,
         });
-        self.chat
-            .forge
-            .ok_or(String::from("forge"))?
-            .pull_update_failure(moved_main(self.advanced.as_ref(), self.previous));
         eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"])?);
         eprintln!("stalled change task: {}", read(self.root, &["task", "show", "3"])?);
         eprintln!("stalled review task: {}", read(self.root, &["task", "show", "5"])?);
@@ -490,19 +350,6 @@ impl Judge<'_> {
             "stalled branch commit: {}",
             json!({"sha":head,"parents":commit["parents"],"committer":commit["committer"]})
         );
-        let witness = self
-            .advanced
-            .as_ref()
-            .map(|(original, moved)| (original, moved))
-            .or_else(|| self.previous.map(|proof| (&proof.original, &proof.moved)));
-        if let Some((original, moved)) = witness {
-            for base in [moved, original] {
-                eprintln!(
-                    "stalled comparison {base}...{head}: {}",
-                    forge.repository_observation("acme", "widget", &format!("compare/{base}...{head}"))
-                );
-            }
-        }
         let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("serve")) };
         for line in String::from_utf8_lossy(binary.stderr()).lines() {
             if line.contains("prepar") || line.contains("hold") || line.contains("drift") {
@@ -525,8 +372,7 @@ impl Judge<'_> {
             "final"
         };
         Err(format!(
-            "turn restart stalled ({sitting}, first sitting moved-main witness={}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
-            moved_main(self.advanced.as_ref(), self.previous).is_some(),
+            "turn restart stalled ({sitting}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
             person.steps_seen(),
             person.finished,
             self.chat.forge.ok_or(String::from("forge"))?.failure_state()
@@ -575,15 +421,6 @@ impl Referee<Process> for Judge<'_> {
                 }
                 if !self.ready {
                     self.ready = self.sample()?;
-                    if self.previous.is_none() && self.advanced.is_some() {
-                        // A release before the stream reaches its hold is not remembered.
-                        for proc in procs.iter_mut() {
-                            if let Process::Peer(peer) = proc {
-                                peer.release(b"turn-restart-review")
-                                    .map_err(|error| format!("release blocking review: {error:?}"))?;
-                            }
-                        }
-                    }
                 }
                 if self.ready && settled {
                     let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
@@ -636,13 +473,13 @@ pub fn run(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
 ) -> (Option<Proof>, Option<Reads>) {
-    run_to(root, forge, barrier, previous, false, Cut::Ordinary)
+    run_to(root, forge, barrier, previous, false)
 }
 
 /// A cancelled run is redispatched by the policy; stop inside that retry's job.
 #[must_use]
 pub fn retry(root: &Path, forge: &Throwaway, barrier: &JobBarrier, previous: &Proof) -> Proof {
-    run_to(root, forge, barrier, Some(previous), true, Cut::Ordinary).0.expect("stopped inside the retry")
+    run_to(root, forge, barrier, Some(previous), true).0.expect("stopped inside the retry")
 }
 
 fn run_to(
@@ -651,18 +488,11 @@ fn run_to(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
     retry: bool,
-    cut: Cut,
 ) -> (Option<Proof>, Option<Reads>) {
     let first = previous.is_none();
-    let peer = fake_llm(if first { held_review_scripts(forge) } else { landing_scripts(ANSWER, forge) });
+    let peer = fake_llm(landing_scripts(ANSWER, forge));
     peer.configure(root);
-    let script = if first {
-        person::adopt_and_start_change(forge)
-    } else if cut == Cut::Prepared || cut == Cut::Turn {
-        person::signed_in()
-    } else {
-        person::found()
-    };
+    let script = if first { person::adopt_and_start_change(forge) } else { person::found() };
     let clock = Clock::new();
     let mut binary = serve(root);
     let streams = binary.take_streams().expect("serve pipes");
@@ -689,9 +519,8 @@ fn run_to(
         landed: &landed,
         previous,
         retry,
-        cut,
         ready: false,
-        advanced: None,
+        released: false,
         poll: clock.now().now,
         progress: (0, progress),
     });

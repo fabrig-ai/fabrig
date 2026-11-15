@@ -2724,7 +2724,6 @@ impl Referee<Process> for LiveJudge<'_> {
                     Process::Peer(peer) => peer.shutdown(),
                     Process::Issuer(issuer) => issuer.shutdown(),
                     Process::Calls(_)
-                    | Process::Member(_)
                     | Process::Binary(_)
                     | Process::Stdout(_)
                     | Process::Person(_)

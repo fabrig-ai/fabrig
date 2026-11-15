@@ -1842,6 +1842,7 @@ fn a_changes_questions_round_trip_unchanged() {
     }
     row.questions = Questions {
         route: Route::Up,
+        answered: Box::new([]),
         taken: 3,
         open: open.into_boxed(),
         waiting: Box::new([
@@ -1852,6 +1853,69 @@ fn a_changes_questions_round_trip_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(Box::new(row));
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+/// questions.md, 1, Its answers, kept for later work: the bounded record survives a restart.
+#[test]
+fn a_changes_kept_answers_round_trip_unchanged() {
+    use temper_engine_domain_forge_change::{ANSWERS_KEPT, Answered, Route, State};
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.questions.route = Route::Up;
+    let mut answered = skein_lib::List::with_capacity(u32::try_from(ANSWERS_KEPT).unwrap());
+    for number in 1..=u64::try_from(ANSWERS_KEPT).unwrap() {
+        answered
+            .push(Answered {
+                asker: 7,
+                number,
+                line: b"Question: keep both lines?".as_slice().into(),
+                answer: b"keep both lines\nKeep blank lines too".as_slice().into(),
+            })
+            .unwrap();
+    }
+    row.questions.answered = answered.into_boxed();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let stored = forge::Stored::Change(Box::new(row));
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+/// A registered field defaults at layout conversion, not in the fixed-layout decoder.
+#[test]
+fn a_change_row_written_without_kept_answers_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::PATCH_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before =
+        family.current.replace(" answered: list 16 Answered = []", "").replace(" answered: list 16 Answered", "");
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored =
+        forge::Stored::Change(Box::new(fixtures::change_row(temper_engine_domain_forge_change::State::Producing {
+            requested: true,
+        })));
+    let mut bytes = records::encode(&stored);
+    // Write the row at the preceding layout, then read it as the registry does.
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }
 
 #[test]
@@ -2813,6 +2877,7 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
                 taken: 1,
                 open,
                 waiting: skein_lib::List::with_capacity(0),
+                answered: skein_lib::List::with_capacity(0),
             },
         )
         .unwrap();

@@ -111,12 +111,14 @@ pub(super) fn put_conclusion(out: &mut Sink, v: actions::Conclusion) {
     out.u8(match v {
         actions::Conclusion::Success => 0,
         actions::Conclusion::Failure => 1,
+        actions::Conclusion::Cancelled => 2,
     });
 }
 pub(super) fn get_conclusion(input: &mut Reader<'_>, _limits: &Limits) -> Result<actions::Conclusion, Refusal> {
     match codec::u8(input)? {
         0 => Ok(actions::Conclusion::Success),
         1 => Ok(actions::Conclusion::Failure),
+        2 => Ok(actions::Conclusion::Cancelled),
         _tag => Err(Refusal::Malformed("conclusion")),
     }
 }
@@ -444,6 +446,7 @@ pub(super) fn get_run(input: &mut Reader<'_>, limits: &Limits) -> Result<actions
         conclusion: get_optional_conclusion(input, limits)?,
         created: time(input)?,
         inputs: get_inputs(input, limits)?,
+        cancelled_by: None,
     })
 }
 pub(super) fn put_job(out: &mut Sink, v: &actions::Job) {

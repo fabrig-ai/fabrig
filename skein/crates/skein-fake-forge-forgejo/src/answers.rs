@@ -736,6 +736,7 @@ fn action_status(state: a::RunState, conclusion: Option<a::Conclusion>) -> d::St
         a::RunState::Completed => match conclusion {
             Some(a::Conclusion::Success) => d::StepStatus::Success,
             Some(a::Conclusion::Failure) => d::StepStatus::Failure,
+            Some(a::Conclusion::Cancelled) => d::StepStatus::Cancelled,
             None => unreachable!("completed domain run or job has a conclusion"),
         },
     }

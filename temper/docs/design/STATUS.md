@@ -119,8 +119,11 @@ landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
 next round, each probe's gates given `temper_probe` so that they may
-stop at their first red (`domain/landing-search.md`). Its process stories and
-staging walks follow landing (`draft/merge-queue.status.md`).
+stop at their first red (`domain/landing-search.md`). Its behaviours are
+checked in the engine's worlds; the process tier keeps two stories on
+the fake forge and two on the owned Forgejo, run by choice
+(`testing/process-tier.md`); its staging walks follow landing
+(`draft/merge-queue.status.md`).
 
 The landing history's milestone H1, goal 2474, keeps each change's and
 each landing's steps as events after their rows go
@@ -337,6 +340,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/ctl/tools-crates.md`](client/ctl/tools-crates.status.md)
 - [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
@@ -524,6 +528,7 @@ Drafts:
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
@@ -533,6 +538,7 @@ Drafts:
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
+- [`draft/probes-by-test.md`](draft/probes-by-test.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)

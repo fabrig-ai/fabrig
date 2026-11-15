@@ -959,6 +959,12 @@ mod merge_drill;
 #[path = "landing_wait_drill.rs"]
 mod wait_drill;
 
+#[path = "landing_restarts.rs"]
+mod restarts;
+
+#[path = "landing_go_live.rs"]
+mod go_live;
+
 #[test]
 fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
     use forge_top::history as h;
@@ -1214,5 +1220,12 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
     }
 }
 
+#[path = "landing_delivery_restart.rs"]
+mod delivery_restart;
+#[path = "landing_goal_midproof.rs"]
+mod goal_midproof;
 #[path = "landing_stale_round.rs"]
 mod stale_round;
+
+#[path = "landing_copied.rs"]
+mod copied;

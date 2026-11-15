@@ -145,7 +145,8 @@ fn patches_wait_for_exact_upstream_levels() {
         (levels(2, 1), &[FRAME_STEP][..]),
         (levels(2, 2), &[][..]),
     ] {
-        let plan = plan::plan(&SETS, &found, &plan::binary(&SETS)).expect("fixture plans");
+        let plan = plan::plan(&SETS, plan::bounds(&SETS).expect("checked sets"), &found, &plan::binary(&SETS))
+            .expect("fixture plans");
         assert_eq!(plan.steps(), expected);
     }
 }
@@ -164,11 +165,14 @@ const SET_UPSTREAM_THREE: PatchSets =
 #[test]
 fn duplicate_owners_are_refused_beside_a_single_owner() {
     let sets = PatchSets { sets: &[APPLICATION, APPLICATION, JIG] };
+    assert_eq!(plan::bounds(&sets).expect_err("duplicate owner"), Unplanned { owner: Owner::Application, patch: 0 });
     assert_eq!(
-        plan::plan(&sets, &levels(0, 0), &levels(2, 1)).expect_err("duplicate owner"),
-        Unplanned { owner: Owner::Application, patch: 0 }
+        plan::plan(&SETS, plan::bounds(&SETS).expect("checked sets"), &levels(0, 0), &levels(2, 2))
+            .expect("single owners")
+            .steps()
+            .len(),
+        4
     );
-    assert_eq!(plan::plan(&SETS, &levels(0, 0), &levels(2, 2)).expect("single owners").steps().len(), 4);
 }
 #[test]
 fn a_header_must_read_and_name_its_owner_and_place() {
@@ -178,7 +182,7 @@ fn a_header_must_read_and_name_its_owner_and_place() {
         (SET_LEVEL_TWO, true),
         (SET_OWNER_OK, false),
     ] {
-        let result = plan::plan(&sets, &levels(0, 0), &plan::binary(&sets));
+        let result = plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &levels(0, 0), &plan::binary(&sets));
         if refusal {
             assert_eq!(result.expect_err("bad header"), Unplanned { owner: Owner::Application, patch: 1 });
         } else {
@@ -194,7 +198,8 @@ fn after_cannot_pass_the_binary_or_precede_the_store() {
         (SET_UPSTREAM_ZERO, 1, Err(Unplanned { owner: Owner::Application, patch: 1 })),
         (SET_UPSTREAM_ONE, 1, Ok(())),
     ] {
-        let result = plan::plan(&sets, &levels(0, found_jig), &plan::binary(&sets));
+        let result =
+            plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &levels(0, found_jig), &plan::binary(&sets));
         assert_eq!(
             match result {
                 Ok(_) => Ok(()),
@@ -206,7 +211,8 @@ fn after_cannot_pass_the_binary_or_precede_the_store() {
 }
 
 fn made(found: Levels) -> Machines {
-    let plan = plan::plan(&SETS, &found, &plan::binary(&SETS)).expect("fixture plan");
+    let plan = plan::plan(&SETS, plan::bounds(&SETS).expect("checked sets"), &found, &plan::binary(&SETS))
+        .expect("fixture plan");
     machines::make(&SETS, &plan, &found, ROOMS).expect("fixture machines")
 }
 fn shelf_ix(machines: &Machines) -> FamilyIx {
@@ -234,7 +240,11 @@ fn an_unkept_text_is_refused_beside_a_valid_kept_text() {
         (SETS, Ok(())),
     ] {
         let found = levels(0, 0);
-        let result = match plan::plan(&sets, &found, &plan::binary(&sets)) {
+        let result = match plan::bounds(&sets) {
+            Ok(checked) => plan::plan(&sets, checked, &found, &plan::binary(&sets)),
+            Err(why) => Err(why),
+        };
+        let result = match result {
             Ok(plan) => match machines::make(&sets, &plan, &found, ROOMS) {
                 Ok(_) => Ok(()),
                 Err(error) => Err(error),
@@ -256,7 +266,11 @@ fn a_patch_must_plan_its_family_changes() {
         (PatchSets { sets: &[PatchSet { families: &[LABEL], patches: &[GOOD], ..APPLICATION }, JIG] }, Ok(())),
     ] {
         let found = levels(0, 0);
-        let result = match plan::plan(&sets, &found, &plan::binary(&sets)) {
+        let result = match plan::bounds(&sets) {
+            Ok(checked) => plan::plan(&sets, checked, &found, &plan::binary(&sets)),
+            Err(why) => Err(why),
+        };
+        let result = match result {
             Ok(plan) => match machines::make(&sets, &plan, &found, ROOMS) {
                 Ok(_) => Ok(()),
                 Err(error) => Err(error),
@@ -289,7 +303,8 @@ pub(super) fn token(value: &[u8], issued: u64) -> Box<[u8]> {
 #[test]
 fn a_secrets_family_patches_in_its_own_maps_room() {
     let found = levels(1, 1);
-    let plan = plan::plan(&SETS, &found, &plan::binary(&SETS)).expect("token and shelf plan");
+    let plan = plan::plan(&SETS, plan::bounds(&SETS).expect("checked sets"), &found, &plan::binary(&SETS))
+        .expect("token and shelf plan");
     let input = token(&[7; 64], 91);
     assert_eq!(input.len(), 78);
     for (store_bytes, secrets_bytes, accepted) in [(64, 128, true), (128, 64, false)] {
@@ -483,7 +498,9 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
     let sets = PatchSets { sets: &[SKEIN, LAST, SMITH, THIRD] };
     let found = Levels { skein: Some(0), smith: Some(0), jig: Some(0), application: Some(0) };
     assert_eq!(
-        plan::plan(&sets, &found, &plan::binary(&sets)).expect("four-owner plan").steps(),
+        plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &found, &plan::binary(&sets))
+            .expect("four-owner plan")
+            .steps(),
         &[
             Planned { owner: Owner::Skein, patch: 1 },
             Planned { owner: Owner::Smith, patch: 1 },
@@ -515,7 +532,9 @@ fn a_written_held_site_names_its_own_machine_then_resumes_the_holder() {
     const TEST_SETS: PatchSets =
         PatchSets { sets: &[PatchSet { patches: &[WRITTEN, app::PATCHES[1]], ..APPLICATION }, JIG] };
     let found = levels(0, 0);
-    let plan = plan::plan(&TEST_SETS, &found, &plan::binary(&TEST_SETS)).expect("plan");
+    let plan =
+        plan::plan(&TEST_SETS, plan::bounds(&TEST_SETS).expect("checked sets"), &found, &plan::binary(&TEST_SETS))
+            .expect("plan");
     let mut machines = machines::make(&TEST_SETS, &plan, &found, ROOMS).expect("machines");
     machines.advance(LABEL_STEP);
     let family = shelf_ix(&machines);
@@ -539,7 +558,8 @@ fn a_written_held_site_names_its_own_machine_then_resumes_the_holder() {
 #[test]
 fn record_room_is_checked_on_both_sides_of_a_shelfs_node_count() {
     let found = levels(0, 0);
-    let plan = plan::plan(&SETS, &found, &plan::binary(&SETS)).expect("plan");
+    let plan =
+        plan::plan(&SETS, plan::bounds(&SETS).expect("checked sets"), &found, &plan::binary(&SETS)).expect("plan");
     for (nodes, accepted) in [(3, false), (4, false), (5, true)] {
         // The old shelf has four nodes; the new one adds the weight node.
         let mut machines =
@@ -581,7 +601,9 @@ fn a_held_record_two_versions_behind_runs_each_pass() {
         ],
     };
     let found = levels(2, 1);
-    let plan = plan::plan(&TEST_SETS, &found, &plan::binary(&TEST_SETS)).expect("plan");
+    let plan =
+        plan::plan(&TEST_SETS, plan::bounds(&TEST_SETS).expect("checked sets"), &found, &plan::binary(&TEST_SETS))
+            .expect("plan");
     let mut machines = machines::make(&TEST_SETS, &plan, &found, ROOMS).expect("machines");
     let family = shelf_ix(&machines);
     // Version zero's layout is the fixture's v1 layout, with its own prefix.
@@ -638,7 +660,8 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
     for holder in [PatchSets { sets: &[HOLDER_SET, JIG] }, PatchSets { sets: &[SECRET_SET, JIG] }] {
         let sets = holder;
         let found = Levels { skein: None, smith: None, jig: Some(0), application: Some(0) };
-        let plan = plan::plan(&sets, &found, &plan::binary(&sets)).expect("plan");
+        let plan =
+            plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &found, &plan::binary(&sets)).expect("plan");
         let mut machines = machines::make(&sets, &plan, &found, ROOMS).expect("machines");
         let mut input = Writer::new(13);
         input.put(&1_u16.to_be_bytes()).expect("holder version");
@@ -690,11 +713,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
             ],
         }],
     };
-    let found = Levels { skein: None, smith: None, jig: None, application: Some(0) };
-    assert_eq!(
-        plan::plan(&sets, &found, &plan::binary(&sets)).expect_err("hold cycle"),
-        Unplanned { owner: Owner::Application, patch: 0 }
-    );
+    assert_eq!(plan::bounds(&sets).expect_err("hold cycle"), Unplanned { owner: Owner::Application, patch: 0 });
 }
 
 pub(super) const SMITH: PatchSet = PatchSet {
@@ -718,7 +737,11 @@ pub(super) const SMITH: PatchSet = PatchSet {
 fn a_pending_patch_marked_by_its_sets_word_closes_windows() {
     let sets = PatchSets { sets: &[SMITH] };
     let found = Levels { smith: Some(0), skein: None, jig: None, application: None };
-    assert!(plan::plan(&sets, &found, &plan::binary(&sets)).expect("marked plan").close());
+    assert!(
+        plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &found, &plan::binary(&sets))
+            .expect("marked plan")
+            .close()
+    );
 }
 #[test]
 fn absent_or_other_fresh_words_leave_windows_open() {
@@ -726,7 +749,11 @@ fn absent_or_other_fresh_words_leave_windows_open() {
     const OTHER: PatchSets = PatchSets { sets: &[PatchSet { fresh: Some("another-mark"), ..SMITH }] };
     for sets in [NONE, OTHER] {
         let found = Levels { smith: Some(0), skein: None, jig: None, application: None };
-        assert!(!plan::plan(&sets, &found, &plan::binary(&sets)).expect("unmarked plan").close());
+        assert!(
+            !plan::plan(&sets, plan::bounds(&sets).expect("checked sets"), &found, &plan::binary(&sets))
+                .expect("unmarked plan")
+                .close()
+        );
     }
 }
 #[test]
@@ -738,7 +765,8 @@ fn an_applied_fresh_mark_does_not_close_for_later_patches() {
         }],
     };
     let found = Levels { smith: Some(1), skein: None, jig: None, application: None };
-    let plan = plan::plan(&LATER, &found, &plan::binary(&LATER)).expect("later plan");
+    let plan = plan::plan(&LATER, plan::bounds(&LATER).expect("checked sets"), &found, &plan::binary(&LATER))
+        .expect("later plan");
     assert_eq!(plan.steps(), &[Planned { owner: Owner::Smith, patch: 2 }]);
     assert!(!plan.close());
 }

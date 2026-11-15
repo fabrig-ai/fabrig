@@ -57,6 +57,7 @@ pub(crate) fn dispatch(
         workflow: Some(file.clone()),
         event: RunEvent::Dispatch,
         user,
+        cancelled_by: None,
         state: RunState::Running,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
@@ -81,6 +82,7 @@ pub(crate) fn dispatch(
         workflow: Some(file),
         event: RunEvent::Dispatch,
         user,
+        cancelled_by: None,
         state: RunState::Running,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
@@ -299,6 +301,31 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     domain.tally.verdicts = domain.tally.verdicts.saturating_add(1);
 }
 
+/// A person's cancellation ends dispatch-only work without blaming a workflow step.
+pub(crate) fn cancel(domain: &mut Domain, id: Id<Repository>, user: u64, run: u64) -> Result<Answer, Error> {
+    let repository = domain.repositories.get_mut(id).expect("cancel repository");
+    repository.require(user, Permission::Write)?;
+    let kept = repository.dispatched.get_mut(&run).ok_or(Error::Missing(What::Job))?;
+    if kept.run.state == RunState::Completed {
+        return Err(Error::Refused);
+    }
+    for job in kept.jobs.iter_mut() {
+        if job.state == RunState::Completed {
+            continue;
+        }
+        domain.timers.cancel(Alarm::Workflow { repository: id, run, job: job.id });
+        job.state = RunState::Completed;
+        job.conclusion = Some(Conclusion::Cancelled);
+        job.wait = None;
+        job.steps = actions::outcome_steps(&job.name, Check::Failed, Failing::NoStep, None, None, &[]);
+    }
+    kept.run.state = RunState::Completed;
+    kept.run.conclusion = Some(Conclusion::Cancelled);
+    kept.run.cancelled_by = Some(user);
+    kept.artifact = None;
+    Ok(Answer::Done)
+}
+
 pub(crate) fn rerun(
     domain: &mut Domain,
     env: &Env<Config>,
@@ -321,6 +348,7 @@ pub(crate) fn rerun(
     let repository = domain.repositories.get_mut(id).expect("repository");
     let kept = repository.dispatched.get_mut(&entry.run).expect("dispatched run");
     kept.artifact = None;
+    kept.run.cancelled_by = None;
     for index in 0..kept.jobs.len() {
         let entry = kept.jobs.get_mut(index).expect("retained job");
         if entry.id == job {

@@ -1,5 +1,5 @@
 //! Whole bounded tool declarations and concrete conversations into Skein.
-//! Parsing is generic JSON attestation, never schema-policy validation.
+//! Host schemas are normalized to object inputs (protocol/llm.md, section 3).
 
 use alloc::boxed::Box;
 
@@ -64,7 +64,8 @@ fn translate(
     for descriptor in &served {
         match descriptor {
             llm::Served::Host(tool) => {
-                let schema = object(&tool.schema, limits)?;
+                let normalized = object_schema(&tool.schema, limits)?;
+                let schema = object(&normalized, limits)?;
                 offered
                     .push(skein_llm::Tool { name: tool.name.clone(), description: tool.description.clone(), schema })
                     .or(Err(Error::Limit))?;
@@ -263,7 +264,8 @@ fn inventory(input: &llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Re
         match descriptor {
             llm::Served::Host(tool) => {
                 count = count.checked_add(1).ok_or(Error::Limit)?;
-                for field in [&tool.name, &tool.description, &tool.schema] {
+                let normalized = object_schema(&tool.schema, limits)?;
+                for field in [&tool.name, &tool.description, &normalized] {
                     declaration_bytes = declaration_bytes.checked_add(size(field.len())?).ok_or(Error::Limit)?;
                 }
                 for other in schemas {
@@ -413,6 +415,72 @@ fn replay_value(replay: Option<llm::Replay>, limits: &Limits) -> Result<Option<s
         }
         None => Ok(None),
     }
+}
+
+/// Keep typed host schemas byte-exact; insert the missing object type otherwise.
+pub(crate) fn object_schema(data: &[u8], limits: &Limits) -> Result<Box<[u8]>, Error> {
+    let value = object(data, limits)?;
+    let document = value.document();
+    let typed = object_type(document).ok_or(Error::Invalid)?;
+    if typed {
+        return Ok(bytes::copy_of(data));
+    }
+    let bounds = crate::contract::schema_limits(document.len(), limits.client.request);
+    let mut measure = skein_json::writer::Encoder::measure(&bounds);
+    spell_object(&mut measure, document);
+    let length = measure.measured().or(Err(Error::Limit))?;
+    let mut write = skein_json::writer::Encoder::write(length, &bounds);
+    spell_object(&mut write, document);
+    Ok(write.finish())
+}
+
+fn object_type(document: &skein_json::Document) -> Option<bool> {
+    let mut typed = false;
+    let mut next = 1;
+    for _ in 0..document.len() {
+        let key = document.token(next)?;
+        if key.kind == Kind::ObjectEnd {
+            return Some(typed);
+        }
+        let value = next.checked_add(1)?;
+        let name = document.text(key)?;
+        if [b"oneOf".as_slice(), b"allOf", b"anyOf"].contains(&name) {
+            return None;
+        }
+        if name == b"type" {
+            let record = document.token(value)?;
+            if typed || record.kind != Kind::String || document.text(record)? != b"object" {
+                return None;
+            }
+            typed = true;
+        }
+        next = document.value_end(value)?;
+    }
+    None
+}
+
+fn spell_object(encoder: &mut skein_json::writer::Encoder, document: &skein_json::Document) {
+    encoder.object_start();
+    encoder.key(b"type");
+    encoder.string(b"object");
+    for index in 1..document.len().checked_sub(1).expect("schema object end") {
+        let record = document.token(index).expect("admitted schema record");
+        let text = document.text(record).expect("admitted schema text");
+        match record.kind {
+            Kind::ObjectStart => encoder.object_start(),
+            Kind::ObjectEnd => encoder.object_end(),
+            Kind::ArrayStart => encoder.array_start(),
+            Kind::ArrayEnd => encoder.array_end(),
+            Kind::Key => encoder.key(text),
+            Kind::String => encoder.string(text),
+            Kind::Number => encoder.number(text),
+            Kind::True => encoder.boolean(true),
+            Kind::False => encoder.boolean(false),
+            Kind::Null => encoder.null(),
+            Kind::Long => unreachable!("complete schema retains every string"),
+        }
+    }
+    encoder.object_end();
 }
 
 pub(crate) fn object(data: &[u8], limits: &Limits) -> Result<skein_llm::Json, Error> {

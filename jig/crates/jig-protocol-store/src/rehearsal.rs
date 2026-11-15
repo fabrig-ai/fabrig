@@ -212,7 +212,9 @@ fn fresh(store: &mut Store, owner: Token) -> bool {
     if crate::format::compare(format.levels, crate::levels(&store.patch_sets)) != Ok(crate::format::Compared::Behind) {
         return false;
     }
-    let Ok(plan) = crate::patching::plan::plan(&store.patch_sets, &format.levels, &crate::levels(&store.patch_sets))
+    let Ok(checked) = crate::patching::plan::checked(store) else { return false };
+    let Ok(plan) =
+        crate::patching::plan::plan(&store.patch_sets, checked, &format.levels, &crate::levels(&store.patch_sets))
     else {
         return false;
     };

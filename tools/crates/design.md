@@ -7,7 +7,8 @@ finds test code that two test binaries of one package compile, which moves to a 
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
 its check of the draft's section 7 (features, codec crates) to section 3. The one-version check of
 section 3.2 comes from `temper/docs/design/draft/gate-compile.md`, 4.2 and 7, milestone C2 of its
-execution file.
+execution file. Section 3's one walk per binary comes from `temper/docs/design/draft/focused-pyramid.md`, 5,
+milestone K14 of its execution file.
 
 ## 1. In one page
 
@@ -114,6 +115,24 @@ The checks share one reader of the metadata and of module trees by section 2's r
 `fabrig-boundary`'s library, `tests/boundary/src/lib.rs`, which each check's test binary depends
 on. It holds no tests of its own (section 3.2); the reader's tests stay in `sizes.rs`.
 
+**One walk per binary.** A check reads each source it needs once in a run, and every rule and
+every target that needs that source takes it from the one read (`temper/docs/design/draft/focused-pyramid.md`,
+5). The runner gives each test its own process, so a run is one test's: what is shared is
+shared within the test that reads the tree.
+
+- **Module trees:** a reader that keeps each file's scan for its run, so the trees of several test
+  binaries that reach one file read and scan it once. A file's children depend on whether it is a
+  target's root and on its package (section 2.1), so a file reached both as a root and as a module,
+  or from two packages, keeps a scan for each. `shared_test_code.rs` reads every target's tree
+  through one such reader, and its findings are those of section 3.2, unchanged. `module_tree`
+  stays the one-tree form, which `sizes.rs` reads, one tree per library.
+- **Tracked sources:** `skein_worlds.rs` lists the tracked Rust sources once, with `git ls-files`,
+  and reads each once; its seam rule and its `#[path]` rule take their text from that read, and a
+  source either rule parses is parsed once (`skein/docs/design/testing/README.md`, 6).
+- **Its count:** each walk counts what it read, and parsed where it parses, and the check's test
+  prints the count, as `cli_names.rs` prints the files it read: a fixture pins that a shared source
+  is read once.
+
 ### 3.1 Sizes
 
 `tests/boundary/tests/sizes.rs`. Its findings:
@@ -134,7 +153,6 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 | `temper-engine-domain-forge` | about 79,000, and about 70,000 after G5 | `Domain`'s state grouped into owned parts (`temper/docs/development/debt/D013-forge-one-object.md`), then a split along them: G5 moves its vocabulary out, but `Domain` can't be cut (`temper/docs/design/domain/forge/README.md`, 3) |
 | `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
 | `temper-protocol-store` | 60,366, including 42,356 in generated `patches/mod.rs` | the store change that moves its generated `patches/mod.rs` out of the library, not yet planned |
-| `temper-client-tools` | about 67,000 | its split, not yet planned |
 | `jig-client-view` | about 64,000 | its split, not yet planned |
 | `jig-client-protocol-wire`'s own family | about 130,000 | a crate of its own for its `public` family (section 5) |
 | `temper-client-protocol-wire`'s own family | about 38,000 | a crate of its own for its `public` family (section 5) |
@@ -145,7 +163,9 @@ exception: G4 cut the engine's half into pieces each under the library bound
 pieces: `temper/docs/design/draft/gate-compile.md`'s C3 cut the view into pieces each under it
 (`temper/docs/design/client/view-crates.md`, 2.1). Nor have `temper-client-domain` and its two
 pieces: its C4 cut the client root into pieces each under it
-(`temper/docs/design/client/domain-crates.md`, 2.1).
+(`temper/docs/design/client/domain-crates.md`, 2.1). Nor have `temper-client-tools` and its piece:
+its C6 cut the agents' tools into pieces each under it
+(`temper/docs/design/client/ctl/tools-crates.md`, 2.1).
 
 The two client wires each hold a small second family, the public wire (`public_v1.rs`), beside
 their own. That makes their own family a shared crate's family. The draft read
@@ -608,7 +628,7 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
 - **Later: the libraries over the bound that no milestone splits yet:**
-  `temper-client-tools`, `jig-client-view` and `jig-protocol-store`'s hand-written code, by the
+  `jig-client-view` and `jig-protocol-store`'s hand-written code, by the
   draft's rules for where to cut
   (`temper/docs/design/draft/crate-graph.md`, 5.2).
 - **Later: whether lines stand in well for compile time.** The figure's per-crate times against

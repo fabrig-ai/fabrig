@@ -27,6 +27,7 @@ use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod charter_versions;
+mod checked;
 mod jobs;
 mod live_task_parts;
 mod milestones;
@@ -41,7 +42,9 @@ const VALUE: &[u8] = b"committed";
 fn empty_pending() -> Pending {
     let sets = crate::PatchSets::NONE;
     let found = crate::patching::plan::binary(&sets);
-    let plan = crate::patching::plan::plan(&sets, &found, &found).expect("empty plan");
+    let plan =
+        crate::patching::plan::plan(&sets, crate::patching::plan::bounds(&sets).expect("checked sets"), &found, &found)
+            .expect("empty plan");
     let machines =
         crate::patching::machines::make(&sets, &plan, &found, super::patching::ROOMS).expect("empty machines");
     Pending { plan, machines, found }
@@ -1661,7 +1664,7 @@ fn manifest_bounds_refuse_a_count_or_name_past_the_ceiling() {
             }],
         },
     ] {
-        assert!(crate::patching::plan::bounds(&sets).is_err());
+        crate::patching::plan::bounds(&sets).expect_err("invalid sets");
     }
 }
 

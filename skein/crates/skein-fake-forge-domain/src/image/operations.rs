@@ -172,6 +172,10 @@ fn put_write(out: &mut Sink, write: &Write) {
             out.bytes(branch);
             fields::put_inputs(out, inputs);
         }
+        Write::Cancel { run } => {
+            out.u8(31);
+            out.u64(*run);
+        }
         Write::Rerun { job } => {
             out.u8(28);
             out.u64(*job);
@@ -246,6 +250,7 @@ fn get_write(input: &mut Reader<'_>, limits: &Limits) -> Result<Write, Refusal> 
             branch: bytes(input, limits.name_bytes, "name")?,
             inputs: fields::get_inputs(input, limits)?,
         }),
+        31 => Ok(Write::Cancel { run: u64(input)? }),
         28 => Ok(Write::Rerun { job: u64(input)? }),
         29 => Ok(Write::PutPage {
             name: bytes(input, limits.name_bytes, "name")?,

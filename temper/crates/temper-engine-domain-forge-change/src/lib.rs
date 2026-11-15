@@ -22,10 +22,11 @@ mod relay;
 mod tests;
 
 pub use boundary::{
-    Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Below, Change, Ci, Decision, Delegate, DelegateSpend, Early,
-    Effect, EffectResult, FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Heard,
-    Hold, Judgement, Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready,
-    Repair, Route, Stands, StartedFrom, State, Status, Stepped, Verification, WORDS_WAITING, Waiting, Way,
+    ANSWERS_KEPT, Answered, Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Below, Change, Ci, Decision,
+    Delegate, DelegateSpend, Early, Effect, EffectResult, FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate,
+    GateFailure, GateKind, GateReport, Heard, Hold, Judgement, Landed, Limits, Open, Pending, PendingKind, Pull,
+    QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State, Status, Stepped,
+    Verification, WORDS_WAITING, Waiting, Way,
 };
 pub use domain::{authority_words, held_on_ci, prefix_verdict, released, review_failed, step};
 pub use passing::{Passed, WordAct, pass};

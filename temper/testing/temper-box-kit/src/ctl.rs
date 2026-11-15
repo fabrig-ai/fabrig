@@ -1231,8 +1231,7 @@ impl Referee<Process> for Judge {
                             child.ended.stderr.len()
                         ))
                     )),
-                    Process::Member(_)
-                    | Process::Binary(_)
+                    Process::Binary(_)
                     | Process::Stdout(_)
                     | Process::Person(_)
                     | Process::Peer(_)

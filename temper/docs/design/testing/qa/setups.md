@@ -221,8 +221,8 @@ machinery alone. A root recipe, at a deployment's place
   started on Hello whose changes into `main` are ready at one forming
   decision, so that they land in one landing of two
   (`../../domain/landing.md`, 9), by a latch the person releases
-  through ctl, as the merge queue's batch story keeps its changes
-  together (`../process-tier.md`, a queue that lands green), and their
+  through ctl, as the owned Forgejo's red narrowed keeps its changes
+  together (`../process-tier.md`, landing by turn on a real Forgejo), and their
   reviews; each change's content its own file, a member made red by its
   `.fake-forge/gate`. The same scripts are the real loop's fixture for
   the story that proves them (section 6).

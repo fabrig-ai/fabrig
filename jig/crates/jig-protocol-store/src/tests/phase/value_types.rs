@@ -13,7 +13,7 @@ fn ranges(rows: &[(&'static [u8], &'static [u8])]) -> &'static [KeyRange] {
 fn types(rows: Vec<ValueType>) -> &'static [ValueType] {
     Box::leak(rows.into_boxed_slice())
 }
-fn family(owner: Owner) -> KeptFamily {
+pub(super) fn family(owner: Owner) -> KeptFamily {
     let keys = if owner == Owner::Application {
         Keys { from: b"l", to: b"m", root: "Row" }
     } else {
@@ -35,7 +35,7 @@ fn family(owner: Owner) -> KeptFamily {
         frames: None,
     }
 }
-fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
+pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
     PatchSet {
         owner,
         name: if owner == Owner::Application { "fixture" } else { "jig-fixture" },

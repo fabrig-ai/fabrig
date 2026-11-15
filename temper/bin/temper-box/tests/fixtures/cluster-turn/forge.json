@@ -1,0 +1,42 @@
+{{
+  "listen": {{
+    "socket": "{story.forge}"
+  }},
+  "admin_token": "{proc.forge.dir}/setup/admin_token",
+  "owner": "fake",
+  "repositories": [
+    {{
+      "name": "widget",
+      "landing": "main",
+      "ci": null,
+      "tree": [
+        {{
+          "path": "NOTICE",
+          "content": "Initial work\n"
+        }},
+        {{
+          "path": ".fake-forge/gate",
+          "content": "pass\n"
+        }}
+      ]
+    }}
+  ],
+  "workflows": [
+    {{
+      "file": "gate.yml",
+      "jobs": [
+        "gate"
+      ],
+      "cue": {{
+        "declared": ".fake-forge/gate"
+      }}
+    }}
+  ],
+  "manual_merges": {{
+    "allow": true,
+    "autodetect": true
+  }},
+  "pace": {{
+    "ci_ms": 10000
+  }}
+}}

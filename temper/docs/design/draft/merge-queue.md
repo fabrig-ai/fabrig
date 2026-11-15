@@ -111,7 +111,7 @@ Its members' changes are repaired, given the failed run's output (`../domain/lan
 - **The search:** with the top's run failed, the landing dispatches the same gates at the middle unit boundary; a failure searches below it, a pass above, until it holds a green prefix and the red prefix one unit above it. The base counts as green: it is the branch's tip, which landed proved. Each prefix is a tree with its own key, so a receipt found earlier holds. At most `ceil(log2(n))` runs beyond the top's, n the round's units.
 - **What it promises:** an observed boundary, not the lowest red or the longest green prefix: a later member can fix what an earlier one broke. The blame is the unit at that boundary, in that context: the failure appears with it, on top of a prefix that passed.
 - **The blamed unit's** changes are repaired, given the red prefix's failed run, and leave (4.3).
-- **The green prefix lands** in this round's turn (section 8), when it is not the base. The units above the red one go on in the landing's next round, stacked on the new tip, first in line.
+- **The green prefix lands** in this round's turn (section 8), when it is not the base and its probes ran the whole gate. The units above the red one go on in the landing's next round, stacked on the new tip, first in line. A green prefix found by probes by test lands in none: the next round stacks the units above onto it and proves them together (`probes-by-test.md`, 5).
 - **What a run's failure means:** temper reads only the gate's verdict. A gate that tells a failure the base already has from one the candidate brought does so against the round's base it was given (section 11), so the verdict it reaches is the candidate's.
 - **Until the search is built** (the execution's M3), a red round of several units ends; its units leave, keep their places, and the train's landings take them one unit at a time, by a fallback the landing records (10), until each has landed or been repaired; then batching resumes.
 
@@ -187,7 +187,7 @@ After landing, on a staging deployment: goals land through it at a realistic vol
 
 ## 13. Later
 
-- **Probes by test:** a probe that builds and runs only the tests the top failed, in the packages that hold them, in a fraction of the full gate's time.
+- **Probes by test:** drafted in `probes-by-test.md`.
 - **The next batch proved on top of the one proving,** to overlap proofs when one at a time runs short.
 - **A project prepare command** that regenerates derived files a merge conflicts on, such as generated totals, so those conflicts never reach a goal.
 - **Batches across repositories,** with pins and upstream-first turns (`../domain/landing.md`, 5.3 and 8), and GitHub's turn.

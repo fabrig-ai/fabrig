@@ -959,6 +959,26 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
 }
 
 #[test]
+fn stock_charters_put_revised_requests_and_answers_first() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let reviewer = defaults.charters.iter().find(|charter| charter.number == 4).expect("review charter");
+    let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
+    assert!(words.starts_with(concat!(
+        "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do. ",
+        "What it was asked is its request as revised and the answers given on it, as your brief gives them: where they differ from its title or its original request, they come first. ",
+        "Then give your verdict"
+    )));
+    let implementer = crate::stock::charter_set().implementer.expect("implementer text");
+    assert_eq!(
+        implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
+        Some(
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
+        )
+    );
+}
+
+#[test]
 fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

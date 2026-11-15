@@ -3,7 +3,7 @@
 //! renderer and supplies plain numbers to run entrance admission.
 //! Contract: protocol/limits.md, section 3.9.
 
-use crate::{Error, deliver_schema, finish_schema};
+use crate::{Error, deliver_schema, finish_schema, outcome_schema};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
 use smith_domain::run::{
@@ -15,27 +15,28 @@ use smith_domain::run::{
 /// Numeric digits and escaped host text are summed separately by the run.
 pub fn schema_costs() -> Result<SchemaCosts, Error> {
     let empty = OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None };
-    let finish = length(&finish_schema(&empty, u32::MAX)?)?;
+    let bare_finish = length(&finish_schema(&empty, u32::MAX)?)?;
+    let finish = length(&outcome_schema(&finish_schema(&empty, u32::MAX)?, u32::MAX)?)?;
     let change = ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
     let deliver = length(&deliver_schema(&change, u32::MAX)?)?;
     let mut one = empty.clone();
     one.change = Some(change.clone());
-    let changed = length(&finish_schema(&one, u32::MAX)?)?.checked_sub(finish).ok_or(Error::Limit)?;
+    let changed = length(&finish_schema(&one, u32::MAX)?)?.checked_sub(bare_finish).ok_or(Error::Limit)?;
     let text = TextSpec { max: 0, fields: Box::new([]) };
     one = empty.clone();
     one.report = Some(text.clone());
-    let reported = length(&finish_schema(&one, u32::MAX)?)?.checked_sub(finish).ok_or(Error::Limit)?;
+    let reported = length(&finish_schema(&one, u32::MAX)?)?.checked_sub(bare_finish).ok_or(Error::Limit)?;
     one.change = Some(change.clone());
     let form_join =
-        difference(difference(difference(length(&finish_schema(&one, u32::MAX)?)?, finish)?, changed)?, reported)?;
+        difference(difference(difference(length(&finish_schema(&one, u32::MAX)?)?, bare_finish)?, changed)?, reported)?;
     one = empty.clone();
     one.failure = Some(text);
-    let failure = difference(difference(length(&finish_schema(&one, u32::MAX)?)?, finish)?, 1)?;
+    let failure = difference(difference(length(&finish_schema(&one, u32::MAX)?)?, bare_finish)?, 1)?;
     let field = FieldRule { name: Box::new([]), max: 0 };
     one = empty.clone();
     one.report = Some(TextSpec { max: 0, fields: Box::new([field.clone()]) });
     let text_field_first =
-        difference(difference(difference(length(&finish_schema(&one, u32::MAX)?)?, finish)?, reported)?, 1)?;
+        difference(difference(difference(length(&finish_schema(&one, u32::MAX)?)?, bare_finish)?, reported)?, 1)?;
     let mut fields = change.clone();
     fields.fields = Box::new([field.clone()]);
     let first_field = length(&deliver_schema(&fields, u32::MAX)?)?;
@@ -73,7 +74,7 @@ pub fn schema_costs() -> Result<SchemaCosts, Error> {
         field_first: difference(difference(first_field, deliver)?, 1)?,
         text_field_first,
         field_next: difference(difference(next_field, first_field)?, 1)?,
-        verdict_first: difference(difference(first_verdict, finish)?, 3)?,
+        verdict_first: difference(difference(first_verdict, bare_finish)?, 3)?,
         verdict_next: difference(difference(next_verdict, first_verdict)?, 3)?,
         kind_first: first_kind.checked_sub(first_verdict).ok_or(Error::Limit)?,
         kind_next: next_kind.checked_sub(first_kind).ok_or(Error::Limit)?,
