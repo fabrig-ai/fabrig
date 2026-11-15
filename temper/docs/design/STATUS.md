@@ -247,7 +247,15 @@ runs the box with no TUI (`client/tui/box.md`; `client/box-binary.md`;
 `protocol/setup/box.md`, 6). Its journey waits
 for `again` to start the box in the pseudo-terminal
 (`client/tui/journeys.status.md`, 8.3), and its real-terminal check
-follows landing (`client/README.md`, section 5).
+follows landing (`client/README.md`, section 5). The user's requests
+`tui-11` to `tui-14` of 2026-11-15, goal 3416, give a box set up before
+a starting screen until the TUI has read `me`, a group starting in the
+box's state ("Forgejo starting…", then the notice "Forgejo started")
+from the box's `starting`, `started` and `dormant` lines, a first run's
+start steps on the quiet line rather than in the welcome's body, a
+cleared screen when the terminal is lent to Claude Code's sign-in, and
+the TUI's two-line header after pi's, fabrig.ai's mark, the build and
+the place (`client/tui/pages/README.md`, 3).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
