@@ -79,14 +79,14 @@ fn the_goals_report_headline_says_where_it_stands_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("**Your report note:**"))
         .expect("goal report note");
-    assert!(report.contains(
-        "a one-line headline for the person: where the goal stands, naming no task, change or pull request by number"
-    ));
+    assert!(report.contains("a one-line headline of where the goal stands, with no task, change or pull numbers"));
     assert!(report.contains("5 of its 7 changes landed; the other 2 are building."));
     let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();
     let last_bullet =
         designer.lines().find(|line| line.starts_with("- **Never park with design unfinished:**")).unwrap();
-    assert!(last_bullet.contains("Your note's headline says where the goal stands, naming no task, change or pull request by number; its body the tree, the decisions, the critical path and any part dropped with its reason."));
+    assert!(last_bullet.contains(
+        "Your note's body says the tree, the decisions, the critical path and any part dropped with its reason."
+    ));
     assert!(!designer.contains("Your note's headline says the tree"));
 }
 

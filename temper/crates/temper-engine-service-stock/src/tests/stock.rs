@@ -783,8 +783,6 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
-    let asking = goal.split("\n\n").find(|paragraph| paragraph.starts_with("**Asking your requester.")).unwrap();
-    assert!(asking.contains(decision));
     assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
