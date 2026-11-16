@@ -43,6 +43,7 @@ pub(crate) enum BoxValue {
     Git,
     Admin,
     GitProgram,
+    ModelKey,
 }
 impl BoxValue {
     pub(crate) fn parse(bytes: &[u8]) -> Option<Self> {
@@ -51,6 +52,7 @@ impl BoxValue {
             b"{forgejo.git}" => Some(Self::Git),
             b"{forgejo.admin}" => Some(Self::Admin),
             b"{git}" => Some(Self::GitProgram),
+            b"{model.key}" => Some(Self::ModelKey),
             _ => None,
         }
     }

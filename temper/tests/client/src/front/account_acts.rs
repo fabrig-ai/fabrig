@@ -59,6 +59,11 @@ pub fn signed_in_plan(seed: u64) -> (Joint, Root, u32) {
 pub fn tools_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::On, 2, None, false, WelcomeForge::None, false)
 }
+/// Anthropic's key and Claude Code offers, as init configures provider 2.
+#[must_use]
+pub fn anthropic_tools_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, Tools::Anthropic, 3, None, false, WelcomeForge::None, false)
+}
 /// A goal template with a later model choice, and two models with declared efforts.
 #[must_use]
 pub fn goal_choice_fixture(seed: u64) -> (Joint, Root) {
@@ -101,6 +106,7 @@ pub fn tools_fixture_with_spend(seed: u64, spend: u64) -> (Joint, Root) {
 enum Tools {
     Off,
     On,
+    Anthropic,
     GoalChoice,
     Spend(u64),
     Trial,
@@ -471,6 +477,7 @@ fn fixture_root(
         Tools::Spend(spend) => Some(spend),
         Tools::Off
         | Tools::On
+        | Tools::Anthropic
         | Tools::GoalChoice
         | Tools::Trial
         | Tools::TrialSelection
@@ -482,7 +489,8 @@ fn fixture_root(
     let selection_story = tools == Tools::TrialSelection;
     let trial_story = matches!(tools, Tools::Trial | Tools::TrialSelection);
     let goal_choice = tools == Tools::GoalChoice;
-    let tools = matches!(tools, Tools::On | Tools::GoalChoice | Tools::Spend(_));
+    let anthropic = tools == Tools::Anthropic;
+    let tools = matches!(tools, Tools::On | Tools::Anthropic | Tools::GoalChoice | Tools::Spend(_));
     let welcome = forge != WelcomeForge::None;
     let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Playground { .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
@@ -541,6 +549,20 @@ fn fixture_root(
         if tools || program {
             config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").offers.programs =
                 Box::new([Box::from(b"claude_code".as_slice())]);
+        }
+        // Bootstrap seeds a deployment key for each provider; Anthropic starts with no account.
+        if anthropic && runtime {
+            let provider = a::Provider {
+                number: 2,
+                name: b"anthropic".as_slice().into(),
+                list: None,
+                signed_in_plan: false,
+                manage_usage: Some(b"https://claude.ai/settings/usage".as_slice().into()),
+                offers: a::Offers { sign_in: false, key: true, programs: Box::new([b"claude_code".as_slice().into()]) },
+            };
+            let mut providers = config.core.settings.llm_providers.providers.into_vec();
+            providers.push(provider);
+            config.core.settings.llm_providers.providers = providers.into_boxed_slice();
         }
         if tools {
             let primary = config.core.settings.models[0].clone();

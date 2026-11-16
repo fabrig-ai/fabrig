@@ -84,7 +84,12 @@ deadline, each meeting `account list --until settled`; a limited
 notice, the next task waiting for its account and `task show TASK`
 saying why, then `account retry` and the run started; `account rank`
 and `account forget`; a program source declared, and `account verify`
-answered as each host reports; a program account forgotten, its name
+answered as each host reports; Anthropic's keys
+(`../../draft/claude-api.md`, 6), provider 2 named `anthropic` in every
+answer: a key-only account, then a Claude Code program declared and a
+key put after it with `--account`, the account keeping its holder and
+its program first, then the deployment's with `--deployment`, held by
+the deployment and listed with its accounts; a program account forgotten, its name
 declared again by its holder, its host-check dispatch observed, then a
 declaration of that live name refused at exit 2 with its reason and next
 step (`areas.md`). Area 6's, over the engine root's forge

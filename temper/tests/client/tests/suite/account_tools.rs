@@ -179,6 +179,93 @@ fn a_tools_declaration_is_visible_with_its_host_in_accounts() {
     }
 }
 
+// temper/docs/design/client/ctl/testing.md, 2: Anthropic's three ways of adding a key.
+#[test]
+fn anthropic_keys_stand_alone_follow_a_program_and_belong_to_the_deployment() {
+    let (mut front, mut root) = accounts::anthropic_tools_fixture(fixtures::SEED);
+    anthropic_key(&mut front, &mut root, 1, &[b"account", b"add-key", b"2", b"file", b"--key", b"claude-key"]);
+    let first = account_list(&mut front, &mut root, 2);
+    let party = first["party"].as_array().expect("personal accounts");
+    assert_eq!(party.len(), 1);
+    assert_anthropic(&party[0], &["key"]);
+    assert!(party[0]["holder"]["party"].is_number());
+    let holder = party[0]["holder"].clone();
+    let key_account = party[0]["number"].clone();
+
+    call(
+        &mut front,
+        &mut root,
+        3,
+        &[b"account", b"declare", b"2", b"claude_code", b"personal", b"--key", b"claude-login"],
+        None,
+    );
+    assert_call_succeeded(&root, 3);
+    let declared = account_list(&mut front, &mut root, 4);
+    let party = declared["party"].as_array().expect("personal accounts");
+    assert_eq!(party.len(), 2);
+    assert_anthropic(&party[0], &["key"]);
+    let program = &party[1];
+    assert_anthropic(program, &["program"]);
+    assert_eq!(program["holder"], holder);
+    let number = program["number"].as_u64().expect("program account number").to_string();
+    anthropic_key(
+        &mut front,
+        &mut root,
+        5,
+        &[b"account", b"add-key", b"2", b"file", b"--account", number.as_bytes(), b"--key", b"claude-fallback"],
+    );
+    let joined = account_list(&mut front, &mut root, 6);
+    let party = joined["party"].as_array().expect("personal accounts");
+    assert_eq!(party.len(), 2);
+    assert_anthropic(&party[0], &["key"]);
+    assert_eq!(party[0]["number"], key_account);
+    assert_anthropic(&party[1], &["program", "key"]);
+    assert_eq!(party[1]["number"], program["number"]);
+    assert_eq!(party[1]["holder"], program["holder"]);
+    assert_eq!(party[1]["sources"][0]["name"], "personal");
+
+    anthropic_key(
+        &mut front,
+        &mut root,
+        7,
+        &[b"account", b"add-key", b"2", b"file", b"--deployment", b"--key", b"claude-deployment"],
+    );
+    let final_list = account_list(&mut front, &mut root, 8);
+    assert_eq!(final_list["party"], joined["party"], "deployment addition leaves both personal accounts unchanged");
+    let deployment = final_list["deployment"].as_array().expect("deployment accounts");
+    let account = deployment.iter().find(|account| account["provider"] == 2).expect("deployment's Anthropic key");
+    assert_anthropic(account, &["key"]);
+    assert_eq!(account["holder"]["deployment"], true);
+    accounts::assert_no_carried(&front);
+}
+fn assert_call_succeeded(root: &Root, number: u32) {
+    let answer = root.agent().printed(number).expect("ctl answer");
+    assert_eq!(answer.status, 0, "call {number}: {answer:?}");
+}
+fn anthropic_key(front: &mut Joint, root: &mut Root, number: u32, words: &[&[u8]]) {
+    call(front, root, number, words, Some(Secret::new(KEY.into())));
+    if root.agent().printed(number).is_some() {
+        assert_call_succeeded(root, number);
+    }
+    accounts::kept(front);
+    accounts::settle(front, root);
+    assert_call_succeeded(root, number);
+}
+fn account_list(front: &mut Joint, root: &mut Root, number: u32) -> serde_json::Value {
+    call(front, root, number, &[b"account", b"list", b"--json"], None);
+    assert_call_succeeded(root, number);
+    let answer = root.agent().printed(number).expect("account list");
+    let document: serde_json::Value = serde_json::from_slice(&answer.stdout).expect("account list JSON");
+    document["accounts"].clone()
+}
+fn assert_anthropic(account: &serde_json::Value, kinds: &[&str]) {
+    assert_eq!(account["provider"], 2);
+    assert_eq!(account["provider_name"]["bytes"], "anthropic");
+    let sources = account["sources"].as_array().expect("account sources");
+    let actual: Vec<_> = sources.iter().map(|source| source["kind"].as_str().expect("source kind")).collect();
+    assert_eq!(actual, kinds);
+}
+
 #[test]
 fn a_forgotten_declaration_is_declared_again_under_its_name() {
     let (mut front, mut root) = accounts::tools_fixture(fixtures::SEED);

@@ -1,6 +1,7 @@
 use super::*;
 pub(crate) mod forge;
 mod logging;
+mod page;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 fn plan() -> Plan {

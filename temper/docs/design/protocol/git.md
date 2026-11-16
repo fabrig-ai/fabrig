@@ -967,7 +967,7 @@ checks this document's contract:
   `temper-git-transcripts`: every invocation of section 4, and every
   failure of section 6 (a missing repository, branch and commit, a wrong
   token, no permission, a protected branch, a refused connection),
-  against skein's throwaway Forgejo (`skein/docs/design/testing/fakes/forge.md`, section 6;
+  against skein's throwaway Forgejo (`skein/docs/design/testing/fakes/throwaway.md`, section 1;
   `../testing/process-tier.md`). Each keeps the argument vector,
   exit status, stdout and stderr, masked: object ids, ports, paths and
   times. No credential is ever written. The facts this document relies

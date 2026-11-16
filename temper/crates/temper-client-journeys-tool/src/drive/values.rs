@@ -6,6 +6,7 @@ pub(super) fn read(log: &[u8], name: BoxValue) -> Result<Box<[u8]>, String> {
         BoxValue::Api | BoxValue::Git => b"box: fake forgejo ".as_slice(),
         BoxValue::Admin => b"box: Forgejo elsewhere admin token file ".as_slice(),
         BoxValue::GitProgram => b"box: effective data ".as_slice(),
+        BoxValue::ModelKey => b"box: model key ".as_slice(),
     };
     let value = log
         .split(|byte| *byte == b'\n')
@@ -18,7 +19,7 @@ pub(super) fn read(log: &[u8], name: BoxValue) -> Result<Box<[u8]>, String> {
             .strip_prefix(b"http://")
             .map(Box::from)
             .ok_or_else(|| "box: fake forgejo: expected http://HOST:PORT".into()),
-        BoxValue::Git | BoxValue::Admin => Ok(value.into()),
+        BoxValue::Git | BoxValue::Admin | BoxValue::ModelKey => Ok(value.into()),
         BoxValue::GitProgram => Ok([value, b"/demo/bin/git"].concat().into()),
     }
 }

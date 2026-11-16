@@ -80,9 +80,14 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
   by default. A job asking for a label no runner serves stays
   `Waiting`, with no steps, its run and its status pending, until the
   world serves the label.
+- **A declared wait:** a job whose head's CI declaration opens with
+  phases is `Waiting`, as above, for its `wait` span, then runs for its
+  `run` span (`../testing/fakes/forge.md`, 2.3), so a commit's CI as
+  well as a dispatched job waits for a runner on the fake.
 - **Needs:** a job naming jobs it needs is `Blocked` until they end.
 - **Running:** a job running has its steps, the one it is at
-  `running`, so a job running past a bound reads at its step.
+  `running`, so a job running past a bound reads at its step, a commit's
+  CI job as a dispatched one.
 - Each wire face, Forgejo's and GitHub's, answers the job's read with
   its forge's words for these states (sections 3 and 4).
 

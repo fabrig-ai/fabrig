@@ -375,6 +375,39 @@ fn ctl_box_values_resolve_newest_opening_lines_without_changing_kept_bytes() {
 }
 
 #[test]
+fn ctl_model_key_resolves_newest_opening_line_without_changing_kept_bytes() {
+    let (scratch, mut m) = fixture();
+    fs::write(
+        scratch.path().join("session/box.log"),
+        b"box: model key /scratch/a.key\n1970-01-01T00:00:01Z box: model key /scratch/b.key\n",
+    )
+    .expect("model opening lines");
+    let source = "ctl account add-key 1 {model.key} --key qa-model";
+    let actions = begin(&mut m, source);
+    let [Action::Start { process: crate::drive::Process::Ctl, program }] = actions.as_slice() else {
+        panic!("{actions:?}")
+    };
+    let expected: Vec<std::ffi::OsString> = [
+        "ctl",
+        &scratch.path().join("session/ctl").to_string_lossy(),
+        "account",
+        "add-key",
+        "1",
+        "/scratch/b.key",
+        "--key",
+        "qa-model",
+    ]
+    .map(Into::into)
+    .into();
+    assert_eq!(program.args, expected);
+    assert_eq!(program.input, crate::drive::Input::Null);
+    let actions = m.step(super::exited(crate::drive::Process::Ctl, 0), Time::ZERO);
+    assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+        if kept.as_ref() == source.as_bytes() && answer.failed.is_none()));
+    assert!(m.ready());
+}
+
+#[test]
 fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
     let (scratch, mut m) = fixture();
     for (name, expected) in [
@@ -382,6 +415,7 @@ fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
         ("{forgejo.git}", "box: fake forgejo"),
         ("{forgejo.admin}", "box: Forgejo elsewhere admin token file"),
         ("{git}", "box: effective data"),
+        ("{model.key}", "box: model key"),
     ] {
         fs::write(scratch.path().join("session/box.log"), b"unrelated\n").expect("log");
         let source = format!("ctl show {name}");
