@@ -307,17 +307,37 @@ plan (`jobs.md`, 4).
 
 ## 7. Bounds
 
-- **In memory, at open:** the registry's rows and texts; each family's
-  `current` parsed once in the open and kept until its plans are made
-  (5.3), since its binary layout, its check and every family holding
-  it read it: parsed where the open checks the binary's texts before
-  the seed (2, and the third item below) and kept as that check parsed
-  it, or, a text the registry already holds, parsed where it is first
-  planned; any other text, a kept text the seed reads or one only rows
-  name, parsed while its family (or a family holding it) is planned and
-  dropped with it; and one plan derived at a time (skein's
-  `data/codec/layouts.md`, 5). Holding the `current` texts costs at most
-  the binary's own families' parsed schemas, never a store's. While serving:
+- **In memory, at open:** the registry's rows and texts, and what the
+  open's planning (5.1 to 5.4) reads, from the check of the binary's
+  texts before the seed (2, and the third item below) to the end of
+  the plans (5.3). Each is made once in that planning and kept to its
+  end, so the seed, the registration and every row's check read the
+  same one, whichever family or row needs it:
+  - **A text parsed** where the planning first reads it: the binary's
+    `current` and last kept text of each family where the open checks
+    them, kept as that check parsed them; a text the registry already
+    holds where a row, the seed or a family holding it first needs it,
+    its bytes checked against its digest before it is parsed (5.3). No
+    text is parsed twice in one planning.
+  - **A layout computed,** the fingerprint of a root and variant in a
+    text with its held texts (skein's `data/codec/README.md`, 9.4), once
+    per those four: the seed's and the registration's (5.1, 5.2) are the
+    ones the check compares a row's persisted fingerprint against when
+    the row names the same text, root, variant and held texts, in the
+    same order; a row naming others has its own computed. Only a
+    computed layout is kept: one that fails refuses where it does.
+  - **A text's held texts,** the families its records hold and theirs
+    (1), found once per text, as a `current` or as a kept text.
+
+  These are dropped when the plans are made, and with the open's
+  unfinished registry when it refuses: none outlives the planning that
+  made it. A patching open plans again at its reopen after the copy
+  (`opening.md`, 2) and parses and computes again there, since that
+  registry is the one the copy left, and nothing of the first planning
+  sits beside the patch machines. The parsed texts cost at most every
+  text the registry holds and the binary brings, parsed once: the texts
+  the open already holds whole. Then one plan derived at a time (skein's
+  `data/codec/layouts.md`, 5). While serving:
   per value type its key ranges, version, binary id, the ids whose plan
   keeps, and a plan per held layout that converts. Rows, texts and parsed
   schemas are dropped when the open ends, after its registry writes and
@@ -357,13 +377,16 @@ plan (`jobs.md`, 4).
   adds a value type in a new key range, opens with no refusal; the seed
   has no row for the new type, the registration adds its row at the
   family's version, and a value put at its key reads back.
-- **The open's parses** (7), a step test: through the seed, the
-  registration and each family's check, each family's `current` keeps
-  the schema parsed when the open checked it (or first planned it, a
-  text the registry held), while any other text (a kept text the seed
-  reads, a text only rows name) is dropped with its family; none is
-  held once the plans are made. The refusals and their order are
-  unchanged.
+- **The open's parses and layouts** (7), step tests: through the seed,
+  the registration and every row's check, each text the planning reads
+  is parsed once, however many families hold it or rows name it; a
+  seeding open computes each value type's seed and binary layouts once
+  and a reopen of a seeded store each binary layout once, neither again
+  for its row's check, while a row naming another text has its own; and
+  no parsed text is held once the plans are made. The refusals and
+  their order are unchanged: a stored text whose bytes do not give its
+  digest, a persisted fingerprint its text does not give, a malformed
+  declaration, a held depth past a plan's, each refused as before.
 
 ## 9. Open questions
 
