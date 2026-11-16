@@ -3,11 +3,11 @@ use super::ask;
 use crate::{
     bindings::Bindings,
     look,
-    words::{TimeForm, Times, Word, Words},
+    words::{Shell, TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use skein_lib::{Decimal, bytes};
-use skein_ui::{Builder, Role, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Domain,
     pages::{
@@ -16,6 +16,47 @@ use temper_client_domain::{
     },
 };
 use temper_client_protocol_wire::v1 as w;
+
+/// Three bars say the severity in the browser (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub fn severity(b: &mut Builder, words: &Words, severity: w::Severity) {
+    if words.shell == Shell::Terminal {
+        return;
+    }
+    let (style, word) = match severity {
+        w::Severity::Low => (look::SEVERITY_LOW, Word::FindingLowSeverity),
+        w::Severity::Medium => (look::SEVERITY_MEDIUM, Word::FindingMediumSeverity),
+        w::Severity::High => (look::SEVERITY_HIGH, Word::FindingHighSeverity),
+    };
+    let label = words.say(word, &[]);
+    b.open(Role::Text);
+    b.style(look::SEVERITY);
+    b.style(style);
+    b.name(&label);
+    b.hint(&label);
+    for _ in 0..3_u32 {
+        b.open(Role::Text);
+        b.close();
+    }
+    b.close();
+}
+
+/// A chip takes its highest severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub fn chip(b: &mut Builder, words: &Words, severity: w::Severity, label: &[u8]) {
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, label);
+        return;
+    }
+    b.open(Role::Text);
+    b.style(look::CHIP);
+    b.style(match severity {
+        w::Severity::Low => look::CHIP_LOW,
+        w::Severity::Medium => look::CHIP_MEDIUM,
+        w::Severity::High => look::CHIP_HIGH,
+    });
+    self::severity(b, words, severity);
+    b.text(Run::Plain, label);
+    b.close();
+}
 
 pub(crate) fn title(root: &Domain, card: &Card, words: &Words) -> Box<[u8]> {
     let project = match super::project_name(root.pages().me(root.client()), card.id.project) {

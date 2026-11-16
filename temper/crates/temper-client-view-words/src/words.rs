@@ -1698,6 +1698,9 @@ pub enum Word {
     FindingLow,
     FindingMedium,
     FindingHigh,
+    FindingLowSeverity,
+    FindingMediumSeverity,
+    FindingHighSeverity,
     FindingWaiting,
     FindingNoGoal,
     FindingGone,
@@ -2117,7 +2120,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2661;
+const PHRASES: u32 = 2664;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2144,10 +2147,10 @@ const PHRASES: u32 = 2661;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4869;
+const SEGMENTS: u32 = 4872;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 63210;
-const ALL: [Word; 1946] = [
+const ENGLISH_BYTES: u32 = 63250;
+const ALL: [Word; 1949] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -3759,6 +3762,9 @@ const ALL: [Word; 1946] = [
     Word::FindingLow,
     Word::FindingMedium,
     Word::FindingHigh,
+    Word::FindingLowSeverity,
+    Word::FindingMediumSeverity,
+    Word::FindingHighSeverity,
     Word::FindingWaiting,
     Word::FindingNoGoal,
     Word::FindingGone,
@@ -5797,6 +5803,9 @@ impl Word {
             Self::FindingLow => 8014,
             Self::FindingMedium => 8015,
             Self::FindingHigh => 8016,
+            Self::FindingLowSeverity => 8024,
+            Self::FindingMediumSeverity => 8025,
+            Self::FindingHighSeverity => 8026,
             Self::FindingWaiting => 8017,
             Self::FindingNoGoal => 8018,
             Self::FindingGone => 8019,
@@ -8465,6 +8474,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::FindingLow => (&[b"low"], &[]),
         Word::FindingMedium => (&[b"medium"], &[]),
         Word::FindingHigh => (&[b"high"], &[]),
+        Word::FindingLowSeverity => (&[b"low severity"], &[]),
+        Word::FindingMediumSeverity => (&[b"medium severity"], &[]),
+        Word::FindingHighSeverity => (&[b"high severity"], &[]),
         Word::FindingWaiting => (&[b"Waiting for the findings document."], &[]),
         Word::FindingNoGoal => (&[b"not a live goal of the project"], &[]),
         Word::FindingGone => (&[b"no finding"], &[]),

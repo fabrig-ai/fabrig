@@ -1205,13 +1205,13 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-out",
         b"temper-latest",
         b"temper-thread-loading",
-        b"temper-reserved-477",
-        b"temper-reserved-478",
-        b"temper-reserved-479",
-        b"temper-reserved-480",
-        b"temper-reserved-481",
-        b"temper-reserved-482",
-        b"temper-reserved-483",
+        b"temper-severity",
+        b"temper-severity-low",
+        b"temper-severity-medium",
+        b"temper-severity-high",
+        b"temper-chip-low",
+        b"temper-chip-medium",
+        b"temper-chip-high",
         b"temper-reserved-484",
         b"temper-reserved-485",
         b"temper-reserved-486",
@@ -1703,6 +1703,21 @@ pub const LATEST: Style = Style { owner: owner(), token: 475 };
 
 /// The conversation’s call runs and reading position (client/pages/README.md).
 pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
+
+/// Severity's three bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY: Style = Style { owner: owner(), token: 477 };
+/// One filled bar (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_LOW: Style = Style { owner: owner(), token: 478 };
+/// Two filled bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_MEDIUM: Style = Style { owner: owner(), token: 479 };
+/// Three filled bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_HIGH: Style = Style { owner: owner(), token: 480 };
+/// A chip on low severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_LOW: Style = Style { owner: owner(), token: 481 };
+/// A chip on medium severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_MEDIUM: Style = Style { owner: owner(), token: 482 };
+/// A chip on high severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_HIGH: Style = Style { owner: owner(), token: 483 };
 
 /// Ready’s model line (client/pages/README.md, The try).
 pub const WELCOME_STATUS_WHY: Style = Style { owner: owner(), token: 516 };

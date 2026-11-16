@@ -1397,6 +1397,16 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-project-rename-form > [aria-keyshortcuts=Escape] { display: none; }
 .temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
 
+/* Severity's three bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn). */
+#app .temper-severity { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; flex: none; color: var(--gf-faint); }
+#app .temper-severity > span { width: 3px; border-radius: 1px; background: currentColor; opacity: .28; }
+#app .temper-severity > span:nth-child(1) { height: 5px; }
+#app .temper-severity > span:nth-child(2) { height: 8px; }
+#app .temper-severity > span:nth-child(3) { height: 11px; }
+#app .temper-severity-low > span:nth-child(1), #app .temper-severity-medium > span:nth-child(-n+2), #app .temper-severity-high > span { opacity: 1; }
+#app .temper-severity-medium { color: var(--temper-amber); }
+#app .temper-severity-high { color: var(--gf-signal); }
+
 /* ==== ui: home ==== */
 #app > .temper-home .temper-home-needs .temper-home-head { padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-home .temper-home-needs { display: flex; flex-direction: column; gap: 14px; }
@@ -1423,6 +1433,9 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-needs .temper-chips .temper-chip, #app > .temper-home .temper-chips .temper-chip { display: inline-block; }
 #app > .temper-home .temper-chip-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gf-good); }
 #app > .temper-home .temper-chip-signal { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal); }
+#app > .temper-home .temper-chip-low { background: var(--gf-hover); }
+#app > .temper-home .temper-chip-medium { border-color: color-mix(in srgb, var(--temper-amber) 35%, transparent); background: var(--temper-amber-pale); color: var(--temper-amber); font-weight: 500; }
+#app > .temper-home .temper-chip-high { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal-ink); font-weight: 500; }
 #app > .temper-home .temper-projects { margin: 0; padding: 0; list-style: none; }
 #app > .temper-home .temper-projects > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 10px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
 #app > .temper-home .temper-projects > li > a { font-weight: 600; }
