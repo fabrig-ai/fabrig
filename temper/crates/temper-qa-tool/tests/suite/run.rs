@@ -932,6 +932,148 @@ fn triage_lists_ctl_groups_from_the_merge_tree_before_web_and_tui() {
     assert!(!brief.contains("ctl and help are outside"));
 }
 
+fn triage_catalogue(ctl_only: bool) -> (World, super::world::Loop) {
+    let mut world = World::new();
+    if ctl_only {
+        world.home.configuration.surfaces = vec!["ctl".into()];
+    }
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.git.file_at(2, "temper/docs/help/reference/ctl-task.md", b"# Task\n");
+    for (name, recipe) in [
+        ("ctl-root", "recipe 1\ncheck\nctl task list\n"),
+        ("ctl-chain", "recipe 1\nafter \"ctl-root\"\ncheck\nctl task list\n"),
+        ("web-root", "recipe 1\nweb see \"Welcome\"\n"),
+        ("web-chain", "recipe 1\nafter \"web-root\"\ncheck\nctl task list\n"),
+        ("tui-root", "recipe 1\ntui see \"Welcome\"\n"),
+        ("tui-chain", "recipe 1\nafter tui-root\ncheck\nctl task list\n"),
+        ("missing-parent", "recipe 1\nafter absent\ncheck\nctl task list\n"),
+        ("cycle", "recipe 1\nafter cycle\ncheck\nctl task list\n"),
+    ] {
+        let directory = format!("temper/docs/development/qa/setups/{name}");
+        run.git.file_at(2, &format!("{directory}/recipe"), recipe.as_bytes());
+        run.git.file_at(2, &format!("{directory}/README.md"), format!("# Setup\n\nThe {name} state.\n").as_bytes());
+    }
+    run.tick();
+    (world, run)
+}
+
+#[test]
+fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
+    let (world, run) = triage_catalogue(true);
+    let ledger = world.ledger();
+    let session = &ledger.sessions[0];
+    assert_eq!(session.pages, [("ctl".into(), vec!["task".into()])].into());
+    assert_eq!(session.setups, ["fresh", "ctl-chain", "ctl-root"]);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    let surfaces =
+        brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
+    assert_eq!(
+        surfaces,
+        "- ctl: task: temper/docs/help/reference/ctl-task.md\n- ctl design: temper/docs/design/client/ctl/README.md; temper/docs/design/client/ctl/tools.md\n"
+    );
+    let setups =
+        brief.split("## Setups\n\n").nth(1).expect("setups").split("\n## Queued cases").next().expect("section");
+    assert_eq!(
+        setups,
+        "- fresh: a fresh box at its welcome with nothing set up\n- ctl-chain: The ctl-chain state. (temper/docs/development/qa/setups/ctl-chain/README.md)\n- ctl-root: The ctl-root state. (temper/docs/development/qa/setups/ctl-root/README.md)\n"
+    );
+    assert!(brief.contains("\"surface\":\"ctl\""));
+    assert!(brief.contains("A case's surface is ctl; for ctl, page is one of its groups."));
+}
+
+#[test]
+fn default_triage_keeps_all_surfaces_and_setup_cases() {
+    let (world, run) = triage_catalogue(false);
+    let mut ledger = world.ledger();
+    let number = ledger.sessions[0].number;
+    assert_eq!(
+        ledger.sessions[0].setups,
+        ["fresh", "ctl-chain", "ctl-root", "cycle", "missing-parent", "tui-chain", "tui-root", "web-chain", "web-root"]
+    );
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.contains("\"surface\":\"web\""));
+    assert!(brief.contains("A case's surface is ctl, web or tui; for ctl, page is one of its groups."));
+    for (surface, page, setup) in
+        [("ctl", "task", "ctl-chain"), ("web", "work", "web-chain"), ("tui", "chat", "tui-chain")]
+    {
+        let mut input = super::case();
+        input.surface = surface.into();
+        input.page = page.into();
+        input.setup = setup.into();
+        ledger.add_case(number, &input, 1).expect("default accepts each surface and setup");
+    }
+    assert_eq!(ledger.cases.iter().map(|case| case.surface.as_str()).collect::<Vec<_>>(), ["ctl", "web", "tui"]);
+}
+
+#[test]
+fn triage_names_only_each_configured_surface_set() {
+    for (configured, words) in [
+        (vec!["web"], "the web client"),
+        (vec!["tui"], "the TUI"),
+        (
+            vec!["web", "ctl"],
+            "ctl or the web client, ctl first: write ctl cases before web cases, the person's acts and temper's account as `temper ctl` gives them",
+        ),
+        (
+            vec!["tui", "ctl"],
+            "ctl or the TUI, ctl first: write ctl cases before TUI cases, the person's acts and temper's account as `temper ctl` gives them",
+        ),
+        (vec!["tui", "web"], "the web client or the TUI"),
+        (vec![], "the configured surfaces (none)"),
+    ] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = configured.iter().map(|name| (*name).to_owned()).collect();
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        run.tick();
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        assert!(brief.starts_with(&format!(
+            "# Triage\n\nJudge what a person now sees or does through {words}. The green path only:"
+        )));
+        let ledger = world.ledger();
+        let surfaces =
+            brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
+        for name in ["ctl", "web", "tui"] {
+            assert_eq!(
+                ledger.sessions[0].pages.contains_key(name),
+                configured.contains(&name),
+                "{configured:?}: {name}"
+            );
+            assert_eq!(
+                surfaces.contains(&format!("- {name}")),
+                configured.contains(&name),
+                "{configured:?}: {surfaces}"
+            );
+        }
+    }
+}
+
+#[test]
+fn ctl_triage_takes_eight_parents_and_leaves_out_nine() {
+    // The recipe and its eight parents qualify; a ninth parent exceeds recipe.md, 3.2.
+    const QUALIFYING_CHAIN: usize = 9;
+    let mut world = World::new();
+    world.home.configuration.surfaces = vec!["ctl".into()];
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    for index in 0..=QUALIFYING_CHAIN {
+        let parent = index.checked_sub(1).map_or(String::new(), |parent| format!("after chain-{parent}\n"));
+        let recipe = format!("recipe 1\n{parent}check\nctl task list\n");
+        run.git.file_at(2, &format!("temper/docs/development/qa/setups/chain-{index}/recipe"), recipe.as_bytes());
+    }
+    run.tick();
+    assert_eq!(
+        world.ledger().sessions[0].setups,
+        ["fresh", "chain-0", "chain-1", "chain-2", "chain-3", "chain-4", "chain-5", "chain-6", "chain-7", "chain-8"]
+    );
+}
+
 fn a_running_triage() -> (World, super::world::Loop) {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::None, Agent::Never]);

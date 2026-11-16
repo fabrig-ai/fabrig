@@ -260,7 +260,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             return Ok(());
         }
         let Some(landing) = ledger.next_landing().cloned() else { return Ok(()) };
-        let inputs = Inputs::read(&mut self.git, &landing)?;
+        let inputs = Inputs::read(&mut self.git, &landing, &self.home.configuration.surfaces)?;
         let number = ledger.start_session(
             landing.number,
             &self.home.configuration.agent.triage,

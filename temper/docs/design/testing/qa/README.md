@@ -186,8 +186,8 @@ taken from the home.
   `temper-qa tune` suggests it (`ledger.md`, 6).
 - **`surfaces`:** the surfaces a pass takes cases of, each `ctl`, `web`
   or `tui`, `["ctl", "web", "tui"]` when absent; a case of another
-  surface stays queued (`passes.md`, 3). Triage records cases of all
-  three, ctl's first (`../../draft/landed-qa.md`, 4).
+  surface stays queued (`passes.md`, 3). Triage records cases of the
+  configured surfaces alone, ctl's first (`triage.md`, 3–4).
 - **`areas`:** each surface's area, `ctl`, `web` and `tui` each
   optional; a finding on a surface with none takes `owner`
   (`findings.md`, 2).
