@@ -101,11 +101,13 @@ is designed in the pages' documents as milestone M3 of
   reports as any goal of its way does, and keeps its forge issue
   (`forge/issues.md`).
 - **Its authority** is template 2's fill from the party's creating
-  offer, narrowed to what the milestone has left: delegation depth at
-  most the milestone's less one, its delegation's tasks at most the
-  milestone's left, its deadline no later than the milestone's where it
-  has one. jig checks it against both the party's role and the
-  milestone (jig's `domain/authority.md`, 8.4).
+  offer, narrowed to the milestone's: delegation depth at most the
+  milestone's less one, its delegation's tasks at most the milestone's
+  task allowance (the task document carries the allowance, not what is
+  left of it), its deadline no later than the milestone's where it has
+  one. jig checks it against both the party's role and what the
+  milestone has left, refusing at admission (jig's `domain/authority.md`,
+  8.4); the tool prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
   milestone has left (jig's `domain/authority.md`, 8.4). So the
