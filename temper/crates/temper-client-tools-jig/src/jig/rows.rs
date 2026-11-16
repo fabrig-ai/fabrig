@@ -1063,7 +1063,13 @@ pub const GOAL_START: Tool = Tool {
             Optional,
             b"An offered template; stock goal template 2 when absent",
         ),
-        positional(b"text", b"TEXT", Kind::Text, Required, b"The goal's words"),
+        positional(
+            b"text",
+            b"TEXT",
+            Kind::Text,
+            Required,
+            b"The goal's words; the first line, at most 60 characters, is its title",
+        ),
         flag(
             b"charter",
             b"CHARTER",
@@ -1106,19 +1112,20 @@ pub const GOAL_START: Tool = Tool {
     keyed: Keyed::Required,
     area: 2,
     notes: b"The template fills charter, contract, tracking, label, flags, models
-and symbolic resources. --charter is required only for a chosen executor.
-A template with budget given needs --budget or --as-allowed; one
-with deadline given needs --deadline. Other absent controls keep defaults.
---budget and --as-allowed are alternatives. --effort needs --model;
-without --effort the model's default effort is taken. A flag wins over
-the template for every run of the goal: --model replaces its model
-choice, its later choice included, keeping its sub-agents unless
---sub-agent replaces them; without --model the template's choice holds
-whole. A model flag a bound refuses is named with its value and the
-bound, and nothing is made. Bounds and proposal judgement are as for goals
-set from a client: within bounds, created; past them but proposable,
-proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
-Then task show TASK --until replied.
+and symbolic resources. TEXT's first line is the goal's title, as Home
+and Work show it: at most 60 characters naming the work for a person,
+as \"Store shape S7: history in task logs\"; the rest of TEXT follows
+on the lines below. --charter is required only for a chosen executor.
+Budget given needs --budget or --as-allowed; deadline given needs
+--deadline. Absent controls keep defaults. --budget and --as-allowed
+are alternatives. --effort needs --model; absent, the model's default
+is taken. Flags win each run: --model replaces the template's
+model choice, later choice included; its sub-agents stay unless
+--sub-agent replaces them. Without --model its choice holds whole.
+A refused model flag names value and bound; nothing is made.
+Bounds and proposal judgement are as for client goals: within bounds,
+created; past them but proposable, proposed (exit 0); not offered or
+past ceilings, nothing sent (exit 1). Then task show TASK --until replied.
 ",
 };
 

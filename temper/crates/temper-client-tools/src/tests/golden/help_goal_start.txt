@@ -1,7 +1,7 @@
 goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY
   --project PROJECT: a project's name or number; required. The project
   --template TEMPLATE: a number from 1 to 4294967295; optional. An offered template; stock goal template 2 when absent
-  TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The goal's words
+  TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The goal's words; the first line, at most 60 characters, is its title
   --charter CHARTER: a number from 1 to 4294967295; optional. Required when the template lets its creator choose; omit when it fixes a charter
   --priority PRIORITY: a number from 0 to 4294967295; optional. Override the template's tracked priority
   --budget AMOUNT: a number from 0 to 18446744073709551615; optional. The spend in the deployment's unit; required for a given budget unless --as-allowed
@@ -15,16 +15,17 @@ Prints: `done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another
 --json: the record goal_create.
 Key: --key KEY, required.
 The template fills charter, contract, tracking, label, flags, models
-and symbolic resources. --charter is required only for a chosen executor.
-A template with budget given needs --budget or --as-allowed; one
-with deadline given needs --deadline. Other absent controls keep defaults.
---budget and --as-allowed are alternatives. --effort needs --model;
-without --effort the model's default effort is taken. A flag wins over
-the template for every run of the goal: --model replaces its model
-choice, its later choice included, keeping its sub-agents unless
---sub-agent replaces them; without --model the template's choice holds
-whole. A model flag a bound refuses is named with its value and the
-bound, and nothing is made. Bounds and proposal judgement are as for goals
-set from a client: within bounds, created; past them but proposable,
-proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
-Then task show TASK --until replied.
+and symbolic resources. TEXT's first line is the goal's title, as Home
+and Work show it: at most 60 characters naming the work for a person,
+as "Store shape S7: history in task logs"; the rest of TEXT follows
+on the lines below. --charter is required only for a chosen executor.
+Budget given needs --budget or --as-allowed; deadline given needs
+--deadline. Absent controls keep defaults. --budget and --as-allowed
+are alternatives. --effort needs --model; absent, the model's default
+is taken. Flags win each run: --model replaces the template's
+model choice, later choice included; its sub-agents stay unless
+--sub-agent replaces them. Without --model its choice holds whole.
+A refused model flag names value and bound; nothing is made.
+Bounds and proposal judgement are as for client goals: within bounds,
+created; past them but proposable, proposed (exit 0); not offered or
+past ceilings, nothing sent (exit 1). Then task show TASK --until replied.

@@ -554,6 +554,24 @@ fn the_goal_reference_is_what_the_table_renders() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the goal title's guidance"
+)]
+fn goal_start_help_explains_the_title_line() {
+    let help = fixtures::help(Some(jig::rows::GOAL_START_AT));
+    let text = core::str::from_utf8(&help).expect("goal start help is UTF-8");
+    let text: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("The goal's words; the first line, at most 60 characters, is its title"));
+    assert!(text.contains(concat!(
+        "TEXT's first line is the goal's title, as Home and Work show it: ",
+        "at most 60 characters naming the work for a person, ",
+        "as \"Store shape S7: history in task logs\"; the rest of TEXT follows on the lines below."
+    )));
+}
+
+#[test]
 fn the_revision_reference_is_what_the_table_renders() {
     reference_matches(b"revision", b"ctl-revision");
 }
