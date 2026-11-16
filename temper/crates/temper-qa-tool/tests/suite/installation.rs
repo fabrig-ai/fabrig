@@ -11,9 +11,7 @@ use std::{
 };
 use temper_qa_tool::installation::install;
 
-// The installable_build fixture holds four bin files and two bundle files.
-const INSTALLED_FILES: usize = 6;
-// Of them, the bin files are linked; the bundle's are copied and checked.
+// The fixture's four bin files are linked; the bundle's are copied and checked.
 const LINKED_FILES: usize = 4;
 fn installation() -> (World, PathBuf, PathBuf) {
     let world = World::new();
@@ -104,7 +102,8 @@ fn a_failed_copy_check_leaves_no_install_receipt() {
     let why = install(&next, &id(3), &place, &mut face).expect_err("failed check");
     assert!(why.0.contains("sha256sum --check"), "{why}");
     assert!(!place.join("manifest").exists());
-    assert_eq!(face.checks.len(), 1);
+    // The first install checked its copied bundle, and the second install's check failed.
+    assert_eq!(face.checks.len(), 2);
     face.check_error = false;
     install(&next, &id(3), &place, &mut face).expect("retry succeeds");
     assert_eq!(fs::read(place.join("manifest")).expect("receipt"), fs::read(next.join("manifest")).expect("build"));

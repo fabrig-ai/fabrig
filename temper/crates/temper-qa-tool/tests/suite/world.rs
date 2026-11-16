@@ -207,13 +207,20 @@ pub struct Agents {
     pub bounded: Vec<(ProcessCommand, u64)>,
     pub command_bound: bool,
     processes: BTreeMap<u64, Process>,
+    waker: Option<temper_qa_tool::events::Waker>,
 }
 impl Agents {
     pub fn finish(&mut self, number: u64, agent: Agent) {
         self.processes.get_mut(&number).expect("running process").agent = agent;
+        if let Some(waker) = &self.waker {
+            waker.poke();
+        }
     }
 }
 impl Processes for Agents {
+    fn wake_on_exit(&mut self, waker: temper_qa_tool::events::Waker) {
+        self.waker = Some(waker);
+    }
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
         self.bounded.push((command.clone(), seconds));
         if self.command_bound {
@@ -244,6 +251,11 @@ impl Processes for Agents {
             self.notifications.push(fs::read(&command.stdin).expect("notify stdin"));
         }
         self.processes.insert(number, Process { command: command.clone(), agent, ended: false, notify });
+        if !matches!(agent, Agent::Never | Agent::IgnoreTerm)
+            && let Some(waker) = &self.waker
+        {
+            waker.poke();
+        }
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
@@ -379,8 +391,10 @@ impl ClockFace for Clock {
     fn now(&self) -> Moment {
         Moment { wall: self.time, monotonic: self.time }
     }
-    fn sleep(&mut self, seconds: u64) {
-        self.time += seconds;
+    fn wait(&mut self, events: &temper_qa_tool::events::Events, timeout: Option<u64>) {
+        if !events.take() {
+            self.time += timeout.expect("fake wait needs a deadline or an event");
+        }
     }
 }
 pub type Loop = Run<Git, Agents, Clock>;

@@ -2,6 +2,7 @@
 mod build_files;
 mod builds;
 mod configuration;
+mod events;
 mod fuzzy;
 mod hold;
 mod home;

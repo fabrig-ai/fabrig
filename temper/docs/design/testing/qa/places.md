@@ -252,13 +252,17 @@ holder keeps the session between them.
     answer line (`ok`, or one starting `failed: `), or to the session's
     end, writes it back with its status, and closes the connection. Its
     wire is its own and the commands' alone.
-  - **Its end:** at the end's request, or once its pass session is no
-    longer running in the ledger, which it reads every 5 seconds: `end`
+  - **Its end:** at the end's request, which the loop sends through
+    `drive.sock` as soon as its pass session's end is saved
+    (`README.md`, 4), or once its pass session is no longer running in
+    the ledger, which it reads every 60 seconds as a fallback: `end`
     given to the session, which then stops its box
     (`../../client/drive.md`, 2.4); the session's tree killed past 70
-    seconds; the socket removed; the lock released by its exit. So a
-    session ended by the loop leaves no box running past the next
-    minute and a half, and the place stays busy until then (section 2).
+    seconds; the socket removed; the lock released by its exit. The
+    loop waits for that release off its own thread and wakes at once
+    to reuse the place (section 2). A normal stop adds no ledger-watch
+    delay; if the socket request fails, the fallback still stops the
+    session, with its 70-second bound, after the next ledger read.
 - **`temper-qa pass line LINE`:** LINE one argument, a drive line
   (`../../client/drive.md`, 3). It prints the session's answer as the
   session gave it, `| ` lines and the last line, and exits 0 for `ok`, 5

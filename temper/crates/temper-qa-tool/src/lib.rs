@@ -5,6 +5,7 @@ mod case;
 mod cli;
 mod config;
 mod document;
+pub mod events;
 pub mod faces;
 mod findings;
 pub mod hold;

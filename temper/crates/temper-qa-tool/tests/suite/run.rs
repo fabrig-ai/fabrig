@@ -462,29 +462,29 @@ fn a_step_failing_for_an_hour_is_one_line_until_it_succeeds() {
 }
 
 #[test]
-fn cycles_wait_for_poll_but_wake_on_agent_exit_or_bound() {
+fn cycles_wait_for_events_and_the_nearest_bound_without_polling() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::None]);
-    run.cycle();
-    assert_eq!(run.clock.time, 60, "an idle cycle waits for poll");
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("idle timeout"), None);
     land(&mut run, 2, 7);
+    run.waker().poke();
     run.cycle();
-    assert_eq!(run.clock.time, 61, "the first one-second probe sees the exit");
-    assert_eq!(world.ledger().sessions[0].exit, None, "the next tick records the end");
-    assert!(world.ledger().landings[0].answer.is_some(), "commands can record between ticks");
+    assert_eq!(run.clock.time, 0, "a poke runs a tick at once");
+    assert_eq!(world.ledger().sessions.len(), 1);
     run.cycle();
-    assert_eq!(world.ledger().sessions[0].ended, Some(61));
-    assert_eq!(run.clock.time, 121);
+    assert_eq!(world.ledger().sessions[0].ended, Some(0), "exit wakes without advancing the clock");
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("bound"), Some(30));
     run.cycle();
-    assert_eq!(run.clock.time, 30, "the bound also wakes the next tick");
+    assert_eq!(run.clock.time, 30);
     assert_eq!(run.processes.signals, [(1, Signal::Term)]);
-    run.home.configuration.bounds.poll = 0;
-    run.cycle();
-    assert_eq!(run.clock.time, 30, "zero poll has no wait");
+    assert_eq!(world.ledger().sessions[0].exit, Some(Exit::Bound));
+    assert_eq!(run.wait_timeout().expect("pending kill"), Some(10));
 }
 
 #[test]
@@ -766,12 +766,14 @@ printf 'ended\n' >&2
     assert_eq!(before.passes[0].requests[0].goal, Some(41), "file before polling state");
     assert_eq!(before.passes[0].requests[0].ended, None, "stderr cannot end the goal");
     assert_eq!(run.processes.bounded.iter().map(|(_, seconds)| *seconds).collect::<Vec<_>>(), [600, 60]);
+    assert_eq!(run.wait_timeout().expect("waiting goal check"), Some(60));
     run.tick();
     assert_eq!(world.ledger(), before, "live changes nothing");
     fs::write(world.home.directory.join("state-answer"), "ended\n\n").expect("ended");
     run.clock.time = 20;
     run.tick();
     assert_eq!(world.ledger().passes[0].requests[0].ended, Some(20));
+    assert_eq!(run.wait_timeout().expect("ended goal disarms state check"), None);
     let calls = run.processes.bounded.len();
     run.tick();
     assert_eq!(run.processes.bounded.len(), calls, "ended goals are not polled again");

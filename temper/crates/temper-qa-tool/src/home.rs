@@ -60,6 +60,17 @@ impl Home {
 
     /// A refusal discards even local mutations, and never opens the temporary document.
     pub fn transact<T>(&self, operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>) -> Result<T, Refusal> {
+        let result = self.transact_loop(operation)?;
+        // A saved command remains successful even if its best-effort wake fails.
+        let _ = crate::events::poke(&self.directory);
+        Ok(result)
+    }
+
+    /// The loop already observes its own saves in the current tick.
+    pub(crate) fn transact_loop<T>(
+        &self,
+        operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
         let lock = self.lock()?;
         let mut ledger = self.load()?;
         let result = operation(&mut ledger)?;

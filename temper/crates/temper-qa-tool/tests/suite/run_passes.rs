@@ -217,6 +217,7 @@ fn third_step_opens_a_wait_behind_a_holder_and_closes_after_cases_are_taken() {
     run.clock.time = 20;
     run.tick();
     assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: None }]);
+    assert_eq!(run.wait_timeout().expect("place retry"), Some(60));
     run.clock.time = 30;
     run.tick();
     assert_eq!(world.ledger().place_waits.len(), 1, "an open wait is not duplicated");
@@ -682,4 +683,89 @@ fn a_second_pass_session_moves_its_places_tree_or_makes_it_again_after_a_failed_
         let brief = fs::read_to_string(&run.processes.commands[2].stdin).expect("brief");
         assert!(brief.contains(&format!("Tree: {}", tree.display())));
     }
+}
+
+#[test]
+fn ending_a_pass_tells_the_holder_and_releases_its_place_without_the_ledger_watch() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixStream,
+        time::Duration,
+    };
+    use temper_qa_tool::hold::{Drive, Holder, WATCH};
+    let world = World::new();
+    let mut run = ready(&world, Agent::Pass);
+    let place = world.home.directory.join("places/1");
+    fs::write(place.join("setup"), "fresh\n").expect("setup");
+    let fake = place.join("bin/temper-client-journeys");
+    // Replace the installed link rather than writing through it into the kept build.
+    fs::remove_file(&fake).expect("unlink fake");
+    fs::write(
+        &fake,
+        r#"#!/bin/sh
+printf 'ready\n'
+IFS= read -r line
+[ "$line" = end ] || exit 4
+printf 'ended\n'
+"#,
+    )
+    .expect("fake drive");
+    fs::set_permissions(&fake, fs::Permissions::from_mode(0o700)).expect("executable");
+    assert_eq!(WATCH, Duration::from_secs(60));
+    let session = world.ledger().passes[0].sessions[0];
+    let holder =
+        Holder::start(Drive::for_session(&world.home, session).expect("drive"), vec![], Duration::from_hours(1))
+            .expect("holder");
+    let (done, ended) = std::sync::mpsc::channel();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the focused socket peer must serve while the loop sends the end (qa/README.md, 6)"
+    )]
+    let serving = std::thread::spawn(move || {
+        done.send(holder.serve()).expect("test waits for holder");
+    });
+    // Complete the start handshake before ending the agent.
+    let mut stream = UnixStream::connect(place.join("drive.sock")).expect("holder socket");
+    writeln!(stream, "start {}", std::process::id()).expect("start request");
+    let mut response = String::new();
+    BufReader::new(stream).read_line(&mut response).expect("start response");
+    run.tick();
+    assert!(
+        world.ledger().sessions.iter().find(|record| record.number == session).expect("pass session").exit.is_some()
+    );
+    ended
+        .recv_timeout(Duration::from_secs(2))
+        .expect("socket end arrives before the hour-long fallback")
+        .expect("holder ends from socket request");
+    serving.join().expect("holder thread");
+    File::open(place.join("drive.lock")).expect("lock").try_lock().expect("place freed");
+    assert!(!place.join("drive.sock").exists());
+}
+
+#[test]
+fn ending_a_pass_captures_its_holder_before_the_socket_can_be_reused() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        time::Duration,
+    };
+    let world = World::new();
+    let mut run = ready(&world, Agent::Pass);
+    let place = world.home.directory.join("places/1");
+    let lock = hold(&place);
+    let socket = place.join("drive.sock");
+    let old = UnixListener::bind(&socket).expect("old holder");
+    old.set_nonblocking(true).expect("probe captured connection");
+    run.tick();
+    fs::remove_file(&socket).expect("old path removed");
+    let later = UnixListener::bind(&socket).expect("later holder");
+    later.set_nonblocking(true).expect("probe later socket");
+    let (mut stream, _) = old.accept().expect("loop captured the old holder before permitting reuse");
+    stream.set_read_timeout(Some(Duration::from_secs(2))).expect("request deadline");
+    let mut request = String::new();
+    BufReader::new(&mut stream).read_line(&mut request).expect("old holder gets request");
+    assert_eq!(request, "end\n");
+    assert_eq!(later.accept().expect_err("later holder gets no end").kind(), std::io::ErrorKind::WouldBlock);
+    drop(lock);
+    stream.write_all(b"0\nended\n").expect("end reply");
 }

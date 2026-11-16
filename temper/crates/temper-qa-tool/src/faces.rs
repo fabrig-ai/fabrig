@@ -262,6 +262,8 @@ pub struct CommandAnswer {
     pub last_stdout: Option<String>,
 }
 pub trait Processes {
+    /// Register the loop's event channel before starting children.
+    fn wake_on_exit(&mut self, waker: crate::events::Waker);
     /// Run to exit with closed stdin, keeping both streams at `command.output`.
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal>;
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal>;
@@ -270,7 +272,8 @@ pub trait Processes {
 }
 #[derive(Default)]
 pub struct RealProcesses {
-    children: BTreeMap<u64, Child>,
+    children: BTreeMap<u64, std::sync::mpsc::Receiver<Result<Exit, Refusal>>>,
+    waker: Option<crate::events::Waker>,
     pub environment: Environment,
 }
 impl RealProcesses {
@@ -280,6 +283,9 @@ impl RealProcesses {
     }
 }
 impl Processes for RealProcesses {
+    fn wake_on_exit(&mut self, waker: crate::events::Waker) {
+        self.waker = Some(waker);
+    }
     fn run(&mut self, request: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
         let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
         // Files drain both streams without pipes filling while we wait. Only stdout
@@ -303,7 +309,7 @@ impl Processes for RealProcesses {
                 .map_err(|why| refused(format!("output: {why}")))?;
             let mut command = Command::new(program);
             captured(&mut command, &request.environment);
-            let mut child = command
+            let child = command
                 .args(arguments)
                 .current_dir(&request.directory)
                 .stdin(Stdio::null())
@@ -312,18 +318,18 @@ impl Processes for RealProcesses {
                 .process_group(0)
                 .spawn()
                 .map_err(|why| refused(format!("{program}: {why}")))?;
-            let clock = skein_shell::Clock::default();
-            let started = clock.now().now.as_nanos();
-            let exit = loop {
-                if let Some(status) = child.try_wait().map_err(|why| refused(format!("{program}: {why}")))? {
-                    break status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code);
+            let number = u64::from(child.id());
+            let ended = wait_for_child(child, None);
+            let exit = match ended.recv_timeout(Duration::from_secs(seconds)) {
+                Ok(result) => result?,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    self.signal(number, Signal::Kill)?;
+                    ended.recv().map_err(|why| refused(format!("process {number}: {why}")))??;
+                    Exit::Bound
                 }
-                if clock.now().now.as_nanos().saturating_sub(started) >= seconds.saturating_mul(1_000_000_000) {
-                    self.signal(u64::from(child.id()), Signal::Kill)?;
-                    child.wait().map_err(|why| refused(format!("{program}: {why}")))?;
-                    break Exit::Bound;
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(refused(format!("process {number}: exit waiter disconnected")));
                 }
-                std::thread::sleep(Duration::from_millis(10));
             };
             let mut stdout = BufReader::new(File::open(&stdout_path).map_err(|why| refused(format!("stdout: {why}")))?);
             let mut last = None;
@@ -367,16 +373,21 @@ impl Processes for RealProcesses {
             .spawn()
             .map_err(|why| refused(format!("{program}: {why}")))?;
         let number = u64::from(child.id());
-        self.children.insert(number, child);
+        self.children.insert(number, wait_for_child(child, self.waker.clone()));
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
-        let child = self.children.get_mut(&process).ok_or_else(|| refused(format!("no process {process}")))?;
-        let Some(status) = child.try_wait().map_err(|why| refused(format!("process {process}: {why}")))? else {
-            return Ok(None);
-        };
-        self.children.remove(&process);
-        Ok(Some(status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code)))
+        let ended = self.children.get(&process).ok_or_else(|| refused(format!("no process {process}")))?;
+        match ended.try_recv() {
+            Ok(result) => {
+                self.children.remove(&process);
+                result.map(Some)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => Ok(None),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                Err(refused(format!("process {process}: exit waiter disconnected")))
+            }
+        }
     }
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal> {
         let mut command = Command::new("kill");
@@ -401,6 +412,29 @@ impl Processes for RealProcesses {
     }
 }
 
+/// Each child has one blocking waiter; it publishes the result before waking the loop.
+fn wait_for_child(
+    mut child: Child,
+    waker: Option<crate::events::Waker>,
+) -> std::sync::mpsc::Receiver<Result<Exit, Refusal>> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
+    )]
+    std::thread::spawn(move || {
+        let result = child
+            .wait()
+            .map(|status| status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code))
+            .map_err(|why| refused(format!("process {}: {why}", child.id())));
+        let _ = sender.send(result);
+        if let Some(waker) = waker {
+            waker.poke();
+        }
+    });
+    receiver
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Moment {
     pub wall: u64,
@@ -408,7 +442,7 @@ pub struct Moment {
 }
 pub trait ClockFace {
     fn now(&self) -> Moment;
-    fn sleep(&mut self, seconds: u64);
+    fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>);
 }
 #[derive(Default)]
 pub struct RealClock(skein_shell::Clock);
@@ -417,8 +451,8 @@ impl ClockFace for RealClock {
         let now = self.0.now();
         Moment { wall: now.wall.as_secs(), monotonic: now.now.as_nanos() / 1_000_000_000 }
     }
-    fn sleep(&mut self, seconds: u64) {
-        std::thread::sleep(std::time::Duration::from_secs(seconds));
+    fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>) {
+        let _ = events.wait(timeout);
     }
 }
 
