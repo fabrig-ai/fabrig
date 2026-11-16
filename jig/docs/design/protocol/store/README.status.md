@@ -2,7 +2,6 @@
 
 2026-11-16. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1, 2: the records' translation is `jig-protocol-store`'s own `codec` module, not `jig-protocol-store-records` below it [in flight: change 5418].
 
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
