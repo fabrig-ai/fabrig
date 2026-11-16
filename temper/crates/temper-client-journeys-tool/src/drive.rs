@@ -1,9 +1,11 @@
 //! The complete event/action session policy, without io (client/drive.md, 2–6).
 use crate::line::{Line, Record, Web};
+use skein_browser::boundary::Trouble;
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
 use std::{
+    fmt::Write,
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
@@ -140,6 +142,7 @@ pub enum Event {
     Exited { process: Process, code: i32, stdout: Box<[u8]>, stderr: Box<[u8]> },
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
+    PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
     Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
@@ -264,6 +267,7 @@ impl Machine {
             }
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
+            Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
             Event::Snapshot(text) if self.phase == Phase::Snapshot => {
                 self.shown.extend(shown_lines(&text));
                 self.answer(None, &mut out);
@@ -537,6 +541,16 @@ impl Machine {
             _ => {}
         }
     }
+    fn page_trouble(&mut self, trouble: Trouble, text: &[u8], url: &[u8], now: Time, out: &mut Vec<Action>) {
+        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
+            && trouble == Trouble::Log
+            && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
+            && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
+        {
+            return;
+        }
+        self.face_done(Err(trouble_words(trouble, text, url)), now, out);
+    }
     fn face_done(&mut self, result: Result<(), String>, now: Time, out: &mut Vec<Action>) {
         if self.tui_face_done(&result, now, out) {
             return;
@@ -736,6 +750,17 @@ fn copy_act(act: &Act) -> Act {
         Act::Input { value } => Act::Input { value: value.clone() },
         Act::Near { .. } | Act::Drawing { .. } => unreachable!("no drive line gives an internal act"),
     }
+}
+fn resource(url: &[u8]) -> &[u8] {
+    url.split(|byte| b"?#".contains(byte)).next().unwrap_or_default()
+}
+fn trouble_words(trouble: Trouble, text: &[u8], url: &[u8]) -> String {
+    let mut words = format!("{trouble:?}: {}", String::from_utf8_lossy(text));
+    let url = resource(url);
+    if !url.is_empty() {
+        write!(words, " ({})", String::from_utf8_lossy(url)).expect("string write");
+    }
+    words
 }
 fn shown_lines(bytes: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(bytes).lines().map(str::to_owned).collect()
