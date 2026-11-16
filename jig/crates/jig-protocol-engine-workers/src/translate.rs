@@ -625,61 +625,100 @@ impl Down {
         writer.finish().expect("complete record")
     }
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per downward record keeps each constructor's refusal beside its fields"
+)]
 pub(crate) fn down(
     down: host::LinkDown,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
     limits: &wire::v14::Limits,
-) -> Option<Down> {
+) -> Result<Down, crate::Unencoded> {
     match down {
         host::LinkDown::Asked { run, attempt, number, answer } => {
             let answer = match answer {
                 host::AskAnswer::Bytes(bytes) => {
-                    wire::AskAnswer::Bytes(wire::AskBytes::new(limits, wire::AskBytesParts { bytes }).ok()?)
+                    wire::AskAnswer::Bytes(match wire::AskBytes::new(limits, wire::AskBytesParts { bytes }) {
+                        Ok(record) => record,
+                        Err(why) => return Err(problem(why)),
+                    })
                 }
                 host::AskAnswer::Refused => wire::AskAnswer::Refused,
             };
-            Some(Down::Asked(
-                wire::Asked::new(limits, wire::AskedParts { run: run.raw(), attempt: attempt.raw(), number, answer })
-                    .ok()?,
+            Ok(Down::Asked(
+                match wire::Asked::new(
+                    limits,
+                    wire::AskedParts { run: run.raw(), attempt: attempt.raw(), number, answer },
+                ) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             ))
         }
         host::LinkDown::ReadList { read, endpoint, grant } => {
             match grant.form {
                 Form::Credential(_) => {}
-                Form::Application | Form::Program(_) => return None,
+                Form::Application | Form::Program(_) => return Err(crate::Unencoded::field("grant.value")),
             }
-            let grant = grant_record(grant, values.into_iter().next()??, limits)?;
-            Some(Down::ReadList(wire::ReadList::new(limits, wire::ReadListParts { read, endpoint, grant }).ok()?))
+            let grant = grant_record(
+                grant,
+                values.into_iter().next().flatten().ok_or(crate::Unencoded::field("grant.value"))?,
+                limits,
+            )?;
+            Ok(Down::ReadList(match wire::ReadList::new(limits, wire::ReadListParts { read, endpoint, grant }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            }))
         }
-        host::LinkDown::AssignJob { job } => Some(Down::AssignJob(job_record(job, parts, values, limits)?)),
+        host::LinkDown::AssignJob { job } => Ok(Down::AssignJob(job_record(job, parts, values, limits)?)),
 
         host::LinkDown::Sources { sources } => {
             if !host::sources::unique(&sources) {
-                return None;
+                return Err(crate::Unencoded::field("sources.names"));
             }
-            let mut names = List::with_capacity(limits.sources_sources);
+            measured(
+                "Sources.sources",
+                skein_lib::length::len_u64(sources.len()),
+                limits.sources_sources,
+                wire::v14::CEILINGS.sources_sources,
+            )?;
+            let mut names = List::with_capacity(u32::try_from(sources.len()).expect("measured sources count fits"));
             for name in sources {
                 names
                     .push(
-                        wire::ProgramSource::new(limits, wire::ProgramSourceParts { name: Box::from(name.as_bytes()) })
-                            .ok()?,
+                        match wire::ProgramSource::new(
+                            limits,
+                            wire::ProgramSourceParts { name: Box::from(name.as_bytes()) },
+                        ) {
+                            Ok(record) => record,
+                            Err(why) => return Err(problem(why)),
+                        },
                     )
-                    .ok()?;
+                    .expect("measured sources count");
             }
-            Some(Down::Sources(wire::Sources::new(limits, wire::SourcesParts { sources: names }).ok()?))
+            Ok(Down::Sources(match wire::Sources::new(limits, wire::SourcesParts { sources: names }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            }))
         }
         host::LinkDown::Check { name } => {
-            Some(Down::Check(wire::Check::new(limits, wire::CheckParts { name: Box::from(name.as_bytes()) }).ok()?))
+            Ok(Down::Check(match wire::Check::new(limits, wire::CheckParts { name: Box::from(name.as_bytes()) }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            }))
         }
-        host::LinkDown::SignOut { name } => Some(Down::SignOut(
-            wire::SignOut::new(limits, wire::SignOutParts { name: Box::from(name.as_bytes()) }).ok()?,
+        host::LinkDown::SignOut { name } => Ok(Down::SignOut(
+            match wire::SignOut::new(limits, wire::SignOutParts { name: Box::from(name.as_bytes()) }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
         )),
         host::LinkDown::Assign { assignment } => {
-            Some(Down::Assign(assignment_record(assignment, parts, values, limits)?))
+            Ok(Down::Assign(assignment_record(assignment, parts, values, limits)?))
         }
-        host::LinkDown::Message { run, attempt, name, sender, words, finish_requested } => Some(Down::Message(
-            wire::Inbound::new(
+        host::LinkDown::Message { run, attempt, name, sender, words, finish_requested } => Ok(Down::Message(
+            match wire::Inbound::new(
                 limits,
                 wire::InboundParts {
                     task: run.raw(),
@@ -689,40 +728,61 @@ pub(crate) fn down(
                     words,
                     finish_requested,
                 },
-            )
-            .ok()?,
+            ) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
         )),
         host::LinkDown::Relayed { run, attempt, call, answer } => {
             let answer = match answer {
                 host::Relayed::Busy => wire::RelayAnswer::Busy,
                 host::Relayed::Answer { error, text } => {
-                    wire::RelayAnswer::Text(wire::RelayText::new(limits, wire::RelayTextParts { error, text }).ok()?)
+                    wire::RelayAnswer::Text(match wire::RelayText::new(limits, wire::RelayTextParts { error, text }) {
+                        Ok(record) => record,
+                        Err(why) => return Err(problem(why)),
+                    })
                 }
             };
-            Some(Down::Relayed(
-                wire::Relayed::new(
+            Ok(Down::Relayed(
+                match wire::Relayed::new(
                     limits,
                     wire::RelayedParts { task: run.raw(), attempt: attempt.raw(), name: call, answer },
-                )
-                .ok()?,
+                ) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             ))
         }
-        host::LinkDown::TurnKept { run, attempt, turn } => Some(Down::TurnKept(
-            wire::TurnKept::new(limits, wire::TurnKeptParts { task: run.raw(), attempt: attempt.raw(), number: turn })
-                .ok()?,
+        host::LinkDown::TurnKept { run, attempt, turn } => Ok(Down::TurnKept(
+            match wire::TurnKept::new(
+                limits,
+                wire::TurnKeptParts { task: run.raw(), attempt: attempt.raw(), number: turn },
+            ) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
         )),
-        host::LinkDown::Acknowledge { run, attempt } => Some(Down::Acknowledge(
-            wire::Acknowledge::new(limits, wire::AcknowledgeParts { task: run.raw(), attempt: attempt.raw() }).ok()?,
+        host::LinkDown::Acknowledge { run, attempt } => Ok(Down::Acknowledge(
+            match wire::Acknowledge::new(limits, wire::AcknowledgeParts { task: run.raw(), attempt: attempt.raw() }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
         )),
-        host::LinkDown::Cancel { run, attempt } => Some(Down::Cancel(
-            wire::Cancel::new(limits, wire::CancelParts { task: run.raw(), attempt: attempt.raw() }).ok()?,
+        host::LinkDown::Cancel { run, attempt } => Ok(Down::Cancel(
+            match wire::Cancel::new(limits, wire::CancelParts { task: run.raw(), attempt: attempt.raw() }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
         )),
         host::LinkDown::Grant { run, attempt, grant } => {
-            let value = values.into_iter().next()??;
+            let value = values.into_iter().next().flatten().ok_or(crate::Unencoded::field("grant.value"))?;
             let grant = grant_record(grant, value, limits)?;
-            Some(Down::Grant(
-                wire::Granted::new(limits, wire::GrantedParts { task: run.raw(), attempt: attempt.raw(), grant })
-                    .ok()?,
+            Ok(Down::Grant(
+                match wire::Granted::new(limits, wire::GrantedParts { task: run.raw(), attempt: attempt.raw(), grant })
+                {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             ))
         }
     }
@@ -732,24 +792,11 @@ fn job_record(
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
     limits: &wire::v14::Limits,
-) -> Option<wire::Job> {
-    let workspace = match job.workspace {
-        Some(workspace) => Some(
-            wire::Workspace::new(
-                limits,
-                wire::WorkspaceParts { workstream: workspace.workstream, items: part(workspace.items, parts)? },
-            )
-            .ok()?,
-        ),
-        None => None,
-    };
-    let mut grants = List::with_capacity(limits.job_grants);
-    for (grant, value) in job.grants.into_iter().zip(values) {
-        if let Some(value) = value {
-            grants.push(grant_record(grant, value, limits)?).ok()?;
-        }
-    }
-    wire::Job::new(
+) -> Result<wire::Job, crate::Unencoded> {
+    let workspace = workspace_record(job.workspace, parts, limits)?;
+    let grants =
+        grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v14::CEILINGS.job_grants, limits)?;
+    match wire::Job::new(
         limits,
         wire::JobParts {
             task: job.run.raw(),
@@ -760,31 +807,31 @@ fn job_record(
             workspace,
             grants,
         },
-    )
-    .ok()
+    ) {
+        Ok(record) => Ok(record),
+        Err(why) => Err(problem(why)),
+    }
 }
 fn assignment_record(
     assignment: host::Assignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
     limits: &wire::v14::Limits,
-) -> Option<wire::Assignment> {
+) -> Result<wire::Assignment, crate::Unencoded> {
     let run = assignment.assignment;
-    let workspace = match run.workspace {
-        Some(workspace) => Some(
-            wire::Workspace::new(
-                limits,
-                wire::WorkspaceParts { workstream: workspace.workstream, items: part(workspace.items, parts)? },
-            )
-            .ok()?,
-        ),
-        None => None,
-    };
-    let mut messages = List::with_capacity(limits.assignment_messages);
+    let workspace = workspace_record(run.workspace, parts, limits)?;
+    measured(
+        "Assignment.messages",
+        skein_lib::length::len_u64(assignment.messages.len()),
+        limits.assignment_messages,
+        wire::v14::CEILINGS.assignment_messages,
+    )?;
+    let mut messages =
+        List::with_capacity(u32::try_from(assignment.messages.len()).expect("measured messages count fits"));
     for message in assignment.messages {
         messages
             .push(
-                wire::Message::new(
+                match wire::Message::new(
                     limits,
                     wire::MessageParts {
                         name: message.name.raw(),
@@ -792,29 +839,51 @@ fn assignment_record(
                         words: message.words,
                         finish_requested: message.finish_requested,
                     },
-                )
-                .ok()?,
+                ) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             )
-            .ok()?;
+            .expect("measured messages count");
     }
-    let mut answered = List::with_capacity(limits.assignment_answered);
+    measured(
+        "Assignment.answered",
+        skein_lib::length::len_u64(assignment.answered.len()),
+        limits.assignment_answered,
+        wire::v14::CEILINGS.assignment_answered,
+    )?;
+    let mut answered =
+        List::with_capacity(u32::try_from(assignment.answered.len()).expect("measured answered count fits"));
     for call in assignment.answered {
         let answer = settled(call.answer, limits)?;
         answered
             .push(
-                wire::AnsweredCall::new(limits, wire::AnsweredCallParts { name: call.name, tool: call.tool, answer })
-                    .ok()?,
+                match wire::AnsweredCall::new(
+                    limits,
+                    wire::AnsweredCallParts { name: call.name, tool: call.tool, answer },
+                ) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             )
-            .ok()?;
+            .expect("measured answered count");
     }
-    let mut grants = List::with_capacity(limits.assignment_grants);
-    for (grant, value) in run.grants.into_iter().zip(values) {
-        if let Some(value) = value {
-            grants.push(grant_record(grant, value, limits)?).ok()?;
-        }
-    }
+    let grants = grants_record(
+        run.grants,
+        values,
+        "Assignment.grants",
+        limits.assignment_grants,
+        wire::v14::CEILINGS.assignment_grants,
+        limits,
+    )?;
+    measured(
+        "Assignment.charter",
+        skein_lib::length::len_u64(run.charter.len()),
+        limits.assignment_charter,
+        wire::v14::CEILINGS.assignment_charter,
+    )?;
     let transcript = transcript(&assignment.turns, limits.assignment_transcript)?;
-    wire::Assignment::new(
+    match wire::Assignment::new(
         limits,
         wire::AssignmentParts {
             task: run.run.raw(),
@@ -822,87 +891,169 @@ fn assignment_record(
             identity: run.identity,
             workspace,
             save: run.save,
-            live: wire::LiveAsk::new(
+            live: match wire::LiveAsk::new(
                 limits,
                 wire::LiveAskParts { text: run.live.text, reasoning: run.live.reasoning, input: run.live.input },
-            )
-            .ok()?,
+            ) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            },
             charter: run.charter,
             transcript,
             answered,
             messages,
             grants,
         },
-    )
-    .ok()
+    ) {
+        Ok(record) => Ok(record),
+        Err(why) => Err(problem(why)),
+    }
 }
-fn part(token: Token, parts: &[wire::Part]) -> Option<Box<[u8]>> {
+fn problem(problem: wire::v14::Problem) -> crate::Unencoded {
+    crate::Unencoded {
+        field: problem.path.name(),
+        reason: Some(problem.reason),
+        figure: None,
+        bound: None,
+        ceiling: None,
+    }
+}
+fn measured(field: &'static str, figure: u64, bound: u32, ceiling: u32) -> Result<(), crate::Unencoded> {
+    if figure > u64::from(bound.min(ceiling)) {
+        return Err(crate::Unencoded {
+            field,
+            reason: None,
+            figure: Some(figure),
+            bound: Some(u64::from(bound)),
+            ceiling: Some(u64::from(ceiling)),
+        });
+    }
+    Ok(())
+}
+fn grants_record(
+    grants: Box<[jig_domain_link::Grant]>,
+    values: Box<[Option<crate::GrantValue>]>,
+    field: &'static str,
+    bound: u32,
+    ceiling: u32,
+    limits: &wire::v14::Limits,
+) -> Result<List<wire::Grant>, crate::Unencoded> {
+    let mut count = 0_u64;
+    for value in values.iter().take(grants.len()) {
+        if value.is_some() {
+            count = count.saturating_add(1);
+        }
+    }
+    measured(field, count, bound, ceiling)?;
+    let mut records = List::with_capacity(u32::try_from(count).expect("measured grants count fits"));
+    for (grant, value) in grants.into_iter().zip(values) {
+        if let Some(value) = value {
+            records.push(grant_record(grant, value, limits)?).expect("measured grants count");
+        }
+    }
+    Ok(records)
+}
+fn workspace_record(
+    workspace: Option<host::Workspace>,
+    parts: &[wire::Part],
+    limits: &wire::v14::Limits,
+) -> Result<Option<wire::Workspace>, crate::Unencoded> {
+    match workspace {
+        Some(workspace) => match wire::Workspace::new(
+            limits,
+            wire::WorkspaceParts { workstream: workspace.workstream, items: part(workspace.items, parts)? },
+        ) {
+            Ok(record) => Ok(Some(record)),
+            Err(why) => Err(problem(why)),
+        },
+        None => Ok(None),
+    }
+}
+fn part(token: Token, parts: &[wire::Part]) -> Result<Box<[u8]>, crate::Unencoded> {
     for part in parts {
         if part.token == token {
-            return Some(part.bytes.clone());
+            return Ok(part.bytes.clone());
         }
     }
-    None
+    Err(crate::Unencoded::field("workspace.items"))
 }
-fn transcript(turns: &[Box<[u8]>], bound: u32) -> Option<Box<[u8]>> {
-    let mut length = 0_u32;
+fn transcript(turns: &[Box<[u8]>], bound: u32) -> Result<Box<[u8]>, crate::Unencoded> {
+    let mut length = 0_u64;
     for turn in turns {
-        length = length.checked_add(u32::try_from(turn.len()).ok()?.checked_add(4)?)?;
-        if length > bound {
-            return None;
-        }
+        length = length
+            .checked_add(skein_lib::length::len_u64(turn.len()))
+            .ok_or(crate::Unencoded::field("Assignment.transcript"))?;
+        length = length.checked_add(4).ok_or(crate::Unencoded::field("Assignment.transcript"))?;
     }
-    let mut writer = skein_lib::Writer::new(usize::try_from(length).ok()?);
+    measured("Assignment.transcript", length, bound, wire::v14::CEILINGS.assignment_transcript)?;
+    let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("bounded framed transcript fits usize"));
     for turn in turns {
-        skein_codec::piece::write(&mut writer, turn).ok()?;
+        skein_codec::piece::write(&mut writer, turn).expect("measured framed transcript fits");
     }
-    Some(writer.finish())
+    Ok(writer.finish())
 }
 /// A grant's form and its value's arm agree, or the grant is not sent.
 fn grant_record(
     grant: jig_domain_link::Grant,
     value: crate::GrantValue,
     limits: &wire::v14::Limits,
-) -> Option<wire::Grant> {
+) -> Result<wire::Grant, crate::Unencoded> {
     let value = match grant.form {
         Form::Program(form) => match value {
             crate::GrantValue::Program { name } => {
                 if name != form {
-                    return None;
+                    return Err(crate::Unencoded::field("grant.value"));
                 }
                 wire::GrantValue::Program(
-                    wire::ProgramValue::new(limits, wire::ProgramValueParts { name: name.as_bytes().into() }).ok()?,
+                    match wire::ProgramValue::new(limits, wire::ProgramValueParts { name: name.as_bytes().into() }) {
+                        Ok(record) => record,
+                        Err(why) => return Err(problem(why)),
+                    },
                 )
             }
-            crate::GrantValue::Credential { .. } | crate::GrantValue::Application { .. } => return None,
+            crate::GrantValue::Credential { .. } | crate::GrantValue::Application { .. } => {
+                return Err(crate::Unencoded::field("grant.value"));
+            }
         },
         Form::Credential(form) => match value {
             crate::GrantValue::Credential { scheme, token } => {
                 if scheme != grant_scheme(form) {
-                    return None;
+                    return Err(crate::Unencoded::field("grant.value"));
                 }
                 let scheme = match form {
                     Scheme::Bearer => wire::Scheme::Bearer,
                     Scheme::Key => wire::Scheme::Key,
                 };
                 wire::GrantValue::Credential(
-                    wire::CredentialValue::new(limits, wire::CredentialValueParts { scheme, bytes: token }).ok()?,
+                    match wire::CredentialValue::new(limits, wire::CredentialValueParts { scheme, bytes: token }) {
+                        Ok(record) => record,
+                        Err(why) => return Err(problem(why)),
+                    },
                 )
             }
-            crate::GrantValue::Application { .. } | crate::GrantValue::Program { .. } => return None,
+            crate::GrantValue::Application { .. } | crate::GrantValue::Program { .. } => {
+                return Err(crate::Unencoded::field("grant.value"));
+            }
         },
         Form::Application => match value {
             crate::GrantValue::Application { secret } => wire::GrantValue::Application(
-                wire::ApplicationValue::new(limits, wire::ApplicationValueParts { secret }).ok()?,
+                match wire::ApplicationValue::new(limits, wire::ApplicationValueParts { secret }) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             ),
-            crate::GrantValue::Credential { .. } | crate::GrantValue::Program { .. } => return None,
+            crate::GrantValue::Credential { .. } | crate::GrantValue::Program { .. } => {
+                return Err(crate::Unencoded::field("grant.value"));
+            }
         },
     };
-    wire::Grant::new(
+    match wire::Grant::new(
         limits,
         wire::GrantParts { number: grant.account, generation: grant.generation, valid: grant.valid, value },
-    )
-    .ok()
+    ) {
+        Ok(record) => Ok(record),
+        Err(why) => Err(problem(why)),
+    }
 }
 const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
     match scheme {
@@ -910,10 +1061,13 @@ const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
         Scheme::Key => crate::Scheme::Key,
     }
 }
-fn settled(answer: host::SettledAnswer, limits: &wire::v14::Limits) -> Option<wire::SettledAnswer> {
+fn settled(answer: host::SettledAnswer, limits: &wire::v14::Limits) -> Result<wire::SettledAnswer, crate::Unencoded> {
     match answer {
         host::SettledAnswer::Host { error, body } => {
-            Some(wire::SettledAnswer::Host(wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body }).ok()?))
+            Ok(wire::SettledAnswer::Host(match wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body }) {
+                Ok(record) => record,
+                Err(why) => return Err(problem(why)),
+            }))
         }
         host::SettledAnswer::Delivery { outcome, evidence } => {
             let outcome = match outcome {
@@ -923,8 +1077,11 @@ fn settled(answer: host::SettledAnswer, limits: &wire::v14::Limits) -> Option<wi
                 host::DeliveryOutcome::Refused => wire::DeliveryOutcome::Refused,
                 host::DeliveryOutcome::Failed => wire::DeliveryOutcome::Failed,
             };
-            Some(wire::SettledAnswer::Delivery(
-                wire::DeliveryAnswer::new(limits, wire::DeliveryAnswerParts { outcome, evidence }).ok()?,
+            Ok(wire::SettledAnswer::Delivery(
+                match wire::DeliveryAnswer::new(limits, wire::DeliveryAnswerParts { outcome, evidence }) {
+                    Ok(record) => record,
+                    Err(why) => return Err(problem(why)),
+                },
             ))
         }
     }

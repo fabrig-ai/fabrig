@@ -178,7 +178,7 @@ fn an_unencodable_job_is_answered_with_bounded_words() {
         };
         assert_eq!((found, run, attempt), (channel, Token::new(7), Token::new(2)));
         assert!(parts.is_empty());
-        let words = b"job cannot encode";
+        let words = b"job cannot encode: Job.spec too large";
         let why = words[..words.len().min(usize::try_from(detail).expect("detail"))].into();
         assert_eq!(answer, hub::JobEnding::Refused(hub::JobRefusal::Invalid(hub::JobInvalid::Start { why })));
         assert!(out.is_empty(), "no channel send or loss");

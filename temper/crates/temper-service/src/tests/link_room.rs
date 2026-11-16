@@ -427,7 +427,8 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
             assert!(joint.assignments.is_empty(), "{profile:?} {part:?}+{extra}");
             assert!(joint.unsent.is_empty());
             assert_eq!(bytes, 0, "an unencodable assignment sends no frame");
-            assert_refusal(joint.answers.as_slice(), b"assignment cannot encode");
+            let words = cannot_encode_words(&settings, part, extra);
+            assert_refusal(joint.answers.as_slice(), &words);
         }
     }
     let mut small = fixtures::assignment_with_settings(fixtures::repository(8, b"acme", b"shop"), &settings);
@@ -439,6 +440,24 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     joint.settle();
     assert_eq!(joint.assignments.len(), previous.checked_add(1).unwrap(), "the next run crosses");
     assert_eq!(joint.assignments.last().unwrap().assignment.run, Token::new(SMALL_RUN));
+}
+
+fn cannot_encode_words(settings: &settings::Engine, part: Part, extra: usize) -> Box<[u8]> {
+    match part {
+        Part::Window => kit::Unencoded {
+            field: "Assignment.transcript",
+            reason: None,
+            figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
+            bound: Some(settings.jig.limits.hub.transcript_bytes),
+            ceiling: Some(u64::from(wire::v14::CEILINGS.assignment_transcript)),
+        }
+        .words(b"assignment"),
+        Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
+        Part::Calls => Box::from(b"assignment cannot encode: HostAnswer.body too large".as_slice()),
+        // These fail in temper's translation, before jig's component.
+        Part::FixedCharter | Part::Tree => Box::from(b"assignment cannot encode".as_slice()),
+        Part::Charter | Part::All => panic!("these starts encode"),
+    }
 }
 
 fn assert_assignment(
