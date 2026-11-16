@@ -242,10 +242,11 @@ landing's new triage; the gap stays recorded after closure.
 
 - **Checked** against the session's `pages`, `setups` and
   `deployments` (2.5): its surface `ctl`, `web` or `tui`; its page one
-  of that surface's; its setup one of the catalogue's, and, where it is
-  one of `deployments`, its surface `ctl`, since a deployment takes ctl
-  cases alone until Q7 (`deployment.md`, 10); at least one step, every
-  step a nonempty `do` and a nonempty `expect`. Its kind is its setup's.
+  of that surface's; its setup one of the catalogue's, of either kind,
+  since a deployment takes every surface as a box does
+  (`deployment.md`, 6.1); at least one step, every
+  step a nonempty `do` and a nonempty `expect`. Its kind is its setup's,
+  `deployment` where the setup is one of `deployments`.
 - **Joined to a waiting pass** where 4.15 says, before any merge.
 - **Merged:** where a case in state `queued` has the same surface, page
   and kind, the new ask joins it, and the case keeps every landing that
@@ -509,7 +510,6 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
 | a case file unread | `case refused: FILE: WHY` |
 | no surface | `case refused: no surface` |
 | another surface | `case refused: surface S is none of ctl, web, tui` |
-| a web or tui case on a deployment's setup | `case refused: setup S is a deployment's, which takes ctl cases alone` |
 | no page | `case refused: no page` |
 | a page not the surface's | `case refused: P is no SURFACE page; pages: P1, P2, ...` |
 | no setup | `case refused: no setup` |

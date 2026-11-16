@@ -20,7 +20,7 @@ pub(crate) fn render(
     writeln!(text, "Pass {}; place {} ({}); build {}", pass.number, pass.place, pass.kind.name(), pass.build)
         .expect("string");
     if pass.kind == Kind::Deployment {
-        text.push_str("At this deployment's place every case is a ctl case and every session a ctl session. The owner's changes are `deployment patch DOCUMENT PATH` lines; write their PATHs in the pass's files directory first.\n");
+        text.push_str("At this deployment's place run ctl cases first in a ctl session, `temper-qa pass open --ctl`, then web and tui cases in a full session, `temper-qa pass open`, the browser and the TUI on the deployment's engine. The owner's changes are `deployment patch DOCUMENT PATH` lines; write their PATHs in the pass's files directory first. These lines end the TUI and load the page again.\n");
     }
     writeln!(text, "Tree: {}", home.pass_tree(&pass.place).display()).expect("string");
     if resumed {

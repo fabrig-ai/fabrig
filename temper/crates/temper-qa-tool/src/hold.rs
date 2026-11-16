@@ -74,7 +74,7 @@ impl Drive {
     fn holder_command(&self, program: &std::path::Path) -> Command {
         let mut command = Command::new(program);
         command.args(["pass", "hold"]);
-        if self.ctl && self.place.kind == Kind::Box {
+        if self.ctl {
             command.arg("--ctl");
         }
         command
@@ -87,9 +87,7 @@ impl Drive {
             command.arg("--deployment").arg(scripts.root.as_ref().expect("deployment setup's root").join("config"));
         }
         command.arg("--bin").arg(&self.place.bin);
-        if self.place.kind == Kind::Box {
-            command.arg("--bundle").arg(&self.place.bundle);
-        }
+        command.arg("--bundle").arg(&self.place.bundle);
         command.arg("--scratch").arg(&self.place.scratch);
         for script in &scripts.scripts {
             command.arg("--scripts").arg(script);
@@ -98,7 +96,7 @@ impl Drive {
         if let Some(ports) = &self.place.ports {
             command.args(["--ports", ports]);
         }
-        if self.ctl && self.place.kind == Kind::Box {
+        if self.ctl {
             command.arg("--ctl");
         }
         command

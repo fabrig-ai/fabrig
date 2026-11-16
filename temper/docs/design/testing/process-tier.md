@@ -232,7 +232,9 @@
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
-  `temper-worker` and `temper-agent`, and nine free ports; the
+  `temper-worker` and `temper-agent`, a fixture bundle as its
+  `bundle/`, which every walk and session there is given as `--bundle`
+  (`qa/deployment.md`, 2), and nine free ports; the
   catalogue's `turn-landing` walked there from a fresh place by the
   copied `temper-client-journeys recipe walk` (`../client/recipe.md`,
   5.1; `qa/setups.md`, 5), its engine, worker and agent started from the
@@ -243,7 +245,8 @@
   and removed, then unpacked again, as a place restores a copy
   (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; the
   setup's check walked again from that copy (`--from turn-landing`), and
-  a drive session (`--deployment`) opened on it. ctl reads the project,
+  a ctl drive session (`--ctl --deployment`) opened on it, so that the
+  story needs no Chromium. ctl reads the project,
   its forge, its repository and its landing by `turn` as they were; the
   fake Forgejo's API reads `work/hello` and its gate workflow as they
   were; the engine's store opened by the newer build, converted at

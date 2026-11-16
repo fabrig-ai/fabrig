@@ -1,7 +1,7 @@
 use super::*;
 use crate::tests::{TuiWorld, tui_approval_reply};
 use temper_client_shell_tui::{host::Report, journey};
-fn saves() -> (Box<[u8]>, Box<[u8]>) {
+pub(super) fn saves() -> (Box<[u8]>, Box<[u8]>) {
     let mut world = TuiWorld::sized(b"127.0.0.1:9", skein_ui_screen::Size { rows: 24, columns: 80 });
     let first = world.save();
     world.mark();

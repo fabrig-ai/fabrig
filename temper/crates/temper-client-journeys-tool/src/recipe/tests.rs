@@ -286,6 +286,57 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     );
 }
 
+/// Both clients see Hello on the deployment's engine (testing/qa/setups.md, 5.1, 6).
+#[test]
+fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let chain = Chain::read(&setups, "turn-landing-clients").expect("deployment clients chain");
+    assert_eq!(chain.kind(), Kind::Deployment);
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["turn-landing", "turn-landing-clients"]);
+    assert!(!chain.ctl_only());
+    let recipe = chain.recipes.last().expect("clients recipe");
+    assert_eq!(recipe.check.iter().map(|line| line.number).collect::<Vec<_>>(), [7, 8, 9]);
+    assert!(recipe.scripts.is_none());
+    assert!(recipe.files.is_empty());
+    assert!(recipe.config.is_empty());
+    let turn = Chain::read(&setups, "turn-landing").expect("turn-landing chain");
+    assert_ne!(chain.hash(), turn.hash());
+    assert_ne!(chain.hash(), [0; 32]);
+
+    let ports = "1,2,3,4,5,6,7,8,9";
+    let mut arguments = args(&["--bin", "/build", "--scratch", "/scratch", "--ports", ports]);
+    assert!(command::session_options(&chain, &setups, &arguments).expect_err("bundle required").contains("--bundle"));
+    arguments.extend(args(&["--bundle", "/bundle"]));
+    let options = command::session_options(&chain, &setups, &arguments).expect("full deployment session");
+    assert!(!options.ctl);
+    assert_eq!(options.deployment, Some(setups.join("turn-landing/config")));
+    assert_eq!(options.ports.as_deref(), Some(ports));
+    assert_eq!(options.bundle.as_deref(), Some(Path::new("/bundle")));
+    assert_eq!(options.scripts, vec![setups.join("turn-landing/scripts.json")]);
+    assert_eq!(
+        shown(chain.lines(Some("turn-landing")).expect("from turn-landing copy")),
+        [
+            "turn-landing:8 ctl project show Hello",
+            "turn-landing:9 ctl forge list",
+            "turn-landing:10 ctl forge repositories 1",
+            "turn-landing-clients:3 web reload \"/projects/1\"",
+            "turn-landing-clients:4 web see \"work/hello is in Hello\"",
+            "turn-landing-clients:5 tui see \"Ask temper\"",
+            "walk: web reload \"/\"",
+            "walk: tui stop",
+            "turn-landing-clients:7 ctl project show Hello",
+            "turn-landing-clients:8 web see \"Nothing needs you.\"",
+            "turn-landing-clients:9 tui see \"Ask temper\"",
+        ]
+    );
+    assert_eq!(
+        command::catalogue(&Reader::Directory(&setups), vec!["turn-landing-clients".into()]),
+        [
+            "turn-landing-clients (after turn-landing): Hello landing by turn, as turn-landing leaves it, is seen through the web client and the TUI on the deployment's engine."
+        ]
+    );
+}
+
 /// Ctl alone reaches Hello and the person's model account (testing/qa/setups.md, 2, 6).
 #[test]
 fn ctl_hello_reads_hashes_and_walks_its_steps_and_checks_in_a_ctl_session() {
@@ -791,16 +842,6 @@ fn config_belongs_only_to_a_root_without_after() {
 
 #[test]
 fn chain_kind_refuses_the_other_kinds_lines_and_deployment_checks() {
-    for name in ["root", "child"] {
-        for line in ["web see \"Hello\"", "tui key enter"] {
-            let mut files = deployment_chain();
-            let after = if name == "child" { "after \"root\"\n" } else { "" };
-            put(&mut files, name, "recipe", format!("recipe 1\n{after}{line}\ncheck\nctl project list\n").as_bytes());
-            let refusal = read(&files, "child").expect_err("deployment has no clients");
-            assert_eq!((refusal.name.as_str(), refusal.line), (name, Some(if name == "child" { 3 } else { 2 })));
-            assert!(refusal.why.contains("deployment recipe takes no web or tui line"), "{refusal}");
-        }
-    }
     for (deployment, after_check, why) in
         [(false, false, "a box recipe takes no deployment line"), (true, true, "may follow check")]
     {
@@ -815,6 +856,41 @@ fn chain_kind_refuses_the_other_kinds_lines_and_deployment_checks() {
         assert_eq!((refusal.name.as_str(), refusal.line), ("root", Some(if after_check { 3 } else { 2 })));
         assert!(refusal.why.contains(why), "{refusal}");
     }
+}
+
+#[test]
+fn deployment_web_and_tui_chain_plans_a_full_session_with_bundle_ports_and_resets() {
+    let mut files = deployment_chain();
+    put(
+        &mut files,
+        "child",
+        "recipe",
+        b"recipe 1\nafter \"root\"\nweb reload \"/projects/1\"\ntui see \"Ask temper\"\n",
+    );
+    let chain = read(&files, "child").expect("deployment accepts web and tui");
+    let setups = Path::new("/recipes");
+    let base = ["--bin", "/build", "--scratch", "/scratch"];
+    let no_ports = args(&base);
+    assert!(command::session_options(&chain, setups, &no_ports).expect_err("ports required").contains("--ports"));
+    let mut arguments = args(&base);
+    arguments.extend(args(&["--ports", "1,2,3,4,5,6,7,8,9"]));
+    assert!(command::session_options(&chain, setups, &arguments).expect_err("bundle required").contains("--bundle"));
+    arguments.extend(args(&["--bundle", "/p/bundle"]));
+    let options = command::session_options(&chain, setups, &arguments).expect("full deployment walk");
+    assert!(!options.ctl);
+    assert_eq!(options.deployment, Some("/recipes/root/config".into()));
+    assert_eq!(options.bundle, Some("/p/bundle".into()));
+    assert_eq!(options.ports.as_deref(), Some("1,2,3,4,5,6,7,8,9"));
+    let lines = shown(chain.lines(Some("root")).expect("from root copy"));
+    assert_eq!(
+        &lines[lines.len() - 4..],
+        [
+            "child:3 web reload \"/projects/1\"",
+            "walk: web reload \"/\"",
+            "walk: tui stop",
+            "child:4 tui see \"Ask temper\""
+        ]
+    );
 }
 
 #[test]
@@ -859,7 +935,7 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
     assert_eq!(options.deployment, chain.config_dir(setups));
     assert_eq!(options.ports.as_deref(), Some(ports));
     assert!(options.bundle.is_none());
-    assert!(!options.ctl, "--deployment selects its ctl session, not --ctl");
+    assert!(options.ctl, "no web or tui lines selects --ctl --deployment");
     let fresh = chain.lines(None).expect("fresh lines");
     assert_eq!(
         shown(fresh.clone()),
@@ -887,9 +963,7 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
             .contains("--ports")
     );
     let with_bundle = args(&["--bin", "/build", "--scratch", "/scratch", "--ports", ports, "--bundle", "/bundle"]);
-    assert!(
-        session_options(&chain, setups, &with_bundle).expect_err("deployment takes no bundle").contains("--bundle")
-    );
+    assert_eq!(session_options(&chain, setups, &with_bundle).expect("optional bundle").bundle, Some("/bundle".into()));
     let box_chain = read(&ctl_chain(), "child").expect("box");
     assert!(session_options(&box_chain, setups, &no_ports).expect_err("box requires bundle").contains("--bundle"));
     assert_eq!(

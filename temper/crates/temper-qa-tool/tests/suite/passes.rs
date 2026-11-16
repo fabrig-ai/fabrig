@@ -501,7 +501,7 @@ fn cases_merge_roundtrip_and_take_places_of_their_kind_alone() {
 }
 
 #[test]
-fn deployment_setups_refuse_web_and_tui_cases_before_recording() {
+fn deployment_setups_record_merge_and_assign_web_and_tui_cases() {
     let mut ledger = Ledger::default();
     landing(&mut ledger, 1);
     let session = ledger
@@ -512,13 +512,28 @@ fn deployment_setups_refuse_web_and_tui_cases_before_recording() {
     for (surface, page) in [("web", "work"), ("tui", "chat")] {
         input.surface = surface.into();
         input.page = page.into();
-        let before = ledger.clone();
+        let number = u64::try_from(ledger.cases.len()).expect("length") + 1;
         assert_eq!(
-            ledger.add_case(session, &input, 1).expect_err("ctl alone").to_string(),
-            "case refused: setup turn-landing is a deployment's, which takes ctl cases alone"
+            ledger.add_case(session, &input, 1).expect("deployment case"),
+            temper_qa_tool::CaseAnswer::Queued(number)
         );
-        assert_eq!(ledger, before);
+        assert_eq!(
+            ledger.add_case(session, &input, 2).expect("merge"),
+            temper_qa_tool::CaseAnswer::Joined { number, landings: vec![1] }
+        );
+        let recorded = ledger.cases.last().expect("recorded case");
+        assert_eq!(recorded.kind, temper_qa_tool::Kind::Deployment);
+        assert_eq!(recorded.surface, surface);
+        assert_eq!(recorded.asks.len(), 2);
     }
+    ledger.end_session(session, Exit::Code(0), None, 3, "qa").expect("triaged");
+    build(&mut ledger, "A", &[1], 1);
+    ledger
+        .start_pass("deployment", temper_qa_tool::Kind::Deployment, &["web".into(), "tui".into()], "high", 4)
+        .expect("deployment pass");
+    assert_eq!(ledger.passes[0].cases, [1, 2]);
+    assert!(ledger.cases.iter().all(|case| case.state == CaseState::Assigned && case.pass == Some(1)));
+    assert_eq!(roundtrip(&ledger), ledger);
 }
 
 #[test]

@@ -97,9 +97,12 @@ The loop's third step (`README.md`, 4), for each free place
     `web` or `tui` one, each in a ctl session, `temper-qa pass open
     --ctl`, which starts no browser and no terminal
     (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, a
-    `see` compared with what ctl printed; at a deployment's place every
-    case is a ctl case and every session one (`deployment.md`), its
-    owner's changes `deployment patch` lines; a `tui` case's steps are `tui`
+    `see` compared with what ctl printed; at a deployment's place the
+    same, its ctl cases first in a ctl session and then its web and tui
+    cases in a full one, `temper-qa pass open`, the browser and the TUI
+    on the deployment's engine (`deployment.md`, 5 and 6), its owner's
+    changes `deployment patch` lines, which end the TUI and load the
+    page again; a `tui` case's steps are `tui`
     lines, the TUI started at the first and signed in by the session
     (`../../client/drive.md`, 3.3), and its finding's evidence the
     screen's rows, `pass line "tui look"`'s answer saved to a file;

@@ -60,8 +60,21 @@ alone), `../testing/qa/gaps.md`, `../testing/qa/setups.md`, 5 and 6 (the
 first deployment setup, `turn-landing`) and `../testing/process-tier.md`
 (the story of a deployment at its place).
 
+Milestone Q7, the web client and the TUI on a deployment, is designed
+in `../testing/qa/deployment.md`, 2 and 5 to 9 (`{place.bundle}`, the
+browser signed in from the engine's fresh link, web and tui lines on
+the engine's origin, `deployment patch` ending the TUI and loading the
+page again, the end closing both first), `../client/drive.md`, 2.1,
+2.3, 2.4 and 2.6 (`--ctl` beside `--deployment`), `../client/recipe.md`,
+2 and 5.1 (a deployment's chain with web and tui lines, walked in a full
+session), `../testing/qa/places.md`, 4 and 5, `../testing/qa/passes.md`,
+4, `../testing/qa/triage.md`, 3 and `../testing/qa/ledger.md`, 4.3 (web
+and tui cases on a deployment's setups, run after its ctl cases), and
+`../testing/qa/setups.md`, 5 and 5.1 (`turn-landing`'s engine serving
+the place's bundle, and `turn-landing-clients`).
+
 - **Design lags:**
-  - 2, 4, 5, 7, 10: a deployment place takes ctl and `forge` lines alone, and a deployment setup ctl cases alone (`../testing/qa/deployment.md`, 6; `../testing/qa/triage.md`, 3), where the draft has the web client and the TUI on a deployment too, and one framework for a place's kinds; Q7 and Q8 carry it.
+  - 2, 5, 10: a place's kinds are two paths through the drive session and the place, a deployment's session repeating the box's browser start and end around its own processes (`../testing/qa/deployment.md`, 10), where the draft has one framework for a place's kinds, install, start, save, restore and the lines' values, behind one interface, and one catalogue with each box setup weighed; Q8 carries it.
 
 - **Design departs:**
   - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.

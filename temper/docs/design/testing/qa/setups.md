@@ -1,7 +1,7 @@
 # The setups' catalogue
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 5
-and 6, milestones Q3, Q4 and Q5 of `../../draft/landed-qa.execution.md`.
+Provisional, 2026-11-12, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 5
+and 6, milestones Q3 to Q7 of `../../draft/landed-qa.execution.md`.
 The recipes kept in `temper/docs/development/qa/setups/`, what each
 reaches, on which forge, and where its scripts come from. Their format
 and walk are `../../client/recipe.md`; how a pass restores, makes again
@@ -32,7 +32,9 @@ and adds to them is `places.md`.
 - **A deployment's** (section 5): `turn-landing`, a project landing by
   `turn` at a `batch` of two with a gate the fake Forgejo dispatches,
   at a deployment's place, with scripts that carry two goals' changes
-  to ready together.
+  to ready together; its engine serves the place's bundle, and
+  `turn-landing-clients` sees its state through the web client and the
+  TUI on the deployment's engine (5.1).
 - **Grown by passes** (`places.md`, 6): a recipe a pass adds lands with
   its request; this document names the catalogue's roots, not every
   recipe.
@@ -252,7 +254,11 @@ machinery alone. A root recipe, at a deployment's place
   `workflows` the gate, `[{"file": "gate.yml", "jobs": ["gate"],
   "cue": {"declared": ".fake-forge/gate"}}]`, and its `manual_merges`
   `{"allow": true, "autodetect": true}` (`../fakes.md`, 2); the fake
-  model's document, its outputs under `{place.data}`.
+  model's document, its outputs under `{place.data}`. The engine's
+  `application.clients.bundle` is `"{place.bundle}"`, so that its
+  clients' listener serves the place's bundle, the kept build's, to the
+  session's browser and the TUI's approval (`deployment.md`, 2), at
+  every walk and session, ctl's among them.
 - **Its lines,** ctl's and the deployment's alone: the fake model's key
   added as the deployment's account (`ctl account add-key ... {model.key}
   --deployment`) and the charters' models set to the fake model's, as
@@ -282,6 +288,49 @@ machinery alone. A root recipe, at a deployment's place
   the story that proves them (section 6).
 - **Its README** says the state and the ctl groups it serves: `landing`,
   `change`, `goal`, `task` and `repository`.
+- **Ctl alone,** so that its walk is a deployment's ctl session
+  (`../../client/recipe.md`, 5.1) and triage with ctl alone configured
+  offers it (`triage.md`, 3).
+
+### 5.1 Seen through the web client and the TUI
+
+`turn-landing-clients`, after `turn-landing`: the same state, Hello
+landing by turn, seen through the web client and the TUI on the
+deployment's engine (`deployment.md`, 6.1), so that a landing's web and
+tui cases on landing by turn start from a setup that proves both reach
+the deployment, and the catalogue holds a deployment's setup of web and
+tui lines (`../../draft/landed-qa.execution.md`, Q7).
+
+- **Its lines:** steps that open Hello's home in the web client and
+  read its repository there, and start the TUI and read its launchpad;
+  then `check`, a ctl read of the project, and the web client's root
+  page and the TUI's launchpad read again, after the walk's `web reload
+  "/"` and `tui stop` (`../../client/recipe.md`, 5.1). Its words are
+  those the same pages show at a box for the same state, from
+  `project-landing`'s and `tui-chat`'s lines (section 2 and 3), the
+  page's own design (`../../client/web/pages/`,
+  `../../client/tui/pages/`) settling any doubt. By default:
+
+  ```text
+  recipe 1
+  after "turn-landing"
+  web reload "/projects/1"
+  web see "work/hello is in Hello"
+  tui see "Ask temper"
+  check
+  ctl project show Hello
+  web see "Nothing needs you."
+  tui see "Ask temper"
+  ```
+
+- **No `scripts.json`, `files/` or `config/`** of its own: its chain's
+  scripts are `turn-landing`'s, and no line of it asks the fake model.
+- **Its walk** is a deployment's full session, its bundle the place's
+  (`../../client/recipe.md`, 5.1; `places.md`, 4), from `turn-landing`'s
+  copy or a fresh place.
+- **Its README** says the state and the pages and screens it serves:
+  the web client's home and Hello's project home, and the TUI's
+  launchpad, for landing by turn's web and tui cases.
 
 ## 6. Their tests
 
@@ -301,7 +350,9 @@ resolved from the box's line and kept as written; its `scripts.json`
 reads in the box's `--scripts` form and its one script is B0's twin's
 review but for the verdict's text. `turn-landing`'s
 `config/` holds its five documents, each rendered with a place's names
-(`deployment.md`, 2) refusing none and parsing as its JSON shape; its
+(`deployment.md`, 2), `{place.bundle}` among them, refusing none and
+parsing as its JSON shape, its engine's `application.clients.bundle`
+the place's bundle; its
 forge document declares the gate and the manual merges; its patch file
 sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
 fake model's `--scripts` form and equals its real-loop fixture's. In
@@ -309,7 +360,11 @@ the real loop's world, those scripts carry two goals' changes to ready
 together and land them in one landing of two, by `turn` at `batch` 2,
 the gate dispatched on the fake Forgejo and green, and a member holding
 `.fake-forge/gate` reading `fail` turns it red
-(`../../draft/landed-qa.md`, 11). The walks are the walk's after
+(`../../draft/landed-qa.md`, 11). `turn-landing-clients` reads and
+hashes as a deployment's chain after `turn-landing`, holding web and tui
+lines; its walk is planned as a deployment's full session given
+`turn-landing`'s `config/`, `--ports` and `--bundle`, with the walk's
+`web reload "/"` and `tui stop` before its check. The walks are the walk's after
 landing (`../../draft/landed-qa.execution.md`, 1).
 
 ## 7. Open questions
