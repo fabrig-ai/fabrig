@@ -649,6 +649,15 @@ tier's CPU budget is set, its existing figures stand, including the
 focused and fuzzy suites' 30 s and 120 s idle-machine budgets above.
 Live tests have budgets on the same terms.
 
+**Every test binary is in one layer,** a tier of section 2, since a
+process runs one binary's tests and its CPU is the binary's:
+`tools/tiers/layers.toml` places each, and a boundary check keeps it
+whole (`tools/tiers/layers.md`). A crate's own tests and its generated
+codec tests are step tests by rule; the repository's own checks are a
+group of their own. A binary whose tests span two tiers is split, or
+takes the higher one until it is. What its tests check places it, never
+their cost (the first question below).
+
 **The wall hard limit is a backstop,** set per tier above its budget.
 A test or run that passes it is stopped and reported **starved**: a
 warning, never red on that account. The run stays green on that account
