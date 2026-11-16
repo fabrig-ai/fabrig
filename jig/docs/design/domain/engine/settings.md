@@ -257,9 +257,11 @@ judges and keeps it within the change's decision.
   its kinds' defaults as the application last gave them, each setting's
   current change, and the items of each pending proposal of settings
   that name its kinds. A value is a record of the connector's own, so
-  that the application's patches reach it as they reach any of its
-  records (`../../protocol/store/opening.md`, 3), and jig's families hold no
-  bytes of another owner's.
+  that its registered layout converts at read like any of the
+  application's records (`../../protocol/store/layouts.md`, 4). A
+  change no plan derives brings the owner's written job
+  (`../../protocol/store/jobs.md`, 4), and jig's families hold no bytes
+  of another owner's.
 - **The core keeps the rest,** as it keeps its own kinds' (7): for
   each setting of an application's kind, whether it follows its
   default, is changed and by which revision, or is removed, and its
@@ -315,8 +317,8 @@ judges and keeps it within the change's decision.
   stored setting, the core's or the connector's, of a kind the
   application no longer declares, or past its kind's values per scope,
   refuses it, naming the kind, scope and number. A release that drops a
-  kind, from the baseline on, erases both owners' records of it by its
-  patches (`../../protocol/store/opening.md`). Nothing is judged
+  kind brings jobs at open to erase both owners' records of it
+  (`../../protocol/store/jobs.md`, 4). Nothing is judged
   again: a stored value was judged when its change was made, and the
   defaults are the application's own.
 - **Charters a value names.** A kind may declare that its values name
