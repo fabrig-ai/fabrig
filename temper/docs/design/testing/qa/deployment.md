@@ -1,6 +1,6 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, from `../../draft/landed-qa.md`, sections 2, 5,
+Provisional, 2026-11-14, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5,
 6 and 10, milestone Q6 of `../../draft/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
@@ -53,10 +53,13 @@ writes it, with the fakes in place of real backends
   the place's (section 4); the model's key and the forge's admin token
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
-- **Two paths fixed:** the worker's document names its secret at its
+- **Three paths fixed:** the worker's document names its secret at its
   data path `secrets/worker.secret`, and the engine's names that
   worker's digest at its data path `secrets/worker.digest`, the files
-  the place makes (section 4).
+  the place makes (section 4); and the worker's document names its root
+  `workspaces`, under its data path, so that the agent it pins is in
+  `data/worker/workspaces/agent/`, which a copy leaves out (`places.md`,
+  4).
 - **The place's names.** Within the documents' JSON string values alone,
   each `{place.NAME}` is replaced by the place's value when they are
   rendered (section 4); any other text stays as it is, a `{` not followed
@@ -114,7 +117,9 @@ for a deployment:
 
 - **A copy is `config/` and `data/`,** the deployment's whole data and
   configuration once every process has stopped, the fakes' state among
-  it, archived as a box's are (`places.md`, 4). `cache/` stays at the
+  it, archived as a box's are (`places.md`, 4), but for the worker's
+  pinned agent, `data/worker/workspaces/agent/`, which its every start
+  pins again from `{place.bin}` (section 5). `cache/` stays at the
   place, as a box's does.
 - **Private:** every directory the session makes there is 0o700 and
   every file 0o600, each mode set once it is made (`places.md`, 2).
