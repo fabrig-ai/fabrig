@@ -23,7 +23,7 @@ const FORMS: &[(&str, &str)] = &[
     ("inbox", "task N · me"),
     (
         "settings",
-        "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+        "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
     ),
     ("settings charter N", "settings · revisions · help settings-fields"),
     ("settings template N", "settings · revisions · help settings-fields"),
@@ -39,7 +39,10 @@ const FORMS: &[(&str, &str)] = &[
     ("settings project-classes", "settings · revisions · help settings-fields"),
     ("settings charter-words N", "settings · revisions · help settings-fields"),
     ("settings project-words", "settings · revisions · help settings-fields"),
-    ("settings landing", "settings gates OWNER/NAME · settings landing-rule N [project] · help landing"),
+    (
+        "settings landing",
+        "settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing",
+    ),
     ("settings gates org/repo", "settings landing · file OWNER/NAME PATH"),
     (
         "ways",
