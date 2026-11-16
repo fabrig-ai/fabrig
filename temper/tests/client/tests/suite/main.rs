@@ -37,6 +37,7 @@ mod open_chat;
 mod playground;
 mod project_delete;
 mod project_fund;
+mod project_visibility;
 mod push;
 mod reading;
 mod recovery;

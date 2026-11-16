@@ -2,10 +2,6 @@
 use temper_one_process_world::public;
 const SEED: u64 = 7;
 #[test]
-fn each_broken_relation_refuses_the_start() {
-    public::walk(SEED, "each_broken_relation_refuses_the_start");
-}
-#[test]
 fn the_proxy_keeps_age_and_serves_nothing_stale() {
     public::walk(SEED, "the_proxy_keeps_age_and_serves_nothing_stale");
 }
@@ -40,11 +36,6 @@ fn every_owner_version_and_kind_answers_as_declared() {
 }
 
 #[test]
-fn a_members_set_visibility_is_refused() {
-    public::walk(SEED, "a_members_set_visibility_is_refused");
-}
-
-#[test]
 fn public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered() {
     public::walk(SEED, "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered");
 }
@@ -57,11 +48,6 @@ fn abandoned_reads_leave_the_budgets_whole() {
 #[test]
 fn a_private_or_deleted_project_is_unknown_at_once_and_through_the_proxy_within_the_max_age() {
     public::walk(SEED, "a_private_or_deleted_project_is_unknown_at_once_and_through_the_proxy_within_the_max_age");
-}
-
-#[test]
-fn every_inaccessible_identifier_is_one_unknown_byte_for_byte() {
-    public::walk(SEED, "every_inaccessible_identifier_is_one_unknown_byte_for_byte");
 }
 
 #[test]

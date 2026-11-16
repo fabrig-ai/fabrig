@@ -72,6 +72,55 @@ fn a_private_project_change_an_outside_change_and_a_conversations_change_are_unk
     }
 }
 #[test]
+fn a_deleted_never_made_and_another_public_projects_change_are_unknown_alike() {
+    let mut world = public::world(1000);
+    public::ready(&mut world, CHANGE, BRANCH);
+    public::install_landing(&mut world);
+    let handed = public::handed();
+    for kind in [w::PUBLIC_CHANGE, w::PUBLIC_LANDING] {
+        assert!(world.public(landings::PROJECT, kind, Some(CHANGE), &handed).is_some(), "public control, seed {SEED}");
+        let private = world.public(landings::PROJECT, kind, Some(CHANGE), &[]);
+        assert!(private.is_none(), "private project, seed {SEED}");
+        assert!(world.public(99, kind, Some(CHANGE), &handed).is_none(), "never made, seed {SEED}");
+        // The scripted core hands public tasks, but their project still has to agree.
+        assert!(
+            world.public(landings::PROJECT + 1, kind, Some(CHANGE), &handed).is_none(),
+            "another public project, seed {SEED}"
+        );
+    }
+    world.event(top::Event::ReleaseProject { project: landings::PROJECT, request: skein_lib::Token::new(100) });
+    for kind in [w::PUBLIC_CHANGE, w::PUBLIC_LANDING] {
+        assert!(world.public(landings::PROJECT, kind, Some(CHANGE), &handed).is_none(), "deleted, seed {SEED}");
+    }
+}
+
+#[test]
+fn a_projects_only_change_outside_every_goal_leaves_no_landing_queue_or_turn_holder() {
+    let mut world = public::world(1000);
+    public::queued(&mut world);
+    let visible = public::answer(&world, w::PUBLIC_LANDINGS, None, &public::handed());
+    let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&visible.record)).expect("visible queue");
+    assert!(!record.queues().is_empty(), "the change holds a queue, seed {SEED}");
+    let mut row = landings::landing_row(world.change(CHANGE));
+    row.landing.task = LANDING;
+    row.landing.phase = policy::Phase::Turn { at: world.wall() };
+    world.event(top::Event::Landing { row });
+    let visible = public::answer(&world, w::PUBLIC_LANDINGS, None, &public::handed());
+    let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&visible.record)).expect("visible landing");
+    assert!(!record.landings().is_empty(), "the change has a landing, seed {SEED}");
+    assert!(record.turn().is_some(), "the change holds the turn, seed {SEED}");
+    // The core hands no tasks when the project's only change is outside every goal.
+    let made = public::answer(&world, w::PUBLIC_LANDINGS, None, &[]);
+    assert!(made.tasks.is_empty(), "no excluded task in the envelope, seed {SEED}");
+    let mut fields = Reader::new(&made.record);
+    assert_eq!(fields.u16(), Some(2), "forge record version");
+    assert_eq!(fields.u8(), Some(0), "no excluded turn holder");
+    assert_eq!(fields.u32(), Some(0), "no excluded landing counted");
+    assert_eq!(fields.u32(), Some(0), "no excluded queue counted or ordered");
+    assert!(fields.is_empty(), "whole landings record");
+}
+
+#[test]
 fn a_queued_change_outside_every_goal_is_counted_nowhere() {
     let mut world = public::world(1000);
     public::queued(&mut world);

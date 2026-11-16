@@ -5,11 +5,7 @@ use super::{
     service::{self, Extra, Proc},
     visitor::Visitor,
 };
-use crate::{
-    ctl::{Caller, Command},
-    fixtures,
-    world::HarnessProcess,
-};
+use crate::{ctl::Command, fixtures, world::HarnessProcess};
 use jig_client_protocol_wire::public_v1 as public;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
@@ -82,8 +78,6 @@ pub(super) struct Judge {
     load: super::load::Walk,
     abandoned: super::abandoned::Walk,
     revocation: super::revocation::Walk,
-    identifiers: super::identifiers::Walk,
-    prepared: bool,
     previous: super::previous::Walk,
 }
 impl Judge {
@@ -105,12 +99,10 @@ impl Judge {
             stopping: false,
             ready: false,
             project: None,
-            owners: super::owners::Walk::new(store.clone()),
+            owners: super::owners::Walk::new(store),
             load: super::load::Walk::new(),
             abandoned: super::abandoned::Walk::new(),
             revocation: super::revocation::Walk::new(),
-            identifiers: super::identifiers::Walk::new(store),
-            prepared: false,
             previous: super::previous::Walk::new(name),
         }
     }
@@ -257,27 +249,6 @@ impl Judge {
                             self.stage = usize::MAX;
                         }
                     }
-                    "every_inaccessible_identifier_is_one_unknown_byte_for_byte" => {
-                        if !self.prepared {
-                            self.prepared = self.owners.act(
-                                now,
-                                caller,
-                                proxy,
-                                visitor,
-                                self.project.ok_or_else(|| String::from("project"))?,
-                                &service.parameters.forge,
-                            )?;
-                        } else if self.identifiers.act(
-                            now,
-                            &mut service.observer,
-                            proxy,
-                            visitor,
-                            self.project.ok_or_else(|| String::from("project"))?,
-                        )? {
-                            self.stage = usize::MAX;
-                        }
-                    }
-                    "a_members_set_visibility_is_refused" => self.member(caller, visitor)?,
                     other => return Err(format!("unknown service walk {other}")),
                 }
             }
@@ -296,91 +267,6 @@ impl Judge {
                 }
             }
         }
-
-        Ok(())
-    }
-    fn member(&mut self, caller: &mut Caller, visitor: &mut Visitor) -> Result<(), String> {
-        use jig_client::contract as c;
-        match self.stage {
-            0 => service::command(
-                caller,
-                &["project", "amend", "1", "--visibility", "private", "--key", "close-for-member"],
-            ),
-            1 => {
-                if caller.answers.len() != 3 {
-                    return Ok(());
-                }
-                match (&(caller.answers[2].exit), &(skein_io::kernel::Exit::Code(0))) {
-                    (left, right) if left != right => {
-                        let finding = String::from("assertion `left == right` failed");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                let mut holdings = skein_lib::List::with_capacity(1);
-                holdings
-                    .push(c::Holding { party: 1, role: c::HeldRole::Member })
-                    .map_err(|why| format!("one member: {why:?}"))?;
-                self.calls.push(super::requests::ask(visitor, &c::Ask::SetRoles { project: 1, holdings }, 71));
-            }
-            2 => {
-                let answer = super::requests::answer(&self.last(visitor)?.body)?;
-                if !(matches!(
-                    answer,
-                    c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::RolesSet { project: 1 }))
-                )) {
-                    return Err(format!("owner changes its own role: {answer:?}"));
-                }
-                service::command(
-                    caller,
-                    &["project", "amend", "1", "--visibility", "public", "--key", "member-cannot-open"],
-                );
-            }
-            3 => {
-                if caller.answers.len() != 4 {
-                    return Ok(());
-                }
-                match (&(caller.answers[3].exit), &(skein_io::kernel::Exit::Code(2))) {
-                    (left, right) if left != right => {
-                        let finding = format!(
-                            "member cannot widen visibility: {}",
-                            String::from_utf8_lossy(&caller.answers[3].error)
-                        );
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                self.send(
-                    visitor,
-                    fixtures::CLIENTS,
-                    Method::Get,
-                    format!("/jig/v1/public/0/1/2/{:016x}", self.project.ok_or_else(|| String::from("known project"))?)
-                        .as_bytes(),
-                );
-            }
-            4 => {
-                match (&(self.last(visitor)?.status), &(404)) {
-                    (left, right) if left != right => {
-                        let finding = String::from("the member's project remains private");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                self.send(visitor, fixtures::CLIENTS, Method::Get, PROJECTS);
-            }
-            5 => {
-                let projects =
-                    public::PublicProjects::decode(&public::CEILINGS, &mut Reader::new(&self.last(visitor)?.body))
-                        .map_err(|why| format!("public projects: {why:?}"))?;
-                if !(projects.projects().is_empty()) {
-                    return Err(format!("assertion failed: {}", stringify!(projects.projects().is_empty())));
-                }
-                self.stage = usize::MAX;
-                return Ok(());
-            }
-            other => return Err(format!("member stage {other}")),
-        }
-        self.stage += 1;
 
         Ok(())
     }
@@ -428,13 +314,7 @@ impl skein_world::Referee<Proc> for Judge {
         if self.name == "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered" && self.setup {
             self.ready = self.load.ready(visitor, &service.observer);
         }
-        if matches!(
-            self.name.as_str(),
-            "every_owner_version_and_kind_answers_as_declared"
-                | "every_inaccessible_identifier_is_one_unknown_byte_for_byte"
-        ) && self.setup
-            && !self.prepared
-        {
+        if self.name == "every_owner_version_and_kind_answers_as_declared" && self.setup {
             self.ready &= self.owners.ready(caller, visitor);
         }
 
@@ -446,7 +326,6 @@ impl skein_world::Referee<Proc> for Judge {
             .or_else(|| self.load.wake())
             .or_else(|| self.abandoned.wake())
             .or_else(|| self.revocation.wake())
-            .or_else(|| self.identifiers.wake())
             .or_else(|| self.ready.then_some(Time::ZERO))
             .or_else(|| (!self.stopping).then_some(Time::from_nanos(20_000_000_000)))
     }
