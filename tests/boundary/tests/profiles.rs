@@ -1,12 +1,60 @@
 //! A tree's scripts name nextest profiles the root configuration defines
 //! (skein/docs/design/ui/web/testing.md, 1). The check reads `.config/nextest.toml`'s
 //! `[profile.NAME]` headers and every `--profile NAME` in the listed trees' `*.sh`. A
-//! `--profile` with no name after it is a failure, never a skip.
+//! `--profile` with no name after it is a failure, never a skip. Each profile's own
+//! wall is three times the gate's (`tools/tiers/design.md`, 11.7).
 
 use std::collections::BTreeSet;
 use std::fs;
 
 const SCRIPTS: [&str; 1] = ["skein/scripts"];
+
+fn timeout_seconds(profile: &str, table: &toml::Value, source: &str) -> u64 {
+    let value = table
+        .get("global-timeout")
+        .and_then(toml::Value::as_str)
+        .unwrap_or_else(|| panic!("{source}: profile {profile} needs a global-timeout string"));
+    let (number, scale) = if let Some(number) = value.strip_suffix('s') {
+        (number, 1)
+    } else if let Some(number) = value.strip_suffix('m') {
+        (number, 60)
+    } else {
+        panic!("{source}: profile {profile}: unsupported global-timeout {value:?}, expected Ns or Nm");
+    };
+    number
+        .parse::<u64>()
+        .ok()
+        .and_then(|seconds| seconds.checked_mul(scale))
+        .unwrap_or_else(|| panic!("{source}: profile {profile}: invalid global-timeout {value:?}"))
+}
+
+#[test]
+fn a_profiles_own_wall_is_three_times_the_gates() {
+    let root = skein_scratch::paths::workspace();
+    let walls: toml::Value =
+        toml::from_str(&fs::read_to_string(root.join(".config/gate/walls.toml")).expect("the gate walls are readable"))
+            .expect("the gate walls are TOML");
+    let config: toml::Value = toml::from_str(
+        &fs::read_to_string(root.join(".config/nextest.toml")).expect("the nextest configuration is readable"),
+    )
+    .expect("the nextest configuration is TOML");
+    let walls = walls.get("profile").and_then(toml::Value::as_table).expect("the gate walls name profiles");
+    let profiles = config.get("profile").and_then(toml::Value::as_table).expect("nextest defines profiles");
+    for name in ["default", "fuzzy"] {
+        assert!(walls.contains_key(name), "the gate walls must name profile {name}");
+    }
+    for (name, table) in walls {
+        let wall = timeout_seconds(name, table, ".config/gate/walls.toml");
+        let profile =
+            profiles.get(name).unwrap_or_else(|| panic!("gate wall profile {name} is not defined by nextest"));
+        let own = timeout_seconds(name, profile, ".config/nextest.toml");
+        assert_eq!(
+            Some(own),
+            wall.checked_mul(3),
+            "profile {name}: gate wall {wall} s, own global-timeout {own} s; expected three times the gate wall"
+        );
+    }
+}
 
 #[test]
 fn a_scripts_nextest_profile_is_defined() {
