@@ -508,9 +508,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
                 .iter()
                 .all(|n| n.role != Role::Heading { level: 2 } && n.role != Role::Tabs && n.role != Role::Tab)
         );
-        for removed in [look::WAYS_AXIS, look::WAYS_NOW, look::WAYS_SAYS] {
-            assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&removed)));
-        }
+        assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_SAYS)));
     }
 }
 

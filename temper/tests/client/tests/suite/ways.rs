@@ -200,8 +200,8 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
         }
         act(&mut world, person, Act::Go { address: Address::Settings { project: PROJECT } });
         for (index, (name, expected)) in NAMES.into_iter().zip(paths).enumerate() {
-            let tabs = under(world.tree(person).nodes(), Role::Tabs, b"Ways of working");
-            let tab = tabs.iter().filter(|node| node.role == Role::Tab).nth(index).expect("way's tab").id;
+            let stocks = under(world.tree(person).nodes(), Role::List, b"Stock ways:");
+            let tab = stocks.iter().filter(|node| node.role == Role::Button).nth(index).expect("stock way").id;
             world.act(person, tab, skein_ui::Act::Press);
             settle(&mut world);
             let nodes = world.tree(person).nodes();
@@ -210,8 +210,13 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
                 "heading says the current way's headline"
             );
             let tab = u32::try_from(index).expect("tab index");
-            assert_eq!(page(&world, person).shown(), Some(tab), "pressed tab is shown");
-            assert_eq!(drawn_path(under(nodes, Role::Group, name)), expected, "{}", String::from_utf8_lossy(name));
+            assert_eq!(page(&world, person).shown(), Some(tab), "chosen stock way is shown");
+            assert_eq!(
+                drawn_path(under(nodes, Role::Group, if tab == REVIEW { b"How work runs" } else { name })),
+                expected,
+                "{}",
+                String::from_utf8_lossy(name)
+            );
         }
     }
 }

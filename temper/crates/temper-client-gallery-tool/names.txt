@@ -246,6 +246,7 @@ how-approve
 how-card
 how-draft
 how-follows
+how-menu
 how-reaches
 how-rules
 how-rules-card

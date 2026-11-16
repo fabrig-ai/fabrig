@@ -11,41 +11,8 @@ use temper_client_domain::pages::stock_ways::{StockWays, WayAct};
 use temper_client_domain::{Address, pages::Act};
 use temper_client_protocol_wire::v1 as wire;
 
-/// The tabs control "Ways of working", a tab a way, "now" on the current one, and
-/// the axis line under it.
-pub fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
-    let tabs = ways.tabs();
-    b.open(Role::Tabs);
-    b.name(&w.say(Word::WaysTitle, &[]));
-    b.style(look::WAYS_TABS);
-    for (index, tab) in tabs.iter().enumerate() {
-        let index = u32::try_from(index).expect("wire bounds tabs");
-        b.open(Role::Tab);
-        if ways.shown() == Some(index) {
-            b.state(State::Selected);
-        }
-        b.bind(bindings.insert(Act::WayTab { project, tab: index }));
-        b.text(Run::Plain, &tab.name);
-        if tab.current {
-            b.open(Role::Text);
-            b.style(look::WAYS_NOW);
-            b.text(Run::Plain, &w.say(Word::WaysNow, &[]));
-            b.close();
-        }
-        b.close();
-    }
-    b.close();
-    b.open(Role::Paragraph);
-    b.name(&w.say(Word::WaysAxis, &[]));
-    b.style(look::WAYS_AXIS);
-    for word in [Word::WaysYou, Word::WaysAgents] {
-        b.text(Run::Plain, &w.say(word, &[]));
-    }
-    b.close();
-}
-
 /// The shown way's line and, in the browser, its acts and stock menu
-/// (temper/docs/design/client/pages/ask-temper.md, 1).
+/// (temper/docs/design/client/pages/ask-temper.md, 1; settings.md, 2).
 /// The terminal calls `head_acts` after the path and its foot.
 pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, bindings: &mut Bindings, project: u32) {
     let tabs = ways.tabs();
@@ -211,16 +178,6 @@ pub fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindin
     }
     b.close();
     b.close();
-}
-
-/// The shown way's act, "Use this" or "Keep it", where `ways.act(index)` gives one.
-pub fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
-    if ways.act(index).is_some() {
-        b.open(Role::Slot);
-        b.style(look::WAYS_ACTS);
-        act_button(b, ways, index, w, bindings, project);
-        b.close();
-    }
 }
 
 /// The way's button, within the calling page's acts row.

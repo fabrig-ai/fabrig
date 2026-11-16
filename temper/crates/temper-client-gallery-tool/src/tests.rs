@@ -149,7 +149,6 @@ enum Part {
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
     GroupLines { name: &'static str, lines: &'static [&'static str] },
     StockWays { current: Option<usize> },
-    Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
     Expanded { name: &'static str },
@@ -968,9 +967,12 @@ static HOLDS: [Holds; samples::N] = [
             HOW_WAIT_NOTE,
             Part::Named { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: Agents review" },
-            Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
+            Part::StyledText {
+                style: temper_client_view::look::WAY_LINE,
+                text: &["An agent makes each change, another reviews it, and code lands it."],
+            },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
+            Part::StockWays { current: Some(1) },
             Part::Named { role: Role::Item, name: "review, an agent" },
             Part::Named { role: Role::Item, name: "verify, code" },
             Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
@@ -1011,7 +1013,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: You approve" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::Tabs { names: &["You approvenow", "Agents review", "Draft first"], selected: 0 },
+            Part::StockWays { current: Some(0) },
             Part::Named { role: Role::Item, name: "you approve, a person" },
             Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
             Part::Named {
@@ -1029,7 +1031,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "the way: Draft first" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::StockWays { current: Some(2) },
             Part::Named { role: Role::Item, name: "draft, a person" },
             Part::Named { role: Role::Item, name: "goal branch, a branch" },
             Part::Named { role: Role::Item, name: "verify, code" },
@@ -1080,15 +1082,19 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how-yours",
-        heading: "Agents review everything, then one of you signs off",
+        heading: "A way of its own",
         parts: &[
+            Part::StyledText {
+                style: temper_client_view::look::WAY_LINE,
+                text: &["shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off."],
+            },
             Part::Named {
                 role: Role::Paragraph,
                 name: "shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off. Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.",
             },
             Part::Text { text: "the way: its own" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::StockWays { current: None },
             Part::Named { role: Role::Item, name: "produce, an agent" },
             Part::Named { role: Role::Item, name: "main, a branch" },
             Part::NoRole { role: Role::Table },
@@ -1097,9 +1103,15 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "how-menu",
+        heading: "Agents review every change, and code lands it",
+        parts: &[Part::StockWays { current: Some(1) }, Part::Named { role: Role::Button, name: "Keep it" }],
+    },
+    Holds {
         name: "how-card",
         heading: "Agents review every change, and code lands it",
         parts: &[
+            Part::StockWays { current: Some(1) },
             Part::Text { text: "the way: Agents review" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Named { role: Role::Item, name: "review, an agent" },
@@ -1128,6 +1140,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-how",
         heading: "Agents review",
         parts: &[
+            Part::StockWays { current: Some(1) },
             Part::Text { text: "the way: Agents review" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Named { role: Role::Item, name: "review, an agent" },
@@ -1144,6 +1157,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-follows",
         heading: "Draft first, then agents build it on its own branch",
         parts: &[
+            Part::StockWays { current: Some(2) },
             Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
             Part::Named { role: Role::Text, name: "code triggers, agents judge" },
             Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
@@ -1172,6 +1186,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-how-follows",
         heading: "Draft first, then agents build it on its own branch",
         parts: &[
+            Part::StockWays { current: Some(2) },
             Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
             Part::Named { role: Role::Text, name: "code triggers, agents judge" },
             Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
@@ -1201,7 +1216,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-reaches",
         heading: "Draft first, then agents build it on its own branch",
         parts: &[
-            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::StockWays { current: Some(2) },
             Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
             Part::Named { role: Role::Text, name: "on factory" },
             HOW_REACHES_DECIDE,
@@ -1218,7 +1233,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-how-reaches",
         heading: "Draft first, then agents build it on its own branch",
         parts: &[
-            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::StockWays { current: Some(2) },
             Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
             Part::Named { role: Role::Text, name: "on factory" },
             HOW_REACHES_DECIDE,
@@ -1236,7 +1251,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-rules",
         heading: "Draft first, with the protocol core asking you",
         parts: &[
-            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::StockWays { current: None },
             Part::Named { role: Role::Item, name: "you, a person (if protocol core)" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
             Part::Destination { name: "+ A rule", href: "/projects/1/ask" },
@@ -1250,6 +1265,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-rules-card",
         heading: "Draft first, with the protocol core asking you",
         parts: &[
+            Part::StockWays { current: None },
             HOW_RULES_TABLE,
             HOW_RULES_NOTE,
             Part::Expanded { name: "you, a person (if protocol core)" },
@@ -1275,7 +1291,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Agents review everything, then one of you signs off",
         parts: &[
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
-            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::StockWays { current: None },
             Part::Named { role: Role::Item, name: "review, an agent" },
             Part::Named { role: Role::Item, name: "one of you, a person" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
@@ -1295,6 +1311,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-how-team",
         heading: "Agents review everything, then one of you signs off",
         parts: &[
+            Part::StockWays { current: None },
             HOW_TEAM_TABLE,
             HOW_RULES_NOTE,
             Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 4 },
@@ -5643,10 +5660,12 @@ fn each_state_holds_what_its_name_says() {
                         );
                     }
                     assert!(!tree.nodes().iter().any(|node| node.role == Role::Tabs), "{}: no tabs", sample.name);
+                    let how =
+                        sample.name == "how" || sample.name.starts_with("how-") || sample.name.starts_with("night-how");
                     let foot = tree
                         .nodes()
                         .iter()
-                        .position(|n| n.styles.as_slice().contains(&temper_client_view::look::WAYS_ACTS))
+                        .position(|n| n.styles.as_slice().contains(&temper_client_view::look::WAYS_FOOT))
                         .unwrap();
                     let end = foot + usize::try_from(tree.nodes()[foot].size).unwrap();
                     let buttons: Vec<_> = tree.nodes()[foot..end]
@@ -5654,8 +5673,16 @@ fn each_state_holds_what_its_name_says() {
                         .filter(|n| n.role == Role::Button)
                         .map(|n| n.name.as_deref())
                         .collect();
-                    assert_eq!(buttons, [Some(b"How does temper work?".as_slice())]);
-                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu") {
+                    assert_eq!(buttons, if how { vec![] } else { vec![Some(b"How does temper work?".as_slice())] });
+                    if how {
+                        assert!(
+                            !tree
+                                .nodes()
+                                .iter()
+                                .any(|n| n.styles.as_slice().contains(&temper_client_view::look::WAY_ASK))
+                        );
+                    }
+                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu") {
                         assert_eq!(sample.open_menu(), Some(b"Stock ways".as_slice()));
                         let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
                         assert!(html.contains("aria-expanded=\"true\">Stock ways"), "{}: menu open", sample.name);
@@ -5664,31 +5691,6 @@ fn each_state_holds_what_its_name_says() {
                             "{}: menu visible",
                             sample.name
                         );
-                    }
-                }
-                Part::Tabs { names, selected } => {
-                    let tabs = descendants(tree, Role::Tabs, "Ways of working", sample.name);
-                    let actual: Vec<_> = tabs.iter().filter(|node| node.role == Role::Tab).collect();
-                    assert_eq!(actual.len(), names.len(), "{}: tabs", sample.name);
-                    for (index, (tab, expected)) in actual.iter().zip(*names).enumerate() {
-                        let start = tabs.iter().position(|node| node.id == tab.id).expect("tab position");
-                        let end = start + usize::try_from(tab.size).expect("tab span");
-                        let text: Vec<_> = tabs[start..end]
-                            .iter()
-                            .flat_map(|node| node.text.iter())
-                            .flat_map(|run| run.text.iter().copied())
-                            .collect();
-                        assert_eq!(text, expected.as_bytes(), "{}: tab {index}", sample.name);
-                        assert_eq!(
-                            tab.states.as_slice().contains(&skein_ui::State::Selected),
-                            index == *selected,
-                            "{}: selected tab",
-                            sample.name
-                        );
-                        let now = tabs[start..end]
-                            .iter()
-                            .any(|node| node.styles.as_slice().contains(&temper_client_view::look::WAYS_NOW));
-                        assert_eq!(now, expected.ends_with("now"), "{}: current tab marker", sample.name);
                     }
                 }
                 Part::Path { stops } => {
@@ -6916,6 +6918,10 @@ fn role_talk_shows_provers_open_talk_sent_words_reply_and_leave() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the overlay table holds the shared head's declarations and each page's scope"
+)]
 fn asking_ways_head_keeps_the_requested_overlay_rules() {
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let scope = "#app > .temper-session ";
@@ -6994,7 +7000,20 @@ fn asking_ways_head_keeps_the_requested_overlay_rules() {
                 let selector = parents.pop().unwrap();
                 let declarations = css[start..at].split_whitespace().collect::<String>();
                 for (index, (suffix, expected, parent)) in rules.iter().enumerate() {
-                    if selector == format!("{scope}{suffix}") && parents.last().copied() == *parent {
+                    let ask = format!("{scope}{suffix}");
+                    if selector.split(',').any(|s| s.trim() == ask) && parents.last().copied() == *parent {
+                        if !matches!(
+                            *suffix,
+                            ".temper-starter > .temper-way" | ".temper-way-ask" | ".temper-way-ask-mark"
+                        ) {
+                            let how_suffix = if *suffix == ".temper-way > .temper-ways-panel" {
+                                ".temper-ways-panel"
+                            } else {
+                                suffix
+                            };
+                            let how = format!("#app > .temper-settings {how_suffix}");
+                            assert!(selector.split(',').any(|s| s.trim() == how), "shared head rule: {selector}");
+                        }
                         assert!(!found[index], "one rule for {selector} under {parent:?}");
                         found[index] = true;
                         assert_eq!(declarations, *expected, "{selector}");
@@ -7010,7 +7029,10 @@ fn asking_ways_head_keeps_the_requested_overlay_rules() {
     }
     assert!(!css.contains("#app > .temper-session .temper-ways-tabs"));
     assert!(!css.contains("#app > .temper-session .temper-ways-acts > .temper-ways-use"));
-    assert!(css.contains("#app > .temper-settings .temper-ways-tabs"));
-    assert!(css.contains("#app > .temper-settings .temper-ways-acts > .temper-ways-use"));
+    assert!(!css.contains(".temper-ways-tabs"));
+    assert!(!css.contains(".temper-ways-axis"));
+    assert!(!css.contains(".temper-ways-now"));
+    assert!(!css.contains("#app > .temper-settings .temper-ways-acts"));
+    assert!(css.contains("html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-use"));
     assert!(css.contains("html:root[data-night] #app > .temper-session .temper-way-acts > .temper-ways-use"));
 }

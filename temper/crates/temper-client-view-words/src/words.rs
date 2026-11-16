@@ -204,11 +204,7 @@ pub enum Word {
     HowLineIrreversible,
     HowLineRules,
     HowLineOther,
-    WaysTitle,
     WaysNow,
-    WaysAxis,
-    WaysYou,
-    WaysAgents,
     WaysPath,
     WaysOpen,
     WaysLegend,
@@ -2122,7 +2118,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2668;
+const PHRASES: u32 = 2664;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2149,10 +2145,10 @@ const PHRASES: u32 = 2668;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4882;
+const SEGMENTS: u32 = 4878;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 63312;
-const ALL: [Word; 1951] = [
+const ENGLISH_BYTES: u32 = 63228;
+const ALL: [Word; 1947] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2310,11 +2306,7 @@ const ALL: [Word; 1951] = [
     Word::HowLineIrreversible,
     Word::HowLineRules,
     Word::HowLineOther,
-    Word::WaysTitle,
     Word::WaysNow,
-    Word::WaysAxis,
-    Word::WaysYou,
-    Word::WaysAgents,
     Word::WaysPath,
     Word::WaysOpen,
     Word::WaysLegend,
@@ -4330,11 +4322,7 @@ impl Word {
             Self::HowLineRules => 5650,
             Self::HowLineOther => 5651,
             Self::HowPath => 4929,
-            Self::WaysTitle => 4303,
             Self::WaysNow => 4304,
-            Self::WaysAxis => 4305,
-            Self::WaysYou => 4306,
-            Self::WaysAgents => 4307,
             Self::WaysPath => 4308,
             Self::WaysOpen => 4309,
             Self::WaysLegend => 4310,
@@ -6852,11 +6840,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowLineIrreversible => (&[b"what can\xe2\x80\x99t be undone: rewriting history, a force-push, deleting unlanded work"], &[]),
         Word::HowLineRules => (&[b"changes to this page"], &[]),
         Word::HowLineOther => (&[b"anything an agent can\xe2\x80\x99t place"], &[]),
-        Word::WaysTitle => (&[b"Ways of working"], &[]),
         Word::WaysNow => (match shell { Shell::Browser => &[b"now"], Shell::Terminal => &[b", now"] }, &[]),
-        Word::WaysAxis => (&[b"From more of you to more of your agents"], &[]),
-        Word::WaysYou => (match shell { Shell::Browser => &[b"more of you"], Shell::Terminal => &[b"more of you \xe2\x86\x92 "] }, &[]),
-        Word::WaysAgents => (&[b"more of your agents"], &[]),
         Word::WaysPath => (&[b"The way a change goes"], &[]),
         Word::WaysOpen => (&[b"Open ", b" \xe2\x80\xba"], &[Name]),
         Word::WaysMaybe => (match shell { Shell::Browser => &[b"when needed"], Shell::Terminal => &[b"when needed, "] }, &[]),

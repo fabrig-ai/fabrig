@@ -178,7 +178,7 @@ fn project_words(name: Option<&str>) -> Option<w::ProjectWords> {
             ("Agents make changes and code lands them", "An agent makes each change, and code lands it once CI passes.")
         }
         Some("how-yours") => (
-            "Agents review everything, then one of you signs off",
+            "A way of its own",
             "shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.",
         ),
         Some("how-rules" | "how-rules-card") => (

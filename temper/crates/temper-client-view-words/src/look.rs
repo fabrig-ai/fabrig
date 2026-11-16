@@ -1358,9 +1358,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-caret",
         b"temper-ways-lede",
         b"temper-ways",
-        b"temper-ways-tabs",
-        b"temper-ways-now",
-        b"temper-ways-axis",
+        b"temper-reserved-630",
+        b"temper-reserved-631",
+        b"temper-reserved-632",
         b"temper-ways-panel",
         b"temper-ways-says",
         b"temper-ways-zoom",
@@ -1907,9 +1907,6 @@ pub const WAYS_CARET: Style = Style { owner: owner(), token: 627 };
 /// Ask temper’s ways (temper/docs/design/client/pages/README.md).
 pub const WAYS_LEDE: Style = Style { owner: owner(), token: 628 };
 pub const WAYS: Style = Style { owner: owner(), token: 629 };
-pub const WAYS_TABS: Style = Style { owner: owner(), token: 630 };
-pub const WAYS_NOW: Style = Style { owner: owner(), token: 631 };
-pub const WAYS_AXIS: Style = Style { owner: owner(), token: 632 };
 pub const WAYS_PANEL: Style = Style { owner: owner(), token: 633 };
 pub const WAYS_SAYS: Style = Style { owner: owner(), token: 634 };
 pub const WAYS_ZOOM: Style = Style { owner: owner(), token: 635 };
