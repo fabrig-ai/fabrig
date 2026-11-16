@@ -150,6 +150,11 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
+    WayBack,
+    WayStock,
+    WayOwn,
+    WayAskMark,
+    WayAsk,
     AskHow,
     AskHowHint,
     HowChange,
@@ -224,11 +229,7 @@ pub enum Word {
     HowLineIrreversible,
     HowLineRules,
     HowLineOther,
-    WaysTitle,
     WaysNow,
-    WaysAxis,
-    WaysYou,
-    WaysAgents,
     WaysPath,
     WaysOpen,
     WaysLegend,
@@ -287,6 +288,8 @@ pub enum Word {
     DraftNotYet,
     DraftSendResumes,
     DraftWriting,
+    DraftThinking,
+    DraftDoing,
     DraftWords,
     ChatWrites,
     DraftName,
@@ -2150,7 +2153,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2696;
+const PHRASES: u32 = 2699;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2177,10 +2180,10 @@ const PHRASES: u32 = 2696;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4938;
+const SEGMENTS: u32 = 4949;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64230;
-const ALL: [Word; 1979] = [
+const ENGLISH_BYTES: u32 = 64228;
+const ALL: [Word; 1982] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2285,6 +2288,11 @@ const ALL: [Word; 1979] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
+    Word::WayBack,
+    Word::WayStock,
+    Word::WayOwn,
+    Word::WayAskMark,
+    Word::WayAsk,
     Word::AskHow,
     Word::AskHowHint,
     Word::HowChange,
@@ -2358,11 +2366,7 @@ const ALL: [Word; 1979] = [
     Word::HowLineIrreversible,
     Word::HowLineRules,
     Word::HowLineOther,
-    Word::WaysTitle,
     Word::WaysNow,
-    Word::WaysAxis,
-    Word::WaysYou,
-    Word::WaysAgents,
     Word::WaysPath,
     Word::WaysOpen,
     Word::WaysLegend,
@@ -2419,6 +2423,8 @@ const ALL: [Word; 1979] = [
     Word::DraftNotYet,
     Word::DraftSendResumes,
     Word::DraftWriting,
+    Word::DraftThinking,
+    Word::DraftDoing,
     Word::DraftWords,
     Word::ChatWrites,
     Word::DraftName,
@@ -4307,6 +4313,11 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
+            Self::WayBack => 9720,
+            Self::WayStock => 9721,
+            Self::WayOwn => 9722,
+            Self::WayAskMark => 9723,
+            Self::WayAsk => 9724,
             Self::AskHow => 9025,
             Self::AskHowHint => 9026,
             Self::HowChange => 4900,
@@ -4381,11 +4392,7 @@ impl Word {
             Self::HowLineRules => 5650,
             Self::HowLineOther => 5651,
             Self::HowPath => 4929,
-            Self::WaysTitle => 4303,
             Self::WaysNow => 4304,
-            Self::WaysAxis => 4305,
-            Self::WaysYou => 4306,
-            Self::WaysAgents => 4307,
             Self::WaysPath => 4308,
             Self::WaysOpen => 4309,
             Self::WaysLegend => 4310,
@@ -5703,6 +5710,8 @@ impl Word {
             Self::DraftNotYet => 9028,
             Self::DraftSendResumes => 9029,
             Self::DraftWriting => 3682,
+            Self::DraftThinking => 9700,
+            Self::DraftDoing => 9701,
             Self::DraftWords => 3683,
             Self::ChatWrites => 3684,
             Self::DraftName => 3685,
@@ -6856,7 +6865,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
-        Word::WaysLede => (&[b"Choose how work runs, or describe how you work below."], &[]),
+        Word::WaysLede => (&[b"How a change is produced and lands in ", b"."], &[Name]),
+        Word::WayBack => (&[b"Back"], &[]),
+        Word::WayStock => (match shell { Shell::Browser => &[b"Stock ways"], Shell::Terminal => &[b"Stock ways:"] }, &[]),
+        Word::WayOwn => (&[b"", b" runs settings of its own."], &[Name]),
+        Word::WayAskMark => (match shell { Shell::Browser => &[b"\xe2\x9c\xa6"], Shell::Terminal => &[b"\xe2\x9c\xa6 "] }, &[]),
+        Word::WayAsk => (&[b"Change anything by asking temper below."], &[]),
         Word::AskHow => (&[b"How does temper work?"], &[]),
         Word::AskHowHint => (&[b"Sends: ", temper_client_domain::pages::chat::document::HOW_TEMPER_WORKS], &[]),
         Word::HowChange => (&[b"Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it."], &[]),
@@ -6931,11 +6945,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowLineIrreversible => (&[b"what can\xe2\x80\x99t be undone: rewriting history, a force-push, deleting unlanded work"], &[]),
         Word::HowLineRules => (&[b"changes to this page"], &[]),
         Word::HowLineOther => (&[b"anything an agent can\xe2\x80\x99t place"], &[]),
-        Word::WaysTitle => (&[b"Ways of working"], &[]),
         Word::WaysNow => (match shell { Shell::Browser => &[b"now"], Shell::Terminal => &[b", now"] }, &[]),
-        Word::WaysAxis => (&[b"From more of you to more of your agents"], &[]),
-        Word::WaysYou => (match shell { Shell::Browser => &[b"more of you"], Shell::Terminal => &[b"more of you \xe2\x86\x92 "] }, &[]),
-        Word::WaysAgents => (&[b"more of your agents"], &[]),
         Word::WaysPath => (&[b"The way a change goes"], &[]),
         Word::WaysOpen => (&[b"Open ", b" \xe2\x80\xba"], &[Name]),
         Word::WaysMaybe => (match shell { Shell::Browser => &[b"when needed"], Shell::Terminal => &[b"when needed, "] }, &[]),
@@ -7849,6 +7859,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftSendResumes => (&[b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
         Word::DraftWriting => (&[b"writing"], &[]),
+        Word::DraftThinking => (&[b"thinking"], &[]),
+        Word::DraftDoing => (&[b"", b" \xc2\xb7 ", b" s"], &[Name, Number]),
         Word::DraftWords => (&[b"What should this draft hold?"], &[]),
         Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
         Word::DraftName => (&[b"a draft"], &[]),
@@ -8806,6 +8818,23 @@ impl Times {
     #[must_use]
     pub fn new(now: skein_lib::Wall) -> Self {
         Self { now, next: None }
+    }
+    /// Whole seconds for the draft's live path, ticking only in a browser
+    /// (client/pages/chat/document.md, 1).
+    pub fn doing(&mut self, words: &Words, what: Box<[u8]>, since: skein_lib::Wall) -> Box<[u8]> {
+        const SECOND: u64 = 1_000_000_000;
+        let seconds = self.now.as_nanos().saturating_sub(since.as_nanos()).checked_div(SECOND).expect("nonzero second");
+        if words.shell == Shell::Browser {
+            let next = self.now.as_nanos().checked_div(SECOND).expect("nonzero second").checked_add(1);
+            let next = match next {
+                Some(next) => next.checked_mul(SECOND),
+                None => None,
+            };
+            if let Some(next) = next {
+                self.next = [self.next, Some(skein_lib::Wall::from_nanos(next))].into_iter().flatten().min();
+            }
+        }
+        words.say(Word::DraftDoing, &[Hole::Name(what), Hole::Number(seconds)])
     }
     pub fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
         if model.source != jig_client::contract::ModelSource::List {

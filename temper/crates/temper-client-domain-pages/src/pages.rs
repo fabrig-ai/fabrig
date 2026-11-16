@@ -1646,8 +1646,10 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     if let Some(chats) = &mut pages.chats {
         chats.fire(env.now, out);
     }
-    if let Some(chat) = &mut pages.chat {
-        chat.fire(env.now, out);
+    if let Some(chat) = &mut pages.chat
+        && chat.fire(env.now, out)
+    {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
     if let Some(task) = &mut pages.task {
         task.fire(env.now, out);

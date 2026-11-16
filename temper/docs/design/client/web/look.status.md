@@ -1,12 +1,14 @@
 # look: status
 
-2026-11-15. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-16. Where the tree's code lags or departs from [look.md](look.md).
 
-- **Not yet:** *The project's frame*: the `rail-word` request's rendered
-  comparison at 1440, 1000 and 420 px follows landing on main, owned by
-  temper/ui (`look-requests.md`, 4). The stylesheet and view tests check
-  the rules and tree, not rendered equality; compilation and print checks
-  establish no rendered equality either.
+- **Not yet:** *The project's frame*: the `rail-word` and `rail-word-line`
+  requests' rendered comparison at 1440, 1000 and 420 px follows landing
+  on main, owned by temper/ui (`look-requests.md`, 4): `rail-word-line`'s
+  baselines of temper and the word, and each dot's top at the word's
+  lowercase letters' height, at 1366 by 745 and 761 wide. The stylesheet
+  and view tests check the rules and tree, not rendered equality;
+  compilation and print checks establish no rendered equality either.
 
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
