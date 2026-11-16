@@ -172,11 +172,12 @@ rule); an application names its own wires (temper's
   - `FromWorker`, the kinds the worker sends, the initiator's: `hello`,
     `turn`, `call`, `answer`, `fact`, `unauthorized`, `limited`,
     `account_refused`, `logins`, `signed_out`, `list_read`, `draining`,
-    `job_answer`;
+    `job_answer`, `ask`;
   - `FromEngine`, the kinds the engine sends, the responder's:
     `assignment`, `message`, `relayed`, `turn_kept`, `turn_busy`,
     `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign_out`,
-    `job`, `read_list`;
+    `job`, `read_list`, `wires` (`bridges.md`, 3), `asked`
+    (`../../domain/hosts/hub.md`, 10), `restarting` (`restart.md`);
 
   each variant holding its kind's record (`message` holds `Inbound` and
   `grant` holds `Granted`, as today).

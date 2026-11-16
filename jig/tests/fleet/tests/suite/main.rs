@@ -10,6 +10,7 @@ mod ownership_capacity;
 mod program_sources;
 mod reads;
 mod referee;
+mod restart;
 mod simulation;
 mod turns;
 

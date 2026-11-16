@@ -222,6 +222,7 @@ impl LinkPeer {
                 }
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
+                | engine_link::Request::Told { .. }
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }
         }

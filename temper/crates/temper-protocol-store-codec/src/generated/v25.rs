@@ -230,6 +230,7 @@ pub struct Limits {
     pub logged_change_title: u32,
     pub logged_landing_branch: u32,
     pub logged_landing_changes: u32,
+    pub milestone_row_name: u32,
     pub landing_log_landings: u32,
     pub status_brief_sentence: u32,
     pub status_brief_lede: u32,
@@ -539,6 +540,7 @@ pub const CEILINGS: Limits = Limits {
     logged_change_title: 256,
     logged_landing_branch: 4_096,
     logged_landing_changes: 64,
+    milestone_row_name: 256,
     landing_log_landings: 256,
     status_brief_sentence: 200,
     status_brief_lede: 600,
@@ -623,7 +625,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 305] = [
+pub const LIMIT_NAMES: [&str; 306] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -848,6 +850,7 @@ pub const LIMIT_NAMES: [&str; 305] = [
     "logged_change_title",
     "logged_landing_branch",
     "logged_landing_changes",
+    "milestone_row_name",
     "landing_log_landings",
     "status_brief_sentence",
     "status_brief_lede",
@@ -934,7 +937,7 @@ pub const LIMIT_NAMES: [&str; 305] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 305] {
+    pub fn values(&self) -> [u32; 306] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
             self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
@@ -964,17 +967,17 @@ impl Limits {
             self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.class_item_words, self.path_set_name, self.path_set_patterns, self.path_set_patterns_item,
             self.project_classes_items, self.project_classes_sets, self.charter_words_line, self.project_words_headline, self.project_words_lede, self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item,
             self.follow_target_branch, self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.logged_change_signed, self.logged_change_title, self.logged_landing_branch, self.logged_landing_changes,
-            self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why, self.closing_tasks_tasks,
-            self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes,
-            self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits,
-            self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips,
-            self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_source_branch,
-            self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks,
-            self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item,
-            self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why,
-            self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids,
-            self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint,
-            self.device_label,
+            self.milestone_row_name, self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why,
+            self.closing_tasks_tasks, self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes,
+            self.closer_landing_changes, self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files,
+            self.follow_entry_commits, self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue,
+            self.follow_row_skips, self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason,
+            self.change_source_branch, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed,
+            self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths,
+            self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head,
+            self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.finding_signature_source,
+            self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some, self.finding_reason_some,
+            self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -3546,6 +3549,42 @@ pub enum Path {
     LoggedLandingChanges,
     /// Bytes after `LoggedLanding`.
     LoggedLandingTail,
+    /// The `at` field of `MilestoneLanding`.
+    MilestoneLandingAt,
+    /// The `goal` field of `MilestoneLanding`.
+    MilestoneLandingGoal,
+    /// The `change` field of `MilestoneLanding`.
+    MilestoneLandingChange,
+    /// Bytes after `MilestoneLanding`.
+    MilestoneLandingTail,
+    /// The tag of `MilestoneOutcome`.
+    MilestoneOutcomeTag,
+    /// The `at` field of `MilestoneEnd`.
+    MilestoneEndAt,
+    /// The `outcome` field of `MilestoneEnd`.
+    MilestoneEndOutcome,
+    /// The `done` field of `MilestoneEnd`.
+    MilestoneEndDone,
+    /// The `failed` field of `MilestoneEnd`.
+    MilestoneEndFailed,
+    /// The `closed` field of `MilestoneEnd`.
+    MilestoneEndClosed,
+    /// The `spent` field of `MilestoneEnd`.
+    MilestoneEndSpent,
+    /// Bytes after `MilestoneEnd`.
+    MilestoneEndTail,
+    /// The `project` field of `MilestoneRow`.
+    MilestoneRowProject,
+    /// The `task` field of `MilestoneRow`.
+    MilestoneRowTask,
+    /// The `name` field of `MilestoneRow`.
+    MilestoneRowName,
+    /// The `last_landing` field of `MilestoneRow`.
+    MilestoneRowLastLanding,
+    /// The `ended` field of `MilestoneRow`.
+    MilestoneRowEnded,
+    /// Bytes after `MilestoneRow`.
+    MilestoneRowTail,
     /// The `repository` field of `LandingLog`.
     LandingLogRepository,
     /// The `landings` field of `LandingLog`.
@@ -4186,6 +4225,8 @@ pub enum Path {
     ChangeSourceAt,
     /// Bytes after `ChangeSource`.
     ChangeSourceTail,
+    /// The `milestone` field of `ChangeCold`.
+    ChangeColdMilestone,
     /// The `source` field of `ChangeCold`.
     ChangeColdSource,
     /// The `goal` field of `ChangeCold`.
@@ -5826,6 +5867,24 @@ impl Path {
             Self::LoggedLandingAt => "LoggedLanding.at",
             Self::LoggedLandingChanges => "LoggedLanding.changes",
             Self::LoggedLandingTail => "LoggedLanding (tail)",
+            Self::MilestoneLandingAt => "MilestoneLanding.at",
+            Self::MilestoneLandingGoal => "MilestoneLanding.goal",
+            Self::MilestoneLandingChange => "MilestoneLanding.change",
+            Self::MilestoneLandingTail => "MilestoneLanding (tail)",
+            Self::MilestoneOutcomeTag => "MilestoneOutcome (tag)",
+            Self::MilestoneEndAt => "MilestoneEnd.at",
+            Self::MilestoneEndOutcome => "MilestoneEnd.outcome",
+            Self::MilestoneEndDone => "MilestoneEnd.done",
+            Self::MilestoneEndFailed => "MilestoneEnd.failed",
+            Self::MilestoneEndClosed => "MilestoneEnd.closed",
+            Self::MilestoneEndSpent => "MilestoneEnd.spent",
+            Self::MilestoneEndTail => "MilestoneEnd (tail)",
+            Self::MilestoneRowProject => "MilestoneRow.project",
+            Self::MilestoneRowTask => "MilestoneRow.task",
+            Self::MilestoneRowName => "MilestoneRow.name",
+            Self::MilestoneRowLastLanding => "MilestoneRow.last_landing",
+            Self::MilestoneRowEnded => "MilestoneRow.ended",
+            Self::MilestoneRowTail => "MilestoneRow (tail)",
             Self::LandingLogRepository => "LandingLog.repository",
             Self::LandingLogLandings => "LandingLog.landings",
             Self::LandingLogTail => "LandingLog (tail)",
@@ -6146,6 +6205,7 @@ impl Path {
             Self::ChangeSourceBranch => "ChangeSource.branch",
             Self::ChangeSourceAt => "ChangeSource.at",
             Self::ChangeSourceTail => "ChangeSource (tail)",
+            Self::ChangeColdMilestone => "ChangeCold.milestone",
             Self::ChangeColdSource => "ChangeCold.source",
             Self::ChangeColdGoal => "ChangeCold.goal",
             Self::ChangeColdTask => "ChangeCold.task",
@@ -6574,6 +6634,7 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.logged_change_title > CEILINGS.logged_change_title { return Err(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Bound }); }
     if limits.logged_landing_branch > CEILINGS.logged_landing_branch { return Err(Problem { path: Path::LoggedLandingBranch, reason: skein_codec::Reason::Bound }); }
     if limits.logged_landing_changes > CEILINGS.logged_landing_changes { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Bound }); }
+    if limits.milestone_row_name > CEILINGS.milestone_row_name { return Err(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Bound }); }
     if limits.landing_log_landings > CEILINGS.landing_log_landings { return Err(Problem { path: Path::LandingLogLandings, reason: skein_codec::Reason::Bound }); }
     if limits.status_brief_sentence > CEILINGS.status_brief_sentence { return Err(Problem { path: Path::StatusBriefSentence, reason: skein_codec::Reason::Bound }); }
     if limits.status_brief_lede > CEILINGS.status_brief_lede { return Err(Problem { path: Path::StatusBriefLede, reason: skein_codec::Reason::Bound }); }
@@ -6619,11 +6680,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.change_cold_title > CEILINGS.change_cold_title { return Err(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_body > CEILINGS.change_cold_body { return Err(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_report > CEILINGS.change_cold_report { return Err(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Bound }); }
-    if limits.change_cold_close_some > CEILINGS.change_cold_close_some { return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.change_cold_close_some > CEILINGS.change_cold_close_some { return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_signed > CEILINGS.change_hot_signed { return Err(Problem { path: Path::ChangeHotSigned, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_repair_tasks > CEILINGS.change_hot_repair_tasks { return Err(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_resolution_tasks > CEILINGS.change_hot_resolution_tasks { return Err(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Bound }); }
@@ -23341,6 +23402,200 @@ impl LoggedLanding {
     }
 }
 
+/// Movable fields of `MilestoneLanding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneLandingParts {
+    /// The `at` field.
+    pub at: u64,
+    /// The `goal` field.
+    pub goal: u64,
+    /// The `change` field.
+    pub change: u64,
+}
+
+/// `MilestoneLanding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneLanding {
+    at: u64,
+    goal: u64,
+    change: u64,
+}
+
+impl MilestoneLanding {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MilestoneLandingParts) -> Result<Self, Problem> {
+        let MilestoneLandingParts { at, goal, change } = parts;
+        let value = Self { at, goal, change };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> u64 { self.goal }
+
+    /// Reads the `change` field.
+    #[must_use]
+    pub fn change(&self) -> u64 { self.change }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneLandingParts { MilestoneLandingParts { at: self.at, goal: self.goal, change: self.change } }
+
+}
+
+/// `MilestoneOutcome` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum MilestoneOutcome {
+    /// `complete` without a payload.
+    Complete,
+    /// `ended` without a payload.
+    Ended,
+    /// `closed` without a payload.
+    Closed,
+}
+
+impl MilestoneOutcome {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `MilestoneEnd`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneEndParts {
+    /// The `at` field.
+    pub at: u64,
+    /// The `outcome` field.
+    pub outcome: MilestoneOutcome,
+    /// The `done` field.
+    pub done: u32,
+    /// The `failed` field.
+    pub failed: u32,
+    /// The `closed` field.
+    pub closed: u32,
+    /// The `spent` field.
+    pub spent: u64,
+}
+
+/// `MilestoneEnd` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneEnd {
+    at: u64,
+    outcome: MilestoneOutcome,
+    done: u32,
+    failed: u32,
+    closed: u32,
+    spent: u64,
+}
+
+impl MilestoneEnd {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MilestoneEndParts) -> Result<Self, Problem> {
+        let MilestoneEndParts { at, outcome, done, failed, closed, spent } = parts;
+        let value = Self { at, outcome, done, failed, closed, spent };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `outcome` field.
+    #[must_use]
+    pub fn outcome(&self) -> &MilestoneOutcome { &self.outcome }
+
+    /// Reads the `done` field.
+    #[must_use]
+    pub fn done(&self) -> u32 { self.done }
+
+    /// Reads the `failed` field.
+    #[must_use]
+    pub fn failed(&self) -> u32 { self.failed }
+
+    /// Reads the `closed` field.
+    #[must_use]
+    pub fn closed(&self) -> u32 { self.closed }
+
+    /// Reads the `spent` field.
+    #[must_use]
+    pub fn spent(&self) -> u64 { self.spent }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneEndParts { MilestoneEndParts { at: self.at, outcome: self.outcome, done: self.done, failed: self.failed, closed: self.closed, spent: self.spent } }
+
+}
+
+/// Movable fields of `MilestoneRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneRowParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `task` field.
+    pub task: u64,
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `last_landing` field.
+    pub last_landing: Option<MilestoneLanding>,
+    /// The `ended` field.
+    pub ended: Option<MilestoneEnd>,
+}
+
+/// `MilestoneRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneRow {
+    project: u32,
+    task: u64,
+    name: Box<[u8]>,
+    last_landing: Option<MilestoneLanding>,
+    ended: Option<MilestoneEnd>,
+}
+
+impl MilestoneRow {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: MilestoneRowParts) -> Result<Self, Problem> {
+        let MilestoneRowParts { project, task, name, last_landing, ended } = parts;
+        let value = Self { project, task, name, last_landing, ended };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `last_landing` field.
+    #[must_use]
+    pub fn last_landing(&self) -> &Option<MilestoneLanding> { &self.last_landing }
+
+    /// Reads the `ended` field.
+    #[must_use]
+    pub fn ended(&self) -> &Option<MilestoneEnd> { &self.ended }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneRowParts { MilestoneRowParts { project: self.project, task: self.task, name: self.name, last_landing: self.last_landing, ended: self.ended } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.milestone_row_name.min(CEILINGS.milestone_row_name)).expect("u32 fits usize") { return Err(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `LandingLog`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingLogParts {
@@ -27349,6 +27604,8 @@ impl ChangeSource {
 /// Movable fields of `ChangeCold`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeColdParts {
+    /// The `milestone` field.
+    pub milestone: Option<u64>,
     /// The `source` field.
     pub source: Option<ChangeSource>,
     /// The `goal` field.
@@ -27390,6 +27647,7 @@ pub struct ChangeColdParts {
 /// `ChangeCold` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeCold {
+    milestone: Option<u64>,
     source: Option<ChangeSource>,
     goal: Option<u64>,
     task: u64,
@@ -27413,11 +27671,15 @@ pub struct ChangeCold {
 impl ChangeCold {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeColdParts) -> Result<Self, Problem> {
-        let ChangeColdParts { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
-        let value = Self { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
+        let ChangeColdParts { milestone, source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
+        let value = Self { milestone, source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `milestone` field.
+    #[must_use]
+    pub fn milestone(&self) -> &Option<u64> { &self.milestone }
 
     /// Reads the `source` field.
     #[must_use]
@@ -27493,7 +27755,7 @@ impl ChangeCold {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { source: self.source, goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
+    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { milestone: self.milestone, source: self.source, goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.source.as_ref() {
@@ -29601,6 +29863,8 @@ pub enum Value {
     ChangeCold(Box<ChangeCold>),
     /// `change_hot` carrying `Box<ChangeHot>`.
     ChangeHot(Box<ChangeHot>),
+    /// `milestone` carrying `MilestoneRow`.
+    Milestone(MilestoneRow),
 }
 
 impl Value {
@@ -29647,6 +29911,7 @@ impl Value {
             Self::RedPass(record) => RedPass::check(record, limits),
             Self::ChangeCold(record) => ChangeCold::check(record, limits),
             Self::ChangeHot(record) => ChangeHot::check(record, limits),
+            Self::Milestone(record) => MilestoneRow::check(record, limits),
             Self::Ci(_) | Self::Landed(_) | Self::Writer(_) | Self::Flight(_) | Self::ForgeNumber(_) | Self::Playground(_) | Self::Dismissed(_) | Self::Looked(_) | Self::Away(_) | Self::HistoryChange(_) | Self::HistoryLanding(_) | Self::HistoryLast(_) | Self::RedNumber(_) => Ok(()),
         }?;
         Ok(())
@@ -46647,6 +46912,198 @@ impl LoggedLanding {
     }
 }
 
+impl MilestoneLanding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_goal = &self.goal;
+        writer.put(&field_goal.to_be_bytes())?;
+        let field_change = &self.change;
+        writer.put(&field_change.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneLandingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::MilestoneLandingAt, reason: skein_codec::Reason::Short })?;
+        let decoded_goal = reader.u64().ok_or(Problem { path: Path::MilestoneLandingGoal, reason: skein_codec::Reason::Short })?;
+        let decoded_change = reader.u64().ok_or(Problem { path: Path::MilestoneLandingChange, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at, goal: decoded_goal, change: decoded_change })
+    }
+}
+
+impl MilestoneOutcome {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Complete | Self::Ended | Self::Closed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Complete => writer.put(&[0_u8])?,
+            Self::Ended => writer.put(&[1_u8])?,
+            Self::Closed => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Complete,
+            1 => Self::Ended,
+            2 => Self::Closed,
+            _ => return Err(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl MilestoneEnd {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_outcome = &self.outcome;
+        field_outcome.encode(writer)?;
+        let field_done = &self.done;
+        writer.put(&field_done.to_be_bytes())?;
+        let field_failed = &self.failed;
+        writer.put(&field_failed.to_be_bytes())?;
+        let field_closed = &self.closed;
+        writer.put(&field_closed.to_be_bytes())?;
+        let field_spent = &self.spent;
+        writer.put(&field_spent.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneEndTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::MilestoneEndAt, reason: skein_codec::Reason::Short })?;
+        let decoded_outcome = MilestoneOutcome::decode_from(limits, reader)?;
+        let decoded_done = reader.u32().ok_or(Problem { path: Path::MilestoneEndDone, reason: skein_codec::Reason::Short })?;
+        let decoded_failed = reader.u32().ok_or(Problem { path: Path::MilestoneEndFailed, reason: skein_codec::Reason::Short })?;
+        let decoded_closed = reader.u32().ok_or(Problem { path: Path::MilestoneEndClosed, reason: skein_codec::Reason::Short })?;
+        let decoded_spent = reader.u64().ok_or(Problem { path: Path::MilestoneEndSpent, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at, outcome: decoded_outcome, done: decoded_done, failed: decoded_failed, closed: decoded_closed, spent: decoded_spent })
+    }
+}
+
+impl MilestoneRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_last_landing = &self.last_landing;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_last_landing.is_some() {
+        size = size.checked_add(24).expect("schema ceilings fit u32");
+        }
+        let field_ended = &self.ended;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_ended.is_some() {
+        size = size.checked_add(29).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_last_landing = &self.last_landing;
+        match field_last_landing {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_ended = &self.ended;
+        match field_ended {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::MilestoneRowProject, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::MilestoneRowTask, reason: skein_codec::Reason::Short })?;
+        let decoded_name = { let length = match skein_codec::read_len(reader, limits.milestone_row_name.min(CEILINGS.milestone_row_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MilestoneRowName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Short })?) };
+        let decoded_last_landing = match reader.u8().ok_or(Problem { path: Path::MilestoneRowLastLanding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(MilestoneLanding::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::MilestoneRowLastLanding, reason: skein_codec::Reason::Tag }) };
+        let decoded_ended = match reader.u8().ok_or(Problem { path: Path::MilestoneRowEnded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(MilestoneEnd::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::MilestoneRowEnded, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, task: decoded_task, name: decoded_name, last_landing: decoded_last_landing, ended: decoded_ended })
+    }
+}
+
 impl LandingLog {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -51011,6 +51468,11 @@ impl ChangeCold {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_milestone = &self.milestone;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_milestone.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         let field_source = &self.source;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_source {
@@ -51077,6 +51539,53 @@ impl ChangeCold {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        Self::encode_0(self, writer)?;
+        Self::encode_1(self, writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ChangeColdTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_milestone = match reader.u8().ok_or(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Tag }) };
+        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeSource::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Tag }) };
+        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Tag }) };
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeColdTask, reason: skein_codec::Reason::Short })?;
+        let decoded_repository = Repository::decode_from(limits, reader)?;
+        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.change_cold_branch.min(CEILINGS.change_cold_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Short })?) };
+        let decoded_base = { let length = match skein_codec::read_len(reader, limits.change_cold_base.min(CEILINGS.change_cold_base)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBase, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Short })?) };
+        let decoded_title = { let length = match skein_codec::read_len(reader, limits.change_cold_title.min(CEILINGS.change_cold_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Short })?) };
+        let decoded_body = { let length = match skein_codec::read_len(reader, limits.change_cold_body.min(CEILINGS.change_cold_body)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBody, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Short })?) };
+        let decoded_base_repair = match reader.u8().ok_or(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Bool }) };
+        let decoded_producing_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdProducingCharter, reason: skein_codec::Reason::Short })?;
+        let decoded_review_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdReviewCharter, reason: skein_codec::Reason::Short })?;
+        let decoded_producing_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Tag }) };
+        let decoded_review_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Tag }) };
+        let decoded_report = { let length = match skein_codec::read_len(reader, limits.change_cold_report.min(CEILINGS.change_cold_report)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdReport, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Short })?) };
+        let decoded_repairs = match reader.u8().ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Tag }) };
+        let decoded_follows = match reader.u8().ok_or(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeFollows::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Tag }) };
+        let decoded_catch_up = match reader.u8().ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Tag }) };
+        let decoded_close = match reader.u8().ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_cold_close_some.min(CEILINGS.change_cold_close_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdClose, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { milestone: decoded_milestone, source: decoded_source, goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
+    }
+}
+
+
+impl ChangeCold {
+    fn encode_0(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_milestone = &self.milestone;
+        match field_milestone {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_source = &self.source;
         match field_source {
             Some(some_0) => {
@@ -51142,6 +51651,12 @@ impl ChangeCold {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeCold {
+    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_follows = &self.follows;
         match field_follows {
             Some(some_0) => {
@@ -51169,37 +51684,7 @@ impl ChangeCold {
         }
         Ok(())
     }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ChangeColdTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeSource::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Tag }) };
-        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Tag }) };
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeColdTask, reason: skein_codec::Reason::Short })?;
-        let decoded_repository = Repository::decode_from(limits, reader)?;
-        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.change_cold_branch.min(CEILINGS.change_cold_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Short })?) };
-        let decoded_base = { let length = match skein_codec::read_len(reader, limits.change_cold_base.min(CEILINGS.change_cold_base)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBase, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Short })?) };
-        let decoded_title = { let length = match skein_codec::read_len(reader, limits.change_cold_title.min(CEILINGS.change_cold_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Short })?) };
-        let decoded_body = { let length = match skein_codec::read_len(reader, limits.change_cold_body.min(CEILINGS.change_cold_body)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBody, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Short })?) };
-        let decoded_base_repair = match reader.u8().ok_or(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Bool }) };
-        let decoded_producing_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdProducingCharter, reason: skein_codec::Reason::Short })?;
-        let decoded_review_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdReviewCharter, reason: skein_codec::Reason::Short })?;
-        let decoded_producing_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Tag }) };
-        let decoded_review_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Tag }) };
-        let decoded_report = { let length = match skein_codec::read_len(reader, limits.change_cold_report.min(CEILINGS.change_cold_report)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdReport, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Short })?) };
-        let decoded_repairs = match reader.u8().ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Tag }) };
-        let decoded_follows = match reader.u8().ok_or(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeFollows::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Tag }) };
-        let decoded_catch_up = match reader.u8().ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Tag }) };
-        let decoded_close = match reader.u8().ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_cold_close_some.min(CEILINGS.change_cold_close_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdClose, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { source: decoded_source, goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
-    }
 }
-
 impl ChangeHot {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -53468,6 +53953,7 @@ impl Value {
             Self::RedPass(record) => 1_u32.checked_add(RedPass::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeCold(record) => 1_u32.checked_add(ChangeCold::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeHot(record) => 1_u32.checked_add(ChangeHot::measure(record)).expect("schema ceilings fit u32"),
+            Self::Milestone(record) => 1_u32.checked_add(MilestoneRow::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -53522,6 +54008,7 @@ impl Value {
             Self::RedPass(record) => { writer.put(&[45_u8])?; record.encode(writer)?; }
             Self::ChangeCold(record) => { writer.put(&[46_u8])?; record.encode(writer)?; }
             Self::ChangeHot(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
+            Self::Milestone(record) => { writer.put(&[48_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -53584,6 +54071,7 @@ impl Value {
             45 => Self::RedPass(RedPass::decode_from(limits, reader)?),
             46 => Self::ChangeCold(Box::new(ChangeCold::decode_from(limits, reader)?)),
             47 => Self::ChangeHot(Box::new(ChangeHot::decode_from(limits, reader)?)),
+            48 => Self::Milestone(MilestoneRow::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -64756,6 +65244,126 @@ impl LoggedLanding {
     }
 }
 
+impl MilestoneLanding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl MilestoneOutcome {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl MilestoneEnd {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(MilestoneOutcome::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(MilestoneOutcome::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl MilestoneRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.milestone_row_name))?)?.checked_add(1_u64.checked_add(MilestoneLanding::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(MilestoneEnd::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.milestone_row_name))?.checked_add(MilestoneLanding::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(MilestoneEnd::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl LandingLog {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -67448,15 +68056,16 @@ impl ChangeCold {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(ChangeSource::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(8_u64)?.checked_add(Repository::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?;
-        size = size.checked_add(1_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(ChangeSource::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?.checked_add(1_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
         size.checked_add(0)
     }
 
@@ -67469,15 +68078,16 @@ impl ChangeCold {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(ChangeSource::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Repository::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.change_cold_branch))?.checked_add(u64::from(limits.change_cold_base))?;
-        heap = heap.checked_add(u64::from(limits.change_cold_title))?.checked_add(u64::from(limits.change_cold_body))?;
+        heap = heap.checked_add(0_u64)?.checked_add(ChangeSource::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_report))?;
-        heap = heap.checked_add(0_u64)?.checked_add(ChangeFollows::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.change_cold_close_some))?;
+        heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_branch))?;
+        heap = heap.checked_add(u64::from(limits.change_cold_base))?.checked_add(u64::from(limits.change_cold_title))?;
+        heap = heap.checked_add(u64::from(limits.change_cold_body))?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.change_cold_report))?.checked_add(0_u64)?;
+        heap = heap.checked_add(ChangeFollows::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.change_cold_close_some))?;
         heap.checked_add(0)
     }
 }
@@ -68812,6 +69422,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::encoded_bound_within(limits)?).max(Red::encoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::encoded_bound_within(limits)?).max(RedPass::encoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?).max(ChangeHot::encoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -68848,6 +69459,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::decoded_bound_within(limits)?).max(Red::decoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::decoded_bound_within(limits)?).max(RedPass::decoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeCold>()).ok()?)?).max(ChangeHot::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeHot>()).ok()?)?);
+        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -69290,6 +69902,10 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dismissed::encoded_bound_within(limits)?);
     biggest = biggest.max(LoggedChange::encoded_bound_within(limits)?);
     biggest = biggest.max(LoggedLanding::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneLanding::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneOutcome::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneEnd::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingLog::encoded_bound_within(limits)?);
     biggest = biggest.max(StatusBrief::encoded_bound_within(limits)?);
     biggest = biggest.max(StatusRunning::encoded_bound_within(limits)?);
@@ -69357,14 +69973,14 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateEnded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProved::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistorySearched::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProbeEnded::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryTurn::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryRecordedState::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistorySearched::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryProbeEnded::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryTurn::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryRecordedState::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryRecorded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnding::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnded::encoded_bound_within(limits)?);
@@ -69844,6 +70460,10 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dismissed::decoded_bound_within(limits)?);
     biggest = biggest.max(LoggedChange::decoded_bound_within(limits)?);
     biggest = biggest.max(LoggedLanding::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneLanding::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneOutcome::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneEnd::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingLog::decoded_bound_within(limits)?);
     biggest = biggest.max(StatusBrief::decoded_bound_within(limits)?);
     biggest = biggest.max(StatusRunning::decoded_bound_within(limits)?);
@@ -69911,14 +70531,14 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateEnded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProved::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistorySearched::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProbeEnded::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryTurn::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryRecordedState::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistorySearched::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryProbeEnded::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryTurn::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryRecordedState::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryRecorded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnding::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnded::decoded_bound_within(limits)?);

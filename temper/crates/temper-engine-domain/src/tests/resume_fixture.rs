@@ -123,6 +123,7 @@ pub fn limits() -> engine::Limits {
         progress_bytes: 0,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };
@@ -847,6 +848,7 @@ impl StartStore {
                     | engine::Request::Forge { .. }
                     | engine::Request::Account(_)
                     | engine::Request::Busy(_)
+                    | engine::Request::Restarting { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
             } else if root.ready() {

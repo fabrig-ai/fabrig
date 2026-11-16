@@ -9,6 +9,7 @@ pub enum CaseState {
     Passed,
     Failed,
     Blocked,
+    Gap,
 }
 impl CaseState {
     #[must_use]
@@ -19,6 +20,7 @@ impl CaseState {
             Self::Passed => "passed",
             Self::Failed => "failed",
             Self::Blocked => "blocked",
+            Self::Gap => "gap",
         }
     }
 }
@@ -48,6 +50,7 @@ pub enum OutcomeResult {
     Passed,
     Failed,
     Blocked,
+    Gap,
 }
 impl OutcomeResult {
     #[must_use]
@@ -56,6 +59,7 @@ impl OutcomeResult {
             Self::Passed => "passed",
             Self::Failed => "failed",
             Self::Blocked => "blocked",
+            Self::Gap => "gap",
         }
     }
     pub(crate) fn parse(word: &str) -> Result<Self, Refusal> {
@@ -126,7 +130,7 @@ impl Ledger {
                 self.reached(build)
                     && build.held.is_none()
                     && build.order.is_some()
-                    && self.cases.iter().any(|case| eligible(case, build, surfaces))
+                    && self.cases.iter().any(|case| eligible(self, case, build, surfaces))
             })
             .max_by_key(|build| build.order)
     }
@@ -214,7 +218,7 @@ impl Ledger {
         let selected = self.builds.iter().find(|record| record.commit == build).expect("selected build");
         for case in &self.cases {
             if (case.pass == Some(number) && (case.state == CaseState::Failed || case.state == CaseState::Assigned))
-                || eligible(case, selected, surfaces)
+                || eligible(self, case, selected, surfaces)
             {
                 before.cases.push(CaseBefore { number: case.number, state: case.state, pass: case.pass });
             }
@@ -335,8 +339,9 @@ impl Ledger {
         if found { Ok(()) } else { Err(refused(format!("no filed request for goal {goal}"))) }
     }
 }
-fn eligible(case: &Case, build: &Build, surfaces: &[String]) -> bool {
+fn eligible(ledger: &Ledger, case: &Case, build: &Build, surfaces: &[String]) -> bool {
     case.state == CaseState::Queued
+        && ledger.gap_build_holds(case, build)
         && surfaces.contains(&case.surface)
         && case.landings().iter().all(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))
 }

@@ -15,9 +15,15 @@ each worker that may stay by the opening the engine kept of it
 keeps: the build staged on every host, the engine's settled stop and the
 new build's check, then the engine alone when the workers may stay,
 workers in turn when asked, and every part together otherwise, each
-redeploy recorded and refereed: each worker's agreed versions, the window
-against the workers' grace, and no try spent or task held since but for
-a run's own failure (`redeploy.md`; R6, goal 2487). Its drills on the
+redeploy recorded and refereed: each worker's agreed versions, each
+worker's return against the wait it was given, and no try spent or task
+held since but for a run's own failure (`redeploy.md`; R6, goal 2487).
+The engine's settled stop tells its workers it restarts: each that heard
+it keeps its runs through the restart wait, twenty minutes by default,
+its runs' relayed calls and completions waiting within their deadlines,
+and the next start holds their claims as long; the redeploy names who
+was told (`domain/root.md`, 8.2; `domain/worker/README.md`, section 2;
+jig's `protocol/channel/restart.md`; R8, goal 4843). Its drills on the
 deployments follow landing, each a redeploy its operator starts.
 A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
@@ -132,9 +138,13 @@ the fake Forgejo and the fake model, saved and restored with a newer
 build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
-`batch` of two. Its passes follow landing
+`batch` of two. Its passes follow landing; QA gaps are filed for people
+with no goal, then reopened for judgement by a closing landing. By goal
+5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
+model as the person's account and scripts its reviews' approving
+verdicts, so that a ctl case's change lands by the stock rule
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
-`testing/qa/setups.md`; `draft/landed-qa.status.md`).
+`testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 
 The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
@@ -386,6 +396,7 @@ Design documents:
 - [`client/box-binary.md`](client/box-binary.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 - [`client/ctl/areas.md`](client/ctl/areas.status.md)
+- [`client/ctl/milestones.md`](client/ctl/milestones.status.md)
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
@@ -473,6 +484,7 @@ Design documents:
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
+- [`domain/milestones.md`](domain/milestones.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
@@ -524,6 +536,7 @@ Design documents:
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
 - [`testing/qa/deployment.md`](testing/qa/deployment.status.md)
 - [`testing/qa/findings.md`](testing/qa/findings.status.md)
+- [`testing/qa/gaps.md`](testing/qa/gaps.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)
@@ -556,7 +569,6 @@ Drafts:
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
-- [`draft/default-wall-230.md`](draft/default-wall-230.status.md)
 - [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
@@ -589,6 +601,7 @@ Drafts:
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
+- [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`).
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
@@ -613,10 +626,11 @@ Drafts:
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
-- [`draft/store-floor.md`](draft/store-floor.status.md) — F0, goal 4032: dev.fabrig.ai's store settled once at open: the tasks' milestones, the whole live tasks, the projections' whole forms and temper's whole change records dropped from the schema, value types 10 and 12 retired with their ranges, each set's settling job putting every value at the binary's layout and retiring the other layouts by proof, before `task-logs`; skein's plans with their drops refused; the turns' versions, ended tasks' variants and empty round branches counted; the floor row written by the first commit and the upgrade's last; the levels held explicitly by each set.
+- [`draft/store-floor.md`](draft/store-floor.status.md) — F0, goal 4032: dev.fabrig.ai's store settled once at open: the tasks' milestones, the whole live tasks, the projections' whole forms and temper's whole change records dropped from the schema, value types 10 and 12 retired with their ranges, each set's settling job putting every value at the binary's layout and retiring the other layouts by proof, before `task-logs`; skein's plans with their drops refused; the turns' versions, ended tasks' variants and empty round branches counted; the floor row written by the first commit and the upgrade's last; the levels held explicitly by each set. F2, goal 4623: the map patches' history and the walk gone: jig's and temper's patches, old registered texts and temper's old goldens, the eager walk with S2's rewrite, the fresh mark, the effects-in-flight check, seeding from code, the baseline recognizer and the rehearsal's decoding at patch levels; the owner sets (`OwnerSet`) keep each current family, value type, job, level and the frames' texts and patches; a store behind the levels or holding values with no registry refused, naming build c1019509e3; the upgrade fixture a registry change and a job.
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, seeded with no value rewritten, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them; jig's job at open `milestones` folds a store's milestones into them and erases them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; jobs at open writing the summaries and retention rows of what already ended; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed, a store's whole rows put into their parts by jobs at open; a store seeded in the upgrade that brings a new value type opens. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, moved out of the map by jig's job at open `task-logs`, linked into a new generation and dropped whole by retention; turns written before them stay in their files until retention drops them.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
+- [`draft/test-budgets.md`](draft/test-budgets.status.md)
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: the room named and held: an assignment that can't encode refused naming its field and figures, in the engine's log and the held task's reason, skein's generated paths naming themselves; a charter whose fixed part passes the allowance on a wake refused at apply and over the defaults at start, with or without a local agent, from the declarations' costs by family that the service gives the domain.

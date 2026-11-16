@@ -23,10 +23,10 @@ The dialect is ../../forge/README.md's; the parts under test are the kit's other
   peers) hosts the protocol layer on loopback, in plaintext, over a forge its
   owner hands it and may share with another fake in the process (section 5).
 - **The throwaway Forgejo** (`testing/skein-throwaway-forgejo`) runs the
-  pinned binary on loopback, on SQLite in a scratch directory (section 6).
+  pinned binary on loopback, on SQLite in a scratch directory (`throwaway.md`, section 1).
 - **The conformance** (`tests/forge/conformance`, outside the suites) drives
   the throwaway and records each fact the dialect relies on as `holds`,
-  `fails` or `unchecked`, with masked transcripts (section 7).
+  `fails` or `unchecked`, with masked transcripts (`throwaway.md`, section 2).
 - **GitHub's layer** (`crates/skein-fake-forge-github`) serves github.com's
   API at the dialect's pin over the same domain: the App, its installations
   and tokens, the browser's pages as plain redirects, the merge queue,
@@ -193,6 +193,37 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   runner serves waits, with no steps, its status pending; one whose
   needs have not ended is blocked; one running is at a step, so a
   `JobState` read names each.
+- **A declared wait for a runner** (temper's `draft/ci-runner-wait.md`,
+  1 and 2): a declaration's first line (`Cue::Declared`, above) may
+  open with phases before its rule, one space apart: `wait SPAN`, then
+  `run SPAN`, each optional, in that order, as in `wait 40m run 5m
+  pass` or `run 90s fail`. A SPAN is one to five decimal digits and a
+  unit, `s`, `m` or `h`, at most 24 hours; phases that do not read so
+  make the line any other line, failing `unreadable PATH`. A job such
+  a line judges, from its run's start or its rerun's:
+  - **waits for a runner** for the `wait` span: no steps, its status
+    pending, its `wait` `Runner`, as a job asking for a label no runner
+    serves;
+  - **then runs** for the `run` span, or for the drawn latency where
+    the line names none: at its workflow step, `Set up job` passed and
+    the workflow step running;
+  - **then reports** the rule's verdict, judged as the rule alone is.
+
+  A line with no phase is judged as before, its draws unchanged. The
+  phases count on the forge's clock from the run's start, so a new run
+  (a pull binding's included) or a rerun's attempt waits afresh. A
+  dispatched workflow's job judged by a declaration (`Workflow.cue`)
+  waits its span from its dispatch, beside its labels and needs, then
+  runs its span in place of the drawn latency. A phase's end is a
+  timer, kept by an image as all timed work is (2.7). So whoever
+  commits a head decides how long its run waits for a runner and runs,
+  as a shared runner's queue makes it on Forgejo.
+- **A run's wait,** `Run.wait`, an `Option<JobWait>` as a job's `wait`
+  is, follows its jobs as Forgejo words a run: none once a job runs,
+  and once the run completes; else `Runner` while a job waits for a
+  runner; else `Needs` while a job is blocked. It is derived from the
+  jobs whenever they change, an image's decoding included, and never
+  kept.
 - **Merges and updates by style:** a fast-forward-only merge moves the
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
@@ -364,7 +395,7 @@ of its repositories into another, and reaches no network.
 - **`Write::DeleteRepository`** frees the repository's name. Its slot
   stays, marked gone, so that what holds its id reads nothing; nothing
   walks a gone repository. A copy's call still running on it ends as
-  the conformance records of Forgejo (section 7).
+  the conformance records of Forgejo (`throwaway.md`, section 2).
 
 ### 2.7 Its state, kept
 
@@ -493,8 +524,14 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   /repos/OWNER/NAME/contents`) validates every create or update, including
   each update's blob SHA, before storing one commit. In a repository with
   no branch it creates the first branch and a commit without a parent;
-  otherwise it commits on the named branch. Moving that head starts the
-  repository's ordinary CI (2.3). A present file's contents read answers
+  otherwise it commits on the named branch. With `new_branch`, `branch`
+  names an existing base: the batch makes the new branch at that base's
+  head with the commit, whose parent and unchanged files come from the
+  base. An existing new branch is refused (`422`), a missing base is
+  `404`; neither changes a branch or stores a commit. Every validation
+  and room check precedes storing the commit and making the branch.
+  Moving that head starts the repository's ordinary CI (2.3). A present
+  file's contents read answers
   JSON with its blob SHA and base64 content, so the next batch can update
   it.
 - **Credentials.** The header is `Authorization: token <value>`; an unknown
@@ -530,9 +567,15 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   keeps only runs of the workflow file `workflow_id` names, when given,
   before it pages, and still ignores `workflow`. Each is a filter of the
   domain's read, as `head_sha` is, so the tally shows what a client's
-  filter saved (`../../forge/forgejo.md`, 1.2; `forge.md`, section 9 lists them as not yet
+  filter saved (`../../forge/forgejo.md`, 1.2; `forge.md`, section 7 lists them as not yet
   recorded). A reviewer's request answers with no body, where Forgejo
   sends the pull's reviews, which no client reads.
+- **Actions' states, in Forgejo's words** (`../../forge/job-state.md`,
+  3): a run, and each job of it, reads `waiting` while its `wait` is
+  `Runner`, `blocked` while it is `Needs`, `running` while it runs
+  with none, then its conclusion (2.3). A job's read lists the steps it
+  has: none while it waits, `Set up job` and the step it is at,
+  `running`, while it runs, and each step once it completes.
 - **Faults move down to bytes.** A call refused for its rate is `429` with
   `Retry-After` in whole seconds, rounded up; one failed unavailable is `503`;
   one made and then timed out is `500`. The layer adds per mille byte
@@ -568,7 +611,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   - A hook takes none that is inactive, whose secret is empty, or whose
     URL is not `http://` with a loopback IP literal, a port and a path.
     So a fake never posts beyond its machine, nor unsigned. An
-    organization's hook takes none (section 9).
+    organization's hook takes none (section 7).
   - A configured endpoint wins: with one, `deliveries` yields the
     endpoint's alone, and `Service::delivery` stays, the endpoint's
     rendering, for the worlds that pin an address.
@@ -842,127 +885,11 @@ peers host theirs. The real loop hosts the same one.
   owed: the story, which made the changes, does. Its domain's tally is
   checked against that count at the end.
 
-## 6. The throwaway Forgejo
-
-The throwaway runs the pinned Forgejo for the tools and process tiers that
-need a real one. It never meets an existing Forgejo.
-
-- **The binary.** `Forgejo::from_path` takes the path from its caller and
-  reads no environment. It runs `--version` and refuses, naming it
-  (`Refusal`), a binary that is unreadable or whose version line does not
-  name the pin's `VERSION` (../../forge/README.md, section 4.3). It computes the SHA-256.
-  The pin's `RUNNER_VERSION` and `names_runner` are re-exported. The kit's
-  tests that need the binaries are ignored by default; their test files
-  read the paths from `SKEIN_FORGEJO` and `SKEIN_FORGEJO_RUNNER`, and fail
-  naming the variable when it is unset. No library code reads a variable,
-  and a service's tests read their own.
-- **The instance.** `start(scratch, &Settings)` writes an `app.ini` for
-  loopback, SQLite and the page cap, makes the admin user and its token, and
-  waits for the API. The scratch must be empty or absent and not under
-  `/tmp`. The environment is cleared, with a home in the scratch, a fixed
-  `PATH` and `TZ`, and no system or user git configuration.
-  `Settings::small()` pages at 2, enables Actions and bounds an answer at
-  16 MiB. `Settings::local_migrations`, off in `small()`, writes
-  `[migrations] ALLOW_LOCALNETWORKS = true`, for the conformance's copies
-  alone (section 7).
-- **Attaching.** `Instance::attach(child, port, scratch, admin_token,
-  &Settings)` takes a Forgejo its caller started and keeps, such as a
-  service's owned forge. It waits for the API and reads the admin's login
-  and id with `GET /api/v1/user`, naming no login of its own. Its `stop`
-  ends the child and leaves the scratch, which stays its caller's, and
-  `cli` refuses, having no work path.
-- **Provisioning:** users, tokens, repositories (`Init::{Readme, Empty,
-  Sha256}`), collaborators and `fresh_secret`. `Forgejo::work_path` and
-  `Instance::cli` run Forgejo's command line without and with a web
-  process, keeping the exit code and both streams.
-- **Exchanges.** `exchange` (a token, or none) and `exchange_basic` send one
-  request and return what was sent and received, through skein's HTTP client
-  driven by `drive` as a one-shot host (../../runtime/shell.md, section 11). A recording
-  holds no credential: `token MASKED` or `Basic MASKED`. `secrets()` lists
-  every secret the instance made, for a leak scan.
-- **`stop`** removes the instance and its scratch; a start that fails cleans
-  up. `kill` ends the process at once and keeps the scratch, and
-  `restart` starts it again on that scratch and port. `exchange_patient`
-  is `exchange` with the caller's own time for the answer, for a
-  migration's one long request. The conformance starts the runner
-  (section 7), not the throwaway.
-- **Its server dies with its test,** however the test ends: `web` starts
-  dying with the thread that starts it (`spawn_dying_with_parent`,
-  ../../runtime/shell.md, 3, with Kill), so an abort or a runner's kill
-  leaves no Forgejo on the scratch's socket and database. Its temporary
-  files are the scratch's `tmp` (`TMPDIR`), so nothing it writes lies
-  outside the scratch. The commands it waits on, `migrate`, the admin's
-  creation and `cli`, stay plain spawns. A service that starts its own
-  Forgejo and attaches it starts it dying with its test the same way.
-
-## 7. The conformance
-
-`tests/forge/conformance` is a tool outside the suites. It drives a throwaway
-Forgejo with a page cap of 2, so paging shows, and records what the dialect
-relies on (../../forge/forgejo.md, section 2). It makes its own admin user and tokens.
-
-- **Inputs:** `--forgejo <path>`, `--scratch` (empty or absent, not under
-  `/tmp`), `--out`, and optionally `--runner <path>`, checked with the pin's
-  `names_runner`. It reads no variable.
-- **Transcripts:** `transcripts/<case>/{request,response}` are raw HTTP/1.1
-  bytes. A response is unframed, with chunking removed and `Content-Length`
-  recomputed; JSON key order, whitespace and types stay as received. A case
-  replaces only its own directory. Keys, nesting, types and status lines
-  must match; ids, times, counts and text may vary. `transcripts/binary.txt`
-  holds the binary's version line and SHA-256.
-- **Deliveries:** `deliveries/<event>/{request,response}`, one per event of
-  ../../forge/README.md, section 6, with a mask map of their own.
-- **Facts:** `facts.txt` has provenance lines, then a line per fact (../../forge/forgejo.md,
-  section 2): name, `holds`, `fails` or `unchecked`, reason.
-- **Masking:** one map masks object ids and RFC 3339 times by first
-  appearance, keeping width and offset; ports, `Date` and `Last-Modified`
-  take fixed values; numeric resource ids stay (provisioning has a fixed
-  order).
-- **Secrets never reach a file.** Before masking, the tool registers every
-  token's value and its eight-digit tail, and every password. It scans each
-  response body before masking and every output before writing. A leak stops
-  the run naming the case and the kind of secret, never its value.
-- **A second instance,** for the `setup-migrate-` facts
-  (../../forge/setup/forgejo.md, section 2), run by the focused mode `--migrate`,
-  which writes its own transcripts and facts alone: the source, a
-  throwaway of its own on loopback, started beside the first, whose
-  `[migrations] ALLOW_LOCALNETWORKS` is on in the first alone
-  (`Settings::local_migrations`, `forge.md`, section 6, which no other caller sets).
-  The default's refusal is recorded on the second, which keeps
-  Forgejo's default. A loopback source speaks plain `http`, so the mode
-  records Forgejo's refusal of it, then writes `[migrations]
-  ALLOW_UNENCRYPTED = true` into these two instances' `app.ini` alone. The
-  source holds a private repository beside its public ones, asked with
-  no credentials for a private source's refusal. The
-  fact of which workflow directory Actions reads takes `--runner`, and is
-  `unchecked` without it. A loopback proxy of the tool's own stands between
-  them and stalls a source's bytes on demand, so a migration is cut
-  short at a known point: by killing the first, or by the client going
-  away.
-- **The groups:** the dialect's cases; the setup (accounts, tokens,
-  organizations, repositories' collaborators and hooks, the admin's
-  repository search, under the least admin scopes, a copy's migration); `cli-` facts
-  (Forgejo's command line, outcomes only); `runner-` facts
-  (registration, the runner's connection, a workflow that clones a
-  private repository with the job's token); and the Actions facts, which
-  run two inline host-shell jobs, one succeeding and one failing, with
-  nothing downloaded. The runner groups are `unchecked` without the
-  runner.
-- **The runner's daemon dies with the tool,** however the tool ends:
-  it starts dying with its parent (../../runtime/shell.md, 3, with
-  Terminate, so it ends its host-shell jobs within its one-second
-  shutdown), its home, configuration, jobs and log in the scratch's
-  `runner`, and its `TMPDIR` there too.
-- **`--component`** runs the kit's component (../../forge/connection.md) through
-  real io sockets on the shell's ring against a fresh fixture, under the
-  scopes `read:user`, `write:issue` and `write:repository`. It replaces only
-  the `component-` facts and records no transcripts. Each call's cost is
-  compared with the request lines counted from socket sends.
-
-## 8. Coverage and budgets
+## 6. Coverage and budgets
 
 - **Step tests** sit in each crate. The domain's cover each call's decision,
-  listings, merges, protection, CI and hooks. The protocol layer's cover
+  listings, merges, protection, CI, a declared wait's phases and a run's
+  wait, and hooks. The protocol layer's cover Actions' states,
   routes, errors, faults, the tally, the setup routes and deliveries, each
   decoded by `skein-forge`, with a signature that holds for its body only;
   deliveries that follow the setup's hooks: one for each hook that takes
@@ -993,7 +920,7 @@ relies on (../../forge/forgejo.md, section 2). It makes its own admin user and t
 - **Budgets:** the focused suite's 40 CPU seconds and the fuzzy suite's
   120 (../README.md, section 7) bind these tests.
 
-## 9. Open questions
+## 7. Open questions
 
 - **A bridge for real git** needs a protocol it speaks, over a listener of
   the peer's. It is designed separately and lands in section 3. Default:
@@ -1017,6 +944,3 @@ relies on (../../forge/forgejo.md, section 2). It makes its own admin user and t
   `routes::commit` stand on the domain's `commit_bytes` and `commit_count`
   (`github.md`, section 3), and stay on that layer for their readers across skein's
   worlds, GitHub's among them, and temper. Default: they stay.
-- **The runner's start.** The conformance starts the runner (section 7).
-  Whether a second user moves that start into the throwaway is open.
-  Default: it stays in the conformance until a second user needs it.

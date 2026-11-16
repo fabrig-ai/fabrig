@@ -151,7 +151,7 @@ fn window_page_case(seed: u64, bodies: &[&[u8]], resume: bool, tail: Option<&[u8
     assert_eq!(assignment.run.policy.resume, resume);
     let expected: Vec<Box<[u8]>> = if resume { bodies.iter().map(|body| Box::from(*body)).collect() } else { vec![] };
     assert_eq!(assignment.transcript.as_ref(), expected);
-    assert_eq!(fresh_windows::tail(&world), tail);
+    assert_eq!(closed_proofs::tail(&world), tail);
 }
 
 fn a_window_turn_charging_exactly_the_room_resumes_whole() {
@@ -247,15 +247,16 @@ fn a_window_past_the_resume_limit_starts_fresh_with_its_tail() {
     assert_eq!(tail.as_ref(), [b'c'; 100]);
 }
 
-use crate::fresh_windows;
+use crate::closed_proofs;
 
 #[test]
-fn a_window_closed_by_a_fresh_mark_starts_fresh_with_its_tail() {
-    use fresh_windows as f;
+fn a_closed_window_starts_fresh_with_its_tail() {
+    use closed_proofs as f;
     let mut world = f::parked();
     let mut control = f::parked();
-    f::restart(&mut world, f::AFTER);
-    f::restart(&mut control, f::BEFORE);
+    f::close(&mut world);
+    f::restart(&mut world);
+    f::restart(&mut control);
     world.say(87);
     control.say(87);
     f::fresh(&world);
@@ -275,7 +276,7 @@ fn a_window_closed_by_a_fresh_mark_starts_fresh_with_its_tail() {
 
 #[test]
 fn a_closed_window_keeps_its_tail_after_a_transient_try() {
-    use fresh_windows as f;
+    use closed_proofs as f;
     let mut world = f::parked();
     let mut control = f::parked();
     for run in [&mut world, &mut control] {
@@ -283,8 +284,9 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
         run.say(87);
         run.end(tasks::End::Failed(tasks::Class::Transient), 0);
     }
-    f::restart(&mut world, f::AFTER);
-    f::restart(&mut control, f::BEFORE);
+    f::close(&mut world);
+    f::restart(&mut world);
+    f::restart(&mut control);
     world.retry_due();
     control.retry_due();
     f::fresh(&world);
@@ -300,11 +302,12 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
 
 #[test]
 fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
-    use fresh_windows as f;
+    use closed_proofs as f;
     let mut world = f::parked();
     let mut control = f::parked();
-    f::restart(&mut world, f::AFTER);
-    f::restart(&mut control, f::BEFORE);
+    f::close(&mut world);
+    f::restart(&mut world);
+    f::restart(&mut control);
     world.store.unread_transcript(f::proof(&world).task);
     world.say(87);
     control.say(87);
@@ -806,7 +809,7 @@ fn unusable_history_closes_its_committed_window_before_the_retry() {
         let fresh = world.assigned.as_ref().expect("fresh attempt");
         assert!(fresh.transcript.is_empty());
         assert_eq!(fresh.conversation, fresh.attempt);
-        assert_eq!(fresh_windows::tail(&world), Some(b"saved tail".as_slice()));
+        assert_eq!(closed_proofs::tail(&world), Some(b"saved tail".as_slice()));
         assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
     }
 }

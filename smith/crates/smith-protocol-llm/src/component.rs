@@ -649,6 +649,7 @@ impl Component {
             | DomainEvent::Message { .. }
             | DomainEvent::Acknowledge { .. }
             | DomainEvent::Grant { .. }
+            | DomainEvent::Renewals { .. }
             | DomainEvent::Cancel { .. }
             | DomainEvent::Drain { .. }
             | DomainEvent::Delivered { .. }

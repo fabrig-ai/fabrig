@@ -105,7 +105,7 @@ fn none_show_and_lines_print_the_persons_forms() {
         Ok(())
     })
     .expect("person's records");
-    success(&run(&home, &["show"], None, None), b"landings:\n  1 0123456789ab goal 10 Work drafts: triaged 1970-01-01T00:01Z; no QA: no client change\n  2 1123456789ab goal 11 More work: untriaged; cases\n\ncases:\n  1 web work queued; pass none; landings 2\n\nbuilds:\n  0123456789ab kept; landings 1; held none\n\nsessions:\n  1 triage landing 1 low 1970-01-01T00:00Z - 1970-01-01T00:01Z; code 0\n  2 triage landing 2 low 1970-01-01T00:02Z - running; running\n\npasses:\n\nfindings:\n\nnotes:\n");
+    success(&run(&home, &["show"], None, None), b"landings:\n  1 0123456789ab goal 10 Work drafts: triaged 1970-01-01T00:01Z; no QA: no client change\n  2 1123456789ab goal 11 More work: untriaged; cases\n\ncases:\n  1 web work queued; pass none; landings 2\n\nbuilds:\n  0123456789ab kept; landings 1; held none\n\nsessions:\n  1 triage landing 1 low 1970-01-01T00:00Z - 1970-01-01T00:01Z; code 0\n  2 triage landing 2 low 1970-01-01T00:02Z - running; running\n\npasses:\n\nfindings:\n\nnotes:\n\ngaps: 0 open; 0 filed; 0 closed\n");
     success(&run(&home, &["lines"], None, None), b"1 2026-11-12T10:04Z qa: watcher needs attention\n");
 }
 
@@ -151,7 +151,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
     let expected = json!({"pass":1,"place":"places/1","build":"build","state":"waiting",
         "cases":[{"case":1,"surface":"web","page":"work","landings":[1],"expected":["Drafts lists the draft"],"outcome":"failed","notes":"no goal","findings":[1]}],
         "findings":[{"finding":1,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"open","goals":[]},
-            {"finding":2,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"linked","goals":[],"linked":1}],"notes":["off-path"]});
+            {"finding":2,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"linked","goals":[],"linked":1}],"notes":["off-path"],"gaps":[]});
     let report = run(&home, &["report", "1"], None, None);
     assert_eq!(report.status.code(), Some(0), "{:?}", report.stderr);
     assert_eq!(serde_json::from_slice::<serde_json::Value>(&report.stdout).expect("report"), expected);

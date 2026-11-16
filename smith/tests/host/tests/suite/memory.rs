@@ -128,6 +128,7 @@ impl Measured {
                     | Down::Message { .. }
                     | Down::Answer { .. }
                     | Down::Acknowledge { .. }
+                    | Down::Renewals { .. }
                     | Down::Grant { .. }
                     | Down::Cancel
                     | Down::Drain => {}

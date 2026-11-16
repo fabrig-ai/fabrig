@@ -87,5 +87,38 @@ pub(crate) fn watch_with_fetch(
         }
         ledger.set_build_holds(&commit, holds, git.count(&commit)?)?;
     }
+    close_gaps(git, ledger, now)
+}
+
+/// Apply closures without interrupting the triage session that already has the turn.
+pub(crate) fn close_gaps(git: &mut impl GitFace, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
+    // Read closing trailers only once a kept build holds their landing.
+    if ledger.gaps.iter().any(|gap| gap.state != crate::GapState::Closed) {
+        let landings: Vec<_> = ledger
+            .landings
+            .iter()
+            .filter(|landing| {
+                ledger.builds.iter().any(|build| {
+                    build.state == crate::BuildState::Kept
+                        && build.holds.as_ref().is_some_and(|holds| holds.contains(&landing.number))
+                })
+            })
+            .map(|landing| (landing.number, landing.commit.clone()))
+            .collect();
+        for (landing, commit) in landings {
+            for value in git.gap_trailers(&format!("{commit}^1"), &commit)? {
+                if decimal(&value)
+                    && let Ok(number) = value.parse()
+                {
+                    let triage = ledger.gaps.iter().any(|gap| gap.number == number && gap.case.is_none());
+                    if !triage
+                        || !ledger.running_sessions().iter().any(|session| session.kind == crate::SessionKind::Triage)
+                    {
+                        ledger.close_gap(number, landing, now);
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }

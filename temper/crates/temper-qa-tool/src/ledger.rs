@@ -7,6 +7,7 @@ pub type Pages = BTreeMap<String, Vec<String>>;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Ledger {
     pub head: Option<String>,
+    pub gaps: Vec<crate::Gap>,
     pub landings: Vec<Landing>,
     pub cases: Vec<Case>,
     pub builds: Vec<Build>,
@@ -41,6 +42,7 @@ pub struct Landing {
 pub enum Answer {
     None { why: String },
     Cases,
+    Gap,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Case {
@@ -230,6 +232,9 @@ impl Ledger {
             return Err(refused("no QA needs a line saying why"));
         }
         let landing = self.landings.iter_mut().find(|landing| landing.number == number).expect("session's landing");
+        if landing.answer == Some(Answer::Gap) {
+            return Err(refused(format!("landing {number} has gaps; no QA is refused")));
+        }
         if landing.answer == Some(Answer::Cases) {
             return Err(refused(format!("landing {number} has cases; no QA is refused")));
         }
@@ -440,6 +445,7 @@ impl Ledger {
                     && !case.line
                     && !self.builds.iter().any(|build| {
                         self.reached(build)
+                            && self.gap_build_holds(case, build)
                             && case
                                 .landings()
                                 .iter()

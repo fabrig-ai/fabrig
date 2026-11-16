@@ -411,6 +411,28 @@ happens.
   waits, never dropped: turns, with the refusals they carry, and relays,
   unless their call has closed meanwhile. On reconnecting, the worker
   says what it hosts and the engine keeps or cancels each run.
+- **A relay the link never carried** (temper's `draft/redeploys.md`,
+  5.3): a call the run withdraws (2, step 4) that the link may never
+  have carried is answered `CallAnswer::Unsent` rather than `Withdrawn`:
+  the engine never heard it, so nothing it could do stands, and the run
+  asks again with no uncertain effect (smith's `domain/run.md`, 5.2).
+  The hub knows what the link may have carried from what its root tells
+  it: from a loss, `LinkLost`, nothing more; from the next time it is
+  asked to report what it hosts for a hello, every relay it then holds,
+  since the link sends them after that hello; while up, each relay as it
+  is made. A relay made before the hub's first hello is uncarried, and
+  the engine's own hub, whose link is never lost, never answers unsent.
+- **Renewals held while the link is lost** (temper's
+  `draft/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
+  run's agent that its grants' renewals are held,
+  `ToAgent::Renewals { agent, held: true }`, and when next asked to report what
+  it hosts for a hello, that they are not, `held: false`, before the
+  engine sends again each kept attempt's current grants
+  (`../engine/fleet.md`, *Grants follow their attempts*). A run started
+  meanwhile starts with them not held. So a completion whose grant
+  lapsed while the engine was away waits for its renewal rather than
+  failing, and one whose source must be signed in again fails as before
+  (smith's `domain/session.md`, section 4).
 - **The grace is the engine-away bound.** It is the application's to
   size so that it outlasts an engine's restart: the restarted engine
   adopts each attempt its store holds as claimed and the worker lists

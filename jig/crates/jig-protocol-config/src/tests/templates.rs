@@ -148,6 +148,41 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
     );
 }
 #[test]
+fn chosen_requester_templates_parse_as_gatherings_or_conversations_and_accept_policy_overrides() {
+    for conversation in [false, true] {
+        let document = fixtures::with(
+            fixtures::ENGINE_SMALL,
+            br#""executor": "chosen""#,
+            br#""executor": "chosen", "ended_by": "requester""#,
+        );
+        let document = fixtures::with(
+            &document,
+            br#""conversation": false"#,
+            if conversation { br#""conversation": true"# } else { br#""conversation": false"# },
+        );
+        let document = fixtures::with(
+            &document,
+            br#""templates": []"#,
+            br#""templates": [{"template": 2, "executor": "chosen", "budget": null, "deadline": null, "priority": null}]"#,
+        );
+        let engine = fixtures::engine(&document).expect("chosen requester shape and effective override");
+        assert_eq!(engine.templates[1].executor, TemplateExecutor::Chosen);
+        assert_eq!(engine.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
+        assert_eq!(engine.templates[1].flags.conversation, conversation);
+    }
+}
+
+#[test]
+fn a_nonconversation_charter_template_cannot_end_by_requester() {
+    fixtures::refuses(
+        br#""executor": "chosen""#,
+        br#""executor": {"charter": 1}, "ended_by": "requester""#,
+        fixtures::path(&[b"templates"]).child(Segment::Index(1)).member(b"ended_by"),
+        What::Form,
+    );
+}
+
+#[test]
 fn a_template_grace_past_the_tasks_limit_refuses_the_start() {
     fixtures::refuses(
         br#""grace_ms": 5000"#,
@@ -471,13 +506,8 @@ fn requester_ending_is_explicit_and_requires_an_agent_conversation() {
     );
     let engine = fixtures::engine(&bytes).unwrap();
     assert_eq!(engine.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
-    for (from, to) in [
-        (br#""conversation": true"#.as_slice(), br#""conversation": false"#.as_slice()),
-        (br#""executor": {"charter": 1}"#.as_slice(), br#""executor": "chosen""#.as_slice()),
-    ] {
-        let bad = fixtures::with(&bytes, from, to);
-        fixtures::engine(&bad).expect_err("invalid ending authority");
-    }
+    let bad = fixtures::with(&bytes, br#""conversation": true"#, br#""conversation": false"#);
+    fixtures::engine(&bad).expect_err("a named charter needs a conversation for requester ending");
 }
 
 #[test]
@@ -564,9 +594,11 @@ fn standing_templates_require_untracked_agents_without_conversations() {
     let engine = fixtures::engine(&bytes).expect("untracked standing agent template");
     assert_eq!(engine.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Standing);
     assert_eq!(engine.templates[0].tracked, None);
+    let chosen = fixtures::with(&bytes, br#""executor": {"charter": 1}"#, br#""executor": "chosen""#);
+    let engine = fixtures::engine(&chosen).expect("chosen standing agent template");
+    assert_eq!(engine.templates[0].executor, TemplateExecutor::Chosen);
     for (from, to) in [
         (br#""conversation": false"#.as_slice(), br#""conversation": true"#.as_slice()),
-        (br#""executor": {"charter": 1}"#, br#""executor": "chosen""#),
         (br#""tracked": null"#, br#""tracked": {"priority": 1}"#),
     ] {
         assert_closer_form(&fixtures::with(&bytes, from, to));

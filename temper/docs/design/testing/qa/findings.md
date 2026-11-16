@@ -130,6 +130,12 @@ filed, oldest first:
   latter `request.area`, both internal entries of the tool's table
   (`README.md`, 3.2), 600 seconds to exit; its stdout and stderr to
   `output` there.
+- **A gaps request** (`gaps.md`, 6) is filed beside these, every open
+  gap not yet filed together. Its directory is `gaps/requests/N/`, N
+  its first gap, with `tree/` holding one gap document each and a
+  `message` with `QA-gaps:`. Like a recipes-only request it has no
+  `goal` file and starts nothing; success marks its gaps `filed`,
+  failure is retried at the next tick.
 - **The deployment's command,** its contract: it puts `tree/`'s files on
   main at their paths, with `message` as their commit's message, as the
   deployment puts any goal's request there; then, where `goal` exists,

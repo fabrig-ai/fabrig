@@ -49,6 +49,76 @@ fn declared_timeout_requests_withdrawal_then_terminal_allows_same_name_recovery(
     assert!(world.host_submissions()[1].at > world.host_submissions()[0].deadline);
 }
 
+fn timed_out_host(schedule: HostSchedule) -> World {
+    let settings = Settings {
+        job: Job::HostTools,
+        host: schedule,
+        host_tool_timeout: Duration::from_secs(30),
+        ..Settings::calm(817)
+    };
+    let mut world = World::new(settings);
+    world.run(20_000);
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
+    assert!(world.host_shutdown_at().is_none(), "the caller deadline, not run shutdown, ends recovery");
+    world
+}
+
+fn host_feedback(world: &World, expected: &[u8], error: bool) {
+    assert!(
+        world.prompts().iter().flat_map(|query| &query.messages).flat_map(|message| &message.parts).any(|part| {
+            matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error, .. }
+            if output.as_ref() == expected && *is_error == error)
+        }),
+        "continuation must carry the host outcome"
+    );
+}
+
+#[test]
+fn an_unsent_timeout_is_asked_again_under_the_same_name_after_backoff() {
+    let world = timed_out_host(HostSchedule::UnsentThenAnswer);
+    let submissions = world.host_submissions();
+    assert_eq!(submissions.len(), 2);
+    assert_eq!(world.host_decisions(), 1);
+    assert_eq!(submissions[0].deadline, submissions[0].at.saturating_add(Duration::from_secs(30)));
+    assert_eq!(world.host_terminals()[0].2, run::HostReply::Unsent);
+    assert_eq!(submissions[1].name, submissions[0].name);
+    assert_eq!(submissions[1].relay.attempt, 2);
+    assert_eq!(submissions[1].at, world.host_terminals()[0].1.saturating_add(Duration::from_millis(50)));
+    assert!(world.trace().iter().any(|line| line.contains("WithdrawHost")));
+    host_feedback(&world, b"opaque host answer: first decision", false);
+}
+
+#[test]
+fn every_timeout_answered_unsent_exhausts_as_busy_not_unknown() {
+    let world = timed_out_host(HostSchedule::Unsent);
+    let submissions = world.host_submissions();
+    assert_eq!(submissions.len(), 4, "30 second attempts within a 120 second caller deadline");
+    assert_eq!(world.host_decisions(), 0);
+    let deadline = submissions[0].at.saturating_add(Duration::from_secs(120));
+    for (index, submission) in submissions.iter().enumerate() {
+        assert_eq!(submission.name, submissions[0].name);
+        assert_eq!(submission.input, submissions[0].input);
+        assert_eq!(submission.deadline, submission.at.saturating_add(Duration::from_secs(30)).min(deadline));
+        assert!(submission.at < deadline);
+        assert_eq!(world.host_terminals()[index].2, run::HostReply::Unsent);
+        if index > 0 {
+            let backoff = Duration::from_millis(50 * (1 << (index - 1)));
+            assert_eq!(submission.at, world.host_terminals()[index - 1].1.saturating_add(backoff));
+        }
+    }
+    assert!(world.host_terminals().last().expect("four withdrawals").1 >= deadline);
+    host_feedback(&world, b"busy", true);
+}
+
+#[test]
+fn every_timeout_answered_withdrawn_still_exhausts_as_unknown() {
+    let world = timed_out_host(HostSchedule::Withdrawn);
+    assert_eq!(world.host_submissions().len(), 4);
+    assert_eq!(world.host_decisions(), 0);
+    assert!(world.host_terminals().iter().all(|(_, _, reply)| *reply == run::HostReply::Withdrawn));
+    host_feedback(&world, b"host-unknown", true);
+}
+
 #[test]
 fn answer_after_withdrawal_is_retained_without_another_relay() {
     let world = story(HostSchedule::LateAnswer, 815);

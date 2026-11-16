@@ -649,8 +649,9 @@ tier's CPU budget is set, its existing figures stand, including the
 focused and fuzzy suites' 30 s and 120 s idle-machine budgets above.
 Live tests have budgets on the same terms.
 
-**The wall hard limit is a backstop,** set per tier above its budget.
-A test or run that passes it is stopped and reported **starved**: a
+**The wall hard limit is a backstop,** set per tier above its budget;
+the merge gate's wall for the focused and fuzzy suites is the exception
+below. A test or run that passes it is stopped and reported **starved**: a
 warning, never red on that account. The run stays green on that account
 and lists its starved tests. Failures already observed (an assertion, a
 protocol breach or a bad exit) stay red; exceeding the CPU budget stays
@@ -659,6 +660,26 @@ passed. Starved warnings are watched as a hint that the machines are
 short of CPU; a test repeatedly starved with little CPU used is examined
 as a possible hang. Hard-limit expiry needs no measured runnable
 starvation; within that limit, harness deadlines keep 2.10's rule.
+
+**At the merge gate, the focused and fuzzy suites' wall is red.** Each
+has a wall limit at the gate, 270 seconds focused and 215 seconds fuzzy:
+the longest of the CI builder's gate runs of 11-16, plus a quarter (the
+user, 11-16). The gate passes them to its runs in
+`.config/gate/walls.toml` (`tools/tiers/design.md`, 11.7). A run past its
+limit is stopped and rerun once. Past it again, it is red, unless the
+gate was starved: its own cgroup recorded full CPU or io stalls (the
+kernel's pressure accounting) for at least a quarter of the run's wall.
+The quarter is a first figure: the gate's report gives each run's stall,
+and the figure follows them. A starved run stays the warning above, its
+tests unobserved. The limit catches what CPU can't see: a test that
+sleeps or waits on the real clock, tests a test group holds to one at a
+time, and a process so long that the other lanes wait on it. Everywhere
+else, each profile's `global-timeout` in `.config/nextest.toml` is three
+times the gate's limit, 810 seconds focused and 645 seconds fuzzy, a last
+resort for builders that may be busy (the user, 11-16), and its expiry
+stays starved. The wall limits aren't ratcheted, since a selection's wall
+says nothing of the whole suite's: they change by the user's word alone.
+A harness's own deadline keeps 2.10's rule.
 
 **Over budget is red.** Repair it by asking these questions, in order:
 

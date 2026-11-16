@@ -32,6 +32,7 @@ mod limits;
 mod link;
 mod make;
 mod making;
+mod milestones;
 mod panel;
 mod playground;
 mod projection;

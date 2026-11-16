@@ -252,3 +252,11 @@ fn job_stderr_forms_escape_and_bound_their_why() {
         }
     }
 }
+
+#[test]
+fn restart_words_name_how_long_runs_are_kept_after_loss() {
+    assert_eq!(
+        worker_note_words("custom", worker::Note::Restarting { keep: skein_lib::Duration::from_millis(1_200_000) }),
+        "custom worker: the engine said it restarts: runs kept up to 1200000 ms after the link drops\n"
+    );
+}

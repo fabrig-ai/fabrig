@@ -1,4 +1,4 @@
-//! Version-eight kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-ten kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 use alloc::boxed::Box;
 
@@ -64,6 +64,9 @@ pub const ACCOUNT_REFUSED: u16 = 0x0113;
 
 /// The `Drain` body kind.
 pub const DRAIN: u16 = 0x0114;
+
+/// The `Renewals` body kind.
+pub const RENEWALS: u16 = 0x0115;
 
 /// The supported channel version.
 pub const VERSION: u16 = crate::wire::VERSION;

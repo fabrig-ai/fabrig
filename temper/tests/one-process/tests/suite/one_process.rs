@@ -3,46 +3,42 @@ use skein_world::domain::Verdict;
 use temper_one_process_world::referee::{restart, secrets};
 use temper_one_process_world::{fixtures, world};
 #[test]
-fn claude_keys_can_stand_alone_follow_a_login_and_belong_to_the_deployment() {
-    temper_one_process_world::claude_keys::walk();
+fn a_signal_mid_run_interrupts_a_chats_run_and_the_next_start_takes_it_again() {
+    let outcome =
+        world::drain_mid_run(fixtures::calm(fixtures::SEED), world::Story::ChatReadThenWait { words: b"Hello" }, true);
+    assert_eq!(outcome.settings_revision, 2, "the hosted ctl change is retained");
+    assert_restarted_run(outcome);
 }
 #[test]
-fn a_signal_mid_run_interrupts_its_run_and_the_next_start_takes_it_again() {
-    for (name, story) in
-        [("chat", world::Story::ChatReadThenWait { words: b"Hello" }), ("coding", world::Story::CodingAtStop)]
-    {
-        eprintln!("signal mid-run case {name}");
-        let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), story, true);
-        assert_eq!(outcome.verdict, Verdict::Passed);
-        assert!(outcome.drained);
-        assert_eq!(outcome.restarts, 1);
-        if matches!(story, world::Story::ChatReadThenWait { .. }) {
-            assert_eq!(outcome.settings_revision, 2, "the hosted ctl change is retained");
-        }
-        let stopped = outcome.stopped.expect("signal found a run");
-        assert_eq!(
-            (stopped.tries[1].lost, stopped.interrupted),
-            (0, 1),
-            "{name}: no lost try and one Recheck terminal; {stopped:?}"
-        );
-        assert_eq!(outcome.claims_settled_at_restart, 0);
-        assert_eq!(stopped.tries[0], stopped.tries[1]);
-        assert_eq!(stopped.saved[0], stopped.saved[1]);
-        let next = stopped.next.expect("new attempt started");
-        assert!(next > stopped.attempt);
-        if matches!(story, world::Story::CodingAtStop) {
-            assert!(stopped.workspace.is_some(), "prepared workspace at agent Start");
-        }
-        assert!(stopped.writers.iter().all(|&(attempt, lost)| attempt == next && !lost));
-        if let Some([before, after]) = stopped.change {
-            assert_eq!(before, after);
-            assert_eq!(stopped.saved_head[0], stopped.saved_head[1], "saved branch is not rewound");
-            assert_eq!(stopped.checkout_head, stopped.saved_head[0], "checkout starts at the saved head");
-            assert_eq!(stopped.checkout_file.as_deref(), Some(b"fixed\n".as_slice()));
-            assert!(!stopped.saved[0].is_empty(), "producer parked and saved before the stop");
-            assert!(!stopped.writers.is_empty(), "producer owns its writer slot");
-        }
-    }
+fn a_signal_mid_run_interrupts_a_coding_run_and_the_next_start_takes_it_again() {
+    let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), world::Story::CodingAtStop, true);
+    let stopped = assert_restarted_run(outcome);
+    assert!(stopped.workspace.is_some(), "prepared workspace at agent Start");
+    let [before, after] = stopped.change.expect("coding run's change");
+    assert_eq!(before, after);
+    assert_eq!(stopped.saved_head[0], stopped.saved_head[1], "saved branch is not rewound");
+    assert_eq!(stopped.checkout_head, stopped.saved_head[0], "checkout starts at the saved head");
+    assert_eq!(stopped.checkout_file.as_deref(), Some(b"fixed\n".as_slice()));
+    assert!(!stopped.saved[0].is_empty(), "producer parked and saved before the stop");
+    assert!(!stopped.writers.is_empty(), "producer owns its writer slot");
+}
+fn assert_restarted_run(outcome: world::Outcome) -> world::Stopped {
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert!(outcome.drained);
+    assert_eq!(outcome.restarts, 1);
+    let stopped = outcome.stopped.expect("signal found a run");
+    assert_eq!(
+        (stopped.tries[1].lost, stopped.interrupted),
+        (0, 1),
+        "no lost try and one Recheck terminal; {stopped:?}"
+    );
+    assert_eq!(outcome.claims_settled_at_restart, 0);
+    assert_eq!(stopped.tries[0], stopped.tries[1]);
+    assert_eq!(stopped.saved[0], stopped.saved[1]);
+    let next = stopped.next.expect("new attempt started");
+    assert!(next > stopped.attempt);
+    assert!(stopped.writers.iter().all(|&(attempt, lost)| attempt == next && !lost));
+    stopped
 }
 #[test]
 fn a_secret_in_a_root_fails_the_referee_naming_it() {
@@ -69,21 +65,23 @@ fn a_restart_showing_part_of_a_commit_fails_the_referee() {
 }
 #[test]
 fn a_person_signs_in_by_the_printed_link_and_a_chat_is_answered() {
-    for story in [world::Story::Chat { words: b"Hello" }, world::Story::ModelsList] {
-        let outcome = world::run(fixtures::calm(fixtures::SEED), story);
-        assert_eq!(outcome.verdict, Verdict::Passed);
-        assert_eq!(outcome.signed_in, 1);
-        if let Some(list) = outcome.model_list {
-            assert_eq!(list.requests, [Some(0)], "the fake accepted the added key once");
-            assert_eq!(list.agents, 1, "one hosted agent-list process");
-            assert_eq!(list.queries, 0, "a list is not a run");
-            assert!(list.new_in_me, "the list's new name reached the person's me");
-            assert!(list.accounting_unchanged, "no attempt, spend or budget moved");
-            assert_eq!(outcome.chats_answered, 0);
-        } else {
-            assert_eq!(outcome.chats_answered, 1);
-        }
-    }
+    let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::Chat { words: b"Hello" });
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.signed_in, 1);
+    assert_eq!(outcome.chats_answered, 1);
+}
+#[test]
+fn a_providers_list_is_read_by_the_workers_hosted_program() {
+    let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::ModelsList);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.signed_in, 1);
+    let list = outcome.model_list.expect("provider's list outcome");
+    assert_eq!(list.requests, [Some(0)], "the fake accepted the added key once");
+    assert_eq!(list.agents, 1, "one hosted agent-list process");
+    assert_eq!(list.queries, 0, "a list is not a run");
+    assert!(list.new_in_me, "the list's new name reached the person's me");
+    assert!(list.accounting_unchanged, "no attempt, spend or budget moved");
+    assert_eq!(outcome.chats_answered, 0);
 }
 #[test]
 fn a_person_on_a_deployment_with_no_welcome_finds_the_inbox() {

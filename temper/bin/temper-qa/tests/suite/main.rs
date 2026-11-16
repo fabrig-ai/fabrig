@@ -1,6 +1,7 @@
 //! The tool's front and real command boundary (testing/tools.md, 6).
 mod builds;
 mod commands;
+mod gaps;
 mod hold;
 mod passes;
 mod place;
@@ -24,6 +25,9 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["build", "keep", "--help"],
         vec!["triage", "none", "--help"],
         vec!["triage", "case", "--help"],
+        vec!["triage", "gap", "--help"],
+        vec!["pass", "gap", "--help"],
+        vec!["gaps", "--help"],
         vec!["pass", "setup", "--help"],
         vec!["pass", "recipe", "--help"],
         vec!["pass", "outcome", "--help"],
@@ -62,6 +66,9 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "build keep",
                     "triage none",
                     "triage case",
+                    "triage gap",
+                    "pass gap",
+                    "gaps",
                     "pass setup",
                     "pass recipe",
                     "pass outcome",

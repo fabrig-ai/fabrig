@@ -1,6 +1,6 @@
 //! Context cues through the same CI and Actions reads as a client.
 use super::*;
-use crate::api::{CheckSummary, ContextCue, StepStatus};
+use crate::api::{CheckSummary, Conclusion, ContextCue, JobWait, RunState, StepStatus};
 
 fn configured() -> (Config, Setup) {
     let config = Config { limits: Limits { name_bytes: 64, content_bytes: 128, ..LIMITS }, ..calm() };
@@ -159,6 +159,12 @@ fn declared_rules_judge_the_heads_first_line_and_expose_unreadable_logs() {
         (Some(b"pass\nfail\n".as_slice()), Check::Passed, false),
         (Some(oversized.as_ref()), Check::Failed, true),
         (Some(b"maybe".as_slice()), Check::Failed, true),
+        (Some(b"wait 40 pass".as_slice()), Check::Failed, true),
+        (Some(b"wait 25h pass".as_slice()), Check::Failed, true),
+        (Some(b"wait 123456s pass".as_slice()), Check::Failed, true),
+        (Some(b"run 5m wait 40m pass".as_slice()), Check::Failed, true),
+        (Some(b"wait 40m".as_slice()), Check::Failed, true),
+        (Some(b"wait  40m pass".as_slice()), Check::Failed, true),
         (Some(b"pull-file ".as_slice()), Check::Failed, true),
         (Some(b"pull-file {pull}{pull}{pull}{pull}".as_slice()), Check::Failed, true),
     ] {
@@ -351,4 +357,167 @@ fn made_repositories_keep_their_checks_across_an_image() {
             }
         }
     }
+}
+
+fn phased(rule: &[u8]) -> (Harness, u64) {
+    let (mut config, setup) = declared();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    let mut h = Harness::with(config, setup);
+    let head = h.commit(FIRST, &[(b".fake-forge/ci", rule)]);
+    h.push(ENGINE, b"work", head).unwrap();
+    (h, head)
+}
+
+fn at(seconds: u64) -> Time {
+    Time::from_nanos(Duration::from_secs(seconds).as_nanos())
+}
+
+fn phase_read(h: &Harness, head: u64, wait: Option<JobWait>, state: RunState, verdict: Check, attempt: u32) {
+    let Answer::Checks(checks) = h.inspect(&Read::Checks { commit: head }).unwrap() else { panic!("checks") };
+    let check = &checks[0];
+    assert_eq!(check.status.state, verdict);
+    let Answer::Runs(runs) =
+        h.inspect(&Read::Runs { workflow: None, commit: Some(head), number: None, page: 1, limit: 2 }).unwrap()
+    else {
+        panic!("runs")
+    };
+    let Answer::Jobs(jobs) = h.inspect(&Read::Jobs { run: runs[0].id }).unwrap() else { panic!("jobs") };
+    let reference = JobRef { run: runs[0].id, job: jobs[0].id, attempt: jobs[0].attempt };
+    assert_eq!(reference.attempt, attempt);
+    if verdict == Check::Pending {
+        assert_eq!(check.job, Some(reference));
+        assert!(!check.link.is_empty());
+    }
+    let Answer::Run(run) = h.inspect(&Read::Run { run: reference.run }).unwrap() else { panic!("run") };
+    assert_eq!((run.wait, run.state), (wait, state));
+    let Answer::Job { job, steps } = h.inspect(&Read::Job { job: reference.job }).unwrap() else { panic!("job") };
+    assert_eq!(job, jobs[0]);
+    assert_eq!(job.steps, steps);
+    assert_eq!((job.wait, job.state), (wait, state));
+    if wait.is_some() {
+        assert!(steps.is_empty());
+    } else if state == RunState::Running {
+        assert_eq!(steps.len(), 2);
+        assert_eq!((steps[0].name.as_ref(), steps[0].status), (b"Set up job".as_slice(), StepStatus::Success));
+        assert_eq!((steps[1].name.as_ref(), steps[1].status), (b"Run check".as_slice(), StepStatus::Running));
+    } else {
+        let conclusion = Some(if verdict == Check::Passed { Conclusion::Success } else { Conclusion::Failure });
+        assert_eq!(job.conclusion, conclusion);
+        assert_eq!(run.conclusion, conclusion);
+    }
+}
+
+#[test]
+fn a_declared_head_waits_then_runs_then_reports_its_own_spans() {
+    let (mut h, head) = phased(b"wait 40m run 5m pass");
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 1);
+    h.until(at(2399));
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 1);
+    h.until(at(2400));
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+    h.until(at(2699));
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+    h.until(at(2700));
+    phase_read(&h, head, None, RunState::Completed, Check::Passed, 1);
+}
+
+#[test]
+fn optional_phases_use_the_drawn_latency_or_start_running_at_once() {
+    for (rule, waiting, done, verdict) in [
+        (b"wait 2m pass".as_slice(), 120, 125, Check::Passed),
+        (b"run 2m fail".as_slice(), 0, 120, Check::Failed),
+        (b"wait 0s run 0m pass".as_slice(), 0, 0, Check::Passed),
+        (b"run 00090s fail".as_slice(), 0, 90, Check::Failed),
+        (b"run 24h pass".as_slice(), 0, 86400, Check::Passed),
+    ] {
+        let (mut h, head) = phased(rule);
+        if waiting > 0 {
+            phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 1);
+        }
+        h.until(at(waiting));
+        if done > waiting {
+            phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+            h.until(at(done - 1));
+            phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+        }
+        h.until(at(done));
+        phase_read(&h, head, None, RunState::Completed, verdict, 1);
+    }
+}
+
+#[test]
+fn a_run_waits_only_when_all_its_unfinished_contexts_wait() {
+    let (mut config, mut setup) = declared();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    setup.checks.contexts = names(&[b"check", b"changes"]);
+    setup.checks.cues =
+        Box::new([ContextCue { context: copy_of(b"changes"), cue: Cue::Declared { path: copy_of(b"other") } }]);
+    let mut h = Harness::with(config, setup);
+    let head = h.commit(FIRST, &[(b".fake-forge/ci", b"wait 1m run 1m pass"), (b"other", b"wait 3m run 1m pass")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    for (seconds, wait) in [(0, Some(JobWait::Runner)), (60, None), (120, Some(JobWait::Runner)), (180, None)] {
+        h.until(at(seconds));
+        let Answer::Run(run) = h.inspect(&Read::Run { run: 1 }).unwrap() else { panic!("run") };
+        assert_eq!(run.wait, wait, "at {seconds}");
+        let Answer::Jobs(jobs) = h.inspect(&Read::Jobs { run: 1 }).unwrap() else { panic!("jobs") };
+        assert_eq!(jobs[1].wait, if seconds < 180 { Some(JobWait::Runner) } else { None });
+        assert_eq!(jobs[0].state, if seconds < 120 { RunState::Running } else { RunState::Completed });
+    }
+    h.until(at(240));
+    let Answer::Run(run) = h.inspect(&Read::Run { run: 1 }).unwrap() else { panic!("run") };
+    assert_eq!((run.wait, run.conclusion), (None, Some(Conclusion::Success)));
+}
+
+#[test]
+fn a_declared_contexts_rerun_waits_afresh_at_attempt_two() {
+    let (mut config, mut setup) = declared();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    setup.checks.reruns = 1000;
+    let mut h = Harness::with(config, setup);
+    let head = h.commit(FIRST, &[(b".fake-forge/ci", b"wait 2m run 1m pass")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    h.until(at(180));
+    phase_read(&h, head, None, RunState::Completed, Check::Passed, 1);
+    h.until(at(185));
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 2);
+    h.until(at(304));
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 2);
+    h.until(at(305));
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 2);
+    h.until(at(365));
+    phase_read(&h, head, None, RunState::Completed, Check::Passed, 2);
+}
+
+#[test]
+fn a_pull_bindings_new_declared_run_waits_afresh() {
+    let (mut h, head) = phased(b"wait 2m run 1m pass");
+    h.until(at(130));
+    h.open(b"work").unwrap();
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 1);
+    let Answer::Run(run) = h.inspect(&Read::Run { run: 2 }).unwrap() else { panic!("run") };
+    assert_eq!(run.event, crate::api::RunEvent::PullRequest);
+    h.until(at(249));
+    phase_read(&h, head, Some(JobWait::Runner), RunState::Running, Check::Pending, 1);
+    h.until(at(250));
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+    h.until(at(310));
+    phase_read(&h, head, None, RunState::Completed, Check::Passed, 1);
+}
+
+#[test]
+fn a_silent_declared_job_starts_but_never_reports() {
+    let (mut config, mut setup) = declared();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    setup.checks.silent = 1000;
+    let mut h = Harness::with(config, setup);
+    let head = h.commit(FIRST, &[(b".fake-forge/ci", b"wait 2m run 1m pass")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    h.until(at(180));
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
+    h.settle();
+    phase_read(&h, head, None, RunState::Running, Check::Pending, 1);
 }

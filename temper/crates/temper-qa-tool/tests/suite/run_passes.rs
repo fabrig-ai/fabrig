@@ -45,7 +45,7 @@ fn hold(place: &Path) -> File {
 #[expect(clippy::too_many_lines, reason = "one pass start pins its installed build, environment and fakes-only brief")]
 fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     let mut world = World::new();
-    world.home.configuration.surfaces = vec!["web".into()];
+    world.home.configuration.surfaces = vec!["web".into(), "tui".into()];
     let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
@@ -77,6 +77,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
             Ok(())
         })
         .expect("cases recorded by triage");
+    run.home.configuration.surfaces = vec!["web".into()];
     run.tick();
     let ledger = world.ledger();
     let pass = &ledger.passes[0];
@@ -134,12 +135,14 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
     assert!(drive_lines.contains("`forge commit forgejo REPOSITORY MESSAGE PATH...`"));
     assert!(drive_lines.contains("`forge checks forgejo REPOSITORY`"));
+    assert!(drive_lines.contains("`forge push forgejo REPOSITORY BRANCH MESSAGE PATH...`"));
+    assert!(drive_lines.contains(r#"Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#));
     assert!(drive_lines.contains("at its repository path before the line"));
     assert!(brief.contains(&world.home.directory.join("passes/1/files").display().to_string()));
     for words in [
         "The fakes alone",
         "the person's forge is the box's fake Forgejo",
-        "the box's own Forgejo or reach any real backend is blocked, naming it",
+        "A case no line or setup can bring to its state is a gap, not blocked: `temper-qa pass gap CASE KIND WHY`",
         "{forgejo.api}",
         "{forgejo.git}",
         "{forgejo.admin}",
@@ -738,7 +741,14 @@ printf 'ended\n'
         .expect("socket end arrives before the hour-long fallback")
         .expect("holder ends from socket request");
     serving.join().expect("holder thread");
-    File::open(place.join("drive.lock")).expect("lock").try_lock().expect("place freed");
+    // The loop's own close takes the lock a moment to see it released; the place frees within a bound.
+    let lock = File::open(place.join("drive.lock")).expect("lock");
+    let mut tries = 200;
+    while let Err(why) = lock.try_lock() {
+        tries -= 1;
+        assert!(tries > 0, "place freed within 2 s: {why:?}");
+        std::thread::sleep(Duration::from_millis(10));
+    }
     assert!(!place.join("drive.sock").exists());
 }
 
@@ -768,4 +778,45 @@ fn ending_a_pass_captures_its_holder_before_the_socket_can_be_reused() {
     assert_eq!(later.accept().expect_err("later holder gets no end").kind(), std::io::ErrorKind::WouldBlock);
     drop(lock);
     stream.write_all(b"0\nended\n").expect("end reply");
+}
+
+#[test]
+fn ctl_only_pass_brief_lists_the_same_walkable_chains_as_triage() {
+    let mut world = World::new();
+    world.home.configuration.surfaces = vec!["ctl".into()];
+    let mut run = world.start(baseline(), &[Agent::Empty, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.git.file_at(2, "temper/docs/help/reference/ctl-task.md", b"# Task");
+    for (name, lines) in [
+        ("ctl-root", "check\nctl task list\n"),
+        ("ctl-child", "after ctl-root\ncheck\nctl task list\n"),
+        ("web-root", "web see Ready\n"),
+        ("web-child", "after web-root\ncheck\nctl task list\n"),
+        ("tui-root", "tui see Ready\n"),
+        ("tui-child", "after tui-root\ncheck\nctl task list\n"),
+    ] {
+        recipe(&mut run, 2, name, "A state.");
+        run.git.file_at(2, &format!("{SETUPS}/{name}/recipe"), format!("recipe 1\n{lines}").as_bytes());
+    }
+    world.installable_build(2);
+    run.tick();
+    let triage = fs::read_to_string(&run.processes.commands[0].stdin).expect("triage brief");
+    world
+        .home
+        .transact(|ledger| {
+            let mut case = super::case();
+            case.surface = "ctl".into();
+            case.page = "task".into();
+            ledger.add_case(1, &case, 0)?;
+            Ok(())
+        })
+        .expect("ctl case");
+    run.tick();
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("pass brief");
+    for name in ["fresh", "ctl-root", "ctl-child", "web-root", "web-child", "tui-root", "tui-child"] {
+        let listed = format!("- {name}:");
+        assert_eq!(brief.contains(&listed), triage.contains(&listed), "{name}");
+        assert_eq!(brief.contains(&listed), name == "fresh" || name.starts_with("ctl-"), "{name}");
+    }
 }

@@ -140,6 +140,11 @@ impl Workers {
         self.host.abort(now);
         self.pull(events);
     }
+    /// Queue the restart word before the workers' part closes (domain/root.md, 8.2).
+    pub fn restarting(&mut self, wait: skein_lib::Duration, events: &mut Queue<root::Event>) {
+        self.host.restarting(wait);
+        self.pull(events);
+    }
     pub fn close(&mut self, now: Time, events: &mut Queue<root::Event>) {
         self.host.close(now);
         self.pull(events);
@@ -160,6 +165,9 @@ impl Workers {
     }
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
+            kit::host::Output::Told { worker, version, wait } => {
+                self.notes.push(crate::Note::WorkerTold { worker, version, wait });
+            }
             kit::host::Output::Opened { worker, wires, statement } => {
                 let name = worker_name(&worker);
                 self.notes.push(crate::Note::WorkerOpened { worker, wires });
@@ -213,6 +221,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
                             .push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch })),

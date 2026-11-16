@@ -144,6 +144,19 @@ impl GitFace for Git {
         assert_eq!(parent, format!("{commit}^1"));
         Ok(vec!["Work lists drafts".into(), "Work lists drafts".into()])
     }
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
+        assert_eq!(parent, format!("{commit}^1"));
+        let parent = self.node(commit).parents.first().expect("merge parent").clone();
+        let mut values = Vec::new();
+        for record in self.commits(&parent, commit)? {
+            for (key, value) in temper_qa_tool::faces::trailers(&self.node(&record.name).message) {
+                if key == "QA-gap" && !values.contains(&value) {
+                    values.push(value);
+                }
+            }
+        }
+        Ok(values)
+    }
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
         self.calls.push(format!("add {commit}"));
         fs::create_dir_all(path).expect("fake tree");
@@ -206,6 +219,7 @@ pub struct Agents {
     pub signals: Vec<(u64, Signal)>,
     pub bounded: Vec<(ProcessCommand, u64)>,
     pub command_bound: bool,
+    pub answers: VecDeque<CommandAnswer>,
     processes: BTreeMap<u64, Process>,
     waker: Option<temper_qa_tool::events::Waker>,
 }
@@ -223,6 +237,9 @@ impl Processes for Agents {
     }
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
         self.bounded.push((command.clone(), seconds));
+        if let Some(answer) = self.answers.pop_front() {
+            return Ok(answer);
+        }
         if self.command_bound {
             return Ok(CommandAnswer { exit: Exit::Bound, last_stdout: None });
         }

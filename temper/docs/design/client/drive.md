@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-14. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-16. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -79,7 +79,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   them and a retained one keeps its own; a QA place's
   (`../testing/qa/places.md`, 2). A list that is not nine distinct
   nonzero ports refuses the session, naming it, before anything starts.
-- **`--files DIR`,** an existing directory that `forge commit` lines
+- **`--files DIR`,** an existing directory that `forge commit` and `forge push` lines
   read the files they commit from (3.5), read only: a QA pass's
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
@@ -147,6 +147,36 @@ While any step waits, the box's exit, or a line on its stderr saying a
 step is restarting or the box gives up (`../protocol/setup/box.md`, 2),
 ends the wait as the box's failure.
 
+**The page's trouble.** The browser's harness reports each trouble the
+browser kit sees in the page as the kit gives it, its kind, its text
+and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
+2), and the session judges it:
+
+- **The spent link's refusal is expected.** Opening the spent first
+  link, the shell `POST`s its secret to the link's route,
+  `<prefix>/v1/sign-in/link` (jig's `protocol/client/default-http.md`,
+  1), at the box's `/jig/v1/sign-in/link`, which refuses it, 401, as a
+  link a sign-in spent (jig's `protocol/client/sign-in.md`, its printed
+  link); that refusal is what makes serve print the fresh link. Chromium
+  logs it as a `Log` trouble, `Failed to load resource: the server
+  responded with a status of 401 (Unauthorized)`, its URL the route's on
+  the box's origin, with no query. From the spent link's opening
+  until `ready`, such a trouble is never counted: it may come in any of
+  step 3's waits, before or after the fresh link's line, since the
+  browser's log and the box's stdout are not ordered.
+- **Any other trouble at the start** ends the wait as the box's failure,
+  `box failed: WHY` (2.5), WHY the trouble as `KIND: TEXT (RESOURCE)`:
+  its kind as the kit names it, its text, which for a refused resource
+  holds its status, and the resource, its URL with the query and the
+  fragment dropped, since a link's URL carries its secret
+  (`/jig/v1/sign-in/link?secret=…`) and a link is never in an answer (step
+  2). For example `Log: Failed to load resource: the server responded
+  with a status of 404 (Not Found) (http://127.0.0.1:8367/app.js)`. A
+  trouble with no URL is `KIND: TEXT`.
+- **After `ready`,** a trouble fails the line being carried out (3.7)
+  with the same words, and one that comes between lines is not
+  counted.
+
 ### 2.4 Its end
 
 At a line `end`, or at stdin's end: the TUI ended, its process group
@@ -162,7 +192,7 @@ directory stays until the next session.
 |---|---|---|
 | 0 | the session reached its end and the box stopped cleanly, whatever its lines answered | `ended` |
 | 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box.md`, 2), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store.md`, 5; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
-| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
+| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
@@ -199,7 +229,9 @@ no tui line walks in one (`recipe.md`, 5.1).
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
   `web`, `tui`, `ctl`, `forge` or `deployment`, then its record and its fields, as the
   journeys' file writes fields (`web/journeys.md`, 3.2): each after one
-  space, a word bare, bytes in double quotes. Or a look (3.2 to 3.3), or
+  space, a word bare, bytes in double quotes. Quoted bytes take printable
+  ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for
+  quote and backslash. Or a look (3.2 to 3.3), or
   `end`.
 - **An empty line** is answered `ok` and not kept.
 - **A line that does not parse** is answered `failed: line N: WHY`,
@@ -301,10 +333,11 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
 | Line | What the session does | Bound |
 |---|---|---|
 | `forge commit forgejo REPOSITORY MESSAGE PATH [PATH]...` | one commit to REPOSITORY's default branch, MESSAGE its message, of each PATH's file of the files directory, at PATH: created where the branch lacks PATH and replaced where it holds it; answers the new commit's id | 60 s |
+| `forge push forgejo REPOSITORY BRANCH MESSAGE PATH [PATH]...` | one commit as the person to BRANCH of REPOSITORY, of each PATH's file as for commit; makes an absent BRANCH at the default branch's head; answers the new commit's id | 60 s |
 | `forge checks forgejo REPOSITORY` | waits until the combined status at the default branch's head is `success`; answers the head and each status's context and state | 300 s |
 
 - **`forgejo`,** a word, names the box's fake Forgejo elsewhere; another
-  word does not parse. **REPOSITORY** is `OWNER/NAME`, a word; MESSAGE
+  word does not parse. **BRANCH** is a word. **REPOSITORY** is `OWNER/NAME`, a word; MESSAGE
   and each PATH are bytes. One to 16 PATHs, each relative, 1 to 256
   bytes, with no empty, `.` or `..` segment and no two alike. A line out
   of these bounds does not parse (3.1).
@@ -336,6 +369,13 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
   and every file, its content in base64, so that the branch gains one
   commit, the person its author. It answers `| ` and the commit's id
   from the response.
+- **The push:** the repository read gives its default branch, then
+  `GET /repos/OWNER/NAME/branches/BRANCH` tests the target branch. Present,
+  each PATH is read there and the contents batch names `branch` BRANCH.
+  Absent (404), each PATH is read at the default branch and the batch
+  names `branch` the default and `new_branch` BRANCH, making the branch
+  with the commit in that one request. Other refusals fail the line.
+  Its files, bounds, credentials, answer and keeping are the commit's.
 - **The checks:** the combined status (`GET
   /repos/OWNER/NAME/commits/BRANCH/status`) read every 2 seconds until
   its state is `success`, answering `| ` the head, then a line per
@@ -444,6 +484,15 @@ Focused, with no browser, no box and no Chromium:
   line the box has not printed fails the line.
 - **Its exits:** a serve log holding a store's refusal ends with status
   3 and its line; a box that exits before its link, with 4.
+- **The browser's start and the page's trouble** (2.3): the logic given
+  the box's links and the faces' answers in order; the 401 `Log`
+  trouble at the link's route, given in any of step 3's waits, before
+  or after the fresh link's line, is not counted and the start reaches
+  `ready`; a 401 at another resource, a 404, or an exception fails the
+  box, status 4, its `box failed: ` line naming the trouble's kind, its
+  text and its URL with the query dropped; a trouble at the link's own
+  URL names no secret; a trouble during a web line fails that line with
+  the same words.
 - **ctl from a file:** the box's first link written to `session/link`,
   0o600, ctl given its path and no stdin, the file gone once ctl has
   answered; the link in no answer and no program's argument.

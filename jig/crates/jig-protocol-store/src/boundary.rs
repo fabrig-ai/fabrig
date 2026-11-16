@@ -278,8 +278,6 @@ pub enum Family {
 /// What the check before the switch found (protocol/store/opening.md 2, step 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Check {
-    /// A patched record too large for a commit alone, by its key as `Patch` gives it.
-    Large { key: Box<[u8]> },
     /// A row of the restart's ranges that does not load within the deployment's limits.
     Load { key: Box<[u8]> },
     /// A file in the copy's secrets' store that is not private.
@@ -290,10 +288,6 @@ impl Check {
     /// them, as `OpenRefusal::words` gives every refusal's (protocol/store/opening.md 1).
     fn words(&self) -> &'static [&'static str] {
         match self {
-            Self::Large { .. } => &[
-                "The check before the switch found a patched record too large for a commit alone in the copy of the store this start patched in ",
-                ", and the generation it patched from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
-            ],
             Self::Load { .. } => &[
                 "The check before the switch found a record the restart could not load within the deployment's limits in the copy of the store this start patched in ",
                 ", and the generation it patched from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
@@ -327,19 +321,13 @@ pub enum OpenRefusal {
     /// A level past the binary's (5.3); `found: None` for a component
     /// version past the binary's, its levels unread.
     Ahead { owner: crate::Owner, found: Option<u32>, wanted: Option<u32> },
-    /// A patch refused a record of the copy (10.2): the key as the walk
-    /// handed it to the owner (`Event::Site`'s).
-    Patch { owner: crate::Owner, patch: u32, key: Box<[u8]>, halt: skein_codec::patch::Halt },
-    /// The binary's sets do not plan (10.3).
-    Set { owner: crate::Owner, patch: u32 },
+    /// The binary's owner sets do not check (protocol/store/opening.md, 3).
+    Set { owner: crate::Owner },
     /// A job refused its page or answered outside its bounds (protocol/store/jobs.md, 3).
     Job { owner: crate::Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },
     /// The check before the switch failed (10.2, step 5); the generation
     /// patched from stays active, unchanged.
     Check { why: Check },
-    /// Effects a pending patch reshapes (protocol/store/opening.md 3): the first family
-    /// in the plan's order, its count, and its first keys, at most 64.
-    InFlight { owner: crate::Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> },
 }
 /// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -368,11 +356,6 @@ macro_rules! older {
         ]
     };
 }
-
-const IN_FLIGHT_WORDS: &[&str] = &[
-    "",
-    " holds effects its last run sent and did not settle, in records this build's patches change, and this start has changed nothing in it. Start the build before it again, let it settle them, and stop it: a stop settles what it sent first. Then start this build.",
-];
 
 impl Family {
     fn version_words(self) -> &'static [&'static str] {
@@ -446,22 +429,26 @@ impl OpenRefusal {
                 " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
+            Self::OlderBuild { why: Older::Behind } => &[
+                "",
+                " holds a store from an older build, at patch levels behind this build's, and this start has changed nothing in it. This build keeps no patch: start build c1019509e3 on ",
+                " and let it open, which brings it to this build's levels, then start this build.",
+            ],
+            Self::OlderBuild { why: Older::Unregistered } => &[
+                "",
+                " holds a store from an older build, with values and no registry of their layouts, and this start has changed nothing in it. This build registers no older store's layouts: start build c1019509e3 on ",
+                " and let it open, which registers them, then start this build.",
+            ],
             Self::Ahead { .. } => &[
                 "",
                 " holds a store from a later build, at patch levels past this build's, and this start has changed nothing in it. No patch runs backwards: start the later build again, or restore ",
                 " from a backup this build made.",
             ],
-            Self::Patch { .. } => &[
-                "A patch refused a record while this start patched a copy of the store in ",
-                ", and the generation it patched from stays active, unchanged. Every start of this build refuses the same record: start the build before it again, which opens that generation as it was.",
-            ],
             Self::Set { .. } => &[
-                "This build's patches do not plan, and this start has changed nothing in ",
+                "This build's owner sets do not check, and this start has changed nothing in ",
                 ". The build is wrong: start the build before it again.",
             ],
             Self::Check { why } => why.words(),
-            Self::InFlight { .. } => IN_FLIGHT_WORDS,
-            Self::OlderBuild { why: Older::Unrecorded } => older!("made before its families' layouts were recorded"),
             Self::OlderBuild { why: Older::Layout(family) } => match family {
                 Family::Settings => older!("whose settings family's layout differs from this build's"),
                 Family::Component => older!("whose component family's layout differs from this build's"),
@@ -511,9 +498,11 @@ impl OpenRefusal {
 pub enum Older {
     /// A store before an owner's baseline, which records no patch level (5.3).
     Unleveled,
-    /// A store with no layouts row, made before they were recorded (protocol/store/records.md 3).
-    Unrecorded,
-    /// A family's fingerprint is not this build's at its version (protocol/store/records.md 3).
+    /// A level behind the binary's (protocol/store/records.md, 3).
+    Behind,
+    /// A store holding values and no registry (protocol/store/layouts.md, 5.1).
+    Unregistered,
+    /// The component's own row does not decode at its version (protocol/store/records.md, 3).
     Layout(Family),
     /// The layout before generations, with no active file (protocol/store/README.md 2).
     Directory,
@@ -587,7 +576,6 @@ pub enum Event {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
         openings: Box<[WorkerOpening]>,
-        fresh: bool,
     },
     Decoded {
         owner: Token,
@@ -758,13 +746,6 @@ pub enum Event {
         rows: u64,
         commits: u64,
         counts: Box<[crate::JobCount]>,
-    },
-    /// A patch's walk is done and committed (protocol/store/opening.md 2, step 4).
-    Patched {
-        owner: Token,
-        of: crate::Owner,
-        patch: u32,
-        counts: crate::Counts,
     },
 }
 

@@ -56,6 +56,7 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Told { .. }
             | Request::Opened { .. }
             | Request::Refused { .. }
             | Request::Ended { .. }

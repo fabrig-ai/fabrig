@@ -279,7 +279,10 @@ impl World {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.clear();
             }
-            parent::Event::Grant { .. } | parent::Event::Drain { .. } | parent::Event::Stop { .. } => {}
+            parent::Event::Renewals { .. }
+            | parent::Event::Grant { .. }
+            | parent::Event::Drain { .. }
+            | parent::Event::Stop { .. } => {}
         }
         self.stage.push(event);
         while let Some(event) = self.stage.next_event() {

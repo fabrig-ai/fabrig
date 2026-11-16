@@ -22,7 +22,7 @@ fn first_contents_commit_creates_one_head_with_every_file_and_no_parent() {
     let (mut domain, env) = empty();
     let files = [change(b"README.md", b"hello", None), change(b".forgejo/workflows/check.yml", b"workflow", None)];
     let commit =
-        fake::change_files(&mut domain, &env, REPO, MAIN, b"Seed hello", &files, ENGINE).expect("first commit");
+        fake::change_files(&mut domain, &env, REPO, MAIN, None, b"Seed hello", &files, ENGINE).expect("first commit");
     assert_eq!(domain.branch(REPO, MAIN), Some(commit));
     let object = domain.object(commit).expect("stored commit");
     assert_eq!(object.parent, None);
@@ -35,9 +35,17 @@ fn first_contents_commit_creates_one_head_with_every_file_and_no_parent() {
 #[test]
 fn contents_batch_refusals_leave_no_commit_and_no_partial_tree() {
     let (mut domain, env) = empty();
-    let head =
-        fake::change_files(&mut domain, &env, REPO, MAIN, b"seed", &[change(b"README.md", b"hello", None)], ENGINE)
-            .unwrap();
+    let head = fake::change_files(
+        &mut domain,
+        &env,
+        REPO,
+        MAIN,
+        None,
+        b"seed",
+        &[change(b"README.md", b"hello", None)],
+        ENGINE,
+    )
+    .unwrap();
     let room = domain.room().commits;
     for (files, user, expected) in [
         (
@@ -71,13 +79,13 @@ fn contents_batch_refusals_leave_no_commit_and_no_partial_tree() {
         ),
         (Box::<[ContentsChange]>::from([change(b"../bad", b"bad", None)]), ENGINE, Error::Refused),
     ] {
-        assert_eq!(fake::change_files(&mut domain, &env, REPO, MAIN, b"refused", &files, user), Err(expected));
+        assert_eq!(fake::change_files(&mut domain, &env, REPO, MAIN, None, b"refused", &files, user), Err(expected));
         assert_eq!(domain.branch(REPO, MAIN), Some(head));
         assert_eq!(domain.room().commits, room);
         assert_eq!(domain.object(head).unwrap().tree.len(), 1);
     }
     let files = [change(b"new", b"new", None), change(b"README.md", b"changed", Some(fake::blob_id(b"hello")))];
-    let next = fake::change_files(&mut domain, &env, REPO, MAIN, b"update", &files, ENGINE).unwrap();
+    let next = fake::change_files(&mut domain, &env, REPO, MAIN, None, b"update", &files, ENGINE).unwrap();
     assert_eq!(domain.object(next).unwrap().parent, Some(head));
     assert_eq!(domain.object(next).unwrap().tree.len(), 2);
     assert_eq!(domain.object(next).unwrap().tree.get(b"README.md".as_slice()).unwrap().as_ref(), b"changed");
@@ -86,11 +94,60 @@ fn contents_batch_refusals_leave_no_commit_and_no_partial_tree() {
 fn contents_cannot_create_a_missing_branch_in_a_populated_repository() {
     let (mut domain, env) = empty();
     let files = [change(b"README.md", b"hello", None)];
-    fake::change_files(&mut domain, &env, REPO, MAIN, b"seed", &files, ENGINE).unwrap();
+    fake::change_files(&mut domain, &env, REPO, MAIN, None, b"seed", &files, ENGINE).unwrap();
     let room = domain.room().commits;
     assert_eq!(
-        fake::change_files(&mut domain, &env, REPO, b"missing", b"seed", &files, ENGINE),
+        fake::change_files(&mut domain, &env, REPO, b"missing", None, b"seed", &files, ENGINE),
         Err(Error::Missing(What::Branch))
     );
     assert_eq!(domain.room().commits, room);
+}
+
+#[test]
+fn contents_new_branch_is_atomic_at_the_base_head_and_refuses_exists_or_missing_base() {
+    let mut config = calm();
+    config.limits.branches = 2;
+    let mut domain = Domain::new(&config, 3);
+    fake::create_empty_repository(&mut domain, &config, REPO, ENGINE).unwrap();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
+    let head =
+        fake::change_files(&mut domain, &env, REPO, MAIN, None, b"base", &[change(b"base", b"kept", None)], ENGINE)
+            .unwrap();
+    let room = domain.room().commits;
+    assert_eq!(
+        fake::change_files(
+            &mut domain,
+            &env,
+            REPO,
+            b"missing",
+            Some(b"topic"),
+            b"push",
+            &[change(b"new", b"x", None)],
+            ENGINE
+        ),
+        Err(Error::Missing(What::Branch))
+    );
+    assert_eq!(
+        fake::change_files(&mut domain, &env, REPO, MAIN, Some(MAIN), b"push", &[change(b"new", b"x", None)], ENGINE),
+        Err(Error::Exists)
+    );
+    assert_eq!(domain.room().commits, room);
+    assert_eq!(domain.branch(REPO, b"topic"), None);
+    let commit = fake::change_files(
+        &mut domain,
+        &env,
+        REPO,
+        MAIN,
+        Some(b"topic"),
+        b"push",
+        &[change(b"new", b"x", None)],
+        ENGINE,
+    )
+    .unwrap();
+    assert_eq!(domain.branch(REPO, MAIN), Some(head));
+    assert_eq!(domain.branch(REPO, b"topic"), Some(commit));
+    let object = domain.object(commit).unwrap();
+    assert_eq!(object.parent, Some(head));
+    assert_eq!(object.tree.get(b"base".as_slice()).unwrap().as_ref(), b"kept");
+    assert_eq!(object.tree.get(b"new".as_slice()).unwrap().as_ref(), b"x");
 }

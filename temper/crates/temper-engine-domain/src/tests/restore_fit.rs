@@ -308,6 +308,7 @@ fn a_lone_change_part_stops_the_root_as_an_unreadable_row_before_linking() {
             repository: skein_forge::api::Repository { forge: 1, repository: 999 },
             branch: b"temper/12".as_slice().into(),
             base: b"main".as_slice().into(),
+            milestone: None,
             goal: None,
             base_repair: false,
             producing_charter: 2,

@@ -91,6 +91,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::SignedOut
                 | Kind::JobAnswer
                 | Kind::Ask
+                | Kind::Restarting
                 | Kind::Asked
                 | Kind::Wires => false,
             };
@@ -235,6 +236,7 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Told { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
@@ -455,7 +457,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v14::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -482,7 +484,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v14::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }

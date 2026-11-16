@@ -50,6 +50,8 @@ pub struct Limits {
     /// has not claimed, waits to be adopted once the parent has loaded its
     /// claims.
     pub grace: Duration,
+    /// The wait a settled engine stop says to workers (domain/engine/fleet.md).
+    pub restart_wait: Duration,
     /// Facts kept until the parent drains them. Beyond them, facts are
     /// dropped and counted.
     pub facts: u32,

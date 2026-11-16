@@ -122,6 +122,11 @@ impl World {
         let mut expected_header = deployment(&records)?;
         let found_header = deployment(&recovered)?;
         expected_header.commits = found_header.commits;
+        // A cold start discharges the restart word once none of its claims
+        // remains held (domain/engine/restart.md, Held across starts).
+        if found_header.restart_wait_ms.is_none() {
+            expected_header.restart_wait_ms = None;
+        }
         if expected_header != found_header {
             return Err(format!(
                 "restart oracle deployment field at key Deployment: expected {expected_header:?}, found {found_header:?}"

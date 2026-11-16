@@ -16,7 +16,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::{copy_of, find};
-use skein_lib::{Env, Id, List, Map, usize_of};
+use skein_lib::{Duration, Env, Id, List, Map, usize_of};
 
 use crate::api::{Answer, Check, Checks, Cue, Ended, Error, Permission, What};
 use crate::domain::{self, Alarm, Config, Domain};
@@ -84,17 +84,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
             return;
         }
         reported(domain, env, id, commit, name, Check::Pending, env.limits.ci);
-        let checks = &domain.repositories.get(id).expect("a repository of the forge").checks;
-        let silent = checks.silent;
-        let min = checks.latency_min;
-        let max = checks.latency_max;
-        if domain.rng.chance(silent) {
-            domain.tally.silent = domain.tally.silent.saturating_add(1);
-            continue;
-        }
-        let span = faults::draw(domain, min, max);
-        let alarm = Alarm::Check { repository: id, commit, context };
-        domain.timers.arm(alarm, env.now.saturating_add(span)).expect("a timer per context of a commit with statuses");
+        schedule(domain, env, id, commit, context, true);
     }
 }
 
@@ -104,6 +94,27 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     let Some(name) = name(domain, id, context) else {
         unreachable!("a check's context is one of its repository's");
     };
+    let repository = domain.repositories.get(id).expect("a CI repository");
+    let kept = repository.runs.get(&commit).expect("a CI run");
+    if kept.jobs.get(context).expect("a CI job").wait == Some(crate::api::JobWait::Runner) {
+        let phases = phases(domain, commit, cue(&repository.checks, &name), &env.limits.limits);
+        let (silent, min, max) =
+            (repository.checks.silent, repository.checks.latency_min, repository.checks.latency_max);
+        waiting(domain, id, commit, context, None);
+        if domain.rng.chance(silent) {
+            domain.tally.silent = domain.tally.silent.saturating_add(1);
+            return;
+        }
+        let span = match phases.run {
+            Some(span) => span,
+            None => faults::draw(domain, min, max),
+        };
+        domain
+            .timers
+            .arm(Alarm::Check { repository: id, commit, context }, env.now.saturating_add(span))
+            .expect("a timer per CI job");
+        return;
+    }
     let repository = domain.repositories.get(id).expect("a repository of the forge");
     let pull = repository.runs.get(&commit).expect("a CI run").pull;
     let checks = &repository.checks;
@@ -194,11 +205,40 @@ pub(crate) fn rerun(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
     let kept = set(domain, id, commit, &name, pending);
     assert!(kept, "a context reported is replaced");
     reported(domain, env, id, commit, name, Check::Pending, env.limits.ci);
-    let checks = &domain.repositories.get(id).expect("a repository of the forge").checks;
-    let (min, max) = (checks.latency_min, checks.latency_max);
-    let span = faults::draw(domain, min, max);
-    let alarm = Alarm::Check { repository: id, commit, context };
-    domain.timers.arm(alarm, env.now.saturating_add(span)).expect("a timer per context of a commit with statuses");
+    schedule(domain, env, id, commit, context, false);
+}
+
+/// Arms the wait or run phase. Phase-less starts and reruns keep their draws.
+fn schedule(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, commit: u64, context: u32, silence: bool) {
+    let repository = domain.repositories.get(id).expect("a CI repository");
+    let name = repository.checks.contexts.get(usize_of(context)).expect("a CI context");
+    let phases = phases(domain, commit, cue(&repository.checks, name), &env.limits.limits);
+    let (silent, min, max) = (repository.checks.silent, repository.checks.latency_min, repository.checks.latency_max);
+    let span = if phases.wait == Duration::ZERO {
+        waiting(domain, id, commit, context, None);
+        if silence && domain.rng.chance(silent) {
+            domain.tally.silent = domain.tally.silent.saturating_add(1);
+            return;
+        }
+        match phases.run {
+            Some(span) => span,
+            None => faults::draw(domain, min, max),
+        }
+    } else {
+        waiting(domain, id, commit, context, Some(crate::api::JobWait::Runner));
+        phases.wait
+    };
+    domain
+        .timers
+        .arm(Alarm::Check { repository: id, commit, context }, env.now.saturating_add(span))
+        .expect("a timer per CI job");
+}
+
+fn waiting(domain: &mut Domain, id: Id<Repository>, commit: u64, context: u32, wait: Option<crate::api::JobWait>) {
+    let repository = domain.repositories.get_mut(id).expect("a CI repository");
+    let kept = repository.runs.get_mut(&commit).expect("a CI run");
+    kept.jobs.get_mut(context).expect("a CI job").wait = wait;
+    crate::actions::complete(kept);
 }
 
 /// Reports `state` of `context` on `commit`, as `user`.
@@ -413,12 +453,7 @@ pub(crate) fn declared(
 ) -> (Check, Option<Cue>) {
     let tree = &domain.object(commit).expect("CI commit").tree;
     let Some(file) = tree.get(path) else { return (Check::Passed, None) };
-    if file.len() <= usize_of(limits.content_bytes) {
-        let end = match find(file, b"\n") {
-            Some(end) => end,
-            None => file.len(),
-        };
-        let line = file.get(..end).expect("first line");
+    if let Some((_, line)) = declaration(file, limits) {
         if line == b"pass" {
             return (Check::Passed, None);
         }
@@ -442,6 +477,84 @@ pub(crate) fn declared(
         }
     }
     (Check::Failed, Some(Cue::Declared { path: copy_of(path) }))
+}
+
+/// Declaration phases, read from the immutable commit (testing/fakes/forge.md, 2.3).
+pub(crate) struct Phases {
+    pub(crate) wait: Duration,
+    pub(crate) run: Option<Duration>,
+}
+
+pub(crate) fn phases(domain: &Domain, commit: u64, cue: Option<&Cue>, limits: &crate::Limits) -> Phases {
+    match cue {
+        Some(Cue::Declared { path }) => {
+            if let Some(file) = domain.object(commit).expect("CI commit").tree.get(&**path)
+                && let Some((phases, _)) = declaration(file, limits)
+            {
+                return phases;
+            }
+        }
+        Some(Cue::PullFile { .. } | Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {}
+    }
+    Phases { wait: Duration::ZERO, run: None }
+}
+
+fn declaration<'a>(file: &'a [u8], limits: &crate::Limits) -> Option<(Phases, &'a [u8])> {
+    if file.len() > usize_of(limits.content_bytes) {
+        return None;
+    }
+    let end = match find(file, b"\n") {
+        Some(end) => end,
+        None => file.len(),
+    };
+    let mut line = file.get(..end).expect("first line");
+    let mut phases = Phases { wait: Duration::ZERO, run: None };
+    if let Some(rest) = line.strip_prefix(b"wait ") {
+        let (span, rest) = phase(rest)?;
+        phases.wait = span;
+        line = rest;
+    }
+    if let Some(rest) = line.strip_prefix(b"run ") {
+        let (span, rest) = phase(rest)?;
+        phases.run = Some(span);
+        line = rest;
+    }
+    if line == b"pass" || line == b"fail" {
+        return Some((phases, line));
+    }
+    if let Some(template) = line.strip_prefix(b"pull-file ")
+        && !template.is_empty()
+        && template_bound(template) <= limits.name_bytes
+    {
+        return Some((phases, line));
+    }
+    None
+}
+
+fn phase(bytes: &[u8]) -> Option<(Duration, &[u8])> {
+    let end = find(bytes, b" ")?;
+    let (unit, digits) = bytes.get(..end)?.split_last()?;
+    if digits.is_empty() || digits.len() > 5 {
+        return None;
+    }
+    let mut value = 0_u64;
+    for &digit in digits {
+        if !digit.is_ascii_digit() {
+            return None;
+        }
+        value = value.checked_mul(10)?.checked_add(u64::from(digit.checked_sub(b'0')?))?;
+    }
+    let scale = match unit {
+        b's' => 1,
+        b'm' => 60,
+        b'h' => 3600,
+        _ => return None,
+    };
+    let seconds = value.checked_mul(scale)?;
+    if seconds > 86400 {
+        return None;
+    }
+    Some((Duration::from_secs(seconds), bytes.get(end.checked_add(1)?..)?))
 }
 
 fn pull_file(domain: &Domain, commit: u64, path: &[u8], pull: Option<u64>, no_pull: Check) -> Check {

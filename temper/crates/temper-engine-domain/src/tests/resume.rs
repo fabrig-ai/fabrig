@@ -367,6 +367,18 @@ fn stop_from_settled_still_releases_the_drain_terminal() {
     let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Store(crate::StoreRequest::Commit { number, writes })) = out.pop() else {
+        panic!("the stop commits its restart word")
+    };
+    assert_eq!(writes.len(), 1);
+    assert_eq!(domain.deployment().restart_wait_ms, Some(1_200_000));
+    assert!(out.is_empty(), "drain remains behind the stop's commit");
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
+    crate::release(&mut domain, &env, &mut out);
+    crate::release(&mut domain, &env, &mut out);
+    assert_eq!(out.pop(), Some(Request::Restarting { wait: skein_lib::Duration::from_secs(1200) }));
+    crate::release(&mut domain, &env, &mut out);
+    crate::release(&mut domain, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Drained));
     assert!(out.is_empty());
     assert_eq!(domain.settled, None);
@@ -457,6 +469,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                     endings += 1;
                 }
                 Request::Drained => drains += 1,
+                Request::Restarting { .. } => panic!("an unsettled stop says no restart"),
                 Request::Party(crate::PartyRequest::Deliver(crate::Delivery::WebReply { .. })) => {}
                 other @ (Request::Setup { .. }
                 | Request::ForgeKept(_)

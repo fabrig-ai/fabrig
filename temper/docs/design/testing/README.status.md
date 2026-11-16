@@ -145,6 +145,7 @@ that proof remains with the after-landing runs (11).
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
 
+
 - **Not yet:**
   4.2: temper-box-kit's ctl checks panic where they find, and the fake
   box's readiness panics when the child ends before it is ready; their

@@ -1,6 +1,6 @@
 //! Upgrade map fixtures into logs, preserving serving answers (protocol/store/logs.md, 6).
 use super::*;
-use crate::{Owner, PatchSet};
+use crate::{Owner, OwnerSet};
 use alloc::collections::VecDeque;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_tasks as tasks;
@@ -17,7 +17,7 @@ fn read(disk: &mut Disk, store: &mut Store, task: u64, scope: reads::Scope) -> r
 #[test]
 fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
     let mut disk = Disk::new(&[]);
-    let mut store = jig_store(&disk, crate::JIG_STORE_PATCH_SET);
+    let mut store = jig_store(&disk, crate::JIG_STORE_SET);
     assert_opened(&disk.open(&mut store), 0);
     let mut above = Queue::uncapped();
     let mut below = fixtures::below();
@@ -50,10 +50,10 @@ fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
 
 #[test]
 fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
-    let set = crate::JIG_STORE_PATCH_SET;
+    let set = crate::JIG_STORE_SET;
     let old_jobs = set.jobs.iter().filter(|job| job.name != "task-logs").copied().collect::<Vec<_>>();
     let mut disk = Disk::new(&[]);
-    let mut old = jig_store(&disk, PatchSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
+    let mut old = jig_store(&disk, OwnerSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
     assert_opened(&disk.open(&mut old), 0);
     let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -145,10 +145,10 @@ fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
 #[test]
 fn rehearsal_task_logs_exceeds_the_map_only_handle_bound_and_closes() {
     const TASKS: u32 = 40;
-    let set = crate::JIG_STORE_PATCH_SET;
+    let set = crate::JIG_STORE_SET;
     let old_jobs = set.jobs.iter().filter(|job| job.name != "task-logs").copied().collect::<Vec<_>>();
     let mut disk = Disk::new(&[]);
-    let mut old = jig_store(&disk, PatchSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
+    let mut old = jig_store(&disk, OwnerSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
     assert_opened(&disk.open(&mut old), 0);
     let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -172,9 +172,7 @@ fn rehearsal_task_logs_exceeds_the_map_only_handle_bound_and_closes() {
     );
     let before = disk.contents();
     let mut store = disk.store_with_limits(&limits);
-    store.patch_sets(crate::PatchSets {
-        sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])),
-    });
+    store.owner_sets(crate::OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });
     let scratch = disk.scratch_root();
     let directory = disk.root();
     let mut events = VecDeque::from(

@@ -253,6 +253,13 @@ impl Session {
                     self.event(Event::FaceDone(Ok(())));
                 }
             }
+            Report::Page { trouble, text, url } => {
+                let actions = self.machine.step(Event::PageTrouble { trouble, text, url }, self.pump.now());
+                if actions.iter().any(|action| matches!(action, Action::CancelFace)) {
+                    self.face_job = None;
+                }
+                self.actions.extend(actions);
+            }
             Report::Trouble(why) => {
                 self.face_job = None;
                 self.event(Event::FaceDone(Err(why)));

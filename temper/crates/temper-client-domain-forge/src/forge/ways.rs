@@ -738,7 +738,7 @@ pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
             continue;
         }
         for template in &row.templates {
-            if template.tracked.is_some() {
+            if template.tracked.is_some() && template.flags.ended_by != c::EndedBy::Requester {
                 if template.number == ways.way {
                     return Some(template.number);
                 }

@@ -14,6 +14,10 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    /// The longer of the word and this worker's grace (protocol/wires.md, 4).
+    Restarting {
+        keep: skein_lib::Duration,
+    },
     /// A failed preparation, once when its answer first goes up (domain/worker/checkouts.md, 1.3).
     Unprepared {
         run: u64,

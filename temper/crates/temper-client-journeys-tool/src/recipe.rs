@@ -265,7 +265,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "missing forge commit file",
+                    "missing forge commit or push file",
                 ));
             }
         }
@@ -274,7 +274,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "no forge commit line names this file",
+                    "no forge commit or push line names this file",
                 ));
             }
         }

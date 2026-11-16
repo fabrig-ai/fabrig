@@ -425,7 +425,7 @@ the fake.
   through to landing and to ejection, the log's paging and its `304`,
   and a delivery decoded by `skein_forge::github` alike pushed and
   logged.
-- **Memory** is checked as `forge.md`, section 8 says, with the stores full. Built in
+- **Memory** is checked as `forge.md`, section 6 says, with the stores full. Built in
   `suite::github_memory` tests under `tests/fake-forge` and
   `tests/fake-peers`: installation rows and listed reach, minted and person
   tokens, App grants and events, manifest states and blob records are full,
@@ -438,7 +438,7 @@ the fake.
   connection uses the same bounded HTTP envelope. The scenario's ceiling
   also covers the blob record slots and paths, seed key, configured origins
   and signed-target scratch.
-- **The budget** is the focused suite's, as `forge.md`, section 8 says. The conformance
+- **The budget** is the focused suite's, as `forge.md`, section 6 says. The conformance
   against the fake (`github.md`, section 2) runs there as one test, within 6 seconds (3
   seconds before the user's doubling of 10-22, provisional). The fake's
   clock carries the CI's and the queue's waits, so nothing sleeps.
@@ -527,10 +527,10 @@ same configuration.
 
 ## 2. GitHub's conformance
 
-`tests/forge/github` is a tool beside `forge.md`, section 7's. It runs the same
+`tests/forge/github` is a tool beside `throwaway.md`, section 2's. It runs the same
 cases against two targets and records each fact of ../../forge/github.md,
 section 13, as `holds`, `fails` or `unchecked`. Its transcripts, facts,
-masking and refusal of leaked secrets are `forge.md`, section 7's.
+masking and refusal of leaked secrets are `throwaway.md`, section 2's.
 
 - **The fake** (`--fake`, the default) is the GitHub layer in-process,
   hosted by the forge peer. It also runs as one test in the focused
@@ -578,7 +578,7 @@ masking and refusal of leaked secrets are `forge.md`, section 7's.
   every token, every JWT, every minted token and the webhook secret
   before the first request. It copies none, and it masks
   `Authorization`, signed blob addresses, guids, node ids and ETags as
-  well as `forge.md`, section 7's. Numeric ids are masked by first appearance, since
+  well as `throwaway.md`, section 2's. Numeric ids are masked by first appearance, since
   github.com's do not come in a fixed order. Request-path numbers use the
   same map as body numbers. Every response keeps its status and headers;
   transcript records are separated by CRLF so later status lines start a line.
