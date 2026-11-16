@@ -228,6 +228,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// A complete CI diagnostic and its metadata may exceed the tiny client's answer.
+    pub forge_answer_bytes: Option<u32>,
     /// The peer's pull bodies may exceed the issue-projection bound in landing stories.
     pub forge_body_bytes: Option<u32>,
     /// Saved and delivered producer branches may coexist with landing branches.
@@ -466,6 +468,7 @@ impl World {
             forge_charter,
             applications,
             forge_commits: _,
+            forge_answer_bytes,
             forge_body_bytes: _,
             forge_branches: _,
             ci_contexts: _,
@@ -979,6 +982,9 @@ impl World {
                 limits.tasks.inbox_bytes = RESULT_INBOX_BYTES;
                 limits.loads.bytes = limits.loads.bytes.max(RESULT_INBOX_BYTES);
                 limits.loads.reply_bytes = limits.loads.reply_bytes.max(RESULT_INBOX_BYTES);
+            }
+            if let Some(bytes) = forge_answer_bytes {
+                limits.forge.client.answer_bytes = bytes;
             }
             if let Some(brief) = brief {
                 limits.brief = brief;

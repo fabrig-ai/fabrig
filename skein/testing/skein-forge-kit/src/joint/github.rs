@@ -92,13 +92,17 @@ impl Github {
     }
     pub fn io(&mut self, world: &mut Joint, request: skein_io::Request) {
         match request {
-            skein_io::Request::Connect { owner, .. } => {
+            skein_io::Request::Connect { owner, addr, .. } => {
                 let cut =
                     if world.rng.chance(world.cut_chance) { Cut::At(world.rng.between(0, 2048)) } else { Cut::Never };
                 let env = Self::env(world);
                 let mut peer = Peer {
                     pipe: Pipe::new(world.rng.next_u64(), cut),
-                    server: Server::new(owner, &fixture::limits()).expect("server"),
+                    server: if addr == skein_io::Addr::Ip(crate::github::BLOB_ADDRESS) {
+                        Server::blob(owner, &fixture::limits()).expect("blob server")
+                    } else {
+                        Server::new(owner, &fixture::limits()).expect("API server")
+                    },
                     above: Queue::with_capacity(64),
                     below: Queue::with_capacity(64),
                     heads: VecDeque::new(),
