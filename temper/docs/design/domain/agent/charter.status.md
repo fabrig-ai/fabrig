@@ -3,7 +3,6 @@
 2026-11-16. Where the tree's code lags or departs from [charter.md](charter.md).
 
 
-- **Not yet:** 4, *Words a person reads first*: the stock charters ask for no title line, no `decided` question in one sentence with options of one line, and no headline naming no number [in flight: change 4293].
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
 - **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's

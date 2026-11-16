@@ -3,7 +3,6 @@
 2026-11-16. Where the tree's code lags or departs from [areas.md](areas.md).
 
 
-- **Not yet:** area 2: `help goal start` doesn't say TEXT's first line is the goal's title [in flight: change 4294].
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone

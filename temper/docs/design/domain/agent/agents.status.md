@@ -3,7 +3,6 @@
 2026-11-16. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
-- **Not yet:** 3, *A goal's report*: the stock charters' words let a headline name tasks, changes and pull requests by number [in flight: change 4293].
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
