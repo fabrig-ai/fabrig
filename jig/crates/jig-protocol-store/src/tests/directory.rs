@@ -736,3 +736,94 @@ fn a_first_start_counts_every_kept_family_zero() {
         assert_eq!(manifest.counts, expected);
     }
 }
+
+#[test]
+fn a_first_start_refuses_any_checkpoint_entry_but_accepts_an_empty_directory() {
+    for entry in [
+        Item::file(b"checkpoints/unrelated", b"keep"),
+        Item::directory(b"checkpoints/00000000000000001234-00000000000000ab"),
+        Item::directory(b"checkpoints/00000000000000001234-00000000000000ab.skein-0102030405060708"),
+    ] {
+        unchanged_refusal(
+            &[Item::directory(b"checkpoints"), entry, Item::file(b"active.skein-0123456789abcdef", b"keep")],
+            OpenRefusal::Generations { why: Generations::Checkpoints },
+        );
+    }
+    let mut disk = Disk::new(&[Item::directory(b"checkpoints")]);
+    let mut store = disk.store();
+    assert_opened(&disk.open(&mut store));
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    assert!(has(&paths(&mut disk), b"checkpoints"));
+}
+
+#[test]
+fn checkpoint_temporaries_are_swept_across_pages_and_nested_trees_then_synced() {
+    let mut items = standing(5);
+    items.push(Item::directory(b"checkpoints"));
+    // Retained entries fill a page before the temporaries; a moving cursor must not hide one.
+    let mut kept = Vec::new();
+    for suffix in 0..=crate::generations::PAGE {
+        let name = crate::CheckpointName { store: 1, suffix: u64::from(suffix) }.bytes();
+        let path = [b"checkpoints/".as_slice(), &name].concat();
+        items.push(Item::directory(&path));
+        kept.push(path);
+    }
+    for name in ["unrelated", "00000000000000001234-00000000000000ab.skein-010203040506070F"] {
+        let path = format!("checkpoints/{name}");
+        items.push(Item::file(path.as_bytes(), b"keep"));
+        kept.push(path.into_bytes());
+    }
+    for suffix in 0..=crate::generations::PAGE {
+        let name = crate::CheckpointName { store: 1234, suffix: u64::from(suffix) }.temporary(9);
+        let path = [b"checkpoints/".as_slice(), &name].concat();
+        if suffix == 0 {
+            items.push(Item::directory(&path));
+            for directory in [
+                "generations",
+                "generations/1",
+                "generations/1/store",
+                "generations/1/store/logs",
+                "generations/1/store/logs/01",
+                "transcripts",
+                "transcripts/01",
+            ] {
+                items.push(Item::directory(&[path.as_slice(), b"/", directory.as_bytes()].concat()));
+            }
+            for file in ["generations/1/store/logs/01/00000000000000000001", "transcripts/01/00000000000000000001"] {
+                items.push(Item::file(&[path.as_slice(), b"/", file.as_bytes()].concat(), b"stray"));
+            }
+        } else {
+            items.push(Item::file(&path, b"temporary"));
+        }
+    }
+    let mut disk = Disk::new(&items);
+    let mut store = disk.store();
+    assert_opened(&disk.open(&mut store));
+    let remaining: Vec<_> = paths(&mut disk).into_iter().filter(|p| p.starts_with(b"checkpoints/")).collect();
+    let mut expected: Vec<Box<[u8]>> = kept.into_iter().map(Vec::into_boxed_slice).collect();
+    expected.sort();
+    assert_eq!(remaining, expected);
+    let requests = disk.requests();
+    let removed = requests
+        .iter()
+        .rposition(|(_, r)| {
+            if let Seen::Remove { name, .. } = r {
+                crate::CheckpointName::parse_temporary(name).is_some()
+            } else {
+                false
+            }
+        })
+        .expect("temporaries removed");
+    let syncs: Vec<_> = requests
+        .iter()
+        .enumerate()
+        .filter(|(_, (driver, r))| *driver == 2 && *r == Seen::Sync)
+        .map(|(index, _)| index)
+        .collect();
+    assert_eq!(syncs.len(), 1, "only checkpoints dirtied on the sweep lane");
+    let transcripts = requests
+        .iter()
+        .position(|(_, r)| if let Seen::Make(path) = r { path.as_ref() == b"transcripts" } else { false })
+        .expect("transcripts made");
+    assert!(removed < syncs[0] && syncs[0] < transcripts);
+}

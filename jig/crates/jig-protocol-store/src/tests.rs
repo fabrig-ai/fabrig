@@ -1,5 +1,6 @@
 //! Store key, interval and codec properties (protocol/store/README.md, section 9).
 mod census;
+mod checkpoints;
 mod codec;
 mod commits;
 mod directory;

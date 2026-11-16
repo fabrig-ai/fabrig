@@ -48,6 +48,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         files: profile.files,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks)?,
         fetch: profile.fetch,
+        checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
         held: profile.held,
     };

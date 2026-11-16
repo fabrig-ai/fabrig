@@ -104,6 +104,10 @@ fn an_unnamed_refusal_says_to_name_its_generation() {
     says(OpenRefusal::Generations { why: Generations::Unnamed }, "- `Unnamed`: \"", "\"");
 }
 #[test]
+fn a_checkpoints_refusal_says_to_restore_or_move_the_checkpoints() {
+    says(OpenRefusal::Generations { why: Generations::Checkpoints }, "- `Checkpoints`: \"", "\"");
+}
+#[test]
 fn an_unrecorded_refusal_says_to_move_the_generations() {
     says(OpenRefusal::OlderBuild { why: Older::Unrecorded }, "`Unrecorded`'s:\n\n  > ", "\n\n  `Layout`'s");
 }

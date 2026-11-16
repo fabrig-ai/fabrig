@@ -13,6 +13,7 @@ pub(crate) const OWNER: Token = Token::new(0x004a_4947);
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Survey {
     Top,
+    Checkpoints,
     Generations,
     First,
     Map(Map),
@@ -65,6 +66,7 @@ pub(crate) enum Opening {
     SweepRemoving { sweep: Sweep, removing: Removing },
     SweepSync { root: Root },
     SweepClose(Closing),
+    CheckpointSweep(crate::checkpoints::sweep::Sweep),
     TranscriptsMade,
     TranscriptsOpen,
     Patching(Box<Patching>),
@@ -217,6 +219,7 @@ fn close(root: Root, queue: &mut Queue<file::Request>) {
 fn survey(store: &mut Store, kind: Survey, below: &mut Below) {
     let name = match kind {
         Survey::Top => Box::from(b".".as_slice()),
+        Survey::Checkpoints => Box::from(crate::checkpoints::DIRECTORY),
         Survey::Generations => Box::from(generations::GENERATIONS),
         Survey::First => generations::generation(generations::FIRST),
         Survey::Map(map) => generations::map(generations::FIRST, map),
@@ -250,7 +253,8 @@ fn leftover(store: &mut Store, below: &mut Below) {
 }
 fn surveyed(store: &mut Store, kind: Survey, above: &mut Queue<Event>, below: &mut Below) {
     match kind {
-        Survey::Top => match store.directory.generations_kind {
+        Survey::Top => survey(store, Survey::Checkpoints, below),
+        Survey::Checkpoints => match store.directory.generations_kind {
             Some(Kind::Directory) => survey(store, Survey::Generations, below),
             Some(Kind::File | Kind::Symlink | Kind::Other) => generation_refusal(store, Generations::Unnamed, above),
             None => leftover(store, below),
@@ -298,6 +302,9 @@ fn survey_page(store: &mut Store, kind: Survey, root: Root, entries: Box<[file::
                 if entry.name.as_ref() == generations::GENERATIONS {
                     store.directory.generations_kind = Some(entry.kind);
                 }
+            }
+            Survey::Checkpoints => {
+                return refusing(store, root, OpenRefusal::Generations { why: Generations::Checkpoints }, below);
             }
             Survey::Generations => {
                 if entry.name.as_ref() != b"1" || entry.kind != Kind::Directory {
@@ -466,6 +473,13 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
         Opening::SweepRemoving { sweep, removing } => sweep_tree_removed(store, sweep, removing, arrived, above, below),
         Opening::SweepSync { root } => sweep_synced(store, root, arrived, above, below),
         Opening::SweepClose(closing) => sweep_closed(store, closing, arrived, above, below),
+        Opening::CheckpointSweep(mut sweep) => {
+            match crate::checkpoints::sweep::arrived(&mut sweep, arrived, &mut below.transcripts) {
+                Progress::Pending => store.directory.opening = Opening::CheckpointSweep(sweep),
+                Progress::Done => make_transcripts(store, below),
+                Progress::Failed => refuse(store, above),
+            }
+        }
         Opening::TranscriptsMade => transcripts_made(store, env, arrived, above, below),
         Opening::TranscriptsOpen => transcripts_opened(store, env, arrived, above, below),
         Opening::Pending(_) => unreachable!("pending routed before taking opening"),
@@ -514,6 +528,12 @@ fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, be
     check(store, below);
 }
 fn survey_opened(store: &mut Store, kind: Survey, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
+    if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
+        match kind {
+            Survey::Checkpoints => return surveyed(store, kind, above, below),
+            Survey::Top | Survey::Generations | Survey::First | Survey::Map(_) => {}
+        }
+    }
     let Some(root) = opened(arrived) else {
         return refuse(store, above);
     };
@@ -798,13 +818,8 @@ fn sweep_closed(store: &mut Store, closing: Closing, arrived: Arrived, above: &m
     }
     match kind {
         SweepKind::Generations => {
-            store.directory.opening = Opening::TranscriptsMade;
-            below.transcripts.push(file::Request::MakeDirectory {
-                owner: OWNER,
-                root: root.token,
-                path: Box::from(generations::TRANSCRIPTS),
-                mode: 0o700,
-            });
+            let sweep = crate::checkpoints::sweep::begin(root, &mut below.transcripts);
+            store.directory.opening = Opening::CheckpointSweep(sweep);
         }
         SweepKind::Temporaries { first: true } => make(store, Making::Generations, below),
         SweepKind::Temporaries { first: false } => {
@@ -819,6 +834,15 @@ fn sweep_closed(store: &mut Store, closing: Closing, arrived: Arrived, above: &m
             }
         }
     }
+}
+fn make_transcripts(store: &mut Store, below: &mut Below) {
+    store.directory.opening = Opening::TranscriptsMade;
+    below.transcripts.push(file::Request::MakeDirectory {
+        owner: OWNER,
+        root: deployment(store).token,
+        path: Box::from(generations::TRANSCRIPTS),
+        mode: 0o700,
+    });
 }
 fn transcripts_made(
     store: &mut Store,
@@ -1075,6 +1099,7 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
         | Opening::SweepRemoving { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Pending(_) => None,
@@ -1110,6 +1135,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::patching::switch::Pending
         | Opening::SweepRemoving { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Patching(_) => None,
@@ -1145,6 +1171,7 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::patching::swi
         | Opening::SweepRemoving { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Patching(_) => None,

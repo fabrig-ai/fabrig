@@ -169,6 +169,7 @@ pub fn layout(
         files: profile.files,
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
         fetch: profile.fetch,
+        checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
     })
 }
@@ -211,6 +212,14 @@ mod sizing_tests {
             }
         }
         assert_eq!(application.spoken.get(0), Some(entry.expect("engine's worker wire")));
+    }
+
+    #[test]
+    fn checkpoint_retention_reaches_the_component() {
+        let (application, _, mut profile) = crate::tests::fixtures::store_limits();
+        profile.checkpoints.keep = 3;
+        let limits = super::layout(&application, &application.forge, &profile).unwrap();
+        assert_eq!(limits.checkpoints.keep, 3);
     }
 
     #[test]

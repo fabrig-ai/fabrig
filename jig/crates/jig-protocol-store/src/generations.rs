@@ -149,7 +149,14 @@ pub(crate) struct Removing {
     keep_root: bool,
 }
 pub(crate) fn remove(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Request>) -> Removing {
-    let mut levels = List::with_capacity(DEPTH);
+    removing(parent, name, DEPTH, queue)
+}
+/// Temporary, generations, generation, store, logs and shard (checkpoints.md, 7).
+pub(crate) fn remove_checkpoint(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Request>) -> Removing {
+    removing(parent, name, 6, queue)
+}
+fn removing(parent: Root, name: Box<[u8]>, depth: u32, queue: &mut Queue<file::Request>) -> Removing {
+    let mut levels = List::with_capacity(depth);
     queue.push(file::Request::OpenDirectory { owner: OWNER, root: parent.fd, name: name.clone(), no_follow: true });
     levels.push(Level { parent, name, root: None, entries: Box::new([]), next: 0 }).expect("first level fits");
     Removing { levels, step: Step::Opening, keep_root: false }

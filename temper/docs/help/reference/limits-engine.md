@@ -12,6 +12,10 @@ A change batch reserves one task per member and shares the descendant allowance 
 
 temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
 
+## store
+
+- `store.checkpoints.keep`: count, 2. Bounds the newest completed checkpoints kept by the store.
+
 ## tasks
 
 - `tasks.placed_holds`: count, 4. Bounds placed holds in the deployment, including lifted holds kept for their tasks.

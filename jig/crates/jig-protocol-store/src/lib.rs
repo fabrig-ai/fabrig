@@ -11,6 +11,8 @@ pub mod patches;
 mod back;
 pub mod boundary;
 mod census;
+pub mod checkpoints;
+pub use checkpoints::CheckpointName;
 pub mod codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
@@ -60,6 +62,7 @@ pub fn levels(sets: &PatchSets) -> codec::component::Levels {
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub checkpoints: checkpoints::Checkpoints,
     pub core: jig_domain_core_vocabulary::Limits,
     pub store: skein_kv::Limits,
     pub secrets: skein_kv::Limits,

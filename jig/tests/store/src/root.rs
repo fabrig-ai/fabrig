@@ -281,6 +281,7 @@ pub fn limits() -> Limits {
         files: 2,
         reads: 4,
         fetch: 16_777_216,
+        checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }

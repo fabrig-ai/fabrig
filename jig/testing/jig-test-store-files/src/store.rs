@@ -774,6 +774,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         files: 8,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
         fetch: 16_777_216,
+        checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }

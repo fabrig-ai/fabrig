@@ -321,6 +321,21 @@ versioned record Manifest {
     secrets: option u64
     written: u64
 }
+record CheckpointFile {
+    part: u8
+    number: u64
+    length: u64
+    way: u8
+}
+versioned record Checkpoint {
+    store: u64
+    secrets: u64
+    made: u64
+    build: text 128
+    deployment: fixed 16
+    levels: Levels
+    files: list 65536 CheckpointFile
+}
 versioned record Transcript { length: u64 window: u64 }
 versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }
@@ -389,44 +404,61 @@ versioned record Layouts {
                 pub const SECRETS: FieldIx = FieldIx::new(26);
                 pub const WRITTEN: FieldIx = FieldIx::new(27);
             }
+            pub mod checkpoint_file {
+                use skein_codec::schema::FieldIx;
+                pub const PART: FieldIx = FieldIx::new(28);
+                pub const NUMBER: FieldIx = FieldIx::new(29);
+                pub const LENGTH: FieldIx = FieldIx::new(30);
+                pub const WAY: FieldIx = FieldIx::new(31);
+            }
+            pub mod checkpoint {
+                use skein_codec::schema::FieldIx;
+                pub const STORE: FieldIx = FieldIx::new(32);
+                pub const SECRETS: FieldIx = FieldIx::new(33);
+                pub const MADE: FieldIx = FieldIx::new(34);
+                pub const BUILD: FieldIx = FieldIx::new(35);
+                pub const DEPLOYMENT: FieldIx = FieldIx::new(36);
+                pub const LEVELS: FieldIx = FieldIx::new(37);
+                pub const FILES: FieldIx = FieldIx::new(38);
+            }
             pub mod transcript {
                 use skein_codec::schema::FieldIx;
-                pub const LENGTH: FieldIx = FieldIx::new(28);
-                pub const WINDOW: FieldIx = FieldIx::new(29);
+                pub const LENGTH: FieldIx = FieldIx::new(39);
+                pub const WINDOW: FieldIx = FieldIx::new(40);
             }
             pub mod attempt {
                 use skein_codec::schema::FieldIx;
-                pub const FIRST: FieldIx = FieldIx::new(30);
+                pub const FIRST: FieldIx = FieldIx::new(41);
             }
             pub mod history_log {
                 use skein_codec::schema::FieldIx;
-                pub const RECORD: FieldIx = FieldIx::new(31);
+                pub const RECORD: FieldIx = FieldIx::new(42);
             }
             pub mod turn_log {
                 use skein_codec::schema::FieldIx;
-                pub const WINDOW: FieldIx = FieldIx::new(32);
+                pub const WINDOW: FieldIx = FieldIx::new(43);
             }
             pub mod log_attempt {
                 use skein_codec::schema::FieldIx;
-                pub const FIRST: FieldIx = FieldIx::new(33);
+                pub const FIRST: FieldIx = FieldIx::new(44);
             }
             pub mod floor {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(34);
-                pub const BUILD: FieldIx = FieldIx::new(35);
+                pub const NUMBER: FieldIx = FieldIx::new(45);
+                pub const BUILD: FieldIx = FieldIx::new(46);
             }
             pub mod layouts {
                 use skein_codec::schema::FieldIx;
-                pub const COMPONENT: FieldIx = FieldIx::new(36);
-                pub const CORE: FieldIx = FieldIx::new(37);
-                pub const TASKS: FieldIx = FieldIx::new(38);
-                pub const PEOPLE: FieldIx = FieldIx::new(39);
-                pub const NOTES: FieldIx = FieldIx::new(40);
-                pub const ACCOUNTS: FieldIx = FieldIx::new(41);
-                pub const SETTINGS: FieldIx = FieldIx::new(42);
-                pub const SECRETS: FieldIx = FieldIx::new(43);
-                pub const SKEIN_OAUTH: FieldIx = FieldIx::new(44);
-                pub const SMITH_TRANSCRIPT: FieldIx = FieldIx::new(45);
+                pub const COMPONENT: FieldIx = FieldIx::new(47);
+                pub const CORE: FieldIx = FieldIx::new(48);
+                pub const TASKS: FieldIx = FieldIx::new(49);
+                pub const PEOPLE: FieldIx = FieldIx::new(50);
+                pub const NOTES: FieldIx = FieldIx::new(51);
+                pub const ACCOUNTS: FieldIx = FieldIx::new(52);
+                pub const SETTINGS: FieldIx = FieldIx::new(53);
+                pub const SECRETS: FieldIx = FieldIx::new(54);
+                pub const SKEIN_OAUTH: FieldIx = FieldIx::new(55);
+                pub const SMITH_TRANSCRIPT: FieldIx = FieldIx::new(56);
             }
         }
     }

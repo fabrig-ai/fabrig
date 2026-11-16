@@ -503,6 +503,12 @@ impl OpenRefusal {
                 " holds generations that no `active` names, and this start has changed nothing in it. Name one again from a backup of ",
                 ", or write `active` to name the generation under `generations/` to open, and start again.",
             ],
+            Self::Generations { why: Generations::Checkpoints } => &[
+                "",
+                " holds checkpoints but no `active` names a generation, and this start has changed nothing in it. Restore ",
+                " from a backup or from one of its checkpoints, or, to start afresh, move `checkpoints/` out of ",
+                ", and start again.",
+            ],
         }
     }
 }
@@ -527,6 +533,8 @@ pub enum Generations {
     Unreadable,
     /// Generations stand that no active names, beyond a cut first start.
     Unnamed,
+    /// Checkpoints stand but no active names a generation.
+    Checkpoints,
     /// The active generation's maps do not both stand as directories.
     Missing { generation: u64 },
 }

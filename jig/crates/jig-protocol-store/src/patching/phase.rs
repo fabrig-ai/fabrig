@@ -77,6 +77,7 @@ fn take(store: &mut Store) -> Box<Patching> {
         | Opening::SweepRemoving { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Pending(_) => unreachable!("phase routing checked"),

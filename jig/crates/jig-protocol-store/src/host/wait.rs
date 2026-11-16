@@ -78,6 +78,7 @@ fn opening(step: &Opening) -> &'static str {
         Opening::SweepRemoving { .. } => "remove stray directory",
         Opening::SweepSync { .. } => "sync sweep directory",
         Opening::SweepClose(_) => "close sweep directory",
+        Opening::CheckpointSweep(_) => "sweep checkpoint temporaries",
         Opening::TranscriptsMade => "make transcripts directory",
         Opening::TranscriptsOpen => "open transcripts directory",
         Opening::Patching(step) => match step.as_ref() {

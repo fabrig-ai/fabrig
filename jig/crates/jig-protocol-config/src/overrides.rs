@@ -8,6 +8,10 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
     if crate::names::find(name).is_none() {
         return Err(What::Override);
     }
+    if name == b"store.checkpoints.keep" {
+        limits.store.checkpoints.keep = count(value)?;
+        return Ok(());
+    }
     let Limits { core, hub, link, token, driver, .. } = limits;
     if name == b"accounts.token" {
         *token = count(value)?;
@@ -896,6 +900,9 @@ struct Fits {
 }
 
 fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
+    if name == b"store.checkpoints.keep" {
+        return (1..=64).contains(&limits.store.checkpoints.keep);
+    }
     if (name == b"accounts.sign_ins" || name == b"accounts.sign_in_deadline_ms") && !driver_fits(&limits.driver) {
         return false;
     }

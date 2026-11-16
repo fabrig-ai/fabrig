@@ -791,3 +791,23 @@ fn client_queue_and_sign_in_exchange_overrides_are_checked() {
     assert_eq!(limits.clients.queued_bytes, 128);
     assert_eq!(limits.clients.exchanges_per_client, 1);
 }
+
+#[test]
+fn checkpoints_keep_defaults_to_two_and_accepts_only_one_through_sixty_four() {
+    for selected in [Profile::Small, Profile::Standard] {
+        assert_eq!(profile(selected).store.checkpoints.keep, 2);
+    }
+    for (json, keep) in [
+        (br#"{"profile":"small","overrides":{"store.checkpoints.keep":1}}"#.as_slice(), 1),
+        (br#"{"profile":"small","overrides":{"store.checkpoints.keep":3}}"#, 3),
+        (br#"{"profile":"standard","overrides":{"store.checkpoints.keep":64}}"#, 64),
+    ] {
+        assert_eq!(parse(json).unwrap().store.checkpoints.keep, keep);
+    }
+    for json in [
+        br#"{"profile":"small","overrides":{"store.checkpoints.keep":0}}"#.as_slice(),
+        br#"{"profile":"standard","overrides":{"store.checkpoints.keep":65}}"#,
+    ] {
+        problem(json, &[b"limits", b"overrides", b"store.checkpoints.keep"], What::Override);
+    }
+}
