@@ -127,6 +127,9 @@ impl Layouts {
         if !self.active {
             return value;
         }
+        self.read_layout(key, value, out, work)
+    }
+    fn read_layout<'a>(&self, key: &[u8], value: &'a mut [u8], out: &'a mut Buffer, work: &mut Workspace) -> &'a [u8] {
         let Some(ty) = self.resolve(key) else {
             return value;
         };
@@ -338,9 +341,23 @@ impl Layouts {
 /// Keep an owned row in place when only its head moves. A converted row owns
 /// the conversion buffer's result before the next read reuses it.
 pub(crate) fn read(store: &mut Store, key: &[u8], value: &mut Box<[u8]>) {
+    owned(store, key, value, false);
+}
+
+/// The deployment header is read after plans are checked but before the
+/// registry's writes, to establish the open's numbers (protocol/store/layouts.md, 5).
+pub(crate) fn header(store: &mut Store, key: &[u8], value: &mut Box<[u8]>) {
+    owned(store, key, value, true);
+}
+
+fn owned(store: &mut Store, key: &[u8], value: &mut Box<[u8]>, before_active: bool) {
     let original = value.as_ptr();
     let work = &mut store.layout_work;
-    let mapped = store.registry.read(key, value, &mut work.buffer, &mut work.workspace);
+    let mapped = if before_active {
+        store.registry.read_layout(key, value, &mut work.buffer, &mut work.workspace)
+    } else {
+        store.registry.read(key, value, &mut work.buffer, &mut work.workspace)
+    };
     if mapped.as_ptr() != original {
         *value = Box::from(mapped);
     }

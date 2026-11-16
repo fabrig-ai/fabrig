@@ -189,6 +189,7 @@ const HEADER: core::Deployment = core::Deployment {
     calls: 0,
     connector_rows: 0,
     projects: 0,
+    restart_wait_ms: None,
     applications: 0,
     commits: 0,
 };

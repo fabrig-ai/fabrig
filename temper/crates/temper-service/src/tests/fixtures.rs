@@ -674,6 +674,7 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
     };
     let mut header = header.unwrap_or(jig_domain_core::Deployment {
         id: [19; 16],
+        restart_wait_ms: None,
         projects: 0,
         tasks: 0,
         people: 0,

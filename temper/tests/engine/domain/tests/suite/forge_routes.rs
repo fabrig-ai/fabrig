@@ -3473,10 +3473,10 @@ fn issue_count(world: &mut World) -> usize {
     items.len()
 }
 
-// From the stop on, the engine takes nothing that would make a commit, and a
-// committed forge effect stays with the connector (jig's `domain/engine/restart.md`, 1).
+// A settled stop keeps its restart word; a committed forge effect stays
+// with the connector (jig's `domain/engine/restart.md`, 1).
 #[test]
-fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
+fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_no_write() {
     let (mut world, assignment) = pending_issue_effect();
     let calls = world.forge_calls;
     world.send(engine::Event::Stop);
@@ -3486,7 +3486,8 @@ fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
     for _ in 0..30 {
         world.tick();
     }
-    assert_eq!(world.store.header().commits, commits);
+    assert_eq!(world.store.header().commits, commits + 1, "the stop keeps its word in one decision");
+    assert_eq!(world.store.header().restart_wait_ms, Some(1_200_000));
     assert!(world.store.pending.is_empty());
     assert_eq!(world.forge_calls, calls, "no forge call after the stop");
     assert!(world.events.is_empty() && world.immediate.is_empty(), "the drain leaves no continuation to retry");
@@ -4095,6 +4096,16 @@ fn settling_places_no_run_and_answers_a_call_busy() {
         "the forge outcome commits before the drain"
     );
     world.restart_same();
+    for _ in 0..200 {
+        world.tick();
+        if world.root.ready() {
+            break;
+        }
+    }
+    assert!(world.root.ready());
+    assert!(!world.assigned.iter().any(|run| run.task == queued), "the restored claim waits for its hold");
+    world.env.now =
+        world.env.now.saturating_add(world.env.limits.fleet.restart_wait).saturating_add(world.env.limits.fleet.grace);
     for _ in 0..200 {
         world.tick();
         if world.assigned.iter().any(|run| run.task == queued) {

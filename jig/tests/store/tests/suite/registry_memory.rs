@@ -88,11 +88,24 @@ fn seeded(sets: PatchSets) -> Vec<Item> {
     let mut world = World::unopened(7);
     world.patch_sets(sets);
     assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
+    let header = root::header(1);
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
+    let key = jig_protocol_store::keys::encode(&header.key(), 64).expect("header key");
+    let value = super::upgrades::baseline::kept_header(&header, &root::CORE_LIMITS);
     world
         .contents()
         .into_iter()
         .map(|(path, bytes)| match bytes {
+            Some(bytes) if path.starts_with(b"generations/1/store/log-") => {
+                let mut puts = super::fresh_windows::commit_keys(&bytes).expect("one source commit of puts");
+                for (found, bytes) in &mut puts {
+                    if *found == key {
+                        bytes.clone_from(&value);
+                    }
+                }
+                let frame = super::upgrades::baseline::source_commit(&puts, 1);
+                Item::file(&path, &frame).mode(0o600)
+            }
             Some(bytes) => Item::file(&path, &bytes).mode(0o600),
             None => Item::directory(&path).mode(0o700),
         })

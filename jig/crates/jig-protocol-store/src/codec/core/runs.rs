@@ -15,6 +15,7 @@ pub(super) fn encode_deployment(source: &domain::Deployment, limits: &View) -> R
         applications,
         commits,
         projects,
+        restart_wait_ms,
     } = source;
     wire::Deployment::new(
         &limits.core,
@@ -30,6 +31,7 @@ pub(super) fn encode_deployment(source: &domain::Deployment, limits: &View) -> R
             applications: *applications,
             commits: *commits,
             projects: *projects,
+            restart_wait_ms: *restart_wait_ms,
         },
     )
 }
@@ -46,6 +48,7 @@ pub(super) fn decode_deployment(source: wire::Deployment) -> domain::Deployment 
         applications,
         commits,
         projects,
+        restart_wait_ms,
     } = source.into_parts();
     domain::Deployment {
         id,
@@ -59,6 +62,7 @@ pub(super) fn decode_deployment(source: wire::Deployment) -> domain::Deployment 
         applications,
         commits,
         projects,
+        restart_wait_ms,
     }
 }
 pub(super) fn encode_terminal_record(

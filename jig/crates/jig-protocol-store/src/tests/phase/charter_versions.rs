@@ -60,7 +60,13 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
                 .map(|family| crate::KeptFamily {
                     retired: &[],
                     types: &[],
-                    current: family.texts.last().unwrap(),
+                    // Only settings is registered in this scene; its unregistered
+                    // deployment header uses the compiled codec.
+                    current: if family.name == "jig-store-core" {
+                        family.current
+                    } else {
+                        family.texts.last().unwrap()
+                    },
                     ..*family
                 })
                 .collect::<Vec<_>>()

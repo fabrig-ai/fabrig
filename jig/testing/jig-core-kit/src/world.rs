@@ -195,6 +195,8 @@ pub struct World {
     /// Withhold requested whole store pages during a real cold restore.
     pub hold_restore_pages: bool,
     pub hold_switch: bool,
+    /// Delay the worker hearing the engine after hello.
+    pub hold_logins: bool,
     /// Delay before a submitted store transaction becomes durable.
     pub store_delay: u32,
     /// Store map bytes supplied with subsequent commit answers.

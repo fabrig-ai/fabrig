@@ -37,6 +37,31 @@ pub(crate) fn source_commit(rows: &[Row], position: u64) -> Vec<u8> {
     frame
 }
 
+// The source predates the binary's registered-layout changes: encode its
+// header at the kept text, not today's Deployment layout.
+pub(crate) fn kept_header(header: &jig_domain_core::Record, limits: &jig_domain_core::Limits) -> Box<[u8]> {
+    let family =
+        jig_protocol_store::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").expect("core family");
+    let current = skein_codec::schema::parse(family.current.as_bytes()).expect("current core text");
+    let kept =
+        skein_codec::schema::parse(family.texts.last().expect("kept core text").as_bytes()).expect("kept core schema");
+    let plan = skein_codec::layout::Plan::derive(
+        &current,
+        current.root(b"Row", Some(b"deployment")).expect("current header root"),
+        &[],
+        &kept,
+        kept.root(b"Row", Some(b"deployment")).expect("kept header root"),
+        &[],
+    )
+    .expect("header at the source layout");
+    let bytes = codec::encode(header, &codec::limits(limits).expect("codec limits"), &[]).expect("header encoded");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("fixed header bytes"));
+    plan.convert(&bytes, &mut out, &mut work).expect("header at kept layout");
+    Box::from(out.as_slice())
+}
+
 fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_protocol_store::PatchSets) -> World {
     let baseline = &fixed::BASELINE;
     let mut limits = patches::limits();
@@ -64,10 +89,7 @@ fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_pro
             keys::installation(limits.store.key).expect("installation key"),
             codec::accounts::Installation { id: root::DEPLOYMENT }.encode(),
         ),
-        (
-            keys::encode(&header.key(), limits.store.key).expect("header key"),
-            codec::encode(&header, &codec::limits(&limits.core).expect("limits"), &[]).expect("header"),
-        ),
+        (keys::encode(&header.key(), limits.store.key).expect("header key"), kept_header(&header, &limits.core)),
     ];
     rows.extend(extra);
     let mut world = World::unopened_observed(0xba5e, limits, None);

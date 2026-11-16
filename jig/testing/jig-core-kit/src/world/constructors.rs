@@ -258,6 +258,7 @@ impl World {
             hold_restart_reads: false,
             hold_restore_pages: false,
             hold_switch: false,
+            hold_logins: false,
             store_delay: 0,
             fill: 0,
             stopped: false,

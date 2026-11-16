@@ -38,6 +38,7 @@ const LIMITS: Limits =
 
 const DEPLOYMENT: Deployment = Deployment {
     projects: 0,
+    restart_wait_ms: None,
     id: [19; 16],
     tasks: 0,
     people: 0,

@@ -10,7 +10,7 @@ use crate::{
     Below, Cursor, Event, KeptMap, Limits, OpenRefusal, Owner, Store, codec, commits, keys, open, pages, secrets,
 };
 use alloc::boxed::Box;
-use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
+use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
 use skein_codec::patch::{Halt, Patcher};
 use skein_lib::{Env, List, Queue, Token, bytes};
 
@@ -120,10 +120,7 @@ pub(super) fn opened(
     pending: Box<Pending>,
     before: List<crate::patching::check::Counted>,
 ) -> Option<Walking> {
-    let key = Key::Core(CoreKey::Deployment);
-    let encoded = keys::encode(&key, store.limits.store.key)?;
-    let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
-    let record = codec::decode(&key, &bytes, &store.codec_limits, &store.names)?;
+    let record = open::decode_header(store)?;
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
         Record::Core(

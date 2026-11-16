@@ -64,6 +64,7 @@ pub(super) fn component(disk: &Disk, sets: PatchSets) -> Store {
 pub(super) fn header(number: u64) -> Record {
     Record::Core(CoreRecord::Deployment(Deployment {
         id: [7; 16],
+        restart_wait_ms: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,
@@ -103,12 +104,26 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     format.levels =
         store::codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(5), application: Some(12) };
     let codec = store::codec::limits(&disk.limits().core).unwrap();
+    let bytes = store::codec::encode(&header(2), &codec, &[]).unwrap();
+    let core = store::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
+    let current = skein_codec::schema::parse(core.current.as_bytes()).unwrap();
+    let kept = skein_codec::schema::parse(core.texts.last().unwrap().as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &current,
+        current.root(b"Row", Some(b"deployment")).unwrap(),
+        &[],
+        &kept,
+        kept.root(b"Row", Some(b"deployment")).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    plan.convert(&bytes, &mut out, &mut work).unwrap();
     let ops = vec![
         put(store::keys::encode_own(&store::keys::Own::Format, 1024).unwrap(), format.encode().unwrap()),
-        put(
-            store::keys::encode(&header(2).key(), 1024).unwrap(),
-            store::codec::encode(&header(2), &codec, &[]).unwrap(),
-        ),
+        put(store::keys::encode(&header(2).key(), 1024).unwrap(), out.as_slice().into()),
     ];
     let events = disk.kv(&mut map, skein_kv::Request::Commit { owner: Token::new(1), ops: ops.into() });
     let [skein_kv::Event::Committed { number: 2, .. }] = events.as_slice() else { panic!("plant: {events:?}") };
