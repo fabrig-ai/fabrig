@@ -99,8 +99,8 @@ on with the rest of step 2 (the run proofs' cuts, the installation's
 identifier), its read edge converting each value (`layouts.md`, 4).
 With something to write, it upgrades in a new generation (2). A store
 behind them, or holding values and no registry, is refused (1.8): the
-build keeps no patch and no seed that would bring it to them (temper's
-`draft/store-floor.md`, 4.1 and 4.2).
+refusals name `FLOOR_BRIDGE`, the build that brings it to them
+(`records.md`, 3).
 
 ### 1.8 Its refusals
 
@@ -218,16 +218,16 @@ name `FLOOR_BRIDGE`, the build that brings such a store to this one
 (temper's `draft/store-floor.md`, section 3); `Check` names what
 failed: a row that does not load, by its key; a secrets' file
 that is not private, by its name. A job's write too large for a commit
-alone is the job's refusal (`jobs.md`, 3), so no check refuses a record
-for its size since the walk went.
+alone is the job's refusal (`jobs.md`, 3). There is no eager map patch
+whose output needs a separate size check.
 
 ## 2. Upgrading a copy
 
 The component's own phase, before the root starts, when the open must
 write before serving (`layouts.md`, 5.5): a binary layout is not
 registered, or a job is pending (`jobs.md`, 2). The store is at the
-binary's levels, or 1 has refused it (`records.md`, 3), so no patch is
-ever pending and no record is walked but by a job: the copy is
+binary's levels, or 1 has refused it (`records.md`, 3). No record is
+rewritten but by a job or the seal: the copy is
 upgraded by the registry's commit and the jobs alone (temper's
 `draft/store-floor.md`, 4.2). From the active generation `A` to
 `A + 1`:
@@ -235,7 +235,8 @@ upgraded by the registry's commit and the jobs alone (temper's
 1. **Plan,** over `A` as 1 opened it: the layouts planned, each held
    layout's, refused before anything is written where one has no plan
    (`layouts.md`, 5.3); the owner sets checked (3); the header decoded
-   by the binary's codec and checked, as is the deployment; the room
+   through its registry plan, then by the binary's codec and checked,
+   as is the deployment; the room
    (below) against the limits. Every refusal of
    `records.md`, 3 comes here. Then `A`'s stores
    close: no transcript has been cut, which the open over the copy
@@ -376,8 +377,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   `A + 1` moves on, what it writes is its own: once its snapshot has
   replaced the linked one and dropped the linked segments, the maps
   are on disk twice, `A`'s as they were and `A + 1`'s, until the next
-  upgrade drops `A`, as they were before generations shared files
-  (temper's `draft/upgrades.md`, 6.1). A file system that refuses
+  upgrade drops `A` (temper's `draft/upgrades.md`, 6.1). A file system that refuses
   links copies, and needs the maps twice from the start. A disk that
   cannot hold them fails the copy with a file's fault, and every start
   fails again until there is room: checking the free space before the
@@ -400,8 +400,8 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   constants (skein's `data/codec/command.md`, 3), no function. A set
   carries no map patch, no older text of a map family, no fresh mark
   and no effects in flight (temper's `draft/store-floor.md`, 4.1 and
-  4.2): the open walks no record but by a job, and a format outside the
-  registry is fixed (temper's `draft/store-floor.md`, section 5).
+  4.2): no map record is rewritten but by a job or the seal, and a
+  format outside the registry is fixed (temper's `draft/store-floor.md`, section 5).
 
 ```rust
 // jig_protocol_store
@@ -441,20 +441,14 @@ impl OwnerSets {
 }
 ```
 
-- **Names.** The patch sets of before store-floor's F2 are the owner
-  sets: `PatchSet` is `OwnerSet` and `PatchSets` `OwnerSets`; this
-  crate's `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` are `SKEIN_SET` and
-  `SMITH_SET`, declared in its `owners` module (which was
-  `patching/baseline.rs`), and `JIG_STORE_PATCH_SET` is
-  `JIG_STORE_SET`; `jig-protocol-accounts`' `JIG_PATCH_SET` is
-  `JIG_SET`; temper's `temper_protocol_store::PATCH_SET` is
-  `temper_protocol_store::OWNER_SET`, and the shell's hand-over
-  `PATCH_SETS` (`temper-engine-service-vocabulary`) is `OWNER_SETS`.
-  The setter is `Store::owner_sets`, and `jig-test-store-files`'
-  constructor `Store::with_owner_sets`. The crate's `patching` module,
-  which holds the upgrade (2), is its `upgrade` module. `KeptFamily`,
-  `KeptMap`, `Keys`, `ValueType`, `Retired`, `Owner`, `Levels`,
-  `levels` and `Store::patch_page` keep their names.
+- **Handed in by the shell:** `Store::owner_sets` takes `OwnerSets`.
+  This crate's `owners` module declares `SKEIN_SET` and `SMITH_SET`;
+  `JIG_STORE_SET` is its store-owned part of jig's set.
+  `jig-protocol-accounts` appends its family to make `JIG_SET`.
+  temper's `temper_protocol_store::OWNER_SET` and the shell's
+  `OWNER_SETS` (`temper-engine-service-vocabulary`) complete the
+  hand-over. `jig-test-store-files` takes fixture sets through
+  `Store::with_owner_sets`. The `upgrade` module runs the copy (2).
 - **Keys.** A family's records are its `map`'s, committed there
   (`secrets.md`). A family's ranges hold records of different
   declarations (the core's tasks beside their turns), so each range
@@ -548,7 +542,7 @@ impl OwnerSets {
   `written` over `parts()`, and hands the `Patcher` back in a `Site`
   request with the result; the component then calls `next()`. One
   frame waits on at most one site at a time. No map record goes up: the
-  open walks none but a job's.
+  open runs jobs and seals, with no eager map patching walk.
 
 ```rust
 // up                                      // down
