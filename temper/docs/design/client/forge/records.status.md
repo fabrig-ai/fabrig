@@ -2,6 +2,8 @@
 
 2026-11-15. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** *`Checkpoint`*: the request and its outcomes, absent from the family [in flight: change 5809].
+
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
   `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:

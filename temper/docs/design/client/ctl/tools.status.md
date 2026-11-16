@@ -2,6 +2,8 @@
 
 2026-11-15. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** 3: no `deployment checkpoint` [in flight: change 5809].
+
 
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
