@@ -149,6 +149,25 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   with why in a line, or keeps it and triages it: one short run an
   item. A project changes how it routes by changing words, the areas'
   or the triager's rules.
+- **Its groups** (`../draft/home-for-a-person.md`, 5): of what it
+  keeps, the triager groups the findings that one act would settle, by
+  what they are, and asks its person one question a group, where its
+  `decided` says Ask: "Three bugs in temper, each with a clear fix. Start
+  a goal for each?" Its question is in the line form
+  (`agent/agents.md`, 2), with a `Findings:` line naming the group's
+  findings and a `Group:` line its plural noun and phrase; its context
+  says what they share and what the choices weigh; its choices are its
+  acts over the group, the one it recommends first: "A goal for each",
+  "One goal for all three", "Backlog them", "Hand them to CI's owner". It
+  carries the answer out one act a finding (`findings.md`, section 6),
+  with its `finding` tool and the goals it starts, and a reply in words
+  as its person's direction. A finding alone, which no other shares an
+  act with, is a group of one, its noun singular. Grouping is the
+  triager's judgement, in its charter's words (14,
+  `../../../crates/temper-engine-service-stock/src/stock/triager.md`):
+  code groups nothing and acts on no group, and a group is no record. The
+  client draws such a question as a group's card (`../client/pages/needs-you.md`,
+  1, *A group of findings*).
 - **A way names it** (`../protocol/configuration/settings.md`, 8):
   Draft first's items set kind 15 to `charter 14`, the stock's triager
   (`../protocol/configuration/stock.md`), and the way brings that

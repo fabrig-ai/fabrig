@@ -44,6 +44,62 @@
   reason", each the forge's request, a refusal said in its words. Kind
   holds "Finding" among its choices. The card leaves once the finding
   leaves `new` or stops being theirs.
+- **A group of findings** (`../../draft/home-for-a-person.md`, 5;
+  `../../domain/areas.md`, 6, *Its groups*): a question, by `message` or
+  a person task in words, whose whole words name findings in their line
+  form (`../../domain/agent/agents.md`, 2, a `Findings:` line) is a
+  group's card, on this page and on Home (`home.md`, 1, **Findings,
+  drawn**, *A group's card*), where one of them at least is read. It is
+  the question's card still: its kind, its answers, its why line, Later,
+  At and the held send are a question's, and it is the inbox's card, so
+  Kind and the filters place it as a question.
+  - *Its findings' read:* the findings store watches, for each project
+    whose person's findings it watches (1, *A finding that is the
+    person's*: as `decided` is), the project's open findings, the subject `findings` with `state` `new`
+    and `mine` false (`../forge/records.md`), its own handle beside the
+    person's, while one of that project's open cards names findings, and
+    unwatches it once none does or the project leaves the store. Those
+    findings are the triager's, which the person's watch, `mine`, never
+    holds.
+  - *Its rows:* the findings its line names that are among its
+    project's open findings' rows, matched by project and number, in the
+    line's order; a finding named of another project, past the
+    document's rows (`cut`), or no longer `new` is no row. A card whose
+    findings' document is read and that has no row is a plain question.
+  - *Its card waits,* as a question's waits for `decided` (*Why it
+    reached you*, *Its card waits*), until its project's open findings are
+    delivered, or their watch is refused or ended, so that its rows never
+    move its choices under a finger. A card whose project the store
+    doesn't watch, or with no project, waits for nothing and is a plain
+    question.
+  - *The domain's group,* in `temper-client-domain-pages`'s
+    `pages::findings`: `Group<'a> { project: u32, noun: Box<[u8]>, phrase:
+    Box<[u8]>, rows: Box<[&'a w::FindingRow]> }`, the noun and phrase its
+    `Group:` line's, empty with none, and `Group::severity(&self) ->
+    w::Severity`, its rows' highest, and `Group::oldest(&self) -> Wall`,
+    its rows' earliest `at`. `Store::group<'a>(&'a self, need: Need<'_>)
+    -> Option<Group<'a>>` gives a card's, none for any card that is no
+    group's. `Need::severity(self, store: &Store) -> Option<w::Severity>`
+    is a finding's, a group's highest, none for any other card; the
+    cards' order (1, **What the client keeps**) and `counted` read it.
+    `Need::ready` holds a group's card while it waits.
+  - *On this page,* the open card is a question's (1, **Needs you**,
+    *The card*), but its from line: on the unfiltered address the
+    project's chip; then the group's chip of findings, "3 bugs" on its
+    highest severity's ground (`home.md`, 1, **Findings, drawn**, *A chip
+    of findings*), its count the rows' in digits and its noun, or "3
+    findings", "1 finding" with none; then the phrase, " · " and "the
+    oldest 1 d", its oldest row's span, or the one row's span alone, "1
+    d"; then " · " and the asked task's link, its TITLE as the question's
+    from line has it; " · later" with it. Under its question, its rows, a
+    row a finding (`home.md`, 1, **Findings, drawn**, *A finding's row*),
+    each kind said only where the rows hold more than one; then its
+    context, "What the agent saw", its reason line, its choices, the
+    recommended one first, and *Tell it something else*, as a question's.
+    A group's row's title is text, no link: no page shows a finding the
+    person doesn't hold (`../../draft/home-for-a-person.status.md`). Its
+    *SHORT* is its question's line. In the terminal's inbox the card is a
+    question's, its words as written.
 - **An update's card** has its heading as the link that opens it and marks
   a result seen. It repeats no project line or task-number link. The heading
   says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
@@ -553,7 +609,8 @@
     the oldest first, the findings joining the inbox's cards and the
     approvals by when they were filed. A card's severity is
     `findings::Need::severity` (`home.md`, 1, **Findings, drawn**,
-    *Counted*). So a medium finding filed an hour ago comes after a
+    *Counted*): a group's card (1, *A group of findings*) is about
+    findings, ranked by its highest and placed by when it was asked. So a medium finding filed an hour ago comes after a
     question asked a minute ago, and before a low finding filed a day
     ago. The head's "oldest first" stays: within a severity, it holds.
   - *Answered,* a bounded list: each card's object, project, title,

@@ -60,6 +60,14 @@ why line said once in the plural where every card has it; Decided for
 you's rows with the object alone, a tick and no agent's why; goals'
 rows with a bar, number words and titles cut at 80. Its walk follows
 landing (`draft/home-for-a-person.status.md`; `client/pages/home.md`, 1).
+Its milestone F1, goal 4585, draws the triager's groups: a question
+whose line form names findings, with `Findings:` and `Group:` lines, is
+a group's card on Needs you and on Home, its chip "3 bugs" on its
+highest severity's ground, its phrase and its oldest age, a row a
+finding, its context and its choices; the stock triager groups what it
+keeps and asks one question a group; the headline and Needs you's head
+count the findings the open cards concern, each once. Its walk follows
+landing (`draft/home-for-a-person.status.md`; `client/pages/needs-you.md`, 1).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
