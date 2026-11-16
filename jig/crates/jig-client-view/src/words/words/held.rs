@@ -72,7 +72,7 @@ impl Words {
                 self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Failures)), &[]);
                 for failure in failures {
                     self.text(b, JigPhrase::Attempt, &[Hole::Number(failure.attempt)]);
-                    crate::tree::cards::chip::failure(b, failure.class, self);
+                    crate::words::fragments::chip::failure(b, failure.class, self);
                     self.text(b, JigPhrase::Reason, &[name(failure.reason.bytes())]);
                     self.wall(b, failure.at);
                 }

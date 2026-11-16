@@ -90,7 +90,7 @@ pub(crate) fn section(
         b.name(&words.say(JigPhrase::BeginConversation, &[]));
         b.state(State::Busy);
         if let Some(intent) = client.intents().get(skein_lib::Id::from_token(token)) {
-            words.progress(b, intent.progress);
+            cards::common::progress(b, words, intent.progress);
         }
         b.close();
     }

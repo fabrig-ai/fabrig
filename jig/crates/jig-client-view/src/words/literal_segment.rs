@@ -1,4 +1,5 @@
 //! Resource name segments are display bytes, never joined or parsed (authority.md, 4).
+//! Their text bound belongs to the words (jig/docs/design/client/domain/view-crates.md, 3.3).
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_ui::{Builder, Run};
@@ -14,6 +15,13 @@ pub fn display_bytes(bytes: &[u8]) -> Option<u32> {
 #[must_use]
 pub fn max_bytes(text: u32) -> Option<u32> {
     text.checked_mul(4)
+}
+
+/// Room for a path's preceding words, omitted-segment mark and one escaped segment.
+#[must_use]
+pub fn node_text(text: u32, phrase: u32) -> Option<u32> {
+    let segment = max_bytes(text)?;
+    Some(phrase.checked_mul(2)?.checked_add(segment)?.max(segment.checked_mul(2)?))
 }
 
 /// Preserve UTF-8 whole; escape a non-UTF-8 segment's bytes for display only.

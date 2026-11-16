@@ -49,26 +49,26 @@ impl Words {
                 if let Some(notice) = notice {
                     match notice {
                         RetryNotice::OwnerFailed { class, count, allowance, reason } => {
-                            crate::tree::fragments::chip::hold_failure(b, *class, self);
+                            crate::words::fragments::chip::hold_failure(b, *class, self);
                             self.text(
                                 b,
                                 P::RunRetryFailed,
                                 &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
                             );
-                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
+                            crate::words::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
                         RetryNotice::Failed { class, count, allowance, reason } => {
-                            crate::tree::cards::chip::failure(b, *class, self);
+                            crate::words::fragments::chip::failure(b, *class, self);
                             self.text(
                                 b,
                                 P::RunRetryFailed,
                                 &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
                             );
-                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
+                            crate::words::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
                         RetryNotice::Refused { count, reason } => {
                             self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
-                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
+                            crate::words::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
                     }
                 }
@@ -90,7 +90,7 @@ impl Words {
                     HostKind::Worker => P::RefusedWorkerAt,
                 };
                 self.text(b, phrase, &[Hole::Wall(self.adjusted_wall(at))]);
-                crate::tree::fragments::deployment::hello_refusal(b, self, why);
+                crate::words::fragments::hello::refusal(b, self, why);
             }
             R::Bounds { kind, why, .. } => {
                 let phrase = match kind {
@@ -99,11 +99,7 @@ impl Words {
                 };
                 self.text(b, phrase, &[]);
                 if let Some(why) = why {
-                    crate::tree::fragments::deployment::hello_refusal(
-                        b,
-                        self,
-                        jig_client::contract::HelloRefusal::Agent { why },
-                    );
+                    crate::words::fragments::hello::refusal(b, self, jig_client::contract::HelloRefusal::Agent { why });
                 }
             }
         }

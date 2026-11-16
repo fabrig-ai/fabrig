@@ -72,6 +72,7 @@ pub mod words {
     pub mod document_words;
     pub(crate) mod ended_pages_words;
     pub(crate) mod ended_words;
+    pub(crate) mod fragments;
     pub(crate) mod history_words;
     pub(crate) mod inbox_words;
     pub(crate) mod lifecycle_words;
