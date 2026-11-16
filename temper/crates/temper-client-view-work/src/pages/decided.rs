@@ -95,21 +95,17 @@ pub(crate) fn decision(
         b.text(Run::Plain, b" ");
     }
     text(b, Role::Text, &row.took, Some(look::DECISION_TOOK));
-    if w.shell == Shell::Terminal {
-        b.text(Run::Plain, b" ");
-    }
     if let Some(reach) = &row.reach
         && let Some(root) = root
     {
         let allowed = crate::shared::allowed(w, reach, root.forge().classes(row.project));
         if !allowed.is_empty() {
-            text(b, Role::Text, &allowed, Some(look::DECISION_ALLOWED));
             if w.shell == Shell::Terminal {
                 b.text(Run::Plain, b" ");
             }
+            text(b, Role::Text, &allowed, Some(look::DECISION_ALLOWED));
         }
     }
-    text(b, Role::Text, &row.why, Some(look::DECISION_WHY));
     let late = match row.state {
         DecisionTask::Done(at) => {
             Some(w.say(Word::HomeDecisionLanded, &[Hole::Name(times.say(w, TimeForm::Clock, at))]))
@@ -132,7 +128,15 @@ pub(crate) fn decision(
         if w.shell == Shell::Terminal {
             b.text(Run::Plain, b" ");
         }
-        text(b, Role::Text, &late, Some(look::DECISION_LATE));
+        b.open(Role::Text);
+        b.style(look::DECISION_LATE);
+        match row.state {
+            DecisionTask::Done(_) => b.style(look::DECISION_LANDED),
+            DecisionTask::Ended(_) | DecisionTask::Live | DecisionTask::Unknown => {}
+        }
+        b.name(&late);
+        b.text(Run::Plain, &late);
+        b.close();
     }
     if row.state == DecisionTask::Live && !row.overturned {
         button(

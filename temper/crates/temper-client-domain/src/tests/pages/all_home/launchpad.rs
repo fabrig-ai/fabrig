@@ -1,4 +1,5 @@
 use super::*;
+use crate::pages::findings::Counted;
 use jig_client::{Readable, shapes};
 
 const CHAT_LABEL: u32 = 7;
@@ -290,7 +291,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
         }
     }
     assert_eq!(facts.projects.len(), 3);
-    assert_eq!(facts.needs, Needs::Count { count: 2, cut: false });
+    assert_eq!(facts.needs, Needs::Count { count: 2, cut: false, findings: Counted::default() });
     assert_eq!(all_home::brief(&facts), Some(joined(&[SECOND, FIRST], 20)));
     assert_eq!(all_home::intro(&facts).landed, Landed::Across { count: 6, projects: 3 });
     assert_eq!(pages::home::facts(&fixture.root, FIRST, Wall::EPOCH).needs, Needs::Unknown);

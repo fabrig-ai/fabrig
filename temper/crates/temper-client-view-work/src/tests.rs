@@ -5,6 +5,7 @@ mod changes;
 mod chat;
 mod chat_line;
 mod chats;
+mod findings;
 pub(crate) mod fixtures;
 mod goal;
 mod goals;
