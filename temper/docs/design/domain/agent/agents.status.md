@@ -4,6 +4,7 @@
 
 
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).
+- **Not yet:** 3: the long document's story in the system world, `tests/system`'s `suite::notes`. [in flight: change 4373]
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
   goal template whose charter designs first or makes a close-out carries

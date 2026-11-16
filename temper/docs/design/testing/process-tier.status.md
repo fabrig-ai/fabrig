@@ -1,6 +1,8 @@
 # process-tier: status
 
-2026-11-15. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-16. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+
+- **Not yet:** the whole document: the long document built in parts, the fake box walk's lower version, in the system world. [in flight: change 4373]
 
 
 

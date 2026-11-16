@@ -1,6 +1,8 @@
 # root: status
 
-2026-11-14. Where temper's code lags or departs from [root.md](root.md).
+2026-11-16. Where temper's code lags or departs from [root.md](root.md).
+
+- **Not yet:** 11: a CI repair's brief and `read_job` on GitHub's layer, and a released failed repair's replacement carrying the failed step and its log again. [in flight: change 4371]
 
 - **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,
   because standard's map budget is that mark and temper's boxes take standard: under

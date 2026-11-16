@@ -1,6 +1,8 @@
 # testing: status
 
-2026-11-11. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
+
+- **Not yet:** the whole document: the joint world's stories on the terminal's bounds, a committed run of calls printed and the conversation read back by up, down and the page-up line. [in flight: change 4370]
 
 - **Not yet:** the whole document: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Close, which the request

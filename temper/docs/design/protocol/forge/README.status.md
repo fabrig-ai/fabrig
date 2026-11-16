@@ -3,6 +3,8 @@
 2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 9: the protocol world's Forgejo change whose Actions CI stays pending ten minutes, with and without deliveries, counted a minute at a time.
+- **Not yet:** 9: the protocol world's GitHub check run failing, read from its job's log, repaired at a new head and merged once at it. [in flight: change 4371]
+- **Not yet:** 9: the routing's start from a GitHub App's six seeded records, connected under its bot's login. [in flight: change 4372]
 
 `engine.md`, section 1 has no known implementation gap in adoption's users among
 jig's parties: their subjects name the repository's forge and the user.
