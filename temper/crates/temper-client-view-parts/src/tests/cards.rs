@@ -516,7 +516,7 @@ fn kinds_six_seven_and_eight_are_named_until_their_values_are_read() {
             b"Way: Task by task",
             b"What reaches you:",
             b"Agents decide, then tell you: wording choices, retries and splits, test-only changes",
-            b"Asks you; Away may decide: implementation choices, new dependencies, departures from a landed design",
+            b"Asks you; Away may decide: implementation choices, new dependencies, departures from a landed design, starting work on findings",
             "Asks you, even when away: changes to vsr's protocol core, implementation choices under “inside the wasm crate”, changes to the tests".as_bytes(),
             b"vsr's protocol core: src/protocol/**, include/vsr.h",
             b"the tests: tests/**",
