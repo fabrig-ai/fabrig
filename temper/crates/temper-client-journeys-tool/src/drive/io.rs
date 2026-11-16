@@ -18,6 +18,7 @@ use std::{
     os::unix::fs::OpenOptionsExt,
     path::PathBuf,
 };
+pub(super) mod deployment;
 pub(super) mod forge;
 mod process;
 mod tui;
@@ -53,6 +54,7 @@ pub struct Session {
     exit: Option<Exit>,
     scratch: PathBuf,
     box_log: File,
+    deployment_logs: Vec<(Process, File)>,
     kept: File,
     input: Option<Token>,
     input_bytes: Vec<u8>,
@@ -90,6 +92,7 @@ impl Session {
             exit: None,
             scratch,
             box_log,
+            deployment_logs: vec![],
             kept,
             input: None,
             input_bytes: vec![],
@@ -356,6 +359,62 @@ impl Session {
                 break;
             }
             match action {
+                Action::PrepareDeployment => {
+                    let result = deployment::prepare(&self.machine.plan).and_then(|values| {
+                        for process in [Process::Forgejo, Process::Model, Process::Engine, Process::Worker] {
+                            let path =
+                                self.scratch.join("session").join(process.deployment_log().expect("deployment log"));
+                            deployment::write(&path, b"")?;
+                            let file = OpenOptions::new()
+                                .append(true)
+                                .open(&path)
+                                .map_err(|why| format!("{}: {why}", path.display()))?;
+                            self.deployment_logs.push((process, file));
+                        }
+                        Ok(values)
+                    });
+                    self.event(Event::DeploymentPrepared(result));
+                }
+                Action::ReadDeploymentPatch { document, path } => {
+                    self.event(Event::DeploymentPatch(deployment::patch(&self.machine.plan, document, &path)));
+                }
+                Action::WriteDeploymentPatch((path, bytes)) => {
+                    self.event(Event::DeploymentWritten(deployment::replace(&path, &bytes)));
+                }
+                Action::SignInFile { link, program } => {
+                    if let Err(why) = deployment::write(&self.scratch.join("session/link"), &link) {
+                        self.event(Event::OwnFailure(why));
+                    } else {
+                        self.actions.push_front(Action::Start { process: Process::SignIn, program });
+                    }
+                }
+                Action::RemoveLink => {
+                    if let Err(why) = deployment::remove_link(&self.scratch) {
+                        self.event(Event::OwnFailure(why));
+                    }
+                }
+                Action::DeploymentLog { process, line } => {
+                    if let Some((_, file)) = self.deployment_logs.iter_mut().find(|(name, _)| *name == process)
+                        && let Err(why) = file.write_all(&line)
+                    {
+                        self.event(Event::OwnFailure(format!("session log: {why}")));
+                    }
+                }
+                Action::StopDeployment { process, force } => {
+                    for child in self.children.iter_mut().filter(|child| child.process == process && !child.settled) {
+                        child.stop(&mut self.pump, force);
+                    }
+                }
+                Action::DeploymentLogs => {
+                    let logs = ["forgejo.log", "model.log", "engine.log", "worker.log"]
+                        .iter()
+                        .map(|name| read_lines(&self.scratch.join("session").join(name)))
+                        .collect::<Result<Vec<_>, _>>();
+                    match logs {
+                        Ok(logs) => self.event(Event::DeploymentLogs(logs)),
+                        Err(why) => self.event(Event::OwnFailure(why)),
+                    }
+                }
                 Action::ReadBoxLog { path } => self.event(Event::BoxLog(forge::read_log(&path))),
                 Action::ReadForgeFiles { directory, paths } => {
                     self.event(Event::ForgeFiles(forge::read_files(&directory, &paths)));
@@ -444,7 +503,9 @@ impl Session {
                     self.face_job = if self.face.pending() { Some(FaceJob::Cancel) } else { None };
                 }
                 Action::StopCtl => {
-                    for child in self.children.iter_mut().filter(|c| c.process != Process::Box) {
+                    for child in
+                        self.children.iter_mut().filter(|c| matches!(c.process, Process::Ctl | Process::SignIn))
+                    {
                         child.stop(&mut self.pump, true);
                     }
                 }
@@ -496,6 +557,7 @@ impl Session {
             self.pump.request(io::Request::Close { entity });
         }
         self.pump.force_browser();
+        let _removed = deployment::remove_link(&self.scratch);
         for child in &mut self.children {
             child.stop(&mut self.pump, true);
         }
@@ -520,20 +582,21 @@ impl Session {
 }
 
 pub(super) fn logs(scratch: &std::path::Path) -> Result<(LogLines, LogLines, LogLines), String> {
-    let read = |path: PathBuf| -> Result<LogLines, String> {
-        match fs::read(&path) {
-            Ok(bytes) => Ok(bytes
-                .split_inclusive(|b| *b == b'\n')
-                .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
-                .collect()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
-            Err(error) => Err(format!("{}: {error}", path.display())),
-        }
-    };
-    let serve = read(scratch.join("data/box/logs/serve.log"))?;
+    let serve = read_lines(&scratch.join("data/box/logs/serve.log"))?;
     let mut forges = Vec::new();
     for name in ["fake-github.log", "fake-forgejo.log"] {
-        forges.extend(read(scratch.join("data/box/logs").join(name))?);
+        forges.extend(read_lines(&scratch.join("data/box/logs").join(name))?);
     }
-    Ok((serve, forges, read(scratch.join("session/box.log"))?))
+    Ok((serve, forges, read_lines(&scratch.join("session/box.log"))?))
+}
+
+fn read_lines(path: &std::path::Path) -> Result<LogLines, String> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(bytes
+            .split_inclusive(|b| *b == b'\n')
+            .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
+            .collect()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+        Err(error) => Err(format!("{}: {error}", path.display())),
+    }
 }

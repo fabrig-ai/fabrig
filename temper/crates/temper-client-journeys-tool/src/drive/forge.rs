@@ -72,7 +72,18 @@ impl Machine {
             path: Box::new([]),
             last: "no status read".into(),
         });
-        out.push(Action::ReadBoxLog { path: log });
+        if let Some(values) = self.deployment.as_ref().and_then(|state| state.values.as_ref()) {
+            let pending = self.forge.as_mut().expect("forge started");
+            pending.api = [values.forgejo_git.as_ref(), b"/api/v1"].concat().into();
+            pending.token_file = PathBuf::from(std::ffi::OsStr::from_bytes(&values.forgejo_admin));
+            pending.stage = if pending.message.is_some() { Stage::Files } else { Stage::Repository };
+            match pending.request(self.until.expect("forge bound")) {
+                Ok(action) => out.push(action),
+                Err(why) => self.answer(Some(why), out),
+            }
+        } else {
+            out.push(Action::ReadBoxLog { path: log });
+        }
     }
     pub(super) fn forge_event(&mut self, event: Event, now: Time, out: &mut Vec<Action>) {
         let Some(mut pending) = self.forge.take() else { return };

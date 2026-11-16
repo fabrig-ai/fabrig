@@ -7,6 +7,7 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
+mod deployed;
 pub mod deployment;
 mod forge;
 mod io;
@@ -58,6 +59,10 @@ impl Exit {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Process {
     Box,
+    Forgejo,
+    Model,
+    Engine,
+    Worker,
     SignIn,
     Ctl,
 }
@@ -68,6 +73,26 @@ pub enum Output {
 }
 #[derive(Debug)]
 pub enum Action {
+    PrepareDeployment,
+    ReadDeploymentPatch {
+        document: crate::line::Document,
+        path: Box<[u8]>,
+    },
+    WriteDeploymentPatch(deployment::RenderedFile),
+    SignInFile {
+        link: Box<[u8]>,
+        program: Program,
+    },
+    RemoveLink,
+    DeploymentLog {
+        process: Process,
+        line: Box<[u8]>,
+    },
+    StopDeployment {
+        process: Process,
+        force: bool,
+    },
+    DeploymentLogs,
     ReadBoxLog {
         path: PathBuf,
     },
@@ -125,6 +150,11 @@ pub enum Action {
 }
 #[derive(Debug)]
 pub enum Event {
+    DeploymentPrepared(Result<deployment::Values, String>),
+    DeploymentPatch(Result<deployment::RenderedFile, String>),
+    DeploymentWritten(Result<(), String>),
+    ProcessLine { process: Process, output: Output, line: Box<[u8]> },
+    DeploymentLogs(Vec<Vec<Box<[u8]>>>),
     BoxLog(Result<Box<[u8]>, String>),
     ForgeFiles(Result<Vec<Box<[u8]>>, String>),
     ForgeResponse { status: u16, body: Box<[u8]> },
@@ -149,6 +179,7 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Phase {
+    Deployment,
     Link,
     SignIn,
     Spent,
@@ -188,6 +219,7 @@ enum Phase {
 }
 pub struct Machine {
     plan: Plan,
+    deployment: Option<deployed::State>,
     phase: Phase,
     until: Option<Time>,
     poll: Option<Time>,
@@ -210,11 +242,18 @@ pub struct Machine {
 impl Machine {
     #[must_use]
     pub fn start(plan: Plan, now: Time) -> (Self, Vec<Action>) {
-        let action = Action::Start { process: Process::Box, program: plan.box_program() };
+        let deployment = plan.options.deployment.is_some().then(deployed::State::new);
+        let phase = if deployment.is_some() { Phase::Deployment } else { Phase::Link };
+        let action = if deployment.is_some() {
+            Action::PrepareDeployment
+        } else {
+            Action::Start { process: Process::Box, program: plan.box_program() }
+        };
         (
             Self {
                 plan,
-                phase: Phase::Link,
+                deployment,
+                phase,
                 until: Some(now.saturating_add(STEP)),
                 poll: None,
                 number: 0,
@@ -242,10 +281,18 @@ impl Machine {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        self.until.into_iter().chain(self.poll).chain(self.save_until).min()
+        self.until
+            .into_iter()
+            .chain(self.poll)
+            .chain(self.save_until)
+            .chain(self.deployment.as_ref().and_then(|state| state.patch_until))
+            .min()
     }
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
+        if self.deployment_event(&event, now, &mut out) {
+            return out;
+        }
         match event {
             Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
             Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
@@ -293,7 +340,14 @@ impl Machine {
                     Action::Finished(Exit::own(why)),
                 ]);
             }
-            Event::Snapshot(_) | Event::Description(_) | Event::Logs { .. } => {}
+            Event::DeploymentPrepared(_)
+            | Event::DeploymentPatch(_)
+            | Event::DeploymentWritten(_)
+            | Event::ProcessLine { .. }
+            | Event::DeploymentLogs(_)
+            | Event::Snapshot(_)
+            | Event::Description(_)
+            | Event::Logs { .. } => {}
         }
         out
     }
@@ -302,6 +356,7 @@ impl Machine {
         self.until = Some(now.saturating_add(bound));
         self.poll = None;
     }
+    #[expect(clippy::too_many_lines, reason = "one dispatch admits each session kind and translates every parsed line")]
     fn line(&mut self, source: &[u8], now: Time, out: &mut Vec<Action>) {
         if !self.ready() {
             return;
@@ -312,20 +367,48 @@ impl Machine {
             Err(why) => {
                 out.push(Action::Answer(Answer {
                     shown: vec![],
-                    failed: Some(format!("line {}: {why}", self.number)),
+                    failed: Some(if self.deployment.as_ref().is_some_and(|state| state.failed.is_some()) {
+                        "the deployment exited".into()
+                    } else {
+                        format!("line {}: {why}", self.number)
+                    }),
                 }));
                 return;
             }
         };
         let record = self.current.as_ref().expect("current line").record();
-        if matches!(record, Record::Deployment(_)) {
+        if self.deployment.is_some()
+            && !matches!(record, Record::End)
+            && self.deployment.as_ref().is_some_and(|state| state.failed.is_some())
+        {
+            if let Some(line) = self
+                .current
+                .take()
+                .filter(|line| line.kept() && !matches!(line.record(), Record::Web(_) | Record::Tui(_)))
+            {
+                out.push(Action::Keep(line.print().into()));
+            }
+            out.push(Action::Answer(Answer { shown: vec![], failed: Some("the deployment exited".into()) }));
+            return;
+        }
+        if self.deployment.is_none() && matches!(record, Record::Deployment(_)) {
             self.current = None;
             self.answer(Some("a box takes no deployment line".into()), out);
             return;
         }
-        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
+        if (self.plan.options.ctl || self.deployment.is_some()) && matches!(record, Record::Web(_) | Record::Tui(_)) {
             self.current = None;
-            self.answer(Some("this session takes ctl and forge lines alone".into()), out);
+            self.answer(
+                Some(
+                    if self.deployment.is_some() {
+                        "a deployment takes ctl, forge and deployment lines"
+                    } else {
+                        "this session takes ctl and forge lines alone"
+                    }
+                    .into(),
+                ),
+                out,
+            );
             return;
         }
         if matches!(record, Record::End) {
@@ -339,11 +422,24 @@ impl Machine {
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
-            Record::Deployment(_) => unreachable!("deployment refused on a box"),
+            Record::Deployment(patch) => {
+                let crate::line::Deployment::Patch { document, path } = patch;
+                let patch = crate::line::Deployment::Patch { document: *document, path: path.clone() };
+                self.deployment_patch(&patch, now, out);
+            }
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {
-                if args.iter().any(|arg| crate::line::BoxValue::parse(arg).is_some()) {
+                if let Some(values) = self.deployment.as_ref().and_then(|state| state.values.as_ref()) {
+                    let args = args
+                        .iter()
+                        .map(|arg| {
+                            crate::line::BoxValue::parse(arg)
+                                .map_or_else(|| arg.clone(), |name| values.value(name).into())
+                        })
+                        .collect::<Vec<_>>();
+                    self.ctl_start(&args, now, out);
+                } else if args.iter().any(|arg| crate::line::BoxValue::parse(arg).is_some()) {
                     self.wait(Phase::CtlValues, now, STEP);
                     out.push(Action::ReadBoxLog { path: self.plan.options.scratch.join("session/box.log") });
                 } else {
@@ -415,7 +511,9 @@ impl Machine {
         self.forge = None;
     }
     fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
-        out.push(Action::Log { output, line: line.into() });
+        if !(output == Output::Stdout && line.starts_with(b"http://")) {
+            out.push(Action::Log { output, line: line.into() });
+        }
         if output == Output::Stderr
             && (line.windows(11).any(|s| s == b"; giving up") || line.windows(13).any(|s| s == b"; restarting "))
         {
@@ -445,12 +543,8 @@ impl Machine {
                 };
                 self.origin = origin;
                 self.first = Some(line.clone());
-                let mut input = line.to_vec();
-                input.push(b'\n');
-                let program =
-                    self.plan.ctl(&[b"sign-in".as_slice().into(), b"-".as_slice().into()], Input::Bytes(input.into()));
                 self.wait(Phase::SignIn, now, STEP);
-                out.push(Action::Start { process: Process::SignIn, program });
+                out.push(Action::SignInFile { link: line, program: self.plan.deployment_sign_in() });
             }
             Phase::Spent => self.fresh = Some(line),
             Phase::FreshLink => {
@@ -486,6 +580,7 @@ impl Machine {
                 }
             }
             Process::SignIn if self.phase == Phase::SignIn => {
+                out.push(Action::RemoveLink);
                 if code != 0 {
                     self.fail_box(format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr)), now, out);
                 } else if self.plan.options.ctl {
@@ -503,7 +598,7 @@ impl Machine {
                 self.shown.extend(shown_lines(stdout));
                 self.answer(if code == 0 { None } else { Some(format!("exit {code}")) }, out);
             }
-            Process::SignIn | Process::Ctl => {}
+            Process::Forgejo | Process::Model | Process::Engine | Process::Worker | Process::SignIn | Process::Ctl => {}
         }
     }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
@@ -655,6 +750,10 @@ impl Machine {
         }
     }
     fn end(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.deployment.is_some() {
+            self.deployment_end(now, out);
+            return;
+        }
         if matches!(
             self.phase,
             Phase::Finished | Phase::Classifying | Phase::ClosingTui | Phase::ClosingBrowser | Phase::Stopping

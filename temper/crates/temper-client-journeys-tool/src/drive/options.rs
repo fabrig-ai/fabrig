@@ -3,7 +3,6 @@ use crate::EnvironmentEntry;
 use std::{
     ffi::{OsStr, OsString},
     fs,
-    io::Write,
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -272,8 +271,14 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
         for name in ["temper-engine", "temper-worker", "temper-agent"] {
             executable(&options.bin.join(name))?;
         }
-        *deployment = absolute(deployment)?;
-        if !deployment.is_dir() {
+        let scratch = absolute(&options.scratch)?;
+        let held = scratch.join("config").exists() && scratch.join("data").exists();
+        *deployment = if held {
+            std::env::current_dir().map_err(|why| why.to_string())?.join(&*deployment)
+        } else {
+            absolute(deployment)?
+        };
+        if !held && !deployment.is_dir() {
             return Err(format!("{}: --deployment needs a directory", deployment.display()));
         }
     } else if options.bundle.is_none() {
@@ -345,12 +350,14 @@ fn fresh_session(scratch: &Path) -> std::io::Result<()> {
         "looks",
     ] {
         fs::DirBuilder::new().mode(0o700).create(session.join(dir))?;
+        fs::set_permissions(session.join(dir), fs::Permissions::from_mode(0o700))?;
     }
     for name in ["xdg-open", "open"] {
         std::os::unix::fs::symlink("/usr/bin/true", session.join("bin").join(name))?;
     }
     for file in ["lines", "box.log"] {
-        fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(session.join(file))?.write_all(b"")?;
+        let made = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(session.join(file))?;
+        made.set_permissions(fs::Permissions::from_mode(0o600))?;
     }
     Ok(())
 }

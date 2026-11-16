@@ -100,6 +100,10 @@ fn deployment_preflight_requires_each_extra_executable_without_starting_it() {
     assert_eq!(plan.options.deployment, Some(root.join("deployment").canonicalize().expect("absolute deployment")));
     assert!(plan.options.bundle.is_none());
     assert!(plan.chromium.as_os_str().is_empty());
+    fs::create_dir(root.join("config")).expect("held config");
+    fs::create_dir(root.join("data")).expect("held data");
+    fs::remove_dir(root.join("deployment")).expect("held needs no source directory");
+    super::options::prepare(plan.options, &[]).expect("held preflight never reads the recipe");
 }
 
 #[test]
@@ -213,19 +217,17 @@ fn startup_orders_sign_ins_and_confines_programs() {
     }
     let first = b"http://127.0.0.1:9/link?secret=first\n";
     let actions = step(&mut m, Event::BoxLine { output: Output::Stdout, line: first.as_slice().into() });
-    let [Action::Log { .. }, Action::Start { process: Process::SignIn, program }] = actions.as_slice() else {
-        panic!("{actions:?}")
-    };
+    let [Action::SignInFile { program, .. }] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(program.program, Path::new("/build/bin/temper"));
-    assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "-"]);
-    assert_eq!(program.input, Input::Bytes(first.as_slice().into()));
+    assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "/scratch/session/link"]);
+    assert_eq!(program.input, Input::Null);
     assert!(
-        matches!(step(&mut m, exited(Process::SignIn, 0)).as_slice(), [Action::Open(url)] if url.as_ref() == first.strip_suffix(b"\n").expect("newline"))
+        matches!(step(&mut m, exited(Process::SignIn, 0)).as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == first.strip_suffix(b"\n").expect("newline"))
     );
     let fresh = b"http://127.0.0.1:9/link?secret=fresh";
     assert!(matches!(
         step(&mut m, Event::BoxLine { output: Output::Stdout, line: fresh.as_slice().into() }).as_slice(),
-        [Action::Log { .. }]
+        []
     ));
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == fresh));
     assert!(
@@ -619,8 +621,8 @@ fn ctl_ready() -> Machine {
         &mut machine,
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
     );
-    assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::Start { process: Process::SignIn, .. }]));
-    assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::Ready]));
+    assert!(matches!(actions.as_slice(), [Action::SignInFile { .. }]));
+    assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::RemoveLink, Action::Ready]));
     assert!(machine.ready());
     machine
 }
@@ -731,3 +733,5 @@ fn ctl_session_runs_forge_checks_and_keeps_the_line() {
         matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == b"forge checks forgejo playground/widget")
     );
 }
+
+mod deployment;
