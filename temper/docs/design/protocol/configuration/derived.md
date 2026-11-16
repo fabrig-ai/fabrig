@@ -122,9 +122,12 @@ writes only `slots`.
   at most 80, twice dev.fabrig.ai's 36 rounded up, that the engine's link
   to a worker holds: that link's cap is a u32, slots times a slot's
   assignment, message frames and inbox, near 61 MB a slot at jig's
-  stock. It is never below dev's 36. Where temper's derived figures
-  make a slot larger than jig's, temper's base sets its own lower
-  `fleet.slots` by the same rule. The
+  stock. It holds at jig's stock and at the figures temper's engine
+  starts with, so the generated deployment starts: 48 on 2026-11-16
+  (init's documents' `hub.transcript_bytes` of 67,215,250), where jig's
+  stock alone holds 64. It is never below dev's 36. Where temper's
+  derived figures make a slot larger still, temper's base sets its own
+  lower `fleet.slots` by the same rule. The
   engine's document needs neither `fleet.slots` nor `hub.slots`, and an
   override of either is still read.
 - **A box's worker** is admitted at its document's `slots`, which the

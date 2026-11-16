@@ -33,7 +33,9 @@
   slots are the one exception: the engine's link to a worker carries a
   u32 cap, slots times a slot's assignment, message frames and inbox, so
   the stock's `fleet.slots` is the largest such figure at most 80 that the
-  cap holds at the stock's figures, and never below dev.fabrig.ai's 36.
+  cap holds at the stock's figures and at those temper's engine starts
+  with over them, and never below dev.fabrig.ai's 36: 48 on 2026-11-16,
+  where the stock's figures alone hold 64.
 - **Derived in the reader:**
   - **The stream carriers.** Where `clients.exchanges` or
     `clients_http.calls` isn't overridden, it follows the stream bounds
