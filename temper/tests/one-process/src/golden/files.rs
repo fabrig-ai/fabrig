@@ -90,28 +90,30 @@ pub(crate) fn load(directory: &Path) -> Machine {
     let _ = temper_playground::machine::fresh();
     let mut disk = Machine::for_user(1000);
     let modes = std::fs::read_to_string(directory.join("modes.txt")).expect("kept golden modes");
-    for name in ROOTS {
-        let mut items = Vec::new();
-        for line in modes.lines() {
-            let mut fields = line.split(' ');
-            let kind = fields.next().expect("kind");
-            let mode = u32::from_str_radix(fields.next().expect("mode"), 8).expect("octal permissions");
-            let owner = fields.next().expect("owner").parse().expect("numeric owner");
-            let path = fields.next().expect("path");
-            assert!(fields.next().is_none());
-            if path == name {
-                assert_eq!((kind, mode, owner), ("d", 0o755, 1000), "world root metadata");
-                continue;
-            }
-            let Some(relative) = path.strip_prefix(&format!("{name}/")) else { continue };
-            let host = host_path(directory, path);
-            let item = match kind {
-                "d" => Item::directory(relative.as_bytes()),
-                "f" => Item::file(relative.as_bytes(), &std::fs::read(host).expect("kept golden bytes")),
-                other => panic!("golden node kind {other}"),
-            };
-            items.push(item.mode(mode).owner(owner));
+    let mut roots: [Vec<Item>; ROOTS.len()] = std::array::from_fn(|_| Vec::new());
+    for line in modes.lines() {
+        let mut fields = line.split(' ');
+        let kind = fields.next().expect("kind");
+        let mode = u32::from_str_radix(fields.next().expect("mode"), 8).expect("octal permissions");
+        let owner = fields.next().expect("owner").parse().expect("numeric owner");
+        let path = fields.next().expect("path");
+        assert!(fields.next().is_none());
+        let (name, relative) = path.split_once('/').unwrap_or((path, ""));
+        let Some(index) = ROOTS.iter().position(|root| *root == name) else { continue };
+        if path == name {
+            assert_eq!((kind, mode, owner), ("d", 0o755, 1000), "world root metadata");
+            continue;
         }
+        let item = match kind {
+            "d" => Item::directory(relative.as_bytes()),
+            "f" => {
+                Item::file(relative.as_bytes(), &std::fs::read(host_path(directory, path)).expect("kept golden bytes"))
+            }
+            other => panic!("golden node kind {other}"),
+        };
+        roots[index].push(item.mode(mode).owner(owner));
+    }
+    for items in roots {
         let root = disk.lay(&items);
         disk.close(root);
     }

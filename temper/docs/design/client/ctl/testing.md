@@ -120,6 +120,16 @@ answered `removed`, the forge gone from `forge list`, and refused for
 the playground's forge. After each, no pasted value in
 DIRECTORY's store or in any document the tools print.
 
+One story reads at `temper-box init`'s template's bounds, its documents'
+rows below the tools' 32-row window: a goal with more delegates than
+those rows, one of them ended with an ended dependency, and `task show
+TASK --tree` answering within a second, cut and saying so, and `task
+activity TASK --json` of the ended one answering its rows, newest
+first, and reading on to its first; the tree's `cut:` line's call
+followed, page by page, to the last delegate. Its fixture sets that
+bound itself, whatever the others' fixtures raise. Paging is a tool's
+behaviour, so the story is this world's, not a composed one's (3).
+
 ## 3. The real loop
 
 `tests/real-loop` hosts the tools' root over jig's native transport,
@@ -221,15 +231,6 @@ teardown on the real kernel; the harness checks memory ownership,
 outstanding operations and release between iterations.
 A real-loop failure is kept with its trace and reproduced lower down
 where possible; its seed does not replay the kernel's schedule.
-
-One story reads at `temper-box init`'s template's bounds, its documents'
-rows below the tools' 32-row window: a goal with more delegates than
-those rows, one of them ended with an ended dependency, and `task show
-TASK --tree` answering within a second, cut and saying so, and `task
-activity TASK --json` of the ended one answering its rows, newest
-first, and reading on to its first; the tree's `cut:` line's call
-followed, page by page, to the last delegate. Its fixture sets that
-bound itself, whatever the others' fixtures raise.
 
 ## 4. The process tier
 
