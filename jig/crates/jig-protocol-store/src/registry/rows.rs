@@ -45,6 +45,7 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                     | keys::Own::TurnLog { .. }
                     | keys::Own::LogAttempt { .. }
                     | keys::Own::Format
+                    | keys::Own::Floor
                     | keys::Own::Layouts
                     | keys::Own::Wires
                     | keys::Own::Opening(_)
@@ -64,17 +65,14 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
 }
 fn made(
     layouts: &mut Layouts,
-    binary: &texts::Binary,
+    binary: &mut texts::Binary,
     family: &KeptFamily,
     ty: &ValueType,
     current: bool,
 ) -> Option<wire::Layout> {
     let text = binary.text(family.name, current)?;
     let held = binary.held(layouts, text, current)?;
-    let schema = layouts.texts.get(&text)?.schema.as_ref()?;
-    let root = schema.root(ty.root.as_bytes(), super::variant(ty.variant))?;
-    let schemas = texts::schemas(layouts, &held, false)?;
-    let layout = schema.layout(root, schemas.as_slice()).ok()?.digest();
+    let layout = binary.layout(layouts, text, ty.root.as_bytes(), super::variant(ty.variant), &held)?;
     wire::Layout::new(
         &wire::CEILINGS,
         wire::LayoutParts {
@@ -120,7 +118,6 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
                     .insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false })
                     .expect("uncapped seed");
             }
-            texts::clear(layouts);
         }
     }
     Ok(())
@@ -200,7 +197,6 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                     layouts.ranges.insert(from, Range { to, ty: index }).expect("uncapped ranges");
                 }
             }
-            texts::clear(layouts);
         }
     }
     Ok(changed)
@@ -208,10 +204,10 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
 fn key(key: &RowKey, limit: u32) -> Option<Box<[u8]>> {
     keys::encode_own(&keys::Own::Layout { family: key.0.clone(), number: key.1, id: key.2 }, limit)
 }
-pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
+pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
     let mut used = Map::uncapped();
     for (row_key, row) in &layouts.rows {
-        let key = key(row_key, store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let key = key(row_key, bound).ok_or(OpenRefusal::Failed)?;
         if row.retire {
             if row.stored {
                 layouts.pending.push(skein_kv::Op::Erase { key });
@@ -229,7 +225,7 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
         }
     }
     for (digest, text) in &layouts.texts {
-        let key = keys::encode_own(&keys::Own::Text(*digest), store.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let key = keys::encode_own(&keys::Own::Text(*digest), bound).ok_or(OpenRefusal::Failed)?;
         if used.contains_key(digest) {
             if !text.stored {
                 let value = wire::Text::new(&wire::CEILINGS, wire::TextParts { text: text.bytes.clone() })
@@ -242,6 +238,23 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
         } else if text.stored {
             layouts.pending.push(skein_kv::Op::Erase { key });
         }
+    }
+    // Stage the resulting registry for a later settling retirement. Keep the
+    // rows and texts until jobs end: a written job's first page names them.
+    let mut row_keys = List::uncapped();
+    for (key, _) in &layouts.rows {
+        row_keys.push(key.clone()).expect("uncapped row keys");
+    }
+    for key in &row_keys {
+        let row = layouts.rows.get_mut(key).expect("held row");
+        row.stored = !row.retire;
+    }
+    let mut digests = List::uncapped();
+    for (digest, _) in &layouts.texts {
+        digests.push(*digest).expect("uncapped text digests");
+    }
+    for digest in &digests {
+        layouts.texts.get_mut(digest).expect("held text").stored = used.contains_key(digest);
     }
     Ok(())
 }

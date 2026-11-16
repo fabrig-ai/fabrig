@@ -324,7 +324,6 @@ pub fn encode(
         domain::Stored::History(row) => wire::Value::History(Box::new(proposals::history(row, limits, Some(&moved))?)),
         domain::Stored::Attempt(row) => wire::Value::Attempt(lifecycle::attempt(row, limits)?),
         domain::Stored::Hold(row) => wire::Value::Hold(lifecycle::hold(row, limits)?),
-        domain::Stored::Milestone(row) => wire::Value::Milestone(proposals::milestone(row, limits)?),
         domain::Stored::PersonProposal(row) => {
             wire::Value::PersonProposal(proposals::person_proposal(row, limits, Some(&moved))?)
         }
@@ -366,7 +365,6 @@ pub fn decode(
         wire::Value::LiveHot(_) | wire::Value::LiveCold(_) => {
             return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
         }
-        wire::Value::LiveTalk(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
         wire::Value::Update(row) => domain::Stored::Update(index::read_update(row)?),
@@ -376,14 +374,12 @@ pub fn decode(
         wire::Value::EndedByProject(row) => domain::Stored::EndedByProject(index::read_ended_by_project(row)),
         wire::Value::Delegate(row) => domain::Stored::Delegate(index::read_edge(row)?),
         wire::Value::Activity(row) => domain::Stored::Activity(activity::read_activity_line(row, limits)?),
-        wire::Value::Live(row) => domain::Stored::Live(Box::new(record::read_before_talk(row, limits)?)),
         wire::Value::Ended(row) => domain::Stored::Ended(Box::new(record::read_before_talk(row, limits)?)),
         wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row)?),
         wire::Value::Ledger(value) => domain::Stored::Ledger(value::read_funding(value)),
         wire::Value::History(value) => domain::Stored::History(proposals::read_history(*value, limits)?),
         wire::Value::Attempt(row) => domain::Stored::Attempt(lifecycle::read_attempt(row)?),
         wire::Value::Hold(row) => domain::Stored::Hold(lifecycle::read_hold(row, limits)?),
-        wire::Value::Milestone(value) => domain::Stored::Milestone(proposals::read_milestone(value, limits)?),
         wire::Value::PersonProposal(value) => {
             domain::Stored::PersonProposal(Box::new(proposals::read_person_proposal(value, limits)?))
         }
@@ -433,11 +429,9 @@ pub fn decode_cold(
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
         | wire::Value::History(_)
-        | wire::Value::Milestone(_)
         | wire::Value::PersonProposal(_)
         | wire::Value::DecidedProposal(_)
         | wire::Value::Activity(_)
-        | wire::Value::Live(_)
         | wire::Value::Ended(_)
         | wire::Value::Stub(_)
         | wire::Value::Update(_)
@@ -449,7 +443,6 @@ pub fn decode_cold(
         | wire::Value::Attempt(_)
         | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
-        | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveHot(_) => {
             return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
@@ -484,11 +477,9 @@ pub fn decode_live(
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
         | wire::Value::History(_)
-        | wire::Value::Milestone(_)
         | wire::Value::PersonProposal(_)
         | wire::Value::DecidedProposal(_)
         | wire::Value::Activity(_)
-        | wire::Value::Live(_)
         | wire::Value::Ended(_)
         | wire::Value::Stub(_)
         | wire::Value::Update(_)
@@ -500,7 +491,6 @@ pub fn decode_live(
         | wire::Value::Attempt(_)
         | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
-        | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveCold(_) => {
             return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
@@ -517,11 +507,9 @@ pub fn decode_live(
         | wire::Value::Writer(_)
         | wire::Value::Pool(_)
         | wire::Value::History(_)
-        | wire::Value::Milestone(_)
         | wire::Value::PersonProposal(_)
         | wire::Value::DecidedProposal(_)
         | wire::Value::Activity(_)
-        | wire::Value::Live(_)
         | wire::Value::Ended(_)
         | wire::Value::Stub(_)
         | wire::Value::Update(_)
@@ -533,7 +521,6 @@ pub fn decode_live(
         | wire::Value::Attempt(_)
         | wire::Value::Hold(_)
         | wire::Value::PlacedHold(_)
-        | wire::Value::LiveTalk(_)
         | wire::Value::EndedTalk(_)
         | wire::Value::LiveHot(_) => {
             return Err(wire::Problem { path: wire::Path::RowValue, reason: skein_codec::Reason::Bound });
@@ -557,7 +544,6 @@ pub fn decode_live(
         | domain::Stored::EndedDelegate(_)
         | domain::Stored::Delegate(_)
         | domain::Stored::Activity(_)
-        | domain::Stored::Milestone(_)
         | domain::Stored::PersonProposal(_)
         | domain::Stored::DecidedProposal(_)
         | domain::Stored::ClosedLedger(_)

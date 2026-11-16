@@ -875,6 +875,16 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
             proposed: None,
         }));
     }
+    let project_landing_rule = if see.is_some()
+        && let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
+        && let Some((jig_domain_core::settings::Setting::Application { kind: 1, scope: 0, number }, _)) = *asked
+        && let Some(context) = domain.core.tasks.delegation(flight.task)
+        && domain.forge.setting(2, context.project, number).is_some()
+    {
+        Some(number)
+    } else {
+        None
+    };
     let repositories = settings_repositories(domain, flight, &answer);
     let people = settings_people(domain, flight, &answer);
     let forge_people = settings_forge_people(domain, flight, &answer);
@@ -892,6 +902,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
                 offer,
                 application,
                 requested: *requested,
+                project_landing_rule,
             }))),
         },
         None => HostDelivery::Settings {

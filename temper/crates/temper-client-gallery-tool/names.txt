@@ -53,8 +53,11 @@ ask-ways-card-person
 ask-ways-draft
 ask-ways-kept
 ask-ways-member
+ask-ways-menu
 ask-ways-refused
 ask-ways-yours
+ask-ways-yours-bare
+ask-ways-yours-menu
 builders
 builders-none
 builders-not-owner
@@ -243,6 +246,7 @@ how-approve
 how-card
 how-draft
 how-follows
+how-menu
 how-reaches
 how-rules
 how-rules-card

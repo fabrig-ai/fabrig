@@ -98,7 +98,6 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         | Stored::DecidedProposal(_)
         | Stored::ClosedLedger(_)
         | Stored::Ended(_)
-        | Stored::Milestone(_)
         | Stored::Attempt(_)
         | Stored::Hold(_)
         | Stored::History(_)
@@ -124,7 +123,6 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
         | crate::Key::ClosedLedger(_)
         | crate::Key::DecidedProposal(_)
         | crate::Key::History { .. }
-        | crate::Key::Milestone { .. }
         | crate::Key::Attempt { .. }
         | crate::Key::Hold { .. }
         | crate::Key::Activity { .. }

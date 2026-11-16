@@ -370,6 +370,11 @@ fn the_placeholder_and_the_meta_line() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
         assert_eq!(skein_ui::outline::check(tree), None);
+        let path = styled(tree, look::DOC_PATH);
+        assert_eq!(
+            f::node_text(tree, tree.nodes().iter().position(|node| node.id == path[0].id).unwrap()).as_ref(),
+            b"untitled.md"
+        );
         let field = named(tree, Role::TextArea, b"What should this draft hold?");
         assert_eq!(field.placeholder.as_deref(), Some(b"What should this draft hold?".as_slice()));
         assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::MODE_SPLIT)));

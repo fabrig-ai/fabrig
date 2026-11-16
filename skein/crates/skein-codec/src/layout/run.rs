@@ -1,5 +1,5 @@
 //! Explicit span-reader and conversion stacks (data/codec/layouts.md, 3).
-use super::{Inner, Kind, Misconverted, Plan, ReadKind, Source, Workspace, add};
+use super::{Inner, Kind, Misconverted, Plan, ReadKind, Source, Variant, Workspace, add};
 use crate::schema::Span;
 use skein_lib::{Buffer, usize_of};
 
@@ -231,8 +231,12 @@ fn enter(
             let mut pos = span.start;
             let tag = byte(old, &mut pos, span.end)?;
             let variant = variants.get(u32::from(tag)).copied().flatten().ok_or(Misconverted::Tag)?;
-            put(out, &[variant.tag])?;
-            if let Some(payload) = variant.payload {
+            let (tag, payload) = match variant {
+                Variant::Dropped(index) => return Err(Misconverted::Dropped(index)),
+                Variant::Kept { tag, payload, .. } => (tag, payload),
+            };
+            put(out, &[tag])?;
+            if let Some(payload) = payload {
                 push(work, depth, Frame::Enter { node: payload, span: Span { start: pos, end: span.end } });
                 Ok(())
             } else {

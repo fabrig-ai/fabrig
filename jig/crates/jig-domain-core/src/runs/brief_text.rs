@@ -5,6 +5,7 @@ pub use jig_domain_core_vocabulary::runs::brief_text::*;
 
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
+use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List, Writer, length::len_u64};
 
@@ -176,7 +177,7 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
     }
     match part {
         BriefPart::Spec => match core.contexts.get(&task) {
-            Some(context) => task_read(context, parts, bytes),
+            Some(context) => task_read(context, &core.people, parts, bytes),
             None => BriefRead::Failed,
         },
         BriefPart::Waiting { carried } => waiting_read(core, task, carried, bytes),
@@ -657,7 +658,7 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
 }
 
 /// Render an agent task's spec and, if its result ends it, its contract.
-fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
+fn task_read(record: &tasks::RunContext, people: &people::Domain, parts: u32, bytes: u32) -> BriefRead {
     if parts == 0 {
         return BriefRead::Failed;
     }
@@ -668,13 +669,22 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =
         bytes.checked_sub(u32::try_from(first.bytes.len()).expect("bounded task part")).expect("part within read");
-    let (requester_label, requester) = match record.requester {
-        tasks::Party::Person(person) => (b"[Requested by person ".as_slice(), person),
-        tasks::Party::Task(task) => (b"[Requested by task ".as_slice(), task),
+    let (requester_label, requester, name) = match record.requester {
+        tasks::Party::Person(person) => {
+            (b"[Requested by person ".as_slice(), person, people.member_name(record.project, person).unwrap_or(b""))
+        }
+        tasks::Party::Task(task) => (b"[Requested by task ".as_slice(), task, b"".as_slice()),
         tasks::Party::Deployment { project } => {
-            (b"[Requested by deployment for project ".as_slice(), u64::from(project))
+            (b"[Requested by deployment for project ".as_slice(), u64::from(project), b"".as_slice())
         }
     };
+    let mut name = skein_lib::bytes::copy_of(name);
+    for byte in &mut name {
+        if *byte < 0x20 || *byte == 0x7f {
+            *byte = b' ';
+        }
+    }
+    let separator = if name.is_empty() { b"".as_slice() } else { b", ".as_slice() };
     let task = Decimal::of(record.task);
     let project = Decimal::of(u64::from(record.project));
     let requester = Decimal::of(requester);
@@ -686,6 +696,8 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
         b"]\n",
         requester_label,
         requester.as_bytes(),
+        separator,
+        &name,
         b"]\n",
     ];
     let mut length = 0;

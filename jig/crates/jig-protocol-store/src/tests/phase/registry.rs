@@ -6,8 +6,12 @@ use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod added_types;
 mod edges;
+mod retired;
+mod settling;
+mod turns;
 
 const FAMILY: KeptFamily = KeptFamily {
+    retired: &[],
     name: "fixture-layouts",
     texts: &[FIRST, KEPT],
     current: CURRENT,
@@ -24,6 +28,7 @@ const SET: PatchSet = PatchSet {
     owner: Owner::Application,
     name: "fixture-layouts",
     families: &[FAMILY],
+    level: Some(1),
     patches: &[PATCH],
     fresh: None,
     jobs: &[],
@@ -45,7 +50,12 @@ fn base(first: bool, values: bool) -> Vec<Item> {
         types: &[],
         ..FAMILY
     };
-    let set = PatchSet { families: Box::leak(Box::new([family])), patches: if first { &[] } else { &[PATCH] }, ..SET };
+    let set = PatchSet {
+        families: Box::leak(Box::new([family])),
+        level: Some(u32::from(!first)),
+        patches: if first { &[] } else { &[PATCH] },
+        ..SET
+    };
     let mut store = store(&disk, set);
     assert_opened(&disk.open(&mut store), 0);
     let mut writes = vec![fixtures::header(1)];
@@ -211,6 +221,7 @@ fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version()
 fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_texts() {
     use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, HOLDER};
     let holder = KeptFamily {
+        retired: &[],
         name: "fixture-holder",
         texts: &[HOLDER],
         current: HOLDER,
@@ -224,8 +235,12 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
         ],
     };
     let child = KeptFamily { name: "fixture-child", texts: &[CHILD], current: CHILD, keys: &[], types: &[], ..holder };
-    let set =
-        PatchSet { families: Box::leak(Box::new([KeptFamily { types: &[], ..holder }, child])), patches: &[], ..SET };
+    let set = PatchSet {
+        families: Box::leak(Box::new([KeptFamily { types: &[], ..holder }, child])),
+        level: Some(0),
+        patches: &[],
+        ..SET
+    };
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, set);
     raw(
@@ -263,6 +278,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
+        settles: false,
         counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
@@ -489,6 +505,89 @@ fn missing_text_and_undeclared_stored_families_are_layout_refusals_without_write
     }
 }
 #[test]
+fn stored_text_bytes_must_give_their_digest_without_writes() {
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, SET);
+    let text = crate::registry_v1::Text::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::TextParts { text: [KEPT.as_bytes(), b"\n"].concat().into_boxed_slice() },
+    )
+    .expect("fixture text fits");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure()));
+    text.encode(&mut writer).expect("fixture text encodes");
+    raw(
+        &mut disk,
+        &mut store,
+        vec![
+            old_row(9, FAMILY.name, 0),
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(&crate::keys::Own::Text(hash(KEPT)), 1024).expect("text key"),
+                value: writer.finish(),
+            },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42]) },
+        ],
+    );
+    assert_text_refusal_without_writes(&mut disk);
+}
+
+#[test]
+fn stored_fingerprint_must_match_the_reused_registration_layout_without_writes() {
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, SET);
+    let binary = row(&mut store, 0, 2).expect("binary row");
+    let value = crate::registry_v1::Layout::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::LayoutParts {
+            root: Box::from(binary.root()),
+            variant: binary.variant().clone(),
+            layout: [0; 32],
+            text: *binary.text(),
+            held: binary.held().clone(),
+        },
+    )
+    .expect("fixture row fits");
+    assert_ne!(value.layout(), binary.layout());
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
+    value.encode(&mut writer).expect("fixture row encodes");
+    raw(
+        &mut disk,
+        &mut store,
+        vec![
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(
+                    &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 9 },
+                    1024,
+                )
+                .expect("layout key"),
+                value: writer.finish(),
+            },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42, 7]) },
+        ],
+    );
+    assert_text_refusal_without_writes(&mut disk);
+}
+
+fn assert_text_refusal_without_writes(disk: &mut Disk) {
+    let mut disk = Disk::new(&disk.items());
+    let before = snapshot(&mut disk);
+    let mut store = store(&disk, SET);
+    let events = disk.open(&mut store);
+    let [
+        Event::OpenRefused {
+            why: OpenRefusal::Layout { family, value_type: 0, id: 9, values: Some(1), why: Unplanned::Text },
+            ..
+        },
+    ] = events.as_ref()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(family.as_ref(), FAMILY.name);
+    assert_eq!(snapshot(&mut disk), before);
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    assert!(!disk.tree().iter().any(|(path, ..)| path.as_ref() == b"generations/2"));
+}
+
+#[test]
 fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
     for shared in [true, false] {
         let mut disk = Disk::new(&[]);
@@ -539,8 +638,13 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job =
-    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
+const NOOP: crate::Job = crate::Job {
+    settles: false,
+    counts: &[],
+    name: "noop",
+    keys: &[KeyRange { from: b"a", to: b"b" }],
+    converts: None,
+};
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -636,7 +740,8 @@ fn a_log_held_layout_without_a_plan_refuses_even_without_map_values() {
 fn a_seeded_store_refuses_a_pending_patch_of_a_registered_family() {
     let mut disk = Disk::new(&[]);
     let family = KeptFamily { texts: &[FIRST], current: FIRST, ..FAMILY };
-    let store = fresh(&mut disk, PatchSet { families: Box::leak(Box::new([family])), patches: &[], ..SET });
+    let store =
+        fresh(&mut disk, PatchSet { families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET });
     assert_eq!(store.stores.store.last(), 1);
     let mut disk = Disk::new(&disk.items());
     let before = snapshot(&mut disk);
@@ -673,6 +778,7 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
+        settles: false,
         counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,

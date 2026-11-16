@@ -45,7 +45,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             | crate::Line::RunEnded { .. }
             | crate::Line::Turn { .. } => Some(0),
         },
-        Stored::Milestone(row) => phase_bytes(&row.phase),
         Stored::Hold(row) => held_bytes(&row.held.was, row.held.source.as_deref()),
         Stored::PersonProposal(row) | Stored::DecidedProposal(row) => {
             let action = match &row.action {

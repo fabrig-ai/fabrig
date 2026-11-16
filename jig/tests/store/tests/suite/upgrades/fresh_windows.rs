@@ -17,18 +17,24 @@ const FRAMING_BYTES: usize = 12; // protocol/store/transcripts.md 1: length, che
 const MARK: &str = "patch 1\nowner fixture-smith 1\nmark fresh-windows\n";
 const FOLLOW: &str = "patch 1\nowner fixture-smith 2\nmark owner-private\n";
 const SMITH: PatchSet = patches::FRESH_BEFORE.sets[1];
-const MARKED: PatchSets = PatchSets { sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { patches: &[MARK], ..SMITH }] };
-const FOLLOWED: PatchSets =
-    PatchSets { sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { patches: &[MARK, FOLLOW], ..SMITH }] };
-const WITHOUT_WORD: PatchSets =
-    PatchSets { sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { fresh: None, patches: &[MARK, FOLLOW], ..SMITH }] };
+const MARKED: PatchSets =
+    PatchSets { sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { level: Some(1), patches: &[MARK], ..SMITH }] };
+const FOLLOWED: PatchSets = PatchSets {
+    sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { level: Some(2), patches: &[MARK, FOLLOW], ..SMITH }],
+};
+const WITHOUT_WORD: PatchSets = PatchSets {
+    sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { fresh: None, level: Some(2), patches: &[MARK, FOLLOW], ..SMITH }],
+};
 const ANOTHER_WORD: PatchSets = PatchSets {
-    sets: &[patches::FRESH_BEFORE.sets[0], PatchSet { fresh: Some("another-word"), patches: &[MARK, FOLLOW], ..SMITH }],
+    sets: &[
+        patches::FRESH_BEFORE.sets[0],
+        PatchSet { fresh: Some("another-word"), level: Some(2), patches: &[MARK, FOLLOW], ..SMITH },
+    ],
 };
 const OTHER_OWNER: PatchSets = PatchSets {
     sets: &[
         PatchSet { fresh: Some(jig_test_patches_smith::FRESH), ..patches::FRESH_BEFORE.sets[0] },
-        PatchSet { fresh: None, patches: &[MARK, FOLLOW], ..SMITH },
+        PatchSet { fresh: None, level: Some(2), patches: &[MARK, FOLLOW], ..SMITH },
     ],
 };
 
@@ -36,6 +42,7 @@ const LAST_MARKED: PatchSets = PatchSets {
     sets: &[
         patches::FRESH_BEFORE.sets[0],
         PatchSet {
+            level: Some(2),
             patches: &["patch 1\nowner fixture-smith 1\n", "patch 1\nowner fixture-smith 2\nmark fresh-windows\n"],
             ..SMITH
         },
@@ -46,6 +53,7 @@ const CUSTOM_MARKED: PatchSets = PatchSets {
         patches::FRESH_BEFORE.sets[0],
         PatchSet {
             fresh: Some("review-window"),
+            level: Some(2),
             patches: &["patch 1\nowner fixture-smith 1\nmark review-window\n", FOLLOW],
             ..SMITH
         },
@@ -318,8 +326,9 @@ fn closing_changes_only_the_two_flags_in_a_populated_proof() {
 #[test]
 fn closing_follows_every_owners_last_patch_page() {
     const BEFORE: PatchSets = PatchSets { sets: &[patches::BASE.sets[0], patches::BASE.sets[1], SMITH] };
-    const AFTER: PatchSets =
-        PatchSets { sets: &[patches::SETS.sets[0], patches::SETS.sets[1], PatchSet { patches: &[MARK], ..SMITH }] };
+    const AFTER: PatchSets = PatchSets {
+        sets: &[patches::SETS.sets[0], patches::SETS.sets[1], PatchSet { level: Some(1), patches: &[MARK], ..SMITH }],
+    };
     let records = patches::Records::story();
     let mut world = records.committed_with(SEED, BEFORE, 1, patches::limits(), &[]);
     let mut number = open(&mut world, BEFORE);

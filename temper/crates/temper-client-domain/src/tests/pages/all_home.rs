@@ -1,5 +1,6 @@
 mod launchpad;
 
+use crate::pages::findings::Counted;
 use crate::pages::{
     all_home::{self, Brief, BriefLine, Facts, Intro, Landed, Project, Spell},
     home::{Needs, Status},
@@ -41,7 +42,7 @@ fn facts(projects: Box<[Project]>) -> Facts {
     Facts {
         projects,
         follows: Box::default(),
-        needs: Needs::Count { count: 2, cut: true },
+        needs: Needs::Count { count: 2, cut: true, findings: Counted::default() },
         decided: Box::default(),
         showing: 3,
         away: Some(Spell { since: Wall::from_nanos(10), off: Wall::from_nanos(20) }),
@@ -55,7 +56,7 @@ fn expected_intro(landed: Landed, previous: Option<u64>) -> Intro {
         },
         away: Some(Spell { since: Wall::from_nanos(10), off: Wall::from_nanos(20) }),
         landed,
-        needs: Needs::Count { count: 2, cut: true },
+        needs: Needs::Count { count: 2, cut: true, findings: Counted::default() },
         brief: None,
     }
 }
@@ -812,7 +813,7 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
         );
         assert_eq!(
             all_home::facts(&fixture.root, Wall::EPOCH).needs,
-            Needs::Count { count: THREE, cut: inbox_cut || more > 0 },
+            Needs::Count { count: THREE, cut: inbox_cut || more > 0, findings: Counted::default() },
             "{case}"
         );
         let out =
@@ -821,7 +822,7 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
         assert!(fixture.root.pages().needs().held(f::acts::QUESTION), "{case}");
         assert_eq!(
             all_home::facts(&fixture.root, Wall::EPOCH).needs,
-            Needs::Count { count: 2, cut: inbox_cut || more > 0 },
+            Needs::Count { count: 2, cut: inbox_cut || more > 0, findings: Counted::default() },
             "{case}: answered card removed"
         );
         let mut env = f::env(&fixture.limits);

@@ -224,8 +224,8 @@ pub(crate) fn row(
             &words.say(Word::ToolSeparator, &[]),
         ])
     };
-    let title = line.chip.title.bytes();
-    let name = crate::accounts::words::join(&[title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
+    let title = crate::common::chat::cut_title(line.chip.title.bytes(), 80, false);
+    let name = crate::accounts::words::join(&[&title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
     crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);
     match state {
@@ -236,12 +236,16 @@ pub(crate) fn row(
         Shell::Browser => {
             b.open(Role::Text);
             b.style(look::GOALS_TOP);
-            b.text(Run::Plain, title);
+            b.text(Run::Plain, &title);
+            b.open(Role::Text);
+            b.style(look::GOALS_PROGRESS);
+            progress(b, words, line, state);
             b.open(Role::Text);
             b.run(Run::Plain, &count);
             b.open(Role::Text);
             b.style(token);
             b.run(Run::Plain, &status);
+            b.close();
             b.close();
             b.close();
             b.close();
@@ -281,8 +285,43 @@ pub(crate) fn headline(words: &Words, line: &c::TaskLine, state: State, report: 
         State::Failed => Word::GoalFailedLine,
     };
     if word == Word::GoalTasksDone {
-        words.say(word, &[Hole::Number(u64::from(line.delegates_done)), Hole::Number(u64::from(line.delegates_total))])
+        tasks_done(words, line.delegates_done, line.delegates_total)
     } else {
         words.say(word, &[])
     }
+}
+
+/// The row counts tasks done, whatever they did (client/pages/work.md, 1).
+fn progress(b: &mut Builder, words: &Words, line: &c::TaskLine, state: State) {
+    if line.delegates_total == 0 {
+        return;
+    }
+    let ongoing = match state {
+        State::Landed | State::Closed | State::Failed => false,
+        State::Needs { .. } | State::Paused | State::Planning | State::Running => true,
+    };
+    b.open(Role::Figure);
+    b.style(look::GOAL_BAR);
+    b.name(&words.say(
+        Word::GoalsBarCount,
+        &[Hole::Number(u64::from(line.delegates_done)), Hole::Number(u64::from(line.delegates_total))],
+    ));
+    for part in 0..line.delegates_total {
+        b.open(Role::Text);
+        if part < line.delegates_done {
+            b.style(look::GOAL_BAR_LANDED);
+        } else if part == line.delegates_done && ongoing {
+            b.style(look::GOAL_BAR_RUNNING);
+        }
+        b.close();
+    }
+    b.close();
+}
+
+pub(crate) fn tasks_done(words: &Words, done: u32, total: u32) -> Box<[u8]> {
+    let mut done = if done == 0 { words.say(Word::GoalTasksNone, &[]) } else { super::goal::count_words(words, done) };
+    if let Some(first) = done.first_mut() {
+        first.make_ascii_uppercase();
+    }
+    words.say(Word::GoalTasksDone, &[Hole::Name(done), Hole::Name(super::goal::count_words(words, total))])
 }

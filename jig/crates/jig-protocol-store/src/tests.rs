@@ -29,10 +29,9 @@ mod turns_logs;
 mod settings;
 
 pub(crate) mod charter_versions;
-mod milestones;
+mod ended_talk;
 mod operations;
 mod phase;
-pub(crate) mod projection_parts;
 mod registered_layouts;
 mod retention;
 mod words;

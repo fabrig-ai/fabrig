@@ -246,7 +246,7 @@ pub fn limits() -> Limits {
         // Admit the record bounds before tightening to check_commits' sizes (protocol/store/records.md, 4).
         value: 2_097_152,
         // A log append and two places per write, three creation rows and one orphan erase.
-        ops: 6004,
+        ops: 6005,
         commit: 1_073_741_824,
         queued: 2,
         queued_bytes: 2_147_483_648,

@@ -3,6 +3,7 @@
 2026-11-15. Where temper's code lags or departs from [store.md](store.md).
 
 
+
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
 - **Not yet:** 2: family 42, `Follow`, a follow's record [in flight: change 105].

@@ -117,3 +117,12 @@ pub(crate) fn load(directory: &Path) -> Machine {
     }
     disk
 }
+
+pub(super) fn active(disk: &mut Machine) -> Vec<u8> {
+    let root = disk.reopen_root(0);
+    let opened = disk.open(root, b"active", How::ReadNoFollow).expect("active file");
+    let bytes = disk.read(opened, 0, 64).expect("active generation");
+    disk.close(opened);
+    disk.close(root);
+    bytes
+}

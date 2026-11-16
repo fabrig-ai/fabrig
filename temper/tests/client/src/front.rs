@@ -160,10 +160,10 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.tasks.message_bytes = 512;
     engine_limits.tasks.inbox_bytes = 1024;
     engine_limits.journal.result_bytes = 512;
-    // Stock charter 11's instructions and framed run policy need 10,766 bytes.
+    // Stock charter 11's instructions and framed run policy need 11,635 bytes.
     engine_limits.journal.run_bytes = 12_288;
-    // A stored stock charter 11 has 9,542 payload bytes, including model cache lifetimes.
-    engine_limits.loads.transcript_bytes = 9_566;
+    // A stored stock charter 11 has 10,435 payload bytes, including model cache lifetimes and conclusion.
+    engine_limits.loads.transcript_bytes = 10_435;
     engine_limits.documents.text_bytes = 4096;
     limits_for_chats(&mut engine_limits, chats);
     engine_limits

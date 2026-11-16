@@ -288,6 +288,21 @@ fn refusal_words(why: &OpenRefusal) -> String {
     format!("temper serve: {}\n", why.words().join("state"))
 }
 #[test]
+fn a_retired_type_layout_refusal_names_its_range_fault() {
+    let why = OpenRefusal::Layout {
+        family: "fixture-layouts".into(),
+        value_type: 1,
+        id: 9,
+        values: None,
+        why: jig_protocol_store::Unplanned::Retired,
+    };
+    let (lines, exit) = crate::start_refusal::refused_start(&why, b"state");
+    let expected = refusal_words(&why)
+        + "temper serve: family fixture-layouts value type 1 layout 9: the value type is retired, and its keys hold a value\n";
+    assert_eq!(core::str::from_utf8(&lines).unwrap(), expected);
+    assert_eq!(exit, 1);
+}
+#[test]
 fn an_in_flight_refusal_names_each_write() {
     const WRITES: u32 = 3; // The three keys below.
     let why = flight_refusal(

@@ -139,8 +139,7 @@ fn facts(rows: &BTreeMap<root::Key, root::Record>) -> (BTreeSet<CardKey>, WordIm
                         );
                     }
                 }
-                tasks::Stored::Milestone(_)
-                | tasks::Stored::Attempt(_)
+                tasks::Stored::Attempt(_)
                 | tasks::Stored::Hold(_)
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)

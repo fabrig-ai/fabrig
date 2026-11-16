@@ -14,6 +14,7 @@ pub const FIXTURE_SETS: PatchSets = PatchSets {
         jig_protocol_store::SMITH_PATCH_SET,
         jig_protocol_accounts::JIG_PATCH_SET,
         jig_protocol_store::PatchSet {
+            level: Some(15),
             patches: &[
                 include_str!("../../../crates/temper-protocol-store/patches/0001.patch"),
                 include_str!("../../../crates/temper-protocol-store/patches/0002.patch"),

@@ -1,6 +1,9 @@
 # attention: status
 
-2026-11-11. Where the tree's code lags or departs from [attention.md](attention.md).
+2026-11-16. Where the tree's code lags or departs from [attention.md](attention.md).
+
+
+
 
 
 - **Not yet:** 5: a standing role's Decided rows for its person and Overturn waking it, held by no story (`../agent/standing.md`, section 3).

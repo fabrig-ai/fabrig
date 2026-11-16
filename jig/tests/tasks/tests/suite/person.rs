@@ -16,7 +16,6 @@ fn notified(world: &World, task: u64) -> &tasks::ActivityLine {
                 Some(line)
             }
             tasks::Stored::Activity(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PersonProposal(_)

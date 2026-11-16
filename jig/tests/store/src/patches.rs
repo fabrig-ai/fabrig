@@ -6,6 +6,7 @@ use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Secret;
 use std::collections::BTreeMap;
 const LABEL: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -16,6 +17,7 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -30,6 +32,7 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -40,6 +43,7 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    retired: &[],
     current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -55,6 +59,7 @@ const APPLICATION: PatchSet = PatchSet {
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
+    level: Some(2),
     patches: app::PATCHES,
 };
 const JIG: PatchSet = PatchSet {
@@ -63,6 +68,7 @@ const JIG: PatchSet = PatchSet {
     owner: Owner::Jig,
     name: upstream::NAME,
     families: &[NOTE],
+    level: Some(2),
     patches: jig::PATCHES,
 };
 pub const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
@@ -86,6 +92,7 @@ pub const BASE: PatchSets = PatchSets {
                     ..TOKEN
                 },
             ],
+            level: Some(0),
             patches: &[],
             ..APPLICATION
         },
@@ -95,6 +102,7 @@ pub const BASE: PatchSets = PatchSets {
                 texts: &[jig::kept::fixture_note::TEXTS[0]],
                 ..NOTE
             }],
+            level: Some(0),
             patches: &[],
             ..JIG
         },
@@ -402,9 +410,11 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
+            level: Some(2),
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
+                retired: &[],
                 current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
                 types: &[],
                 flights: &[],
@@ -419,9 +429,11 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
+            level: Some(1),
             patches: jig_test_patches_smith::patches::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
+                retired: &[],
                 current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
                 types: &[],
                 flights: &[],
@@ -438,6 +450,7 @@ pub const FRESH_BEFORE: PatchSets = PatchSets {
     sets: &[
         FRESH_AFTER.sets[0],
         PatchSet {
+            level: Some(0),
             patches: &[],
             families: &[KeptFamily {
                 current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],
