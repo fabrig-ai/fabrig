@@ -15,7 +15,7 @@ pub(crate) fn render(
     let session = ledger.sessions.iter().find(|session| session.number == start.session).expect("recorded session");
     let resumed = session.before.as_ref().is_some_and(|before| before.state.is_some());
     let mut text = String::from(
-        "# What a pass is\n\nRun the green path only. Start each case from its setup's restored copy, restoring between cases. Cases on one setup may share a restore only where none changes what the next sees; say which in the outcome's notes. Compare a page's words where a case gives them (see, as a `web see` line for a `web` case and a `tui see` line for a `tui` case); judge the rest against the draft's promises. A `tui` case's steps are `tui` lines; the TUI starts at its first line and the session signs it in. Keep its finding's evidence as the screen's rows: `pass line \"tui look\"`'s answer saved to a file. Looks are a person's judgement, not this pass's. Record each outcome as reached and each finding as found. A finding never stops the pass. Blocked is for the pass's own reasons, failed for temper's. What is off the path is a note unless it is a security hole or lost data. A fault beside a case on its landing's surface is a finding. The fakes alone: the person's forge is the box's fake Forgejo. A case that would set up the box's own Forgejo or reach any real backend is blocked, naming it.\n\n## Pass\n\n",
+        "# What a pass is\n\nRun the green path only. Run ctl cases first in a ctl session, `temper-qa pass open --ctl`, with no browser. A ctl case's steps are ctl and forge lines; compare its see with what ctl printed. Start each case from its setup's restored copy, restoring between cases. Cases on one setup may share a restore only where none changes what the next sees; say which in the outcome's notes. Compare a page's words where a case gives them (see, as a `web see` line for a `web` case and a `tui see` line for a `tui` case); judge the rest against the draft's promises. A `tui` case's steps are `tui` lines; the TUI starts at its first line and the session signs it in. Keep its finding's evidence as the screen's rows: `pass line \"tui look\"`'s answer saved to a file. Looks are a person's judgement, not this pass's. Record each outcome as reached and each finding as found. A finding never stops the pass. Blocked is for the pass's own reasons, failed for temper's. What is off the path is a note unless it is a security hole or lost data. A fault beside a case on its landing's surface is a finding. The fakes alone: the person's forge is the box's fake Forgejo. A case that would set up the box's own Forgejo or reach any real backend is blocked, naming it.\n\n## Pass\n\n",
     );
     writeln!(text, "Pass {}; place {}; build {}", pass.number, pass.place, pass.build).expect("string");
     if resumed {
@@ -26,11 +26,12 @@ pub(crate) fn render(
     }
     writeln!(text, "Session {}; bound {} seconds.\n\n## Landings\n", start.session, home.configuration.bounds.pass)
         .expect("string");
-    let cases: Vec<_> = ledger
+    let mut cases: Vec<_> = ledger
         .cases
         .iter()
         .filter(|case| case.pass == Some(pass.number) && case.state == CaseState::Assigned)
         .collect();
+    cases.sort_by_key(|case| (case.surface != "ctl", case.surface != "web"));
     write_landings(git, &mut text, ledger, &cases)?;
     if resumed {
         write_resume(&mut text, ledger, session, &cases);
@@ -88,9 +89,9 @@ fn write_resume(text: &mut String, ledger: &Ledger, session: &Session, cases: &[
         writeln!(text, "Expected: {}\nSeen: {}", finding.expected, finding.seen).expect("string");
     }
     text.push_str("\n## Failed cases\n\nRun these after the open findings.\n");
-    for before in &session.before.as_ref().expect("resume snapshot").cases {
-        if before.state == CaseState::Failed {
-            let case = cases.iter().find(|case| case.number == before.number).expect("resumed case");
+    let before = &session.before.as_ref().expect("resume snapshot").cases;
+    for case in cases {
+        if before.iter().any(|before| before.number == case.number && before.state == CaseState::Failed) {
             write_case(text, case);
         }
     }
@@ -147,7 +148,7 @@ const COMMANDS: &str = r#"
 
 Place commands:
 - `temper-qa pass setup NAME`: restore fresh or a recipe of this pass's setups. Close the drive session first. A broken recipe exits 5, a refused store 3, a failed box 4.
-- `temper-qa pass open`: start the restored setup's drive session; it answers ready. Restore a setup first.
+- `temper-qa pass open [--ctl]`: start the restored setup's drive session; it answers ready. Restore a setup first.
 - `temper-qa pass line LINE`: LINE one shell argument, a drive line; prints its answer, exit 0 for ok, 5 for a failed line, 4 for the failed box.
 - `temper-qa pass close`: stop the drive session and print its kept lines. Looks stay until the next session; record evidence before then.
 - `temper-qa pass recipe NAME FILE`: FILE a JSON object (or - for stdin): {"after":"fresh or nearest setup","lines":["web see Ready"],"readme":"The state reached.","scripts":{}}; scripts optional. Close the drive session first. This writes and proves a new recipe by walking it from its parent.

@@ -186,7 +186,7 @@ const REPORT: Command = Command {
 };
 const OPEN: Command = drive_command(
     &["pass", "open"],
-    &[""],
+    &["[--ctl]"],
     "Start a holder for the restored setup and print the drive session's start.",
     &[],
     "Requires setup and no live holder. Exit 0: ready; 3: store refused; 4: box failed or start exceeded 300 seconds; 1: refused.",
@@ -207,7 +207,7 @@ const CLOSE: Command = drive_command(
 );
 const HOLD: Command = drive_command(
     &["pass", "hold"],
-    &[""],
+    &["[--ctl]"],
     "Hold the drive session on the place's socket until closed or the pass session ends.",
     &[],
     "Owns drive.lock for its life and drive.sock at mode 0600. Watches the ledger every five seconds. Gives end, then kills only the drive session's process group past 70 seconds.",
@@ -374,6 +374,13 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected a pass number".into()),
         };
     }
+    if command == &OPEN || command == &HOLD {
+        return match rest {
+            [] => Ok(rest),
+            [flag] if flag.as_ref() == b"--ctl" => Ok(rest),
+            _ => Err("expected [--ctl]".into()),
+        };
+    }
     if command == &NONE || command == &CASE || command == &FINDING || command == &NOTE || command == &LINE {
         let name = if command == &NONE {
             "WHY"
@@ -409,7 +416,8 @@ fn drive_command_run(
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
-    let drive = crate::hold::Drive::for_session(&home, session)?;
+    let drive = crate::hold::Drive::for_session(&home, session)?
+        .with_ctl(arguments.iter().any(|argument| argument.as_ref() == b"--ctl"));
     if command == &OPEN {
         return drive.open(&environment.to_vec());
     }

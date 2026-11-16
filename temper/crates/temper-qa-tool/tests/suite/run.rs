@@ -902,3 +902,30 @@ fn bounded_requests_are_not_filed_and_real_commands_are_killed_at_the_bound() {
     assert_eq!(RealProcesses::default().run(&command, 0).expect("bounded command").exit, Exit::Bound);
     assert!(!command.output.with_extension("stdout").exists(), "temporary stdout is removed");
 }
+
+#[test]
+fn triage_lists_ctl_groups_from_the_merge_tree_before_web_and_tui() {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    for name in ["ctl-task.md", "ctl-project.md", "ctl.md", "help.md", "ctl-no.txt", "ctl-directory/README.md"] {
+        run.git.file_at(2, &format!("temper/docs/help/reference/{name}"), b"# Reference");
+    }
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.sessions[0].pages["ctl"], ["project", "task"]);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    let surfaces = brief.split("## Surfaces").nth(1).expect("surfaces").split("## Setups").next().expect("section");
+    assert!(surfaces.find("- ctl: project:").expect("ctl first") < surfaces.find("- web:").expect("web"));
+    assert!(surfaces.find("- web:").expect("web") < surfaces.find("- tui:").expect("tui"));
+    for words in [
+        "- ctl: task: temper/docs/help/reference/ctl-task.md",
+        "temper/docs/design/client/ctl/README.md",
+        "temper/docs/design/client/ctl/tools.md",
+        "through ctl, the web client or the TUI, ctl first",
+    ] {
+        assert!(brief.contains(words), "{words}\n{brief}");
+    }
+    assert!(!brief.contains("ctl and help are outside"));
+}

@@ -214,7 +214,7 @@ fn case(value: &Value) -> Result<Case, Refusal> {
         return Err(refused("case has no asks"));
     }
     let surface = text(object, "surface")?;
-    if surface != "web" && surface != "tui" {
+    if surface != "ctl" && surface != "web" && surface != "tui" {
         return Err(refused(format!("unknown case surface {surface}")));
     }
     Ok(Case {

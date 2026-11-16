@@ -84,9 +84,12 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
                 &format!("printf '%s\\n' \"$*\" > '{}'; printf 'ready", place.join("arguments").display()),
             );
         fs::write(fake, script).expect("output path");
-        let holder =
-            Holder::start(Drive::for_session(&home, pass.session).expect("drive"), vec![], Duration::from_millis(1))
-                .expect("holder");
+        let holder = Holder::start(
+            Drive::for_session(&home, pass.session).expect("drive").with_ctl(fixed),
+            vec![],
+            Duration::from_millis(1),
+        )
+        .expect("holder");
         assert_mode(&place.join("drive.lock"), 0o600);
         assert_mode(&place.join("drive.sock"), 0o600);
         let lock = fs::File::open(place.join("drive.lock")).expect("lock");
@@ -105,5 +108,6 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
         assert!(args.contains(&format!("--files {}", home.directory.join("passes/1/files").display())), "{args}");
         assert_eq!(args.contains("--ports 31001,31002,31003,31004,31005,31006,31007,31008,31009"), fixed, "{args}");
         assert_eq!(args.contains("--ports"), fixed, "{args}");
+        assert_eq!(args.split_whitespace().any(|word| word == "--ctl"), fixed, "{args}");
     }
 }

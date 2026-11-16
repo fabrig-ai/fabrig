@@ -53,7 +53,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 ### `temper-qa pass open`
 
 - **Set:** internal
-- **Forms:** ``
+- **Forms:** `[--ctl]`
 - Start a holder for the restored setup and print the drive session's start.
 - **Notes:** Requires setup and no live holder. Exit 0: ready; 3: store refused; 4: box failed or start exceeded 300 seconds; 1: refused.
 
@@ -75,7 +75,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 ### `temper-qa pass hold`
 
 - **Set:** internal
-- **Forms:** ``
+- **Forms:** `[--ctl]`
 - Hold the drive session on the place's socket until closed or the pass session ends.
 - **Notes:** Owns drive.lock for its life and drive.sock at mode 0600. Watches the ledger every five seconds. Gives end, then kills only the drive session's process group past 70 seconds.
 

@@ -78,16 +78,19 @@ impl Configuration {
                 area: request.get("area").map(d::string).transpose()?.unwrap_or_else(|| owner.clone()),
             };
             let (places, ports) = places(object.get("places"), home)?;
-            let surfaces =
-                object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into(), "tui".into()]);
+            let surfaces = object
+                .get("surfaces")
+                .map(d::strings)
+                .transpose()?
+                .unwrap_or_else(|| vec!["ctl".into(), "web".into(), "tui".into()]);
             for surface in &surfaces {
-                if surface != "web" && surface != "tui" {
-                    return Err(refused(format!("surfaces: {surface} is neither web nor tui")));
+                if surface != "ctl" && surface != "web" && surface != "tui" {
+                    return Err(refused(format!("surfaces: {surface} is not ctl, web or tui")));
                 }
             }
             let mut areas = std::collections::BTreeMap::new();
             if let Some(value) = object.get("areas") {
-                for (surface, area) in d::object(value, &["web", "tui"])? {
+                for (surface, area) in d::object(value, &["ctl", "web", "tui"])? {
                     areas.insert(surface.clone(), d::string(area)?);
                 }
             }
@@ -139,10 +142,13 @@ fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
         let (name, list) = if value.is_string() {
             (d::string(value)?, None)
         } else {
-            let object = d::object(value, &["directory", "ports"])?;
+            let object = d::object(value, &["directory", "kind", "ports"])?;
             let name = nonempty(object, "directory")?;
-            let list = d::required(object, "ports").map_err(|why| refused(format!("place {name}: {why}")))?;
-            (name, Some(list))
+            let kind = object.get("kind").map(d::string).transpose()?.unwrap_or_else(|| "box".into());
+            if kind != "box" {
+                return Err(refused(format!("place {name}: kind {kind} is not supported; only box places are built")));
+            }
+            (name, object.get("ports"))
         };
         if name.trim().is_empty() {
             return Err(refused(format!("place {name:?}: directory is empty")));

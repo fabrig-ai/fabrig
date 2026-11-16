@@ -317,6 +317,11 @@ impl Machine {
             }
         };
         let record = self.current.as_ref().expect("current line").record();
+        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
+            self.current = None;
+            self.answer(Some("this session takes ctl and forge lines alone".into()), out);
+            return;
+        }
         if matches!(record, Record::End) {
             self.end(now, out);
             return;
@@ -476,6 +481,11 @@ impl Machine {
             Process::SignIn if self.phase == Phase::SignIn => {
                 if code != 0 {
                     self.fail_box(format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr)), now, out);
+                } else if self.plan.options.ctl {
+                    self.first = None;
+                    self.phase = Phase::Ready;
+                    self.until = None;
+                    out.push(Action::Ready);
                 } else {
                     self.wait(Phase::Spent, now, Duration::from_secs(30));
                     out.push(Action::Open(self.first.clone().expect("first link")));
@@ -652,6 +662,9 @@ impl Machine {
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
             out.extend([Action::CancelFace, Action::StopCtl, Action::StopTui]);
+        } else if self.plan.options.ctl {
+            out.push(Action::StopCtl);
+            self.stop_box(now, out);
         } else {
             self.wait(Phase::ClosingBrowser, now, STEP);
             out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);

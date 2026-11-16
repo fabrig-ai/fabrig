@@ -67,23 +67,8 @@ impl Holder {
             let (output, child_output) = UnixStream::pair().map_err(io_refusal)?;
             input.set_nonblocking(true).map_err(io_refusal)?;
             output.set_nonblocking(true).map_err(io_refusal)?;
-            let mut command = Command::new(drive.place.bin.join("temper-client-journeys"));
+            let mut command = drive.session_command(&scripts);
             crate::faces::captured(&mut command, &environment);
-            command
-                .arg("drive")
-                .arg("--bin")
-                .arg(&drive.place.bin)
-                .arg("--bundle")
-                .arg(&drive.place.bundle)
-                .arg("--scratch")
-                .arg(&drive.place.scratch);
-            for script in scripts {
-                command.arg("--scripts").arg(script);
-            }
-            command.arg("--strict").arg("--files").arg(&drive.files);
-            if let Some(ports) = &drive.place.ports {
-                command.args(["--ports", ports]);
-            }
             let child = command
                 .stdin(Stdio::from(OwnedFd::from(child_input)))
                 .stdout(Stdio::from(OwnedFd::from(child_output)))

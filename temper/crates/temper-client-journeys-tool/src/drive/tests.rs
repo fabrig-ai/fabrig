@@ -10,6 +10,7 @@ fn plan() -> Plan {
             scratch: "/scratch".into(),
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
+            ctl: false,
             ports: None,
             files: None,
         },
@@ -448,6 +449,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scratch: root.into(),
         scripts: vec![],
         strict: false,
+        ctl: false,
         ports: None,
         files: Some(root.join("files")),
     };
@@ -504,4 +506,126 @@ fn files_option_parses_and_refuses_a_non_directory_before_preparing_the_session(
     let why = super::options::prepare(options, &[]).expect_err("not a directory");
     assert!(why.contains("--files") && why.contains("not-a-directory"), "{why}");
     assert_eq!(std::fs::read(scratch.path().join("session/lines")).expect("untouched"), b"kept");
+}
+
+fn ctl_ready() -> Machine {
+    let mut plan = plan();
+    plan.options.ctl = true;
+    plan.chromium = PathBuf::new();
+    let (mut machine, actions) = Machine::start(plan, Time::ZERO);
+    assert!(matches!(actions.as_slice(), [Action::Start { process: Process::Box, .. }]));
+    let actions = step(
+        &mut machine,
+        Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
+    );
+    assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::Start { process: Process::SignIn, .. }]));
+    assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::Ready]));
+    assert!(machine.ready());
+    machine
+}
+
+#[test]
+fn ctl_start_is_ready_after_sign_in_and_stops_without_a_browser() {
+    let mut machine = ctl_ready();
+    let actions = line(&mut machine, "ctl task list");
+    assert!(
+        matches!(actions.as_slice(), [Action::Start { process: Process::Ctl, program }] if program.input == Input::Null)
+    );
+    let actions = step(&mut machine, exited(Process::Ctl, 0));
+    assert!(answer(&actions).failed.is_none());
+    assert!(
+        matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == b"ctl task list")
+    );
+    let actions = step(&mut machine, Event::End);
+    assert!(matches!(actions.as_slice(), [Action::StopCtl, Action::TerminateBox]));
+    assert_eq!(finish(&step(&mut machine, exited(Process::Box, 0))).status, 0);
+}
+
+#[test]
+fn ctl_session_refuses_web_tui_and_looks_unkept_and_keeps_numbering() {
+    let mut machine = ctl_ready();
+    for (index, source) in
+        [r#"web see "Ready""#, "tui key enter", "web look", "web look 800", "tui look"].iter().enumerate()
+    {
+        let actions = line(&mut machine, source);
+        let number = index + 1;
+        assert_eq!(
+            answer(&actions).print(),
+            format!("failed: line {number}: this session takes ctl and forge lines alone\n")
+        );
+        assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{actions:?}");
+        assert!(machine.ready());
+    }
+    assert!(answer(&line(&mut machine, "")).failed.is_none());
+    assert!(matches!(line(&mut machine, "ctl task list").as_slice(), [Action::Start { process: Process::Ctl, .. }]));
+    assert_eq!(answer(&step(&mut machine, exited(Process::Ctl, 1))).failed.as_deref(), Some("line 7: exit 1"));
+}
+
+#[test]
+fn ctl_preflight_needs_no_chromium_but_keeps_the_box_bundle_requirement() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = skein_scratch::Scratch::new("drive-ctl-preflight");
+    let root = scratch.path();
+    fs::create_dir(root.join("bin")).expect("bin");
+    fs::create_dir(root.join("bundle")).expect("bundle");
+    for name in ["temper-box", "fake-claude", "temper"] {
+        let path = root.join("bin").join(name);
+        fs::write(&path, b"not executed").expect("binary fixture");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("executable");
+    }
+    let args = ["--ctl", "--bin", "bin", "--bundle", "bundle", "--scratch", "scratch"]
+        .iter()
+        .map(|word| word.as_bytes().into())
+        .collect::<Vec<Box<[u8]>>>();
+    let mut options = Options::parse(&args).expect("ctl option");
+    options.bin = root.join("bin");
+    options.bundle = root.join("bundle");
+    options.scratch = root.into();
+    let why = super::options::prepare(options.clone(), &[]).expect_err("box needs bundle");
+    assert!(why.contains("index.html"), "{why}");
+    fs::write(root.join("bundle/index.html"), b"index").expect("box bundle");
+    let plan = super::options::prepare(options.clone(), &[]).expect("no Chromium configured or present");
+    assert!(plan.chromium.as_os_str().is_empty());
+    assert!(plan.options.ctl);
+    let invalid_chromium = vec![(b"SKEIN_TEST_CHROMIUM".as_slice().into(), b"/missing/chromium".as_slice().into())];
+    super::options::prepare(options.clone(), &invalid_chromium).expect("Chromium is not sought in ctl mode");
+    options.ctl = false;
+    assert!(
+        super::options::prepare(options, &[])
+            .expect_err("web mode still needs Chromium")
+            .contains("SKEIN_TEST_CHROMIUM")
+    );
+}
+
+#[test]
+fn ctl_session_runs_forge_checks_and_keeps_the_line() {
+    let mut machine = ctl_ready();
+    assert!(matches!(
+        line(&mut machine, "forge checks forgejo playground/widget").as_slice(),
+        [Action::ReadBoxLog { .. }]
+    ));
+    let log =
+        b"box: fake forgejo http://127.0.0.1:8002\nbox: Forgejo elsewhere admin token file /scratch/admin.token\n";
+    let actions = step(&mut machine, Event::BoxLog(Ok(log.as_slice().into())));
+    assert!(
+        matches!(actions.as_slice(), [Action::ForgeRequest { path, .. }] if path.as_ref() == b"/repos/playground/widget")
+    );
+    let actions = step(
+        &mut machine,
+        Event::ForgeResponse { status: 200, body: br#"{"default_branch":"main"}"#.as_slice().into() },
+    );
+    assert!(
+        matches!(actions.as_slice(), [Action::ForgeRequest { path, .. }] if path.as_ref() == b"/repos/playground/widget/commits/main/status")
+    );
+    let actions = step(
+        &mut machine,
+        Event::ForgeResponse {
+            status: 200,
+            body: br#"{"state":"success","sha":"head","statuses":[]}"#.as_slice().into(),
+        },
+    );
+    assert_eq!(answer(&actions).print(), "| head\nok\n");
+    assert!(
+        matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == b"forge checks forgejo playground/widget")
+    );
 }

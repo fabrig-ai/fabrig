@@ -95,8 +95,8 @@ fn field(object: &serde_json::Map<String, Value>, name: &str, absent: &str) -> R
     value.map(String::from).ok_or_else(|| refused(absent))
 }
 fn check_surface(surface: &str) -> Result<(), Refusal> {
-    if surface != "web" && surface != "tui" {
-        return Err(refused(format!("surface {surface} is neither web nor tui")));
+    if surface != "ctl" && surface != "web" && surface != "tui" {
+        return Err(refused(format!("surface {surface} is not ctl, web or tui")));
     }
     Ok(())
 }

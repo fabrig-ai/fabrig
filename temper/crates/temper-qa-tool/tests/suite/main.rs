@@ -16,7 +16,12 @@ mod world;
 use temper_qa_tool::{CaseInput, Ledger, Pages};
 
 fn pages() -> Pages {
-    [("web".into(), vec!["work".into(), "home".into()]), ("tui".into(), vec!["chat".into()])].into()
+    [
+        ("ctl".into(), vec!["task".into(), "project".into()]),
+        ("web".into(), vec!["work".into(), "home".into()]),
+        ("tui".into(), vec!["chat".into()]),
+    ]
+    .into()
 }
 fn landing(ledger: &mut Ledger, number: u64) {
     assert_eq!(ledger.record_landing(&format!("{number:040x}"), number + 10, None, "a landing", 0), Some(number));

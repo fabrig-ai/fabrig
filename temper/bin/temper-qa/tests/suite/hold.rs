@@ -236,3 +236,14 @@ fn box_failures_cross_line_and_close_with_status_four() {
     answer(&run(&home, &["pass", "close"]), 4, "box failed: fake stop\nkept lines:\n");
     free(&place);
 }
+
+#[test]
+fn ctl_open_passes_the_flag_through_the_holder_to_drive() {
+    let (_scratch, home, place) = home();
+    fs::write(place.join("setup"), "fresh\n").expect("setup");
+    answer(&run(&home, &["pass", "open", "--ctl"]), 0, "ready\n");
+    let arguments = fs::read_to_string(home.directory.join("arguments")).expect("drive arguments");
+    assert_eq!(arguments.lines().filter(|word| *word == "--ctl").count(), 1, "{arguments}");
+    answer(&run(&home, &["pass", "close"]), 0, "ended\nkept lines:\n");
+    free(&place);
+}
