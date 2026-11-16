@@ -66,10 +66,7 @@ pub(super) fn opened(
     before: crate::upgrade::admission::Levels,
     counts: List<crate::upgrade::check::Counted>,
 ) -> Option<Sealing> {
-    let key = Key::Core(CoreKey::Deployment);
-    let encoded = keys::encode(&key, store.limits.store.key)?;
-    let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
-    let record = codec::decode(&key, &bytes, &store.codec_limits, &store.names)?;
+    let record = open::decode_header(store)?;
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
         Record::Core(

@@ -42,3 +42,5 @@ pub use world::{ENDINGS, LIMITS, Settings, Stats, World};
 pub mod turns;
 
 pub mod fixtures;
+
+mod restart;

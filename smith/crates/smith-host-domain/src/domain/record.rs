@@ -78,6 +78,7 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                     | Sent::Message
                     | Sent::Call(_)
                     | Sent::Ack(_)
+                    | Sent::Renewals
                     | Sent::Grant
                     | Sent::Cancel
                     | Sent::Drain,

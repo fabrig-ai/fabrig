@@ -1,6 +1,9 @@
 //! The parser against the engine's renderer, not a second formatter (redeploy.md, 8).
 use jig_protocol_worker_wire::Agreed;
-use temper_redeploy_tool::openings::{Event, parse};
+use temper_redeploy_tool::{
+    openings::{Event, parse, parse_told},
+    record::Told,
+};
 
 #[test]
 fn rendered_worker_openings_parse_back_to_names_and_ordered_wires_seeded() {
@@ -32,6 +35,42 @@ fn rendered_worker_openings_parse_back_to_names_and_ordered_wires_seeded() {
         assert_eq!(parse(&line), Some(Event::Opened { worker: name, wires: expected }), "seed {seed}: {line:?}");
     }
 }
+#[test]
+fn rendered_stop_notes_parse_back_to_names_and_waits_seeded() {
+    let mut random = 0x8ac3_42e1_u64;
+    for seed in 0..2048 {
+        let worker = if seed < 6 {
+            [
+                "",
+                "worker with spaces",
+                "λ worker",
+                "a told the engine restarts: wait 12 ms",
+                "a not told the engine restarts: b",
+                "a serve: worker b",
+            ][seed]
+                .as_bytes()
+                .to_vec()
+        } else {
+            let length = usize::try_from(next(&mut random) % 64).unwrap();
+            (0..length).map(|_| u8::try_from(next(&mut random) % 256).unwrap()).collect()
+        };
+        let name = String::from_utf8_lossy(&worker).into_owned();
+        for wait in [None, Some(skein_lib::Duration::from_nanos(next(&mut random)))] {
+            let version = u16::try_from(next(&mut random) % 65536).unwrap();
+            let line = temper_engine_shell::lines::note_line(
+                "temper-engine",
+                temper_engine_service::Note::WorkerTold { worker: worker.clone().into_boxed_slice(), version, wait },
+            );
+            let prefixed = format!("Nov 16 host {line}");
+            assert_eq!(
+                parse_told(&prefixed),
+                Some(Told { worker: name.clone(), wait_ms: wait.map(skein_lib::Duration::as_millis) }),
+                "seed {seed}: {prefixed:?}"
+            );
+        }
+    }
+}
+
 fn next(random: &mut u64) -> u64 {
     *random ^= *random << 13;
     *random ^= *random >> 7;

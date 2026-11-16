@@ -402,10 +402,14 @@ impl World {
                     | agent::Reply::Busy
                     | agent::Reply::Unavailable
                     | agent::Reply::Withdrawn
+                    | agent::Reply::Unsent
                     | agent::Reply::TooLarge) => panic!("unexpected delivery result: {other:?}"),
                 }
             }
-            agent::Down::Acknowledge { .. } | agent::Down::Cancel | agent::Down::Drain => {}
+            agent::Down::Renewals { .. }
+            | agent::Down::Acknowledge { .. }
+            | agent::Down::Cancel
+            | agent::Down::Drain => {}
             agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
         }
     }

@@ -135,6 +135,10 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// The kept word supplied before the start adopts its claims (domain/engine/restart.md, 1).
+    Restarting {
+        wait: Duration,
+    },
     /// A worker application's read, fenced as a call (domain/hosts/hub.md, 10).
     Ask {
         channel: Token,
@@ -387,6 +391,8 @@ pub enum Event {
 /// fleet -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Once loaded, none of the start's claims is held for its kept word any more.
+    Discharged,
     Ask {
         channel: Token,
         run: Token,

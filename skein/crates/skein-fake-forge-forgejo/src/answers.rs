@@ -725,7 +725,11 @@ fn action_run(config: &Config, request: &Request, value: &a::Run) -> Result<d::R
             a::RunEvent::Dispatch => b"workflow_dispatch",
         }),
         trigger_actor: value.user,
-        status: action_status(value.state, value.conclusion),
+        status: match value.wait {
+            Some(a::JobWait::Runner) => d::StepStatus::Waiting,
+            Some(a::JobWait::Needs) => d::StepStatus::Blocked,
+            None => action_status(value.state, value.conclusion),
+        },
         html_url: url.finish(),
         created_at: Wall::from_nanos(value.created.as_nanos()),
     })

@@ -303,6 +303,7 @@ impl Component {
             smith_domain::Operation::Checks => smith_channel::Operation::Check,
             smith_domain::Operation::Completion => smith_channel::Operation::Completion,
             smith_domain::Operation::Command => smith_channel::Operation::Command,
+            smith_domain::Operation::Grant => smith_channel::Operation::Grant,
         };
         let record = match smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span }) {
             Ok(value) => value,

@@ -514,7 +514,7 @@ temper-engine                the engine's binary: the forge's commands through t
   answers; the plans' world, skein's, drives them against the fake forge
   (`testing.md`, 2).
 - **Not the throwaway's code.** `testing/skein-throwaway-forgejo` is a
-  test crate (skein's `testing/fakes/forge.md`, section 6). The production
+  test crate (skein's `testing/fakes/throwaway.md`, section 1). The production
   machines are written on skein, under the subset, and the process tier
   provisions its Forgejo with them (`testing.md`, 4).
 - **The fake forge serves the setup's documents** too

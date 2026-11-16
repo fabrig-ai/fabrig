@@ -32,6 +32,30 @@ fn a_drain_closes_accounts_then_the_store() {
     assert!(service.engine.as_ref().expect("engine").store.closed());
 }
 #[test]
+fn the_restart_word_tells_workers_before_drained_closes_their_part() {
+    use temper_engine_domain as root;
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.workers.host.component = super::reds_channel::opened_engine();
+    crate::stop::shutdown(engine);
+    let wait = skein_lib::Duration::from_secs(1200);
+    crate::route::request(engine, root::Request::Restarting { wait });
+    assert_eq!(engine.workers.host.ending(), None, "the workers' part is still open");
+    assert_eq!(
+        engine.workers.notes.pop(),
+        Some(crate::Note::WorkerTold {
+            worker: b"reader".as_slice().into(),
+            version: jig_protocol_worker_wire::VERSION,
+            wait: Some(wait),
+        }),
+        "the component told its admitted worker before close"
+    );
+    crate::route::request(engine, root::Request::Drained);
+    assert_eq!(engine.workers.host.ending(), Some(jig_protocol_engine_workers::host::Closing::Drain));
+    assert!(engine.drain.as_ref().expect("drain").closing);
+}
+
+#[test]
 fn signals_routed_from_io_drain_then_abort() {
     let mut service = fixtures::ready();
     service

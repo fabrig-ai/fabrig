@@ -1,4 +1,5 @@
 //! Real registered sets at open (protocol/store/layouts.md, 7).
+use super::upgrades::commits;
 use jig_protocol_store::{KeptFamily, OwnerSet, OwnerSets, ValueType, Write};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
@@ -77,15 +78,52 @@ fn sets(kept: bool, registered: bool) -> OwnerSets {
     OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
 
+// The source binary's registered header predates the restart wait field.
+fn kept_header(header: &jig_domain_core::Record) -> Box<[u8]> {
+    let family =
+        jig_protocol_store::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").expect("core family");
+    let current = skein_codec::schema::parse(family.current.as_bytes()).expect("current core text");
+    let kept = skein_codec::schema::parse(kept_text(family).as_bytes()).expect("kept core schema");
+    let plan = skein_codec::layout::Plan::derive(
+        &current,
+        current.root(b"Row", Some(b"deployment")).expect("current header root"),
+        &[],
+        &kept,
+        kept.root(b"Row", Some(b"deployment")).expect("kept header root"),
+        &[],
+    )
+    .expect("header at the source layout");
+    let limits = jig_protocol_store::codec::limits(&root::CORE_LIMITS).expect("codec limits");
+    let bytes = jig_protocol_store::codec::encode(header, &limits, &[]).expect("header encoded");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("fixed header bytes"));
+    plan.convert(&bytes, &mut out, &mut work).expect("header at kept layout");
+    Box::from(out.as_slice())
+}
+
 fn seeded(sets: OwnerSets) -> Vec<Item> {
     let mut world = World::unopened(7);
     world.owner_sets(sets);
     assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
+    let header = root::header(1);
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
+    let key = jig_protocol_store::keys::encode(&header.key(), 64).expect("header key");
+    let value = kept_header(&header);
     world
         .contents()
         .into_iter()
         .map(|(path, bytes)| match bytes {
+            Some(bytes) if path.starts_with(b"generations/1/store/log-") => {
+                let mut puts = commits::commit_keys(&bytes).expect("one source commit of puts");
+                for (found, bytes) in &mut puts {
+                    if *found == key {
+                        bytes.clone_from(&value);
+                    }
+                }
+                let frame = commits::source_commit(&puts, 1);
+                Item::file(&path, &frame).mode(0o600)
+            }
             Some(bytes) => Item::file(&path, &bytes).mode(0o600),
             None => Item::directory(&path).mode(0o700),
         })

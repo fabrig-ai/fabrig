@@ -128,6 +128,7 @@ fn profile() -> root::Limits {
         progress_bytes: 64,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };

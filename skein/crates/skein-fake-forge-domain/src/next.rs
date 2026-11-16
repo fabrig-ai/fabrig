@@ -10,7 +10,7 @@ use crate::pulls;
 use crate::store::Repository;
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Id, List, Map, usize_of};
+use skein_lib::{Id, List, Map};
 
 /// Counts the same differing paths as `PullFiles`, without its page or answer cap.
 /// Lines match as a multiset (testing/fakes/forge.md, 2.2).
@@ -212,32 +212,9 @@ pub(crate) fn job(domain: &Domain, limits: &Limits, repository: &Repository, id:
 }
 
 fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
-    let (_, mut job) = crate::actions::latest(repository, id)?;
-    let run = crate::actions::run(repository, job.run)?;
-    if run.run.workflow.is_none() && job.state == crate::api::RunState::Completed {
-        let state = match job.conclusion {
-            Some(crate::api::Conclusion::Success) => Check::Passed,
-            Some(crate::api::Conclusion::Failure | crate::api::Conclusion::Cancelled) => Check::Failed,
-            None => unreachable!("a completed CI job has a conclusion"),
-        };
-        let cue = crate::ci::effective(
-            domain,
-            run.run.commit,
-            &job.name,
-            crate::ci::cue(&repository.checks, &job.name),
-            run.pull,
-            limits,
-        );
-        job.steps = crate::actions::outcome_steps(
-            &job.name,
-            state,
-            *repository.failing.get(usize_of(job.index)).expect("CI context"),
-            cue.as_ref(),
-            run.pull,
-            repository.opening.get(usize_of(job.index)).expect("CI context"),
-        );
-    }
-    Ok(job)
+    let (_, job) = crate::actions::latest(repository, id)?;
+    let kept = crate::actions::run(repository, job.run)?;
+    Ok(crate::actions::view(domain, limits, repository, kept, job))
 }
 
 pub(crate) fn log(

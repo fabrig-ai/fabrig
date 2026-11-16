@@ -263,6 +263,18 @@ fn spawn(agent: &mut Domain, env: &Env<Limits>, client: Token, start: host::Star
 #[expect(clippy::too_many_lines, reason = "each parent control has one typed route to its live root")]
 fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mut Queue<Output>) {
     match event {
+        parent::Event::Renewals { held } => {
+            let mut live = List::with_capacity(env.limits.slots);
+            for (id, slot) in &agent.slots {
+                match slot.state {
+                    State::Live | State::Cancelling { .. } => live.push(id).expect("room for each slot"),
+                    State::Settling(_) | State::Gone => {}
+                }
+            }
+            for id in &live {
+                root_step(agent, env, *id, smith::Event::Renewals { held }, out);
+            }
+        }
         parent::Event::Spawn { client, start } => spawn(agent, env, client, start, out),
         parent::Event::Message { finish_requested, agent: handle, name, label, text } => {
             let id = Id::<Slot>::from_token(handle);

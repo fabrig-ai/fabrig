@@ -199,7 +199,8 @@ policy.
   deadline for it bounds; and while a turn waits for room to be sent
   (section 6). It stretches to the span of the long operations the run
   reports (its checks, its LLM completions, its commands, its `job`
-  calls' waits), each bounded by the run's own deadlines, until the run
+  calls' waits, a completion's wait for a grant: session.md, section 4),
+  each bounded by the run's own deadlines, until the run
   says each is done. A job that runs on between calls is no long
   operation: the run reports the calls that read it. What
   silence remains is the run's own steps and io's short operations, and
@@ -311,6 +312,13 @@ policy.
   source's name, never the credential, so that a host in one process can
   refuse what it cannot run (section 9.1). A host lends as a key only a
   credential it never renews.
+- **Renewals held:** a host whose grants come from elsewhere tells each
+  run when it can renew none, and when it can again: its parent says so
+  (`parent::Event::Renewals { held }`) and the kit sends `renewals` down
+  each live run's channel (protocol/channel.md, sections 3 and 6). A
+  worker's root says held at its link's loss and not held at the next
+  hello (jig's `domain/hosts/hub.md`, 6); a host whose grants are its
+  own never holds them.
 - **Notices go up for the host to act on:** a credential unauthorized,
   an account limited, an account refused. The run that met one ends
   failed for its account, except an unauthorized bearer, which a

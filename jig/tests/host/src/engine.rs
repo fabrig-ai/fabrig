@@ -242,6 +242,7 @@ impl Engine {
                 | ToAgent::Answer { .. }
                 | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
+                | ToAgent::Renewals { .. }
                 | ToAgent::Grant { .. },
             )
             | Request::DeliverUnchecked { .. }

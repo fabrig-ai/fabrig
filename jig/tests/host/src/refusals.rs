@@ -91,6 +91,7 @@ impl Referee {
                 | ToAgent::Acknowledge { .. }
                 | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
+                | ToAgent::Renewals { .. }
                 | ToAgent::Grant { .. },
             )
             | Request::DeliverUnchecked { .. }

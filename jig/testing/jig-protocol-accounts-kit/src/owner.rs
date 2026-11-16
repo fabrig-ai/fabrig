@@ -354,6 +354,7 @@ impl Owner {
             let number = last + 1;
             let header = core::Record::Core(core::CoreRecord::Deployment(core::Deployment {
                 id: fixtures::DEPLOYMENT,
+                restart_wait_ms: None,
                 tasks: 0,
                 people: 0,
                 sign_ins: 0,
