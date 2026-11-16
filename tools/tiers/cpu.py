@@ -79,6 +79,18 @@ def stop(process, deadline):
     process.wait()
 
 
+def gate_ceilings(profile):
+    """Map (tree, layer) to its ceiling (tools/tiers/budgets.md, 10)."""
+    ceilings = {(tree, layer): row['cpu_s']
+                for tree in GROUPS for layer, row in profile.get(tree, {}).items()
+                if layer != 'ideal_s'}
+    for move in profile.get('moves', []):
+        source, target = tuple(move['from'].split('.')), tuple(move['to'].split('.'))
+        ceilings[source] = ceilings.get(source, 0) - move['cpu_s']
+        ceilings[target] = ceilings.get(target, 0) + move['cpu_s']
+    return ceilings
+
+
 def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
     with Path(path).open("rb") as source:
         data = tomllib.load(source)
@@ -107,12 +119,13 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 validate(f"tools.{suite}", limits)
         elif pair == "gate":
             with Path(layers).open('rb') as source:
-                layer_names = set(tomllib.load(source)['layers'])
+                layer_order = tomllib.load(source)['layers']
+                layer_names = set(layer_order)
             if not isinstance(values, dict) or values.keys() - {'default', 'fuzzy'}:
                 raise ValueError("gate budgets must be a table keyed by default or fuzzy")
             for profile, groups in values.items():
                 name = f'gate.{profile}'
-                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references'}:
+                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references', 'moves'}:
                     raise ValueError(f'invalid budget groups for {name}')
                 references = groups.get('references')
                 if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
@@ -120,7 +133,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for layer, value in references.items():
                     seconds(f'{name}.references.{layer}', value)
                 for group, table in groups.items():
-                    if group == 'references':
+                    if group in ('references', 'moves'):
                         continue
                     allowed = {'checks'} if group == 'repository' else layer_names
                     if (not isinstance(table, dict) or 'ideal_s' not in table
@@ -137,6 +150,30 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                             seconds(f'{name}.{group}.{layer}.{key}', value)
                         if 'reference_s' not in row and layer not in references:
                             raise ValueError(f'no reference for {name}.{group}.{layer}')
+                moves = groups.get('moves', [])
+                if not isinstance(moves, list):
+                    raise ValueError(f'{name}.moves must be an array of tables')
+                for index, move in enumerate(moves):
+                    label = f'{name}.moves[{index}]'
+                    if not isinstance(move, dict) or move.keys() != {'from', 'to', 'cpu_s', 'why'}:
+                        raise ValueError(f'invalid move keys for {label}')
+                    endpoints = {}
+                    for key in ('from', 'to'):
+                        value = move[key]
+                        parts = value.split('.') if isinstance(value, str) else []
+                        if len(parts) != 2 or parts[0] not in GROUPS[:-1] or parts[1] not in layer_names:
+                            raise ValueError(f'{label}.{key} must be TREE.LAYER of a tree and layer')
+                        endpoints[key] = parts
+                    if layer_order.index(endpoints['to'][1]) >= layer_order.index(endpoints['from'][1]):
+                        raise ValueError(f'{label}.to must be below from in the layers list')
+                    seconds(f'{label}.cpu_s', move['cpu_s'])
+                    if not isinstance(move['why'], str) or not move['why']:
+                        raise ValueError(f'{label}.why must be a nonempty string')
+                    if endpoints['to'][0] not in groups:
+                        raise ValueError(f'{label}.to tree has no table for {name}')
+                for (tree, layer), ceiling in gate_ceilings(groups).items():
+                    if ceiling < 0:
+                        raise ValueError(f'{name}.{tree}.{layer} ceiling below 0 after moves')
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
@@ -510,21 +547,22 @@ def one_process_summary(directory, limits, pair, run, gate=False):
             order = layer_order.get(layer, len(layer_order))
         return tree_index, tree or '', order, layer or ''
 
+    ceilings = gate_ceilings(gate_limits)
     layers, trees, layer_over = [], {}, []
     for tree, layer in sorted(grouped, key=row_order):
         table = gate_limits.get(tree)
         budget = (table or {}).get(layer, {})
-        ceiling = budget.get('cpu_s')
+        ceiling = ceilings.get((tree, layer))
         cpu = grouped[tree, layer]
         is_over = layer is not None and (cpu > ceiling if ceiling is not None else table is not None)
-        layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, budget_s=ceiling,
+        layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, ceiling_s=ceiling, budget_s=ceiling,
                            ideal_s=budget.get('ideal_s'),
                            reference_s=budget.get('reference_s', gate_limits.get('references', {}).get(layer)),
                            over=is_over))
         if tree not in trees:
-            trees[tree] = dict(tree=tree, cpu_s=0.0,
-                               budget_s=None if table is None else sum(
-                                   row['cpu_s'] for name, row in table.items() if name != 'ideal_s'),
+            total = None if table is None else sum(
+                value for (group, _), value in ceilings.items() if group == tree)
+            trees[tree] = dict(tree=tree, cpu_s=0.0, ceiling_s=total, budget_s=total,
                                ideal_s=(table or {}).get('ideal_s'))
         trees[tree]['cpu_s'] += cpu
         if is_over:
@@ -633,7 +671,7 @@ def print_summary(result, as_json=False):
         for row in rows:
             label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
             figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
-                                for key in ('cpu_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else [])))
+                                for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else [])))
             print(f'{kind} {label}: {figures}')
     for message in result['warnings']:
         print(f'warning: {message}')

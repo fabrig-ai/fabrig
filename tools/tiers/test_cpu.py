@@ -249,11 +249,11 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
                 self.assertEqual(result['layers'], [
-                    dict(tree='temper', layer='step', cpu_s=10, budget_s=253,
+                    dict(tree='temper', layer='step', cpu_s=10, ceiling_s=253, budget_s=253,
                          ideal_s=25, reference_s=0.04, over=False),
-                    dict(tree='temper', layer='simulated', cpu_s=500, budget_s=470,
+                    dict(tree='temper', layer='simulated', cpu_s=500, ceiling_s=470, budget_s=470,
                          ideal_s=15, reference_s=2, over=True)])
-                self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, budget_s=725, ideal_s=100)])
+                self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, ceiling_s=725, budget_s=725, ideal_s=100)])
                 self.assertEqual(result['over_budget'], [self.over_line] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [self.over_line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
@@ -261,11 +261,57 @@ class OneProcessTests(unittest.TestCase):
                 with contextlib.redirect_stdout(output):
                     CPU['print_summary'](result)
                 text = output.getvalue()
-                self.assertIn('layer temper step: cpu 10.0 s, budget 253 s, ideal 25 s, reference 0.04 s', text)
-                self.assertIn('tree temper: cpu 510.0 s, budget 725 s, ideal 100 s', text)
+                self.assertIn('layer temper step: cpu 10.0 s, ceiling 253 s, budget 253 s, ideal 25 s, reference 0.04 s', text)
+                self.assertIn('tree temper: cpu 510.0 s, ceiling 725 s, budget 725 s, ideal 100 s', text)
                 self.assertLess(text.index('default: 2 tests'), text.index('layer temper step:'))
                 self.assertLess(text.index('layer temper simulated:'), text.index('tree temper:'))
                 self.assertLess(text.index('tree temper:'), text.index(self.over_line))
+
+    def test_moves_adjust_layer_ceilings_and_verdict(self):
+        self.limits = {'gate': {'default': {
+            'references': {'simulated': 1, 'domain': 0.2},
+            'moves': [{'from': 'temper.simulated', 'to': 'temper.domain', 'cpu_s': 12,
+                       'why': 'The mechanics are tested in domain worlds.'}],
+            'temper': {'ideal_s': 100, 'simulated': {'cpu_s': 470}, 'domain': {'cpu_s': 20}}}}}
+        self.results['layers'] = ['domain', 'simulated']
+        self.results['processes'] = [
+            self.process(['z', 'a'], user_s=459, system_s=1),
+            self.process([], layer='domain', user_s=29, system_s=1)]
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                result = self.summary(self.limits, gate=gate)
+                self.assertEqual(result['layers'], [
+                    dict(tree='temper', layer='domain', cpu_s=30, ceiling_s=32, budget_s=32,
+                         ideal_s=None, reference_s=0.2, over=False),
+                    dict(tree='temper', layer='simulated', cpu_s=460, ceiling_s=458, budget_s=458,
+                         ideal_s=None, reference_s=1, over=True)])
+                self.assertEqual(result['trees'], [
+                    dict(tree='temper', cpu_s=490, ceiling_s=490, budget_s=490, ideal_s=100)])
+                line = 'layer over budget: temper default simulated: 460.00 CPU s, budget 458 s'
+                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['warnings'], [] if gate else [line])
+                self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
+
+    def test_move_gives_a_layer_its_first_seconds(self):
+        self.layer_case()
+        profile = self.limits['gate']['default']
+        profile['references']['machine'] = 0.2
+        self.results['layers'] = ['step', 'machine', 'io', 'simulated']
+        self.results['processes'] = [self.process(['z', 'a'], layer='machine', user_s=1, system_s=1)]
+        for moved in (False, True):
+            with self.subTest(moved=moved):
+                profile['moves'] = ([{'from': 'temper.simulated', 'to': 'temper.machine',
+                                     'cpu_s': 3, 'why': 'The mechanics run in machine worlds.'}]
+                                    if moved else [])
+                result = self.summary(self.limits, gate=True)
+                self.assertEqual(result['layers'], [
+                    dict(tree='temper', layer='machine', cpu_s=2,
+                         ceiling_s=3 if moved else None, budget_s=3 if moved else None,
+                         ideal_s=None, reference_s=0.2, over=not moved)])
+                self.assertEqual(result['trees'], [
+                    dict(tree='temper', cpu_s=2, ceiling_s=725, budget_s=725, ideal_s=100)])
+                self.assertEqual(result['over_budget'], [] if moved else [
+                    'layer over budget: temper default machine: 2.00 CPU s, no budget'])
 
     def test_layer_gate_exit_statuses(self):
         self.layer_case()
@@ -311,9 +357,9 @@ class OneProcessTests(unittest.TestCase):
         del process['tree'], process['layer'], self.results['layers']
         result = self.summary(gate=True)
         self.assertEqual((result['processes'][0]['tree'], result['processes'][0]['layer']), (None, None))
-        self.assertEqual(result['layers'], [dict(tree=None, layer=None, cpu_s=1.5, budget_s=None,
+        self.assertEqual(result['layers'], [dict(tree=None, layer=None, cpu_s=1.5, ceiling_s=None, budget_s=None,
                                                ideal_s=None, reference_s=None, over=False)])
-        self.assertEqual(result['trees'], [dict(tree=None, cpu_s=1.5, budget_s=None, ideal_s=None)])
+        self.assertEqual(result['trees'], [dict(tree=None, cpu_s=1.5, ceiling_s=None, budget_s=None, ideal_s=None)])
         self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)'])
         self.assertEqual(result['over_budget'], [])
         output = io.StringIO()
@@ -796,6 +842,81 @@ class CollectorTests(unittest.TestCase):
             with self.subTest(rule=rule):
                 path.write_text(content)
                 with self.assertRaises(ValueError):
+                    CPU['budgets'](path, layers=layers)
+
+    def test_gate_moves_preserved_and_ceilings_composed(self):
+        path = self.root / 'budgets.toml'
+        layers = self.root / 'layers.toml'
+        # The file owns the order, not a fixed list in the reader.
+        layers.write_text('layers = ["domain", "machine", "simulated"]')
+        for profile in ('default', 'fuzzy'):
+            with self.subTest(profile=profile):
+                text = (
+                    f'[gate.{profile}]\nreferences = {{ simulated = 1, domain = 0.2, machine = 0.2 }}\n'
+                    'moves = [\n'
+                    ' { from = "jig.machine", to = "temper.domain", cpu_s = 3.5, why = "Domain mechanics." },\n'
+                    ' { from = "temper.simulated", to = "jig.machine", cpu_s = 12, why = "Machine mechanics." },\n'
+                    ']\n'
+                    f'[gate.{profile}.temper]\nideal_s = 100\nsimulated = {{ cpu_s = 12 }}\n'
+                    f'[gate.{profile}.jig]\nideal_s = 10\n')
+                path.write_text(text)
+                result = CPU['budgets'](path, layers=layers)
+                self.assertEqual(result, tomllib.loads(text))
+                self.assertEqual(CPU['gate_ceilings'](result['gate'][profile]), {
+                    ('temper', 'simulated'): 0, ('temper', 'domain'): 3.5, ('jig', 'machine'): 8.5})
+        # Reversing the configured order reverses which direction is below.
+        layers.write_text('layers = ["simulated", "machine", "domain"]')
+        with self.assertRaisesRegex(ValueError, 'to must be below from'):
+            CPU['budgets'](path, layers=layers)
+
+    def test_gate_move_validation(self):
+        path = self.root / 'budgets.toml'
+        layers = self.root / 'layers.toml'
+        layers.write_text('layers = ["step", "domain", "machine", "simulated"]')
+        example = (
+            '[gate.default]\nreferences = { simulated = 1, domain = 0.2 }\n'
+            'moves = [{ from = "temper.simulated", to = "temper.domain", cpu_s = 12, why = "Domain mechanics." }]\n'
+            '[gate.default.temper]\nideal_s = 100\nsimulated = { cpu_s = 470 }\n')
+        cases = [
+            (example.replace('why =', 'extra = 1, why ='), 'invalid move keys'),
+            (example.replace(', why = "Domain mechanics."', ''), 'invalid move keys'),
+            (example.replace('moves = [{', 'moves = {').replace('}]', '}'), 'moves must be an array of tables'),
+            (example.replace('moves = [{ from', 'moves = [1, { from'), 'invalid move keys'),
+            (example.replace('"temper.simulated"', 'false'), 'from must be TREE.LAYER'),
+            (example.replace('"temper.domain"', '12'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'simulated'), 'from must be TREE.LAYER'),
+            (example.replace('temper.domain', 'temper.domain.extra'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'other.simulated'), 'from must be TREE.LAYER'),
+            (example.replace('temper.domain', 'other.domain'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'temper.other'), 'from must be TREE.LAYER'),
+            (example.replace('temper.domain', 'temper.other'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'repository.simulated'), 'from must be TREE.LAYER'),
+            (example.replace('temper.domain', 'repository.domain'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'temper.checks'), 'from must be TREE.LAYER'),
+            (example.replace('temper.domain', 'temper.checks'), 'to must be TREE.LAYER'),
+            (example.replace('temper.simulated', 'temper.step'), 'to must be below from'),
+            (example.replace('temper.domain', 'temper.simulated'), 'to must be below from'),
+            (example.replace('temper.domain', 'jig.simulated'), 'to must be below from'),
+            (example.replace('cpu_s = 12', 'cpu_s = 0'), 'cpu_s must be finite positive seconds'),
+            (example.replace('cpu_s = 12', 'cpu_s = -1'), 'cpu_s must be finite positive seconds'),
+            (example.replace('cpu_s = 12', 'cpu_s = nan'), 'cpu_s must be finite positive seconds'),
+            (example.replace('cpu_s = 12', 'cpu_s = inf'), 'cpu_s must be finite positive seconds'),
+            (example.replace('cpu_s = 12', 'cpu_s = true'), 'cpu_s must be finite positive seconds'),
+            (example.replace('cpu_s = 12', 'cpu_s = "12"'), 'cpu_s must be finite positive seconds'),
+            (example.replace('"Domain mechanics."', '""'), 'why must be a nonempty string'),
+            (example.replace('"Domain mechanics."', 'true'), 'why must be a nonempty string'),
+            (example.replace('temper.domain', 'jig.domain'), 'to tree has no table'),
+            (example.replace('cpu_s = 12', 'cpu_s = 471'), 'temper.simulated ceiling below 0'),
+            (example.replace('temper.simulated', 'temper.machine'), 'temper.machine ceiling below 0'),
+            (example.replace('temper.simulated', 'smith.simulated'), 'smith.simulated ceiling below 0'),
+            (example.replace('}]', '}, { from = "temper.simulated", to = "temper.domain", '
+                                     'cpu_s = 459, why = "More domain mechanics." }]'),
+             'temper.simulated ceiling below 0'),
+        ]
+        for content, words in cases:
+            with self.subTest(content=content, words=words):
+                path.write_text(content)
+                with self.assertRaisesRegex(ValueError, words):
                     CPU['budgets'](path, layers=layers)
 
     def test_real_gate_budgets_validate(self):
