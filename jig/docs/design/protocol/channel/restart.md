@@ -65,12 +65,12 @@ record Restarting { wait_ms: u64 }
 - **What it tells:** one output per channel,
 
   ```rust
-  Request::Told { worker: u32, version: u16, wait: Option<Duration> }  // jig-protocol-engine-workers' component
-  Output::Told { worker: u32, version: u16, wait: Option<Duration> }   // its host::Workers
+  Request::Told { worker: Box<[u8]>, version: u16, wait: Option<Duration> }  // jig-protocol-engine-workers' component
+  Output::Told { worker: Box<[u8]>, version: u16, wait: Option<Duration> }   // its host::Workers
   ```
 
-  `worker` the configured worker the channel authenticated as, as
-  `Opened` names it; `version` the channel's version of
+  `worker` the worker the channel authenticated as, as `Opened` names
+  it; `version` the channel's version of
   `jig-worker-wire`; `wait` the wait sent, or none where the version
   lacks the kind. The application writes each as a line of its log
   (temper's `protocol/wires.md`, section 4).
