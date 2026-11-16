@@ -151,7 +151,7 @@ Place commands:
 - `temper-qa pass open [--ctl]`: start the restored setup's drive session; it answers ready. Restore a setup first.
 - `temper-qa pass line LINE`: LINE one shell argument, a drive line; prints its answer, exit 0 for ok, 5 for a failed line, 4 for the failed box.
 - `temper-qa pass close`: stop the drive session and print its kept lines. Looks stay until the next session; record evidence before then.
-- `temper-qa pass recipe NAME FILE`: FILE a JSON object (or - for stdin): {"after":"fresh or nearest setup","lines":["web see Ready"],"readme":"The state reached.","scripts":{}}; scripts optional. Close the drive session first. This writes and proves a new recipe by walking it from its parent.
+- `temper-qa pass recipe NAME FILE`: FILE a JSON object (or - for stdin): {"after":"fresh or nearest setup","lines":["web see Ready"],"readme":"The state reached.","scripts":{}}; scripts optional. A ctl-only recipe's lines end with `check` and its ctl reads and waits. Close the drive session first. This writes and proves a new recipe by walking it from its parent.
 
 `pass setup`, `pass recipe` and `pass open` may take minutes. Each walk or start prints a line as it goes: run them where your shell's own timeout does not cut them.
 

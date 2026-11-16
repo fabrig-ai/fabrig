@@ -218,6 +218,84 @@ impl World {
     }
 }
 
+fn ctl_world() -> World {
+    let world = World::new();
+    for (name, recipe) in [
+        ("welcome", "recipe 1\ncheck\nctl project list\n"),
+        (
+            "project-landing",
+            "recipe 1\nafter \"welcome\"\nctl project make Hello\ncheck\nctl project list --until made:1\nctl project show Hello\n",
+        ),
+    ] {
+        fs::write(world.place.setups.join(name).join("recipe"), recipe).expect("ctl recipe");
+        fs::write(world.place.paths.directory.join(format!("expected-{name}")), recipe).expect("expected recipe");
+    }
+    let tool = TOOL
+        .replace(
+            "test \"$QA_RECIPE_ENV\" = captured",
+            "test \"$QA_RECIPE_ENV\" = captured\ntest \"${SKEIN_TEST_CHROMIUM+x}\" != x",
+        )
+        .replace("cat \"hash-$3\" ;;", "cmp \"expected-$3\" \"$5/$3/recipe\"\n    cat \"hash-$3\" ;;");
+    fs::write(world.place.paths.bin.join("temper-client-journeys"), tool).expect("ctl fake build");
+    world
+}
+
+#[test]
+fn ctl_only_setup_walks_and_checks_its_copy_without_chromium() {
+    let mut world = ctl_world();
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2);
+    assert!(world.walks()[0].starts_with("recipe walk welcome --bin "));
+    assert!(world.walks()[1].starts_with("recipe walk project-landing --from welcome "));
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2, "restoring only checks the saved state");
+    assert_eq!(world.place.archive.restored.len(), 1);
+    assert!(world.walks()[2].starts_with("recipe walk project-landing --from project-landing "));
+    assert_eq!(world.setup_file(), format!("project-landing {PROJECT}\n"));
+}
+
+#[test]
+fn ctl_only_recipe_preserves_its_check_and_proves_and_restores_without_chromium() {
+    for after in ["fresh", "project-landing"] {
+        let mut world = ctl_world();
+        let lines = ["ctl project make Added", "check", "ctl project list --until made:1", "ctl project show Added"];
+        let input = RecipeInput::decode(
+            &serde_json::to_vec(&serde_json::json!({"after":after,"lines":lines,"readme":"Added is ready."}))
+                .expect("JSON"),
+        )
+        .expect("ctl recipe input");
+        let parent = if after == "fresh" { String::new() } else { format!("after \"{after}\"\n") };
+        let expected = format!("recipe 1\n{parent}{}\n", lines.join("\n"));
+        fs::write(world.place.paths.directory.join("expected-added"), &expected).expect("expected ctl recipe");
+        let mut output = Vec::new();
+        let code = world.place.recipe("added", &input, &[], &mut output).expect("write and prove");
+        let output = String::from_utf8(output).expect("output");
+        assert_eq!(code, 0, "{output}");
+        assert!(output.contains(&format!("recipe added walked from {after}:")), "{output}");
+        assert_eq!(fs::read_to_string(world.place.setups.join("added/recipe")).expect("written recipe"), expected);
+        let walks = world.walks();
+        let proving = walks.last().expect("proving walk");
+        if after == "fresh" {
+            assert!(proving.starts_with("recipe walk added --bin "), "{proving}");
+        } else {
+            assert!(proving.starts_with("recipe walk added --from project-landing "), "{proving}");
+        }
+        let catalogue = format!(
+            "{CATALOGUE}added{}: Added is ready.\n",
+            if after == "fresh" { String::new() } else { format!(" (after {after})") }
+        );
+        fs::write(world.place.paths.directory.join("catalogue"), catalogue).expect("updated catalogue");
+        let saved = world.place.archive.saved.len();
+        let (code, output) = world.setup("added");
+        assert_eq!(code, 0, "{output}");
+        assert_eq!(world.place.archive.saved.len(), saved);
+        assert!(world.walks().last().expect("copy check").starts_with("recipe walk added --from added "));
+        assert_eq!(world.setup_file(), format!("added {ADDED}\n"));
+    }
+}
+
 /// Run the test in an isolated process; the shell restores its mask even on failure.
 #[expect(
     clippy::disallowed_methods,

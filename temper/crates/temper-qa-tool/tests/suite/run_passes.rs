@@ -129,6 +129,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     );
     assert!(brief.contains("project: A ready project.\n"));
     assert!(brief.contains("`pass setup`, `pass recipe` and `pass open` may take minutes"));
+    assert!(brief.contains("A ctl-only recipe's lines end with `check` and its ctl reads and waits."));
     assert!(brief.contains("shell's own timeout does not cut them"));
     let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
     assert!(drive_lines.contains("`forge commit forgejo REPOSITORY MESSAGE PATH...`"));
