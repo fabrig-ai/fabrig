@@ -87,7 +87,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 
 ## 7. The boundary check
 
-A focused test of `fabrig-boundary` (`tests/boundary/`) reads `cargo metadata --no-deps --format-version 1 --locked` and `tools/tiers/layers.toml`, and lists, each naming the binary's id or the line and why:
+A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/gate/README.md`, the gate's 16th item), reads `cargo metadata --no-deps --format-version 1 --locked` and `tools/tiers/layers.toml`, and lists, each naming the binary's id or the line and why:
 
 - a test binary of a tree, placed by no rule, with no line;
 - a line naming no test binary of the workspace, or one placed by rule (section 4);
