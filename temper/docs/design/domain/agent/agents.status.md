@@ -41,4 +41,3 @@
 - **Design departs:** 3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
 
 - **Design departs:** 3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.
-- **Not yet:** 2, *A question's line form*: the `Findings:` and `Group:` trailing lines, and `question::parse`'s `findings` and `group`, with `findings::Id` in `temper-client-domain-forge` [in flight: change 4608].

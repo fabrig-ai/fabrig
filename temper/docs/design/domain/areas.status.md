@@ -10,4 +10,3 @@
 - **Not yet:** 6, *A way names it*: Draft first's kind 15, `charter 14`, and its triager started by the way's act [in flight: change 748].
 - **Not yet:** 7, *Through*: `temper ctl`'s `finding` group [in flight: change 749].
 - **Not yet:** 7, *Through*: the agents' `finding` tool [in flight: change 750].
-- **Not yet:** 6, *Its groups*: the stock triager's words for grouping what it keeps and asking one question a group in the line form [in flight: change 4607].
