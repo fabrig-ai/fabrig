@@ -2,6 +2,8 @@
 
 2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 4: `engine.hosts.workers` is read, not refused [in flight: change 5794].
+
 
 - **Not yet:** 8: the forge's `ways` read gives no rules by path [in
   flight: change 872].

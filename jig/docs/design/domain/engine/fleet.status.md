@@ -2,6 +2,9 @@
 
 2026-11-14. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
+- **Not yet:** its last paragraph: the fleet's positions are `engine.hosts.workers`' order, given once at construction, and its slots the hello's and `fleet.slots`' [in flight: change 5794].
+- **Not yet:** its last paragraph: no worker's link state or its since [in flight: change 5789].
+
 
 
 - **Not yet:** the whole document: runs on the engine's own slots under

@@ -2,6 +2,8 @@
 
 2026-11-15. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** 1: no `worker` group, and no `WORKER`, `PLACES` or `SHA256` placeholder [in flight: change 5791].
+
 
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,

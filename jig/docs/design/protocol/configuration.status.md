@@ -2,6 +2,8 @@
 
 2026-11-12. Where jig's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 3, 6 and 9: `hosts.workers` and its digest files are read, not refused [in flight: change 5794].
+
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts.md`, 3.4) [in flight: change 928].
 
