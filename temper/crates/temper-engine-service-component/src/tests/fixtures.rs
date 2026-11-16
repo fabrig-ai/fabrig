@@ -74,7 +74,10 @@ pub fn engine() -> settings::Engine {
         demo: None,
         welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
@@ -415,6 +418,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::Forge { .. }
                 | root::Request::Account(_)
                 | root::Request::Busy(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => panic!("first-start fixture output: {request:?}"),
             }
@@ -549,6 +553,7 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
     };
     let mut header = header.unwrap_or(jig_domain_core::Deployment {
         id: [19; 16],
+        restart_wait_ms: None,
         projects: 0,
         tasks: 0,
         people: 0,
@@ -1057,6 +1062,7 @@ pub fn settle_root(
                 | root::Request::Forge { .. }
                 | root::Request::Busy(_)
                 | root::Request::Unsettled(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop => {
                     panic!("unexpected chat request")

@@ -223,13 +223,63 @@ fn owns(page: &c::ReadValue) -> bool {
     }
     false
 }
+/// A dependency hold names held facts only; absent ending facts stay unknown.
+#[must_use]
+pub fn dependency_question(task: &c::Task, words: &Words) -> Option<Box<[u8]>> {
+    let c::HoldCategory::Dependency { task: dependency } = task.hold.as_ref()?.reason else { return None };
+    let mut chip = None;
+    for link in &task.dependencies {
+        match link {
+            c::TaskLink::Live(value) | c::TaskLink::Retained { chip: value, .. } if value.task == dependency => {
+                chip = Some(value);
+                break;
+            }
+            c::TaskLink::Live(_) | c::TaskLink::Retained { .. } | c::TaskLink::Stored { .. } => {}
+        }
+    }
+    let ending = match chip {
+        Some(chip) => match &chip.details.details.ending {
+            Some(c::ChipEnding::Failed(_)) => Word::GoalFailed,
+            Some(c::ChipEnding::Cancelled { .. }) => Word::DependencyClosed,
+            Some(c::ChipEnding::Done(_)) | None => Word::PublicEnded,
+        },
+        None => Word::PublicEnded,
+    };
+    Some(words.say(
+        Word::NeedsDependency,
+        &[
+            Hole::Name(held_name(Some(&task.chip), task.chip.task, words)),
+            Hole::Name(held_name(chip, dependency, words)),
+            Hole::Name(words.say(ending, &[])),
+        ],
+    ))
+}
+fn held_name(chip: Option<&c::Chip>, number: u64, words: &Words) -> Box<[u8]> {
+    if let Some(chip) = chip
+        && !chip.title.bytes().is_empty()
+    {
+        return match temper_client_domain::pages::goals::id(chip.title.bytes()) {
+            Some(id) => id.into(),
+            None => crate::common::chat::cut_title(chip.title.bytes(), 40, false),
+        };
+    }
+    words.say(Word::PublicTask, &[Hole::Name(skein_lib::Decimal::of(number).as_bytes().into())])
+}
 fn task_hold(b: &mut Builder, task: &c::Task, words: &Words, rows: u32) {
-    if let Some(hold) = &task.hold {
+    if let Some(question) = dependency_question(task, words) {
+        text(b, Role::Paragraph, &question);
+        if let Some(hold) = &task.hold {
+            hold_details(b, hold, words);
+        }
+    } else if let Some(hold) = &task.hold {
         held(b, task.chip.task, hold, words, rows);
     }
 }
 fn held(b: &mut Builder, task: u64, hold: &c::ChipHold, words: &Words, _rows: u32) {
     super::hold(b, task, &hold.reason, words);
+    hold_details(b, hold, words);
+}
+fn hold_details(b: &mut Builder, hold: &c::ChipHold, words: &Words) {
     if let Some(account) = &hold.words {
         text(b, Role::Paragraph, account.bytes());
         if account.cut {

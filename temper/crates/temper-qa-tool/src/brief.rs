@@ -1,6 +1,6 @@
 //! Inputs at the merge and the brief's ordered sections (qa/triage.md, 3).
 use crate::{
-    Home, Landing, Ledger, Pages, Refusal,
+    Home, Kind, Landing, Ledger, Pages, Refusal,
     faces::{Changed, GitFace},
 };
 use std::{collections::BTreeMap, fmt::Write};
@@ -9,60 +9,68 @@ const GENERATED_SEGMENTS: &[&str] = &["generated", "golden"];
 const REFERENCE_DIRECTORY: &str = "temper/docs/help/reference/";
 const SETUPS_DIRECTORY: &str = "temper/docs/development/qa/setups";
 
-fn ctl_chain(name: &str, recipes: &BTreeMap<String, String>) -> bool {
-    let mut name = name;
-    let mut visited = Vec::new();
-    loop {
-        if visited.len() >= 9 || visited.contains(&name) {
-            return false;
-        }
-        visited.push(name);
-        let Some(recipe) = recipes.get(name) else { return false };
-        let mut lines = recipe.lines();
-        if lines.next() != Some("recipe 1") {
-            return false;
-        }
-        if lines.clone().any(|line| matches!(line.split_whitespace().next(), Some("web" | "tui"))) {
-            return false;
-        }
-        let Some(after) = lines.next().and_then(|line| line.strip_prefix("after ")) else { return true };
-        name = after.strip_prefix('"').and_then(|name| name.strip_suffix('"')).unwrap_or(after);
-    }
-}
-
-pub(crate) fn setup_names(git: &mut impl GitFace, commit: &str, configured: &[String]) -> Result<Vec<String>, Refusal> {
-    let mut setups = vec!["fresh".into()];
+pub(crate) fn setup_names(
+    git: &mut impl GitFace,
+    commit: &str,
+    configured: &[String],
+) -> Result<Vec<(String, Kind)>, Refusal> {
+    let mut setups = vec![("fresh".into(), Kind::Box)];
     let directory = SETUPS_DIRECTORY;
     let entries = git.entries(commit, directory)?;
     let ctl_only = !configured.iter().any(|surface| surface == "web" || surface == "tui");
     let mut recipes = BTreeMap::new();
-    if ctl_only {
-        for entry in &entries {
-            if entry.directory
-                && entry.name != "fresh"
-                && let Some(bytes) = git.file(commit, &format!("{directory}/{}/recipe", entry.name))?
-                && let Ok(recipe) = String::from_utf8(bytes)
-            {
-                recipes.insert(entry.name.clone(), recipe);
-            }
+    for entry in &entries {
+        if entry.directory
+            && entry.name != "fresh"
+            && let Some(bytes) = git.file(commit, &format!("{directory}/{}/recipe", entry.name))?
+            && let Ok(recipe) = String::from_utf8(bytes)
+        {
+            let config = git
+                .entries(commit, &format!("{directory}/{}", entry.name))?
+                .iter()
+                .any(|entry| entry.directory && entry.name == "config");
+            recipes.insert(entry.name.clone(), (recipe, config));
         }
     }
     for entry in entries {
-        if entry.directory && entry.name != "fresh" && (!ctl_only || ctl_chain(&entry.name, &recipes)) {
-            setups.push(entry.name);
+        if !entry.directory || entry.name == "fresh" {
+            continue;
+        }
+        let kind = crate::kind::chain_kind(&entry.name, |name| {
+            let Some((recipe, config)) = recipes.get(name) else { return Ok(None) };
+            if recipe.lines().next() != Some("recipe 1")
+                || (ctl_only
+                    && recipe.lines().any(|line| matches!(line.split_whitespace().next(), Some("web" | "tui"))))
+            {
+                return Ok(None);
+            }
+            Ok(Some(crate::kind::Setup { parent: crate::kind::parent(recipe).map(str::to_owned), config: *config }))
+        })?;
+        if !ctl_only || kind.is_some() {
+            setups.push((entry.name, kind.unwrap_or_default()));
         }
     }
     Ok(setups)
 }
 
-fn read_setups(git: &mut impl GitFace, commit: &str, configured: &[String]) -> Result<(Vec<String>, String), Refusal> {
-    let setups = setup_names(git, commit, configured)?;
-    let mut catalogue = String::from("- fresh: a fresh box at its welcome with nothing set up\n");
-    for name in setups.iter().skip(1) {
+fn read_setups(
+    git: &mut impl GitFace,
+    commit: &str,
+    configured: &[String],
+    kinds: &[Kind],
+) -> Result<(Vec<(String, Kind)>, String), Refusal> {
+    let mut setups = setup_names(git, commit, configured)?;
+    setups.retain(|(_, kind)| kinds.contains(kind));
+    let mut catalogue = String::new();
+    for (name, kind) in &setups {
+        if name == "fresh" {
+            catalogue.push_str("- fresh (box): a fresh box at its welcome with nothing set up\n");
+            continue;
+        }
         let path = format!("{SETUPS_DIRECTORY}/{name}/README.md");
         let bytes = git.file(commit, &path)?.unwrap_or_default();
         let text = String::from_utf8_lossy(&bytes);
-        writeln!(catalogue, "- {name}: {} ({path})", first_paragraph(&text)).expect("string");
+        writeln!(catalogue, "- {name} ({}): {} ({path})", kind.name(), first_paragraph(&text)).expect("string");
     }
     Ok((setups, catalogue))
 }
@@ -147,6 +155,7 @@ pub fn stat_text(paths: &[Changed]) -> String {
 pub(crate) struct Inputs {
     pub pages: Pages,
     pub setups: Vec<String>,
+    pub deployments: Vec<String>,
     pub patch: Vec<u8>,
     drafts: Vec<String>,
     stat: String,
@@ -159,6 +168,7 @@ impl Inputs {
         git: &mut impl GitFace,
         landing: &Landing,
         configured: &[String],
+        kinds: &[Kind],
         build: &str,
     ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
@@ -205,7 +215,13 @@ impl Inputs {
             pages.insert(surface.into(), names);
             writeln!(surfaces, "- {surface} journeys: {journeys}").expect("string");
         }
-        let (setups, catalogue) = read_setups(git, build, configured)?;
+        let (catalogue_setups, catalogue) = read_setups(git, build, configured, kinds)?;
+        let deployments = catalogue_setups
+            .iter()
+            .filter(|(_, kind)| *kind == Kind::Deployment)
+            .map(|(name, _)| name.clone())
+            .collect();
+        let setups = catalogue_setups.into_iter().map(|(name, _)| name).collect();
         let mut qa = Vec::new();
         for value in git.qa_trailers(&parent, commit)? {
             if !qa.contains(&value) {
@@ -215,6 +231,7 @@ impl Inputs {
         Ok(Self {
             pages,
             setups,
+            deployments,
             drafts,
             qa,
             surfaces,

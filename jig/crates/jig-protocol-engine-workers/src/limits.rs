@@ -90,5 +90,5 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v14::decoded_bound(&codec).is_some()
+        && wire::v15::decoded_bound(&codec).is_some()
 }

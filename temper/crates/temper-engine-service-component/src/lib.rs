@@ -254,6 +254,11 @@ pub enum Note {
         addr: core::net::SocketAddr,
     },
     /// An accepted opening's agreed versions (protocol/wires.md, 4).
+    WorkerTold {
+        worker: Box<[u8]>,
+        version: u16,
+        wait: Option<skein_lib::Duration>,
+    },
     WorkerOpened {
         worker: Box<[u8]>,
         wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,

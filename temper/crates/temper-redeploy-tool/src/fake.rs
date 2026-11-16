@@ -43,6 +43,8 @@ pub struct Deployment {
     /// Commands submitted together, separately from the ordered line log.
     pub batches: Vec<Vec<(Part, String)>>,
     pub log: Vec<(u64, String)>,
+    /// Lines logged by each settled engine stop, in stop order.
+    pub stop_logs: VecDeque<Vec<String>>,
     pub check: Output,
     pub openings: Vec<Opening>,
     /// Optional per-start openings, consumed before falling back to `openings`.
@@ -123,6 +125,7 @@ impl Deployment {
             lines: Vec::new(),
             batches: Vec::new(),
             log: Vec::new(),
+            stop_logs: VecDeque::new(),
             check: output(0, "temper-engine upgrade: workers may stay: yes\n"),
             ctl: BTreeMap::new(),
             failures: BTreeMap::new(),
@@ -215,7 +218,12 @@ impl Deployment {
         if line == stop {
             self.machine_mut(part).running = false;
             match part {
-                Part::Engine => self.pending.clear(),
+                Part::Engine => {
+                    self.pending.clear();
+                    if let Some(lines) = self.stop_logs.pop_front() {
+                        self.log.extend(lines.into_iter().map(|line| (self.at, line)));
+                    }
+                }
                 Part::Worker(index) => self.pending.retain(|(worker, _, _)| *worker != index),
             }
             return output(0, "");

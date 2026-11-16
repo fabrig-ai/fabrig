@@ -20,17 +20,24 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 3. **The wasm32 clippy:** `cargo clippy --target wasm32-unknown-unknown -p PKG ... -- -D warnings`,
    with a `-p` for each package in `.config/gate/wasm32.txt`.
    Rule: `skein/docs/design/testing/README.md`, 10, “Checked in the gate”.
-4. **The focused and fuzzy suites:** `tools/tiers/one-process --walls
-   .config/gate/walls.toml default` (focused) and `tools/tiers/one-process
-   --walls .config/gate/walls.toml fuzzy`, the profiles `.config/nextest.toml`
+4. **The focused and fuzzy suites:** `tools/tiers/one-process --gate --walls
+   .config/gate/walls.toml --ledger LEDGER default` (focused) and `tools/tiers/one-process
+   --gate --walls .config/gate/walls.toml --ledger LEDGER fuzzy`, the profiles `.config/nextest.toml`
    defines: each test binary's selected tests in one process, one at a time, and
    binaries in parallel (`tools/tiers/design.md`, 11), with nextest as their front
    end, selecting and building. For a selection, add a `-p` for each package, as
    in item 2; with none, each runs the whole workspace. The walls file holds
    the gate's wall limits, 270 s focused and 215 s fuzzy, in place of the
-   profiles' own (`tools/tiers/design.md`, 11.7). Rules:
-   `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: each tree's CPU
-   budget, over budget is red, starved is a warning; a run its wall stopped
+   profiles' own (`tools/tiers/design.md`, 11.7). `--gate` asks for the
+   gate's verdict on each tree's layers against `tools/tiers/budgets.toml`
+   (`tools/tiers/budgets.md`, 5). `LEDGER` is main's ledger for that suite,
+   where the gate's runner keeps one; omit `--ledger LEDGER` until it does.
+   The run writes `ledger.json` with its figures folded in, which the runner
+   keeps for the next gate when the candidate lands (`tools/tiers/budgets.md`, 7).
+   Rules:
+   `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: a CPU budget for
+   each layer of each tree, and the repository's checks', over budget is
+   red, starved is a warning; a run its wall stopped
    runs once more, and stopped again it is red unless the gate's own cgroup
    was starved. Slow-tier profiles never run in the gate.
 5. **The old-forms counts:** `(cd TREE && python3 -I -B scripts/old_forms.py)` for
@@ -79,6 +86,11 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     `tests/boundary/tests/generated_tests.rs`'s module doc: generated records hold
     no test code, their tests have a separate target and file per record file,
     and their libraries build no test target, with shrinking exceptions.
+16. **The layers check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/tiers/layers.md`, 7, and
+    `tests/boundary/tests/layers.rs`: every test binary of a tree has its layer
+    in `tools/tiers/layers.toml`, by rule or by its line, and every line names a
+    test binary of its tree, placed by no rule, at a layer the file names.
 
 ## The gate's lists
 

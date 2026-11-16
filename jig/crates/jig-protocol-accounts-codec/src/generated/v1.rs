@@ -64,6 +64,23 @@ pub enum Path {
     MovedTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::MovedApplication => "Moved.application",
+            Self::MovedIssuer => "Moved.issuer",
+            Self::MovedClientId => "Moved.client_id",
+            Self::MovedSubject => "Moved.subject",
+            Self::MovedDisplay => "Moved.display",
+            Self::MovedRecord => "Moved.record",
+            Self::MovedVersion => "Moved (version)",
+            Self::MovedTail => "Moved (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

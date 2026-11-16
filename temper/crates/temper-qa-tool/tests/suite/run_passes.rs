@@ -816,7 +816,64 @@ fn ctl_only_pass_brief_lists_the_same_walkable_chains_as_triage() {
     let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("pass brief");
     for name in ["fresh", "ctl-root", "ctl-child", "web-root", "web-child", "tui-root", "tui-child"] {
         let listed = format!("- {name}:");
-        assert_eq!(brief.contains(&listed), triage.contains(&listed), "{name}");
+        assert_eq!(brief.contains(&listed), triage.contains(&format!("- {name} (box):")), "{name}");
         assert_eq!(brief.contains(&listed), name == "fresh" || name.starts_with("ctl-"), "{name}");
+    }
+}
+
+#[test]
+fn a_deployment_pass_installs_its_scratch_and_briefs_only_its_kind() {
+    use temper_qa_tool::Kind;
+    for kind in [Kind::Deployment, Kind::Box] {
+        let mut world = World::new();
+        world.home.configuration.kinds.insert("places/1".into(), kind);
+        world
+            .home
+            .configuration
+            .ports
+            .insert("places/1".into(), "31001,31002,31003,31004,31005,31006,31007,31008,31009".into());
+        world
+            .home
+            .transact(|ledger| {
+                super::passes::queue_kinds(ledger);
+                Ok(())
+            })
+            .expect("queue kinds");
+        let mut git = baseline();
+        git.merge(1, &[0], 11);
+        git.commit(2, &[1], "build");
+        for (name, recipe) in [
+            ("root", "recipe 1\ncheck\nctl task list\n"),
+            ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
+            ("welcome", "recipe 1\ncheck\nctl task list\n"),
+        ] {
+            git.file_at(2, &format!("{SETUPS}/{name}/recipe"), recipe.as_bytes());
+            git.file_at(2, &format!("{SETUPS}/{name}/README.md"), format!("The {name} state. More detail.").as_bytes());
+        }
+        git.file_at(2, &format!("{SETUPS}/root/config/engine/temper.json"), b"{}");
+        world.installable_build(2);
+        let mut run = world.start(git, &[Agent::Never]);
+        run.tick();
+        let ledger = world.ledger();
+        assert_eq!(ledger.passes[0].kind, kind);
+        assert_eq!(ledger.passes[0].cases, if kind == Kind::Deployment { vec![1] } else { vec![2] });
+        let place = world.home.directory.join("places/1");
+        assert!(place.join(kind.name()).is_dir());
+        assert!(!place.join(if kind == Kind::Deployment { "box" } else { "deployment" }).exists());
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        assert!(brief.contains(&format!("place places/1 ({})", kind.name())));
+        let setups =
+            brief.split("## Setups").nth(1).expect("setups").split("Commit files directory:").next().expect("section");
+        if kind == Kind::Deployment {
+            assert!(brief.contains("At this deployment's place run ctl cases first in a ctl session, `temper-qa pass open --ctl`, then web and tui cases in a full session, `temper-qa pass open`, the browser and the TUI on the deployment's engine."));
+            assert!(brief.contains("The owner's changes are `deployment patch DOCUMENT PATH` lines; write their PATHs in the pass's files directory first. These lines end the TUI and load the page again."));
+            assert!(setups.contains("- turn-landing: The turn-landing state."));
+            assert!(!setups.contains("- fresh:"));
+            assert!(!setups.contains("- welcome:"));
+        } else {
+            assert!(setups.contains("- fresh: an empty box"));
+            assert!(setups.contains("- welcome: The welcome state."));
+            assert!(!setups.contains("- turn-landing:"));
+        }
     }
 }

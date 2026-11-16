@@ -146,6 +146,25 @@ fn fuzzy_every_kind_at_drawn_agreed_versions_arrives_unchanged_or_is_refused() {
         exercise(&mut capped, seed, version);
         assert_eq!(format!("{:?}", capped.engine_root), format!("{:?}", current.engine_root), "seed {seed}");
         assert_eq!(format!("{:?}", capped.worker_root), format!("{:?}", current.worker_root), "seed {seed}");
+        let wait = Duration::from_millis(rng.between(0, 1_200_000));
+        current.engine_restarting(wait);
+        capped.engine_restarting(wait);
+        current.run();
+        capped.run();
+        assert!(
+            matches!(current.worker_root.last(), Some(jig_protocol_worker_link::Request::Restarting { wait: heard }) if *heard == wait)
+        );
+        if version == wire::VERSION {
+            assert!(
+                matches!(capped.worker_root.last(), Some(jig_protocol_worker_link::Request::Restarting { wait: heard }) if *heard == wait)
+            );
+        } else {
+            assert!(
+                matches!(capped.engine_root.last(), Some(jig_protocol_engine_workers::Request::Told { version: agreed, wait: None, .. }) if *agreed == version)
+            );
+            assert!(!capped.engine_records().contains(&wire::Kind::Restarting.number()));
+        }
+        kinds.extend(current.engine_records());
         kinds.extend(capped.engine_records());
         kinds.extend(capped.worker_records());
         let contract = u16::try_from(rng.between(1, 2)).expect("drawn contract");

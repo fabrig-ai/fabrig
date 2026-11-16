@@ -119,11 +119,6 @@ fn an_activity_page_joins_each_turn_in_one_walk() {
     let (mut store, disk) = transcript_page_with_last(WORDS[2]);
     store.limits.joins = 5; // Two owner lookups, then one join per turn.
     let (rows, next, frames) = joined_page(&mut store, full_range(None), &disk);
-    let before = super::super::history_logs::page_signature(&rows, next.as_ref());
-    super::super::history_logs::move_history(&mut store, CHILD);
-    let (rows, next, frames_after) = joined_page(&mut store, full_range(None), &disk);
-    assert_eq!(before, super::super::history_logs::page_signature(&rows, next.as_ref()));
-    assert_eq!(frames, frames_after);
     assert_eq!(frames.as_ref(), [134, 67, 0]);
     assert_eq!(next, None);
     assert_eq!(
@@ -344,22 +339,16 @@ fn later_past_the_end_is_empty() {
 #[test]
 fn a_bound_stops_a_later_page_with_a_cursor_that_retries() {
     let mut store = activity_store();
-    let encoded_bound = store.limits.store.page.bytes;
-    let owned_bound = later_range(1).bytes;
-    for (encoded, owned) in [(encoded_bound, 1), (1, owned_bound)] {
-        store.limits.store.page.bytes = encoded;
-        let mut range = later_range(1);
-        range.bytes = owned;
-        let (rows, next) = page(load(&mut store, range));
-        assert!(rows.is_empty());
-        assert_eq!(next, Some(activity_position(1)));
-        store.limits.store.page.bytes = encoded_bound;
-        let mut retry = later_range(1);
-        retry.after = next;
-        let (rows, next) = page(load(&mut store, retry));
-        assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2), fixtures::activity_line(CHILD, 3)]);
-        assert_eq!(next, Some(activity_position(3)));
-    }
+    let mut range = later_range(1);
+    range.bytes = 1;
+    let (rows, next) = page(load(&mut store, range));
+    assert!(rows.is_empty());
+    assert_eq!(next, Some(activity_position(1)));
+    let mut retry = later_range(1);
+    retry.after = next;
+    let (rows, next) = page(load(&mut store, retry));
+    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2), fixtures::activity_line(CHILD, 3)]);
+    assert_eq!(next, Some(activity_position(3)));
 }
 
 #[test]
@@ -383,11 +372,7 @@ fn a_later_page_joins_turns_in_ascending_order() {
     let (mut store, disk) = transcript_page_with_last(WORDS[2]);
     let mut range = later_range(0);
     range.rows = 5;
-    let (rows, next, _) = joined_page(&mut store, range.clone(), &disk);
-    let before = super::super::history_logs::page_signature(&rows, next.as_ref());
-    super::super::history_logs::move_history(&mut store, CHILD);
     let (rows, next, _) = joined_page(&mut store, range, &disk);
-    assert_eq!(before, super::super::history_logs::page_signature(&rows, next.as_ref()));
     assert_eq!(
         values(&rows).as_ref(),
         [
@@ -405,16 +390,6 @@ fn a_later_page_joins_turns_in_ascending_order() {
             Some(core::Record::Core(core::CoreRecord::Turn(fixtures::turn(CHILD, 1, turn, bytes))))
         );
     }
-}
-
-#[test]
-fn a_later_page_stops_at_its_encoded_byte_bound() {
-    let mut store = activity_store();
-    // One encoded words row fits, but two exceed this byte bound.
-    store.limits.store.page.bytes = 80;
-    let (rows, next) = page(load(&mut store, later_range(1)));
-    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2)]);
-    assert_eq!(next, Some(activity_position(2)));
 }
 
 #[test]

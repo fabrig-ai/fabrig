@@ -10,6 +10,7 @@ pub(crate) struct Sources {
     previous: Option<Box<[SourceName]>>,
     pub(crate) desired: Option<Box<[SourceName]>>,
     waiting: bool,
+    heard: bool,
     logins: Box<[Login]>,
     pub(crate) pending: Map<SourceName, Pending>,
     pub(crate) checks: Set<SourceName>,
@@ -23,12 +24,16 @@ impl Sources {
             previous: None,
             desired: None,
             waiting,
+            heard: false,
             logins: Box::new([]),
             pending: Map::with_capacity(capacity),
             checks: Set::with_capacity(capacity),
             results: Map::with_capacity(capacity),
             retained_removed: false,
         }
+    }
+    pub(crate) fn heard(&self) -> bool {
+        self.heard
     }
     pub(crate) fn ready(&self) -> bool {
         !(self.waiting || self.desired.is_some() || self.retained_removed)
@@ -166,10 +171,14 @@ pub(crate) fn logins(
                 });
             }
         }
+        sources.heard = true;
         sources.waiting = false;
         sources.previous = None;
         send(sources, channel, out);
         domain.placing = true;
+        for &attempt in &domain.channels.get(id).expect("current channel").hosts {
+            domain.restart_holds.remove(&attempt);
+        }
         crate::programs::cleanup(domain, channel, out);
     } else if bounded
         && sources.waiting

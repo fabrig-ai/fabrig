@@ -528,19 +528,13 @@ impl DriveFace for RealDrive {
         if let Some(from) = request.from {
             command.args(["--from", from]);
         }
+        command.arg("--bin").arg(&place.bin);
+        command.arg("--bundle").arg(&place.bundle);
+        command.arg("--scratch").arg(&place.scratch).arg("--setups").arg(request.setups).arg("--strict");
         if let Some(ports) = &place.ports {
             command.args(["--ports", ports]);
         }
         let status = command
-            .arg("--bin")
-            .arg(&place.bin)
-            .arg("--bundle")
-            .arg(&place.bundle)
-            .arg("--scratch")
-            .arg(&place.scratch)
-            .arg("--setups")
-            .arg(request.setups)
-            .arg("--strict")
             .stdout(output)
             .stderr(error)
             .status()

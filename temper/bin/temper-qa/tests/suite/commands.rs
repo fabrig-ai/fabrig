@@ -18,7 +18,7 @@ pub(super) fn home() -> (Scratch, Home) {
     home.transact(|ledger| {
         ledger.record_landing("0123456789abcdef0123456789abcdef01234567", 10, Some(20), "Work drafts", 0);
         let pages = [("web".into(), vec!["work".into(), "home".into()]), ("tui".into(), vec!["chat".into()])].into();
-        ledger.start_session(1, "low", pages, vec!["fresh".into()], 0)?;
+        ledger.start_session(1, "low", pages, vec!["fresh".into()], Vec::new(), 0)?;
         Ok(())
     })
     .expect("session");
@@ -99,7 +99,7 @@ fn none_show_and_lines_print_the_persons_forms() {
         ledger.add_line("qa", "watcher needs attention", 1_794_477_840);
         ledger.record_landing("1123456789abcdef0123456789abcdef01234567", 11, None, "More work", 120);
         let pages = [("web".into(), vec!["work".into()])].into();
-        let session = ledger.start_session(2, "low", pages, vec!["fresh".into()], 120)?;
+        let session = ledger.start_session(2, "low", pages, vec!["fresh".into()], Vec::new(), 120)?;
         let input = temper_qa_tool::CaseInput::decode(CASE, "-")?;
         ledger.add_case(session, &input, 120)?;
         Ok(())
@@ -123,7 +123,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         ledger.end_session(1, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build("build", 3)?;
         ledger.set_build_holds("build", vec![1], 5)?;
-        let pass = ledger.start_pass("places/1", &["web".into()], "high", 4).expect("pass");
+        let pass = ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("pass");
         let input = FindingInput {
             case: 1,
             title: "Start does nothing".into(),

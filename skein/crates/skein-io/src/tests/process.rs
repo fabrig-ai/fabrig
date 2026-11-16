@@ -121,7 +121,12 @@ fn a_childs_output_is_a_stream_and_the_child_closes_after_its_pipe() {
     let killing = out.take(Kind::Signal);
     assert_eq!(
         killing.kind,
-        Op::Signal { pidfd: Fd::new(11), signal: crate::kernel::Signal::Kill, to: crate::kernel::Target::Group }
+        Op::Signal {
+            pidfd: Fd::new(11),
+            signal: crate::kernel::Signal::Kill,
+            to: crate::kernel::Target::Group,
+            reason: crate::kernel::Reason::Closed
+        }
     );
     let reaping = rig.complete(killing, Ok(Done::Nothing)).take(Kind::Wait);
     assert_eq!(reaping.kind, Op::Wait { pidfd: Fd::new(11), reap: true });
@@ -195,10 +200,16 @@ fn child_with_input(rig: &mut Rig) -> (skein_lib::Token, skein_lib::Token, crate
 
 #[test]
 fn owner_signals_target_the_child_or_group_running_and_exited() {
-    use crate::kernel::{Signal, Target};
+    use crate::kernel::{Reason, Signal, Target};
     for exited in [false, true] {
         for target in [Target::Child, Target::Group] {
-            for signal in [Signal::Interrupt, Signal::Terminate, Signal::Kill, Signal::Stop, Signal::Continue] {
+            for (signal, reason) in [
+                (Signal::Interrupt, Reason::Unknown),
+                (Signal::Terminate, Reason::Unknown),
+                (Signal::Kill, Reason::Deadline),
+                (Signal::Stop, Reason::Unknown),
+                (Signal::Continue, Reason::Unknown),
+            ] {
                 let mut rig = Rig::new(Limits { sockets: 2, ..limits() });
                 let (child, pipe, waiting) = child_with_input(&mut rig);
                 let waiting = if exited {
@@ -210,9 +221,10 @@ fn owner_signals_target_the_child_or_group_running_and_exited() {
                 } else {
                     Some(waiting)
                 };
-                let signalling = rig.down(Request::Signal { child, signal, to: target }).take(Kind::Signal);
-                assert_eq!(signalling.kind, Op::Signal { pidfd: Fd::new(40), signal, to: target });
-                rig.down(Request::Signal { child, signal: Signal::Kill, to: target }).nothing();
+                let signalling = rig.down(Request::Signal { child, signal, to: target, reason }).take(Kind::Signal);
+                assert_eq!(signalling.kind, Op::Signal { pidfd: Fd::new(40), signal, to: target, reason });
+                rig.down(Request::Signal { child, signal: Signal::Kill, to: target, reason: Reason::Unknown })
+                    .nothing();
                 rig.complete(signalling, Ok(Done::Nothing)).nothing();
                 if let Some(waiting) = waiting {
                     assert_eq!(
@@ -222,7 +234,10 @@ fn owner_signals_target_the_child_or_group_running_and_exited() {
                 }
                 let closing = rig.down(Request::Close { entity: pipe }).take(Kind::Close);
                 let killing = rig.complete(closing, Ok(Done::Nothing)).take(Kind::Signal);
-                assert_eq!(killing.kind, Op::Signal { pidfd: Fd::new(40), signal: Signal::Kill, to: Target::Group });
+                assert_eq!(
+                    killing.kind,
+                    Op::Signal { pidfd: Fd::new(40), signal: Signal::Kill, to: Target::Group, reason: Reason::Closed }
+                );
                 let reaping = rig.complete(killing, Ok(Done::Nothing)).take(Kind::Wait);
                 let closing = rig.complete(reaping, Ok(Done::Exit(Exit::Code(0)))).take(Kind::Close);
                 assert_eq!(rig.complete(closing, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
@@ -235,46 +250,74 @@ fn owner_signals_target_the_child_or_group_running_and_exited() {
 #[test]
 fn a_child_close_kills_its_group_after_an_in_flight_owner_signal_settles() {
     use crate::kernel::{Signal, Target};
-    for exited in [false, true] {
-        for owner_signal in [false, true] {
-            let mut rig = Rig::new(Limits { sockets: 2, ..limits() });
-            let (child, pipe, waiting) = child_with_input(&mut rig);
-            let waiting = if exited {
-                rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
-                None
-            } else {
-                Some(waiting)
-            };
-            let signalling = if owner_signal {
-                Some(
-                    rig.down(Request::Signal { child, signal: Signal::Terminate, to: Target::Child })
+    for abort in [false, true] {
+        for exited in [false, true] {
+            for owner_signal in [false, true] {
+                let mut rig = Rig::new(Limits { sockets: 2, ..limits() });
+                let (child, pipe, waiting) = child_with_input(&mut rig);
+                let waiting = if exited {
+                    rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
+                    None
+                } else {
+                    Some(waiting)
+                };
+                let signalling = if owner_signal {
+                    Some(
+                        rig.down(Request::Signal {
+                            child,
+                            signal: Signal::Terminate,
+                            to: Target::Child,
+                            reason: crate::kernel::Reason::Unknown,
+                        })
                         .take(Kind::Signal),
-                )
-            } else {
-                None
-            };
-            let mut closing = rig.down(Request::Close { entity: child });
-            let killing = match signalling {
-                Some(signalling) => {
-                    closing.nothing();
-                    rig.complete(signalling, Ok(Done::Nothing)).take(Kind::Signal)
+                    )
+                } else {
+                    None
+                };
+                let close = if abort { Request::Abort { entity: child } } else { Request::Close { entity: child } };
+                let mut closing = rig.down(close);
+                let killing = match signalling {
+                    Some(signalling) => {
+                        closing.nothing();
+                        rig.complete(signalling, Ok(Done::Nothing)).take(Kind::Signal)
+                    }
+                    None => closing.take(Kind::Signal),
+                };
+                assert_eq!(
+                    killing.kind,
+                    Op::Signal {
+                        pidfd: Fd::new(40),
+                        signal: Signal::Kill,
+                        to: Target::Group,
+                        reason: crate::kernel::Reason::Closed
+                    }
+                );
+                rig.down(Request::Signal {
+                    child,
+                    signal: Signal::Terminate,
+                    to: Target::Group,
+                    reason: crate::kernel::Reason::Unknown,
+                })
+                .nothing();
+                rig.down(Request::Close { entity: child }).nothing();
+                rig.complete(killing, Ok(Done::Nothing)).nothing();
+                if let Some(waiting) = waiting {
+                    rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
                 }
-                None => closing.take(Kind::Signal),
-            };
-            assert_eq!(killing.kind, Op::Signal { pidfd: Fd::new(40), signal: Signal::Kill, to: Target::Group });
-            rig.down(Request::Signal { child, signal: Signal::Terminate, to: Target::Group }).nothing();
-            rig.down(Request::Close { entity: child }).nothing();
-            rig.complete(killing, Ok(Done::Nothing)).nothing();
-            if let Some(waiting) = waiting {
-                rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
+                let closing = rig.down(Request::Close { entity: pipe }).take(Kind::Close);
+                let reaping = rig.complete(closing, Ok(Done::Nothing)).take(Kind::Wait);
+                assert_eq!(reaping.kind, Op::Wait { pidfd: Fd::new(40), reap: true });
+                let closing = rig.complete(reaping, Ok(Done::Exit(Exit::Code(0)))).take(Kind::Close);
+                rig.complete(closing, Ok(Done::Nothing));
+                rig.down(Request::Signal {
+                    child,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: crate::kernel::Reason::Unknown,
+                })
+                .nothing();
+                rig.empty();
             }
-            let closing = rig.down(Request::Close { entity: pipe }).take(Kind::Close);
-            let reaping = rig.complete(closing, Ok(Done::Nothing)).take(Kind::Wait);
-            assert_eq!(reaping.kind, Op::Wait { pidfd: Fd::new(40), reap: true });
-            let closing = rig.complete(reaping, Ok(Done::Exit(Exit::Code(0)))).take(Kind::Close);
-            rig.complete(closing, Ok(Done::Nothing));
-            rig.down(Request::Signal { child, signal: Signal::Kill, to: Target::Group }).nothing();
-            rig.empty();
         }
     }
 }
@@ -308,11 +351,21 @@ fn an_alone_child_close_signals_only_the_running_child_and_waits_for_its_pipe() 
                 };
                 let signalling = if owner_signal {
                     let signal = rig
-                        .down(Request::Signal { child, signal: Signal::Terminate, to: Target::Group })
+                        .down(Request::Signal {
+                            child,
+                            signal: Signal::Terminate,
+                            to: Target::Group,
+                            reason: crate::kernel::Reason::Unknown,
+                        })
                         .take(Kind::Signal);
                     assert_eq!(
                         signal.kind,
-                        Op::Signal { pidfd: Fd::new(40), signal: Signal::Terminate, to: Target::Group }
+                        Op::Signal {
+                            pidfd: Fd::new(40),
+                            signal: Signal::Terminate,
+                            to: Target::Group,
+                            reason: crate::kernel::Reason::Unknown
+                        }
                     );
                     Some(signal)
                 } else {
@@ -331,7 +384,12 @@ fn an_alone_child_close_signals_only_the_running_child_and_waits_for_its_pipe() 
                     assert!(closing.subs.is_empty(), "only one close signal");
                     assert_eq!(
                         killing.kind,
-                        Op::Signal { pidfd: Fd::new(40), signal: Signal::Kill, to: Target::Child }
+                        Op::Signal {
+                            pidfd: Fd::new(40),
+                            signal: Signal::Kill,
+                            to: Target::Child,
+                            reason: crate::kernel::Reason::Closed
+                        }
                     );
                     rig.complete(killing, Ok(Done::Nothing)).nothing();
                 }

@@ -135,6 +135,58 @@ pub enum Path {
     RowTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::SegmentBytes => "Segment.bytes",
+            Self::SegmentTail => "Segment (tail)",
+            Self::LastTag => "Last (tag)",
+            Self::PatternSegments => "Pattern.segments",
+            Self::PatternLast => "Pattern.last",
+            Self::PatternTail => "Pattern (tail)",
+            Self::ProjectProject => "Project.project",
+            Self::ProjectTail => "Project (tail)",
+            Self::GoalProject => "Goal.project",
+            Self::GoalGoal => "Goal.goal",
+            Self::GoalTail => "Goal (tail)",
+            Self::ResourcesProject => "Resources.project",
+            Self::ResourcesConnector => "Resources.connector",
+            Self::ResourcesPattern => "Resources.pattern",
+            Self::ResourcesTail => "Resources (tail)",
+            Self::PartyParty => "Party.party",
+            Self::PartyTail => "Party (tail)",
+            Self::ScopeTag => "Scope (tag)",
+            Self::TaskTask => "Task.task",
+            Self::TaskAttempt => "Task.attempt",
+            Self::TaskTail => "Task (tail)",
+            Self::AuthorTag => "Author (tag)",
+            Self::ReferenceTask => "Reference.task",
+            Self::ReferenceTail => "Reference (tail)",
+            Self::EntryName => "Entry.name",
+            Self::EntryScope => "Entry.scope",
+            Self::EntryDescription => "Entry.description",
+            Self::EntryBody => "Entry.body",
+            Self::EntryReferences => "Entry.references",
+            Self::EntryAuthor => "Entry.author",
+            Self::EntryRevision => "Entry.revision",
+            Self::EntryChanged => "Entry.changed",
+            Self::EntryVersion => "Entry (version)",
+            Self::EntryTail => "Entry (tail)",
+            Self::LineScope => "Line.scope",
+            Self::LineName => "Line.name",
+            Self::LineDescription => "Line.description",
+            Self::LineRevision => "Line.revision",
+            Self::LineTail => "Line (tail)",
+            Self::ValueTag => "Value (tag)",
+            Self::RowValue => "Row.value",
+            Self::RowVersion => "Row (version)",
+            Self::RowTail => "Row (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

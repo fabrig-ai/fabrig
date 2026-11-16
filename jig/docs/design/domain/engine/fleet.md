@@ -90,7 +90,7 @@ The fleet child domain knows the hosts and the runs they host:
 - **The grace is derived from that bound.** jig's profiles give
   `fleet.grace` 360 seconds, above the stop bound of a worker on their
   link profile (5 and 15 seconds) with an engine-away grace of 300
-  seconds, the five minutes that cover an engine's start that patches
+  seconds, the five minutes that cover an engine's start that upgrades
   its store (temper's `draft/redeploys.md`, 5.3), and the drain's
   default of 180 seconds: 326 seconds, 20 of notice and 300 of grace
   outlasting the drain, then 5 for an agent's stop and 1 for a save
@@ -99,6 +99,36 @@ The fleet child domain knows the hosts and the runs they host:
   profile moves this grace with it, and says why; a deployment that
   raises a worker's bound raises the grace with it. A worker gone for
   good has its runs placed elsewhere once this grace has passed.
+- **A restart said holds its runs** (temper's `draft/redeploys.md`, 5.3;
+  `restart.md`, *Saying it restarts* and *Held across starts*):
+  - **The restart wait,** `fleet.restart_wait` (`fleet.restart_wait_ms`),
+    is what the engine's settled stop tells its workers to wait for it:
+    1,200,000 milliseconds, twenty minutes, in both of jig's profiles,
+    from 0 to 86,400,000; zero says nothing. One setting serves every
+    worker. A worker keeps its runs for the longer of it and its own
+    grace (`../../protocol/channel/restart.md`, 4).
+  - **A held claim.** While the core holds a kept word at a start, each
+    claim on a worker the fleet adopts or crosses is held: its deadline
+    is its adoption's time plus the word's wait plus `fleet.grace`,
+    rather than plus the grace alone. Unlisted at that deadline, it is
+    lost there, as one at its grace's end.
+  - **Through hellos and losses.** The hold stays with the claim when a
+    hello lists it, and when that channel is lost: a held claim adrift
+    waits for the later of its hold's end and its grace from the loss.
+    A hello received does not show that the worker heard the engine.
+  - **Until its worker hears the engine.** The first `logins` on the
+    channel that lists it answers the `sources` the engine sent after
+    that hello, so that worker's clock has stopped
+    (`../../protocol/channel/README.md`, 9.1): the claim is no longer
+    held, and a later loss gives it the grace alone.
+  - **Discharged.** Once loaded, when no claim is held any more, ended,
+    lost or heard, the fleet says so once, `Request::Discharged`, and
+    the core clears the word (`restart.md`).
+  - **The order holds:** a worker that heard the word stops its runs
+    within the longer of the wait and its grace and its stop bound's
+    tail, counted from its own notice of a loss that follows the
+    engine's close; the hold counts the wait and the engine's grace,
+    longer than that bound, from a start that follows that close.
 - **A host's agent must run the engine's charters.** The fleet refuses
   a hello, as not admitted and naming why, whose agent's bounds
   (../hosts/README.md, section 2) do not hold every run the engine may place there:

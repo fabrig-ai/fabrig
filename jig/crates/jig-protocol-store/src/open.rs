@@ -11,7 +11,6 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     }
-    store.history_routing = false;
     crate::rehearsal::announce(store, above);
     if let Err(why) = crate::jobs::admission::check(&store.owner_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why }, above);
@@ -55,7 +54,16 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     let binary = admission::binary(&store.owner_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
     let found_levels = found.levels;
-    if let Err(why) = format::compare(found_levels, binary) {
+    let compared = format::compare(found_levels, binary);
+    if let Err(why) = &compared
+        && *why != (OpenRefusal::OlderBuild { why: Older::Behind })
+    {
+        return refuse(store, owner, why.clone(), above);
+    }
+    if !floor(store, owner, above) {
+        return;
+    }
+    if let Err(why) = compared {
         return refuse(store, owner, why, above);
     }
     // Compare the families' versions before reading the registry (protocol/store/records.md, 3).
@@ -80,12 +88,11 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if registry && store.directory.patch.is_none() {
         store.directory.patch = Some(Box::new(found_levels));
     }
-    let Some(header) = header else {
+    if header.is_none() {
         refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
         return;
-    };
-    let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec_limits, &store.names)
-    else {
+    }
+    let Some(header) = decode_header(store) else {
         corrupt_header(store, owner, restore::DecodeFailure::Value, above);
         return;
     };
@@ -117,6 +124,44 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
             corrupt_header(store, owner, restore::DecodeFailure::KeyValueDisagree, above);
         }
     }
+}
+
+/// The floor precedes planning and rehearsal decoding (protocol/store/records.md, 3).
+fn floor(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
+    let key = keys::encode_own(&keys::Own::Floor, store.limits.store.key).expect("floor key fits");
+    let bytes = match get_open(store, owner, key.clone()) {
+        Ok(bytes) => bytes,
+        Err(why) => {
+            refuse(store, owner, why, above);
+            return false;
+        }
+    };
+    let number = if let Some(bytes) = bytes {
+        let Ok(row) =
+            crate::component_v3::Floor::decode(&crate::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+        else {
+            data(store, &key, restore::DecodeFailure::Value);
+            corrupt(store, owner, above);
+            return false;
+        };
+        Some(row.number())
+    } else {
+        None
+    };
+    if number < Some(crate::FLOOR) {
+        refuse(store, owner, OpenRefusal::OlderBuild { why: Older::Floor }, above);
+        return false;
+    }
+    true
+}
+
+/// The header's registered layout may add defaults before this open writes.
+pub(crate) fn decode_header(store: &mut Store) -> Option<Record> {
+    let key = Key::Core(CoreKey::Deployment);
+    let encoded = keys::encode(&key, store.limits.store.key)?;
+    let mut bytes = crate::view::get(store, encoded.clone()).ok()??;
+    crate::registry::header(store, &encoded, &mut bytes);
+    codec::decode(&key, &bytes, &store.codec_limits, &store.names)
 }
 
 /// The identifier kept by the first commit replaces the drawn one (4.4); a
@@ -209,7 +254,7 @@ fn ready(
             }
         };
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
-        if let Err(failure) = codec::catalogue(store) {
+        if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));
             corrupt(store, owner, above);
             return;

@@ -7,7 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{self as wire, Reason};
 use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest};
-use skein_lib::{Decimal, List, Map, Queue, Reader, Time, Token, bytes};
+use skein_lib::{Decimal, Duration, List, Map, Queue, Reader, Time, Token, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
     Limits,
@@ -39,7 +39,7 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v14::Limits,
+    pub(crate) codec: wire::v15::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     full_schema: skein_channel::Schema,
@@ -133,6 +133,7 @@ impl Component {
                     lost(&mut state, out);
                 }
             }
+            Event::Restarting { wait } => self.restarting(now, wait, out),
             Event::Stop => {
                 if self.life == Life::Running {
                     self.life = Life::Stopping;
@@ -170,6 +171,31 @@ impl Component {
         }
         self.completed(out);
     }
+    /// The word goes only where the channel's version holds it (protocol/channel/restart.md, 3).
+    fn restarting(&mut self, now: Time, wait: Duration, out: &mut Queue<Request>) {
+        let mut channels = List::uncapped();
+        for (connection, state) in &self.connections {
+            if state.phase == Phase::Open && state.heard {
+                channels
+                    .push((*connection, state.version, state.worker.expect("authenticated worker")))
+                    .expect("uncapped channels");
+            }
+        }
+        for (connection, version, worker) in channels.into_boxed() {
+            let held =
+                self.schema.version(version).expect("agreed version").kind(wire::Kind::Restarting.number()).is_some();
+            let sent = if held {
+                let record = wire::Restarting::new(&self.codec, wire::RestartingParts { wait_ms: wait.as_millis() })
+                    .expect("fixed restart word fits");
+                self.send(now, connection, Some(crate::translate::Down::Restarting(record)), Reply::Drop, out);
+                Some(wait)
+            } else {
+                None
+            };
+            let worker = self.workers.get(skein_lib::usize_of(worker)).expect("authenticated worker").name.clone();
+            out.push(Request::Told { worker, version, wait: sent });
+        }
+    }
     fn lower(&mut self, now: Time, connection: Token, event: skein_channel::LowerEvent, out: &mut Queue<Request>) {
         if let Some(mut state) = self.connections.remove(&connection) {
             match &event {
@@ -205,14 +231,19 @@ impl Component {
                     | jig_domain_host::LinkDown::Cancel { .. }
                     | jig_domain_host::LinkDown::Grant { .. } => Reply::Drop,
                 };
-                let record = crate::translate::down(down, &parts, values, &self.codec);
-                if record.is_none() {
-                    let words: &[u8] = match reply {
-                        Reply::Job { .. } => b"job cannot encode",
-                        Reply::Assignment { .. } | Reply::ReadList { .. } | Reply::Drop => b"assignment cannot encode",
-                    };
-                    self.refused_record(channel, reply, words, out);
-                }
+                let record = match crate::translate::down(down, &parts, values, &self.codec) {
+                    Ok(record) => Some(record),
+                    Err(reason) => {
+                        let what: &[u8] = match reply {
+                            Reply::Assignment { .. } => b"assignment",
+                            Reply::Job { .. } => b"job",
+                            Reply::ReadList { .. } | Reply::Drop => b"record",
+                        };
+                        let words = reason.words(what);
+                        self.refused_record(channel, reply, &words, out);
+                        None
+                    }
+                };
                 self.send(now, connection, record, reply, out);
             } else {
                 self.dropped_down = self.dropped_down.saturating_add(1);
@@ -325,7 +356,8 @@ impl Component {
                 };
                 (crate::translate::Down::Assign(record), past)
             }
-            crate::translate::Down::Asked(_)
+            crate::translate::Down::Restarting(_)
+            | crate::translate::Down::Asked(_)
             | crate::translate::Down::ReadList(_)
             | crate::translate::Down::Sources(_)
             | crate::translate::Down::Check(_)
@@ -518,7 +550,7 @@ impl Component {
                             .expect("agreed wire fits credential limits");
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v14::Agreed::new(&self.codec, wire::v14::AgreedParts { wires })
+                        let record = wire::v15::Agreed::new(&self.codec, wire::v15::AgreedParts { wires })
                             .expect("agreed wires fit credential limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
                         record.encode(&mut body).expect("measured statement");
@@ -797,7 +829,7 @@ fn expired(deadline: Option<Time>, now: Time) -> bool {
     }
 }
 
-fn lose(now: Time, stall: skein_lib::Duration, state: &mut Connection, out: &mut Queue<Request>) {
+fn lose(now: Time, stall: Duration, state: &mut Connection, out: &mut Queue<Request>) {
     if state.phase == Phase::Closing || state.terminal {
         return;
     }

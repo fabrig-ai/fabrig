@@ -104,8 +104,8 @@ pub struct Engine {
     pub host_reply_bytes: Option<u32>,
     /// The local agent's charter allowance, smith's `run_bytes`; none when no local agent is configured.
     pub agent_charter_bytes: Option<u64>,
-    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent/tools.md).
-    pub host_part: Option<temper_engine_domain::room::HostPart>,
+    /// Measured charter costs, also without a local agent (domain/agent/room.md, 4.4).
+    pub host_part: temper_engine_domain::room::HostPart,
     pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
@@ -150,4 +150,34 @@ pub struct SignIn {
     pub transport: Option<Transport>,
     pub members: Box<[crate::startup::application::sign_in::Member]>,
     pub forges: Box<[crate::startup::application::sign_in::ForgeSignIn]>,
+}
+
+/// The encoding's configured endpoint names, without addresses (domain/agent/room.md, 4.4).
+#[must_use]
+pub fn charter_endpoints(engine: &jig_protocol_config::Engine) -> smith_protocol_translate::Endpoints {
+    let mut entries = List::with_capacity(u32::try_from(engine.llm.endpoints.len()).expect("endpoint count"));
+    for endpoint in &engine.llm.endpoints {
+        entries
+            .push(smith_protocol_translate::Endpoint {
+                name: endpoint.name.clone(),
+                number: endpoint.number,
+                dialect: endpoint.dialect,
+            })
+            .expect("endpoint count");
+    }
+    smith_protocol_translate::Endpoints::new(entries)
+}
+
+/// Measure both charter checks, even without a local agent (domain/agent/room.md, 4.1).
+#[must_use]
+pub fn host_part(engine: &jig_protocol_config::Engine, agent: Option<&Agent>) -> temper_engine_domain::room::HostPart {
+    let (limits, allowance) = match agent {
+        Some(agent) => (Some(&agent.run_limits), Some(agent.charter_bytes)),
+        None => (None, None),
+    };
+    temper_engine_smith::room::host_part(
+        limits,
+        crate::assignment::charter_bound(engine.limits.hub.charter_bytes, allowance),
+        &charter_endpoints(engine),
+    )
 }

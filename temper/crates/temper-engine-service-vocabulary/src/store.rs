@@ -54,7 +54,7 @@ pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
         .expect("six wire slots");
     wires
 }
-/// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
+/// Owners kept by every engine shape, upstream first (protocol/floor.md, 3).
 pub const OWNER_SETS: protocol::OwnerSets = protocol::OwnerSets {
     sets: &[protocol::SKEIN_SET, protocol::SMITH_SET, jig_protocol_accounts::JIG_SET, temper_protocol_store::OWNER_SET],
 };

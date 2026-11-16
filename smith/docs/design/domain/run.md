@@ -365,6 +365,14 @@ connector's system.
   when the run cannot learn the outcome is the LLM told that it is
   unknown, and then it may look (with a host tool that reads) before
   acting again.
+- **Unsent is busy.** A withdrawal the host answers unsent (its link
+  never carried the call, as when the engine is away: jig's
+  `domain/hosts/hub.md`, 6) leaves no uncertain effect: the call is
+  asked again as one answered busy is, within the caller's deadline and
+  the run's, and returns busy, never unknown, when no ask is left. So a
+  relayed call waits for an engine that restarts within its own
+  deadlines, and past them fails to its LLM as any slow call does
+  (temper's `draft/redeploys.md`, 5.3).
 - **Scheduled by effect,** like any tool (session.md, section 5): a write
   runs alone, adjacent reads together.
 - **Refusals are the host's words:** a call beyond what the host allows

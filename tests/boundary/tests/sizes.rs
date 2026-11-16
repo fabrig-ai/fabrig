@@ -30,10 +30,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "Domain's state grouped into owned parts (temper/docs/development/debt/D013-forge-one-object.md), then a split along them",
     },
     Exception {
-        what: "jig-protocol-store",
-        until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1); G2 moves only generated record code",
-    },
-    Exception {
         what: "jig-client-protocol-wire (own)",
         until: "a crate of its own for public (tools/crates/design.md, 5)",
     },

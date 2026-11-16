@@ -80,14 +80,14 @@ them.
   texts are frozen from its first, so a landing that changes its layout
   in anything but names, comments, `boxed` and the text's layout moves
   its version by one, keeps the old text and brings its forward patch,
-  written by `cargo run -p skein-codegen -- patch <crate>` as a stored
-  family's is (skein's `data/codec/command.md`, 2), with its reverse,
+  written by `cargo run -p skein-codegen -- patch <crate>`
+  (skein's `data/codec/command.md`, 2), with its reverse,
   derived or its author's, or its breaking declaration (skein's
   `data/codec/bridges.md`, 2 and 3). The old version's golden bytes are
   made from its kept text, and taken up and down by the patch's golden
   test (skein's `data/codec/bridges.md`, 6).
 - **The gate holds it:** `fabrig-boundary`'s `patches` test
-  (`baseline.md`, 7) lists each wire crate as an owner, so its check
+  (`floor.md`, 6) lists each wire crate as an owner, so its check
   refuses a wire changed in place (`Unpatched`, or `Version` with the
   verdict `Unmoved`), a kept text edited (`Changed`), a kind's number
   or direction changed (jig's `protocol/channel/wires.md`, 4), a floor
@@ -137,6 +137,11 @@ them.
   refused at its opening by name (`wire smith-pieces: the worker states
   none`); and a worker of this build meeting an engine of the build
   before is refused by it for the same wire, the other way.
+- **The restart said** (milestone R8): `jig-worker-wire` 15 adds the
+  `restarting` record (jig's `protocol/channel/restart.md`), its floor
+  kept at 12, so a worker of the build before stays across that
+  landing's redeploy and is not told: it keeps its grace
+  (`../draft/redeploys.md`, 5.2).
 - **From then on,** a landing that moves a wire keeps its floor at or
   below the version before, unless it declares the move breaking, and a
   floor rises alone once dev.fabrig.ai and staging.fabrig.ai have run
@@ -181,7 +186,15 @@ them.
     opening: REASON: TEXT`, then its redial as after any refusal;
   - the worker, at a channel it closes itself after the engine's
     statement or for its absence: jig's text (jig's
-    `protocol/channel/bridges.md`, 3 and 6.3), then its redial.
+    `protocol/channel/bridges.md`, 3 and 6.3), then its redial;
+  - the engine, at its settled stop, for each worker its component
+    tells of (jig's `protocol/channel/restart.md`, 3): `worker NAME
+    told the engine restarts: wait MS ms`, MS the wait sent, or `worker
+    NAME not told the engine restarts: jig-worker-wire V; it keeps its
+    grace`, V the channel's version, below the first that has the word;
+  - the worker, at each word heard (jig's `protocol/channel/restart.md`,
+    4): `the engine said it restarts: runs kept up to MS ms after the
+    link drops`, MS the longer of the wait and its grace.
 
 ## 5. A mismatch costs no task
 
@@ -298,7 +311,7 @@ them.
   breaking move. And `fabrig-boundary`'s: a kept text the base holds
   never changes, the kept versions run from 1 to the greatest without
   a gap, and the floor moves by the rules above against the base, read
-  as the `patches` test reads it (`baseline.md`, 7).
+  as the `patches` test reads it (`floor.md`, 6).
 - **Not stated at the opening:** a worker carries a call's name, tool,
   input and contract as bytes and numbers and reads none of them.
 
@@ -328,7 +341,7 @@ them.
   text of a family has another family fingerprint than the base's text
   of that family, at the same version, is refused by the gate, naming
   the family and the fix, "move its version". The base is read as the
-  `patches` test reads it (`baseline.md`, 7), the family found by its
+  `patches` test reads it (`floor.md`, 6), the family found by its
   header among the crate's `schema/*.schema`, a family of several files
   read as its generated code reads them. A family the base lacks, or
   one whose version moved, passes. A focused test in each crate holds
@@ -386,16 +399,13 @@ them.
 ### 10.2 Whether the workers may stay
 
 `upgrade --check` (`binaries.md`, section 2) judges each worker by its
-kept opening (`../draft/redeploys.md`, 5.1), after its patches' and
+kept opening (`../draft/redeploys.md`, 5.1), after its jobs' and
 restores' lines. Every line starts with the binary's name and
 `upgrade:`, as the check's others do, and none changes its exit code.
 
-1. **A pending patch marked fresh:** no worker may stay, `a pending
-   patch requires fresh workers; stop the workers`, then `workers may
-   stay: no`, and nothing more.
-2. **The copy keeps no wires,** a store from before the row: `workers
+1. **The copy keeps no wires,** a store from before the row: `workers
    may stay: unknown; the copy keeps no wires`, and nothing more.
-3. **The engine's own wires,** those of the table the opening does not
+2. **The engine's own wires,** those of the table the opening does not
    state (`temper-host-tools`, section 2): each must be kept, at a
    version within this binary's range of it, from its floor to its
    current, since a run adopted across the restart goes on calling the
@@ -403,7 +413,7 @@ restores' lines. Every line starts with the binary's name and
    `wire NAME: kept V, this binary speaks L..H` or `wire NAME is not
    kept by the copy`, and no worker may stay. A kept wire the table
    lacks is passed over.
-4. **Each worker the configuration names,** in its order, by its kept
+3. **Each worker the configuration names,** in its order, by its kept
    opening, judged by `jig_protocol_engine_workers::judge` (jig's
    `protocol/channel/wires.md`, 3) with this binary's table, `wires()`,
    and the room and kinds' bounds its engine's workers component would
@@ -417,17 +427,17 @@ restores' lines. Every line starts with the binary's name and
 
    A kept opening of a name the configuration no longer names is not
    judged.
-5. **The verdict:** `workers may stay: yes` when step 3 passed and every
+4. **The verdict:** `workers may stay: yes` when step 2 passed and every
    worker named may stay, with none named too; else `workers may stay:
    no`.
 
 - **One judgement, at every floor:** a breaking change raises its wire's
   floor to its own version (`../draft/redeploys.md`, 4.5), so a worker
-  below it fails step 4's ranges with no rule of its own. A wire moved
+  below it fails step 3's ranges with no rule of its own. A wire moved
   with its reverse keeps workers of the previous version within the
   range; a breaking move refuses them by name.
-- **The window is not judged here:** the patches' times are the
-  rehearsal's lines (`binaries.md`, section 2), and comparing the window
+- **The window is not judged here:** the whole rehearsal/tool time is
+  a rehearsal line (`binaries.md`, section 2), and comparing the window
   with the workers' grace is the redeploy's referee's
   (`../draft/redeploys.md`, 7.5).
 
@@ -491,8 +501,8 @@ Focused and fuzzy alone; the drills run on the deployments after landing
 - **The verdict** (10.2), over kept openings and wires made by hand:
   every worker opened as this binary speaks, yes; one with another
   layout, one with no version in common, one whose output differs, each
-  named with the opening's words; one with no opening, unknown; a fresh
-  patch; `temper-host-tools` kept at another version; the copy keeping
+  named with the opening's words; one with no opening, unknown;
+  `temper-host-tools` kept at another version; the copy keeping
   no wires. And in the one-process world, a rehearsal of a deployment
   whose worker opened says it may stay, by name.
 

@@ -242,6 +242,7 @@ fn terminating(
             child,
             to: kernel::Target::Group,
             signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown,
         }));
     }
     State::Terminating { intent, pending, until }
@@ -255,7 +256,12 @@ fn killing(
     below: &mut Queue<Below>,
 ) -> State {
     if let Some(child) = process.child() {
-        below.push(Below::Io(io::Request::Signal { child, to: kernel::Target::Group, signal: kernel::Signal::Kill }));
+        below.push(Below::Io(io::Request::Signal {
+            child,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Grace,
+        }));
         for pipe in process.pipes().all().into_iter().flatten() {
             below.push(Below::Io(io::Request::Abort { entity: pipe }));
         }

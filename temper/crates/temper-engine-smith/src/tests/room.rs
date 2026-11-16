@@ -1,8 +1,22 @@
 //! The domain's table and smith's independent run measure
-//! (temper/docs/design/domain/agent/tools.md).
+//! (temper/docs/design/domain/agent/room.md, 4.4).
 
 use super::{assignment, engine, run, tasks};
-use crate::{charter, room::host_part};
+use crate::{charter, room::host_part as measure_host_part};
+
+fn endpoints() -> smith_protocol_translate::Endpoints {
+    let mut entries = skein_lib::List::with_capacity(2);
+    entries
+        .push(smith_protocol_translate::Endpoint { name: b"short".as_slice().into(), number: 1, dialect: 1 })
+        .unwrap();
+    entries
+        .push(smith_protocol_translate::Endpoint { name: b"longest-endpoint".as_slice().into(), number: 2, dialect: 3 })
+        .unwrap();
+    smith_protocol_translate::Endpoints::new(entries)
+}
+fn host_part(limits: &run::Limits) -> temper_engine_domain::room::HostPart {
+    measure_host_part(Some(limits), 65_536, &endpoints())
+}
 
 fn non_brief(charter: &run::Charter, limits: &run::Limits) -> u64 {
     limits.host_part.checked_sub(u64::from(run::brief_room(charter, None, limits).unwrap())).unwrap()
@@ -60,7 +74,7 @@ fn the_table_is_smiths_measure() {
         for families in 0_u8..16 {
             for (tools, exact) in [
                 (engine::RunPolicy::EVERY_FAMILY, true),
-                (tasks::Tools(512), false),
+                (tasks::Tools(512), true),
                 (tasks::Tools(3_072), true),
                 (tasks::Tools(2_048), true),
             ] {
@@ -104,9 +118,9 @@ fn a_charter_naming_settings_pays_for_its_tools() {
     assignment.run.policy.tools = tasks::Tools(1_537);
     let with = table.non_brief(&configured(&assignment.run.policy));
     let with_smith = non_brief(&charter(&assignment), &limits);
-    assert!(table.settings > 0);
-    assert_eq!(with - without, table.settings);
-    assert_eq!(with_smith - without_smith, table.settings);
+    assert!(table.families[10].rendered > 0);
+    assert_eq!(with - without, table.families[10].rendered);
+    assert_eq!(with_smith - without_smith, table.families[10].rendered);
     assert_eq!(with, with_smith);
     assignment.run.authority.tools = tasks::Tools(512);
     assert!(with >= non_brief(&charter(&assignment), &limits));
@@ -178,6 +192,95 @@ fn a_small_receiving_bound_does_not_change_the_measured_costs() {
     let limits = measured_limits();
     let table = host_part(&limits);
     let small = host_part(&run::Limits { host_part: 1, ..limits });
-    assert_eq!(small, temper_engine_domain::room::HostPart { bound: 1, ..table });
+    assert_eq!(small, temper_engine_domain::room::HostPart { bound: Some(1), ..table });
     assert_eq!(small.room(&configured(&assignment().run.policy)), 0);
+}
+
+fn stock_charters() -> Box<[engine::Charter]> {
+    use jig_protocol_config as config;
+    let text = include_str!("../../../temper-init/template/temper.json")
+        .replace("$llm", "127.0.0.1:8370")
+        .replace("\"$provider\"", "null");
+    let document: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let engine_bytes = serde_json::to_vec(&document["engine"]).unwrap();
+    let document =
+        config::document(&engine_bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
+            .unwrap();
+    let engine = config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
+    temper_engine_service_stock::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).charters
+}
+
+fn encoded(charter: &run::Charter, endpoints: &smith_protocol_translate::Endpoints) -> u64 {
+    u64::try_from(smith_protocol_translate::encode_charter(charter, &smith_charter::CEILINGS, endpoints).unwrap().len())
+        .unwrap()
+}
+
+#[test]
+fn fixed_costs_are_smiths_owned_and_encoded_measure_on_every_stock_wake() {
+    let endpoints = endpoints();
+    let table = measure_host_part(Some(&measured_limits()), 65_536, &endpoints);
+    for mut stock in stock_charters() {
+        for model in core::iter::once(&mut stock.policy.model).chain(&mut stock.policy.alternatives) {
+            model.endpoint = 2;
+            model.dialect = 3;
+        }
+        for name in tasks::REASON_NAMES {
+            let wake = tasks::Reasons::named(name).unwrap();
+            let mut assignment = largest();
+            // The frame includes the project's optional delivery-check bound at its largest.
+            assignment.check_timeout = Some(skein_lib::Duration::from_secs(86_400));
+            assignment.charter = stock.number;
+            assignment.run.policy = stock.policy.clone();
+            let mut length = stock.policy.instructions.len();
+            for part in &stock.parts {
+                if part.on.meets(wake) {
+                    length = length.checked_add(2).unwrap().checked_add(part.instructions.len()).unwrap();
+                }
+            }
+            let mut instructions = skein_lib::Writer::new(length);
+            instructions.put(&stock.policy.instructions).unwrap();
+            for part in &stock.parts {
+                if part.on.meets(wake) {
+                    instructions.put(b"\n\n").unwrap();
+                    instructions.put(&part.instructions).unwrap();
+                }
+            }
+            assignment.run.policy.instructions = instructions.finish();
+            assignment.run.sources = vec![Some(1); 1 + stock.policy.alternatives.len()].into_boxed_slice();
+            let mut measured = charter(&assignment);
+            measured.brief.sections = Box::new([]);
+            let cost = table.on_wake(&stock, wake);
+            assert_eq!(cost.owned, measured.owned_bytes().unwrap(), "charter {} {name:?}", stock.number);
+            assert!(cost.encoded >= encoded(&measured, &endpoints), "charter {} {name:?}", stock.number);
+            // Match the table's largest optional framing, retaining the stock's payload bytes.
+            for model in core::iter::once(&mut measured.llm).chain(&mut measured.models) {
+                model.account = Some(1);
+                model.prices.cache_write = Some(1);
+                if model.effort.is_none() {
+                    model.effort = Some(Box::new([]));
+                }
+            }
+            assert_eq!(cost.encoded, encoded(&measured, &endpoints), "charter {} {name:?}", stock.number);
+        }
+    }
+}
+
+#[test]
+fn no_local_agent_keeps_the_owned_and_encoded_costs_and_skips_rendering() {
+    let with = measure_host_part(Some(&measured_limits()), 65_536, &endpoints());
+    let without = measure_host_part(None, 65_536, &endpoints());
+    assert_eq!(without.bound, None);
+    for (with, without) in [
+        (with.fixed, without.fixed),
+        (with.model, without.model),
+        (with.always, without.always),
+        (with.asking, without.asking),
+        (with.asking_settings, without.asking_settings),
+    ]
+    .into_iter()
+    .chain(with.families.into_iter().zip(without.families))
+    {
+        assert_eq!((with.owned, with.encoded), (without.owned, without.encoded));
+        assert_eq!(without.rendered, 0);
+    }
 }

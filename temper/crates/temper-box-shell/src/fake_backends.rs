@@ -166,42 +166,21 @@ fn scripts_for_start(
     Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
 }
 fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
-    let mut joined = Json::Object(
-        ["cued", "asked", "otherwise"]
-            .into_iter()
-            .map(|name| (name.as_bytes().into(), Json::Array(Vec::new())))
-            .collect(),
-    );
-    let mut content = joined.encode()?;
+    let mut joined = temper_fake::llm::ScriptJoin::empty();
     for file in files {
         let refuse = |why| format!("{}: {why}", file.display());
         let source =
             skein_shell::read_file(file, temper_fake::DOCUMENT_BYTES).map_err(|why| refuse(crate::unread(why)))?;
-        let check = |scripts: &[u8]| {
-            temper_fake::llm::Document::decode_with_scripts(document, Some(scripts))
-                .map_err(|why| refuse(String::from_utf8_lossy(&why.line()).into_owned()))
-        };
-        check(&source)?;
-        let Json::Object(members) = Json::decode(&source).map_err(refuse)? else {
-            unreachable!("script reader checked the object");
-        };
-        for (name, value) in members {
-            let name = std::str::from_utf8(&name).expect("checked script member");
-            let target = joined.at_mut(name).map_err(refuse)?;
-            if name == "otherwise" {
-                *target = value;
-            } else {
-                let (Json::Array(target), Json::Array(mut given)) = (target, value) else {
-                    unreachable!("script reader checked the arrays");
-                };
-                target.append(&mut given);
-            }
-        }
-        content = joined.encode().map_err(refuse)?;
-        check(&content)?;
+        joined.push(document, &source).map_err(|why| {
+            let line = why.line();
+            let line = String::from_utf8_lossy(&line);
+            // The public JSON writer's byte refusal has no final newline.
+            refuse(if why.words == b"past byte bound" { line.trim_end_matches('\n').into() } else { line.into_owned() })
+        })?;
     }
-    Ok(content)
+    Ok(joined.into_bytes())
 }
+
 fn bytes(path: &Path) -> Box<[u8]> {
     path.as_os_str().as_bytes().into()
 }

@@ -189,7 +189,7 @@ impl Agents {
                     out.push(host::FromAgent::Gone { owner, detail: Box::new([]) });
                 }
             }
-            host::ToAgent::Acknowledge { .. } | host::ToAgent::Grant { .. } => {}
+            host::ToAgent::Acknowledge { .. } | host::ToAgent::Renewals { .. } | host::ToAgent::Grant { .. } => {}
         }
         out.into_iter().map(|report| Input::Event(root::Event::Agent(report))).collect()
     }

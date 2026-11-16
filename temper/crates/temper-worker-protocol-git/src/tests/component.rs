@@ -103,7 +103,10 @@ fn a_deadline_kills_the_group_and_ends_timed_out_after_the_close() {
     component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
     let (child, pipes) = component.spawned();
     component.fire(fixtures::DEADLINE);
-    assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+    assert_eq!(
+        &*component.signals(),
+        &[(child, kernel::Signal::Kill, kernel::Target::Group, kernel::Reason::Deadline)]
+    );
     assert_eq!(component.done(), None);
     component.below.out.io = skein_lib::Queue::uncapped();
     component.component.up(
@@ -124,6 +127,41 @@ fn a_deadline_kills_the_group_and_ends_timed_out_after_the_close() {
         ))
     );
 }
+/// temper/docs/design/protocol/git.md, 7: broken io names its kill Closed.
+#[test]
+fn broken_io_kills_the_group_named_closed() {
+    for pipe_failure in [false, true] {
+        let mut component = fixtures::Started::new();
+        component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
+        let (child, pipes) = component.spawned();
+        let event = if pipe_failure {
+            skein_io::Event::Stream {
+                owner: pipes[0],
+                up: skein_lib::stream::Up::Failed(skein_lib::stream::Fault::Other),
+            }
+        } else {
+            skein_io::Event::Failed { owner: component.below.io_owner.expect("spawned"), error: skein_io::Error::Other }
+        };
+        component.component.up(component.now, event, &mut component.below.out);
+        assert_eq!(
+            &*component.signals(),
+            &[(child, kernel::Signal::Kill, kernel::Target::Group, kernel::Reason::Closed)]
+        );
+        assert_eq!(component.done(), None);
+        component.closed(child, &pipes);
+        assert_eq!(
+            component.done(),
+            Some((
+                fixtures::OWNER,
+                git::Done::FailedWithOutput {
+                    fault: git::Fault::Broken,
+                    diagnostic: git::PushDiagnostic::empty().named(b"fetch"),
+                },
+            ))
+        );
+    }
+}
+
 /// temper/docs/design/protocol/git.md, 4.5 and 6: one deadline, distinct invocations.
 #[test]
 fn checkout_and_clean_deadlines_name_the_invocation_in_flight() {
@@ -151,7 +189,10 @@ fn checkout_and_clean_deadlines_name_the_invocation_in_flight() {
         }
         let (child, pipes) = component.spawned();
         component.fire(fixtures::DEADLINE);
-        assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+        assert_eq!(
+            &*component.signals(),
+            &[(child, kernel::Signal::Kill, kernel::Target::Group, kernel::Reason::Deadline)]
+        );
         assert_eq!(component.done(), None);
         component.closed(child, &pipes);
         let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault: git::Fault::TimedOut, diagnostic })) =
@@ -181,7 +222,10 @@ fn a_cancel_during_a_queued_clean_spawn_names_clean() {
     component.down(Request::CancelIo { owner: fixtures::OWNER });
     assert_eq!(component.done(), None);
     let (child, pipes) = component.spawned();
-    assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+    assert_eq!(
+        &*component.signals(),
+        &[(child, kernel::Signal::Kill, kernel::Target::Group, kernel::Reason::Cancelled)]
+    );
     component.closed(child, &pipes);
     assert_eq!(
         component.done(),
@@ -422,7 +466,10 @@ fn standalone_ancestry_needs_no_identity_and_cancels_after_its_child_closes() {
     });
     let (child, pipes) = component.spawned();
     component.down(Request::CancelIo { owner: fixtures::OWNER });
-    assert_eq!(&*component.signals(), &[(child, kernel::Signal::Kill, kernel::Target::Group)]);
+    assert_eq!(
+        &*component.signals(),
+        &[(child, kernel::Signal::Kill, kernel::Target::Group, kernel::Reason::Cancelled)]
+    );
     assert_eq!(component.done(), None);
     component.closed(child, &pipes);
     assert_eq!(

@@ -132,6 +132,18 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   its relayed calls answered on the new channel (jig's
   `domain/hosts/hub.md`, 6). Nothing is cancelled and nothing starts
   again.
+- **A restart said is waited for longer.** An engine's settled stop
+  tells its workers it restarts, with its restart wait, 20 minutes by
+  default (`../../protocol/configuration/README.md`, section 3): a
+  worker that heard it keeps its runs, at its link's loss, for the
+  longer of that wait and its grace, then the same tail as past the
+  grace (jig's `protocol/channel/restart.md`, 4). Meanwhile its runs'
+  turns, checks, saves and pushes go on; a relayed call the link never
+  carried is asked again within its deadlines with no uncertain effect,
+  and a completion whose grant lapsed waits for its renewal (jig's
+  `domain/hosts/hub.md`, 6; `../../draft/redeploys.md`, 5.3). The engine
+  holds their claims as long (jig's `domain/engine/fleet.md`, *A restart
+  said holds its runs*).
 - **A start that fails is the engine still away.** An engine that
   exits before it admits a hello, refused at its start's checks or
   failing as it starts, and is restarted, is one absence to the worker:

@@ -128,3 +128,108 @@ pub(super) fn active(disk: &mut Machine) -> Vec<u8> {
     disk.close(root);
     bytes
 }
+
+/// Append one valid map commit only in the loaded copy; the fixture stays byte-for-byte.
+pub(crate) fn change_record(disk: &mut Machine, key: &[u8], value: Option<&[u8]>) {
+    let active = active(disk);
+    let active = std::str::from_utf8(&active).expect("active text").trim();
+    let root = disk.reopen_root(0);
+    let path = format!("generations/{active}/store/log-00000000000000000001");
+    let log = disk.open(root, path.as_bytes(), How::WriteNoFollow).expect("floor log");
+    let size = u32::try_from(disk.stat(log).size).expect("small log");
+    let bytes = disk.read(log, 0, size).expect("log bytes");
+    let (frames, used) = crate::referee::durable::frames(&bytes, 0);
+    assert_eq!(used, bytes.len(), "whole golden log");
+    let number = frames.last().expect("kept commits").0 + 1;
+    let mut body = vec![if value.is_some() { 1 } else { 2 }];
+    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
+    body.extend(key);
+    if let Some(value) = value {
+        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
+        body.extend(value);
+    }
+    let mut frame = b"SKVC".to_vec();
+    frame.extend(1_u16.to_be_bytes());
+    frame.extend(number.to_be_bytes());
+    frame.extend(1_u32.to_be_bytes());
+    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
+    frame.extend(body);
+    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    disk.append(log, &frame).expect("copy's test commit");
+    disk.sync(log);
+    disk.close(log);
+    disk.close(root);
+}
+
+type Image = std::collections::BTreeMap<(u32, Vec<u8>), (skein_fake_machine::Facts, Vec<u8>)>;
+pub(crate) fn image(disk: &mut Machine) -> Image {
+    let mut image = Image::new();
+    for index in 0..4 {
+        image.extend(image_root(disk, index));
+    }
+    image
+}
+pub(crate) fn image_root(disk: &mut Machine, index: u32) -> Image {
+    let root = disk.reopen_root(index);
+    let mut image = Image::new();
+    collect(disk, root, index, &[], &mut image);
+    disk.close(root);
+    image
+}
+fn collect(disk: &mut Machine, opened: Opened, index: u32, path: &[u8], image: &mut Image) {
+    let facts = disk.stat(opened);
+    let bytes = if facts.is == Is::File {
+        disk.read(opened, 0, u32::try_from(facts.size).expect("small file")).expect("image bytes")
+    } else {
+        Vec::new()
+    };
+    image.insert((index, path.to_vec()), (facts, bytes));
+    if facts.is != Is::Directory {
+        return;
+    }
+    loop {
+        let entries = disk.list(opened, 32, 4096).expect("image directory");
+        if entries.is_empty() {
+            break;
+        }
+        for (kind, name) in entries {
+            let how = if kind == Is::Directory { How::DirectoryNoFollow } else { How::ReadNoFollow };
+            let child = disk.open(opened, &name, how).expect("image child");
+            let prefix = if path.is_empty() { Vec::new() } else { [path, b"/"].concat() };
+            collect(disk, child, index, &[prefix.as_slice(), &name].concat(), image);
+            disk.close(child);
+        }
+    }
+}
+
+/// Compare without printing credentials or other payloads on a failure.
+pub(crate) fn unchanged(before: &Image, after: &Image) {
+    let missing: Vec<_> = before
+        .keys()
+        .filter(|path| !after.contains_key(*path))
+        .map(|(root, path)| (*root, String::from_utf8_lossy(path).into_owned()))
+        .collect();
+    let added: Vec<_> = after
+        .keys()
+        .filter(|path| !before.contains_key(*path))
+        .map(|(root, path)| (*root, String::from_utf8_lossy(path).into_owned()))
+        .collect();
+    assert!(missing.is_empty() && added.is_empty(), "paths changed: missing {missing:?}, added {added:?}");
+    for (path, (facts, bytes)) in before {
+        let (found_facts, found_bytes) = &after[path];
+        assert_eq!(facts, found_facts, "metadata at {path:?}");
+        assert!(bytes == found_bytes, "bytes at {path:?}");
+    }
+}
+
+/// A refusal preserves the copy, apart from recovery's two empty next segments.
+pub(crate) fn refused(before: &Image, disk: &mut Machine) {
+    let mut after = image(disk);
+    for path in ["generations/1/store/log-00000000000000000102", "generations/1/secrets/log-00000000000000000014"] {
+        let (facts, bytes) = after.remove(&(0, path.as_bytes().to_vec())).expect("recovery's next empty log");
+        assert_eq!(facts.is, Is::File);
+        assert_eq!(facts.size, 0, "{path}");
+        assert!(bytes.is_empty(), "{path}");
+    }
+    unchanged(before, &after);
+}

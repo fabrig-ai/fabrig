@@ -6,13 +6,16 @@ extern crate alloc;
 
 mod back;
 pub mod boundary;
+mod catalogue;
 mod census;
-pub mod codec;
+pub use jig_protocol_store_records::codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
 
 /// The oldest store this build serves (protocol/store/records.md, 3).
 pub const FLOOR: u32 = 1;
+/// The build to open older stores with before this build (protocol/store/records.md, 3).
+pub const FLOOR_BRIDGE: &str = "3d1c717d379e";
 mod directory;
 pub mod ended;
 pub mod format;
@@ -40,6 +43,7 @@ mod reads;
 mod registry;
 pub mod restore;
 pub mod retained;
+mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;
@@ -116,7 +120,6 @@ pub struct Store {
     owner_sets: OwnerSets,
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
-    history_routing: bool,
     wires: &'static [Wire],
     /// Accepted opening keys, including commits not yet durable.
     opening_keys: skein_lib::Map<Box<[u8]>, ()>,
@@ -251,7 +254,6 @@ impl Store {
             installation: [0; 16],
             owner_sets: OwnerSets::NONE,
             build_name: "",
-            history_routing: false,
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,

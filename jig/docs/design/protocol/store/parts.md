@@ -17,8 +17,6 @@ it, and a hot part holding the rest.
   in a keyspace of their own, the rest at the live key.
 - **Goals' projections** (3): their words in rows of their own, beside
   the goal's and each plan task's phase.
-- **Jobs at open** (4) put a store's whole rows into their parts once;
-  the whole variants are gone from the schema since store-floor's F0.
 - temper's change records are temper's (temper's `protocol/store.md`,
   section 2, families 47 and 48), by the same rule.
 
@@ -38,7 +36,7 @@ it, and a hot part holding the rest.
   record it last saved). An erase of the record erases both parts, in
   one commit.
 - **What a read hands:** every read, the restart's, a point read's, a
-  join's and a job's after this one, hands the record whole, joined from
+  join's and a job's, hands the record whole, joined from
   its two rows. One part without its other is a row that does not
   decode (`loads.md`, 1), which stops the engine.
 - **Every field placed:** the codec's split and join name every field of
@@ -77,8 +75,7 @@ record LiveCold { spec: Spec contract: Contract authority: Authority instruction
   `01 01 18` is value type 21, `Row`'s variant `live_cold`, over
   `[01 01 18, 01 02)`; S5's holds (value type 20) narrow to `[01 01 17, 01 01 18)`.
   The census names `01 01 18` `tasks.live-cold`. `Row`'s `Value` gains
-  `live_hot` and `live_cold` after its last variant. `live` and
-  `live_talk` stay declared, read by the job (4) alone.
+  `live_hot` and `live_cold` after its last variant.
 - **The ended record stays whole,** `ended_talk` at `01 01 06 <task>`:
   it is written once, when the task ends.
 - **The tasks child's boundary:** its `Key` gains `LiveCold(u64)`, in
@@ -141,34 +138,6 @@ record ProjectionWords { goal: u64 task: u64 words: bytes 262144 }
   as it does today, joining each words row to its goal's header or its
   plan task; a hot row without its words, or words without their hot
   row, is an orphan as a plan row without its header is today.
-- `goal` and `task` stay declared, read by the job (4) alone.
-
-## 4. Jobs at open
-
-Jobs of jig's patch set (`jobs.md`, 1) that put a store's whole rows
-into their parts once. Every store at or past dev.fabrig.ai's has run
-them, so since store-floor's F0 (temper's `draft/store-floor.md`,
-section 2) the whole variants are gone from the schema and the jobs are
-no longer declared: a store that still holds a whole row is refused by
-jig's settling job (`jobs.md`, 5.1). What they did:
-
-| Job | Walks | Writes for each row |
-|---|---|---|
-| `live-task-parts` | `[01 01 00, 01 01 01)` | a live task held whole (`live`, `live_talk`): its hot part at its key and its cold part at `01 01 18 <task>` |
-| `projection-parts` | `[01 00 01 00, 01 00 01 02)` | a header or plan row held whole (`goal`, `task`): its hot row at its key and its words at sub 04 or 05 |
-
-- **Its pages** come through the read edge (`jobs.md`, 3), so each row is
-  at the binary's layout, where the whole variants stay declared. The
-  job decodes it by the binary's code, splits it by the codec's split
-  (2, 3) and encodes each part as a save of it is, `models` included.
-  A row already in parts passes with no write.
-- **Each answer** stays within the page's room (`jobs.md`, 3):
-  a whole row makes two puts, so an answer consumes the page's rows whose
-  writes fit (`through`) and the next page goes on after them.
-- **Its cost:** on dev.fabrig.ai about 20 to 70 live tasks and about 80
-  projection rows: a commit or a few, read and written in memory.
-- **A later job** that rewrites live tasks or projections, declared after
-  these, reads and writes their parts.
 
 ## 5. Tests
 
@@ -192,8 +161,6 @@ jig's settling job (`jobs.md`, 5.1). What they did:
 - **Fuzzy:** the tasks world's lifecycle and amendments suites, with
   their restart cuts, read every live task back equal after a restart;
   the store codecs' fuzzy decoders take the new variants.
-- **The real families** (`layouts.md`, 8): the new value type is new
-  since the kept text, and every other type derives.
 
 ## 6. Open questions
 

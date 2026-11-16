@@ -231,6 +231,7 @@ members = [
     "jig/testing/jig-engine-clients-kit",
     "jig/testing/jig-client-protocol-kit",
     "jig/testing/jig-protocol-accounts-kit",
+    "jig/testing/jig-protocol-store-kit",
     "jig/testing/jig-people-kit",
     "jig/testing/jig-tasks-kit",
     "jig/testing/jig-channel-kit",
@@ -269,6 +270,7 @@ members = [
     "jig/crates/jig-protocol-tools",
     "jig/crates/jig-protocol-config",
     "jig/crates/jig-protocol-store",
+    "jig/crates/jig-protocol-store-records",
     "jig/crates/jig-protocol-store-people",
     "jig/crates/jig-protocol-store-tasks",
     "jig/crates/jig-protocol-store-core",
@@ -632,6 +634,7 @@ jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }
 jig-protocol-store = { path = "jig/crates/jig-protocol-store" }
+jig-protocol-store-records = { path = "jig/crates/jig-protocol-store-records" }
 jig-protocol-store-people = { path = "jig/crates/jig-protocol-store-people" }
 jig-protocol-store-tasks = { path = "jig/crates/jig-protocol-store-tasks" }
 jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
@@ -659,6 +662,7 @@ jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
 jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-protocol-store-kit = { path = "jig/testing/jig-protocol-store-kit" }
 jig-test-kit = { path = "jig/testing/jig-test-kit" }
 jig-people-kit = { path = "jig/testing/jig-people-kit" }
 jig-tasks-kit = { path = "jig/testing/jig-tasks-kit" }

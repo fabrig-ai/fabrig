@@ -23,6 +23,7 @@ pub struct Goal {
     pub report: Option<report::Report>,
     pub line: Option<c::TaskLine>,
     pub draft: (Option<Box<[u8]>>, Option<u64>),
+    requester: Option<super::inbox::TaskRead>,
     specification: Option<specification::Specification>,
     spec_revision: c::Revision,
     text_bound: u32,
@@ -48,6 +49,7 @@ impl Goal {
         *next = next.checked_add(1).expect("goal handles fit");
         let mut goal = Self {
             draft: provenance(task),
+            requester: requester(task, next, out),
             specification: specification::Specification::new(task, text_bound, next, out),
             spec_revision: task.spec_revision,
             text_bound,
@@ -78,6 +80,20 @@ impl Goal {
             self.draft = provenance(task);
             self.specification = specification::Specification::new(task, self.text_bound, next, out);
             self.spec_revision = task.spec_revision;
+        }
+        let number = match task.requester {
+            c::Requester::Task(number) => Some(number),
+            c::Requester::Person(_) | c::Requester::Deployment { .. } => None,
+        };
+        let held = match &self.requester {
+            Some(read) => Some(read.number),
+            None => None,
+        };
+        if held != number {
+            if let Some(read) = self.requester.take() {
+                read.leave(out);
+            }
+            self.requester = requester(task, next, out);
         }
         self.activity = task.last_activity;
         self.changed = task.changed;
@@ -113,6 +129,11 @@ impl Goal {
         read(self.line_handle, c::Read::Tasks { query: self.query, live, ended }, out);
     }
     pub(super) fn told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+        if let Some(requester) = &mut self.requester
+            && requester.told(told)
+        {
+            return true;
+        }
         if let Some(specification) = &mut self.specification
             && specification.told(now, client, told, &mut self.draft, out)
         {
@@ -187,9 +208,19 @@ impl Goal {
         if let Some(specification) = &self.specification {
             specification.leave(out);
         }
+        if let Some(requester) = &self.requester {
+            requester.leave(out);
+        }
         for handle in [self.report_handle, self.line_handle] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
+    }
+    #[must_use]
+    pub fn requester_chat(&self, me: Option<&c::Me>) -> Option<u64> {
+        let requester = self.requester.as_ref()?;
+        let task = requester.document.as_deref()?;
+        let template = jig_client::shapes::template(me?, task.project, jig_client::shapes::CHAT)?;
+        if task.label == template.label { Some(requester.number) } else { None }
     }
     #[must_use]
     pub fn counts(&self, task: &c::Task, ended: Option<&c::TaskPage>) -> Counts {
@@ -226,6 +257,16 @@ impl Goal {
     pub fn state(&self, task: &c::Task, ended: Option<&c::TaskPage>, needs: bool) -> goals::State {
         goals::state(&task.chip, needs, self.report.is_some(), self.counts(task, ended).total)
     }
+}
+fn requester(task: &c::Task, next: &mut u64, out: &mut Queue<Request>) -> Option<super::inbox::TaskRead> {
+    let c::Requester::Task(number) = task.requester else { return None };
+    if let Some(lineage) = temper_client_domain_forge::milestones::lineage(task)
+        && lineage.milestone.task == number
+        && lineage.goal.task == task.chip.task
+    {
+        return None;
+    }
+    Some(super::inbox::TaskRead::new(number, next, out))
 }
 fn provenance(task: &c::Task) -> (Option<Box<[u8]>>, Option<u64>) {
     if task.spec.specification.words.cut { (None, None) } else { draft_of(task.spec.specification.words.bytes()) }
@@ -406,6 +447,8 @@ pub enum Fallback {
     Landed { first_line: Option<Box<[u8]>> },
     Failed { reason: Box<[u8]> },
     Tasks(Counts),
+    Waits(goals::Wait),
+    WaitsForRoom,
 }
 #[must_use]
 pub fn fallback(state: goals::State, task: &c::Task, counts: Counts) -> Fallback {
@@ -418,6 +461,8 @@ pub fn fallback(state: goals::State, task: &c::Task, counts: Counts) -> Fallback
         },
         goals::State::Closed => Fallback::Closed,
         goals::State::Failed => Fallback::Failed { reason: bytes::copy_of(said(task).unwrap_or_default()) },
+        goals::State::Waits(wait) => Fallback::Waits(wait),
+        goals::State::WaitsForRoom => Fallback::WaitsForRoom,
         goals::State::Planning => planning(task),
         goals::State::Needs { .. } | goals::State::Paused | goals::State::Running => {
             if counts.total == 0 {
@@ -463,7 +508,12 @@ pub fn landing(state: goals::State, task: &c::Task, ended_at: Option<Wall>, coun
         goals::State::Landed => Landing::Landed(ended_at),
         goals::State::Closed => Landing::Closed,
         goals::State::Failed => Landing::Failed,
-        goals::State::Needs { .. } | goals::State::Paused | goals::State::Planning | goals::State::Running => {
+        goals::State::Needs { .. }
+        | goals::State::Paused
+        | goals::State::Waits(_)
+        | goals::State::WaitsForRoom
+        | goals::State::Planning
+        | goals::State::Running => {
             if holds_branch(task) {
                 Landing::Whole { total: counts.total }
             } else {

@@ -55,10 +55,15 @@ fn simultaneously_due_checks_each_stop_and_answer_after_reap() {
     let (mut component, mut above, mut below) = running(false);
     let mut later = env();
     later.now = DEADLINE;
-    for signal in [kernel::Signal::Terminate, kernel::Signal::Kill] {
+    for (signal, reason) in
+        [(kernel::Signal::Terminate, kernel::Reason::Unknown), (kernel::Signal::Kill, kernel::Reason::Grace)]
+    {
         component.fire(&later, &mut above, &mut below);
         for child in CHILDREN {
-            assert_eq!(below.pop(), Some(Below::Process(Request::Signal { child, to: kernel::Target::Group, signal })));
+            assert_eq!(
+                below.pop(),
+                Some(Below::Process(Request::Signal { child, to: kernel::Target::Group, signal, reason }))
+            );
         }
         assert!(below.is_empty());
         later.now = later.now.checked_add(later.limits.group_stop).expect("test deadline fits");

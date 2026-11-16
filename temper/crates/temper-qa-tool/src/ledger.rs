@@ -1,5 +1,5 @@
 //! Value operations, with time supplied by the caller (qa/ledger.md, 2 and 4).
-use crate::{CaseInput, Refusal, refused};
+use crate::{CaseInput, Kind, Refusal, refused};
 use std::collections::BTreeMap;
 
 pub type Pages = BTreeMap<String, Vec<String>>;
@@ -46,6 +46,7 @@ pub enum Answer {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Case {
+    pub kind: Kind,
     pub number: u64,
     pub surface: String,
     pub page: String,
@@ -93,6 +94,7 @@ pub struct Session {
     pub tokens: Option<u64>,
     pub pages: Pages,
     pub setups: Vec<String>,
+    pub deployments: Vec<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Exit {
@@ -177,6 +179,7 @@ impl Ledger {
         effort: &str,
         pages: Pages,
         setups: Vec<String>,
+        deployments: Vec<String>,
         now: u64,
     ) -> Result<u64, Refusal> {
         if let Some(session) =
@@ -201,6 +204,7 @@ impl Ledger {
             tokens: None,
             pages,
             setups,
+            deployments,
         });
         Ok(number)
     }
@@ -251,12 +255,14 @@ impl Ledger {
             return Err(refused(format!("landing {number} is answered no QA; a case is refused")));
         }
         input.check(session)?;
+        let kind = if session.deployments.contains(&input.setup) { Kind::Deployment } else { Kind::Box };
         let ask =
             Ask { landing: number, setup: input.setup.clone(), adds: input.adds.clone(), steps: input.steps.clone() };
-        let waiting = self.waiting_match(input);
+        let waiting = self.waiting_match(input, kind);
         let answer = if let Some((pass, finding)) = waiting {
             let number = next_number(self.cases.iter().map(|case| case.number));
             self.cases.push(Case {
+                kind,
                 number,
                 surface: input.surface.clone(),
                 page: input.page.clone(),
@@ -271,13 +277,17 @@ impl Ledger {
             self.passes.iter_mut().find(|record| record.number == pass).expect("waiting pass").cases.push(number);
             CaseAnswer::Waiting { number, pass, finding }
         } else if let Some(case) = self.cases.iter_mut().find(|case| {
-            case.state == crate::CaseState::Queued && case.surface == input.surface && case.page == input.page
+            case.state == crate::CaseState::Queued
+                && case.kind == kind
+                && case.surface == input.surface
+                && case.page == input.page
         }) {
             case.asks.push(ask);
             CaseAnswer::Joined { number: case.number, landings: case.landings() }
         } else {
             let number = next_number(self.cases.iter().map(|case| case.number));
             self.cases.push(Case {
+                kind,
                 number,
                 surface: input.surface.clone(),
                 page: input.page.clone(),

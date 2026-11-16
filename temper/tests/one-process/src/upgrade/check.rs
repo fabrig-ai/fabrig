@@ -132,7 +132,7 @@ pub fn prebaseline_rehearsals() {
     let before_levels =
         [0, 3, 0, 3, 0, 6, 0, 9, 0, 13, 0, 1, 0, 2, 0, 1, 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7];
     for format in [unleveled.encode().expect("unleveled format"), Box::from(before_levels)] {
-        source_rehearsal(&format, "A store from before the baseline is not translated");
+        source_rehearsal(&format, "No build translates a store from before the baseline");
     }
 }
 
@@ -314,9 +314,8 @@ pub fn golden(directory: &Path) {
         temper_engine_service::store::OWNER_SETS,
         Until::Check,
     );
-    assert_eq!(code, 1, "{report}");
-    assert!(patches.is_empty(), "refusal precedes every patch");
-    assert!(report.contains("holds a store from before the baseline"), "{report}");
-    assert!(!report.contains("registry commit, jobs and restores pass"), "{report}");
+    assert_eq!(code, 0, "{report}");
+    assert!(patches.is_empty(), "floor store needs no jobs");
+    assert!(report.contains("registry commit, jobs and restores pass"), "{report}");
     assert_eq!(image(&mut disk), before);
 }

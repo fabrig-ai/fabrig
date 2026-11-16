@@ -571,6 +571,10 @@ pub fn settle_home(
                 let mut document = f::task::document();
                 document.chip.task = task;
                 document.chip.title = f::task::document_words(b"welcome-stall");
+                document.lineage_chips = fixture.lineage.clone();
+                if let Some(milestone) = document.lineage_chips.last() {
+                    document.requester = c::Requester::Task(milestone.task);
+                }
                 match fixture.state {
                     d::pages::decided::DecisionTask::Unknown => unreachable!(),
                     d::pages::decided::DecisionTask::Live => {}
@@ -725,6 +729,7 @@ pub fn goal_notes(scope: c::NoteScope) -> c::ReadValue {
 }
 
 pub struct AwayFixture {
+    pub lineage: List<c::Chip>,
     pub spell: Option<w::AwayRow>,
     pub rows: List<w::Decision>,
     pub state: d::pages::decided::DecisionTask,
@@ -765,6 +770,7 @@ pub fn away_fixture(count: u32) -> AwayFixture {
         .unwrap();
     }
     AwayFixture {
+        lineage: List::uncapped(),
         spell: Some(
             w::AwayRow::new(
                 &w::CEILINGS,

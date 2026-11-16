@@ -59,12 +59,22 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
 - **Fuzzy tests** are each world's `tests/suite/fuzzy/*.rs` modules. A sweep
   settles each random world under every invariant, and reaches every
   ending among them.
-- **Budgets.** The focused suite's CPU budget is 1250 s, 1.5 times the
-  development machine's focused run of main at 11-14 11:42Z (832 CPU s),
-  by the user's word of 11-14; the fuzzy suite's is 180 s, the
-  strategy's 120 raised by half by the user's word of 11-08, for now, to
-  be revisited (`tools/tiers/budgets.toml`). Both are separate from the
-  profiles' wall hard limits. Within them, guides:
+- **Budgets.** temper's focused and fuzzy suites have a CPU budget for
+  each layer they have, in `tools/tiers/budgets.toml`'s gate tables
+  (`tools/tiers/budgets.md`, 2): the CI builder's gate figures of 11-16
+  plus a tenth, by the user's word of 11-16
+  (`temper/docs/design/draft/test-budgets.md`, 8). Over a layer's budget is
+  red at the gate and a warning elsewhere
+  (skein/docs/foundation/testing-strategy.md, 8.1). Their ideals are the
+  focused suite's 100 CPU s, by layer: step tests 25, domain worlds 20,
+  system worlds 25, machine worlds 1, protocol worlds 1, simulated worlds
+  15, the real loop 10, end to end 3; and the fuzzy suite's 180 s, reported
+  beside the budgets and never enforced (`temper/docs/design/draft/test-budgets.md`, 9).
+  Each layer's per-test reference is the strategy's guide for it, and
+  temper's own where these guides set one: a focused protocol world test
+  1 s, and a focused simulated, real-loop or end-to-end test 2 s
+  (`tools/tiers/budgets.md`, 6). All are separate from the profiles' wall
+  hard limits. Within them, guides:
   - the engine component's unit tests (`temper-engine-service-component`'s
     lib tests, every one a focused test) each within the strategy's
     40 ms unit-test guide (skein/docs/foundation/testing-strategy.md, 8),
@@ -73,23 +83,12 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
     only to take its store or to throw it away. A service builds each of
     its fixed tables (a wire's schemas, bounds, fingerprints and bridges)
     once, however many of its parts read it;
-  - the worlds below the domain other than the real loop (the protocol,
-    machine, client, one-process and reconcile worlds) together at most
-    8 s of the default suite;
-  - the real-loop world's tests, its stories included, together at most
-    15 s of the default suite: a standing ceiling, sized to the smoke
-    that `real-loop.md` keeps the real loop to ("one end-to-end path per feature,
-    and each behaviour and corner case tested in the lower world that
-    owns it, never here"), which the user revisits when the sum reaches
-    it;
-  - the worlds below the domain, the real loop included, together at
-    most 80 s of the fuzzy suite;
   - a focused protocol-world test at most 1 s, and a one-process or
     real-loop story at most 2 s;
   - a GitHub story of the real loop (`real-loop.md`) at most 1 s, and one that runs
     a whole chat (its agents, git and `ctl`) at most 3 s, so that its
-    eight stay within the real loop's ceiling with the rest; a
-    whole-chat GitHub story that would pass the ceiling goes to the user
+    eight stay within the real loop's budget with the rest; a
+    whole-chat GitHub story that would pass the budget goes to the user
     with its numbers.
   - a playground story walked natively through the web client's host
     (`../playground.md`, 9) at most 3 s: it runs whole chats, a delegate
@@ -99,12 +98,15 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
   moves only if what it checks belongs in another tier. It is never
   merged with another or named as an exception: a real-loop story with
   CI and webhooks (`real-loop.md`) is held to the 2 s as any other. If GitHub's
-  stories would push the real loop's sum past 15 s, the ceiling goes to
-  the user, as below, and no real-loop story moves to the fuzzy suite to
-  make room for them: cost never decides a test's tier.
-- **The worlds' sums are measured as the suites' rules are:** user plus
+  stories would push the real loop's layer past its budget, the budget
+  goes to the user with the measurements, and no real-loop story moves to
+  the fuzzy suite to make room for them: cost never decides a test's tier.
+  A guide above its layer's reference (a whole-chat or playground story's
+  3 s) is a test that passes its reference, which takes its reason once
+  references are held (`temper/docs/design/draft/test-budgets.md`, 6).
+- **The layers' figures are measured as the suites' rules are:** user plus
   system CPU time per process, waited descendants included, summed
-  across the world's selected processes (skein/docs/foundation/testing-strategy.md, 8.1).
+  across the layer's selected processes (skein/docs/foundation/testing-strategy.md, 8.1).
   No test's CPU is measured within a shared process. For comparing an
   individual test's guide, run it alone through nextest on the idle
   development machine with the tier's profile and `-j 1`, taking the
@@ -115,16 +117,14 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
   end a hung run. A story that shows a landing needs no slow poll sets
   the polls beyond that patience, so that one needing a poll fails
   (`suite::protocol::a_landing_merges_on_its_own_wakes_before_any_resource_poll`).
-- **The sums are the worlds' guides, never a landing's.** A test within
-  its own guide lands. A change that adds to these worlds gives both
-  default-suite sums before and after it: the other worlds' against 8 s,
-  the real loop's against 15 s. When the other worlds together pass 8 s,
-  or the real-loop world 15 s, their slowest tests are profiled, then
-  made cheaper at the cause the profile shows, or moved only where their
-  checks belong under 8.1, by named steps. A change after which the real
-  loop's sum is at 15 s or past it puts the ceiling to the user, with
-  its measurements (the repository's `AGENTS.md`, section 5); until the
-  user moves it, the 15 s stands.
+- **A layer past its budget** is red at the gate: its slowest tests are
+  profiled, then made cheaper at the cause the profile shows, or moved
+  only where their checks belong under 8.1, by named steps; otherwise its
+  measurements go to the user (the repository's `AGENTS.md`, section 5),
+  and until the user moves it, the budget stands. The worlds' former sums
+  (8 s for the worlds below the domain but the real loop, 15 s for the
+  real loop and 80 s of the fuzzy suite) gave way to the layers' budgets
+  and ideals (`temper/docs/design/draft/test-budgets.md`, 9).
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
   under the nextest profiles `process-temper` and `live-temper`, the
@@ -224,10 +224,10 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world, a box's approval identities (`../domain/agent/agents.md`, 1; `../domain/forge/adoption.md`, 6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
 | the engine's domain world, a box's approval waiting (`../domain/forge/change/questions.md`, 2) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration/settings.md`, 6) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
-| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 180 s (1), measured with it; no new binary |
-| the client and the engine, joined (3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
+| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the forge world's layer's fuzzy budget (1), measured with it; no new binary |
+| the client and the engine, joined (3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s, within the system worlds' focused budget (1) |
 | the one-process world (`README.md`, 2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
-| the real loop (`real-loop.md`) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling, |
+| the real loop (`real-loop.md`) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide, within the real loop's focused budget (1) |
 | the system world (`README.md`, 2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/ctl/testing.md`, 4) | at most 2 s, a world story's aim (1) |
 | the process tier | Owned Forgejo gates, real signals and process-tree supervision only (`process-tier.md`). Settings reads, proposals, owner decisions and held revisions use the CLI machine, core and system worlds. | process-temper; one focused wiring smoke |
 
@@ -249,8 +249,8 @@ each behaviour in the lowest world that owns it, and one smoke above:
   engine's domain world (how a merge is judged), so their focused and
   fuzzy scenarios run with them.
 - **Measured** by 1's rule. Should the smoke miss its 2 s, or the real
-  loop pass its 15 s, the numbers go to the user; no story is cut or
-  moved to fit.
+  loop pass its layer's budget, the numbers go to the user; no story is
+  cut or moved to fit.
 
 ## 5. Stage 1: the golden, its check and its judge
 

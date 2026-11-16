@@ -133,6 +133,7 @@ pub fn limits() -> engine::Limits {
         progress_bytes: 0,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };
@@ -314,7 +315,10 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
@@ -884,6 +888,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),
             }
@@ -1018,6 +1023,7 @@ impl World {
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")

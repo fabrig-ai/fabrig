@@ -25,6 +25,7 @@ pub fn held_pages() -> crate::pages::Pages {
         .expect("task cards")
         .push(Card {
             whole: None,
+            task: None,
             object: c::ObjectKey::Task(HELD),
             group: c::InboxGroup::Escalations,
             project: Some(PROJECT),

@@ -4,7 +4,7 @@ use crate::tests::{
     fixtures,
     owners::{BASE, SETS, levels},
 };
-use crate::upgrade::admission::Levels;
+use crate::upgrade::admission::{self, Levels};
 use crate::{Event, Family, KeptFamily, OpenRefusal, Owner, OwnerSet, OwnerSets, Store, format};
 use skein_lib::{Queue, Token};
 
@@ -48,10 +48,10 @@ fn refused(store: &mut Store, why: OpenRefusal) {
 fn each_owner_past_the_binary_refuses_before_any_file_operation() {
     for owner in [Owner::Skein, Owner::Smith, Owner::Jig, Owner::Application] {
         let mut found = ZERO;
-        found.set(owner, Some(1));
+        admission::set_level(&mut found, owner, Some(1));
         refused(&mut store(found, FOUR), OpenRefusal::Ahead { owner, found: Some(1), wanted: Some(0) });
         let mut found = format::NONE;
-        found.set(owner, Some(0));
+        admission::set_level(&mut found, owner, Some(0));
         refused(&mut store(found, OwnerSets::NONE), OpenRefusal::Ahead { owner, found: Some(0), wanted: None });
     }
 }
@@ -62,7 +62,7 @@ fn ahead_wins_over_unleveled_and_behind_in_upstream_order() {
         (Levels { skein: Some(1), smith: Some(1), ..ZERO }, FOUR, Owner::Skein, Some(0)),
         (Levels { jig: Some(0), application: Some(3), ..format::NONE }, SETS, Owner::Application, Some(2)),
     ] {
-        refused(&mut store(found, sets), OpenRefusal::Ahead { owner, found: found.of(owner), wanted });
+        refused(&mut store(found, sets), OpenRefusal::Ahead { owner, found: admission::level(&found, owner), wanted });
     }
 }
 
@@ -86,7 +86,7 @@ fn a_later_component_version_refuses_ahead_without_reading_its_levels() {
         store.limits.store.value = 128;
         refused(
             &mut store,
-            OpenRefusal::Ahead { owner: Owner::Jig, found: None, wanted: crate::upgrade::admission::binary(&sets).jig },
+            OpenRefusal::Ahead { owner: Owner::Jig, found: None, wanted: admission::binary(&sets).jig },
         );
     }
 }

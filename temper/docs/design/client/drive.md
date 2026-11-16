@@ -17,17 +17,22 @@ open.
 
 ## 1. In one page
 
-- **A session is one process and one box:** started from a given build
-  (`--bin`, `--bundle`), in a given scratch directory, the box's
-  directories kept there across sessions, so that a place's restored
-  copy starts as a fresh box does (2.1 and 2.2).
+- **A session is one process and one box,** or one deployment's
+  processes: started from a given build (`--bin`, `--bundle`), in a
+  given scratch directory, the box's or the deployment's directories
+  kept there across sessions, so that a place's restored copy starts as
+  a fresh one does (2.1 and 2.2).
 - **Signed in by the session, three ways:** ctl from a file holding the
   box's first link, the browser with the fresh link serve prints when
   the spent one is opened, and the TUI, when a line first needs it, by
-  the browser's approval (2.3 and 3.3). No line signs in.
+  the browser's approval (2.3 and 3.3). No line signs in, and no link
+  is logged, answered or kept.
 - **A ctl session** (2.6), `--ctl`, takes ctl and forge lines alone and
-  starts no browser and no TUI; a deployment's session
-  (`--deployment`) is one too, on the deployment's processes.
+  starts no browser and no TUI, on the box or at a deployment. A
+  deployment's session (`--deployment`) starts the deployment's
+  processes in the box's stead, and, but with `--ctl`, its browser and
+  TUI reach the engine's origin as a box's reach the box's
+  (`../testing/qa/deployment.md`, 5 and 6).
 - **Lines are the recipes' words:** `web` and a journeys' setup record,
   `tui` and a walk's record, `ctl` and a ctl act, with the box's values
   named rather than written, `forge` and a commit or a wait on the box's
@@ -49,7 +54,7 @@ open.
 ### 2.1 Its command
 
 ```text
-temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl | --deployment DIR]
+temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]
 ```
 
 - **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper`,
@@ -59,14 +64,16 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   TUI's lines read (3.3). The box finds `fake-claude` beside itself
   (`../protocol/setup/box.md`, 5).
 - **`--bundle DIR`** is the web bundle (`scripts/bundle.sh OUT`), given
-  to the box as its `--bundle`; required but with `--deployment`, which
-  takes none: the engine serves its own (`web/README.md`, 2.6).
-- **`--ctl`:** a ctl session (2.6), on the box.
+  to the box as its `--bundle`, required on a box. At a deployment it is
+  optional: the bundle the engine's document names as `{place.bundle}`
+  (`../testing/qa/deployment.md`, 2), which a document naming it
+  requires; one given is checked as a box's is.
+- **`--ctl`:** a ctl session (2.6), on the box or at a deployment.
 - **`--deployment DIR`:** a deployment's session, DIR a deployment's
   root recipe's `config/`, its processes started, its lines taken and its
   end as `../testing/qa/deployment.md` has them, in place of the box's
-  (2.3 to 2.5); a ctl session (2.6). It needs `--ports`. `--ctl` and
-  `--deployment` together refuse the session.
+  (2.3 to 2.5): with `--ctl` a ctl session (2.6), without it a full
+  one, its browser and TUI on the engine's origin. It needs `--ports`.
 - **`--scratch DIR`** is an existing directory, the user's own and not
   open to others; every directory and file the session or what it
   starts writes is under it (2.2).
@@ -84,14 +91,15 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
 - **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
-  `again` take it; a ctl session needs none and reads no such variable.
+  `again` take it, for a full session on a box or at a deployment; a
+  ctl session needs none and reads no such variable.
 - **Each path** is taken relative to the working directory and made
   absolute before anything starts. A file of `--bin` missing, a bundle
   without its `index.html`, a scratch directory that is not a
   directory, or no Chromium refuses the session, naming it, before
   anything starts.
-- **It runs no build:** the programs it starts are the box, the client
-  and Chromium, and what they start; never `cargo`, `scripts/bundle.sh`
+- **It runs no build:** the programs it starts are the box or the
+  deployment's processes, the client and Chromium, and what they start; never `cargo`, `scripts/bundle.sh`
   or another program of the checkout.
 
 ### 2.2 Its scratch directory
@@ -105,7 +113,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 | `session/ctl/` | ctl's directory (`ctl/README.md`, 6), which its sign-in makes | |
 | `session/browser/` | Chromium's profile and downloads | |
 | `session/bin/` | `xdg-open` and `open`, links to `true`, first in the TUI's `PATH` (`tui/journeys.md`, 8.2) | |
-| `session/box.log` | the box's stdout and stderr, each line as it comes | |
+| `session/box.log` | the box's stderr, each line as it comes, and never a link: its stdout, which carries its sign-in links alone (`../protocol/setup/box.md`, 2), is read for them and written nowhere (2.3) | |
 | `session/looks/` | each look's screenshot, `NNNN-WIDTH.png`, NNNN the line's number from 1 | |
 | `session/lines` | the kept lines (section 4) | |
 
@@ -121,8 +129,9 @@ In order, each within its bound; a failure is 2.5's.
 1. **The box:** `BIN/temper-box --fake-backends --bundle BUNDLE --config
    SCRATCH/config --data SCRATCH/data --cache SCRATCH/cache`, then each
    `--scripts FILE` and `--strict` as given, its stdin closed, its
-   stdout and stderr read a line at a time into `session/box.log`. Its
-   first link is the first stdout line starting `http://`
+   stdout and stderr each read a line at a time: its stderr into
+   `session/box.log`, its stdout for its links (below). Its first link
+   is the first stdout line starting `http://`
    (`../protocol/setup/box.md`, 2), within 60 seconds.
 2. **ctl, signed in from a file:** the link written to
    `SCRATCH/session/link`, 0o600, then `BIN/temper ctl
@@ -146,6 +155,26 @@ In order, each within its bound; a failure is 2.5's.
 While any step waits, the box's exit, or a line on its stderr saying a
 step is restarting or the box gives up (`../protocol/setup/box.md`, 2),
 ends the wait as the box's failure.
+
+**At a deployment** the start is `../testing/qa/deployment.md`, 5's:
+the deployment's processes in place of step 1, ctl signed in from the
+engine's first link as step 2 has it, then, but in a ctl session, step
+3 on the engine's origin, the fresh link the engine's stdout, and the
+TUI at its first line as step 4 has it. Its links and the page's
+troubles are judged as below, a failure there the deployment's.
+
+**Its links.** Every line of the box's stdout is a sign-in link, its
+first or a fresh one serve prints (`../protocol/setup/box.md`, 2). The
+session takes its first for ctl (step 2) and, but in a ctl session, the
+fresh one the spent first brings for the browser (step 3); it drops
+every other line of the box's stdout as it reads it, as a deployment's
+session drops the engine's later links (`../testing/qa/deployment.md`,
+5). No line of the box's stdout is written to `session/box.log`, and no
+link is answered or kept (section 4), so `session/box.log`, the tail a
+`box failed:` answer prints from it (2.5) and a finding's evidence that
+copies it (`../testing/qa/findings.md`, 2) hold no link. The box's
+opening lines, which the box's values are read from (3.4), are on its
+stderr and so in `session/box.log`.
 
 **The page's trouble.** The browser's harness reports each trouble the
 browser kit sees in the page as the kit gives it, its kind, its text
@@ -184,7 +213,9 @@ killed, as `again` ends it; the browser closed; then the box stopped by
 `SIGTERM` and waited on, within 60 seconds, and its tree killed past
 them. After a clean stop the box's directories hold a stopped box,
 which a place copies (`../draft/landed-qa.md`, 5). The session's
-directory stays until the next session.
+directory stays until the next session. At a deployment the TUI and the
+browser end the same way, first; then the deployment's processes stop
+in their order (`../testing/qa/deployment.md`, 7).
 
 ### 2.5 Its exit
 
@@ -192,7 +223,7 @@ directory stays until the next session.
 |---|---|---|
 | 0 | the session reached its end and the box stopped cleanly, whatever its lines answered | `ended` |
 | 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box.md`, 2), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store.md`, 5; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
-| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
+| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| `: neither holds a link (2.3; `../protocol/setup/box.md`, 2) |
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
@@ -203,12 +234,12 @@ temper (`../draft/landed-qa.md`, 7).
 ### 2.6 A ctl session
 
 A session of ctl and forge lines alone, which starts no browser and no
-terminal and needs neither (`../draft/landed-qa.md`, 4 and 7): `--ctl`
-on the box, and every deployment's session.
+terminal and needs neither (`../draft/landed-qa.md`, 4 and 7): `--ctl`,
+on the box or at a deployment (`--ctl --deployment DIR`).
 
-- **Its start** is 2.3's first two steps, the box started and ctl signed
-  in from its file, then `ready`: no Chromium is started, sought or
-  required, and no TUI.
+- **Its start** is 2.3's first two steps, the box started, or the
+  deployment's processes, and ctl signed in from its file, then
+  `ready`: no Chromium is started, sought or required, and no TUI.
 - **Its lines:** ctl and forge lines as 3.4 and 3.5 have them, and at a
   deployment its own (3.8). A web or tui line fails, `failed: line N:
   this session takes ctl and forge lines alone`, at a deployment in its
@@ -250,12 +281,14 @@ no tui line walks in one (`recipe.md`, 5.1).
 | `web look WIDTH` | first the path of a screenshot of the page at WIDTH CSS pixels wide, its height the page's viewport's, written to `session/looks/`, then the text as `web look`; the viewport restored after | 10 s |
 
 A role is a word of skein's roles, lowercase, as `web/journeys.md`, 8.2
-has it. WIDTH is 320 to 3840.
+has it. WIDTH is 320 to 3840. At a deployment the origin is the
+engine's clients' listener, its first link's
+(`../testing/qa/deployment.md`, 5 and 6.1).
 
 ### 3.3 The TUI's lines
 
 The TUI starts at a `tui` line when none runs: `BIN/temper
-http://HOST:PORT`, at the box's origin, in a pseudo-terminal of 80
+http://HOST:PORT`, at the box's origin, or the engine's at a deployment, in a pseudo-terminal of 80
 columns by 24 rows, its environment `tui/journeys.md`, 8.2's in the
 session's directories, its output read and dropped. The session signs
 it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
@@ -409,7 +442,7 @@ exited`, and ends with status 4 (2.5).
 
 | Line | What the session does | Bound |
 |---|---|---|
-| `deployment patch DOCUMENT PATH` | DOCUMENT `engine`, `worker` or `agent`, a word; PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again (`../testing/qa/deployment.md`, 6.2) | 300 s |
+| `deployment patch DOCUMENT PATH` | DOCUMENT `engine`, `worker` or `agent`, a word; PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again, the TUI ended first and the page loaded again after, but in a ctl session (`../testing/qa/deployment.md`, 6.2) | 300 s |
 
 On a box, a `deployment` line fails, `failed: line N: a box takes no
 deployment line`, and is not kept.
@@ -434,6 +467,12 @@ deployment line`, and is not kept.
   `Line`'s parse and print, which `recipe.md`'s reader shares. A line
   prints as it parses, field for field, so a kept line is the line
   given.
+- **One place, of either kind,** behind one interface
+  (`../testing/qa/kinds.md`, 5): the box or the deployment's processes
+  started, given their lines, asked for their values and stopped, and
+  their logs classified, by the place's kind; the session's own steps,
+  ctl's sign-in, the browser's start, the TUI, the lines and the
+  clients' end, written once for both.
 - **Its logic without io,** as `again`'s walk has it
   (`web/journeys.md`, 8.1): a state machine that takes each event, a
   line read, a face's answer, a save's bytes, a process's line or exit,
@@ -496,12 +535,19 @@ Focused, with no browser, no box and no Chromium:
 - **ctl from a file:** the box's first link written to `session/link`,
   0o600, ctl given its path and no stdin, the file gone once ctl has
   answered; the link in no answer and no program's argument.
+- **No link logged:** given box output with links on its stdout, the
+  first, the fresh one and a later one, among lines on its stderr, the
+  session's `session/box.log` holds each stderr line, in order, and no
+  link; a box that then gives up ends with status 4, its answer showing
+  those stderr lines in its tail and no link.
 - **A ctl session:** its start asks for no browser and needs no
   `SKEIN_TEST_CHROMIUM`; it is `ready` once ctl has signed in; a web or
   tui line, or a look of either, fails and is not kept; ctl and forge
   lines answer as in any session; `{model.key}` takes the box's `box:
   model key` line.
-- **A deployment's session:** `../testing/qa/deployment.md`, 9's.
+- **A deployment's session:** `../testing/qa/deployment.md`, 9's;
+  `--ctl --deployment` a ctl session, `--deployment` alone a full one
+  needing Chromium, and `--bundle` optional there.
 
 ## 7. Open questions
 

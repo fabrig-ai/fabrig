@@ -1,6 +1,6 @@
 //! The hosted scripts use real pipes and the same factories as simulated worlds.
 
-use skein_io::kernel::{Exit, Signal, Spawn};
+use skein_io::kernel::{Exit, Reason, Signal, Spawn};
 use skein_lib::Duration;
 use skein_shell::{Clock, open_root};
 use skein_world::{HostedProgram, Inherited, real};
@@ -41,6 +41,157 @@ fn kill_drops_child_and_settles_pending_read_before_parent_wait() {
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
     assert_eq!(outcome.killed[0].exit, Exit::Signal(9));
+}
+
+#[test]
+fn story_kill_names_the_admitted_child_and_root_requester() {
+    let outcome = run(
+        wait_again,
+        &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
+    );
+    assert_eq!(outcome.killed.len(), 1);
+    let killed = &outcome.killed[0];
+    assert_eq!(killed.host, 1);
+    assert_eq!(killed.exit, Exit::Signal(9));
+    assert_eq!(killed.program, "hosted");
+    assert_eq!(killed.argument.as_deref(), Some("argument"));
+    assert_eq!(killed.requester, 0);
+    assert_eq!(killed.requester_program, None);
+    assert_eq!(killed.reason, Reason::Asked);
+    assert!((outcome.start..=outcome.end).contains(&killed.at));
+    assert_eq!(
+        killed.to_string(),
+        format!(
+            "host 1 (hosted argument) killed at {} ns by host 0 (a root): asked for; exit Signal(9)",
+            killed.at.as_nanos(),
+        ),
+    );
+}
+
+#[test]
+fn close_while_running_names_the_group_kills_cause() {
+    // The raw-script fixture sends the same group Kill as io's close.
+    let outcome = run(
+        wait_again,
+        &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Kill(Reason::Closed), Act::Read(1), Act::Wait],
+    );
+    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
+    assert_eq!(outcome.killed.len(), 1);
+    let killed = &outcome.killed[0];
+    assert_eq!(killed.reason, Reason::Closed);
+    assert!((outcome.start..=outcome.end).contains(&killed.at));
+    assert!(killed.to_string().contains(": closed while running; exit Signal(9)"));
+}
+
+fn deadline_parent(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    let mut parent = Script::hosted_parent(
+        inherited,
+        &[
+            Act::Close(1),
+            Act::Close(0),
+            Act::Spawn,
+            Act::Write(0, b"hello"),
+            Act::Read(1),
+            Act::PauseFor(Duration::from_millis(1)),
+            Act::Kill(Reason::Deadline),
+            Act::Read(1),
+            Act::Wait,
+        ],
+    );
+    parent.args = Box::new([Box::from(&b"run\xff"[..]), Box::from(&b"not the first word"[..])]);
+    parent
+}
+
+struct DeadlineJudge(bool);
+
+impl skein_world::Referee<Script> for DeadlineJudge {
+    fn watch(&mut self, _now: skein_lib::Time, procs: &[Script]) -> Result<(), String> {
+        self.0 = procs[0].child_exit == Some(Exit::Code(0));
+        Ok(())
+    }
+
+    fn passed(&self) -> bool {
+        self.0
+    }
+}
+
+#[test]
+fn deadline_kill_names_the_hosted_requester_and_lossy_admitted_words() {
+    let mut world = real::World::new(DeadlineJudge(false));
+    world.host_roots(
+        HostedProgram { program: Box::from(&b"parent\xff"[..]), make: deadline_parent, instances: 1, operations: 8 },
+        |_| vec![skein_world::StartupRoot { name: Box::from(&b"launch"[..]), path: Box::from(&b"."[..]) }],
+    );
+    world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: wait_again, instances: 1, operations: 8 });
+    let root = open_root(std::path::Path::new(".")).expect("startup root");
+    world.spawn_with_fds(vec![root], || {
+        Script::parent(root, &[Act::SpawnProgram(b"parent\xff"), Act::Read(1), Act::Wait])
+    });
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
+    assert_eq!(outcome.procs[1].child_exit, Some(Exit::Signal(9)));
+    assert_eq!(outcome.killed.len(), 1);
+    let killed = &outcome.killed[0];
+    assert_eq!(killed.host, 2);
+    assert_eq!(killed.exit, Exit::Signal(9));
+    assert_eq!(killed.program, "hosted");
+    assert_eq!(killed.argument.as_deref(), Some("run\u{fffd}"));
+    assert_eq!(killed.requester, 1);
+    assert_eq!(killed.requester_program.as_deref(), Some("parent\u{fffd}"));
+    assert_eq!(killed.reason, Reason::Deadline);
+    assert!((outcome.start..=outcome.end).contains(&killed.at));
+    assert_eq!(
+        killed.to_string(),
+        format!(
+            "host 2 (hosted run\u{fffd}) killed at {} ns by host 1 (parent\u{fffd}): at its deadline; exit Signal(9)",
+            killed.at.as_nanos(),
+        ),
+    );
+}
+
+#[test]
+fn kill_without_arguments_names_the_remaining_reasons() {
+    for (reason, words) in [
+        (Reason::Unknown, "no reason given"),
+        (Reason::Grace, "forced after its grace"),
+        (Reason::Cancelled, "cancelled"),
+    ] {
+        let mut world = real::World::new(Judge);
+        world.host(HostedProgram {
+            program: Box::from(&b"hosted\xff"[..]),
+            make: wait_again,
+            instances: 1,
+            operations: 8,
+        });
+        let root = open_root(std::path::Path::new(".")).expect("startup root");
+        world.spawn_with_fds(vec![root], || {
+            let mut parent = Script::parent(
+                root,
+                &[
+                    Act::SpawnProgram(b"hosted\xff"),
+                    Act::Write(0, b"hello"),
+                    Act::Read(1),
+                    Act::Kill(reason),
+                    Act::Read(1),
+                    Act::Wait,
+                ],
+            );
+            parent.args = Box::new([]);
+            parent
+        });
+        let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+        assert_eq!(outcome.killed.len(), 1);
+        let killed = &outcome.killed[0];
+        assert_eq!(killed.argument, None);
+        assert_eq!(killed.reason, reason);
+        assert_eq!(
+            killed.to_string(),
+            format!(
+                "host 1 (hosted\u{fffd}) killed at {} ns by host 0 (a root): {words}; exit Signal(9)",
+                killed.at.as_nanos(),
+            ),
+        );
+    }
 }
 
 fn terminated(_spawn: &Spawn, inherited: &Inherited) -> Script {

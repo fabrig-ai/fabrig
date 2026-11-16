@@ -19,8 +19,6 @@ indexes, summaries, and a few rows per task saying where its logs are.
   log's rows a read needs and running the read again with them.
 - **Turns** (5): a task's turns go to its turns log, but where the task
   already has a transcript file, which it keeps writing until it ends.
-- **The job `task-logs`** (6) moves a store's history out of the map at
-  the open that brings this design.
 - **Generations, layouts, retention** (7 to 9): the logs are linked into
   a new generation, their value types' layouts never retire, and a task's
   logs go whole at its horizons.
@@ -64,7 +62,7 @@ key's first field after the family's tag:
 | `core.escalation-decisions` | task, revision | `01 00 07` |
 | `tasks.ended`, an ended task's full record | task | `01 01 06` |
 | `tasks.history` | task, revision | `01 01 09` |
-| `tasks.milestones`, none since S5's job | task, position | `01 01 0a` |
+| `tasks.milestones`, which no writer puts | task, position | `01 01 0a` |
 | `tasks.activity` | task, position | `01 01 0b` |
 | `tasks.attempts` | task, attempt | `01 01 16` |
 | `tasks.holds` | task, position | `01 01 17` |
@@ -108,8 +106,7 @@ key's first field after the family's tag:
   then the commit. A record past skein-kv's `Limits::record` fails the
   commit `Check(Encoding)`.
 - **The map's own row goes with it:** where the map holds a log-held key
-  the commit writes (a store before the job of 6, or that job's own
-  pages), the commit also erases it from the map, so the map and a log
+  the commit writes, the commit also erases it from the map, so the map and a log
   never hold one key.
 - **The ended record's place:** a record that puts a task's
   `tasks.ended` key puts `HistoryLog { record }` at `00 0a <task>`, the
@@ -132,14 +129,10 @@ key's first field after the family's tag:
 - **Bounds:** a commit's operations grow by an append, an extent and a
   place per task it writes history of; its bounds count them
   (`Check(Capacity)`).
-- **Only once `task-logs` runs:** the commits of an open's jobs before
-  `task-logs` (6), on a store behind it, write log-held keys to the map
-  as they did when their jobs were designed (S5's `milestones` puts
-  attempts and holds there), so that their pages' commits stay within
-  the room each job counted; `task-logs` then moves them with the rest.
-  From its first page on, and in every commit once it is done, the
-  commits route as this section says. The root never commits before
-  every job is done (`jobs.md`, 2).
+- **Every commit routes so,** a job's pages' included: every store at
+  the floor (temper's `draft/store-floor.md`, section 3) keeps its
+  history in its tasks' logs, and an empty store's first commit is
+  routed as any other.
 
 ## 4. Read through a view
 
@@ -147,7 +140,7 @@ Every read the component answers over the map (a restart's page, a
 child's load page, a party's read and its joins, a get, and the
 erasure's pages) reads through one **view**: the map, and the rows of
 task logs this read has fetched. The jobs' pages read the map alone
-(6). Transcripts are read as 5 says.
+(`jobs.md`, 3). Transcripts are read as 5 says.
 
 - **A log-held key** is answered from the map's rows and, where its
   task has a history log (`00 09 <2 × task>` holds an extent), from the
@@ -222,26 +215,11 @@ task logs this read has fetched. The jobs' pages read the map alone
   0b` row; its attempts' `00 0c` rows are orphans gone in the commits
   that follow, as the file's attempts' places are.
 
-## 6. The job `task-logs`
+## 6. History at the floor
 
-jig's job at open (`jobs.md`), last of jig's set, that moves a store's
-history into its tasks' logs (temper's `draft/store-shape.md`, 10.1, S7).
-
-- **Its ranges:** section 2's, in key order.
-- **Its answer** puts each row it is handed at its own key, and consumes
-  the page through its last row that fits a quarter of its room's writes
-  and its room's bytes (each row may cost an erase, and its task an
-  append, an extent and a place). The commit path of 3 does the rest: the
-  page's rows of each task become one record of its history log, the
-  logs are synced, then the commit erases the rows from the map and
-  records each log's extent. So the map holds no log-held key once it is
-  done.
-- **No transcript moves** (5), and no value is converted beyond the
-  read edge every page's values already pass (`jobs.md`, 3).
-- **Its cost** on dev.fabrig.ai: about 100,000 rows of some 3,000 tasks
-  once S5's job has folded their milestones, a few tens of MB; a log
-  file made for each task, and a sync per task per page.
-- **An empty store** marks it done at its first commit (`jobs.md`, 2).
+Every store at the floor keeps its history in task logs (temper's
+`draft/store-floor.md`, section 3). No backfill job runs at open;
+every commit routes as 3 says.
 
 ## 7. Generations
 
@@ -271,14 +249,6 @@ as it is read (temper's `draft/store-shape.md`, section 3):
   one with no plan to the binary's layout refuses the open, since no
   written job converts what a log holds. A change to a log-held value
   type is therefore one a plan derives.
-- **Before any log, a settling job** (`jobs.md`, 5) is the exception:
-  while `task-logs` is pending no log holds a value, so a settling job
-  pending before it takes a log-held layout that only dropped variants
-  keep from deriving, puts its values at the binary's layout, and
-  retires its other layouts at its end, as for any value type. jig's
-  `settle-layouts` runs before `task-logs` for this (temper's
-  `draft/store-floor.md`, section 2), so history enters the logs at the
-  binary's layouts and its older layouts are gone from the registry.
 
 ## 9. Retention
 
@@ -307,9 +277,7 @@ as it is read (temper's `draft/store-shape.md`, section 3):
   erase row hides a key; `DropHistory` drops the log and its row; each
   read kind of `loads.md`, 3 over a task whose history is in its log
   answers as over the map, a run missing then fetching then answering;
-  a fetch past `Limits::fetch` failing its read; the job over a store whose
-  history is in the map, leaving none there and every read answering as
-  before; a turn of a task with no transcript file in its turns log, one
+  a fetch past `Limits::fetch` failing its read; a turn of a task with no transcript file in its turns log, one
   of a task with one in its file; every read kind of `transcripts.md`, 3
   over a turns log.
 - **The store's world,** `jig-store-world`: commits with history and

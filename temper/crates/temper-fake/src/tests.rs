@@ -16,6 +16,7 @@ use serde_json::{Value, json};
 use skein_fake_llm_domain::api;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
+mod empty_forge;
 mod gates;
 mod scripts;
 mod take;
@@ -384,7 +385,6 @@ fn forge_document_checks() {
         ("/owner", json!("temper-admin"), "owner: expected a Forgejo login other than temper-admin\n"),
         ("/owner", json!("bad/name"), "owner: expected a Forgejo login other than temper-admin\n"),
         ("/owner", json!("x".repeat(41)), "owner: past its bound\n"),
-        ("/repositories", json!([]), "repositories: must be non-empty\n"),
         ("/repositories/0/name", json!("bad/name"), "repositories[0].name: expected a Forgejo repository name\n"),
         ("/repositories/0/name", json!("x".repeat(101)), "repositories[0].name: past its bound\n"),
         ("/repositories/0/landing", json!("bad..branch"), "repositories[0].landing: expected a branch name\n"),
@@ -479,6 +479,9 @@ fn forge_document_checks() {
         b"extra: unknown member\n"
     );
     forge::Document::decode(&serde_json::to_vec(&forge_document()).unwrap()).unwrap();
+    let mut empty = forge_document();
+    empty["repositories"] = json!([]);
+    assert_eq!(forge::Document::decode(&serde_json::to_vec(&empty).unwrap()).unwrap().repositories(), []);
     for (bytes, expected) in [
         (b"[]".as_slice(), b"document: wrong value kind\n".as_slice()),
         (b"{", b"document: invalid JSON\n"),
