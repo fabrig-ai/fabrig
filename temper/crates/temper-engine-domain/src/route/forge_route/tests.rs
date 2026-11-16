@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 mod reds;
 mod room;
 mod settling;
+mod taking;
 
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -1289,6 +1290,8 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -4358,7 +4361,11 @@ fn a_requesters_branch_and_role_choices_reach_start_together() {
     let delegate = super::chat_change(
         &domain,
         &env,
-        &delegation,
+        &super::ChangeOrigin {
+            authority: delegation.authority.clone(),
+            tasks_left: delegation.tasks_left,
+            source: None,
+        },
         &change,
         &adopted(1),
         b"main".as_slice().into(),
@@ -4857,7 +4864,7 @@ fn a_held_branch_change_refuses_each_parameter_past_capacity() {
         let result = super::chat_change(
             &domain,
             &env,
-            &context,
+            &super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None },
             &change,
             &adopted(1),
             b"main".as_slice().into(),

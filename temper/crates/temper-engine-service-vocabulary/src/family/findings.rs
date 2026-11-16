@@ -54,6 +54,7 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
         | w::Request::SetAway(_)
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
+        | w::Request::OpenChange(_)
         | w::Request::TierAct(_)
         | w::Request::FollowAct(_)
         | w::Request::AddDevice(_)

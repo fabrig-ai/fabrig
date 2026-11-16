@@ -274,7 +274,9 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
                     repositories.push(value.repository).expect("uncapped");
                     dropped = Some(9);
                 }
-                ApplicationOutcome::CoreRefused(_)
+                ApplicationOutcome::Opened { .. }
+                | ApplicationOutcome::OpenRefused(_)
+                | ApplicationOutcome::CoreRefused(_)
                 | ApplicationOutcome::ForgeRefused(_)
                 | ApplicationOutcome::MakeKept
                 | ApplicationOutcome::Follow(_)

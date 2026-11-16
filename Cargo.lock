@@ -6158,6 +6158,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
  "jig-protocol-config",
+ "skein-codec",
  "skein-codegen",
  "skein-fake-forge-github",
  "skein-forge",

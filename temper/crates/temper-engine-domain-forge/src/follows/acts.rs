@@ -142,7 +142,7 @@ pub(crate) fn asked(
         d,
         env,
         request,
-        crate::adoption::Pending { token, retention, observed: None },
+        crate::adoption::Pending { token, retention, observed: None, opening: false },
         outcome,
         out,
     );
@@ -151,6 +151,7 @@ pub(crate) fn asked(
 fn produced(state: &temper_engine_domain_forge_change::State) -> bool {
     use temper_engine_domain_forge_change::State;
     match state {
+        State::Taking { .. } => false,
         State::Producing { requested } => *requested,
         State::Opening { .. }
         | State::Recreating { .. }

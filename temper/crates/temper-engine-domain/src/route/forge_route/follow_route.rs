@@ -331,8 +331,10 @@ fn delegate(
     call.questions = Some(crate::ChangeQuestions::None);
     let mut context = context.clone();
     context.tasks_left = context.tasks_left.checked_div(count)?;
-    let mut member = super::chat_change(domain, env, &context, &call, target, base, None, spend).ok()?;
-    member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true).ok()?;
+    let origin =
+        super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
+    let mut member = super::chat_change(domain, env, &origin, &call, target, base, None, spend).ok()?;
+    member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true, false).ok()?;
     member.spec = describe(domain, env, row, core::slice::from_ref(entry), member.spec)?;
     Some(member)
 }
@@ -724,7 +726,8 @@ fn unstarted(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return true };
     match &row.change.state {
         State::Producing { requested } => !requested,
-        State::Opening { .. }
+        State::Taking { .. }
+        | State::Opening { .. }
         | State::Recreating { .. }
         | State::Reopening { .. }
         | State::Checking { .. }
