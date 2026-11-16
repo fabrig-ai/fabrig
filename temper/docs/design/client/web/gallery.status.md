@@ -1,9 +1,14 @@
 # gallery: status
 
-2026-11-13. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-16. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
+- **Not yet:** 2: the `ask*` states draw the ways' tabs, and there is no
+  `ask-ways-menu`, `ask-ways-yours-bare` or `ask-ways-yours-menu`
+  [in flight: change 4501].
+- **Not yet:** 2: the `how*` states draw the ways' tabs, and there is no
+  `how-menu` [in flight: change 4521].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:

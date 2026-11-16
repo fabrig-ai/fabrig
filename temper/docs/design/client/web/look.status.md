@@ -13,6 +13,11 @@
   centred on a row its foot's item rule pads 6 by 10 px, and Live's dot
   6 px, not the foot's 13.5 px on temper's 24 px line with every dot 7 px
   on the baseline [in flight: change 4457].
+- **Not yet:** *Ask temper's ways*: Ask temper's page has no
+  `temper-way-*` head, menu or last line, and its tabs, axis and the
+  foot's act keep their rules [in flight: change 4501].
+- **Not yet:** *How work runs' look*: How work runs takes the tabs' rules,
+  not the head's under its frame [in flight: change 4521].
 
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
