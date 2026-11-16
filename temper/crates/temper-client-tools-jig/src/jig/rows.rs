@@ -1097,7 +1097,7 @@ pub const GOAL_START: Tool = Tool {
             b"TIME",
             Kind::Literal,
             Optional,
-            b"UTC to the minute, as 2026-10-24T17:00Z; required for a given deadline",
+            b"UTC to the minute, as 2026-10-24T17:00Z; or --no-deadline for a given deadline",
         ),
         MODEL,
         EFFORT,
@@ -1108,6 +1108,15 @@ pub const GOAL_START: Tool = Tool {
             64,
             b"Replace the template's sub-agents; needs --model; each model once, its effort optional as --model's",
         ),
+        flag(b"milestone", b"TASK", Kind::Number, Optional, b"Start beneath this live milestone of the project"),
+        super::table::repeated(
+            b"after",
+            b"TASK",
+            Kind::Number,
+            64,
+            b"Wait on this task; repeatable, each task once, in order",
+        ),
+        switch(b"no-deadline", b"Give the goal no deadline; the alternative to --deadline"),
     ]],
     keyed: Keyed::Required,
     area: 2,
@@ -1116,16 +1125,16 @@ and symbolic resources. TEXT's first line is the goal's title, as Home
 and Work show it: at most 60 characters naming the work for a person,
 as \"Store shape S7: history in task logs\"; the rest of TEXT follows
 on the lines below. --charter is required only for a chosen executor.
-Budget given needs --budget or --as-allowed; deadline given needs
---deadline. Absent controls keep defaults. --budget and --as-allowed
-are alternatives. --effort needs --model; absent, the model's default
-is taken. Flags win each run: --model replaces the template's
-model choice, later choice included; its sub-agents stay unless
---sub-agent replaces them. Without --model its choice holds whole.
-A refused model flag names value and bound; nothing is made.
-Bounds and proposal judgement are as for client goals: within bounds,
-created; past them but proposable, proposed (exit 0); not offered or
-past ceilings, nothing sent (exit 1). Then task show TASK --until replied.
+Given budget needs --budget or --as-allowed (alternatives); given
+deadline needs --deadline or --no-deadline. Absent controls keep defaults.
+A goal waiting on tasks counts its deadline from when it was made.
+--effort needs --model; absent, its default is taken. --model wins
+each run, replacing the later choice too; sub-agents stay unless
+--sub-agent replaces them. Without --model the choice holds whole.
+Refused model flags name value and bound; nothing made.
+Within bounds, created; past them but proposable, proposed (exit 0);
+not offered or past ceilings, nothing sent (exit 1).
+Then task show TASK --until replied.
 ",
 };
 

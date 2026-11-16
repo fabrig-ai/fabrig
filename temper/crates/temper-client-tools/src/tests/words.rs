@@ -211,6 +211,7 @@ fn help_lists_groups_then_a_group_then_a_tool() {
     for (words, golden) in [
         (&["help"][..], "help_groups"),
         (&["help", "task"], "help_task"),
+        (&["help", "goal"], "help_goal"),
         (&["help", "task", "show"], "help_task_show"),
         (&["help", "me"], "help_me"),
     ] {

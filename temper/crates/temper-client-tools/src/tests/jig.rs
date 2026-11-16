@@ -38,6 +38,7 @@ mod replays;
 
 mod specification;
 
+mod goal_milestone;
 mod goal_template;
 mod party;
 mod restore;

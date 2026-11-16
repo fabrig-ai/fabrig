@@ -778,6 +778,9 @@ fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
     if present(call, 5) && present(call, 6) {
         return Err(Usage::Twice { tool: 0, form: 0, argument: 6 });
     }
+    if present(call, 7) && present(call, 13) {
+        return Err(Usage::Twice { tool: 0, form: 0, argument: 13 });
+    }
     if let Some(Value::Text(text)) = super::call::value(call, 7) {
         deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 7 })?;
     }

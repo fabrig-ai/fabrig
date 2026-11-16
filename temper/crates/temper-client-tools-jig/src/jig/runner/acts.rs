@@ -72,7 +72,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         return;
     }
     if called.call.tool == rows::CHAT_CREATE_AT
-        || called.call.tool == rows::GOAL_START_AT
+        || (called.call.tool == rows::GOAL_START_AT && number(&called.call, 11).is_none())
         || called.call.tool == rows::ROLE_START_AT
         || called.call.tool == rows::NEED_ASK_AT
     {
@@ -158,6 +158,7 @@ fn act_read(call: &Call) -> c::Read {
             c::Read::Proposal { proposal: *proposal }
         }
         rows::TASK_DECIDE_AT => c::Read::Escalation { task },
+        rows::GOAL_START_AT => c::Read::Task { task: number(call, 11).expect("milestone argument") },
         rows::ANSWER_AT if call.form != 0 => c::Read::PersonTask { task },
         rows::TAKE_AT | rows::HAND_BACK_AT => c::Read::PersonTask { task },
         rows::ANSWER_AT => c::Read::Question { task, message: number(call, 1).expect("question") },
@@ -342,6 +343,19 @@ pub(super) fn page(
 ) {
     let prefix = u32::try_from(handle.number >> 32u32).expect("high half");
     let Some(mut reading) = runner.acts.remove(&prefix) else { return };
+    if reading.called.call.tool == rows::GOAL_START_AT {
+        let Some(me) = me(runner, client) else { return };
+        let ask = match &page {
+            Readout::Jig(c::ReadResult::Value(document)) => {
+                goal::beneath(&reading.called.call, document, me, &env.limits, env.wall)
+            }
+            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
+                Err(Failed::Fixed(b"milestone task unavailable"))
+            }
+        };
+        prepared(runner, client, env, reading.called, ask, out);
+        return;
+    }
     if let Some(document) = reading.document.take() {
         let called = reading.called;
         let ask = match &page {

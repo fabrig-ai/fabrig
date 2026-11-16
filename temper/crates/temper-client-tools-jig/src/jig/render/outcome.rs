@@ -63,7 +63,11 @@ pub struct Account {
 impl Operation {
     #[must_use]
     pub fn for_call(ask: &Ask, tool: &'static crate::jig::table::Tool) -> Self {
-        let mut operation = Self::of(ask);
+        let mut operation = if tool.name == crate::jig::rows::GOAL_START.name {
+            Self::with_words(ask, b"goal", None)
+        } else {
+            Self::of(ask)
+        };
         operation.tool = Some(tool);
         operation
     }
