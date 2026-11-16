@@ -84,8 +84,7 @@ pub fn text_tail(tail: &[u8]) -> Box<[u8]> {
     text.finish()
 }
 
-/// An assignment and its application parts, or none when it cannot encode.
-#[must_use]
+/// An assignment and its application parts, or the field that cannot encode.
 pub fn down(
     assignment: root::Assignment,
     forges: &crate::forges::Forges,
@@ -93,8 +92,11 @@ pub fn down(
     values: &crate::values::Values,
     channel: Token,
     now: Time,
-) -> Option<kit::Event> {
-    let items = crate::translate::items(&assignment, forges, &values.tokens, &encoding.limits).ok()?;
+) -> Result<kit::Event, kit::Unencoded> {
+    let items = match crate::translate::items(&assignment, forges, &values.tokens, &encoding.limits) {
+        Ok(items) => items,
+        Err(problem) => return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) }),
+    };
     let mut charter = temper_engine_smith::charter(&assignment);
     for (section, from) in charter.brief.sections.iter_mut().zip(&assignment.sections) {
         if from.kind == root::BriefKind::Core(jig_domain_brief::Core::TranscriptTail) {
@@ -116,7 +118,7 @@ pub fn down(
     };
     let grants = grants(&assignment.grants);
     let filled = values.grants(&grants, now);
-    Some(kit::Event::Down {
+    Ok(kit::Event::Down {
         channel,
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
@@ -175,32 +177,79 @@ pub fn job_down(
 
 // The wire's section framing is two u32 lengths; a decoded Section owns two
 // boxes, so its array cell covers that framing even when sections are omitted.
-fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -> Option<Box<[u8]>> {
+fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -> Result<Box<[u8]>, kit::Unencoded> {
     let bound = encoding.charter_bytes;
-    if charter.owned_bytes()? <= bound {
-        let encoded =
-            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+    if charter.owned_bytes().ok_or(unencoded("charter.ownership"))? <= bound {
+        let encoded = encode_charter(&charter, encoding)?;
         if skein_lib::len_u64(encoded.len()) <= bound {
-            return Some(encoded);
+            return Ok(encoded);
         }
     }
     let brief = ::core::mem::replace(&mut charter.brief.sections, Box::new([]));
-    let fixed_owned = charter.owned_bytes()?;
-    let fixed_encoded =
-        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+    let fixed_owned = charter.owned_bytes().ok_or(unencoded("charter.ownership"))?;
+    if fixed_owned > bound {
+        return Err(charter_size("charter.fixed_owned", fixed_owned, encoding));
+    }
+    let fixed_encoded = encode_charter(&charter, encoding)?;
     let fixed_encoded = skein_lib::len_u64(fixed_encoded.len());
-    if fixed_owned > bound || fixed_encoded > bound {
-        return None;
+    if fixed_encoded > bound {
+        return Err(charter_size("charter.fixed_encoded", fixed_encoded, encoding));
     }
     charter.brief.sections = brief;
     let owned = bound.saturating_sub(fixed_encoded.saturating_sub(fixed_owned));
     temper_protocol_brief::fit_brief_bytes(&mut charter, owned);
-    let encoded =
-        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
-    if skein_lib::len_u64(encoded.len()) > bound || charter.owned_bytes()? > bound {
-        return None;
+    let owned = charter.owned_bytes().ok_or(unencoded("charter.ownership"))?;
+    if owned > bound {
+        return Err(charter_size("charter.owned", owned, encoding));
     }
-    Some(encoded)
+    let encoded = encode_charter(&charter, encoding)?;
+    let bytes = skein_lib::len_u64(encoded.len());
+    if bytes > bound {
+        return Err(charter_size("charter.encoded", bytes, encoding));
+    }
+    Ok(encoded)
+}
+
+// temper/docs/design/domain/agent/room.md, 3: only measured refusals carry figures.
+fn unencoded(field: &'static str) -> kit::Unencoded {
+    kit::Unencoded { field, reason: None, figure: None, bound: None, ceiling: None }
+}
+
+fn charter_size(field: &'static str, figure: u64, encoding: &Encoding) -> kit::Unencoded {
+    kit::Unencoded {
+        figure: Some(figure),
+        bound: Some(encoding.charter_bytes),
+        ceiling: Some(u64::from(jig_protocol_worker_wire::v14::CEILINGS.assignment_charter)),
+        ..unencoded(field)
+    }
+}
+
+fn encode_charter(charter: &smith_domain_run::Charter, encoding: &Encoding) -> Result<Box<[u8]>, kit::Unencoded> {
+    use smith_protocol_translate::Error;
+    let error = match smith_protocol_translate::encode_charter(charter, &smith_charter::CEILINGS, &encoding.endpoints) {
+        Ok(encoded) => return Ok(encoded),
+        Err(error) => error,
+    };
+    let field = match error {
+        Error::CharterBody(problem) => {
+            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
+        }
+        Error::Endpoints => "charter.endpoints",
+        Error::Capacity => "charter.capacity",
+        Error::Write(_) => "charter.write",
+        Error::Codec(_) => "charter.codec",
+        Error::Channel(_) => "charter.channel",
+        Error::InvalidSavedAnswer => "charter.saved_answer",
+        Error::InvalidResult => "charter.result",
+        Error::Transcript(_) | Error::TranscriptBody(_) => "charter.transcript",
+        Error::Order => "charter.order",
+        Error::Calls => "charter.calls",
+        Error::Window => "charter.window",
+        Error::Grants => "charter.grants",
+        Error::ChannelBody(_) => "charter.channel_body",
+        Error::Frame(_) => "charter.frame",
+    };
+    Err(unencoded(field))
 }
 
 fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
@@ -281,6 +330,63 @@ mod tests {
             smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(decoded.owned_bytes().unwrap() <= owned);
         assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    }
+
+    #[test]
+    fn a_fixed_charters_ownership_names_its_figure() {
+        let settings = crate::tests::fixtures::engine();
+        let mut encoding = crate::tests::fixtures::encoding(&settings);
+        let assignment =
+            crate::tests::fixtures::assignment_with(crate::tests::fixtures::repository(7, b"acme", b"shop"));
+        let mut charter = temper_engine_smith::charter(&assignment);
+        charter.brief.sections = Box::new([]);
+        let owned = charter.owned_bytes().unwrap();
+        charter.brief.sections =
+            Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text: Box::new([b'x'; 1024]) }]);
+        encoding.charter_bytes = owned.checked_sub(1).unwrap();
+        assert_eq!(
+            fitted_charter(charter, &encoding),
+            Err(kit::Unencoded {
+                field: "charter.fixed_owned",
+                reason: None,
+                figure: Some(owned),
+                bound: Some(encoding.charter_bytes),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v14::CEILINGS.assignment_charter)),
+            })
+        );
+    }
+
+    #[test]
+    fn a_fixed_charters_encoding_names_its_figure() {
+        let settings = crate::tests::fixtures::engine();
+        let mut encoding = crate::tests::fixtures::encoding(&settings);
+        let assignment =
+            crate::tests::fixtures::assignment_with(crate::tests::fixtures::repository(7, b"acme", b"shop"));
+        let mut charter = temper_engine_smith::charter(&assignment);
+        charter.grants.host_tools = Box::new([]);
+        charter.models = Box::new([]);
+        charter.brief.sections = Box::new([]);
+        let encoded =
+            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+        let bytes = skein_lib::len_u64(encoded.len());
+        encoding.charter_bytes = bytes.checked_sub(1).unwrap();
+        assert!(charter.owned_bytes().unwrap() <= encoding.charter_bytes);
+        let mut with_brief =
+            smith_protocol_translate::decode_charter(&encoded, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+        with_brief.brief.sections =
+            Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text: Box::new([b'x'; 1024]) }]);
+        assert_eq!(
+            fitted_charter(with_brief, &encoding),
+            Err(kit::Unencoded {
+                field: "charter.fixed_encoded",
+                reason: None,
+                figure: Some(bytes),
+                bound: Some(encoding.charter_bytes),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v14::CEILINGS.assignment_charter)),
+            })
+        );
+        encoding.charter_bytes = bytes;
+        assert_eq!(fitted_charter(charter, &encoding), Ok(encoded));
     }
 
     #[test]
