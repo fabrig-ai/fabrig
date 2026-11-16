@@ -4,15 +4,6 @@
 
 - **Departs:** the whole document: the fuzzy story-placement departure remains `checks.status.md`, 1.
 
-`checks.md`, section 1's fuzzy suite has no known gap against its 180 CPU s, the
-strategy's 120 raised by half by the user's word of 11-08, for now, to be
-revisited (`README.md`, section 7): the whole-temper fuzzy median is 125.579032 CPU s
-in three warm serial runs including the driver (119.288299–127.664356
-CPU s), all 81 tests passing in each, though two runs and the median
-exceed the 120. The reduction, headroom and gate-CPU proofs remain `checks.status.md`, 1.
-[`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
-their accounting limits, retained causes and next decisions.
-
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the

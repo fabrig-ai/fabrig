@@ -8,8 +8,14 @@ use std::{
 };
 
 /// Install a kept build, reusing a completed install with the same manifest.
-pub fn install(build: &Path, commit: &str, place: &Path, face: &mut impl BuildFilesFace) -> Result<(), Refusal> {
-    PlacePaths::new(place).ensure()?;
+pub fn install(
+    build: &Path,
+    commit: &str,
+    place: &Path,
+    kind: crate::Kind,
+    face: &mut impl BuildFilesFace,
+) -> Result<(), Refusal> {
+    PlacePaths::new(place, kind).ensure()?;
     let manifest_path = build.join("manifest");
     let bytes = io(&manifest_path, fs::read(&manifest_path))?;
     let manifest =

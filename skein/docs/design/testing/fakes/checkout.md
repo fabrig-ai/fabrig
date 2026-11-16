@@ -159,6 +159,6 @@ reusable forge.
 The fuzzy binary sweeps small independent line edits and conflicts, checks
 expected trees/parents/object presence and compares the complete checkout
 and remote fixture on replay. Existing services retain their worlds and
-referees. Its tests run within the focused and fuzzy suites' budgets of
-40 and 120 CPU seconds (../README.md, section 7; ../../../foundation/testing-strategy.md,
-section 8).
+referees. Its tests run within the focused and fuzzy suites' budgets for
+their layers (../README.md, section 7; ../../../foundation/testing-strategy.md,
+section 8.1).

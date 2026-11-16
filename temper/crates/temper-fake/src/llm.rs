@@ -1,9 +1,11 @@
 //! The QA model's document and played scripts (protocol/setup/playground.md).
 pub mod observations;
+mod scripts;
 use crate::{Refusal, credential, read, turn};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::Path;
+pub use scripts::ScriptJoin;
 use skein_fake_llm_domain::{self as domain, api};
 use skein_json::Document as Json;
 use skein_lib::{Duration, List};

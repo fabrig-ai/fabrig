@@ -405,13 +405,24 @@ pub(crate) fn run_forge(
             false,
         ))))
     });
-    host(&mut world, scratch.path(), steps, false, 1, agent::agent);
+    let document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configured forge story"))
+            .expect("forge story JSON");
+    let agents = document["workers"]
+        .as_array()
+        .expect("workers")
+        .iter()
+        .map(|worker| u32::try_from(worker["slots"].as_u64().expect("worker slots")).expect("bounded slots"))
+        .sum();
+    host(&mut world, scratch.path(), steps, false, agents, agent::agent);
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
         *state.borrow_mut() = Some(forge);
         Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
     });
-    world.host_roots(crate::git::program(), crate::git::roots);
+    let mut git = crate::git::program();
+    git.instances = agents;
+    world.host_roots(git, crate::git::roots);
     let outcome = world.run(&skein_shell::Clock::new(), patience);
     crate::git::share(None);
     outcome

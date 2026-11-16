@@ -45,7 +45,7 @@ fn the_format_row_reads_back_with_its_versions_and_deployment() {
         settings: 9,
         application: 6,
         deployment: [7; 16],
-        levels: crate::format::NONE,
+        levels: component::Levels { skein: None, smith: None, jig: None, application: None },
     };
     let bytes = row.encode().expect("fixed width fields fit");
     assert_eq!(component::Format::decode(&bytes), Ok(row));
@@ -868,7 +868,6 @@ fn a_people_row_of_another_version_does_not_decode() {
     );
 }
 
-mod lifecycle;
 mod record;
 fn call_limits() -> crate::codec::View {
     crate::codec::limits(&core_limits()).expect("within core ceilings")
@@ -1650,42 +1649,6 @@ fn a_project_removed_outcome_round_trips() {
     people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::ProjectRemoved {
         project: u32::MAX,
     }));
-}
-
-#[test]
-fn a_deleted_mark_round_trips_with_its_number_only_key() {
-    for project in [0, 2, u32::MAX] {
-        people_round_trip(jig_domain_people::Stored::Deleted { project });
-        let key = jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Deleted(project));
-        assert!(jig_domain_people::Key::Deleted(project).live());
-        let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
-        let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
-        for (target, byte) in expected.iter_mut().skip(3).zip(u64::from(project).to_be_bytes()) {
-            *target = byte;
-        }
-        assert_eq!(bytes.as_ref(), &expected);
-        assert_eq!(crate::keys::decode(&bytes), Some(key));
-        let mut oversized = bytes;
-        *oversized.get_mut(6).expect("project high word") = 1;
-        assert_eq!(crate::keys::decode(&oversized), None);
-    }
-}
-
-#[test]
-fn a_deletion_row_round_trips_at_each_step() {
-    use jig_domain_people::{DeletionStep, Stored};
-    for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
-        for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
-            people_round_trip(Stored::Deletion { project: u32::MAX, step, grace });
-        }
-    }
-    let key = jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
-    let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
-    assert_eq!(bytes.as_ref(), &[1, 2, 9, 0, 0, 0, 0, 255, 255, 255, 255]);
-    assert_eq!(crate::keys::decode(&bytes), Some(key));
-    let mut oversized = bytes;
-    *oversized.get_mut(6).expect("project high word") = 1;
-    assert_eq!(crate::keys::decode(&oversized), None);
 }
 
 #[test]

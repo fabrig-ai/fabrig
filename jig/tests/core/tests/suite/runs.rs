@@ -714,6 +714,36 @@ fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
     });
 }
 
+/// jig/docs/design/domain/hosts/hub.md, 3: an invalid start names what was wrong.
+#[test]
+fn an_invalid_starts_reason_reaches_its_permanent_failure_hold() {
+    use jig_domain_host as host;
+    let mut world = World::new(Setup { seed: 144, ..Setup::default() });
+    let task = world.task();
+    let why = b"assignment cannot encode: charter.fixed_owned 82,884, bound 65,536, wire ceiling 67,108,864";
+    let allowance = world.env().limits.core.tasks.retries.permanent.retries;
+    for count in 0..=allowance {
+        if count > 0 {
+            world.retry_due();
+        }
+        host_ending(
+            &mut world,
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Other,
+                why: Box::from(why.as_slice()),
+            })),
+            0,
+        );
+    }
+    let row = world.domain.core().tasks.task(task).expect("held task");
+    assert_eq!(row.tries.permanent, allowance + 1);
+    let tasks::Phase::Held { why: held, source: Some(source), .. } = &row.phase else {
+        panic!("exhausted invalid starts have a hold source");
+    };
+    assert_eq!(*held, tasks::Hold::Failures(tasks::Class::Permanent));
+    assert_eq!(**source, tasks::HoldSource::Preparation { words: Box::from(why.as_slice()) });
+}
+
 #[test]
 fn an_unrelated_infrastructure_try_does_not_disable_a_later_windows_resume() {
     use jig_domain_host as host;

@@ -14,14 +14,14 @@ fn link(secret: &str) -> Event {
 fn signing_in() -> Machine {
     let (mut m, _) = Machine::start(plan(), Time::ZERO);
     let actions = step(&mut m, link("first"));
-    assert!(matches!(actions.as_slice(), [Action::Start { process: Process::SignIn, .. }]));
+    assert!(matches!(actions.as_slice(), [Action::SignInFile { .. }]));
     m
 }
 fn opening() -> Machine {
     let mut m = signing_in();
     let actions = step(&mut m, exited(Process::SignIn, 0));
     assert!(
-        matches!(actions.as_slice(), [Action::Open(url)] if url.as_ref() == format!("{ROUTE}?secret=first").as_bytes())
+        matches!(actions.as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == format!("{ROUTE}?secret=first").as_bytes())
     );
     m
 }

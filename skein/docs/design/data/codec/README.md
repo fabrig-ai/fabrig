@@ -262,7 +262,12 @@ For each family:
   limit's name is the rule's `schema::limit_name` gives (7.3), the one
   the generator names the field by.
 - **Its problems.** An enumeration of the family's fields, and a problem
-  that names one of them with `skein-codec`'s reason.
+  that names one of them with `skein-codec`'s reason. Each path names
+  itself, `Path::name(self) -> &'static str`, as the schema spells it:
+  `Record.field` for a field, `Record (version)` for a versioned record's
+  version, `Record (tail)` for its trailing bytes and `Enum (tag)` for an
+  enumeration's tag, so a step can name a refusal's field in its words
+  without formatting (`../../../foundation/programming-model.md`, 3).
 
 For each record and enumeration:
 

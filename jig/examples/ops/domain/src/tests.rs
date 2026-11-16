@@ -761,7 +761,13 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
             panic!("one assembled answer")
         };
         assert_eq!((answered_run, answered_attempt, answered_payload), (run, attempt, payload));
-        assert_eq!(end, jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Permanent));
+        assert_eq!(
+            end,
+            jig_domain_tasks::End::FailedWithReason {
+                class: jig_domain_tasks::Class::Permanent,
+                reason: Box::from(&b"start refused"[..]),
+            }
+        );
         assert!(work.is_empty());
     }
 }

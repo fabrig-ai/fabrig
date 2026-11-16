@@ -818,7 +818,7 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
 /// proposal acceptances retain their admitted values (temper/docs/design/domain/agent/tools.md).
 pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> Option<people::Refusal> {
     use core::settings::{Edit, Setting, Value};
-    let host = domain.host_part?;
+    let host = domain.host_part;
     for (index, item) in items.iter().enumerate() {
         if let Setting::Charter(_) = item.setting
             && let Edit::Set(value) = &item.edit

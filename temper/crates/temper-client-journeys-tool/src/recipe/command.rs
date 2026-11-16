@@ -13,7 +13,7 @@ pub(super) struct Arguments {
     pub(super) name: Option<String>,
     pub(super) setups: PathBuf,
     pub(super) from: Option<String>,
-    pub(super) drive: Option<drive::Options>,
+    pub(super) drive: Option<Vec<Box<[u8]>>>,
 }
 impl Arguments {
     pub(super) fn parse(mode: Mode, arguments: &[Box<[u8]>]) -> Result<Self, String> {
@@ -59,7 +59,7 @@ impl Arguments {
             name,
             setups: setups.unwrap_or_else(|| SETUPS.into()),
             from,
-            drive: if mode == Mode::Walk { Some(drive::Options::parse(&session)?) } else { None },
+            drive: if mode == Mode::Walk { Some(session) } else { None },
         })
     }
 }
@@ -96,7 +96,7 @@ fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]
         return Ok(drive::Exit { status: 0, shown: vec![hex(chain.hash())], error: None });
     }
     let (mut walk, actions) = Walk::start(&chain, args.from.as_deref()).map_err(|why| why.to_string())?;
-    let mut options = args.drive.expect("walk options");
+    let options = session_options(&chain, &args.setups, &args.drive.expect("walk options"))?;
     let directory = |name: &str| -> Result<bool, String> {
         let path = options.scratch.join(name);
         match fs::symlink_metadata(&path) {
@@ -107,7 +107,6 @@ fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]
     };
     walk::check_scratch(args.from.as_deref(), directory("config")?, directory("data")?)
         .map_err(|why| format!("{}: {why}", options.scratch.display()))?;
-    options = session_options(&chain, &args.setups, options);
     let mut session = match drive::Session::start(options, environment) {
         Ok(session) => Some(session),
         Err(exit) => return Ok(exit),
@@ -133,10 +132,23 @@ fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]
     }
     unreachable!("walk finishes after ending session")
 }
-pub(super) fn session_options(chain: &Chain, setups: &std::path::Path, mut options: drive::Options) -> drive::Options {
+pub(super) fn session_options(
+    chain: &Chain,
+    setups: &std::path::Path,
+    arguments: &[Box<[u8]>],
+) -> Result<drive::Options, String> {
+    let mut arguments = arguments.to_vec();
+    if let Some(config) = chain.config_dir(setups) {
+        if arguments.iter().any(|arg| arg.as_ref() == b"--bundle") {
+            return Err("a deployment walk takes no --bundle".into());
+        }
+        arguments.push(b"--deployment".as_slice().into());
+        arguments.push(config.as_os_str().as_bytes().into());
+    }
+    let mut options = drive::Options::parse(&arguments)?;
     options.scripts = chain.scripts(setups);
-    options.ctl = chain.ctl_only();
-    options
+    options.ctl = chain.kind() == super::Kind::Box && chain.ctl_only();
+    Ok(options)
 }
 pub(super) fn catalogue(reader: &Reader<'_>, mut names: Vec<String>) -> Vec<String> {
     names.sort();

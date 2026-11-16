@@ -269,6 +269,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             &self.home.configuration.agent.triage,
             inputs.pages.clone(),
             inputs.setups.clone(),
+            inputs.deployments.clone(),
             now.wall,
         )?;
         let directory = self.home.session_directory(number);
@@ -377,7 +378,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             for place in &home.configuration.places {
                 if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
                     let directory = home.configuration.place_directory(&home.directory, place)?;
-                    if pass_files::free_lock(&directory)?.is_some() {
+                    if pass_files::free_lock(&directory, home.configuration.place_kind(place))?.is_some() {
                         free = true;
                         break;
                     }
@@ -426,19 +427,21 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let now = self.clock.now();
         // Run the ledger's selection on a snapshot. Preparation failures record
         // nothing; no caller duplicates the ledger's eligibility rules.
+        let kind = configuration.place_kind(place);
         let mut recorded = ledger.clone();
         let Some(start) = recorded
-            .resume_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall)
-            .or_else(|| recorded.start_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall))
+            .resume_pass(place, kind, &configuration.surfaces, &configuration.agent.pass, now.wall)
+            .or_else(|| recorded.start_pass(place, kind, &configuration.surfaces, &configuration.agent.pass, now.wall))
         else {
             return Ok(());
         };
         let directory = configuration.place_directory(&self.home.directory, place)?;
-        let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
+        let Some(lock) = pass_files::free_lock(&directory, kind)? else { return Ok(()) };
         crate::installation::install(
             &self.home.builds.join(&start.build),
             &start.build,
             &directory,
+            kind,
             &mut crate::faces::RealBuildFiles { environment: self.environment.clone() },
         )?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;

@@ -315,7 +315,10 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,

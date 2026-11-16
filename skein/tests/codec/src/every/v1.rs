@@ -166,6 +166,56 @@ pub enum Path {
     EveryTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::BlankTail => "Blank (tail)",
+            Self::NumbersSmall => "Numbers.small",
+            Self::NumbersShort => "Numbers.short",
+            Self::NumbersWord => "Numbers.word",
+            Self::NumbersLong => "Numbers.long",
+            Self::NumbersFlag => "Numbers.flag",
+            Self::NumbersWait => "Numbers.wait",
+            Self::NumbersTag => "Numbers.tag",
+            Self::NumbersTail => "Numbers (tail)",
+            Self::StringsRaw => "Strings.raw",
+            Self::StringsKey => "Strings.key",
+            Self::StringsWords => "Strings.words",
+            Self::StringsTail => "Strings (tail)",
+            Self::LightTag => "Light (tag)",
+            Self::StampAt => "Stamp.at",
+            Self::StampNote => "Stamp.note",
+            Self::StampVersion => "Stamp (version)",
+            Self::StampTail => "Stamp (tail)",
+            Self::ShapeTag => "Shape (tag)",
+            Self::NestBlanks => "Nest.blanks",
+            Self::NestLights => "Nest.lights",
+            Self::NestMaybeLights => "Nest.maybe_lights",
+            Self::NestGrid => "Nest.grid",
+            Self::NestMaybeList => "Nest.maybe_list",
+            Self::NestMaybeNumbers => "Nest.maybe_numbers",
+            Self::NestShapes => "Nest.shapes",
+            Self::NestSecrets => "Nest.secrets",
+            Self::NestStamps => "Nest.stamps",
+            Self::NestPairs => "Nest.pairs",
+            Self::NestTail => "Nest (tail)",
+            Self::EveryNumbers => "Every.numbers",
+            Self::EveryStrings => "Every.strings",
+            Self::EveryLight => "Every.light",
+            Self::EveryShape => "Every.shape",
+            Self::EveryStamp => "Every.stamp",
+            Self::EveryNest => "Every.nest",
+            Self::EveryEmpty => "Every.empty",
+            Self::EveryHeld => "Every.held",
+            Self::EveryItems => "Every.items",
+            Self::EveryVersion => "Every (version)",
+            Self::EveryTail => "Every (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

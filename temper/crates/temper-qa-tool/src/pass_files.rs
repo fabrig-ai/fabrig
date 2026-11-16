@@ -22,8 +22,8 @@ pub(crate) fn prepare_files(home: &Home, pass: u64) -> Result<(), Refusal> {
 }
 
 /// Keep the free-place test's lock through preparation and recording.
-pub(crate) fn free_lock(place: &Path) -> Result<Option<File>, Refusal> {
-    let paths = PlacePaths::new(place);
+pub(crate) fn free_lock(place: &Path, kind: crate::Kind) -> Result<Option<File>, Refusal> {
+    let paths = PlacePaths::new(place, kind);
     for path in [&paths.directory, &paths.scratch, &paths.copies] {
         private::directory(path)?;
     }

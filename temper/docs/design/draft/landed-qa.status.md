@@ -46,10 +46,22 @@ pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 `../protocol/setup/box.md`, 5), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 
+Milestone Q6, ctl on a deployment, is designed in
+`../testing/qa/deployment.md` (a deployment's session: its documents
+rendered with the place's names, its preparation, its processes, its
+lines' values, `deployment patch`, its stop and exits),
+`../client/drive.md`, 2.1, 2.3, 2.6, 3.4 and 3.8 (the `ctl` surface, a
+session of ctl and `forge` lines signed in from a file, and a
+deployment's lines), `../client/recipe.md`, 2, 4 and 5.1 (a deployment's
+recipe and its walk), `../testing/qa/places.md` and
+`../testing/qa/README.md`, 3.2 and 6 (places of the deployment's kind),
+`../testing/qa/triage.md`, 3 (ctl cases first, of the configured surfaces
+alone), `../testing/qa/gaps.md`, `../testing/qa/setups.md`, 5 and 6 (the
+first deployment setup, `turn-landing`) and `../testing/process-tier.md`
+(the story of a deployment at its place).
+
 - **Design lags:**
-  - 2, 4, 5, 7, 10: places are boxes alone and surfaces web and TUI (`../testing/qa/README.md`, 3.2; `../testing/qa/triage.md`, 3; `../testing/qa/places.md`), where the draft, since 2026-11-14, has places of two kinds, a box and a deployment, and ctl cases first; Q6 to Q8 carry it.
-  - 3: a kept build has no engine, worker or agent, and builds its bundles with `bundle.sh` options it no longer takes (`../testing/qa/builds.md`, 2), where loopback and recording are a page's query since 2026-11-12; Q6 carries both.
-  - 5: a place's box directory takes the umask's mode, and the drivers refuse it unless it is private (`../testing/qa/places.md`, 4; `../client/drive.md`); Q6 carries it.
+  - 2, 4, 5, 7, 10: a deployment place takes ctl and `forge` lines alone, and a deployment setup ctl cases alone (`../testing/qa/deployment.md`, 6; `../testing/qa/triage.md`, 3), where the draft has the web client and the TUI on a deployment too, and one framework for a place's kinds; Q7 and Q8 carry it.
 
 - **Design departs:**
   - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.

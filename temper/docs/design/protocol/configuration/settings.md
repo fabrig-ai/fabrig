@@ -742,7 +742,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `protocol/limits.md`, 3.10). The reference's is 127,480, so this receiving
   allowance binds before the hub's 262,144: the engine fits a charter to
   the smaller of the two where its process has the agent, and to 65,536
-  where it doesn't know its worker's (`../../domain/agent/tools.md` and `../../domain/agent/README.md`, 8
+  where it doesn't know its worker's (`../../domain/agent/room.md`, 2, and `../../domain/agent/README.md`, 8
   ). Its coding charter holds a 63,740-byte spec beside its
   instructions and tools. A section past the room those leave is cut with
   its `[cut N bytes; whole: READ]` line, including a 131,072-byte section,

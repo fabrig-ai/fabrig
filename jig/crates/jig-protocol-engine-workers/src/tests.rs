@@ -4,6 +4,7 @@ mod opening;
 mod room;
 mod statement;
 mod translate;
+mod unencoded;
 
 #[test]
 fn valid_refuses_each_unrepresentable_limit() {

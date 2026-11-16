@@ -3,28 +3,26 @@ use super::sets::{Owner, OwnerSet, OwnerSets};
 use skein_lib::List;
 
 pub(crate) use crate::codec::component::Levels;
-impl Levels {
-    pub(crate) fn of(&self, owner: Owner) -> Option<u32> {
-        match owner {
-            Owner::Skein => self.skein,
-            Owner::Smith => self.smith,
-            Owner::Jig => self.jig,
-            Owner::Application => self.application,
-        }
+pub(crate) fn level(levels: &Levels, owner: Owner) -> Option<u32> {
+    match owner {
+        Owner::Skein => levels.skein,
+        Owner::Smith => levels.smith,
+        Owner::Jig => levels.jig,
+        Owner::Application => levels.application,
     }
-    pub(crate) fn set(&mut self, owner: Owner, level: Option<u32>) {
-        match owner {
-            Owner::Skein => self.skein = level,
-            Owner::Smith => self.smith = level,
-            Owner::Jig => self.jig = level,
-            Owner::Application => self.application = level,
-        }
+}
+pub(crate) fn set_level(levels: &mut Levels, owner: Owner, level: Option<u32>) {
+    match owner {
+        Owner::Skein => levels.skein = level,
+        Owner::Smith => levels.smith = level,
+        Owner::Jig => levels.jig = level,
+        Owner::Application => levels.application = level,
     }
 }
 pub(crate) fn binary(sets: &OwnerSets) -> Levels {
     let mut levels = Levels { skein: None, smith: None, jig: None, application: None };
     for set in sets.sets {
-        levels.set(set.owner, set.level);
+        set_level(&mut levels, set.owner, set.level);
     }
     levels
 }

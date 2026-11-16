@@ -87,6 +87,9 @@ impl CaseInput {
                     session.setups.join(", ")
                 )));
             }
+            if session.deployments.contains(&self.setup) && self.surface != "ctl" {
+                return Err(refused(format!("setup {} is a deployment's, which takes ctl cases alone", self.setup)));
+            }
             if self.steps.is_empty() {
                 return Err(refused("no step"));
             }

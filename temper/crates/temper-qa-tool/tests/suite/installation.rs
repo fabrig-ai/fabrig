@@ -28,7 +28,7 @@ fn inode(path: &Path) -> u64 {
 fn install_links_files_and_an_unchanged_manifest_installs_nothing() {
     let (_world, build, place) = installation();
     let mut face = Files::default();
-    install(&build, &id(2), &place, &mut face).expect("installed");
+    install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect("installed");
     assert_eq!(face.links.len(), LINKED_FILES);
     assert_eq!(face.hashes.len(), 0);
     assert_eq!(face.checks.len(), 1, "the copied bundle is checked");
@@ -39,7 +39,7 @@ fn install_links_files_and_an_unchanged_manifest_installs_nothing() {
     assert_eq!(fs::metadata(place.join("manifest")).expect("receipt").permissions().mode() & 0o777, 0o600);
     fs::write(place.join("setup"), "kept setup").expect("setup");
     let receipt_inode = inode(&place.join("manifest"));
-    install(&build, &id(2), &place, &mut face).expect("reused");
+    install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect("reused");
     assert_eq!(face.links.len(), LINKED_FILES);
     assert_eq!(face.checks.len(), 1);
     assert_eq!(inode(&place.join("manifest")), receipt_inode);
@@ -48,7 +48,7 @@ fn install_links_files_and_an_unchanged_manifest_installs_nothing() {
     let mut manifest = fs::read(build.join("manifest")).expect("manifest");
     manifest.extend_from_slice(b"\n");
     fs::write(build.join("manifest"), &manifest).expect("changed manifest");
-    install(&build, &id(2), &place, &mut face).expect("reinstalled");
+    install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect("reinstalled");
     assert_eq!(face.links.len(), LINKED_FILES * 2);
     assert!(!place.join("setup").exists());
     assert_eq!(fs::read(place.join("manifest")).expect("receipt"), manifest);
@@ -69,7 +69,7 @@ fn a_cross_device_install_copies_and_checks_the_installed_manifest() {
     )
     .expect("old row");
     let mut face = Files { cross_device: true, ..Default::default() };
-    install(&build, &id(2), &place, &mut face).expect("copied");
+    install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect("copied");
     assert_eq!(face.links.len(), LINKED_FILES);
     assert_eq!(face.checks.len(), 1);
     let manifest = fs::read_to_string(build.join("manifest")).expect("manifest");
@@ -95,17 +95,17 @@ fn a_cross_device_install_copies_and_checks_the_installed_manifest() {
 fn a_failed_copy_check_leaves_no_install_receipt() {
     let (world, build, place) = installation();
     let mut face = Files::default();
-    install(&build, &id(2), &place, &mut face).expect("first install");
+    install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect("first install");
     let next = world.installable_build(3);
     face.cross_device = true;
     face.check_error = true;
-    let why = install(&next, &id(3), &place, &mut face).expect_err("failed check");
+    let why = install(&next, &id(3), &place, temper_qa_tool::Kind::Box, &mut face).expect_err("failed check");
     assert!(why.0.contains("sha256sum --check"), "{why}");
     assert!(!place.join("manifest").exists());
     // The first install checked its copied bundle, and the second install's check failed.
     assert_eq!(face.checks.len(), 2);
     face.check_error = false;
-    install(&next, &id(3), &place, &mut face).expect("retry succeeds");
+    install(&next, &id(3), &place, temper_qa_tool::Kind::Box, &mut face).expect("retry succeeds");
     assert_eq!(fs::read(place.join("manifest")).expect("receipt"), fs::read(next.join("manifest")).expect("build"));
 }
 
@@ -113,7 +113,7 @@ fn a_failed_copy_check_leaves_no_install_receipt() {
 fn a_non_device_link_error_refuses_without_copying() {
     let (_world, build, place) = installation();
     let mut face = Files { link_error: true, ..Default::default() };
-    let why = install(&build, &id(2), &place, &mut face).expect_err("link refused");
+    let why = install(&build, &id(2), &place, temper_qa_tool::Kind::Box, &mut face).expect_err("link refused");
     assert!(why.0.to_ascii_lowercase().contains("permission denied"), "{why}");
     assert!(!place.join("manifest").exists());
     assert_eq!(face.checks.len(), 0);

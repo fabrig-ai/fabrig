@@ -1,6 +1,7 @@
 //! Complete task rows for the codec fixtures (protocol/store/records.md, 1).
 use super::{task_creation, task_name, task_phase, task_proposal, task_template};
 
+#[must_use]
 pub fn task_word(number: u64) -> jig_domain_tasks::Word {
     jig_domain_tasks::Word {
         number,
@@ -13,6 +14,7 @@ pub fn task_word(number: u64) -> jig_domain_tasks::Word {
     }
 }
 #[expect(clippy::too_many_lines, reason = "complete durable task fixture includes the optional room condition")]
+#[must_use]
 pub fn task_record() -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as task;
     use skein_lib::{Duration, Wall};
