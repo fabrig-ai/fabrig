@@ -262,9 +262,10 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   5. "Coding agent", "For each change": the producer, kind 3's number 1;
   6. "Reviewer", "For each change": the reviews' charter, kind 3's
      number 2, while the project's path draws a "review";
-  7. "Status agent", "When you look at Home after landings or findings
-     change": the status agent's charter (the stock's 9), on its triggers
-     (`../attention.md`, 3);
+  7. "Status agent", "When you look at Home after landings or
+     findings": the status agent's charter (the stock's 9), on its
+     triggers (`../attention.md`, 3), its card's "who" with its kind-9
+     words within `WHO`'s 128 bytes;
   8. "Standing role", "For each standing role": the charter each of the
      project's live standing roles runs under, its tasks labelled 3
      (`../../agent/standing.md`, section 2), in charter number order;
