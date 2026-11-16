@@ -68,7 +68,7 @@ pub(super) fn begin(
         ops.push(skein_kv::Op::Put { key, value }).expect("three sealing puts");
     }
     if floor {
-        let value = codec::component::floor(store.build_name);
+        let value = crate::rows::floor(store.build_name);
         let Some(total) = put_size(&floor_key, &value, size) else { return refuse(store, above) };
         if total > u64::from(store.limits.store.commit) {
             return refuse(store, above);

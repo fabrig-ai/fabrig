@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod back;
 pub mod boundary;
+mod catalogue;
 mod census;
 pub mod codec;
 mod commits;
@@ -40,6 +41,7 @@ mod reads;
 mod registry;
 pub mod restore;
 pub mod retained;
+mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;

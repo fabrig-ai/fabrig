@@ -1,7 +1,7 @@
 //! Versions and deployment checked at open (protocol/store/records.md, 3).
 use crate::boundary::{Family, OpenRefusal};
 use crate::codec::component;
-use crate::upgrade::admission::Levels;
+use crate::upgrade::admission::{self, Levels};
 use crate::{Older, Owner};
 
 pub(crate) const NONE: Levels = Levels { skein: None, smith: None, jig: None, application: None };
@@ -10,17 +10,21 @@ pub(crate) const NONE: Levels = Levels { skein: None, smith: None, jig: None, ap
 pub(crate) fn compare(found: Levels, wanted: Levels) -> Result<(), OpenRefusal> {
     const OWNERS: [Owner; 4] = [Owner::Skein, Owner::Smith, Owner::Jig, Owner::Application];
     for owner in OWNERS {
-        if found.of(owner) > wanted.of(owner) {
-            return Err(OpenRefusal::Ahead { owner, found: found.of(owner), wanted: wanted.of(owner) });
+        if admission::level(&found, owner) > admission::level(&wanted, owner) {
+            return Err(OpenRefusal::Ahead {
+                owner,
+                found: admission::level(&found, owner),
+                wanted: admission::level(&wanted, owner),
+            });
         }
     }
     for owner in OWNERS {
-        if found.of(owner).is_none() && wanted.of(owner).is_some() {
+        if admission::level(&found, owner).is_none() && admission::level(&wanted, owner).is_some() {
             return Err(OpenRefusal::OlderBuild { why: Older::Unleveled });
         }
     }
     for owner in OWNERS {
-        if found.of(owner) < wanted.of(owner) {
+        if admission::level(&found, owner) < admission::level(&wanted, owner) {
             return Err(OpenRefusal::OlderBuild { why: Older::Behind });
         }
     }
