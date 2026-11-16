@@ -1,4 +1,4 @@
-//! The once-made floor deployment (temper/docs/design/protocol/baseline.md, 6).
+//! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
 pub(crate) mod files;
 use crate::{
     ctl, fixtures,

@@ -271,10 +271,10 @@ also puts a `Proposal` row, `since` the decision's time.
 
 ## 8. At the upgrade
 
-No job: every store at the floor has run `retention-rows` and
-`retention-proposals` (temper's `draft/store-floor.md`, section 4.3),
-so every ended task has its summary and retention row, and every
-decided proposal its row.
+No backfill job runs at open: every store at the floor keeps each
+ended task's summary and retention row and each decided proposal's row
+(temper's `draft/store-floor.md`, section 3). Retention's timers keep
+running as section 6 says.
 
 ## 9. Connectors
 

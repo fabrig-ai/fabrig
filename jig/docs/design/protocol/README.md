@@ -184,11 +184,11 @@ An application that mixes the last two has both.
 | `jig-protocol-worker-agents` | component | worker | the program sources and the worker route, between smith's host half and the channel (`service.md`, section 11) |
 | `jig-protocol-tools` | translation | engine | the core's host tools: their schemas and descriptions, their calls decoded into the core's typed requests, their answers rendered as text (`channel/README.md`, 5.3) |
 | `jig-protocol-accounts` | translation, table | engine | the accounts child's vocabulary to skein's accounts driver's and back, and the values lent, tokens and keys with their scheme (`llm.md`, section 5) |
-| `jig-protocol-accounts-codec` | codecs | engine | the generated record code of `jig-protocol-accounts`' family (`schema/moved-v1.schema`), below it, which keeps its schema, patches and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
+| `jig-protocol-accounts-codec` | codecs | engine | the generated record code of `jig-protocol-accounts`' family (`schema/moved-v1.schema`), below it, which keeps its schema and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
-| `jig-protocol-store` | component | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store; the owner of its families' schemas, patches and golden bytes (`store/README.md`) |
+| `jig-protocol-store` | component | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store; the owner of its families' current schemas and golden bytes (`store/README.md`) |
 | `jig-protocol-store-records` | translation | engine | jig's records to the store's generated families and back, below `jig-protocol-store`, which re-exports it as its `codec` (`store/crates.md`) |
-| `jig-protocol-store-people`, `jig-protocol-store-tasks`, `jig-protocol-store-core`, `jig-protocol-store-settings`, `jig-protocol-store-families` | codecs | engine | the store's families' generated record code, below `jig-protocol-store-records`, which translates them, and `jig-protocol-store`, which keeps their schemas, patches and golden bytes (below) |
+| `jig-protocol-store-people`, `jig-protocol-store-tasks`, `jig-protocol-store-core`, `jig-protocol-store-settings`, `jig-protocol-store-families` | codecs | engine | the store's families' generated record code, below `jig-protocol-store-records`, which translates them, and `jig-protocol-store`, which keeps their current schemas and golden bytes (below) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client/wire.md`, section 1) |
 | `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client/openid.md`); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client/wire.md`, 2.2) |
 | `jig-protocol-engine-clients-codec` | codecs | engine | the generated record code of the clients' component's cursor family, below it, which keeps its schema and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
@@ -215,12 +215,11 @@ they compile beside the core's crates rather than after them:
   hold (`tools/crates/design.md`, 3.1). **`core` and `settings`**, of
   middling size, take a crate each too, so that a change to one
   recompiles it alone. The four small ones share one.
-- **Each module keeps its versioned name,** `people_v15`, at its codec
-  crate's root, and `jig-protocol-store` re-exports it at its own, so
-  that `jig_protocol_store::people_v15` names it as before. A caller may
-  name either path.
-- **The store keeps the rest:** the schemas, kept texts and patches
-  (skein's `data/codec/command.md`, 1), the layouts' glue
+- **Each module has its versioned name,** `people_v17`, at its codec
+  crate's root, and `jig-protocol-store` re-exports it at its own as
+  `jig_protocol_store::people_v17`. A caller may name either path.
+- **The store keeps the rest:** the current schemas, the registered
+  families' declarations (`store/layouts.md`, 2), the layouts' glue
   (`src/generated/layouts.rs`), the golden bytes, the families' bounds
   from the domain's limits (`store/README.md`, section 8) and the
   translations. The drift test, `jig/tests/codec-families.rs`'s
@@ -276,7 +275,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
 | its parts' encodings: workspace items, left and saved work, delivery evidence, and the wires they are (`channel/wires.md`, 2) | engine and worker | its own codecs (`channel/README.md`, 5.2) |
 | its periods' source | the engine | a child of its root (`configuration.md`, section 5) |
 | the worker's root, with its choice of agent capability, its workspace and its io | the worker | its own (`../domain/hosts/README.md`, section 6) |
-| its store's families: keys' encoders, codecs, its store version, its indexes | the engine | its own, by `store/README.md`, section 7 |
+| its store's families: keys' encoders, codecs, registered value types, current schemas, indexes and jobs | the engine | its own, by `store/README.md`, section 7 |
 | its documents' and requests' wire, versioned per owner | engine and client | its own codec crate, generated as jig's is (`client/README.md`, section 8) |
 | its templates: its own shapes of work, and jig's chat and goal kept, changed or dropped | the engine's configuration | its own data (`configuration.md`, 3.1) |
 
@@ -287,21 +286,29 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 
 ## 7. Versions
 
-- **Versions move with layouts, from now** (the user, 2026-11-12). Each
-  of jig's encodings has one current version. A stored family moves its
-  version with its patch from its baseline (`store/records.md`), until
-  it is registered: from then on its version stays and the store
-  converts each value from its layout (`store/layouts.md`); a wire,
-  an encoding two builds exchange, moves its version at the landing that
-  changes its layout, keeps the old text and brings its forward patch
-  (skein's `data/codec/README.md`, section 5; `data/codec/command.md`, 2,
-  the wire rule). A reader refuses another version, saying so. Each
-  build's floor is its current version, so nothing is translated yet.
-- **The engine and its workers may be of two builds.** Everything that
-  crosses a boundary or outlives a process carries its version. A store
-  written by another version is patched or refused at its opening
-  (section 14); a worker whose wires another build laid out is refused at
-  its channel's opening, by name (`channel/wires.md`, 3).
+- **Registered families keep their versions.** The store converts a
+  value at read from the texts in its registry (`store/layouts.md`, 4).
+  An added field takes a default, a renamed part its former name
+  (`was`), and a change no plan derives its owner's written job
+  (`store/jobs.md`, 4). An upgrade registers the build's layouts and runs
+  its declared jobs in a new generation (`store/opening.md`, 2); it
+  carries no map patch. Formats outside the registry are fixed at their
+  current versions (`store/records.md`, 3): a change to one designs and
+  brings, in the same landing, how a store at the floor reaches it.
+- **Wires move their versions with their layouts** (the user,
+  2026-11-12). A wire, an encoding two builds exchange, moves its version
+  at the landing that changes its layout, keeps the old text and brings
+  its forward patch (skein's `data/codec/README.md`, section 5;
+  `data/codec/command.md`, 2, the wire rule). A reader refuses another
+  version, saying so. Each build's floor is its current version, so
+  nothing is translated yet.
+- **The engine and its workers may be of two builds.** The store opens
+  only at or above its floor and at the build's owner levels: one
+  without the floor, below it or behind the levels is refused, naming
+  `FLOOR_BRIDGE` (`store/opening.md`, 1.8).
+  A non-empty store without a registry is refused too, never seeded.
+  A worker whose wires another build laid out is refused at its
+  channel's opening, by name (`channel/wires.md`, 3).
 - **The channel** is a wire, agreed at its opening, its kinds' table in
   its schema; the application's payloads inside it and smith's charter,
   turns and channel are wires beside it, which the worker's credential

@@ -2,9 +2,7 @@
 
 2026-11-16. Where the code and the design lag or depart from [store-floor.md](store-floor.md).
 
-- **Design lags:**
-  - 3: `../protocol/baseline.md`, sections 1 to 5 and 7 to 9, and jig's `protocol/store/layouts.md`, 7, still describe the baseline's store, its catch-up and the seed's planning as served.
-  - 4: jig's `protocol/store/layouts.md`, sections 1, 3, 4, 7 and 8 still speak of the seed and of kept texts; `../protocol/baseline.md`, `../protocol/store.md` and the other documents that name `PatchSet` still name the patch sets, their patches and their package; `upgrades.md`, `staged-upgrades.md`, `redeploys.md` and `store-shape.md` promise patches for stores behind the build.
+- **Design lags:** none.
 - **Design departs:**
   - 2: the written jobs are one settling job per owner's set, run by the store (jig's `protocol/store/jobs.md`, 5), with skein's plans whose drops are refused per value (skein's `data/codec/layouts.md`, 2), not a written job per layout that lost a variant: dev's layouts are known only by its registry, one walk of a set's value types proves every other layout of theirs retired, and a plan with its drops refused is the same conversion a hand-written one would be. The goal's designer, 11-15.
   - 2: the put-back puts every value whose layout moves, not a few thousand: dropping a variant moves the tags of every variant after it, so the tasks' value types after `milestone` and temper's after `change` are put again, most of the map. The redeploy's check measures the cost first (7). The goal's designer, 11-15.
