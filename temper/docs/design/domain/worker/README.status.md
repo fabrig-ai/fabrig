@@ -96,3 +96,4 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   (`../../draft/dogfood-hacks.md`, 2.13). It carries no credential. No test
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
+- **Not yet:** 5: the agent's configuration written from the engine's figures and the derived agent program pinned [in flight: change 5829].

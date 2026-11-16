@@ -36,3 +36,4 @@ for its `box` limits and `demo` member, as the box's does (`components.md`;
 workspace whole, so its run of the step test runs a binary built with
 `worker` on; the feature-off service is compiled by `temper-engine`'s
 own build alone, as `binaries.md`, 1 accepts.
+- **Not yet:** 1: a worker alone's document without `limits` or `agent`, its checks over its engine's figures [in flight: change 5829].
