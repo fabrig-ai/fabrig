@@ -87,6 +87,7 @@ pub struct Milestone {
     reading_ended: bool,
     refresh_ended: bool,
     ended_more: bool,
+    ended_answered: bool,
     watching_goals: bool,
 }
 impl Milestone {
@@ -114,6 +115,7 @@ impl Milestone {
             reading_ended: false,
             refresh_ended: false,
             ended_more: false,
+            ended_answered: false,
             watching_goals: false,
         }
     }
@@ -131,7 +133,18 @@ impl Milestone {
         }
     }
     pub fn configure(&mut self, line: &c::TaskLine, client: &Client, limits: &Limits, out: &mut Queue<Request>) {
-        let key = (line.changed, line.chip.phase == c::Phase::Ended);
+        self.configure_at(line.changed, line.chip.phase == c::Phase::Ended, client, limits, out);
+    }
+    /// A task page already watches the same changed/ended facts in its document.
+    pub(super) fn configure_at(
+        &mut self,
+        changed: Wall,
+        ended: bool,
+        client: &Client,
+        limits: &Limits,
+        out: &mut Queue<Request>,
+    ) {
+        let key = (changed, ended);
         let ending = key.1
             && match self.key {
                 Some(old) => !old.1,
@@ -226,6 +239,7 @@ impl Milestone {
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page
                     && let c::EndedGroup::Rows { rows, after, cut } = &page.ended
                 {
+                    self.ended_answered = true;
                     for row in rows {
                         self.ended_rows.insert(row.chip.task, row.clone()).expect("bounded delivered rows");
                     }
@@ -275,6 +289,11 @@ impl Milestone {
         for (_, row) in &rows {
             self.goals.push(row.clone()).expect("bounded delivered rows");
         }
+    }
+    /// Both groups of goals and the totals have answered, including a known empty list.
+    #[must_use]
+    pub fn known(&self, client: &Client) -> bool {
+        self.ended_answered && self.totals_at.is_some() && matches_live(client, self.live)
     }
     pub fn leave(&self, out: &mut Queue<Request>) {
         for handle in [self.task_read, self.live, self.ended, self.totals_read] {
@@ -586,4 +605,13 @@ impl Milestones {
         }
         None
     }
+}
+
+fn matches_live(client: &Client, handle: Handle) -> bool {
+    if let Some(document) = client.document(handle)
+        && let Some(Latest::Jig(c::Delivery::Tasks(_))) = document.latest
+    {
+        return true;
+    }
+    false
 }

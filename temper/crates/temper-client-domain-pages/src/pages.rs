@@ -61,6 +61,7 @@ pub mod home;
 pub mod how;
 pub mod inbox;
 pub mod launchpad;
+pub mod milestone;
 pub mod milestones;
 pub mod models;
 pub mod needs;
@@ -682,7 +683,7 @@ impl Pages {
     #[must_use]
     pub fn cards(&self) -> Option<&skein_lib::List<inbox::Card>> {
         if let Some(task) = &self.task {
-            if task.shape == task::Shape::Tracked {
+            if task.shape == task::Shape::Tracked || task.shape == task::Shape::Milestone {
                 return Some(&self.inbox.as_ref()?.cards);
             }
             return Some(&task.cards);
@@ -691,7 +692,7 @@ impl Pages {
     }
     pub fn cards_mut(&mut self) -> Option<&mut skein_lib::List<inbox::Card>> {
         if let Some(task) = &mut self.task {
-            if task.shape == task::Shape::Tracked {
+            if task.shape == task::Shape::Tracked || task.shape == task::Shape::Milestone {
                 return Some(&mut self.inbox.as_mut()?.cards);
             }
             return Some(&mut task.cards);
@@ -1124,7 +1125,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             if pages.confirm.is_none()
                 && let Some(page) = &mut pages.task
-                && (page.shape == task::Shape::Tracked || page.shape == task::Shape::Agent)
+                && (page.shape == task::Shape::Tracked
+                    || page.shape == task::Shape::Agent
+                    || page.shape == task::Shape::Milestone)
             {
                 let kind = if act == Act::Pause { task::Sending::Stop } else { task::Sending::Resume };
                 page.send(env, client, kind, &mut pages.serial, out);
@@ -2466,7 +2469,7 @@ fn task_told(
         task.next = task.next.max(inbox.next);
     }
     let handled = task.told(env.now, client, told.clone(), out);
-    let filter = if task.shape == task::Shape::Tracked {
+    let filter = if task.shape == task::Shape::Tracked || task.shape == task::Shape::Milestone {
         match task.document(client) {
             Some(document) => {
                 Some(crate::address::Filter { project: Some(document.project), kind: None, goal: Some(task.number) })

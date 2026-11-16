@@ -101,6 +101,8 @@ pub struct Inbox {
     pub filter: Filter,
     pub entries: Handle,
     pub cards: List<Card>,
+    /// The needs read's supplied ancestry, retained for milestone bands.
+    pub selection: Option<List<contract::InboxSelection>>,
     /// Incomplete source documents, for needs and updates respectively.
     pub cut: [bool; 2],
     answered: [bool; 2],
@@ -139,6 +141,7 @@ impl Inbox {
             next: first.checked_add(3).expect("inbox handles fit"),
             window: limits.client.domain.rows.min((cards / 2).max(1)),
             cards: List::with_capacity(cards),
+            selection: None,
             previous: List::with_capacity(cards),
             arrived: [None, None],
             answered: [false; 2],
@@ -296,6 +299,9 @@ impl Inbox {
         self.replace(out);
         for index in 0..2 {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
+                if index == 0 {
+                    self.selection.clone_from(&page.selection);
+                }
                 *self.answered.get_mut(index).expect("inbox section") = true;
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
                 for row in &page.rows {

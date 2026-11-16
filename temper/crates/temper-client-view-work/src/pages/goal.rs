@@ -83,7 +83,7 @@ pub(crate) fn main(
     b.close();
 }
 
-fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
+pub(crate) fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
     let mut bands = List::uncapped();
     if let Some(inbox) = root.pages().inbox() {
         for need in &root.pages().needs().needs(inbox, root.forge().approvals()) {
@@ -104,7 +104,29 @@ fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
     bands.into_boxed()
 }
 
-fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings, first: bool) {
+pub(crate) fn band(
+    b: &mut Builder,
+    root: &Domain,
+    task: &c::Task,
+    card: &Card,
+    w: &Words,
+    bindings: &mut Bindings,
+    first: bool,
+) {
+    band_named(b, root, task, card, w, bindings, first, None);
+}
+
+#[expect(clippy::too_many_arguments, reason = "a milestone band adds its supplied goal title to the shared band")]
+pub(crate) fn band_named(
+    b: &mut Builder,
+    root: &Domain,
+    task: &c::Task,
+    card: &Card,
+    w: &Words,
+    bindings: &mut Bindings,
+    first: bool,
+    title: Option<&[u8]>,
+) {
     let mut asked = if first { ask::read(card, w) } else { ask::bounded(card, w) };
     let kind = match asked.kind {
         Kind::Funds { .. } => Word::NeedsKindFunds,
@@ -125,6 +147,9 @@ fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, 
     b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
     b.text(Run::Plain, &w.say(kind, &[]));
     b.close();
+    if let Some(title) = title {
+        b.text(Run::Plain, &w.say(Word::MsBandGoal, &[Hole::Name(copy_of(title))]));
+    }
     b.text(Run::Plain, &question);
     b.close();
     if first {
@@ -303,34 +328,7 @@ impl Page<'_> {
         items
             .push(words.say(Word::GoalSince, &[Hole::Name(times.say(words, TimeForm::Clock, self.task.made))]))
             .expect("five meta items");
-        b.open(Role::Paragraph);
-        b.style(look::GOAL_META);
-        match words.shell {
-            Shell::Browser => {
-                for (index, item) in items.iter().enumerate() {
-                    if index != 0 {
-                        text(b, Role::Text, &words.say(Word::GoalSeparator, &[]));
-                    }
-                    b.open(Role::Text);
-                    if index == 1 {
-                        b.style(token);
-                    }
-                    b.run(if index == 0 { Run::Strong } else { Run::Plain }, item);
-                    b.close();
-                }
-            }
-            Shell::Terminal => {
-                b.open(Role::Text);
-                for (index, item) in items.iter().enumerate() {
-                    if index != 0 {
-                        b.run(Run::Plain, &words.say(Word::ToolSeparator, &[]));
-                    }
-                    b.run(Run::Plain, item);
-                }
-                b.close();
-            }
-        }
-        b.close();
+        meta(b, items.as_slice(), Some(token), words);
     }
 
     fn side(&self, b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
@@ -461,7 +459,7 @@ fn fallback(words: &Words, value: Fallback, names: &super::goals::Names<'_>, chi
         Fallback::WaitsForRoom => super::goals::wait_sentence(words, State::WaitsForRoom, names, chip),
     }
 }
-fn text(b: &mut Builder, role: Role, value: &[u8]) {
+pub(crate) fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.open(role);
     b.name(value);
     if role == Role::Text {
@@ -489,7 +487,7 @@ fn chat_link(b: &mut Builder, task: u64, label: &[u8], bindings: &mut Bindings) 
     b.close();
 }
 
-fn section(b: &mut Builder, title: Word, words: &Words) {
+pub(crate) fn section(b: &mut Builder, title: Word, words: &Words) {
     b.open(Role::Region);
     b.name(&words.say(title, &[]));
     b.style(look::GOAL_SECTION);
@@ -498,7 +496,7 @@ fn section(b: &mut Builder, title: Word, words: &Words) {
     b.text(Run::Plain, &words.say(title, &[]));
     b.close();
 }
-fn facts(b: &mut Builder, value: &[u8]) {
+pub(crate) fn facts(b: &mut Builder, value: &[u8]) {
     b.open(Role::Paragraph);
     b.style(look::GOAL_FACTS);
     b.text(Run::Plain, value);
@@ -834,5 +832,39 @@ fn composer(
     b.style(look::GOAL_HINT);
     b.text(Run::Plain, &words.say(Word::GoalHint, &[]));
     b.close();
+    b.close();
+}
+
+/// The shared header metadata keeps both shells in the same item order.
+pub(crate) fn meta(b: &mut Builder, items: &[Box<[u8]>], token: Option<skein_ui::Style>, words: &Words) {
+    b.open(Role::Paragraph);
+    b.style(look::GOAL_META);
+    match words.shell {
+        Shell::Browser => {
+            for (index, item) in items.iter().enumerate() {
+                if index != 0 {
+                    text(b, Role::Text, &words.say(Word::GoalSeparator, &[]));
+                }
+                b.open(Role::Text);
+                if index == 1
+                    && let Some(token) = token
+                {
+                    b.style(token);
+                }
+                b.run(if index == 0 { Run::Strong } else { Run::Plain }, item);
+                b.close();
+            }
+        }
+        Shell::Terminal => {
+            b.open(Role::Text);
+            for (index, item) in items.iter().enumerate() {
+                if index != 0 {
+                    b.run(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+                }
+                b.run(Run::Plain, item);
+            }
+            b.close();
+        }
+    }
     b.close();
 }

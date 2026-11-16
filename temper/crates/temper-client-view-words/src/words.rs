@@ -80,6 +80,21 @@ pub enum Word {
     MsRunning,
     MsMoreOne,
     MsMoreMany,
+    MsMetaCount,
+    MsEndedAt,
+    MsNoGoalsWhole,
+    MsMoreGoals,
+    MsPurpose,
+    MsLanding,
+    MsItsGoals,
+    MsWholeGoals,
+    MsOpenGoals,
+    MsMadeBy,
+    MsMakerYou,
+    MsMakerPerson,
+    MsMakerTask,
+    MsMakerDeployment,
+    MsBandGoal,
 
     TellTitle,
     TellHint,
@@ -2212,7 +2227,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2760;
+const PHRASES: u32 = 2775;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2239,10 +2254,10 @@ const PHRASES: u32 = 2760;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5122;
+const SEGMENTS: u32 = 5153;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65295;
-const ALL: [Word; 2039] = [
+const ENGLISH_BYTES: u32 = 65507;
+const ALL: [Word; 2054] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2278,6 +2293,21 @@ const ALL: [Word; 2039] = [
     Word::MsRunning,
     Word::MsMoreOne,
     Word::MsMoreMany,
+    Word::MsMetaCount,
+    Word::MsEndedAt,
+    Word::MsNoGoalsWhole,
+    Word::MsMoreGoals,
+    Word::MsPurpose,
+    Word::MsLanding,
+    Word::MsItsGoals,
+    Word::MsWholeGoals,
+    Word::MsOpenGoals,
+    Word::MsMadeBy,
+    Word::MsMakerYou,
+    Word::MsMakerPerson,
+    Word::MsMakerTask,
+    Word::MsMakerDeployment,
+    Word::MsBandGoal,
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -5118,6 +5148,22 @@ impl Word {
             Self::MsRunning => 9749,
             Self::MsMoreOne => 9750,
             Self::MsMoreMany => 9751,
+            Self::MsMetaCount => 9800,
+            Self::MsEndedAt => 9805,
+            Self::MsNoGoalsWhole => 9806,
+            Self::MsMoreGoals => 9807,
+            Self::MsPurpose => 9808,
+            Self::MsLanding => 9809,
+            Self::MsItsGoals => 9810,
+            Self::MsWholeGoals => 9811,
+            Self::MsOpenGoals => 9812,
+            Self::MsMadeBy => 9813,
+            Self::MsMakerYou => 9814,
+            Self::MsMakerPerson => 9815,
+            Self::MsMakerTask => 9816,
+            Self::MsMakerDeployment => 9817,
+            Self::MsBandGoal => 9818,
+
             Self::GoalCount => 3253,
             Self::GoalNeedsFunds => 3254,
             Self::GoalNeedsYou => 3255,
@@ -7245,6 +7291,21 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsEnded => (&[b"Ended"], &[]),
         Word::GoalsEmpty => (&[b"None."], &[]),
         Word::GoalsMore => (&[b"More goals"], &[]),
+        Word::MsMetaCount => (&[b"", b" of ", b" goals done"], &[Number, Number]),
+        Word::MsEndedAt => (&[b"", b" ", b""], &[Name, Name]),
+        Word::MsNoGoalsWhole => (&[b"No goals."], &[]),
+        Word::MsMoreGoals => (&[b"More of its goals are not shown."], &[]),
+        Word::MsPurpose => (&[b"What it is for"], &[]),
+        Word::MsLanding => (&[b"Each goal lands on its own, once done."], &[]),
+        Word::MsItsGoals => (&[b"Its goals"], &[]),
+        Word::MsWholeGoals => (&[b"Whole: all its goals are in."], &[]),
+        Word::MsOpenGoals => (&[b"Open: more goals may join."], &[]),
+        Word::MsMadeBy => (&[b"Made by ", b"."], &[Name]),
+        Word::MsMakerYou => (&[b"you"], &[]),
+        Word::MsMakerPerson => (&[b"person ", b""], &[Number]),
+        Word::MsMakerTask => (&[b"task ", b""], &[Number]),
+        Word::MsMakerDeployment => (&[b"the deployment"], &[]),
+        Word::MsBandGoal => (&[b"", b": "], &[Name]),
         Word::WorkMilestoneLede => (&[b"Everything on ", b", in the words of the agent doing it. A milestone opens to its goals, and a goal to its tasks and changes; a chat that started work sits with what it started; a draft waits for its goal."], &[Name]),
         Word::MsGoals => (&[b"", b" ", b""], &[Number, Name]),
         Word::MsWhole => (&[b"whole"], &[]),
