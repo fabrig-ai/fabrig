@@ -256,6 +256,16 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         "recipe list reads every committed setup: {listed:?}"
     );
 
+    let turn = Chain::read(&setups, "turn-landing").expect("turn-landing chain");
+    assert_eq!(turn.kind(), Kind::Deployment);
+    assert_eq!(turn.names().collect::<Vec<_>>(), ["turn-landing"]);
+    let recipe = turn.recipes.first().expect("deployment root");
+    assert_eq!(recipe.config.len(), 5);
+    assert_eq!(
+        recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
+        [b"ctl project show Hello".as_slice(), b"ctl forge list", b"ctl forge repositories 1"]
+    );
+
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
     assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing"]);
     let welcome = chain.recipes.first().expect("welcome");
