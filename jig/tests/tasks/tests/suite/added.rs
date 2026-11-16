@@ -26,6 +26,11 @@ fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply
 }
 
 fn amend_ended(world: &mut World, by: Party, task: u64, dependency: u64) -> Reply {
+    let places = ended_place(world, dependency);
+    amend_with_places(world, by, task, &[dependency], places)
+}
+
+fn ended_place(world: &World, dependency: u64) -> Box<[tasks::DependencyPlace]> {
     let Some(Stored::Ended(row)) = world.records.get(&Key::Ended(dependency)) else { panic!("stored ended row") };
     let status = match row.phase {
         Phase::Ended(Ending::Done(_)) => Status::Done,
@@ -33,15 +38,14 @@ fn amend_ended(world: &mut World, by: Party, task: u64, dependency: u64) -> Repl
         Phase::Ended(Ending::Cancelled { .. }) => Status::Cancelled,
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } => panic!("ended row"),
     };
-    let places = Box::new([tasks::DependencyPlace {
+    Box::new([tasks::DependencyPlace {
         number: row.number,
         project: row.project,
         requester: row.requester,
         root: row.root,
         depth: row.depth,
         status,
-    }]);
-    amend_with_places(world, by, task, &[dependency], places)
+    }])
 }
 
 fn amend_with_places(
@@ -489,6 +493,76 @@ fn an_ended_dependency_without_a_loaded_place_is_unknown_to_the_child() {
         amend(&mut world, PERSON_PARTY, 1, &[2]),
         Reply::Refused(tasks::Problem::new(Some(2), Refusal::Unknown))
     );
+}
+
+#[test]
+fn a_new_batch_records_an_ended_done_dependency_as_met_and_restores_its_stub() {
+    let mut world = pair();
+    done(&mut world, 2);
+    assert!(!world.records.contains_key(&Key::Stub(2)));
+    let places = ended_place(&world, 2);
+    assert_eq!(
+        response(&mut world, |reply_to| Event::Make {
+            maker: None,
+            reply_to,
+            creator: PERSON_PARTY,
+            batch: Box::new([task(3, &[2])]),
+            places,
+        }),
+        Reply::Made(vec![3])
+    );
+    assert_eq!(world.record(3).dependencies.as_ref(), [2]);
+    assert!(world.record(3).waiting_on.is_empty());
+    assert_eq!(world.record(3).phase, Phase::Active(Active::Due));
+    assert!(world.records.contains_key(&Key::Stub(2)));
+    world.restart();
+    assert_eq!(world.record(3).dependencies.as_ref(), [2]);
+    assert!(world.record(3).waiting_on.is_empty());
+    assert!(world.records.contains_key(&Key::Stub(2)));
+}
+
+#[test]
+fn a_new_batch_refuses_failed_or_cancelled_places_and_absent_places_atomically() {
+    for how in [Status::Failed, Status::Cancelled] {
+        let mut world = pair();
+        if how == Status::Failed {
+            world.claim(2, 1);
+            world.terminal(
+                2,
+                End::Finished { result: TaskResult::Failure { reason: Box::new([1]) }, cancel_delegates: false },
+            );
+        } else {
+            assert_eq!(
+                response(&mut world, |reply_to| Event::Cancel {
+                    reply_to,
+                    by: PERSON_PARTY,
+                    operation: Cancel { task: 2, reason: Box::new([]), grace: None, message: None },
+                }),
+                Reply::Done
+            );
+        }
+        world.settle(2);
+        let places = ended_place(&world, 2);
+        let before = world.records.clone();
+        refused(
+            response(&mut world, |reply_to| Event::Make {
+                maker: None,
+                reply_to,
+                creator: PERSON_PARTY,
+                batch: Box::new([task(3, &[]), task(4, &[2])]),
+                places,
+            }),
+            4,
+            Refusal::DependencyEnded { how },
+            &[2],
+        );
+        assert_eq!(world.records, before);
+        assert_eq!(
+            world.make(PERSON_PARTY, vec![task(3, &[2])]),
+            Reply::Refused(tasks::Problem::new(Some(3), Refusal::Dependencies))
+        );
+        assert_eq!(world.records, before);
+    }
 }
 
 #[test]

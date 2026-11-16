@@ -445,7 +445,7 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
             out.put(b"  candidate: not prepared");
         }
         out.put(b"\n");
-        details::member_text(member, out);
+        details::member_text(member, panel.round().as_ref(), out);
         for gate in member.gates() {
             gate_text(gate, out);
         }

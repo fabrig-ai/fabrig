@@ -866,6 +866,14 @@ fn needs_take_the_approvals_after_the_inbox_by_its_filter() {
             objects.push(need.object()).unwrap();
         }
         assert_eq!(objects.as_slice(), *expected, "{name}");
+        let all = session.all(inbox, root.forge().approvals());
+        let mut shared = List::uncapped();
+        for need in &all {
+            assert_eq!(need.severity(session.findings()), None, "{name}");
+            let pages::findings::Need::Existing(need) = need else { panic!("no findings") };
+            shared.push(need.object()).unwrap();
+        }
+        assert_eq!(shared.as_slice(), *expected, "shared order without findings: {name}");
         let selected = match session.shown(inbox, root.forge().approvals()) {
             Some(need) => Some(need.object()),
             None => None,
@@ -1357,7 +1365,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (42, 10, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1366,7 +1374,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1375,7 +1383,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (43, 20, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1384,7 +1392,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(f::TASK, 20, reach)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1393,7 +1401,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::PersonTasks,
             "delivered",
             Box::from([(42, 50, reach), (42, 20, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1402,7 +1410,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::PersonTasks,
             "delivered",
             Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (

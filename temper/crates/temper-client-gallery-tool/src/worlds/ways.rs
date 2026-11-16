@@ -117,7 +117,18 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
         )
         .expect("three ways");
     }
-    let yours = matches!(name, Some("ask-ways-yours" | "how-yours" | "how-rules" | "how-rules-card" | "how-team"));
+    let yours = matches!(
+        name,
+        Some(
+            "ask-ways-yours"
+                | "ask-ways-yours-bare"
+                | "ask-ways-yours-menu"
+                | "how-yours"
+                | "how-rules"
+                | "how-rules-card"
+                | "how-team"
+        )
+    );
     let current = match name {
         Some("how-approve") => 0,
         Some("how-draft" | "how-reaches" | "how-rules" | "how-rules-card" | "how-follows") => 2,
@@ -163,8 +174,11 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
 
 fn project_words(name: Option<&str>) -> Option<w::ProjectWords> {
     let (headline, lede) = match name {
+        Some("ask-ways-yours" | "ask-ways-yours-menu") => {
+            ("Agents make changes and code lands them", "An agent makes each change, and code lands it once CI passes.")
+        }
         Some("how-yours") => (
-            "Agents review everything, then one of you signs off",
+            "A way of its own",
             "shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.",
         ),
         Some("how-rules" | "how-rules-card") => (
@@ -296,7 +310,7 @@ pub(super) fn roles(root: &mut Domain, read: Token, team: bool, out: &mut Queue<
         (
             9,
             "Status agent",
-            "When you look at Home after landings: writes the lines at its top",
+            "When you look at Home after landings or findings: writes the lines at its top",
             "read the facts in its task; never merge",
             "Write the few lines at the top of the project’s Home, from the facts in your task.",
         ),

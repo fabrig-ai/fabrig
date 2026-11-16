@@ -1,6 +1,7 @@
 # process-tier: status
 
-2026-11-15. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-16. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+
 
 
 
@@ -11,6 +12,7 @@
   Their original CPU medians transfer about 15.9 CPU s to a tier whose
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
+
 
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,

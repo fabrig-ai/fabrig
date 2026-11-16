@@ -1508,6 +1508,9 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    pub report: ReceiptReport,
+    pub base: Option<skein_forge::api::Commit>,
+    pub jobs: Box<[ReceiptJob]>,
     /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
     pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
@@ -1515,6 +1518,37 @@ pub struct Receipt {
     pub run: ReceiptRun,
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
+}
+/// Failed tests retained independently of a tier's failures (domain/landing.md, 7.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ReceiptReport {
+    Unset,
+    Unread,
+    Many { bound: u32 },
+    Tests(Box<[ReceiptTest]>),
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ReceiptTest {
+    pub key: Box<[u8]>,
+    pub fuzzy: bool,
+}
+
+/// A failed gate job, retained for `read_job` (domain/landing.md, 6.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ReceiptJob {
+    pub job: u64,
+    pub attempt: u32,
+    pub name: Box<[u8]>,
+}
+/// The pinned failure used by a landing repair (domain/forge/change/repairs.md).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingFailure {
+    pub report: ReceiptReport,
+    pub gate: Box<[u8]>,
+    pub run: ReceiptRun,
+    pub prefix: skein_forge::api::Commit,
+    pub base: Option<skein_forge::api::Commit>,
+    pub jobs: Box<[ReceiptJob]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptRun {
@@ -2585,6 +2619,7 @@ pub enum Request {
     StatusRun {
         project: u32,
         words: Box<[u8]>,
+        findings: Box<[u8]>,
         signers: Box<[u64]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
@@ -3150,7 +3185,7 @@ pub struct LoggedChange {
     pub title: Box<[u8]>,
 }
 
-/// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
+/// The landing transitions reported to its member's goal (domain/landing.md, 4.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LandingNews {
     Probing,
@@ -3159,6 +3194,7 @@ pub enum LandingNews {
     Landed,
     Left,
     Held,
+    WholeAgain,
 }
 /// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

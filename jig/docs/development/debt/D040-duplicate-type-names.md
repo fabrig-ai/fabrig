@@ -1,7 +1,7 @@
 # D040: One name means several types
 
 - **Kind:** naming
-- **Where:** `jig-domain-core/src`, `jig-client-domain/src/contract/versions.rs`, `jig-domain-tasks/src/placed.rs`, `jig-protocol-store/src/patching/sets.rs`, `jig-client-view/src/owner.rs`, `tests/views/Cargo.toml`, `testing/jig-test-system`
+- **Where:** `jig-domain-core/src`, `jig-client-domain/src/contract/versions.rs`, `jig-domain-tasks/src/placed.rs`, `jig-protocol-store/src/patching/sets.rs`, `jig-client-view-words/src/owner.rs`, `tests/views/Cargo.toml`, `testing/jig-test-system`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T9, A0 F7, A2 F6, A5 F7, A8 F9, A9 F2, A10 F12)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list (T9: 13 public type names defined twice in core; crate names)
 - **Checked:** 2026-11-03 at `41d63da8c3`

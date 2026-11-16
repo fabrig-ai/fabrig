@@ -80,7 +80,7 @@ fn ordinary_changes_still_start_early_without_a_follow_parameter() {
     let upstream = next_producer(&mut world, first);
     let second = make(&mut world, &requester, first, false).unwrap();
     let head = early_start::push(&mut world, &upstream, base, b"prerequisite");
-    early_start::observe_push(&mut world, &upstream);
+    early_start::report_checked_push(&mut world, &upstream, head);
     let producer = next_producer(&mut world, second);
     assert!(!ended(&world, first));
     assert_eq!(live_task(&world, second).started_from.as_ref(), &[first]);

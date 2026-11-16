@@ -9,7 +9,7 @@
 ────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / fo
 ────────────────────────────────────────
- Unknown command /qiut · /help lists
+ ● Live · Unknown command /qiut · /he
 --
 ........................................
 ..abbb...cccccc.........................
@@ -22,7 +22,7 @@
 ffffffffffffffffffffffffffffffffffffffff
 ggffffffffffffffffffffffffffffffffffffff
 ffffffffffffffffffffffffffffffffffffffff
-.gggggggggggggggggggggggggggggggggggg...
+.hhhhhhfffggggggggggggggggggggggggggg...
 --
 a: fore #1B76FD
 b: fore #00C4FE
@@ -31,4 +31,5 @@ d: fore #8E2CF8
 e: fore #9A9388
 f: fore #6A655C
 g: fore #E08A68
+h: fore #8FC28F
 cursor 9 2

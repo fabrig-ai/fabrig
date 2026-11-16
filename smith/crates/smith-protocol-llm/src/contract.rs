@@ -16,7 +16,7 @@ use crate::{Error, Limits};
 /// A JSON Schema for each final form the admitted charter allows.
 /// Host labels, item kinds and required fields are byte-exact.
 pub fn finish_schema(contract: &run::outcome::OutcomeSpec, maximum: u32) -> Result<Box<[u8]>, Error> {
-    let limits = writer::Limits { depth: 16, length: maximum };
+    let limits = schema_limits(16, maximum);
     let mut measure = Encoder::measure(&limits);
     encode_finish(&mut measure, contract);
     let length = match measure.measured() {
@@ -28,9 +28,21 @@ pub fn finish_schema(contract: &run::outcome::OutcomeSpec, maximum: u32) -> Resu
     Ok(write.finish())
 }
 
+/// Wrap finish alternatives in the object input schema served by both backends.
+pub fn outcome_schema(alternatives: &[u8], maximum: u32) -> Result<Box<[u8]>, Error> {
+    let prefix = br#"{"type":"object","properties":{"outcome":"#;
+    let suffix = br#"},"required":["outcome"],"additionalProperties":false}"#;
+    let length = prefix.len().checked_add(alternatives.len()).ok_or(Error::Limit)?;
+    let length = length.checked_add(suffix.len()).ok_or(Error::Limit)?;
+    if length > usize::try_from(maximum).or(Err(Error::Limit))? {
+        return Err(Error::Limit);
+    }
+    Ok(skein_lib::bytes::concat(&[prefix, alternatives, suffix]))
+}
+
 /// The mid-run deliver tool's schema, from its separate Change grant.
 pub fn deliver_schema(change: &run::outcome::ChangeSpec, maximum: u32) -> Result<Box<[u8]>, Error> {
-    let limits = writer::Limits { depth: 16, length: maximum };
+    let limits = schema_limits(16, maximum);
     let mut measure = Encoder::measure(&limits);
     encode_deliver(&mut measure, change);
     let length = match measure.measured() {
@@ -40,6 +52,10 @@ pub fn deliver_schema(change: &run::outcome::ChangeSpec, maximum: u32) -> Result
     let mut write = Encoder::write(length, &limits);
     encode_deliver(&mut write, change);
     Ok(write.finish())
+}
+
+pub(crate) const fn schema_limits(depth: u32, length: u32) -> writer::Limits {
+    writer::Limits { depth, length }
 }
 
 fn schema_error(refusal: writer::Refusal) -> Error {
@@ -233,6 +249,37 @@ pub fn decode_finish(input: &[u8], contract: &run::outcome::OutcomeSpec, limits:
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
     llm::Decoded::Served { ask: run::Ask::Finish { outcome } }
+}
+
+/// Decode a finish call's outcome, accepting a bare form from scripted peers.
+#[must_use]
+pub fn decode_finish_call(input: &[u8], contract: &run::outcome::OutcomeSpec, limits: &Limits) -> llm::Decoded {
+    let admitted = match crate::decode::admit(input, limits) {
+        Ok(document) => document,
+        Err(problem) => return llm::Decoded::Invalid { problem },
+    };
+    let document = admitted.document();
+    let value = match document.member(0, b"outcome") {
+        Some(start) => {
+            if kind(document, start) != Some(JsonKind::ObjectStart) {
+                return llm::Decoded::Invalid { problem: llm::Problem::NotAnObject };
+            }
+            let end = document.value_end(start).expect("admitted outcome object");
+            Value { start, end }
+        }
+        None => {
+            if document.member(0, b"form").is_none() {
+                return llm::Decoded::Invalid {
+                    problem: llm::Problem::Missing { field: b"outcome".as_slice().into() },
+                };
+            }
+            Value { start: 0, end: document.len() }
+        }
+    };
+    match declared(document, value, contract) {
+        Ok(outcome) => llm::Decoded::Served { ask: run::Ask::Finish { outcome } },
+        Err(problem) => llm::Decoded::Invalid { problem },
+    }
 }
 
 /// Decode the separately granted delivery's host fields.

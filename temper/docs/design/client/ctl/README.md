@@ -104,12 +104,14 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
 ## 4. The crates
 
 ```
-temper-client-tools          the table, a call, the runner, digests and conditions, the rendering (text,
-│                            JSON), the argv parser and help, the limits; the tools' root
+temper-client-tools          temper's tools: their table's rows and groups, the limits, the help pages;
+│                            the tools' root; jig's part under its path, `jig` (tools-crates.md)
+├── temper-client-tools-jig  jig's part: the table, a call, the runner, digests and conditions, the
+│                            rendering (text, JSON), the argv parser and help
 ├── jig-client               jig's client and its helpers (shapes, facts, thread, words)
 ├── jig-client-protocol-link the configured settings wire limits
 ├── jig-client-protocol-wire bounded whole settings values
-├── temper-client-domain     the forge's client side and its words (../README.md, 3.1 and ../forge/family.md)
+├── temper-client-domain-forge the forge's client side and its words (../README.md, 3.1 and ../forge/family.md)
 ├── temper-client-protocol-wire  the forge family's records (../forge/records.md)
 ├── skein-ui                 phrases: jig's words and the tools' own, rendered as text
 └── skein-json               the JSON writer and tokenizer
@@ -122,12 +124,14 @@ temper                       the binary: `temper ctl` runs the host
 
 - **Named by the client naming rule** (jig's `README.md`, section 15):
   the tools are to agents what `temper-client-view` is to people.
-- **jig's part apart from temper's.** `temper-client-tools`' module
-  `jig` holds what is generic: jig's part of the table, the call, the
-  runner, digests and conditions, the rendering. It names no temper item:
-  a boundary test fails the gate when a file under `src/jig/` names
-  `temper-box-shell`, or an item of the crate outside `crate::jig`. Extraction is then
-  that module moved into a crate of jig's (section 11).
+- **jig's part apart from temper's.** `temper-client-tools-jig`, the
+  module `jig`, holds what is generic: jig's part of the table, the call,
+  the runner, digests and conditions, the rendering; `temper-client-tools`
+  re-exports it under its path (`tools-crates.md`, 2). It names no temper
+  item: it can't name temper's part, which depends on it, and a boundary
+  test fails the gate when a file under its `src/jig/` names
+  `temper-box-shell`, or an item of its crate outside `crate::jig`.
+  Extraction is then that crate moved into jig's tree (section 11).
 - **The forge's side is reused, not copied.** The tools' root holds the
   forge's client side of `temper-client-domain`, its adoption's ask,
   owner and words, and none of its pages.
@@ -739,8 +743,9 @@ Each is named here and designed when it comes.
   agent other than a shell agent to drive temper. Area 1 leaves it
   wiring: a call decoded from JSON (`--call`), the rendering told how to
   print a call, a call per asker.
-- **Extraction into jig,** `temper-client-tools`' module `jig` moved to
-  `jig-client-tools`, when a second application wants the tools.
+- **Extraction into jig,** `temper-client-tools-jig` moved to jig's tree as
+  `jig-client-tools`, when a second application wants the tools; it names
+  `temper-settings-form` today (`tools-crates.md`, 7).
 - **The forge's read family's tools,** beside `forge list` (area 6), as the
   engine serves each of the forge's other parts (`../forge/served.md`).
 - **A service's credential reissued, or a service removed** (jig's

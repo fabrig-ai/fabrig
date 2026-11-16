@@ -23,7 +23,7 @@ Illustrative (the request's 03, with the look request
 ────────────────────────────────────────────── Hello / What landed… T2 on box ──
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
+ ● Live · Hello · Claude Opus 5.5 · high                            1 needs you
 ```
 
 - **Its chat:** the root's, `Chat { task }`: its task, its thread, the

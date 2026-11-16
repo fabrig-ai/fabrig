@@ -256,6 +256,9 @@ branches never run, are ordered by goal number, lowest first (2026-11-04).
   test.
 - **A failed run that names no test,** or whose artifact is absent or
   unreadable, is a fault: the run is retried, never blamed.
+- **A landing gate's report** is read otherwise, its errored cases left
+  out and a failed run with no report no fault
+  (`landing-search-by-test.md`, 2).
 
 ## 5. The verdict
 

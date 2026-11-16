@@ -269,6 +269,8 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
             budget: 100,
         },
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
@@ -390,6 +392,8 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
             budget: 100,
         },
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {

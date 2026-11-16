@@ -80,7 +80,7 @@ impl World {
             root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
                 self.store.ask(StoreOut::ReadLoad { load, range });
             }
-            root::Delivery::Core(core::Held::Load(load)) => self.store.ask(StoreOut::Now(*load)),
+            root::Delivery::Core(core::Held::Load(load)) => self.ended_load(*load),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 self.store.ask(StoreOut::NotesLoad { owner, range });
             }

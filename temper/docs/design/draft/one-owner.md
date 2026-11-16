@@ -98,7 +98,9 @@ Template 8's goal charter, charter 17, gains two bullets in its `designer` part,
 - The subset's bullet, as `design-economy.md`, 8 gives it, which has lagged since that draft's E1.
 - "**One owner per concept:** a layer keeps a type of its own for a concept only where it adds a meaning, a check or a projection; otherwise it names the owner's values, from the owner's vocabulary where a machine names them, and a format's version lives in the code that writes it (`temper/docs/design/draft/one-owner.md`, 2). Your note lists each second type you keep, with its reason."
 
+The user adopted both bullets into fabrig's charter 5 on 2026-11-15, the second citing `skein/docs/foundation/programming-model.md`, 4.6. Template 8's charter is then built from charter 5, and charter 18 retires, so template 8's coding changes run charter 2.
+
 ## 8. Open questions
 
 - **The steward's records:** hearth's client design has the steward answer with these records, from M3 (`hearth/docs/design/client/README.md`, 3.2). With section 4, the steward's protocol layer names render's vocabulary, not its domain. Whether the steward's own domain needs them is M3's design.
-- **Adoption:** whether the rule holds beyond the pilot, area by area, is the user's, as for `design-economy.md`, 9. jig's contract written by hand (`jig/docs/development/debt/D007-contract-written-by-hand.md`) plans generated mirrors; under the rule its codecs would name the owner's values instead.
+- **Adoption:** the user adopted the rule into fabrig's charter set on 2026-11-15 (section 7), so new work follows it. Converting existing areas to it is the user's, area by area, as for `design-economy.md`, 9. jig's contract written by hand (`jig/docs/development/debt/D007-contract-written-by-hand.md`) plans generated mirrors; under the rule its codecs would name the owner's values instead.

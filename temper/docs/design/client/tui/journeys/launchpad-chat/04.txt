@@ -18,7 +18,7 @@
 
 
 
-──────────────────────────── Hello / What can you tell… T2 on 127.0.0.1:45713 ──
+──────────────────────────── Hello / What can you tell… T2 on 127.0.0.1:36433 ──
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
- Hello · GPT-6 Astra · high · ● Live
+ ● Live · Hello · GPT-6 Astra · high

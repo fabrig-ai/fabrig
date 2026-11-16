@@ -109,7 +109,7 @@ pub fn state(b: &mut Builder, card: &Card, object: Id<Object>, words: &Words, bi
     match card {
         Card::NotSent { why } => words.status(b, why.phrase(), &[]),
         Card::Open => words.status(b, JigPhrase::Open, &[]),
-        Card::Deciding { progress, .. } => words.progress(b, *progress),
+        Card::Deciding { progress, .. } => common::progress(b, words, *progress),
         Card::Refused { refusal } => {
             b.open(Role::Status);
             b.name(&words.say(JigPhrase::Refused, &[]));

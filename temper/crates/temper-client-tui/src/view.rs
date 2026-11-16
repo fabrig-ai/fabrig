@@ -44,6 +44,7 @@ pub(crate) enum Body {
     Welcome(welcome::Welcome),
     Launchpad(launchpad::Launchpad),
     Chat(chat::Chat),
+    Place(foot::Notes),
 }
 #[derive(Debug)]
 pub(crate) struct Signed {
@@ -322,7 +323,9 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.close();
         view.render.finish(b, view.shown, out);
     } else {
-        let body = if starting::shown(root, tui) {
+        let body = if tui.place().is_some() {
+            Body::Place(foot::read_notes(root, tui, &view.words))
+        } else if starting::shown(root, tui) {
             Body::Starting(starting::read(root, tui, &view.words))
         } else if welcome::shown(root, tui) {
             Body::Welcome(welcome::read(root, tui, &view.words, wall))
@@ -371,7 +374,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.tick = signed.foot.tick;
     let body_tick = match &signed.body {
         Body::Launchpad(part) => part.tick,
-        Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => None,
+        Body::Place(_) | Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => None,
     };
     if let Some(tick) = body_tick {
         view.tick = Some(view.tick.unwrap_or(tick).min(tick));
@@ -381,7 +384,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
             Some(pane) => Some((pane.mode, pane.next)),
             None => None,
         },
-        Body::Welcome(_) | Body::Launchpad(_) | Body::Starting(_) => None,
+        Body::Place(_) | Body::Welcome(_) | Body::Launchpad(_) | Body::Starting(_) => None,
     };
     view.left_off.clear();
     view.selected = None;
@@ -408,7 +411,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
                 }
             }
         }
-        Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => {}
+        Body::Place(_) | Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => {}
     }
     view.reply.clone_from(&signed.foot.reply);
     view.box_empty = match &signed.foot.composer {
@@ -419,19 +422,28 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.walkable &= view.left_off_arrows
         && match &signed.body {
             Body::Launchpad(part) => part.project.is_some(),
-            Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => false,
+            Body::Place(_) | Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => false,
         };
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
     match &signed.body {
+        Body::Place(notes) => {
+            b.open(Role::Main);
+            b.open(Role::Log);
+            b.close();
+            foot::draw_notes(&mut b, notes, &view.words);
+            b.close();
+        }
         Body::Starting(part) => starting::draw(&mut b, part, &view.words),
         Body::Welcome(part) => welcome::draw(&mut b, part, &view.words),
         Body::Launchpad(part) => launchpad::draw(&mut b, part, &view.words, &mut view.binds),
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
     view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
-    if signed.foot.list.is_none() && view.box_empty && signed.foot.talk_name.is_some() {
+    if signed.foot.list.is_none() && view.box_empty && signed.foot.place {
+        view.escape = Some(Event::Back);
+    } else if signed.foot.list.is_none() && view.box_empty && signed.foot.talk_name.is_some() {
         view.escape = Some(Event::Leave);
     }
     if signed.foot.list.is_none() && view.selected.is_some() {

@@ -5,7 +5,7 @@ use temper_forge_setup::machine;
 pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub(super) static SHAPES: [Shape; 34] = [
+pub(super) static SHAPES: [Shape; 35] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -78,6 +78,11 @@ pub(super) static SHAPES: [Shape; 34] = [
         line: "A test gate required before landing by turn.",
     },
     Shape {
+        name: "gate-report",
+        paths: &["application.landing.projects[].gates[].gates[].report"],
+        line: "A failed gate’s test report and fuzzy name prefix.",
+    },
+    Shape {
         name: "tier-check",
         paths: &["application.landing.projects[].gates[].tiers[]"],
         line: "A tier checked after a landing.",
@@ -119,7 +124,7 @@ pub(super) static SHAPES: [Shape; 34] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub(super) static MEMBERS: [Member; 124] = [
+pub(super) static MEMBERS: [Member; 128] = [
     Member {
         shape: "document",
         name: "engine",
@@ -757,6 +762,42 @@ pub(super) static MEMBERS: [Member; 124] = [
         bound: "false when absent",
         required: false,
         line: "Whether the gate reads the round’s base, given as temper_base and included in its key.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-check",
+        name: "report",
+        kind: "gate-report",
+        bound: "none when absent",
+        required: false,
+        line: "The artifact naming failed tests for a landing repair.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-report",
+        name: "artifact",
+        kind: "text",
+        bound: "1 to 32 bytes; no slash",
+        required: true,
+        line: "The failed run’s test report artifact.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-report",
+        name: "format",
+        kind: "text",
+        bound: "junit or lines",
+        required: true,
+        line: "The format of the failing-tests artifact.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-report",
+        name: "fuzzy",
+        kind: "text",
+        bound: "1 to 64 bytes",
+        required: false,
+        line: "The prefix of fuzzy test names; other tests are focused.",
         gone: None,
     },
     Member {

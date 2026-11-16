@@ -1,6 +1,6 @@
 # stock-ways: status
 
-2026-11-09. Where the design lags or departs from [stock-ways.md](stock-ways.md).
+2026-11-16. Where the design lags or departs from [stock-ways.md](stock-ways.md).
 
 Section 3 is designed in `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`
 , with the forge and setup contracts following it; `stock-ways.md`, sections 4 to 6
@@ -20,4 +20,16 @@ by `../domain/forge/change/branch-path.md`.
   whatever the way (section 9, *Tiers stay a repository's*); the look's two
   pages draw a project with no tier on main. Decided by the `ui-ask-m3a`
   cut, 2026-11-08.
+- **Design departs:** 2, *Ordered*: no page draws the ways as tabs.
+  Ask temper's page and How work runs show one way under a head, the
+  stock ways in a "Stock ways" menu in the read's order, from more of
+  you to more of your agents, with no line saying so
+  (`../client/pages/ask-temper.md`, 1; `../client/pages/settings.md`, 2).
+  Decided by the person: the look request `ways-current`, and its
+  default for How work runs, 2026-11-16.
+- **Design departs:** 6: `../domain/agent/ask-temper.md`: the Showing
+  part's sketch line joins before M3b, a flow in skein's subset with no
+  actors' marks, which join with M3b. Decided by the user, 2026-11-16, for
+  every document a chat writes to draw what a picture says faster
+  (`../domain/agent/agents.md`, 3, *What a document draws*).
 - **Open:** none.

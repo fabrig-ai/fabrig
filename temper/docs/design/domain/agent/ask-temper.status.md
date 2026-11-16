@@ -1,9 +1,21 @@
 # ask-temper: status
 
-2026-11-11. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-16. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
 
+- **Not yet:** *Its instructions*: `ask.txt`'s *Showing* opens with the
+  former "Show a picture when it explains better than words", has no
+  sketch line, and its document line in *Configuring* asks for no
+  drawing (`agents.md`, 3, *What a document draws*) [in flight: change
+  4459].
 - **Not yet:** 1: `see ways` prints no rules by path [in flight: change
   872].
+- **Not yet:** 1, *A form's words* and *A deployment landing rule the
+  project holds*: the table, its `see:` lines, the line of addresses and
+  `ask.txt`'s copy write one form, `settings landing-rule N [project]`; and
+  `settings landing-rule N`, where the deployment lacks rule N and the
+  project has it, is refused in the words of any setting not there
+  (`temper-engine-smith`'s `see/addresses.rs` and `see.rs`) [in flight:
+  change 4440].
 - **Not yet:** 1: an inbox row's words are read for questions alone;
   proposals, escalations and person tasks keep their kind and task. In
   `inbox` and `me` a question whose words read busy or unknown drops

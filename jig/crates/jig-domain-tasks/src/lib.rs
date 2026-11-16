@@ -83,7 +83,9 @@ mod escalation;
 mod facts;
 mod failures;
 mod flags;
+mod gathering;
 mod goals;
+pub use gathering::Concluded;
 mod grace;
 #[doc(hidden)]
 pub use flags::shaped;
@@ -160,7 +162,7 @@ pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
     AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Held, History,
-    HoldRow, Milestone, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
+    HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};

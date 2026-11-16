@@ -708,11 +708,12 @@ impl Store {
 // The default memory worlds run the binary's jobs too; explicit sets describe upgrade fixtures.
 const HISTORY_SETS: protocol::PatchSets = protocol::PatchSets {
     sets: &[protocol::PatchSet {
+        level: None,
         patches: &[],
         jobs: &[*protocol::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
         families: &[
-            protocol::KeptFamily { types: &[], texts: &[], ..protocol::STORE_FAMILIES[3] },
-            protocol::KeptFamily { types: &[], texts: &[], ..protocol::STORE_FAMILIES[4] },
+            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[3] },
+            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[4] },
         ],
         ..protocol::JIG_STORE_PATCH_SET
     }],

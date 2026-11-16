@@ -264,8 +264,9 @@ of `../../draft/v0.1.0.md`, 2.1.
   that a question waits for them.
 - **A goal a person started asks that person.** A goal from the sheet or
   from Goals (`../../client/pages/goal.md`, 3) has a person as its requester.
-  Its brief says `[Requested by person N]`, and `message` reaches tasks
-  alone (jig's `domain/tasks/messages.md`, 5). So, wherever it would ask, it
+  Its brief says `[Requested by person N, NAME]` (*Its person by name*,
+  below), and `message` reaches tasks alone (jig's
+  `domain/tasks/messages.md`, 5). So, wherever it would ask, it
   calls `delegate` with one person task addressed to its requester (jig's
   `domain/people/README.md`, section 7): executor `{kind: person, person: N}`,
   the question in the line form below as its spec's words, a report
@@ -289,6 +290,28 @@ of `../../draft/v0.1.0.md`, 2.1.
     kind as `goal` narrows its authority (`tools.md`, 1 names what it keeps), so
     it may address no one. Among holders of one role, the charter's words
     alone say "its requester" (`README.md`, section 8).
+- **Its person by name** (`../../draft/home-for-a-person.md`, section 7). A
+  brief whose requester is a person names them after their number,
+  `[Requested by person 4, Sam]`: their name in the task's project, else
+  their login, the one name the project's people give them, which the
+  status agent's "People who signed:" writes too (jig's
+  `domain/engine/briefs.md`, 1, *The task's lines*; jig's
+  `domain/people/README.md`, section 4; `../forge/attention.md`, section
+  3). A person the project no longer lists keeps `[Requested by person
+  N]`. Every stock charter whose task a person may request says so in a
+  paragraph of its own: charter 1 (`chat.txt`), the goal's
+  (`../../../charters/stock/goal.md`), and the standing role's, the
+  triager's, the prover's and the porter's (`role.md`, `triager.md`,
+  `prover.md`, `porter.md`), all but `goal.md` in the stock module
+  (`../../protocol/configuration/stock.md`). The paragraph says that the
+  name follows the same person N, whom the run still addresses by
+  number; that wherever its words speak of that person rather than to
+  them (`decided`'s question and why, a report, a Now, a finding, a
+  question to someone else) it names them by that name, "Sam asked to
+  reopen pull #1292", never "person N" or "the user"; and that a line
+  with no name, or a requester that is a task, leaves "your person". So
+  a decision on Home says who asked. A goal a chat calls is requested by
+  the chat, `[Requested by task N]`, and names no one (section 5).
 - **A question's line form.** jig's question carries words alone, so a
   question's options and its recommendation are in its words; the stock
   chat's instructions (charter 1, the goal's paragraph) have a goal
@@ -308,9 +331,9 @@ of `../../draft/v0.1.0.md`, 2.1.
 
   - The first line is the **question**, and never a trailing line.
   - The **trailing lines** are found walking up from the last line,
-    blank lines passed over: each line beginning `Saw: ` or `Choice: `
-    is one, and the first other line ends them. Such a line above that
-    point is context, words like any other.
+    blank lines passed over: each line beginning `Saw: `, `Choice: `,
+    `Findings: ` or `Group: ` is one, and the first other line ends
+    them. Such a line above that point is context, words like any other.
   - The lines between the question and the trailing lines are the
     **context**, without its first and last blank lines.
   - A trailing `Saw: ` line is **what the agent saw**, several joined by
@@ -321,10 +344,32 @@ of `../../draft/v0.1.0.md`, 2.1.
     One ending ` (recommended)` is recommended, that ending no part of
     its words; past the first so marked, the ending is removed and
     recommends nothing.
+  - A trailing `Findings: ` line names the **findings** the question
+    concerns (`../areas.md`, section 6, *Its groups*): its words, trimmed,
+    are tokens `P/N` separated by spaces, P a project's number and N a
+    finding's, each in decimal digits alone, as `Findings: 2/2 2/8
+    2/10`. Several such lines join in their order; a finding named twice
+    counts once, at its first place. The question names no finding where
+    any token doesn't read as `P/N`, where the lines name none, or where
+    they name more than 16 (`question::FINDINGS`): its other lines read as
+    they would, and the client draws it as a plain question.
+  - A trailing `Group: ` line names the **group**: its words, trimmed,
+    are a plural noun, then ` · ` and a phrase, as `Group: bugs · in
+    temper`; with no ` · ` they are the noun alone, and the phrase is
+    empty. The first such line counts and the others are passed over; one
+    with no noun, or past 256 bytes (`CUE_BYTES`), names no group.
+  - **What it gives:** `temper-client-domain-forge`'s `question::parse`
+    gives `Parsed` with two more fields, `findings: Box<[findings::Id]>`,
+    empty where it names none, and `group: Option<question::Group>`,
+    `Group { noun: Box<[u8]>, phrase: Box<[u8]> }`, the phrase empty where
+    there is none. `findings::Id { project: u32, number: u32 }` is the one
+    the client's pages name (`pages::findings::Id`), moved to that crate's
+    `forge::findings` and named from `pages::findings` as before.
   - **The fallback:** words with no choice, or words the read cut
     (`question.words.cut`), have no trailing lines: the first paragraph
-    is the question, the rest the context, with nothing the agent saw
-    and no choices, and they are answered by a reply alone. Any question
+    is the question, the rest the context, with nothing the agent saw,
+    no choices, no findings and no group, and they are answered by a
+    reply alone. Any question
     a person or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
   QUESTION TEXT` (`../../client/ctl/tools.md`, 3), Home's card or the inbox's
@@ -389,13 +434,54 @@ and not its name.
   lines (jig's `domain/engine/briefs.md`, section 2), naming the note and the revision
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
-  what changed and doesn't repeat it. Where a sequence says more drawn, it writes a
-  flow, and its words name the subset (`skein/docs/design/ui/markdown.md`, 1): the same
-  block reads in a repository, where a forge renders Mermaid.
+  what changed and doesn't repeat it. It draws what a picture says faster, in
+  the document as in a reply (*What a document draws*, below).
 - **Ask temper's,** `ask.txt` (`ask-temper.md`): the same, through `document` (`ask-temper.md`, 3), its
   title "How this project works", kept once the person's way of working is
   understood, a section a topic and open questions last (1); its reply says in
-  one sentence what the document now adds, and never repeats its text.
+  one sentence what the document now adds, and never repeats its text. It
+  draws in it what it describes, as its *Showing* part says (below).
+- **What a document draws,** the chat's, the drafter's (4) and Ask temper's
+  alike (the user, 2026-11-16): whatever a picture says faster than words,
+  in the document as in a reply: steps, a path through parts, who acts
+  where. Each draws only what the client draws today, in a turn as in a
+  document (`../../client/pages/chat/document.md`, 1, and
+  `../../client/pages/chat/conversation.md`, 3): a view, a flow and a table.
+  - *A flow* is skein's subset (`skein/docs/design/ui/markdown.md`, 1), which
+    the words name: a fenced block, info string `mermaid`, `flowchart LR` or
+    `flowchart TD`, `accTitle:` its name, one path joined by `-->`, each node
+    `id[Name<br>caption]`, `:::strong` after the one that matters. The same
+    block reads in a repository, where a forge renders Mermaid.
+  - *One path a flow:* each path through the parts is a flow of its own, and
+    options stand side by side in a table. A branch, a merge, an edge's label
+    or another shape shows as code, so the words ask for none (5, *Pictures
+    past one path*).
+  - *The chat's and the drafter's words,* in their document paragraph of
+    `chat.txt` and `drafter.txt`, in place of the sentence that drew a flow
+    only "where a sequence says more drawn": the rule, the flow's form as
+    above, one example, a request's way through a system, and the one-path
+    sentences. The example is a system's, not a project's path, so that a
+    design session reads it as meant for what it designs:
+
+    ```mermaid
+    flowchart LR
+    accTitle: A read, end to end
+    c[Client] --> g[Gateway<br>checks the token] --> s[Orders<br>reads its replica]:::strong --> d[Store]
+    ```
+  - *Ask temper's words* (`ask-temper.md`): its *Showing* part opens with the
+    rule, for a reply and the document; what exists is drawn from a view,
+    and only what does not exist yet, an idea or a what-if, is sketched as a
+    flow (`../../draft/ask-temper.md`, 6.1). Its document line asks it to draw
+    in the document what it describes: the project's path from its view,
+    never as a list of steps, and a proposal that waits from its own view
+    until it is decided. A `path` view is read again at each newer revision
+    (`../../client/pages/chat/conversation.md`, 3), so the document's drawing
+    stays current once the proposal is accepted.
+  - *Its stories:* the stock's phrase tests hold each charter's words: the
+    rule, the flow's form, the example and the one-path sentences in
+    `chat.txt` and `drafter.txt`; *Showing*'s opening, its sketch line and the
+    document line in `ask.txt`. Whether a real model draws where it should is
+    the user's judgement, by trying it after landing.
 - **The tool's answer** gives the client what its line says (`../../client/pages/README.md`
   ): `Note N revision R written · 64 lines` for a first write, `Note N revision
   R written · +18 −6 · line 31 · 64 lines` for a later one, from jig's `lines`,
@@ -406,7 +492,9 @@ and not its name.
   of 65536`.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`../../testing/real-loop.md`), proved through ctl and walked in the journey `chat-draft`
-  (`../../client/web/journeys.md`, 9); and the real loop's
+  (`../../client/web/journeys.md`, 9), the real loop's path rewriting it whole once
+  the person's follow-up reaches its run; and the system world's
+  (`../worker/README.md`, 9) `tests/system`
   `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`
   (`../../testing/process-tier.md`), whose script builds a 30 KB note in calls of under 10 KB
   each, one line longer than a call among it, then has a fresh run find the note
@@ -431,8 +519,10 @@ needs no record, read or wire field of its own. The client reads and draws it
   by `changed`.
 - **When:** after planning, and whenever what is true of the goal changes: a
   task landed, failed or split, a decision taken, a risk found.
-- **Its words:** the headline says where the goal stands, in a sentence a person
-  reads first. The paragraphs say what happened and why, in the first person.
+- **Its words:** the headline says where the goal stands, in one line a person
+  reads first, naming no task, change or pull request by number, as `5 of its
+  7 changes landed; the other 2 are building.` (`charter.md`, 4, *Words a
+  person reads first*); the numbers are the body's. The paragraphs say what happened and why, in the first person.
   `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
@@ -460,9 +550,10 @@ conversation its person ends, kept, listed among the project's chats.
   touches before proposing; ask one question at a time, as numbered choices,
   the recommendation first with its reason and "Tell me something else" last;
   take each answer into the draft at once; keep the open points under
-  `## Open questions`; say in one line when none blocks the work; and keep
+  `## Open questions`; say in one line when none blocks the work; keep
   the draft as the chat's document (3), a first version whole, then
-  changed by lines. temper/ui writes them, as a chat's.
+  changed by lines; and draw in it what a picture says faster, as a chat's
+  document does (3, *What a document draws*). temper/ui writes them, as a chat's.
 - **It reads and starts nothing.** Its charter names every family a chat's
   does but delegate, so its runs are declared no `goal`, `change` or
   `delegate` (`tools.md`), and its task's authority, a chat's, would refuse none of
@@ -486,6 +577,12 @@ conversation its person ends, kept, listed among the project's chats.
   design takes up.
 
 ## 5. Open questions
+
+- **A goal a chat calls naming its person** (`agents.md`, 2, *Its person by
+  name*): its requester is the chat, so its brief names no one, and its
+  words say "your person". The root's goal line (`tools.md`, 2), a fixed
+  text that fakes cue on, could name the chat's person. Default: no name;
+  the chat's own words may carry one.
 
 - **A permission for its own requester alone** (`agents.md`, 2): a goal a person
   started may address anyone holding that person's role, since jig's
@@ -576,3 +673,11 @@ conversation its person ends, kept, listed among the project's chats.
   of `../../protocol/configuration/settings.md`, 7, with the reference's fallback.
   Default: the existing stock and reference words and wakes; test charters
   exercise goal delivery.
+
+- **Pictures past one path** (`agents.md`, 3, *What a document draws*): a
+  design session's drawings, a system's parts and the links between them,
+  need branches, merges and labelled edges, which skein's flow subset
+  (`skein/docs/design/ui/markdown.md`, 1) keeps as code today, in the browser
+  and the terminal alike. Default: one path a flow and options in a table,
+  until a draft of its own designs a wider drawing for the web and the TUI
+  (the user, 2026-11-16: "we can do it incrementally").

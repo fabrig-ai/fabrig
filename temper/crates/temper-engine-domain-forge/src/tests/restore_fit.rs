@@ -55,6 +55,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             job: None,
             landing: policy::Landing {
                 last_left: None,
+                searched: None,
                 round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                 task: n,
@@ -76,6 +77,9 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                report: ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 logs: Box::new([]),
                 failures: None,
                 passed: true,
@@ -740,6 +744,7 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         job: None,
         landing: policy::Landing {
             last_left: None,
+            searched: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task: 1,

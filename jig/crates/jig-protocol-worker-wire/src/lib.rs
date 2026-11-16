@@ -138,17 +138,14 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
-    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
+    #[cfg(test)]
+    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v14.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]
     pub fn layout() -> [u8; 32] {
-        skein_codec::schema::parse(TEXT.as_bytes())
-            .expect("the embedded current schema is valid")
-            .fingerprints()
-            .family()
-            .digest()
+        *crate::patches::kept::jig_worker_wire::LAYOUTS.last().expect("the kept wire has its current layout")
     }
 
     #[cfg(test)]

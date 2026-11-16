@@ -113,24 +113,28 @@ fn host_hub_links_only_foundation_and_link_values() {
 
 #[test]
 fn client_view_links_only_its_domain_and_foundation() {
-    let views: Vec<_> =
-        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some("jig-client-view")).collect();
-    assert_eq!(views.len(), 1, "the client view has one manifest");
-    let failures: Vec<_> = views
-        .into_iter()
-        .flat_map(|manifest| {
-            manifest
-                .dependencies
-                .iter()
-                .filter(|name| {
-                    !["jig-client", "jig-client-view-codec", "skein-codec", "skein-lib", "skein-ui"]
-                        .contains(&name.as_str())
-                })
-                .map(|name| format!("{}: {name}", manifest.path.display()))
-                .collect::<Vec<_>>()
-        })
-        .collect();
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    for (name, allowed) in [
+        (
+            "jig-client-view",
+            &["jig-client", "jig-client-view-codec", "jig-client-view-words", "skein-codec", "skein-lib", "skein-ui"][..],
+        ),
+        ("jig-client-view-words", &["jig-client", "skein-lib", "skein-ui"][..]),
+    ] {
+        let views: Vec<_> = manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some(name)).collect();
+        assert_eq!(views.len(), 1, "{name} has one manifest");
+        let failures: Vec<_> = views
+            .into_iter()
+            .flat_map(|manifest| {
+                manifest
+                    .dependencies
+                    .iter()
+                    .filter(|name| !allowed.contains(&name.as_str()))
+                    .map(|name| format!("{}: {name}", manifest.path.display()))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 }
 
 #[test]
@@ -143,8 +147,15 @@ fn client_domain_depends_on_foundation_alone() {
                 .dependencies
                 .iter()
                 .filter(|name| {
-                    !["jig-client", "jig-client-view-codec", "skein-codec", "skein-lib", "skein-ui"]
-                        .contains(&name.as_str())
+                    ![
+                        "jig-client",
+                        "jig-client-view-codec",
+                        "jig-client-view-words",
+                        "skein-codec",
+                        "skein-lib",
+                        "skein-ui",
+                    ]
+                    .contains(&name.as_str())
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
@@ -159,6 +170,7 @@ fn client_step(name: &str) -> bool {
         "jig-client"
             | "jig-client-domain"
             | "jig-client-view"
+            | "jig-client-view-words"
             | "jig-client-view-codec"
             | "jig-protocol-transcript"
             | "jig-client-protocol-wire"
@@ -195,6 +207,7 @@ fn client_and_engine_step_crates_share_no_dependencies() {
 #[test]
 fn client_roles_cover_step_crates_and_exclude_the_world() {
     assert!(client_step("jig-client-view"));
+    assert!(client_step("jig-client-view-words"));
     assert!(client_step("jig-protocol-transcript"));
     assert!(client_step("jig-client-test-domain"));
     assert!(client_step("jig-client-test-view"));
@@ -245,6 +258,7 @@ fn scripted_engine_links_only_the_client_codecs_and_foundation() {
                 "skein-lib",
                 "skein-codec",
                 "jig-client-view",
+                "jig-client-view-words",
                 "jig-client-domain",
                 "jig-client-protocol-wire",
                 "jig-client-protocol-link",
@@ -326,6 +340,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-protocol-wire",
                 "jig-protocol-engine-clients",
                 "jig-client-view",
+                "jig-client-view-words",
                 // Whole committed turns use the existing below-domain codec.
                 "jig-protocol-transcript",
                 "smith-transcript",
@@ -450,6 +465,7 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
         if !(name.starts_with("jig-domain-")
             || name.starts_with("jig-protocol-")
             || name == "jig-client-view"
+            || name == "jig-client-view-words"
             || name == "jig-client-view-codec"
             || name.starts_with("jig-client-shell-")
             || (name.starts_with("jig-client-protocol-")
@@ -516,6 +532,7 @@ fn client_engine_breaches(manifests: &[CrateManifest]) -> Vec<String> {
             Some(
                 "jig-client"
                     | "jig-client-view"
+                    | "jig-client-view-words"
                     | "jig-client-view-codec"
                     | "jig-client-protocol-wire"
                     | "jig-client-protocol-link"

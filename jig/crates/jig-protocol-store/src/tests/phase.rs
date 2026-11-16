@@ -27,11 +27,11 @@ use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod charter_versions;
+mod checked;
+mod floor;
 mod jobs;
-mod live_task_parts;
-mod milestones;
-mod projection_parts;
 mod registry;
+mod store_floor;
 mod task_logs;
 mod value_types;
 
@@ -41,7 +41,9 @@ const VALUE: &[u8] = b"committed";
 fn empty_pending() -> Pending {
     let sets = crate::PatchSets::NONE;
     let found = crate::patching::plan::binary(&sets);
-    let plan = crate::patching::plan::plan(&sets, &found, &found).expect("empty plan");
+    let plan =
+        crate::patching::plan::plan(&sets, crate::patching::plan::bounds(&sets).expect("checked sets"), &found, &found)
+            .expect("empty plan");
     let machines =
         crate::patching::machines::make(&sets, &plan, &found, super::patching::ROOMS).expect("empty machines");
     Pending { plan, machines, found }
@@ -1021,6 +1023,7 @@ const HEAD_OLD: &str =
 const HEAD_NEW: &str = "family heads 2\nrecord A { x: u8 } record B { x: u8 y: bool } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
 const HEAD_PATCH: &str = "patch 1\nowner heads 1\nfamily heads 1 to 2\nadd B.y bool true\n";
 const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    retired: &[],
     current: HEAD_NEW,
     types: &[],
     name: "heads",
@@ -1035,12 +1038,14 @@ const HEAD_SET: crate::PatchSet = crate::PatchSet {
     name: "heads",
     owner: crate::Owner::Application,
     families: &[HEAD_FAMILY],
+    level: Some(1),
     patches: &[HEAD_PATCH],
     fresh: None,
 };
 const HEAD_BASE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
         families: &[crate::KeptFamily { current: HEAD_OLD, texts: &[HEAD_OLD], ..HEAD_FAMILY }],
+        level: Some(0),
         patches: &[],
         ..HEAD_SET
     }],
@@ -1144,8 +1149,8 @@ fn heads_alone_put_kept_kinds_without_decode_and_count_every_paged_record() {
 // A binary with only the first application patch landed.
 const ONE: crate::PatchSets = crate::PatchSets {
     sets: &[
-        crate::PatchSet { patches: &[app::PATCHES[0]], ..SETS.sets[0] },
-        crate::PatchSet { patches: &[], ..SETS.sets[1] },
+        crate::PatchSet { level: Some(1), patches: &[app::PATCHES[0]], ..SETS.sets[0] },
+        crate::PatchSet { level: Some(0), patches: &[], ..SETS.sets[1] },
     ],
 };
 fn fixture_store(disk: &Harness, writes: u32, commit: u32, wanted: crate::patching::plan::Levels) -> Store {
@@ -1614,6 +1619,7 @@ fn assert_page_rows(store: &mut Store, last: u64) {
 const MANIFEST_FAMILIES: usize = 64;
 const MANIFEST_NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab";
 const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    retired: &[],
     current: "",
     types: &[],
     flights: &[],
@@ -1629,6 +1635,7 @@ const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
     owner: crate::Owner::Application,
     name: "manifest-bounds",
     families: &[],
+    level: None,
     patches: &[],
 };
 
@@ -1661,7 +1668,7 @@ fn manifest_bounds_refuse_a_count_or_name_past_the_ceiling() {
             }],
         },
     ] {
-        assert!(crate::patching::plan::bounds(&sets).is_err());
+        crate::patching::plan::bounds(&sets).expect_err("invalid sets");
     }
 }
 
@@ -2054,6 +2061,7 @@ fn a_closing_write_fault_refuses_failed_without_switching() {
 const FRESH_AFTER: crate::PatchSets = crate::PatchSets { sets: &[super::patching::SMITH] };
 const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
+        level: Some(0),
         patches: &[],
         families: &[crate::KeptFamily {
             current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],
@@ -2109,4 +2117,16 @@ fn the_patched_copys_open_reports_its_recovered_and_patched_counts() {
     }
     assert!(census.keyspaces.iter().any(|row| *row.prefix == [2, b's'] && row.puts > 0), "patched shelves counted");
     assert_eq!(store.stores.secrets.census().keyspaces(), []);
+}
+
+fn jig_store(disk: &Disk, set: crate::PatchSet) -> Store {
+    let mut limits = fixtures::store_limits();
+    limits.store.budget = 2_097_152;
+    limits.store.ops = 128;
+    limits.commits.writes = 7;
+    let mut store = disk.store_with_limits(&limits);
+    store.patch_sets(crate::PatchSets {
+        sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])),
+    });
+    store
 }

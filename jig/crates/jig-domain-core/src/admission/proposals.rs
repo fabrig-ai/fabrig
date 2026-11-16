@@ -366,7 +366,6 @@ impl Core {
 }
 
 /// Extract one immutable person-facing final decision from the child's durable row.
-#[expect(clippy::too_many_lines, reason = "the child's durable variants are classified beside the decision extraction")]
 pub(crate) fn decision_record(row: &tasks::Stored, at: Wall) -> Option<ProposalDecisionRecord> {
     match row {
         tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row) => {
@@ -465,7 +464,6 @@ pub(crate) fn decision_record(row: &tasks::Stored, at: Wall) -> Option<ProposalD
         | tasks::Stored::LiveCold { .. }
         | tasks::Stored::Stub(_)
         | tasks::Stored::Activity(_)
-        | tasks::Stored::Milestone(_)
         | tasks::Stored::Attempt(_)
         | tasks::Stored::Hold(_) => None,
     }

@@ -151,8 +151,17 @@ them.
   keeps each wire's agreed version with the channel, and states them
   back in its first record (jig's `protocol/channel/bridges.md`, 3).
 - **jig states its four:** `jig-worker-wire`, `smith-pieces`,
-  `smith-charter` and `smith-transcript`, from their crates' floors and
-  kept texts.
+  `smith-charter` and `smith-transcript`, from their crates' generated
+  floors and layouts (jig's `protocol/channel/bridges.md`, 2).
+- **Each service builds its channel's table once** (jig's
+  `protocol/channel/bridges.md`, 4; `../testing/checks.md`, 1): the
+  engine where it makes its workers host; the worker where it checks
+  its link's limits, `worker_settings::prepare`, which keeps the table
+  in what it prepares. A start that checks its worker before making it,
+  the standalone worker's and `temper-service`'s, makes the worker from
+  what its check prepared rather than checking again, and the worker
+  makes its link from that table with the link's
+  `Component::with_schema`.
 - **temper hands both components its own** (6), `temper-worker-wire`,
   as an `Application` (jig's `protocol/channel/bridges.md`, 8): the
   engine's from `temper_engine_service`'s table (10), the worker's from
@@ -200,8 +209,9 @@ them.
 ## 6. temper's payloads across versions
 
 - **temper's `Application`** (jig's `protocol/channel/bridges.md`, 8):
-  its `Spoken` for `temper-worker-wire`, from its floor and kept texts,
-  as `spoken()` makes it; its `Kept`, from
+  its `Spoken` for `temper-worker-wire`, from its generated floor and
+  layouts (`kept::temper_worker_wire`'s `FLOOR` and `LAYOUTS`), as
+  `spoken()` makes it with `Spoken::kept`; its `Kept`, from
   `temper_protocol_worker_wire`'s generated patch module
   (`kept::temper_worker_wire`'s `TEXTS` and `FLOOR`, `PATCHES` and
   `sites`), with the payload limits as its bounds' limits
@@ -223,8 +233,8 @@ them.
 
   The declaration each part holds is the one temper's own encoder and
   decoder of it name; a focused test holds the table against them.
-- **`application` makes no bridge:** it parses no kept text but those
-  its `Spoken` reads, and refuses limits `v1::check_limits` refuses with
+- **`application` makes no bridge:** it parses no kept text, and
+  refuses limits `v1::check_limits` refuses with
   `BridgeError::Room` before anything is made. A bridge the `Kept`
   cannot make is a build's fault, which the focused tests below meet
   first, since they make the bridge from `application`'s `Kept`.
@@ -433,7 +443,12 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   variant moved or appended (jig's `protocol/channel/wires.md`, 7).
 - **Each crate's `wire` module:** `FAMILY` and `VERSION` equal the
   header; `FLOOR` the generated floor; `layout` equals a fingerprint the
-  test computes from the text with its names changed.
+  test computes from the text with its names changed. `spoken()`, made
+  from the generated `LAYOUTS`, equal to the range `Spoken::of` makes
+  from the kept texts and the floor.
+- **A worker's table once:** what `worker_settings::prepare` keeps is
+  the table jig's `kinds::schema` makes over its link's limits, and a
+  worker made from it opens as one made by `Worker::new`.
 - **The opening and translation** at jig's components (jig's
   `protocol/channel/bridges.md`, 9); temper's roots against its
   encoders (6); `Identity` total from the floor; the bridge

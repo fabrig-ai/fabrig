@@ -566,6 +566,9 @@ pub(in crate::codec) fn wire_person_capacity_action(
             limits,
             w::PersonCapacityActionStopParts { task: *(task) },
         )?),
+        c::PersonCapacityAction::Conclude { task } => w::PersonCapacityAction::Conclude(
+            w::PersonCapacityActionConclude::new(limits, w::PersonCapacityActionConcludeParts { task: *task })?,
+        ),
         c::PersonCapacityAction::Cancel { task } => w::PersonCapacityAction::Cancel(
             w::PersonCapacityActionCancel::new(limits, w::PersonCapacityActionCancelParts { task: *(task) })?,
         ),

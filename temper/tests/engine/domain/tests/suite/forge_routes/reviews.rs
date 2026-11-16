@@ -943,7 +943,14 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
     let retry = &live_task(&world, second.task).spec.words;
     assert_ne!(retry, &original);
     assert!(retry.starts_with(OPENING), "retry names the first failure: {retry:?}");
-    assert_eq!(&retry[OPENING.len()..], original.as_ref());
+    // The retry account comes first; its room no longer holds the optional block.
+    let required = core::str::from_utf8(&original)
+        .expect("review words")
+        .split_once("\n\nWhat this change is asked now:")
+        .expect("first review carries its request")
+        .0;
+    assert_eq!(&retry[OPENING.len()..], required.as_bytes());
+    assert!(original.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
     assert!(
         second.sections.iter().any(|section| matches!(&section.body,
         engine::BriefBody::Text(words) if words.starts_with(OPENING))),
@@ -2276,7 +2283,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 }
 
 #[test]
-fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
+fn a_gate_repairs_with_its_whole_remarks_before_its_named_pull() {
     let small =
         temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
     let world = World::configured_limits(
@@ -2309,7 +2316,7 @@ fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
         .iter()
         .position(|part| part.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews))
         .expect("remarks section");
-    assert!(pull_at < reviews_at);
+    assert!(reviews_at < pull_at);
     let engine::BriefBody::Text(pull) = &repair.sections[pull_at].body else { panic!("readable pull") };
     let row = change_row(&world, requester(&world, repair.task));
     let identity = format!(

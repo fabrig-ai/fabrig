@@ -35,6 +35,7 @@ fn drill_17_an_outside_push_during_proof_restacks_and_reproves_the_same_member()
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
         }])
     ));

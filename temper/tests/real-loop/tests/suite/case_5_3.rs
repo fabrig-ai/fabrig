@@ -19,7 +19,7 @@ fn an_owners_amended_instructions_reach_its_next_run_without_a_deadlines_hold_or
     // records no override, not the old text; its store serves Scope::History
     // (crates/jig-protocol-store/src/reads.rs:59), but no temper ctl command
     // reads it (crates/temper-client-tools/src/table.rs:8;
-    // crates/temper-client-tools/src/jig/render.rs:55 maps ReadValue::History to
+    // crates/temper-client-tools-jig/src/jig/render.rs:55 maps ReadValue::History to
     // nothing). A ctl read alone wouldn't show what was replaced; this story
     // covers it only by what A was told before and after. No x3 is delegated, and the two hours remain words. Also leaves
     // out the retained first edition's charter run policy (testing/reference-case.md):

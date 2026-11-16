@@ -506,6 +506,13 @@ fn every_charter_inventory_serves_only_object_input_schemas() {
         for tool in list["tools"].as_array().expect("tools").iter().filter(|tool| tool["name"] == "finish") {
             assert_eq!(tool["inputSchema"]["properties"]["outcome"]["oneOf"], expected["oneOf"]);
         }
+        let bare = protocol::finish_schema(&outcome, backend.settings.contract_bytes).expect("finish alternatives");
+        for tool in tools.iter().filter(|tool| tool.name.as_ref() == b"finish") {
+            assert_eq!(
+                tool.input_schema,
+                mcp::json::outcome_schema(&bare, backend.settings.contract_bytes).expect("object wrapper")
+            );
+        }
     }
 }
 

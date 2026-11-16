@@ -162,6 +162,20 @@ stored setting naming it is refused, not read, naming the setting
   (`../../../client/ctl/areas.md`, area 6). The printed numbers are labelled
   producer questions; the requester is directed to the change's task read
   for its answer number.
+- **Its answers, kept for later work.** Each answer the change takes
+  from its requester to a question asked of it is kept on its record
+  among its answers at the step that takes it, whatever becomes of it
+  then: relayed down, held, or taken and dropped for an asker that
+  ended. Each keeps the question's asker and number, its first line as
+  the open question kept it, and the answer's words whole, within the
+  message bound. The record keeps the 16 newest, the oldest leaving it
+  as a seventeenth is taken; they outlive their questions and a
+  restart, and a change with questions `none` keeps none. They are an
+  added field of a registered family's record, with an empty default,
+  so a record from before reads none (jig's `protocol/store/layouts.md`).
+  The change's later reviews, repairs and resolutions read them (*What
+  later work is told*, below); the panel shows its open questions
+  alone, as before (2026-11-15).
 - **Its history** keeps every question and answer: the asked tasks'
   question positions and the change's own (jig's `domain/tasks/messages.md`,
   2). A ruling that concerns many changes is design: a designer's
@@ -189,8 +203,10 @@ change's producer is its producing task (`README.md`, 2, step 1), live
 from its making until it closes: waiting, active (running, parked, or
 kept by its own question) or held (jig's `domain/tasks/lifecycle.md`).
 Its repairs and resolutions are not its producer: their briefs are made
-from what failed, not from the change's words, and words to the change
-while one of them is its only live agent receive the fallback feedback.
+from what failed, with what the change is asked now at their words' end
+(*What later work is told*, below), not from the change's words alone,
+and words to the change while one of them is its only live agent
+receive the fallback feedback.
 What follows holds under either question route.
 
 - **Its requester's words pass to its live producer.** Words in the
@@ -254,7 +270,8 @@ What follows holds under either question route.
   change (jig's `domain/tasks/changes.md`), by whoever may amend it,
   taken at a step while the change has a live producer whose spec words
   are not those the change would give a new producer now (`README.md`,
-  2, step 1: its words, then its scope), amends that producer in the
+  2, step 1: its words, then its scope, with *Early starts*' lines
+  after their first line), amends that producer in the
   same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
   with those words, naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
@@ -277,6 +294,44 @@ What follows holds under either question route.
 - **An amendment never answers.** It settles and clears no question:
   the change's question stays asked of its requester, and the
   producer's stays open.
+- **What later work is told.** A ruling on the change reaches its later
+  work, not its asker alone: an answer given on it, and its request as
+  a requester's amendment revised it. Every gate task it makes (a
+  review, a person's approval, a check: `gates.md`, 1), at its own head
+  or a landing's target, and every repair and resolution it makes
+  (`repairs.md`) has its words end with what the change is asked now,
+  in the room the task's spec bound leaves after its pinned parameters
+  and the words before it. The block, its lines joined by line feeds:
+  - a blank line, then `What this change is asked now: its request as
+    revised and the answers given on it. Where they differ from its
+    title, its original request or the preservation rule, they come
+    first.`;
+  - where its record keeps answers (above), `Answers given on it,
+    newest first:`, then for each, newest first, `Task A asked: LINE`
+    and `Answer: ANSWER`, A the asker's number, LINE the question's
+    first line and ANSWER the answer's words, as the record keeps them;
+  - `Its request, at spec revision R:`, then the change's words as they
+    stand, R the change task's spec revision: its words as made where
+    R is 0, as a requester's amendment revised them where it is more.
+
+  Its fixed lines (the opening, the answers' label where there are
+  answers, and the request's label) are carried whole or not at all:
+  where they do not fit the room left, the task's words carry none of
+  the block, since what they require comes first. The answers and the
+  request share the room the fixed lines leave: the answers take what
+  they need up to half of it, or more where the request needs less than
+  the other half, and the request the rest; each is cut from its end
+  and marked `…` where it does not fit, so the newest answers and the
+  request's opening stay. Both are read at the step that makes the task,
+  so a task made after an answer or an amendment carries it, and one
+  made before does not; a live repair or resolution is not amended.
+  The producer is not told this way: its spec is the change's words, an
+  amendment reaches it as above, and an answer to its own question
+  reaches it whole. The review charter and the implementer charter put
+  the request as revised and these answers before the title, the
+  original request and the preservation rule where they differ, and so
+  do the repair's and the resolution's preservation words
+  (`repairs.md`) (2026-11-15).
 
 ### Early starts
 
@@ -288,8 +343,7 @@ early, by these rules:
 
 - **When.** At producing, with no head of its own pushed, once each
   pending dependency that is a change into the same repository and
-  landing branch has a pushed head (its branch's head as the forge last
-  read it, `../keeping-up.md`, 2), and none of them is itself kept by a pending dependency.
+  landing branch has a checked head (below), and none of them is itself kept by a pending dependency.
   One level only: a dependency kept by its own question alone does not
   block. A pending dependency that is a change into another repository
   orders the landings alone (`../../landing.md`, 4.1): the producer neither
@@ -298,11 +352,64 @@ early, by these rules:
   to start from, and the producer waits for it to be done. While the
   change waits so, at producing with no producer, its stall does not
   count.
+- **A checked head.** A change keeps on its record its last checked
+  head, `last_checked`: the last head one of its delegates (its
+  producer, a repair or a resolution) pushed to its branch with its
+  checks passed, as that delegate's answer reports it (the worker's
+  `Landed.checked`, heard by the forge as `Pushed.checked`). A
+  producer's result is such a push, since a change contract's finish
+  checks and delivers (smith's `domain/run.md`, 8.5). An unchecked save
+  (`../../agent/README.md`, section 5) never sets it, and a push made
+  after the last checked one leaves it where it was, so a branch whose
+  tip is a save keeps the checked head below it. A head found only by
+  the read that frees a lost attempt's writer (`README.md`, 2, step 1)
+  says nothing of checks and sets it neither. A report of a checked
+  push sets it whether or not the change's head moved with it. A
+  dependency's last checked head, never its branch's tip, is the head
+  an early start counts and merges: the root gives each pending
+  dependency's as `PendingKind::Change { checked, kept }`
+  (`temper-engine-domain-forge-change`), and the change's start
+  (`producer_start`) and the forge's read of its landing base for that
+  start (`early_base`) both decide on that one fact, so they agree. A
+  change's last checked head moving wakes its dependents' steps, as its
+  branch's head observed does. It is stored with the change, so it
+  holds across a restart. Why: on 2026-11-14 two changes started early
+  from a sibling's save made before its question, and for an hour met
+  that unfinished work's failures, asked about them and worked on a base
+  that kept moving until the sibling landed
+  (`../../../draft/early-start-checked.md`). A checked push is work its
+  producer offered; a save is work in progress.
 - **From what.** Its producer's workspace starts from the landing
-  branch's tip with those heads merged into it, one by one in the order
-  of the change's dependencies (`../../worker/checkouts.md`). The change
-  keeps each head it started from, with its dependency, and marks those
-  dependencies started from (jig's `domain/connectors.md`, 6.1).
+  branch's tip with those last checked heads merged into it, one by one
+  in the order of the change's dependencies (`../../worker/checkouts.md`).
+  The change keeps each head it started from, with its dependency
+  (`StartedFrom`), and marks those dependencies started from (jig's
+  `domain/connectors.md`, 6.1). The checkout's selection names those
+  recorded commits, never a branch's tip read afresh.
+- **It is told.** The early producer's words carry one line per
+  dependency it started from, in the order of its record:
+  `[Started from change N at <commit>, not landed]`, N the dependency's
+  task number and `<commit>` the head it started from, spelled as git
+  spells it (`../../agent/README.md`, section 5). They are fixed facts,
+  as a brief's `[This task: N]` is; what a producer and its requester do
+  with them is the stock implementer's and coordinator's charters'
+  (`temper/docs/charters/stock/`). They follow the first line of the
+  change's words, so the producer's task keeps that line as its title,
+  and a brief cut from its end (jig's `domain/engine/briefs.md`, 1)
+  reaches them last. They are required words: when the spec's bound
+  (beside its base and branch) can't hold the change's words, the lines
+  and the scope, the scope gives way first; when it still can't hold
+  the lines whole, they are cut from their end to the room left and
+  marked `…`, never left out. For example, a change whose words are
+  `Fix the parser`, a line break and its sections, started from
+  dependency 12 at a SHA-1 head, gives its producer `Fix the parser`, a
+  line break, `[Started from change 12 at <the head's 40 digits>, not
+  landed]`, a line break, then its sections and its scope as before.
+  Only a spec whose change's words alone fill its bound leaves them no
+  room. They are made with
+  the producer's words, so an amendment that renders them again keeps
+  them, and a resumed run keeps its spec; a producer made once the early
+  start is spent, or with no dependency started from, has none.
 - **A conflict refuses it.** A head that does not merge cleanly fails
   the producer's preparation as a conflict naming it (`../../worker/checkouts.md`
   ). The change cancels that producer, its early start spent,
@@ -478,3 +585,16 @@ rest of the branch lands while a sign-off waits a night
   making or amendment would bind jig's amendment to a forge route.
   Default: so; `decided` tells such an agent that it can ask no one
   (`../../agent/tools.md`).
+
+- **An answer and a later revision** (`questions.md`, 1, *What later work
+  is told*): the block gives the answers and the request as revised side
+  by side, with no time between them, so where an amendment made after
+  an answer says otherwise, the reader is not told which is newer. Keeping
+  the request's revision beside each answer would tell it. Default: so;
+  a requester that overrules an answer says so in the amendment's words.
+
+- **A later producer and the answers** (`questions.md`, 1, *What later
+  work is told*): a producer made after an answer to a repair's or a
+  resolution's question reads the change's words alone, as made or
+  revised. Default: so; a change makes its producer once, and a ruling
+  its producer must follow goes in an amendment, which reaches it.

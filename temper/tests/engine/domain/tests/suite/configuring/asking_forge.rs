@@ -30,6 +30,7 @@ fn an_asking_chat_reads_the_forge() {
                         ignored: Box::new([b"docs".as_slice().into()]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -58,7 +59,7 @@ fn an_asking_chat_reads_the_forge() {
             "landing: by queue",
             "org/repo: 1 gate",
             false,
-            "settings gates OWNER/NAME · settings landing-rule N [project] · help landing",
+            "settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing",
         ),
         (
             "settings gates org/repo",

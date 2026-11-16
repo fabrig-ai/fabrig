@@ -368,6 +368,20 @@ fn a_call_with_duplicate_fields_is_malformed() {
         }
     }
 }
+#[test]
+fn every_host_tool_declares_an_object_input_schema() {
+    let limits = crate::Limits { input_bytes: 65536, ..fixtures::LIMITS };
+    for declaration in crate::declarations() {
+        let name = declaration.name;
+        let doc = crate::json::parse(declaration.schema, &limits).expect("a schema is JSON");
+        let schema = crate::json::Node::root(&doc, &limits);
+        assert_eq!(schema.required(b"type").expect("root type").string().expect("type name"), b"object", "{name:?}");
+        for combinator in [b"oneOf".as_slice(), b"allOf", b"anyOf"] {
+            assert!(schema.field(combinator).expect("schema object").is_none(), "{name:?}: root {combinator:?}");
+        }
+    }
+}
+
 fn schema(tool: &[u8]) {
     let limits = crate::Limits { input_bytes: 65536, ..fixtures::LIMITS };
     let mut declared = None;
@@ -387,7 +401,8 @@ fn schema(tool: &[u8]) {
         }
     }
     for field in expected.expect("every tool has decoder fields") {
-        assert!(schema_names(schema, field), "the schema names {field:?}");
+        let properties = schema.required(b"properties").expect("schema properties");
+        assert!(properties.field(field).expect("properties object").is_some(), "the schema names {field:?}");
     }
 }
 
@@ -456,20 +471,6 @@ fn the_recall_schema_parses_and_names_its_decoders_fields() {
     schema(b"recall");
 }
 
-fn schema_names(schema: crate::json::Node<'_>, field: &[u8]) -> bool {
-    if let Some(properties) = schema.field(b"properties").expect("schema object") {
-        return properties.field(field).expect("properties object").is_some();
-    }
-    let mut choices = schema.required(b"oneOf").expect("a union schema").array().expect("schema alternatives");
-    for _ in 0..choices.len() {
-        let choice = choices.next().expect("counted array element");
-        let properties = choice.required(b"properties").expect("alternative properties");
-        if properties.field(field).expect("properties object").is_some() {
-            return true;
-        }
-    }
-    false
-}
 #[test]
 fn words_past_their_bound_name_the_field() {
     let limits = crate::Limits { words: 8, ..fixtures::LIMITS };

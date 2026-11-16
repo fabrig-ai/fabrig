@@ -257,19 +257,7 @@ impl Backend {
                         .push(mcp::Tool {
                             name: schema.name,
                             description: schema.description,
-                            input_schema: match schema.kind {
-                                protocol::ToolKind::Finish => {
-                                    json::outcome_schema(&schema.schema, self.settings.contract_bytes)
-                                        .unwrap_or_default()
-                                }
-                                protocol::ToolKind::Wait
-                                | protocol::ToolKind::Save
-                                | protocol::ToolKind::Deliver
-                                | protocol::ToolKind::Owned(Tool::Remove) => schema.schema,
-                                protocol::ToolKind::SubAgent | protocol::ToolKind::Owned(_) => {
-                                    unreachable!("filtered tools")
-                                }
-                            },
+                            input_schema: schema.schema,
                         })
                         .expect("inventory capacity");
                 }

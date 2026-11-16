@@ -75,7 +75,6 @@ pub(crate) fn save(core: &Core, record: &tasks::Stored, at: skein_lib::Wall, out
         | tasks::Stored::Update(_)
         | tasks::Stored::Live(_)
         | tasks::Stored::History(_)
-        | tasks::Stored::Milestone(_)
         | tasks::Stored::Attempt(_)
         | tasks::Stored::Hold(_)
         | tasks::Stored::PersonProposal(_)

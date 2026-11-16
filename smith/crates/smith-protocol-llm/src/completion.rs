@@ -155,7 +155,7 @@ fn decode(name: &[u8], input: &[u8], context: &Context, held: u64) -> Result<llm
     }
     Ok(match name {
         b"finish" if context.served.contains(&llm::Served::Finish) => {
-            crate::decode_finish(input, &context.outcome, &context.limits)
+            crate::decode_finish_call(input, &context.outcome, &context.limits)
         }
         b"deliver" if context.served.contains(&llm::Served::Deliver) => match &context.deliver {
             Some(change) => crate::decode_deliver(input, change, &context.limits),

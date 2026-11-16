@@ -11,6 +11,7 @@ pub enum Event {
     Act { act: temper_client_domain::pages::Act },
     Accept { object: jig_client::contract::ObjectKey, revision: Option<jig_client::contract::Revision> },
     Leave,
+    Back,
     Aside { object: jig_client::contract::ObjectKey },
     Answer { words: Box<[u8]> },
     ReplyAside { turn: jig_client::contract::TurnName },

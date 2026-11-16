@@ -30,6 +30,7 @@ jig-client-domain
 jig-client-protocol-link
 jig-client-protocol-http
 jig-client-view
+jig-client-view-words
 jig-client
 jig-client-test-shell-web
 temper-client-protocol-wire

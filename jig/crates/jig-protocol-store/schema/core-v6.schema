@@ -104,20 +104,16 @@ record PartyTask { value: u64 }
 record PartyPerson { value: u64 }
 record PartyDeployment { project: u32 }
 enum Party { task: PartyTask, person: PartyPerson, deployment: PartyDeployment }
-record ProjectionGoal { number: u64 project: u32 priority: u32 words: bytes 262144 phase: PhaseBytes }
-record ProjectionTask { number: u64 requester: Party words: bytes 262144 phase: PhaseBytes }
 record MilestoneLifecycle { task: u64 position: u64 }
 record MilestoneRevision { task: u64 revision: u64 }
 enum MilestoneId { lifecycle: MilestoneLifecycle, revision: MilestoneRevision }
 record ProjectionMilestone { identity: MilestoneId phase: option PhaseBytes change: option ChangeBytes words: bytes 524288 }
 record Connector { value: u16 }
-record ProjectionGoalRow { goal: ProjectionGoal pending: list 1024 Connector changed: bool fed_at: option u64 }
-record ProjectionTaskRow { goal: u64 task: ProjectionTask }
 record ProjectionMilestoneRow { goal: u64 milestone: ProjectionMilestone }
 record ProjectionGoalHot { number: u64 project: u32 priority: u32 phase: PhaseBytes pending: list 1024 Connector changed: bool fed_at: option u64 }
 record ProjectionTaskHot { goal: u64 number: u64 requester: Party phase: PhaseBytes }
 record ProjectionWords { goal: u64 task: u64 words: bytes 262144 }
-enum ProjectionRecord { goal: ProjectionGoalRow, task: ProjectionTaskRow, milestone: ProjectionMilestoneRow, goal_hot: ProjectionGoalHot, task_hot: ProjectionTaskHot, goal_words: ProjectionWords, task_words: ProjectionWords }
+enum ProjectionRecord { milestone: ProjectionMilestoneRow, goal_hot: ProjectionGoalHot, task_hot: ProjectionTaskHot, goal_words: ProjectionWords, task_words: ProjectionWords }
 record TerminalRecord { task: u64 attempt: u64 cumulative: u64 end: EndBytes }
 record TurnProof { turn: u32 cumulative: u64 read: option u64 }
 record Window { attempt: u64 turn: u32 closed: bool }

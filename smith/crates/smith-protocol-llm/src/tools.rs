@@ -1,6 +1,6 @@
 //! Schemas and descriptions for Smith's tools.
 //! This module retains no state. The prompt translation offers these declarations
-//! under the domain's grants; host declarations pass through unchanged.
+//! under the domain's grants; prompt translation normalizes host object schemas.
 //! Contract: protocol/llm.md, section 3; domain/tools.md, section 3.
 
 use alloc::boxed::Box;
@@ -43,7 +43,9 @@ pub fn schemas_for_contract(
             llm::Served::Deliver => {
                 delivering(crate::contract::deliver_schema(deliver.ok_or(Error::Invalid)?, maximum)?)
             }
-            llm::Served::Finish => finishing(crate::contract::finish_schema(outcome, maximum)?),
+            llm::Served::Finish => {
+                finishing(crate::outcome_schema(&crate::contract::finish_schema(outcome, maximum)?, maximum)?)
+            }
         };
         add(&mut descriptors, descriptor)?;
     }

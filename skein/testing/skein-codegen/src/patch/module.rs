@@ -86,15 +86,41 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
             "TEXTS",
             &versions.values().map(|text| text.source.as_str()).collect::<Vec<_>>(),
         );
+        let schemas = versions
+            .iter()
+            .map(|(version, text)| {
+                schema::parse(text.source.as_bytes())
+                    .map(|schema| (*version, schema))
+                    .map_err(|error| Error::Schema { path: text.path.clone(), error: format!("{error:?}") })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         if let Some(floor) = krate.wire_floors.get(family) {
             let floor = floor.unwrap_or_else(|| krate.current.get(family).expect("wire family checked").version);
-            writeln!(out, "        pub const FLOOR: u16 = {floor};\n\n        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {{\n            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)\n        }}").expect("String write");
+            writeln!(out, "        pub const FLOOR: u16 = {floor};").expect("String write");
+            out.push_str("        pub const LAYOUTS: &[[u8; 32]] = &[\n");
+            for (version, schema) in &schemas {
+                if *version >= floor {
+                    out.push_str("            [\n");
+                    let digest = schema.fingerprints().family().digest();
+                    // Hex bytes fill the workspace's 120-column rustfmt layout.
+                    for chunk in digest.chunks(17) {
+                        out.push_str("                ");
+                        for (index, byte) in chunk.iter().enumerate() {
+                            if index > 0 {
+                                out.push(' ');
+                            }
+                            write!(out, "0x{byte:02x},").expect("String write");
+                        }
+                        out.push('\n');
+                    }
+                    writeln!(out, "            ], // v{version}").expect("String write");
+                }
+            }
+            out.push_str("        ];\n\n        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {\n            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)\n        }\n");
         }
-        for (version, text) in versions {
-            let schema = schema::parse(text.source.as_bytes())
-                .map_err(|error| Error::Schema { path: text.path.clone(), error: format!("{error:?}") })?;
+        for (version, schema) in &schemas {
             writeln!(out, "        pub mod v{version} {{").expect("String write");
-            declarations(&schema, &mut out)?;
+            declarations(schema, &mut out)?;
             out.push_str("        }\n");
         }
         if let Some(blocks) = aliases.get(family) {

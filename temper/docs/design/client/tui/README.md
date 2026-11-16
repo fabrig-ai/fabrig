@@ -319,6 +319,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
     leaves the talk, with the notice of a talk left (`pages/talk.md`,
     section 1, *Leaving*);
   - *by `/new`:* `Went(Home { project })`, the root's project;
+  - *not for a place not yet started* (`pages/README.md`, 2, *Not yet
+    started*): it is the TUI's state over the root's page, which stays
+    where it was until the place's first words are sent; the root's
+    going to any other page ends it, but the `NewChat` or `Home` its own
+    start passes through;
   - *back to the start's address,* `Went(Inbox { filter: ALL })`, after
     the report in which `me` no longer names the root's project, the
     playground's reset among them (`box.md`), so that the next project `me`
@@ -345,7 +350,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   |---|---|
   | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat or a talk `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
   | `SignIn` | signing in's Enter, as before |
-  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; the name of `/draft`, `/change`, `/ask` or `/tell`, where the screen offers it, followed by white space alone, nothing, the words and the caret kept (`pages/README.md`, 2, *Their name left in the box*); words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
+  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; the name of `/draft`, `/change`, `/ask` or `/tell`, where the screen offers it, followed by white space alone, as that name pressed, `Own { command }`; in a place not yet started, words that begin no command as that place's `NAME WORDS` on the screen under it, and empty words or white space alone nothing (`pages/README.md`, 2, *Not yet started*); words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; `Act::Confirm` taken on a chat's `/close` keeps the chat as closed by the person, and the root's answer done to that close goes to the launchpad, `Went(Home { project })`, with the chat closed's notice (`pages/chat.md`, 1, *Closing*); and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
   | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`); "Not now", Esc or words typed on a talk's proposal: the TUI sets that card aside (`pages/talk.md`) |
@@ -353,7 +358,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | `Leave` | Esc on a talk's empty box with no list, or `/exit` sent whole on a talk: the notice of a talk left while the person's talk is open, then `Went(Home { project })`, the talk's project (`pages/talk.md`, 1, *Leaving*) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
   | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Draft`, `Change`, `Ask` or `Tell` leaving its name and a space in the box, the caret after the space (`pages/README.md`, 2, *Their name left in the box*), `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Draft`, `Change`, `Ask` or `Tell` going to its place not yet started, the box's words cleared, the left-off selection cleared and a walk ended (`pages/README.md`, 2, *Not yet started*), `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Back` | Esc on a place not yet started's empty box with no list standing: the place ends, starting nothing, and a root its refused start left at `NewChat` goes to `Home { project }` (`pages/README.md`, 2, *Not yet started*) |
   | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
   | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
   | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
@@ -371,7 +377,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   address the same way.
 
   A key that makes `Act`, `Command`, `Aside`, `Accept`, `Dismiss`, `Leave`, `LeftOff`,
-  `Own`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
+  `Own`, `Back`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
   in a recording, and typing marks none
   (`journeys.md`, 3.3). Words typed on the launchpad, and leaving
   it, clear the selection.
@@ -492,17 +498,6 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   box, which a terminal's Shift+Enter cannot ask; a paste into the box
   past the link's 512 bytes. Owner: temper/tui.
   Default: each when the user asks for it on a recorded frame; until then the web does what the TUI leaves out.
-- **A command's words hinted** (`pages/README.md`, 2, *Their name left
-  in the box*): after "/change " in the box, a hint of what to type in
-  `tui-faint`, as Claude Code shows a command's arguments ("say the
-  change"), gone at the first key. The user's request `tui-17` of
-  2026-11-15 left it to the designer, doing it at all included; not
-  drawn, since skein's screen paints a field's placeholder only while
-  its value is empty (skein's `ui/screen.md`, 5.4), so a hint after a
-  value is a new attribute of skein's tree (skein's `ui/README.md`),
-  which each shell lays or leaves. The caret after the space and the
-  empty send that starts nothing carry the request. Default: none,
-  until the user asks for it on a recorded frame. Owner: temper/tui.
 - **The TUI's command-line flags** (1 and 2): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.

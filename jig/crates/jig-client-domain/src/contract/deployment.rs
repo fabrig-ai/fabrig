@@ -298,6 +298,9 @@ pub enum HelloRefusal {
 /// The supplied closed personcapacityaction vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PersonCapacityAction {
+    Conclude {
+        task: u64,
+    },
     Lift {
         hold: u64,
     },

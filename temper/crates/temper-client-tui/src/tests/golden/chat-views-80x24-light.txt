@@ -21,7 +21,7 @@
 ───────────────────────────── Hello / How does a change… T2 on 127.0.0.1:8367 ──
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
- Hello · Claude Opus 5.5 · high · ● Live                            1 needs you
+ ● Live · Hello · Claude Opus 5.5 · high                            1 needs you
 --
 abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ................................................................................
@@ -46,7 +46,7 @@ ceeeeeeee.......................................................................
 ffffffffffffffffffffffffffffffdddddfffddddddddddddddddddeeeeeeeeeeeeeeeeeeeeefff
 ccfffff.........................................................................
 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-.eeeeefffeeeeeeeeeeeeeeeeeeeeeefffgggggg............................ccccccccccc.
+.ggggggfffeeeeefffeeeeeeeeeeeeeeeeeeeeee............................ccccccccccc.
 --
 a: fore #7A736A back #EBEAE9
 b: back #EBEAE9

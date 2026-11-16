@@ -327,7 +327,7 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
                                         &w::CEILINGS,
                                         w::CardParts {
                                             name: b"Status agent".as_slice().into(),
-                                            who: b"When you look at Home after landings".as_slice().into(),
+                                            who: b"When you look at Home after landings or findings".as_slice().into(),
                                             facts: List::from_boxed(Box::new([w::Fact::new(
                                                 &w::CEILINGS,
                                                 w::FactParts {

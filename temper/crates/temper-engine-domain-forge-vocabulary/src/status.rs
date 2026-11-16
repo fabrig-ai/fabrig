@@ -13,6 +13,7 @@ pub struct Brief {
     pub lede: Box<[u8]>,
     pub at: Wall,
     pub landed: u64,
+    pub findings: Option<[u8; 32]>,
 }
 /// A status run in flight (temper/docs/design/domain/forge/attention.md, 3); task none until the root has made it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -20,6 +21,7 @@ pub struct StatusRunning {
     pub task: Option<u64>,
     pub landed: u64,
     pub since: Wall,
+    pub findings: Option<[u8; 32]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectFacts {

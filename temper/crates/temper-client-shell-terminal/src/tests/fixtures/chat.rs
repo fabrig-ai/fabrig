@@ -96,6 +96,24 @@ fn first_run_words(
     ] {
         client::step(&mut root, &env, Event::Client { event }, &mut out);
     }
+    if owner_settings {
+        client::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::FamilyServed {
+                        family: temper_client_protocol_wire::FORGE,
+                        versions: Some(c::VersionRange {
+                            first: temper_client_protocol_wire::CLIENT_VERSION,
+                            last: temper_client_protocol_wire::CLIENT_VERSION,
+                        }),
+                    },
+                },
+            },
+            &mut out,
+        );
+    }
     for _ in 0..128 {
         let Some(request) = out.pop() else { break };
         let up = match request {
@@ -115,6 +133,28 @@ fn first_run_words(
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: demo_forges(),
+                    },
+                })
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
+                    },
+            } if owner_settings
+                && matches!(
+                    temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
+                        .expect("ways watch")
+                        .watch(),
+                    temper_client_protocol_wire::v1::Watch::Ways(_)
+                ) =>
+            {
+                Some(jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: temper_client_protocol_wire::FORGE,
+                        version: temper_client_protocol_wire::CLIENT_VERSION,
+                        bytes: settings_ways(),
                     },
                 })
             }
@@ -325,7 +365,7 @@ fn first_run_words(
         assert!(out.is_empty(), "an oversized Send sends nothing");
         assert_eq!(root.pages().chat().unwrap().words.as_ref(), words);
     }
-    let bounds = if line.is_some() || typed.is_some() {
+    let bounds = if line.is_some() || typed.is_some() || owner_settings {
         temper_client_view::Limits::of(&limits, &page_words()).expect("whole-line bounds")
     } else {
         temper_client_view::Limits { tree: tree_limits() }
@@ -334,6 +374,98 @@ fn first_run_words(
     temper_client_view::build(&mut view, &root, super::NOW, &mut Queue::with_capacity(bounds.tree.patches));
     copy_tree_at(view.tree(), &bounds.tree)
 }
+/// A hand-made ways delivery keeps the terminal's settings golden on the shown path, not the loading state.
+fn settings_ways() -> Box<[u8]> {
+    use skein_lib::List;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            who: b"an agent".as_slice().into(),
+            name: b"the reviewer".as_slice().into(),
+            facts: List::with_capacity(0),
+        },
+    )
+    .unwrap();
+    let stops = [
+        (w::Actor::Person, w::PathStep::Ask, "you ask"),
+        (w::Actor::Agent, w::PathStep::Produce, "produce"),
+        (w::Actor::Agent, w::PathStep::Review, "review"),
+        (w::Actor::Bar, w::PathStep::Branch, "main"),
+    ]
+    .into_iter()
+    .map(|(actor, step, words)| {
+        w::Stop::new(
+            &w::CEILINGS,
+            w::StopParts {
+                actor,
+                step,
+                words: words.as_bytes().into(),
+                needed: false,
+                over: Box::new([]),
+                opens: w::Opens::Nothing,
+                card: card.clone(),
+            },
+        )
+        .unwrap()
+    })
+    .collect();
+    let path = w::BranchPath::new(
+        &w::CEILINGS,
+        w::BranchPathParts {
+            repository: Some(b"playground/widget".as_slice().into()),
+            branch: b"main".as_slice().into(),
+            stops: List::from_boxed(stops),
+        },
+    )
+    .unwrap();
+    let ways = [
+        ("You approve", "You approve every change", "You approve each change before code lands it."),
+        (
+            "Agents review",
+            "Agents review every change, and code lands it",
+            "An agent makes each change, another reviews it, and code lands it.",
+        ),
+        ("Draft first", "Draft first", "You and an agent write a draft; agents build it on its own branch."),
+    ]
+    .into_iter()
+    .map(|(name, headline, line)| {
+        w::StockWay::new(
+            &w::CEILINGS,
+            w::StockWayParts {
+                name: name.as_bytes().into(),
+                headline: headline.as_bytes().into(),
+                line: line.as_bytes().into(),
+                path: path.clone(),
+                items: List::with_capacity(0),
+                delegation: false,
+                roles: List::with_capacity(0),
+            },
+        )
+        .unwrap()
+    })
+    .collect();
+    wire::ways_panel(
+        &w::WaysPanel::new(
+            &w::CEILINGS,
+            w::WaysPanelParts {
+                project: 1,
+                ways: List::from_boxed(ways),
+                current: Some(1),
+                own: path,
+                words: None,
+                may_change: true,
+                rules: w::PathRules::new(
+                    &w::CEILINGS,
+                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+                )
+                .unwrap(),
+            },
+        )
+        .unwrap(),
+    )
+}
+
 fn demo_me() -> contract::Me {
     use jig_client::contract as c;
     use skein_lib::List;

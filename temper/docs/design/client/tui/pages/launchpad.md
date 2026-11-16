@@ -40,7 +40,7 @@ Illustrative, a person in two projects, Hello and shop:
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Hello · Claude Opus 5.5 · high · ● Live                 2 need you · n to walk
+ ● Live · Hello · Claude Opus 5.5 · high                 2 need you · n to walk
 ```
 
 - **Its parts, in order:** the header (`README.md`, 3); then the
@@ -65,7 +65,9 @@ Illustrative, a person in two projects, Hello and shop:
   is open in a row is its state as Home words it; a need's row says when
   it asked, "asked 20 min ago", and not who, since no read names the
   asker (8); the quiet line names the link's state, "● Live", as the
-  Pair mockup does; the sections keep the at-scale mockup's order, Where
+  Pair mockup does, first, at the row's start, where the mockup has it
+  after the model: the user's request `tui-21` of 2026-11-15 has it in
+  one place on every screen (`README.md`, *The link's state*); the sections keep the at-scale mockup's order, Where
   you left off before Needs you; "Landed this week" (Pair's) is not
   drawn, not being in `../../../draft/surfaces.md`, 11.1; Team on
   PROJECT's columns are its rows' names, the areas each holds and its

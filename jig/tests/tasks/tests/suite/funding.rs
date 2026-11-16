@@ -60,7 +60,6 @@ fn ledger(world: &World, funder: Funder) -> tasks::FundingRecord {
         | Stored::LiveCold { .. }
         | Stored::Stub(_)
         | Stored::Activity(_)
-        | Stored::Milestone(_)
         | Stored::Attempt(_)
         | Stored::Hold(_)
         | Stored::History(_)

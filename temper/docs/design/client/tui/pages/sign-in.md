@@ -12,8 +12,12 @@ Illustrative:
 │ Signing in…                                  │
 ╰──────────────────────────────────────────────╯
 
- Ctrl+C to quit                     ● Signed out
+ ● Signed out                     Ctrl+C to quit
 ```
+
+- **The bottom row:** the link's state first, at the row's first column,
+  where every screen has it (`README.md`, *The link's state*), and
+  "Ctrl+C to quit" at its right.
 
 - **The paste:** one text field, "Link", a secret, drawn masked (skein's
   `ui/screen.md`, 5.4), that submits on Enter, its placeholder the

@@ -13,13 +13,14 @@ fn ranges(rows: &[(&'static [u8], &'static [u8])]) -> &'static [KeyRange] {
 fn types(rows: Vec<ValueType>) -> &'static [ValueType] {
     Box::leak(rows.into_boxed_slice())
 }
-fn family(owner: Owner) -> KeptFamily {
+pub(super) fn family(owner: Owner) -> KeptFamily {
     let keys = if owner == Owner::Application {
         Keys { from: b"l", to: b"m", root: "Row" }
     } else {
         Keys { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO, root: "Row" }
     };
     KeptFamily {
+        retired: &[],
         name: "fixture-values",
         texts: &[TEXT],
         current: TEXT,
@@ -35,11 +36,12 @@ fn family(owner: Owner) -> KeptFamily {
         frames: None,
     }
 }
-fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
+pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
     PatchSet {
         owner,
         name: if owner == Owner::Application { "fixture" } else { "jig-fixture" },
         families: Box::leak(Box::new([family])),
+        level: Some(0),
         patches: &[],
         fresh: None,
         jobs,
@@ -224,6 +226,7 @@ fn written_jobs_name_a_registered_type_and_its_ranges() {
     for owner in [Owner::Application, Owner::Jig] {
         let base = family(owner);
         let job = Job {
+            settles: false,
             counts: &[],
             name: "convert",
             keys: base.types[0].keys,

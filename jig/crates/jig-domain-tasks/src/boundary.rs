@@ -1109,6 +1109,8 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The first concluding party and decision (domain/tasks/gatherings.md, 3).
+    pub concluded: Option<crate::Concluded>,
     pub talk: Option<crate::Talk>,
     /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
     pub session: Option<crate::Session>,
@@ -1317,8 +1319,6 @@ pub enum Stored {
     Delegate(crate::Edge),
     /// Earlier activity loaded on demand, never restored as live state.
     Activity(crate::ActivityLine),
-    /// One immutable lifecycle milestone, loaded on demand.
-    Milestone(crate::Milestone),
     Attempt(crate::AttemptRow),
     Hold(crate::HoldRow),
     /// Pending person-origin goal proposal.
@@ -1378,7 +1378,6 @@ impl Stored {
             Stored::ClosedLedger(row) => Key::ClosedLedger(row.funder),
             Stored::History(row) => Key::History { task: row.task, revision: row.revision },
             Stored::Activity(row) => Key::Activity { task: row.task, position: row.position },
-            Stored::Milestone(row) => Key::Milestone { task: row.task, position: row.position },
             Stored::Attempt(row) => Key::Attempt { task: row.task, attempt: row.attempt },
             Stored::Hold(row) => Key::Hold { task: row.task, position: row.position },
             Stored::Live(record) => Key::Live(record.number),
@@ -1396,6 +1395,10 @@ impl Stored {
 /// (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
+    Concluded {
+        at: Wall,
+    },
     NotStanding,
     TalkOpen {
         party: u64,
@@ -1464,8 +1467,8 @@ pub enum Refusal {
     Circle {
         cut: bool,
     },
-    /// A dependency an amendment adds has ended failed or cancelled; `blocked_by` names it
-    /// (domain/tasks/changes.md).
+    /// A dependency a party's batch names or an amendment adds has ended failed or cancelled;
+    /// `blocked_by` names it (jig/docs/design/domain/tasks/README.md, 4).
     DependencyEnded {
         how: Status,
     },
@@ -1580,6 +1583,12 @@ pub enum Accepted {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
+    /// Root-authorized concluding word (domain/tasks/gatherings.md, 3).
+    Conclude {
+        reply_to: ReplyTo,
+        by: u64,
+        task: u64,
+    },
     /// Close project rows (jig/docs/design/domain/tasks/changes.md).
     CloseProject {
         project: u32,
@@ -2004,8 +2013,13 @@ pub enum Event {
     /// Create an authorized whole batch and reservations atomically, producing `Made` or
     /// `Refused` plus bounded persistence/lifecycle outputs.
     Make {
+        /// Party behind a Delegate; reach and history are theirs, topology remains the creator's
+        /// (jig/docs/design/domain/tasks/README.md, 4).
+        maker: Option<u64>,
         /// Root-issued destination owed one `Made` or `Refused` terminal for the whole batch.
         reply_to: ReplyTo,
+        /// Loaded ended places for a person creator (jig/docs/design/domain/tasks/README.md, 4).
+        places: Box<[crate::DependencyPlace]>,
         /// Root-verified creator/requester of every `new` task; task creator and `funding`
         /// ancestry are checked separately.
         creator: Party,

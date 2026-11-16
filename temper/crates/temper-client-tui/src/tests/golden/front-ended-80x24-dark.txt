@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Hello · ● Live                                                     box stopped
+ ● Live · Hello                                                     box stopped
 --
 ................................................................................
 ..abbb...cccccc.................................................................
@@ -46,7 +46,7 @@
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 ggeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee..............................
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-.fffffeeehhhhhh.....................................................ggggggggggg.
+.hhhhhheeefffff.....................................................ggggggggggg.
 --
 a: fore #1B76FD
 b: fore #00C4FE

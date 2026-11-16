@@ -28,15 +28,7 @@ impl Levels {
 pub(crate) fn binary(sets: &PatchSets) -> Levels {
     let mut levels = Levels { skein: None, smith: None, jig: None, application: None };
     for set in sets.sets {
-        let mut kept = false;
-        for family in set.families {
-            if !family.texts.is_empty() {
-                kept = true;
-            }
-        }
-        if kept {
-            levels.set(set.owner, Some(u32::try_from(set.patches.len()).expect("static patch count fits u32")));
-        }
+        levels.set(set.owner, set.level);
     }
     levels
 }
@@ -98,10 +90,29 @@ fn read(set: &PatchSet, patch: u32) -> Result<Header, Unplanned> {
     }
     Ok(head)
 }
+/// The sets passed the whole check (protocol/store/opening.md, 3).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Checked {
+    _private: (),
+}
+
+/// One check per open (protocol/store/opening.md, 3).
+pub(crate) fn checked(store: &mut crate::Store) -> Result<Checked, Unplanned> {
+    if let Some(verdict) = store.directory.checked {
+        return verdict;
+    }
+    let verdict = bounds(&store.patch_sets);
+    store.directory.checked = Some(verdict);
+    verdict
+}
+
 /// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused as patch 0. Judged before the plan and before a first start writes.
-pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
+pub(crate) fn bounds(sets: &PatchSets) -> Result<Checked, Unplanned> {
+    #[cfg(test)]
+    counting::ran();
+    check_levels(sets)?;
     let ceilings = &crate::component_v3::CEILINGS;
     let name = skein_lib::length::usize_of(ceilings.count_family);
     let mut families = 0_u32;
@@ -121,10 +132,27 @@ pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
     super::types::check(sets)?;
     crate::jobs::admission::check(sets)?;
     frames(sets)?;
-    holds(sets)
+    holds(sets)?;
+    Ok(Checked { _private: () })
+}
+/// Levels are admitted before the store's levels are compared (opening.md, 3).
+pub(crate) fn check_levels(sets: &PatchSets) -> Result<(), Unplanned> {
+    for set in sets.sets {
+        let mut kept = false;
+        for family in set.families {
+            if !family.texts.is_empty() {
+                kept = true;
+            }
+        }
+        if set.level.is_some() != kept
+            || (!set.patches.is_empty() && set.level != u32::try_from(set.patches.len()).ok())
+        {
+            return Err(Unplanned { owner: set.owner, patch: 0 });
+        }
+    }
+    Ok(())
 }
 fn validate(sets: &PatchSets, found: &Levels, wanted: &Levels) -> Result<u32, Unplanned> {
-    bounds(sets)?;
     let mut pending = 0_u32;
     for owner in DOWNSTREAM {
         let mut seen = false;
@@ -169,7 +197,7 @@ fn validate(sets: &PatchSets, found: &Levels, wanted: &Levels) -> Result<u32, Un
     Ok(pending)
 }
 
-pub(crate) fn plan(sets: &PatchSets, found: &Levels, wanted: &Levels) -> Result<Plan, Unplanned> {
+pub(crate) fn plan(sets: &PatchSets, _checked: Checked, found: &Levels, wanted: &Levels) -> Result<Plan, Unplanned> {
     let pending = validate(sets, found, wanted)?;
     let mut steps = List::with_capacity(pending);
     let mut close = false;
@@ -472,3 +500,6 @@ fn flight_keys(store: &mut crate::Store, owner: Owner, family: &super::sets::Kep
     }
     Some(FlightKeys { count, keys: keys.into_boxed() })
 }
+
+#[cfg(test)]
+pub(crate) mod counting;

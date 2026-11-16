@@ -1,7 +1,7 @@
 # D013: Step code still uses `Deref`, a trait and `macro_rules!`
 
 - **Kind:** other
-- **Where:** `jig-domain-tasks/src/compound/staged.rs`, `jig-client-view/src/state/ui/borrowed.rs`, `jig-client-view/src/state/ui/borrowed`, `jig-client-view/src/state/page/inbox.rs`, `jig-client-view/src/words/literal_segment.rs`, `jig-protocol-store/src/boundary.rs`, `jig-protocol-config/src/domain.rs`
+- **Where:** `jig-domain-tasks/src/compound/staged.rs`, `jig-client-view/src/state/ui/borrowed.rs`, `jig-client-view/src/state/ui/borrowed`, `jig-client-view/src/state/page/inbox.rs`, `jig-client-view-words/src/words/literal_segment.rs`, `jig-protocol-store/src/boundary.rs`, `jig-protocol-config/src/domain.rs`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T10 "subset breaches", A3 F7, A6 F15, A9 F7)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list (T10, the step-code subset)
 - **Checked:** 2026-11-03 at `41d63da8c3`

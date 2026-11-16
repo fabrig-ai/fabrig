@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-13. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-15. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
@@ -363,6 +363,11 @@
     taking it still, unlisted, and `/theme` opens a list of Auto, Light
     and Dark, kept for the next run, where it flipped
     (`../client/tui/pages/README.md` and `../client/tui/theme.md`).
+  - 11.1, the user's request `tui-21` of 2026-11-15: the quiet line
+    starts with the link's state, at its first column on every screen,
+    then the project and the model and effort, where 11.1 lists the
+    project, the model and effort, then the link's state
+    (`../client/tui/pages/README.md`, *The link's state*).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

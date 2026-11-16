@@ -316,6 +316,6 @@ fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
             world.prompts()[0].tools.iter().any(|tool| tool.name.as_ref() == b"finish"
                 && skein_lib::bytes::find(&tool.parameters, b"evidence").is_some())
         );
-        assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { result: smith_domain::session::llm::Returned::Invalid { problem: llm::Problem::Missing { field } }, .. } if field.as_ref() == b"form")));
+        assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { result: smith_domain::session::llm::Returned::Invalid { problem: llm::Problem::Missing { field } }, .. } if field.as_ref() == b"outcome")));
     }
 }

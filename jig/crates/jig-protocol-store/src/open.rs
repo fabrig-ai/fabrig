@@ -16,6 +16,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
     }
+    if let Err(why) = plan::check_levels(&store.patch_sets) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {
@@ -160,7 +163,11 @@ fn found_levels(
 }
 
 fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
-    let plan = match plan::plan(&store.patch_sets, &found, &binary) {
+    let checked = match plan::checked(store) {
+        Ok(checked) => checked,
+        Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
+    };
+    let plan = match plan::plan(&store.patch_sets, checked, &found, &binary) {
         Ok(plan) => plan,
         Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
     };
@@ -268,7 +275,7 @@ fn ready(
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     };
-    if let Err(why) = plan::bounds(&store.patch_sets) {
+    if let Err(why) = plan::checked(store) {
         refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
         return;
     }
@@ -297,6 +304,7 @@ fn ready(
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
     crate::rehearsal::announce(store, above);
+    store.directory.checked = None;
     store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });

@@ -289,6 +289,42 @@ fn the_coordinator_uses_existing_prerequisites_instead_of_promising_word_later()
 }
 
 #[test]
+fn the_designer_allows_early_starts_but_orders_landings() {
+    let words = crate::stock::charter_set().designer.unwrap();
+    assert!(!words.contains("it starts the moment they have all landed"));
+    assert!(!words.contains("c3 starts once both land"));
+    assert!(words.contains(
+        "With `after`, a change may\n  start from dependencies' checked work before they land, but lands after them"
+    ));
+    assert!(words.contains("c3 may start from their checked work, but lands after both"));
+    assert!(words.contains("If it needs the earlier wave's landed result, not just checked work"));
+    assert!(words.contains("its spec says what to check first, and to ask if it doesn't hold"));
+}
+
+#[test]
+fn the_implementer_leaves_failures_in_work_it_started_from() {
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("`[Started from change N at <commit>, not landed]`\n  names a dependency's work and head"));
+    assert!(words.contains("Failures there belong to it: don't fix or\n  record them as reds"));
+    assert!(words.contains("If delivery passes, list them under `## Left`; if refused"));
+    assert!(words.contains("`save`, then ask, naming the change and commit"));
+}
+
+#[test]
+fn the_coordinator_waits_for_started_from_dependencies_before_answering() {
+    let engine = engine(&generated());
+    let coordinator = engine.charters.iter().find(|charter| charter.number == 5).unwrap();
+    let part = coordinator.parts.iter().find(|part| part.on.contains(jig_domain_tasks::Reasons::QUESTION)).unwrap();
+    let words = core::str::from_utf8(&part.instructions).unwrap();
+    assert!(words.contains("`after` permits starting from checked, unlanded work,\n  named by `[Started from …]`"));
+    assert!(words.contains("Failures there belong to that dependency, not a red\n  to record"));
+    assert!(words.contains("If delivery passes, answer: leave it under `## Left`"));
+    assert!(words.contains("If refused,\n  `subscribe` to the dependency; answer only once it lands"));
+    assert!(words.contains("The engine relays your\n  answer at once to the producer that started from it"));
+    assert!(words.contains("its next run first merges\n  g's landing tip, then delivers"));
+}
+
+#[test]
 fn the_coordinators_charter_makes_no_landing_or_close_out() {
     let set = crate::stock::charter_set();
     assert!(set.common.unwrap().contains("No agent merges or lands."));
@@ -369,6 +405,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
+    assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
     let (remembering, _) = remembering.split_once("## Your voice").expect("Your voice follows Remembering");
     assert_eq!(
@@ -381,16 +418,23 @@ fn ask_temper_is_charter_11_and_template_5() {
     let (showing, _) = showing.split_once("## Remembering").expect("Remembering follows Showing");
     assert_eq!(
         showing,
-        r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:
+        r"Draw whatever a picture says faster than words, in a reply and in the document. Draw what exists from a view, a fenced block naming it:
 ```view
 path OWNER/NAME main @revision N
 ```
 Views: path OWNER/NAME [BRANCH] · way NAME · charter N · proposal tN/K; a path or a charter takes @revision N, the newest when left out. Never draw by hand what a view shows.
 A way is drawn, never described: way NAME draws one of temper's stock ways over this project, as see ways lists them. A person who wants a way of their own gets a proposal, which draws its path before and after.
+Sketch only what does not exist yet, an idea or a what-if, as a flow: a fenced block, info string mermaid, first line flowchart LR or flowchart TD, then accTitle: its name, then one path joined by -->, each node id[Name<br>caption], who acts in its caption, :::strong after the one that matters:
+```mermaid
+flowchart LR
+accTitle: Two approvals before main
+p[Produce<br>an agent] --> c[CI<br>code] --> r[Review<br>an agent] --> a[Two of you<br>approve]:::strong --> m[Merge<br>code]
+```
+A flow is one path: draw each path as a flow of its own, and set options side by side in a table. A branch, a merge, an edge's label or another shape shows as code, so write none.
 
 "
     );
-    for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
+    for excluded in ["queue", "task N tree", "task N timeline", ":::code", ":::agent", ":::person"] {
         assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
@@ -407,12 +451,13 @@ fn the_drafter_is_charter_12_and_template_6() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
-    assert_eq!(charter.policy.instructions.len(), 2_895);
+    assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
+    assert_eq!(charter.policy.instructions.len(), 3_319);
     assert_eq!(
         skein_lib::sha256::digest(&charter.policy.instructions),
         [
-            0x47, 0xb4, 0x79, 0x1e, 0xed, 0x5f, 0x33, 0x61, 0x5f, 0xdd, 0x30, 0x31, 0xc1, 0x7b, 0x2e, 0x27, 0xd8, 0xbc,
-            0xf9, 0x12, 0x74, 0xee, 0x34, 0xce, 0xc3, 0x80, 0xb0, 0x7a, 0xe9, 0x24, 0x4f, 0xfd,
+            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
+            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
         ]
     );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
@@ -668,6 +713,40 @@ fn the_chats_words_send_plain_changes_to_change() {
     ));
 }
 
+// temper/docs/design/domain/agent/agents.md, 2, Its person by name.
+#[test]
+fn person_requested_charters_name_their_person_when_speaking_of_them() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    for number in [1, 5, 13, 14, 15, 16] {
+        let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("person's charter");
+        let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+        let paragraph = words
+            .split("\n\n")
+            .find(|paragraph| paragraph.contains("[Requested by person N, NAME]"))
+            .expect("paragraph naming the person");
+        for phrase in [
+            "name after their number",
+            "same person N",
+            "ask and address them by number as before",
+            "rather than to them",
+            "decided",
+            "question and why",
+            "a report",
+            "a finding",
+            "a question to someone else",
+            "their name:",
+            "Sam asked to reopen pull #1292",
+            "never \"person N\" or \"the user\"",
+            "A line with no name, or a requester that is a task, leaves",
+        ] {
+            assert!(paragraph.contains(phrase), "charter {number}: {phrase}");
+        }
+        let fallback = if number == 5 { "\"your requester\"" } else { "\"your person\"" };
+        assert!(paragraph.contains(fallback), "charter {number}: {fallback}");
+    }
+}
+
 #[test]
 fn the_goals_charter_asks_for_one_report_revised_in_place() {
     let words = include_str!("../stock/chat.txt");
@@ -678,7 +757,8 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ",
+        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
+        "5 of its 7 changes landed; the other 2 are building.",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -695,7 +775,28 @@ fn chat_and_goal_use_asking() {
     let words = include_str!("../stock/chat.txt");
     for prefix in ["If your brief says you are a goal", "If neither line"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("role paragraph");
-        assert!(paragraph.contains("Use Reports and Asking."));
+        assert!(paragraph.contains("Use Reports, Asking and Titles."));
+    }
+}
+
+#[test]
+fn goals_changes_and_roles_open_with_titles_for_a_person() {
+    chat_and_goal_use_asking();
+    let words = include_str!("../stock/chat.txt");
+    let titles = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
+        .expect("titles paragraph");
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    assert!(titles.contains(sentence));
+    for words in [
+        include_str!("../stock/role.md"),
+        include_str!("../stock/triager.md"),
+        include_str!("../stock/prover.md"),
+        include_str!("../stock/porter.md"),
+    ] {
+        let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+        assert!(shared.contains(sentence));
     }
 }
 
@@ -703,11 +804,25 @@ fn chat_and_goal_use_asking() {
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
     chat_and_goal_use_asking();
+    let decision =
+        "Write the question in one sentence, the situation as a person reads it, and each option in one line.";
+    for words in [
+        include_str!("../stock/role.md"),
+        include_str!("../stock/triager.md"),
+        include_str!("../stock/prover.md"),
+        include_str!("../stock/porter.md"),
+    ] {
+        let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+        let asking = shared.split("\n\n").find(|paragraph| paragraph.starts_with("Before asking your person")).unwrap();
+        assert!(asking.contains(decision));
+    }
     for (words, prefixes) in [(include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..])] {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
-            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says."));
+            assert!(paragraph.contains(decision));
+            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
@@ -726,6 +841,36 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         include_str!("../stock/chat.txt")
             .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
+}
+
+// temper/docs/design/domain/areas.md, 6, Its groups; domain/agent/agents.md, 2.
+#[test]
+fn the_triager_is_told_to_group_findings_and_ask_once_a_group() {
+    let words = include_str!("../stock/triager.md");
+    let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+    let mut paragraphs = shared.split("\n\n");
+    paragraphs.find(|paragraph| paragraph.starts_with("Before asking your person")).expect("asking paragraph");
+    let grouping = paragraphs.next().expect("grouping paragraph after asking");
+    assert!(grouping.starts_with("Group what you keep: the findings one act would settle, by what they are."));
+    assert!(grouping.contains("Ask your person one question a group, after `decided` says Ask as Before asking says, in the line form: the question in one sentence; then what the findings share and what the choices weigh;"));
+    assert!(
+        grouping.contains(
+            "a trailing `Findings:` line naming every finding of the group as P/N tokens, at most 16 findings"
+        )
+    );
+    assert!(grouping.contains("a trailing `Group:` line, at most 256 bytes, a plural noun, ` · ` and a phrase"));
+    assert!(grouping.contains(
+        "a trailing `Choice:` line for each act over the group, the one you would take first, marked ` (recommended)`"
+    ));
+    assert!(grouping.contains("`Findings: 2/2 2/8 2/10`, `Group: bugs · in temper`"));
+    assert!(
+        grouping.contains(
+            "`Choice: A goal for each (recommended)`, `Choice: One goal for all three`, `Choice: Backlog them`"
+        )
+    );
+    assert!(grouping.contains("Write each trailing line on its own line after the context."));
+    assert!(grouping.contains("Carry the answer out one act a finding, with the `finding` tool and the goals you start; a reply in words is your person's direction."));
+    assert!(grouping.contains("A finding no other shares an act with is a group of one, its noun singular."));
 }
 
 #[test]
@@ -856,7 +1001,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     }
     for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
-        assert!(paragraph.contains("Use Reports and Asking."), "{role} must retain reporting rules");
+        assert!(paragraph.contains("Use Reports, Asking and Titles."), "{role} must retain reporting rules");
     }
 }
 
@@ -956,6 +1101,26 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             assert_eq!(offered.as_ref(), names, "charter {}", charter.number);
         }
     }
+}
+
+#[test]
+fn stock_charters_put_revised_requests_and_answers_first() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let reviewer = defaults.charters.iter().find(|charter| charter.number == 4).expect("review charter");
+    let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
+    assert!(words.starts_with(concat!(
+        "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do. ",
+        "What it was asked is its request as revised and the answers given on it, as your brief gives them: where they differ from its title or its original request, they come first. ",
+        "Then give your verdict"
+    )));
+    let implementer = crate::stock::charter_set().implementer.expect("implementer text");
+    assert_eq!(
+        implementer.lines().find(|line| line.starts_with("- **In repairs and resolutions,**")),
+        Some(
+            "- **In repairs and resolutions,** keep the requested change and unrelated base content, appended lines and blank lines included, and each side's intended deletions and renames: a file the base deleted stays deleted unless the requested change needs it, and you read the commit that deleted it before you restore anything. Restore losses a review names; never remove content just to pass a check, and keeping an intended deletion removes none; unless the change's request as revised, or an answer given on it, says otherwise: your spec gives them after its preservation words, and they come before its original request and this rule. Your result says, for each file deleted or renamed on either side, whether you kept the deletion or restored the file, and why."
+        )
+    );
 }
 
 #[test]
@@ -1640,7 +1805,7 @@ fn every_stock_role_keeps_its_whole_line_in_who() {
         (5, b"For each goal"),
         (2, b"For each change"),
         (4, b"For each change"),
-        (9, b"When you look at Home after landings"),
+        (9, b"When you look at Home after landings or findings"),
     ] {
         let item = stock.iter().find(|item| item.kind == 9 && item.number == number).expect("role's stock words");
         let Value::CharterWords(line) = &item.value.value else { panic!("role's words") };
@@ -1901,11 +2066,16 @@ fn assert_document_rule(words: &str) {
         "A refused note says the revision or the line count to use",
         "Say in one sentence what changed",
         "do not repeat the document in your reply",
-        "Where a sequence says more drawn, write a flow",
+        "Draw whatever a picture says faster than words, in the document as in a reply",
+        "accTitle: A read, end to end",
+        "A flow is one path.",
+        "set options side by side in a table",
+        "so write none",
         "one path joined by -->",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }
+    assert!(!words.contains("Where a sequence says more drawn"), "obsolete sequence-only drawing rule");
     assert!(!words.contains("Mermaid is not drawn"), "obsolete document instruction: Mermaid is not drawn");
 }
 
@@ -1937,7 +2107,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

@@ -87,7 +87,7 @@ impl World {
             false,
             6,
             false,
-            Some(workflow),
+            Some(Box::new([workflow])),
             repository_config(2),
             None,
             LIMITS.landing_members,

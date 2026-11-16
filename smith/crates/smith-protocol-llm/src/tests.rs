@@ -626,10 +626,13 @@ fn drawn_contract_schema_costs_equal_every_rendered_byte() {
             failure: (rng.next_u64().is_multiple_of(2)).then_some(failure),
             verdicts,
         };
-        assert_eq!(
-            costs.finish(&outcome),
-            Some(skein_lib::len_u64(crate::finish_schema(&outcome, u32::MAX).expect("rendered finish").len()))
-        );
+        let mut prompt = described_prompt();
+        prompt.tools = tools::Grants { inspect: false, modify: false, shell: false };
+        prompt.served = Box::new([smith_domain::llm::Served::Finish]);
+        let stated = crate::Stated::from_tools(&tools(), 4096).expect("stated");
+        let inventory = crate::schemas_for_contract(&prompt, &stated, &outcome, None, u32::MAX).expect("inventory");
+        let finish = inventory.iter().find(|tool| tool.kind == crate::ToolKind::Finish).expect("finish descriptor");
+        assert_eq!(costs.finish(&outcome), Some(skein_lib::len_u64(finish.schema.len())));
         assert_eq!(
             costs.deliver(&change),
             Some(skein_lib::len_u64(crate::deliver_schema(&change, u32::MAX).expect("rendered deliver").len()))
@@ -1023,4 +1026,205 @@ fn save_is_an_empty_object_write_offered_only_under_its_descriptor() {
     let save = save.expect("save offered");
     assert_eq!(save.kind, crate::ToolKind::Save);
     assert!(skein_lib::bytes::find(&save.schema, b"\"additionalProperties\":false").is_some());
+}
+
+fn direct_limits() -> crate::Limits {
+    crate::fixture::small(skein_llm_kit::limits(), crate::Stated::from_tools(&tools(), 4096).expect("stated"))
+}
+
+fn direct_prompt() -> smith_domain::llm::Prompt {
+    let mut prompt = described_prompt();
+    prompt.tools = tools::Grants { inspect: false, modify: false, shell: false };
+    prompt
+}
+
+fn host_tool(schema: &[u8]) -> smith_domain::llm::Served {
+    smith_domain::llm::Served::Host(smith_domain::run::HostTool {
+        reserve: false,
+        name: b"host_action".as_slice().into(),
+        description: b"Host action".as_slice().into(),
+        schema: schema.into(),
+        effect: smith_domain::run::HostEffect::Write,
+        timeout: Duration::from_secs(1),
+    })
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::too_many_lines,
+    reason = "the direct inventory table and its wire assertions cover every charter shape with ordinary Rust containers"
+)]
+fn every_direct_inventory_serves_only_object_input_schemas() {
+    use smith_domain::{
+        llm,
+        run::outcome::{ChangeSpec, FieldRule, ItemSpec, OutcomeSpec, TextSpec, VerdictRule},
+    };
+    let limits = direct_limits();
+    let receiving = crate::fixture::receiving(&limits.client, 4096).expect("receiving");
+    let empty = OutcomeSpec { change: None, verdicts: Box::default(), report: None, failure: None };
+    let delivery = ChangeSpec {
+        checks_must_pass: true,
+        fields: Box::new([FieldRule { name: b"title".as_slice().into(), max: 128 }]),
+    };
+    let contract = OutcomeSpec {
+        change: Some(delivery.clone()),
+        verdicts: Box::new([VerdictRule {
+            name: b"approved".as_slice().into(),
+            text_max: 128,
+            fields: Box::default(),
+            items: ItemSpec { min: 0, max: 0, kinds: Box::default() },
+        }]),
+        report: None,
+        failure: Some(TextSpec { max: 128, fields: Box::default() }),
+    };
+    let report = OutcomeSpec {
+        report: Some(TextSpec { max: 128, fields: Box::default() }),
+        failure: Some(TextSpec { max: 128, fields: Box::default() }),
+        ..empty.clone()
+    };
+    let nested = br#"{"properties":{"choice":{"anyOf":[{"type":"object"}]}}}"#;
+    let typed = br#"{"type":"object","properties":{"a":{"type":"string"}}}"#;
+    for (served, outcome, deliver, workspace, expected_host) in [
+        (
+            vec![llm::Served::Wait, host_tool(nested)],
+            empty.clone(),
+            None,
+            false,
+            br#"{"type":"object","properties":{"choice":{"anyOf":[{"type":"object"}]}}}"#.as_slice(),
+        ),
+        (vec![llm::Served::Wait, host_tool(b"{}")], empty.clone(), None, false, br#"{"type":"object"}"#),
+        (
+            vec![
+                host_tool(typed),
+                llm::Served::Wait,
+                llm::Served::Finish,
+                llm::Served::Deliver,
+                llm::Served::Save,
+                llm::Served::SubAgent,
+            ],
+            contract,
+            Some(delivery),
+            true,
+            typed.as_slice(),
+        ),
+        (vec![llm::Served::Finish, llm::Served::Wait], empty, None, false, b""),
+        (vec![llm::Served::Finish, llm::Served::Wait], report, None, false, b""),
+    ] {
+        let mut prompt = direct_prompt();
+        prompt.tools = tools::Grants { inspect: workspace, modify: workspace, shell: false };
+        prompt.served = if workspace {
+            let hosts = (0_u64..35).map(|number| {
+                let llm::Served::Host(mut tool) = host_tool(typed) else { panic!("host fixture") };
+                tool.name = skein_lib::bytes::concat(&[b"host_action", skein_lib::Decimal::of(number).as_bytes()]);
+                llm::Served::Host(tool)
+            });
+            hosts.chain(served.into_iter().skip(1)).collect()
+        } else {
+            served.into_boxed_slice()
+        };
+        let expected_count = prompt.served.len() + if workspace { 6 } else { 0 };
+        let (translated, _) =
+            crate::prepare_component(skein_lib::Token::new(1), prompt, outcome.clone(), deliver, receiving, &limits)
+                .expect("direct inventory");
+        assert_eq!(translated.tools.len(), expected_count);
+        if workspace {
+            assert_eq!(translated.tools[42].name.as_ref(), b"finish");
+        }
+        for tool in &translated.tools {
+            let bytes = tool
+                .schema
+                .to_bytes(&crate::limits::document_limits(&limits.client, limits.client.request))
+                .expect("schema bytes");
+            let schema: serde_json::Value = serde_json::from_slice(&bytes).expect("schema JSON");
+            let name = core::str::from_utf8(&tool.name).expect("fixture tool name");
+            assert!(schema.is_object(), "{name}");
+            assert_eq!(schema["type"], "object", "{name}");
+            for key in ["oneOf", "allOf", "anyOf"] {
+                assert!(schema.get(key).is_none(), "{name}: {key}");
+            }
+            if tool.name.starts_with(b"host_action") {
+                assert_eq!(bytes.as_ref(), expected_host);
+            }
+            if tool.name.as_ref() == b"finish" {
+                let alternatives = crate::finish_schema(&outcome, limits.client.request).expect("alternatives");
+                let bare: serde_json::Value = serde_json::from_slice(&alternatives).expect("bare schema");
+                assert_eq!(schema["properties"]["outcome"]["oneOf"], bare["oneOf"]);
+                assert_eq!(schema["required"], serde_json::json!(["outcome"]));
+                assert_eq!(schema["additionalProperties"], false);
+                let expected = skein_lib::bytes::concat(&[
+                    br#"{"type":"object","properties":{"outcome":"#,
+                    &alternatives,
+                    br#"},"required":["outcome"],"additionalProperties":false}"#,
+                ]);
+                assert_eq!(bytes, expected);
+                assert_eq!(
+                    crate::outcome_schema(&alternatives, u32::try_from(bytes.len() - 1).expect("bound")),
+                    Err(crate::Error::Limit)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn direct_translation_refuses_non_object_host_schemas() {
+    let limits = direct_limits();
+    let receiving = crate::fixture::receiving(&limits.client, 4096).expect("receiving");
+    for schema in [
+        br#"{"type":"string"}"#.as_slice(),
+        br#"{"type":"object","type":"object"}"#,
+        br#"{"oneOf":[{"type":"object"}]}"#,
+        br#"{"type":"object","anyOf":[{"type":"object"}]}"#,
+        br#"{"allOf":[{"type":"object"}]}"#,
+        b"[]",
+    ] {
+        let mut prompt = direct_prompt();
+        prompt.served = Box::new([host_tool(schema)]);
+        assert_eq!(
+            crate::prepare_component(
+                skein_lib::Token::new(1),
+                prompt,
+                crate::fixture::contract(),
+                None,
+                receiving,
+                &limits,
+            )
+            .expect_err("host schema must be refused before a request is built"),
+            crate::Error::Invalid
+        );
+    }
+}
+
+#[test]
+fn direct_finish_calls_unwrap_outcome_and_accept_bare_forms() {
+    use smith_domain::{llm, run};
+    let limits = direct_limits();
+    let contract = crate::fixture::contract();
+    let expected = llm::Decoded::Served {
+        ask: run::Ask::Finish {
+            outcome: run::outcome::Declared::Report(run::outcome::Report {
+                text: b"done".as_slice().into(),
+                fields: Box::default(),
+            }),
+        },
+    };
+    for input in [
+        br#"{"outcome":{"form":"report","text":"done"}}"#.as_slice(),
+        br#"{"form":"report","text":"done"}"#,
+        br#"{"outcome":{"form":"report","text":"done"},"note":1}"#,
+    ] {
+        assert_eq!(crate::decode_finish_call(input, &contract, &limits), expected);
+    }
+    for input in [b"{}".as_slice(), br#"{"other":1}"#] {
+        assert_eq!(
+            crate::decode_finish_call(input, &contract, &limits),
+            llm::Decoded::Invalid { problem: llm::Problem::Missing { field: b"outcome".as_slice().into() } }
+        );
+    }
+    assert_eq!(
+        crate::decode_finish_call(br#"{"outcome":"x"}"#, &contract, &limits),
+        llm::Decoded::Invalid { problem: llm::Problem::NotAnObject }
+    );
 }

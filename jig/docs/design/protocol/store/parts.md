@@ -17,7 +17,8 @@ it, and a hot part holding the rest.
   in a keyspace of their own, the rest at the live key.
 - **Goals' projections** (3): their words in rows of their own, beside
   the goal's and each plan task's phase.
-- **Jobs at open** (4) put a store's whole rows into their parts once.
+- **Jobs at open** (4) put a store's whole rows into their parts once;
+  the whole variants are gone from the schema since store-floor's F0.
 - temper's change records are temper's (temper's `protocol/store.md`,
   section 2, families 47 and 48), by the same rule.
 
@@ -144,8 +145,12 @@ record ProjectionWords { goal: u64 task: u64 words: bytes 262144 }
 
 ## 4. Jobs at open
 
-Jobs of jig's patch set (`jobs.md`, 1), declared after the jobs it holds
-when they land:
+Jobs of jig's patch set (`jobs.md`, 1) that put a store's whole rows
+into their parts once. Every store at or past dev.fabrig.ai's has run
+them, so since store-floor's F0 (temper's `draft/store-floor.md`,
+section 2) the whole variants are gone from the schema and the jobs are
+no longer declared: a store that still holds a whole row is refused by
+jig's settling job (`jobs.md`, 5.1). What they did:
 
 | Job | Walks | Writes for each row |
 |---|---|---|
@@ -184,11 +189,6 @@ when they land:
   likewise; a hot row without its cold row stops as a row that does not
   decode. The core's projections restart from their parts with the same
   cache and the same feed (`jig/tests/core`'s projections suite).
-- **The jobs,** step tests: a store holding whole rows, as a binary
-  before this one wrote them, runs each job once in pages within the
-  commit edge; afterwards no whole row remains, every record reads back
-  equal to the one written before, ended tasks, attempts and holds are as
-  they were, and a later start runs it no more.
 - **Fuzzy:** the tasks world's lifecycle and amendments suites, with
   their restart cuts, read every live task back equal after a restart;
   the store codecs' fuzzy decoders take the new variants.
@@ -197,9 +197,6 @@ when they land:
 
 ## 6. Open questions
 
-- **Retiring the whole variants** (`live`, `live_talk`, the projections'
-  `goal` and `task`) once no supported store can hold them: a later
-  binary's, after every deployment has run the jobs.
 - **A recurring task's state and a pending proposal** stay hot: each may
   hold a task's spec, and changes with its period or its decision. A
   census that shows them heavy would move them.

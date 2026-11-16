@@ -170,7 +170,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             }
             Ok(())
         }
-        Ask::Create { batch: members, .. } => batch(key, limits, members),
+        Ask::Create { batch: members, .. } | Ask::Delegate { batch: members, .. } => batch(key, limits, members),
         Ask::Propose { action, reason, .. } => {
             within(key, RestoreBound::Words, reason.len(), limits.words)?;
             match action {
@@ -230,6 +230,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         | Ask::Lift { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Leave { .. }
         | Ask::Release { .. } => Ok(()),
@@ -273,6 +274,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::Withdrawn { .. }
         | Outcome::Left { .. }
         | Outcome::Stopped { .. }
+        | Outcome::Concluded { .. }
         | Outcome::Cancelled { .. }
         | Outcome::Lifted { .. }
         | Outcome::Released { .. }
@@ -328,6 +330,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         | Refusal::Authority { .. }
         | Refusal::Limit { .. }
         | Refusal::Moved { .. }
+        | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::Taken { .. }
         | Refusal::NotWaiting

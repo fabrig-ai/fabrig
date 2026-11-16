@@ -253,15 +253,18 @@ fn run_text(from: u32, bytes: &[u8]) -> c::RunText {
     }
 }
 fn run_delivery(f: &mut f::Fixture, watch: skein_lib::Token, delivery: c::Delivery) {
+    run_delivery_at(f, watch, delivery, Time::ZERO);
+}
+fn run_delivery_at(f: &mut f::Fixture, watch: skein_lib::Token, delivery: c::Delivery, now: Time) {
     f.client.step_unlinked(
-        Time::ZERO,
+        now,
         skein_lib::Wall::EPOCH,
         Event::Up { up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) } },
         &mut Queue::with_capacity(OUTPUTS),
     );
     let handle = f.chat.run.expect("run watched");
     for told in [Told::Changed { handle }, Told::Text { handle }] {
-        assert!(f.chat.told(Time::ZERO, &f.client, told, &mut f.out));
+        assert!(f.chat.told(now, &f.client, told, &mut f.out));
     }
 }
 fn run_state(writing: Option<c::RunText>) -> c::Delivery {
@@ -1602,6 +1605,59 @@ fn a_transient_end_retries_on_activitys_waits() {
     }
 }
 #[test]
+fn the_panes_call_words_hold_for_a_monotonic_second() {
+    use crate::pages::chat::doing::What;
+    let mut f = f::opened();
+    f.chat.mode = crate::pages::chat::document::Mode::Draft;
+    f.chat.writing = true;
+    let watch = open_run(&mut f);
+    let at = Time::ZERO.saturating_add(Duration::from_secs(3));
+    let c::Delivery::RunState(mut state) = run_state(Some(run_text(0, b""))) else { panic!("run state") };
+    state.call = Some(c::CurrentCall {
+        identity: c::CallIdentity {
+            owner: skein_lib::Token::new(1),
+            sequence: 1,
+            retry: 0,
+            id: fixtures::acts::text(b"r1"),
+        },
+        tool: fixtures::acts::text(b"see"),
+        input: fixtures::acts::text(br#"{"address":"proposal t3/4"}"#),
+        cut: false,
+        began: None,
+    });
+    let call = What::Call(Box::new(state.call.clone().unwrap()));
+    run_delivery_at(&mut f, watch, c::Delivery::RunState(state.clone()), at);
+    assert_eq!(f.chat.doing().unwrap().what, &call);
+    assert_eq!(f.chat.next_deadline(), None, "a call still under way needs no hold timer");
+    for millis in [200, 400, 800] {
+        state.call = if millis == 400 {
+            let mut next = match &call {
+                What::Call(call) => call.as_ref().clone(),
+                What::Thinking | What::Writing => unreachable!(),
+            };
+            next.identity.sequence = 2;
+            next.tool = fixtures::acts::text(b"other");
+            Some(next)
+        } else {
+            None
+        };
+        run_delivery_at(
+            &mut f,
+            watch,
+            c::Delivery::RunState(state.clone()),
+            at.saturating_add(Duration::from_millis(millis)),
+        );
+        assert_eq!(f.chat.doing().unwrap().what, &call, "the fast call stays visible");
+        assert_eq!(f.chat.next_deadline(), Some(at.saturating_add(Duration::from_secs(1))));
+    }
+    f.chat.fire(at.saturating_add(Duration::from_millis(999)), &mut f.out);
+    assert_eq!(f.chat.doing().unwrap().what, &call);
+    f.chat.fire(at.saturating_add(Duration::from_secs(1)), &mut f.out);
+    assert_eq!(f.chat.doing().unwrap().what, &What::Thinking);
+    assert_eq!(f.chat.next_deadline(), None);
+}
+
+#[test]
 fn off_a_call_to_note_reads_again() {
     let mut f = f::opened();
     let watch = open_run(&mut f);
@@ -2191,6 +2247,9 @@ fn add_draft_sends_once_and_keeps_the_chosen_pane() {
         }
         assert_eq!(f.chat.mode, expected);
         assert!(f.chat.writing);
+        let doing = f.chat.doing().expect("the press shows thinking before a run state arrives");
+        assert_eq!(*doing.what, crate::pages::chat::doing::What::Thinking);
+        assert_eq!(doing.since, fixtures::env(&draft_limits()).wall);
         assert_eq!(f.chat.words.as_ref(), b"Unsent words");
         let sent = fixtures::acts::sent(&mut f.out);
         let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
@@ -2223,6 +2282,7 @@ fn a_refused_add_keeps_the_pane_and_its_words() {
     f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: refused.clone() }, &mut f.out);
     assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Draft);
     assert!(!f.chat.writing);
+    assert!(f.chat.doing().is_none(), "a refused press leaves no live words");
     assert_eq!(f.chat.words.as_ref(), b"Unsent words");
     assert_eq!(f.chat.outcome, Some(refused));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));

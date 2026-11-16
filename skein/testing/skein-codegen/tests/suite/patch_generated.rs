@@ -337,6 +337,76 @@ mod tests {
         }
     }
     #[test]
+    fn wire_layout_tables_hold_only_spoken_versions_and_current_checks_their_bytes() {
+        use skein_codec::bridge::{Bridge, layouts};
+        use skein_codec::patch::{Build, Capacity, Halt, Old, Site};
+        use skein_codec::value::Node;
+
+        fn no_site(site: Site, _old: &Old, _new: &mut Build, _at: Node) -> Result<(), Halt> {
+            Err(Halt::NoSite(site))
+        }
+
+        const TEXTS: [&str; 3] = [
+            "family w 1\nrecord R { id: u8 }\n",
+            "family w 2\nrecord R { tag: u8 }\n",
+            "family w 3\nrecord R { value: u8 }\n",
+        ];
+        const PATCHES: [&str; 2] = [
+            "patch 1\nowner sample 1\n\nfamily w 1 to 2\nrename R.id tag\n",
+            "patch 1\nowner sample 2\n\nfamily w 2 to 3\nrename R.tag value\n",
+        ];
+        let root = scratch("wire-layout-tables");
+        for (version, text) in (1_u16..=3).zip(TEXTS) {
+            put(&root, &format!("schema/kept/w-v{version}.schema"), text);
+        }
+        put(&root, "schema/w.schema", TEXTS.last().expect("current text"));
+        for (number, patch) in (1_u32..=2).zip(PATCHES) {
+            put(&root, &format!("patches/{number:04}.patch"), patch);
+        }
+        for (wire, floor, count) in [("w 2\n", 2, 2), ("w build\n", 3, 1)] {
+            put(&root, "schema/wires", wire);
+            let generated = module::module(&root).expect("wire module");
+            let table = generated
+                .split_once("pub const LAYOUTS: &[[u8; 32]] = &[")
+                .expect("layout table")
+                .1
+                .split_once("        ];")
+                .expect("table end")
+                .0;
+            let bytes = table
+                .split("0x")
+                .skip(1)
+                .map(|byte| u8::from_str_radix(byte.get(..2).expect("hex byte"), 16).expect("hex byte"))
+                .collect::<Vec<_>>();
+            let emitted =
+                bytes.chunks(32).map(|bytes| <[u8; 32]>::try_from(bytes).expect("digest")).collect::<Vec<_>>();
+            assert_eq!(emitted.len(), count);
+            assert_eq!(emitted.as_slice(), layouts(&TEXTS, floor).expect("parsed layouts").as_slice());
+            let bridge = Bridge::new(
+                Capacity { versions: 3, patches: 4, text: 4096, bytes: 32, nodes: 16 },
+                &TEXTS,
+                &PATCHES,
+                floor,
+                no_site,
+            )
+            .expect("kept bridge");
+            for (version, digest) in (floor..=3).zip(&emitted) {
+                let schema = schema::parse(TEXTS.get(usize::from(version - 1)).expect("version text").as_bytes())
+                    .expect("kept schema");
+                assert_eq!(*digest, schema.fingerprints().family().digest());
+                assert_eq!(Some(*digest), bridge.layout(version));
+            }
+            put(&root, "patches/mod.rs", &generated);
+            assert_eq!(module::current(&root), Ok(()));
+            let byte = bytes.first().expect("first layout byte");
+            let changed = generated.replacen(&format!("0x{byte:02x}"), &format!("0x{:02x}", byte ^ 1), 1);
+            put(&root, "patches/mod.rs", &changed);
+            assert_eq!(module::current(&root), Err(Error::Stale));
+        }
+        fs::remove_dir_all(root).expect("remove fixture");
+    }
+
+    #[test]
     fn wire_module_holds_the_floor_factory_and_default_sites() {
         let root = scratch("wire-floor-module");
         put(&root, "schema/w-v2.schema", "family w 2\nrecord R {}\n");

@@ -1,0 +1,19 @@
+[package]
+name = "temper-client-tools-jig"
+description = "Jig's part of the agent tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-json.workspace = true
+skein-ui.workspace = true
+jig-client.workspace = true
+jig-client-protocol-wire.workspace = true
+settings-form.workspace = true
+
+[lints]
+workspace = true

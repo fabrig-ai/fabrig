@@ -388,9 +388,10 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 5's room (337,286) less 1,472
-    // bytes for 64 titles and framing and 195 margin; below 395,520.
-    brief_bytes: 335_619,
+    // tests/stock_brief.rs derives charter 5's room (337,300). This brief plus
+    // 1,472 bytes for 64 titles and framing leaves 829, above the 195 margin;
+    // keep the conservative cap below 395,520.
+    brief_bytes: 334_999,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
@@ -410,8 +411,8 @@ const STANDARD_ROOT: Root = Root {
         // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
         // + 22 executor places * 8 bytes per AuthorityExecutor
         // + 8 bytes for the question wake watermark
-        // + 56 bytes for Option<OpenAttempt> = 22,467,904.
-        transcript_bytes: 22_467_904,
+        // + 56 bytes for Option<OpenAttempt> and 24 for Option<Concluded> = 22,467,928.
+        transcript_bytes: 22_467_928,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

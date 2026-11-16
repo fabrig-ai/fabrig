@@ -37,19 +37,29 @@ them is its own (temper's `protocol/wires.md`).
 - **jig's four, from their crates' floors:** `jig-worker-wire`,
   `smith-pieces`, `smith-charter` and `smith-transcript`, each a
   `Spoken` whose `lowest` is its crate's generated
-  `kept::<family>::FLOOR` and whose `layouts` are its kept texts'
-  fingerprints from the floor (skein's `data/codec/bridges.md`, 5.1,
-  `layouts`):
+  `kept::<family>::FLOOR` and whose `layouts` are its crate's generated
+  `kept::<family>::LAYOUTS`, its kept texts' fingerprints from the
+  floor, computed when the module is generated (skein's
+  `data/codec/bridges.md`, 6):
 
   ```rust
   // jig_protocol_worker_wire
   impl Spoken {
+      /// A range from a generated table: `lowest` is `floor`, `layouts` a copy of `layouts`.
+      #[must_use]
+      pub fn kept(name: &'static str, floor: u16, layouts: &[[u8; 32]]) -> Spoken;
+      /// A range from texts parsed now (skein's `data/codec/bridges.md`, 5.1, `layouts`).
       pub fn of(name: &'static str, texts: &[&str], floor: u16) -> Result<Spoken, BridgeError>;
   }
   ```
 
-  `spoken()` builds the four so; `Spoken::current` stays for a wire
-  that speaks one version.
+  `spoken()` builds the four with `kept`, parsing no text, so a service
+  and each of its parts take it as often as they read it: a table made
+  when its module is generated is built before any service starts, and
+  copying it builds nothing (temper's `testing/checks.md`, 1). `wire::layout()`, the current
+  text's fingerprint, is the last of `jig-worker-wire`'s `LAYOUTS`.
+  `Spoken::of` stays for a range a test or a world makes from its own
+  texts, and `Spoken::current` for a wire that speaks one version.
 - **`smith-pieces` in place of `smith-channel`:** the pieces of smith's
   channel the engine keeps or sees, a call's name and a delivery's
   evidence, are a family of their own (smith's `protocol/README.md`,
@@ -112,6 +122,37 @@ them is its own (temper's `protocol/wires.md`).
   `most_bytes_within(record, LIMIT_NAMES, limits.values())` (skein's
   `data/codec/README.md`, 7.3). So a field the older version lacks counts
   nothing, and a body that fits once translated fits its terms.
+- **Built once per service, from the floor's texts:** `kinds::schema`
+  parses each kept text from the floor to the current once, and none
+  below the floor, which no table lists. Since the bounds come from the
+  side's limits, the table is its service's: each service builds it
+  once and every part that reads it takes that one (temper's
+  `testing/checks.md`, 1). The engine's workers host builds it with
+  `schema_and_spoken` and makes its component with
+  `Component::with_schema`; a worker builds it where it checks its
+  link's limits (`limits::valid_with_schema`) and makes its link from
+  it:
+
+  ```rust
+  // jig_protocol_worker_link
+  impl Component {
+      /// A link reading the full table its service prepared: `kinds::schema`
+      /// over its limits' sizes. `new` builds that table and calls this.
+      pub fn with_schema(
+          limits: &Limits,
+          jig: List<Spoken>,
+          credential: Credential,
+          seed: u64,
+          full_schema: skein_channel::Schema,
+      ) -> Result<Component, Unusable>;
+  }
+  ```
+
+  As at the engine, it checks the table with `valid_with_schema` and
+  selects the stated range of `jig-worker-wire` with
+  `schema_for_prepared`, refusing with `Limits` where either fails, as
+  `new` does; it parses nothing. `schema_and_spoken` gives the table
+  with `spoken()`.
 - **Stated and checked at the agreed version,** as today (`wires.md`, 5):
   skein's opening states the agreed version's received kinds, and
   `terms_gap` checks the peer's against the agreed version's sent kinds.
@@ -354,7 +395,17 @@ across versions is the application's (temper's `protocol/wires.md`, 11).
 - **The wire crate:** each version's kinds' table from its kept text, its
   bounds by `most_bytes_within`; the credential laid out alike from the
   floor; the running attempt's kinds total from the floor (6.2);
-  `smith-pieces`' floor its current; `Spoken::of` for jig's four.
+  `smith-pieces`' floor its current; `Spoken::of` for jig's four;
+  `spoken()`, made from the generated tables, equal to the ranges
+  `Spoken::of` makes from each crate's kept texts and floor, the drift
+  test against the parsed schemas; `wire::layout()` equal to the
+  current text's fingerprint; the table from the floor's texts holding
+  each version from the floor, with the kinds and bounds each held when
+  every kept text was parsed.
+- **The link from a prepared table** (4): a link made by `with_schema`
+  from the table `new` would build opening and translating as `new`'s;
+  a table `valid_with_schema` refuses, and one without the stated range
+  of `jig-worker-wire`, refused with `Limits`.
 - **The opening,** at both components, with a worker whose bridges speak
   the floor and the engine's the current: accepted, the statement sent
   first and kept; a worker stating one version of every wire on a

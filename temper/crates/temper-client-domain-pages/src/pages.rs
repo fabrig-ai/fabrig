@@ -1216,6 +1216,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::Project { project } } => {
             choose_project(pages, client, project);
+            #[expect(clippy::match_same_arms, reason = "AllHome's project choice shows Home, as Home's does")]
             match &pages.address {
                 Address::Work { filter, .. } => {
                     out.push(Request::Show { address: Address::Work { project, filter: *filter } });
@@ -1234,9 +1235,16 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
                 Address::Ask { .. } => out.push(Request::Show { address: Address::Ask { project } }),
                 Address::Tell { .. } => out.push(Request::Show { address: Address::Tell { project } }),
-                Address::AllHome
-                | Address::Inbox { .. }
-                | Address::Chats { .. }
+                Address::AllHome => out.push(Request::Show { address: Address::Home { project } }),
+                Address::Inbox { filter } => {
+                    let goal = if filter.project == Some(project) { filter.goal } else { None };
+                    out.push(Request::Show {
+                        address: Address::Inbox {
+                            filter: crate::address::Filter { project: Some(project), kind: filter.kind, goal },
+                        },
+                    });
+                }
+                Address::Chats { .. }
                 | Address::NewChat { .. }
                 | Address::Told
                 | Address::Remembered
@@ -1638,8 +1646,10 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     if let Some(chats) = &mut pages.chats {
         chats.fire(env.now, out);
     }
-    if let Some(chat) = &mut pages.chat {
-        chat.fire(env.now, out);
+    if let Some(chat) = &mut pages.chat
+        && chat.fire(env.now, out)
+    {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
     if let Some(task) = &mut pages.task {
         task.fire(env.now, out);

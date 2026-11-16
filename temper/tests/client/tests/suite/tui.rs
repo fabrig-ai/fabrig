@@ -16,7 +16,7 @@ const TUI: ClientId = ClientId(1_000);
 const ELSEWHERE: ClientId = ClientId(1_001);
 const SECOND_TUI: ClientId = ClientId(1_002);
 const SIGN_OUT: Token = Token::new(1);
-const CONNECTED: &str = "Project 1 ·";
+const CONNECTED: &str = " · Project 1";
 const SIGN_IN: &str = "Sign in this terminal to 127.0.0.1:8367";
 // Walking's one seeded project is party 1's project in `me`.
 const PROJECTS: &str = "/ for commands";
@@ -80,7 +80,7 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     let text = tui.text();
     assert!(text.contains(CONNECTED), "{text}");
     assert!(text.contains(PROJECTS), "{text}");
-    assert!(tui.status().ends_with("● Live"), "status={:?}; frame={text}", tui.status());
+    assert!(tui.status().starts_with("● Live"), "status={:?}; frame={text}", tui.status());
     assert_eq!(tui.opens.len(), 1, "the take opens no second tab");
 }
 
@@ -116,13 +116,13 @@ fn a_tui_signed_in_by_its_pasted_link_draws_me() {
     let mut world = fixtures::tui_world(fixtures::SEED);
     let mut tui = Tui::start(&mut world, TUI, None);
     assert!(tui.text().contains(SIGN_IN), "{}", tui.text());
-    assert!(tui.status().ends_with("● Signed out"), "status={:?}; frame={}", tui.status(), tui.text());
+    assert!(tui.status().starts_with("● Signed out"), "status={:?}; frame={}", tui.status(), tui.text());
     tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
     assert!(text.contains(CONNECTED), "{text}");
     assert!(text.contains(PROJECTS), "{text}");
-    assert!(tui.status().ends_with("● Live"), "status={:?}; frame={}", tui.status(), tui.text());
+    assert!(tui.status().starts_with("● Live"), "status={:?}; frame={}", tui.status(), tui.text());
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
     assert!(tui.credential().is_some());
     assert_eq!(tui.address.as_deref(), Some(ADDRESS));
@@ -184,7 +184,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     let text = tui.text();
     assert_said_before_answer(&mut tui, QUESTION, ANSWER);
     assert!(!text.contains("✦ Working"), "the run has ended: {text}");
-    assert!(tui.status().starts_with("Project 1 · "), "{text}");
+    assert!(tui.status().starts_with("● Live · Project 1 · "), "{text}");
     assert!(text.contains("● Live"), "{text}");
     assert!(!world.front().release_reply(), "no reply remains held after commit");
 
@@ -674,7 +674,7 @@ fn a_tui_in_front_signs_in_by_its_handed_link_and_ticks_the_browsers_sign_in() {
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.credential().is_some(), "the handed link keeps a credential");
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
-    assert!(tui.status().ends_with("● Live"));
+    assert!(tui.status().starts_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.sign_in_sends, 1);
     assert_eq!(tui.approval_asks, 0);
@@ -790,7 +790,7 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.text().contains(CONNECTED));
     assert!(tui.text().contains(PROJECTS));
-    assert!(tui.status().ends_with("● Live"));
+    assert!(tui.status().starts_with("● Live"));
     assert!(tui.credential().is_some(), "the file's sign-in keeps a credential");
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
     assert_eq!(tui.reads, 1);
@@ -846,7 +846,7 @@ fn a_tui_from_the_file_and_a_browser_by_the_printed_link_sign_in_in_either_order
             assert_eq!(host.keeps.len(), CREDENTIAL_WRITES, "{row}");
             assert!(host.text().contains(CONNECTED), "{row}: the launchpad is connected");
             assert!(host.text().contains(PROJECTS), "{row}: the launchpad draws its commands");
-            assert!(host.status().ends_with("● Live"), "{row}: each host is live");
+            assert!(host.status().starts_with("● Live"), "{row}: each host is live");
             if who != ELSEWHERE {
                 assert!(
                     world.front().local_link().is_some_and(|next| next != link),
@@ -908,7 +908,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert!(tui.credential().is_some());
     assert!(tui.text().contains(CONNECTED));
     assert!(tui.text().contains(PROJECTS));
-    assert!(tui.status().ends_with("● Live"));
+    assert!(tui.status().starts_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.approval_asks, 0);
     assert_eq!(tui.opens.len(), 0);
@@ -931,12 +931,12 @@ fn the_engine_restarted_under_a_tui_goes_offline_then_live_and_keeps_me() {
         assert!(text.contains(CONNECTED), "{text}");
         assert!(text.contains(PROJECTS), "{text}");
         let status = tui.status();
-        offline |= status.ends_with("● Offline");
-        live_after |= offline && status.ends_with("● Live");
+        offline |= status.starts_with("● Offline");
+        live_after |= offline && status.starts_with("● Live");
     }
     assert!(offline, "the TUI must observe the engine's outage");
     assert!(live_after, "the TUI must reconnect after observing Offline");
-    assert!(tui.status().ends_with("● Live"), "status={:?}; frame={}", tui.status(), tui.text());
+    assert!(tui.status().starts_with("● Live"), "status={:?}; frame={}", tui.status(), tui.text());
     assert_eq!(tui.keeps, vec![Some(credential)]);
 }
 
@@ -964,7 +964,7 @@ fn a_tui_signed_out_elsewhere_asks_for_a_link_with_its_token_erased() {
     let text = tui.text();
     assert!(text.contains("Signed out."), "{text}");
     assert!(text.contains(SIGN_IN), "{text}");
-    assert!(tui.status().ends_with("● Signed out"), "status={:?}; frame={}", tui.status(), tui.text());
+    assert!(tui.status().starts_with("● Signed out"), "status={:?}; frame={}", tui.status(), tui.text());
     assert_eq!(tui.keeps, vec![Some(credential), None]);
     assert!(tui.credential().is_none());
     assert_eq!(tui.notes.last(), Some(&Note::SignedOut));
@@ -983,7 +983,7 @@ fn a_tui_signed_out_elsewhere_asks_for_a_link_with_its_token_erased() {
     restarted.press(&mut world, vec![Key::Paste(fresh), Key::Enter]);
     restarted.run(&mut world, fixtures::WITHIN);
     assert!(restarted.credential().is_some());
-    assert!(restarted.status().ends_with("● Live"));
+    assert!(restarted.status().starts_with("● Live"));
     assert!(matches!(restarted.notes.last(), Some(Note::Until(_))));
     assert_eq!(restarted.reads, 0, "the paste alone signs the fresh host in");
 }

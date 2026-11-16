@@ -553,7 +553,7 @@ of the sign-in (jig's `domain/terminal-login.md`, 6).
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask temper
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · playground                            Scripted model · ● Live
+ ● Live · Hello · Scripted model                                     playground
 ```
 
 - **Where:** wherever the TUI's project, the launchpad's or the open
@@ -644,7 +644,7 @@ Stop the box? csv-export's running task stops with it.
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask temper
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
+ ● Live · Hello · Claude Opus 5.5 · high                   forgejo-3 restarting
 ```
 
 - **The box's state,** on the quiet line, first at its right (`pages/README.md`, 1, *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line

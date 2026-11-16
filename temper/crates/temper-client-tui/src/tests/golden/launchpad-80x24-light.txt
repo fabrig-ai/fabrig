@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Hello · Claude Opus 5.5 · high · ● Live                1 needs you · n to walk
+ ● Live · Hello · Claude Opus 5.5 · high                1 needs you · n to walk
 --
 ................................................................................
 ..abbb...cccccc.................................................................
@@ -46,7 +46,7 @@
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 ffgggggggggggggggggggggggggggggggggggggggggggggggg..............................
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
-.eeeeegggeeeeeeeeeeeeeeeeeeeeeeggghhhhhh................fffffffffffgggeeeeeeeee.
+.hhhhhhgggeeeeegggeeeeeeeeeeeeeeeeeeeeee................fffffffffffgggeeeeeeeee.
 --
 a: fore #1B76FD
 b: fore #00C4FE

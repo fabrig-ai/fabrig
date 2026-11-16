@@ -19,7 +19,7 @@
   - `jig-domain-tasks/src/compound/staged.rs`, `jig-domain-tasks/src/run.rs`, `jig-domain-tasks/src/waits.rs`,
     `jig-domain-tasks/src/close_project.rs`;
   - `jig-client-view/src/tree/sections/task.rs`, `jig-client-view/src/tree/pages/not_the_work.rs`,
-    `jig-client-view/src/state/ui.rs`, `jig-client-view/src/words/phrases/english.rs`;
+    `jig-client-view/src/state/ui.rs`, `jig-client-view-words/src/words/phrases/english.rs`;
   - `jig-protocol-store/src/restore/reader.rs`, `jig-protocol-store/src/codec/settings.rs`,
     `jig-protocol-store/src/reads/indexed.rs`, `jig-protocol-store/src/directory.rs`,
     `jig-protocol-store/src/patching/phase.rs`, `jig-protocol-store/src/patching/phase/walking.rs`,

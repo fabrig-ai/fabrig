@@ -50,6 +50,7 @@ fn counts() -> ImpactCounts {
 }
 pub(in crate::tests) fn task() -> Task {
     Task {
+        concluded: None,
         talk: None,
         session: None,
         dependency_facts: List::with_capacity(0),

@@ -85,7 +85,13 @@ fn procedure() -> Harness {
 }
 
 fn admission(h: &mut Harness, creator: Party, member: crate::New) -> Option<crate::Refusal> {
-    let out = h.send(Event::Make { reply_to: super::revisions::to(), creator, batch: Box::new([member]) });
+    let out = h.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: super::revisions::to(),
+        creator,
+        batch: Box::new([member]),
+    });
     for request in out {
         if let Request::Refused { problem, .. } = request {
             return Some(problem.why);

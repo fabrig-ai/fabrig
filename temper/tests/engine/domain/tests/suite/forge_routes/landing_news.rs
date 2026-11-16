@@ -142,8 +142,7 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
     assert!(matches!(source.as_ref(), tasks::HoldSource::Account { words, .. } if words.as_ref() == why.as_bytes()));
 }
 
-#[test]
-fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs() {
+fn candidate_repair() -> (World, u64, engine::Assignment) {
     let (mut world, _, change) = produced_goal_with_checks(0);
     for _ in 0..1200 {
         world.prepare_tick();
@@ -168,9 +167,16 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
                     .map(|run| task_row(&world, run.task).map(|row| &row.spec.words))
                     .collect::<Vec<_>>()
             )
-        });
+        })
+        .clone();
+    (world, change, repair)
+}
+
+#[test]
+fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs() {
+    let (world, change, repair) = candidate_repair();
     assert!(live_task(&world, repair.task).spec.words.starts_with(b"Repair landing gate 0 at "));
-    let context = std::str::from_utf8(ci_words(repair)).expect("failure context");
+    let context = std::str::from_utf8(ci_words(&repair)).expect("failure context");
     for words in
         ["Gate: gate", "Run: ", "Candidate: ", "Base: ", "Failed job: test", "Failed step: ", "End of its log:"]
     {
@@ -184,6 +190,87 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
     assert!(
         matches!(&repair.workspace.repositories[0].start, engine::ForgeStart::Branch(branch) if *branch == row.branch)
     );
+}
+
+#[test]
+fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_job_pin() {
+    use super::super::change_tool::named_read;
+    let (mut world, change, repair) = candidate_repair();
+    let row = super::super::light_rules::change_row(&world, change);
+    let head = row.change.last_head.expect("change head");
+    let (_, temper_engine_domain_forge_change::Delegate::Repair(why)) = row.delegate.expect("repair") else {
+        panic!("repair delegate")
+    };
+    let temper_engine_domain_forge_change::Repair::LandingAt { candidate, .. } = why else {
+        panic!("candidate repair")
+    };
+    let failure = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::Receipt { receipt, .. } if receipt.candidate == candidate && !receipt.passed => {
+                    Some(receipt.clone())
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("receipt");
+    assert_ne!(head, failure.candidate);
+    let job = failure.jobs.first().expect("failed job");
+    let expected_pin = format!(
+        "read_job head {} run {} job {} attempt {}",
+        hex(&failure.candidate),
+        failure.run.id,
+        job.job,
+        job.attempt
+    );
+    let expected_status = format!("temper/gate/{}: failed", String::from_utf8_lossy(&job.name));
+    let tasks::Party::Task(goal) = live_task(&world, change).requester else { panic!("goal") };
+    let chat = world.assigned.iter().rev().find(|run| run.task == goal).expect("goal run").clone();
+    for (index, commit) in [head, failure.candidate].into_iter().enumerate() {
+        let raw_head = u64::from_be_bytes(commit[8..16].try_into().unwrap());
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Status {
+                commit: raw_head,
+                context: b"own-check".as_slice().into(),
+                state: raw::Check::Passed,
+                description: Box::new([]),
+                link: Box::new([]),
+            }),
+        );
+        let input = format!(r#"{{"commit":"{}"}}"#, hex(&commit));
+        let own = named_read(&mut world, &chat, 500 + u32::try_from(index).unwrap(), b"read_checks", input.as_bytes());
+        let engine::CallAnswer::ForgeRead(ref own_result) = own else { panic!("forge checks") };
+        let Ok(skein_forge::api::Answer::Checks(ref own_statuses)) = **own_result else { panic!("checks") };
+        let checks =
+            named_read(&mut world, &repair, 600 + u32::try_from(index).unwrap(), b"read_checks", input.as_bytes());
+        let engine::CallAnswer::ForgeRead(ref result) = checks else { panic!("forge checks") };
+        let Ok(skein_forge::api::Answer::Checks(ref statuses)) = **result else { panic!("checks") };
+        assert!(!own_statuses.is_empty(), "the forge has the commit's own checks");
+        assert_eq!(&statuses[..own_statuses.len()], own_statuses.as_ref());
+        assert_eq!(statuses.len(), own_statuses.len() + failure.jobs.len());
+        let rendered = temper_engine_smith::answer(&checks);
+        let text = std::str::from_utf8(rendered.text()).expect("checks text");
+        assert!(text.contains(&expected_status), "{text}");
+        assert!(text.contains(std::str::from_utf8(&failure.run.url).unwrap()), "{text}");
+        let pin = text.lines().find(|line| *line == expected_pin).expect("candidate job pin");
+        let fields: Vec<_> = pin.split_ascii_whitespace().collect();
+        let input =
+            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+        let answer =
+            named_read(&mut world, &repair, 510 + u32::try_from(index).unwrap(), b"read_job", input.as_bytes());
+        let rendered = temper_engine_smith::answer(&answer);
+        assert!(!rendered.error(), "{answer:?}");
+        assert!(rendered.text().ends_with(b"failing check test 3\n"), "{}", String::from_utf8_lossy(rendered.text()));
+    }
+    let other = format!(r#"{{"commit":"{}"}}"#, hex(&failure.base.expect("round base")));
+    let ordinary = named_read(&mut world, &chat, 520, b"read_checks", other.as_bytes());
+    let repair_checks = named_read(&mut world, &repair, 620, b"read_checks", other.as_bytes());
+    assert_eq!(repair_checks, ordinary, "another commit gets only forge checks");
 }
 
 #[test]
@@ -223,6 +310,9 @@ fn every_batched_members_goal_hears_joined_with_its_ordered_peers() {
 }
 
 fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
+    joined_batch_with_tests(false)
+}
+fn joined_batch_with_tests(by_test: bool) -> (World, engine::Assignment, Vec<u64>) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -230,7 +320,14 @@ fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
         1000,
         Gate::default(),
         None,
-        StoryLimits { turn: true, landing_members: Some(0), batch: Some(3), ..StoryLimits::default() },
+        StoryLimits {
+            turn: true,
+            landing_members: Some(0),
+            batch: Some(3),
+            dispatch_by_test: by_test,
+            dispatch_tests: by_test.then_some(b"failures".as_slice()),
+            ..StoryLimits::default()
+        },
     );
     world.adopt();
     world.send(protocol::hello_with(
@@ -248,7 +345,7 @@ fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
     );
     let goal = assigned_chat(&mut world, 92, ask);
     for call in [94, 95, 96] {
-        changes.push(ready_goal_change(&mut world, &goal, call));
+        changes.push(ready_goal_change_with_failure(&mut world, &goal, call, by_test && call == 96));
     }
     for _ in 0..600 {
         world.tick();
@@ -271,9 +368,9 @@ fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
     (world, goal, changes)
 }
 
-fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) -> u64 {
+fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, call: u64, red: bool) -> u64 {
     let mut authority = live_task(world, goal.task).authority.clone();
-    authority.delegation.tasks = 1;
+    authority.delegation.tasks = if red { 2 } else { 1 };
     authority.delegation.depth = 1;
     authority.budget.spend = 20;
     let delegate = engine::Delegate {
@@ -319,6 +416,10 @@ fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) ->
         .expect("producer")
         .clone();
     push_change(world, &producer, b"org/repo");
+    if red {
+        let branch = super::light_rules::change_row(world, change).branch.clone();
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"failures", b"a\n", 1).expect("red top");
+    }
     finish_producer(world, &producer, forge_world::REPO);
     for _ in 0..100 {
         world.tick();
@@ -468,6 +569,62 @@ fn batch_goals_hear_member_leaves_and_each_members_landing_hold() {
                 panic!("landing report")
             };
             assert!(String::from_utf8_lossy(words).contains(&format!("change {} left: {why}", changes[1])));
+        }
+    }
+}
+
+#[test]
+fn a_blamed_top_by_test_briefs_both_sentences_before_and_after_restart() {
+    for restart in [false, true] {
+        let (mut world, _, changes) = joined_batch_with_tests(true);
+        let change = changes[2];
+        world.send(hello_prepare(2));
+        let mut boundary = false;
+        for _ in 0..2400 {
+            world.tick();
+            if matches!(
+                super::light_rules::change_row(&world, change).change.state,
+                temper_engine_domain_forge_change::State::Repairing {
+                    why: temper_engine_domain_forge_change::Repair::LandingAt { below: Some(_), .. },
+                    ..
+                }
+            ) {
+                boundary = true;
+                break;
+            }
+        }
+        assert!(
+            boundary,
+            "a selected search blames the top: {:?}; landings {:?}",
+            super::light_rules::change_row(&world, change).change.state,
+            landing_rows(&world)
+        );
+        if restart {
+            world.drain_cut();
+            world.restart_same();
+            world.send(hello_prepare(2));
+        }
+        for _ in 0..1200 {
+            if world.assigned.iter().any(|run| {
+                task_row(&world, run.task).is_some_and(|row| row.spec.words.starts_with(b"Repair landing gate 0 at "))
+            }) {
+                break;
+            }
+            world.tick();
+        }
+        let repair = world
+            .assigned
+            .iter()
+            .find(|run| {
+                task_row(&world, run.task).is_some_and(|row| row.spec.words.starts_with(b"Repair landing gate 0 at "))
+            })
+            .expect("repair assigned");
+        let words = String::from_utf8_lossy(&live_task(&world, repair.task).spec.words);
+        assert!(words.contains("Repair the failed landing gate. Its failing tests passed at"), "{words}");
+        assert!(words.contains(" They passed at every probed prefix below it: they may fail only with this change's unit on the others, or be flaky."), "{words}");
+        let context = String::from_utf8_lossy(ci_words(repair));
+        for word in ["Candidate: ", "Base: ", "Run: ", "Failed job: ", "Failed step: "] {
+            assert!(context.contains(word), "{word}: {context}");
         }
     }
 }

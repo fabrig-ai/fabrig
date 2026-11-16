@@ -127,7 +127,6 @@ pub fn is_update(key: &Key) -> bool {
             | tasks::Key::Pool(_)
             | tasks::Key::PersonProposal(_)
             | tasks::Key::History { .. }
-            | tasks::Key::Milestone { .. }
             | tasks::Key::Attempt { .. }
             | tasks::Key::Hold { .. }
             | tasks::Key::Activity { .. }
@@ -161,7 +160,6 @@ pub fn ended_delegate_row(
             | tasks::Stored::Update(_)
             | tasks::Stored::Result(_)
             | tasks::Stored::Activity(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::PersonProposal(_)

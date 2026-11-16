@@ -18,7 +18,7 @@ const TICK: Duration = Duration::from_nanos(1);
 const BEFORE_GRACE: Duration = Duration::from_nanos(4_999_999_999);
 const WAKE: u8 = 87;
 const AFTER_SECOND: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
-    sets: &[jig_protocol_store::PatchSet { patches: fresh_windows::MARKS, ..AFTER.sets[0] }],
+    sets: &[jig_protocol_store::PatchSet { level: Some(2), patches: fresh_windows::MARKS, ..AFTER.sets[0] }],
 };
 
 fn live_resumed() -> (World, u64, u64) {

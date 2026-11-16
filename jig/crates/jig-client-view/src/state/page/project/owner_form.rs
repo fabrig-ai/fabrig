@@ -32,6 +32,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -41,6 +42,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }
@@ -228,6 +230,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -237,6 +240,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }
@@ -285,6 +289,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }
             | Ask::Create { .. }
+            | Ask::Delegate { .. }
             | Ask::Compound { .. }
             | Ask::Answer { .. }
             | Ask::Take { .. }
@@ -294,6 +299,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }
+            | Ask::Conclude { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }
@@ -348,6 +354,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -357,6 +364,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }

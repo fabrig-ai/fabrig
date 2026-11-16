@@ -6,6 +6,8 @@ use crate::Verdict;
 
 /// A forge object id: 32 bytes, a SHA-1 one padded.
 pub type Commit = [u8; 32];
+/// A failing case (domain/landing-search-by-test.md, 10).
+pub type TestId = Box<[u8]>;
 /// A gate's key (domain/landing.md, 6.1).
 pub type Key = [u8; 32];
 /// Bound of a branch-name-safe gate or after-landing tier name.
@@ -32,6 +34,15 @@ pub struct Gate {
     pub blocking: bool,
     /// Include the round’s base in the key and dispatch inputs.
     pub base: bool,
+    pub report: Option<GateReport>,
+}
+
+/// A failed gate's report and fuzzy case-name prefix (domain/landing.md, 13.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct GateReport {
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub fuzzy: Option<Box<[u8]>>,
 }
 
 /// The project's landing settings needed by the policy.
@@ -92,6 +103,8 @@ pub enum Posted {
     Nothing,
     Pending,
     Verdict,
+    /// A probe by test posts only a failed receipt, including after its verdict.
+    ByTest,
 }
 
 /// One gate's proof and posting, owned by the top.
@@ -153,6 +166,7 @@ pub enum Leave {
 pub struct Landing {
     /// Last member to leave, in stack order within a decision (landing-history.md, 3.3).
     pub last_left: Option<u16>,
+    pub searched: Option<Searched>,
     pub task: u64,
     pub project: u32,
     pub phase: Phase,
@@ -184,10 +198,33 @@ pub struct Round {
     pub search: Option<Search>,
 }
 /// Observed unit boundaries, numbered by members from 1; 0 is the base.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Search {
     pub green: u16,
     pub red: u16,
+    pub tests: SearchTests,
+}
+
+/// How this round probes (domain/landing-search-by-test.md, 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum SearchTests {
+    Whole,
+    ByTest { gates: Box<[Option<Box<[TestId]>>]>, probed: Box<[Probed]> },
+    WholeAgain,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Probed {
+    pub member: u16,
+    pub gate: u16,
+    pub run: u64,
+    pub passed: bool,
+}
+/// Search context kept until the next round opens (domain/landing-search-by-test.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Searched {
+    pub red: Commit,
+    pub green: Option<Commit>,
+    pub changes: Box<[u64]>,
 }
 
 impl Round {
@@ -279,6 +316,7 @@ pub struct MemberFacts {
     pub merge: Status,
     pub merged: Option<Commit>,
     pub gates: Box<[GateFacts]>,
+    pub failed: Box<[Option<Box<[TestId]>>]>,
     /// The base already contains the head.
     pub contained: Status,
     pub candidate: Option<(Commit, Combine)>,
@@ -400,4 +438,5 @@ pub struct Limits {
     pub members: u32,
     pub gates: u32,
     pub poll: Duration,
+    pub tests_bytes: u32,
 }

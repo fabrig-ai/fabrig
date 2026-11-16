@@ -1,6 +1,7 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
 //! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/chat/conversation.md, 2).
 pub mod document;
+pub mod doing;
 mod request;
 pub mod sheet;
 mod talking;
@@ -18,6 +19,13 @@ use jig_client::{
     },
 };
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
+
+fn writing_tool(text: Option<&c::RunText>) -> Option<c::Text> {
+    Some(text?.writing.as_ref()?.tool.clone())
+}
+fn run_began(text: Option<&c::RunText>) -> Option<Wall> {
+    text?.began
+}
 pub use talking::Talking;
 pub use views::Shown;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,6 +60,10 @@ pub struct Chat {
     pub draft: Option<Document>,
     pub writing: bool,
     write_up: Option<Key>,
+    asked_at: Option<Wall>,
+    writing_tool: Option<c::Text>,
+    run_began: Option<Wall>,
+    doing: doing::Held,
     pub wanted: bool,
     pub shown: Option<u32>,
     pub shown_count: u64,
@@ -146,6 +158,10 @@ impl Chat {
             draft: None,
             writing: mode != Mode::Chat,
             write_up: None,
+            asked_at: None,
+            writing_tool: None,
+            run_began: None,
+            doing: doing::Held::new(),
             wanted: false,
             shown: None,
             shown_count: 0,
@@ -187,7 +203,9 @@ impl Chat {
             final_task: None,
         }
     }
-    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+    pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) -> bool {
+        let changed = self.doing.due(now);
+        self.doing_changed(now);
         self.asking.fire(now, self.activity, out);
         self.draft_asking.fire(now, self.draft_read, out);
         self.request.fire(now, out);
@@ -195,12 +213,14 @@ impl Chat {
         for read in self.card_reads.iter_mut() {
             read.asking.fire(now, read.handle, out);
         }
+        changed
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut at = super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline());
         at = super::activity::earliest(at, self.request.next_deadline());
         at = super::activity::earliest(at, self.views.next_deadline());
+        at = super::activity::earliest(at, self.doing.deadline());
         for read in &self.card_reads {
             at = super::activity::earliest(at, read.asking.next_deadline());
         }
@@ -439,6 +459,7 @@ impl Chat {
         if self.run.is_none() && self.thread.loaded >= self.thread.committed {
             self.thread.end_run();
         }
+        self.doing_changed(now);
         self.note_calls(out);
         self.made_cards(client, out);
         self.delegations(client, out);
@@ -644,6 +665,14 @@ impl Chat {
     fn run_changed(&mut self, client: &Client, handle: Handle, out: &mut Queue<Request>) {
         match latest(client, handle) {
             Some(Latest::Jig(c::Delivery::RunState(run))) => {
+                if run.attempt.is_none()
+                    && match &self.current_run {
+                        Some(prior) => prior.attempt.is_some(),
+                        None => false,
+                    }
+                {
+                    self.asked_at = None;
+                }
                 if match &self.current_run {
                     Some(run) => run_notes(run),
                     None => false,
@@ -651,7 +680,10 @@ impl Chat {
                 {
                     self.ask_draft(out);
                 }
-                self.thread.run(run, client.text(handle).or(run.writing.as_ref()));
+                let text = client.text(handle).or(run.writing.as_ref());
+                self.writing_tool = writing_tool(text);
+                self.run_began = run_began(text).or(self.run_began);
+                self.thread.run(run, text);
                 self.current_run = Some(Box::new(c::RunState {
                     task: run.task,
                     attempt: run.attempt,
@@ -669,7 +701,10 @@ impl Chat {
                     writing: None,
                     call: None,
                 };
-                self.thread.run(self.current_run.as_deref().unwrap_or(&fallback), client.text(handle));
+                let text = client.text(handle).or(Some(text.as_ref()));
+                self.writing_tool = writing_tool(text);
+                self.run_began = run_began(text).or(self.run_began);
+                self.thread.run(self.current_run.as_deref().unwrap_or(&fallback), text);
             }
             _ => {}
         }
@@ -707,6 +742,7 @@ impl Chat {
             self.write_up = None;
             if !super::seen_answered(&outcome) {
                 self.writing = false;
+                self.asked_at = None;
             }
         }
         self.outcome = Some(outcome);
@@ -1231,6 +1267,8 @@ impl Chat {
         {
             if self.run.is_none() {
                 self.current_run = None;
+                self.writing_tool = None;
+                self.run_began = None;
                 let handle = handle(self.next);
                 self.next = self.next.checked_add(1).expect("chat handles fit");
                 self.run = Some(handle);
@@ -1241,6 +1279,9 @@ impl Chat {
             }
         } else if let Some(handle) = self.run.take() {
             self.current_run = None;
+            self.writing_tool = None;
+            self.run_began = None;
+            self.asked_at = None;
             unwatch(handle, out);
         }
     }
@@ -1292,6 +1333,7 @@ impl Chat {
                     if *kind == Sending::Message {
                         self.write_up = Some(*key);
                         self.writing = true;
+                        self.asked_at = Some(env.wall);
                     }
                 }
             }
@@ -1376,6 +1418,7 @@ impl Chat {
             | Act::OpenResult { .. }
             | Act::Go { .. } => unreachable!("only conversation acts routed here"),
         }
+        self.doing_changed(env.now);
     }
     pub fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
         let mut newest = 0;

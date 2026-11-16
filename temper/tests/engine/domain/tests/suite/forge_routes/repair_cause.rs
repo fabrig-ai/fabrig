@@ -6,7 +6,7 @@ use temper_engine_domain_forge_change::{Delegate, Repair, State};
 const STEPS: u32 = 1000;
 const AFTER_UPDATE: &str =
     "CI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.";
-const PRESERVE: &str = " Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines; do not remove content to make a check pass.";
+const PRESERVE: &str = " Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.";
 
 fn updated_change() -> (World, u64, u64, u64) {
     let small =

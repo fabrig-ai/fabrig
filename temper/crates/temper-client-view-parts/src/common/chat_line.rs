@@ -400,6 +400,11 @@ fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
     };
     capitalized(phrase, true)
 }
+/// The conversation's lower-case present form (client/pages/chat/conversation.md, 2).
+#[must_use]
+pub fn present(call: &c::CurrentCall, words: &Words) -> Box<[u8]> {
+    under_way(call, words, false)
+}
 fn under_way(call: &c::CurrentCall, words: &Words, capitalize: bool) -> Box<[u8]> {
     if call.tool.bytes() == b"propose_settings" {
         return capitalized(words.say(Word::WorkProposingChange, &[]), capitalize);

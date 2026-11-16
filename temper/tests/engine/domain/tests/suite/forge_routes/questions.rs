@@ -1109,8 +1109,7 @@ fn early_question() -> EarlyQuestion {
     let (mut world, requester) = plan_world(None);
     let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
     let upstream = next_producer(&mut world, dependency);
-    let head = super::early_start::push(&mut world, &upstream, 1, b"prerequisite");
-    super::early_start::observe_push(&mut world, &upstream);
+    let (head, upstream) = super::early_start::checked_push(&mut world, &upstream, 1, b"prerequisite");
     let mut spec = engine::ChangeCall::words(b"Use the prerequisite".as_slice().into(), None);
     spec.questions = Some(engine::ChangeQuestions::Up);
     spec.after = Box::new([engine::ChangeAfter::Task(dependency)]);

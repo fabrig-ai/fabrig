@@ -719,7 +719,7 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
     foot.rule = Some(foot::Rule {
         project: b"Hello".as_slice().into(),
         title: chat::cut(&shared::heading(request), &f::words()),
-        task: TASK,
+        task: Some(TASK),
         place: f::ADDRESS.into(),
     });
     foot.closed = Some("Claude Opus 5.5 · high".as_bytes().into());

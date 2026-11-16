@@ -752,6 +752,13 @@ impl World {
             for event in events {
                 if let Event::Site { owner, of, key, site, at, patcher } = event {
                     answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
+                } else if let Event::Job { owner, of, job, page } = event {
+                    let result = if of == Owner::Jig {
+                        jig_protocol_store::jobs::page(&job, &page)
+                    } else {
+                        Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
+                    };
+                    answer = Some(Request::Job { owner, answer: result });
                 } else {
                     if let Event::Opened { last, pending, .. } = &event {
                         self.next = last + 1;

@@ -183,3 +183,53 @@ fn turn_without_prepare_is_refused_with_needed_and_configured_limits() {
         }
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "JSON fixture alternatives include an empty optional member")]
+fn gate_reports_are_optional_and_bound_artifacts_and_fuzzy_prefixes() {
+    const DOCUMENT: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
+    for (report, refused) in [
+        (String::new(), None),
+        (r#", "report":{"artifact":"results","format":"junit"}"#.into(), None),
+        (r#", "report":{"artifact":"results","format":"lines","fuzzy":"f"}"#.into(), None),
+        (
+            format!(r#", "report":{{"artifact":"{}","format":"lines","fuzzy":"{}"}}"#, "a".repeat(32), "f".repeat(64)),
+            None,
+        ),
+        (r#", "report":{"artifact":"","format":"junit"}"#.into(), Some("artifact")),
+        (format!(r#", "report":{{"artifact":"{}","format":"junit"}}"#, "a".repeat(33)), Some("artifact")),
+        (r#", "report":{"artifact":"a/b","format":"junit"}"#.into(), Some("artifact")),
+        (r#", "report":{"artifact":"results","format":"other"}"#.into(), Some("format")),
+        (r#", "report":{"artifact":"results","format":"junit","fuzzy":""}"#.into(), Some("fuzzy")),
+        (
+            format!(r#", "report":{{"artifact":"results","format":"junit","fuzzy":"{}"}}"#, "f".repeat(65)),
+            Some("fuzzy"),
+        ),
+    ] {
+        let input = fixtures::with(&fixtures::document(), b"application.landing", format!(
+            r#"{{"projects":[{{"project":1,"gates":[{{"forge":1,"repository":1,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{report}}}]}}]}}]}}"#
+        ).as_bytes());
+        let document = config::document(&input, &DOCUMENT).unwrap();
+        let at = read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
+        let mut problems = Problems::empty();
+        let members =
+            application::parse(&document, at, &fixtures::engine().jig, &config::Directories::working(), &mut problems);
+        let words = lines(&problems);
+        if let Some(member) = refused {
+            let path = format!("application.landing.projects[0].gates[0].gates[0].report.{member}");
+            assert!(skein_lib::bytes::find(&words, path.as_bytes()).is_some(), "{report}: {words:?}");
+        } else {
+            assert!(words.is_empty(), "{report}: {words:?}");
+            let members = members.unwrap();
+            let gate = &members.landings.get(&1).unwrap().repositories[0].gates[0];
+            if report.is_empty() {
+                assert_eq!(gate.report, None);
+            } else {
+                let parsed = gate.report.as_ref().unwrap();
+                assert_eq!(parsed.format, if report.contains("junit") { Format::Junit } else { Format::Lines });
+                assert_eq!(parsed.fuzzy.is_some(), report.contains("fuzzy"));
+                assert!(!parsed.artifact.is_empty());
+            }
+        }
+    }
+}

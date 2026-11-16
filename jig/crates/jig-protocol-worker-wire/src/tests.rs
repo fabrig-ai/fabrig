@@ -1,5 +1,5 @@
 //! Records retain their bounds across bytes (protocol/channel/README.md, 11).
-mod fixtures;
+pub(crate) mod fixtures;
 mod records;
 mod sizes;
 

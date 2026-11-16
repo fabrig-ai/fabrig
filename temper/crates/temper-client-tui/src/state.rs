@@ -1,5 +1,5 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
-use crate::{BoxEnd, BoxLine, BoxStage, Scheme, limits, theme::ThemeChoice};
+use crate::{BoxEnd, BoxLine, BoxStage, Own, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
 use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
@@ -37,6 +37,7 @@ pub struct Tui {
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
+    place: Option<Own>,
     boxed: bool,
     front: bool,
     plain: bool,
@@ -129,6 +130,10 @@ pub enum Notice {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    /// A chat before its first words, over the root's page (client/tui/pages/README.md, 2).
+    Place {
+        command: Option<Own>,
+    },
     Lending {
         number: u32,
         name: Box<[u8]>,
@@ -287,6 +292,7 @@ impl Tui {
             brief_shown: false,
             not_opened: None,
             left_off: None,
+            place: None,
             boxed: false,
             theme_choice: ThemeChoice::Auto,
             terminal_scheme: None,
@@ -612,6 +618,10 @@ impl Tui {
         }
     }
     #[must_use]
+    pub const fn place(&self) -> Option<Own> {
+        self.place
+    }
+    #[must_use]
     pub const fn left_off(&self) -> Option<u64> {
         self.left_off
     }
@@ -651,6 +661,7 @@ impl Tui {
                     self.empty();
                     self.linked = false;
                     self.signed_out = true;
+                    self.place = None;
                     self.openings = self.openings.saturating_add(1);
                     self.focus = self.focus.saturating_add(1);
                     true
@@ -684,6 +695,14 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Place { command } => {
+                if let Some(Own::Talk | Own::Brief | Own::Needs | Own::Open | Own::Theme) = command {
+                    return;
+                }
+                let changed = self.place != command;
+                self.place = command;
+                changed
+            }
             Told::Lending { number, name } => {
                 self.logins_taken.insert(number).expect("at most every login number");
                 self.lending = Some(Lending { number, name, unlend: false });

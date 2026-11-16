@@ -878,6 +878,12 @@ pub fn client_rows() -> List<top::Stored> {
     rows
 }
 
+pub fn change_hot(row: top::ChangeRow) -> top::Stored {
+    top::Stored::ChangeHot(Box::new(row.split().1))
+}
+pub fn change_cold(row: top::ChangeRow) -> top::Stored {
+    top::Stored::ChangeCold(Box::new(row.split().0))
+}
 pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::ChangeRow {
     use temper_engine_domain_forge_change::{
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
@@ -921,6 +927,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,
             last_head: Some([15; 32]),
+            last_checked: None,
         },
         pull: Some(16),
         pending: Some(17),
@@ -1137,6 +1144,9 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
+            report: temper_engine_domain_forge::ReceiptReport::Unset,
+            base: None,
+            jobs: Box::new([]),
             logs: Box::new([b'l'; 8192]),
             passed: false,
             failures: Some(failures.clone()),

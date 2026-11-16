@@ -124,7 +124,27 @@ fn settings(answer: jig_domain_core::SettingsAnswer) -> SeeAnswer {
         forge_people: Box::new([]),
         offer: Box::new([]),
         application: None,
+        project_landing_rule: None,
     }))
+}
+
+#[test]
+fn an_unknown_deployment_landing_rule_names_the_project_read_only_when_held() {
+    for (project_landing_rule, expected) in [
+        (
+            Some(1),
+            "see settings landing-rule 1: not read: the deployment has no landing rule 1; this project's is settings landing-rule 1 project",
+        ),
+        (
+            None,
+            "see settings landing-rule 1: not read: no such setting. This says nothing about the settings: see settings lists them.",
+        ),
+    ] {
+        let mut answer = settings(jig_domain_core::SettingsAnswer::Unknown);
+        let SeeAnswer::Settings(value) = &mut answer else { panic!("settings answer") };
+        value.project_landing_rule = project_landing_rule;
+        assert_eq!(rendered("settings landing-rule 1", 0, answer, 20_000), (expected.into(), true));
+    }
 }
 
 #[test]
@@ -207,7 +227,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {
@@ -335,7 +355,7 @@ fn landing_and_gates_read_the_configured_values() {
     ] {
         assert_eq!(rendered("settings landing", 0, SeeAnswer::Landing(Box::new(SeeLanding {
             by, merge_job, after, repositories,
-        })), 20_000), (format!("{text}{not_setting}\nsee: settings gates OWNER/NAME · settings landing-rule N [project] · help landing\n"), false));
+        })), 20_000), (format!("{text}{not_setting}\nsee: settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing\n"), false));
     }
     let checks = RepositoryGates {
         repository: skein_forge::api::Repository { forge: 1, repository: 2 },
@@ -345,6 +365,7 @@ fn landing_and_gates_read_the_configured_values() {
             ignored: Box::new([b"docs".as_slice().into(), b"notes".as_slice().into()]),
             blocking: false,
             base: true,
+            report: None,
         }]),
         tiers: [Follows::Landing, Follows::Branch(b"stable".as_slice().into()), Follows::Goals]
             .map(|follows| Tier {
@@ -456,8 +477,13 @@ fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
             assert!(seen.insert(row.form), "{}: repeated address", row.form);
             assert!(!row.line.is_empty() && row.line.len() <= 160, "{}: line bound", row.form);
             assert!(!row.next.is_empty(), "{}: no next addresses", row.form);
+            assert!(!row.form.contains("[project]"), "{}: project is a literal word", row.form);
+            assert!(!row.next.contains("[project]"), "{}: project is a literal word", row.next);
         }
     }
+    assert!(!ADDRESSES.contains("[project]"));
+    assert!(seen.contains("settings landing-rule N"));
+    assert!(seen.contains("settings landing-rule N project"));
 }
 
 #[test]

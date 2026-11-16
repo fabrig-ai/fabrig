@@ -1,7 +1,7 @@
 //! Temper's declarations are held against its encoders (protocol/wires.md, 6).
 use super::fixtures;
 use crate::{patches::kept::temper_worker_wire as kept, v1, wire};
-use jig_protocol_worker_wire::Carried;
+use jig_protocol_worker_wire::{Carried, Spoken};
 use skein_lib::List;
 
 #[test]
@@ -15,6 +15,7 @@ fn the_application_speaks_from_the_floor_with_its_bridge() {
     assert_eq!(description.names, v1::LIMIT_NAMES);
     assert_eq!(description.values.as_slice(), fixtures::limits().values());
     assert_eq!(application.spoken.get(0), Some(&crate::spoken()));
+    assert_eq!(crate::spoken(), Spoken::of(wire::FAMILY, kept::TEXTS, wire::FLOOR).expect("parsed kept range"));
     assert_eq!(wire::FLOOR, kept::FLOOR);
     assert_eq!(application.spoken.len(), 1);
     assert_eq!(application.kept.len(), 1);

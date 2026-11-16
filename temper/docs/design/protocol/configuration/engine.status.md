@@ -2,6 +2,7 @@
 
 2026-11-13. Where the tree's code lags or departs from [engine.md](engine.md).
 
+
 - **Not yet:** `landing`, a landing rule's `sets`: `LandingRule` has
   no `sets` in the store's schema, the client wire's or the forge's
   domain record.
@@ -10,6 +11,7 @@
   every change into its branches.
 
 - **Not yet:** `mail`: designed and not built, as `../../domain/forge/attention.md`, 7.4 is.
+
 
 - **Not yet:** the project's landing settings, *The delivery checks' bound*: the project's landing settings have no `check_timeout_ms` (`temper-service/src/startup/application/landing.rs`), so every run's checks have the agent's `check_timeout`.
 

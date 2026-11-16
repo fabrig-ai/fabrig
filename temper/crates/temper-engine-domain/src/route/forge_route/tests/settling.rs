@@ -64,6 +64,8 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: super::super::super::internal(u64::MAX),
             creator: tasks::Party::Deployment { project: 1 },
             batch: batch.into_boxed(),

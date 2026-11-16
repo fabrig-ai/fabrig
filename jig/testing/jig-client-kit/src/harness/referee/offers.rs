@@ -147,6 +147,8 @@ impl Offers {
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }
+            | Ask::Conclude { .. }
+            | Ask::Delegate { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }

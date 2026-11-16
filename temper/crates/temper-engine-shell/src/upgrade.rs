@@ -77,9 +77,10 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
     Ok((service, named.deployment))
 }
 
-pub fn run(binary: &str, directories: &Directories, request: &Request) -> Result<u8, String> {
-    let (service, deployment) =
+pub fn run(binary: &str, directories: &Directories, request: &Request, build_name: &'static str) -> Result<u8, String> {
+    let (mut service, deployment) =
         prepare(binary, directories).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))?;
+    service.engine_component().build_name(build_name);
     run_prepared(binary, directories, request, service, &deployment)
 }
 /// Drive an engine checked and prepared by its binary, without a worker or listeners.

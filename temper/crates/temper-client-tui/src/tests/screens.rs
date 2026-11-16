@@ -61,7 +61,11 @@ fn the_sign_in_screen_says_each_line() {
         assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
         assert_eq!(field.focus, Some(if *local == Local::Ended { 2 } else { 1 }));
         assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
-        assert_eq!(f::find(view.tree(), Role::Status, "● Signed out".as_bytes()).styles.as_slice(), &[look::DOWN]);
+        let (left, right) = f::bottom_halves(view.tree());
+        assert_eq!(f::text(view.tree(), left).as_ref(), "● Signed out".as_bytes());
+        assert_eq!(left.styles.as_slice(), &[look::DOWN]);
+        assert_eq!(f::text(view.tree(), right).as_ref(), b"Ctrl+C to quit");
+        assert_eq!(right.styles.as_slice(), &[look::HINT]);
         assert_eq!(f::count(view.tree(), Role::Button), 0);
     }
     assert!(failures.is_empty(), "sign-in rows: {failures:?}");

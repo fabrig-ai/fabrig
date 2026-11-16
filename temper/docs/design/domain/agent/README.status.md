@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-14. Where temper's code lags or departs from [README.md](README.md).
+2026-11-15. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 5: a save's head found by the read that frees the attempt's
@@ -69,10 +69,10 @@ whole model settings through the settings read and `propose_settings`.
 Scripted stories do not establish a real model doing so; that
 observation remains in `README.md`, section 8.
 
-`agents.md`, section 3's chat instructions name the flow subset and ask for one
-where a sequence says more drawn. The stock's phrase tests hold them;
-they do not say Mermaid is not drawn. No known implementation gap
-remains for that instruction.
+`agents.md`, section 3's document instructions, *What a document draws*,
+name the flow subset and ask the chat, the drafter and Ask temper to draw
+whatever a picture says faster, in the document as in a reply. The
+stock's phrase tests hold them; they do not say Mermaid is not drawn.
 
 `agents.md`, section 2 has no known implementation gap in the stock's person-executor
 permissions, the goal paragraph, the Ask answer or the message-reference

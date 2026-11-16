@@ -14,7 +14,7 @@ mod translate;
 mod wires;
 pub use boundary::{Event, GrantValue, Loss, Request, Scheme};
 pub use component::{Component, Credential, Unusable};
-pub use limits::{Limits, channel_limits, valid};
+pub use limits::{Limits, channel_limits, valid, valid_with_schema};
 
 /// The peer's terms do not suit this side (skein's net/channel.md, 5.1).
 pub const REFUSED_LIMITS: u16 = 2;

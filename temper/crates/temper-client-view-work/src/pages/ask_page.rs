@@ -6,7 +6,7 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State};
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::pages::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
 
@@ -27,6 +27,7 @@ pub fn main(
         return;
     }
     let terminal = super::terminal::shown(root, w);
+    let project_name = super::project_name(root.pages().me(root.client()), project).unwrap_or_default();
     b.open(Role::Main);
     if terminal {
         super::terminal::style(b, root.pages().look());
@@ -73,14 +74,15 @@ pub fn main(
     b.open(Role::Paragraph);
     b.style(look::STARTER_LEDE);
     b.style(look::WAYS_LEDE);
-    b.text(Run::Plain, &w.say(Word::WaysLede, &[]));
+    b.text(Run::Plain, &w.say(Word::WaysLede, &[Hole::Name(project_name.clone())]));
     b.close();
     b.open(Role::Region);
-    b.name(&w.say(Word::WaysTitle, &[]));
+    b.name(&w.say(Word::SettingsHowTab, &[]));
     b.style(look::STARTER_WAYS);
     b.style(look::WAYS);
+    b.style(look::WAY);
     if let Some(ways) = root.pages().stock_ways() {
-        opening(b, root, ways, w, bindings, project);
+        opening(b, root, ways, &project_name, w, bindings, project);
     }
     b.close();
     b.close();
@@ -114,7 +116,15 @@ fn paragraph(b: &mut Builder, words: &[u8], style: skein_ui::Style) {
     b.close();
 }
 
-fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+fn opening(
+    b: &mut Builder,
+    root: &Domain,
+    ways: &StockWays,
+    project_name: &[u8],
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
     match ways.state() {
         WaysState::Loading => return,
         WaysState::Ended => {
@@ -123,38 +133,38 @@ fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings
         }
         WaysState::Shown(_) => {}
     }
-    crate::common::ways::tabs(b, ways, w, bindings, project);
+    crate::common::ways::head(b, ways, project_name, w, bindings, project);
     let tabs = ways.tabs();
     if let Some(index) = ways.shown()
         && let Some(tab) = tabs.get(index)
     {
         b.open(Role::Group);
-        b.name(&tab.name);
+        b.name(&if tab.current { w.say(Word::SettingsHowTab, &[]) } else { tab.name.clone() });
         b.style(look::WAYS_PANEL);
-        if !tab.line.is_empty() {
-            paragraph(b, &tab.line, look::WAYS_SAYS);
-        }
         crate::common::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
             && let Some(stop) = tab.path.stops().get(open)
         {
             crate::common::ways::card(b, stop, w, bindings, project);
         }
-        foot(b, root, ways, index, w, bindings, project);
+        foot(b, root, w, bindings);
         crate::common::ways::refused(b, ways, w);
         b.close();
     }
+    if w.shell == crate::words::Shell::Terminal {
+        crate::common::ways::head_acts(b, ways, w, bindings, project);
+    }
+    b.open(Role::Paragraph);
+    b.style(look::WAY_ASK);
+    b.open(Role::Text);
+    b.style(look::WAY_ASK_MARK);
+    b.text(Run::Plain, &w.say(Word::WayAskMark, &[]));
+    b.close();
+    b.text(Run::Plain, &w.say(Word::WayAsk, &[]));
+    b.close();
 }
 
-fn foot(
-    b: &mut Builder,
-    root: &Domain,
-    ways: &StockWays,
-    index: u32,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-) {
+fn foot(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     b.open(Role::Slot);
     b.style(look::WAYS_FOOT);
     crate::common::ways::legend(b, w);
@@ -172,7 +182,6 @@ fn foot(
     }
     b.bind(bindings.insert(Act::AskHow));
     b.close();
-    crate::common::ways::act_button(b, ways, index, w, bindings, project);
     b.close();
     b.close();
 }

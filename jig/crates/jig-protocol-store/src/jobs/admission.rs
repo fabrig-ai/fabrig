@@ -6,12 +6,29 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
     for set in sets.sets {
         let refusal = Unplanned { owner: set.owner, patch: 0 };
         for (index, job) in set.jobs.iter().enumerate() {
-            if job.name.len() > 64 || job.keys.is_empty() {
+            if job.name.len() > 64 || (!job.settles && job.keys.is_empty()) {
                 return Err(refusal);
             }
             for previous in set.jobs.get(..index).expect("earlier jobs") {
                 if previous.name == job.name {
                     return Err(refusal);
+                }
+            }
+            if job.settles {
+                if !job.keys.is_empty() || job.converts.is_some() || !job.counts.is_empty() {
+                    return Err(refusal);
+                }
+                let mut registered = false;
+                for family in set.families {
+                    registered |= !family.types.is_empty() || !family.retired.is_empty();
+                }
+                if !registered {
+                    return Err(refusal);
+                }
+                for previous in set.jobs.get(..index).expect("earlier jobs") {
+                    if previous.settles {
+                        return Err(refusal);
+                    }
                 }
             }
             if !counts(job) || !ranges(set, job) || !converts(set, job) {

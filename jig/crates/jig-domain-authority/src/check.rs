@@ -790,6 +790,9 @@ pub fn check_request_with_standing(
 ) -> Checked {
     let admitted = match &ask.request {
         PersonRequest::Create(tasks) => delegates_within(tasks, domain.limits()),
+        PersonRequest::Delegate { creator, tasks } => {
+            authority_within(creator, domain.limits()) && delegates_within(tasks, domain.limits())
+        }
         PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
             authority_within(authority, domain.limits())
         }
@@ -806,7 +809,7 @@ pub fn check_request_with_standing(
         return checked(refuse(why, Finding::UnknownRole), None);
     };
     let kind = match &ask.request {
-        PersonRequest::Create(_) => RequestKind::Create,
+        PersonRequest::Create(_) | PersonRequest::Delegate { .. } => RequestKind::Create,
         PersonRequest::Allot(_) => RequestKind::Allot,
         PersonRequest::Accept(_) => RequestKind::Accept,
         PersonRequest::Amend(_) => RequestKind::Amend,
@@ -819,6 +822,7 @@ pub fn check_request_with_standing(
     let control = match &ask.request {
         PersonRequest::Amend(_) | PersonRequest::Move(_) | PersonRequest::Cancel | PersonRequest::Release => true,
         PersonRequest::Create(_)
+        | PersonRequest::Delegate { .. }
         | PersonRequest::Allot(_)
         | PersonRequest::Accept(_)
         | PersonRequest::Watch
@@ -840,6 +844,33 @@ pub fn check_request_with_standing(
                 return checked(refuse(why, Finding::Oversized), None);
             }
             batch(domain, policy, &role.authority, drawn, ask.tasks_left, tasks, why)
+        }
+        PersonRequest::Delegate { creator, tasks } => {
+            // A party supplies authority, the task supplies funding (jig/docs/design/domain/authority.md, 8.4).
+            let role_numbers =
+                crate::Numbers { budget: role.authority.budget.spend, spent: 0, spent_below: 0, reserved: 0 };
+            let role_check = batch(
+                domain,
+                policy,
+                &role.authority,
+                Drawn { numbers: role_numbers, source: Source::Role },
+                role.authority.delegation.tasks,
+                tasks,
+                why,
+            );
+            if role_check.answer != Answer::Allow {
+                return checked(Answer::Refuse, None);
+            }
+            let task_check = batch(
+                domain,
+                policy,
+                creator,
+                Drawn { numbers: ask.pool, source: Source::Task },
+                ask.tasks_left,
+                tasks,
+                why,
+            );
+            if task_check.answer == Answer::Allow { task_check } else { checked(Answer::Refuse, None) }
         }
         PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
             if !authority_within(authority, domain.limits()) {
@@ -919,7 +950,11 @@ fn needs_funding(request: &PersonRequest) -> bool {
                 None => false,
             },
         },
-        PersonRequest::Cancel | PersonRequest::Release | PersonRequest::Watch | PersonRequest::Policy => false,
+        PersonRequest::Delegate { .. }
+        | PersonRequest::Cancel
+        | PersonRequest::Release
+        | PersonRequest::Watch
+        | PersonRequest::Policy => false,
     }
 }
 

@@ -14,9 +14,11 @@
   change 2180].
 - **Not yet:** 1, *The notice*: no chat closed's notice [in flight:
   change 3609].
-- **Not yet:** 2, *Their name left in the box*: the caret stays before
-  the space, and "/change " sent alone starts an Ask temper chat [in
-  flight: change 3607].
+- **Not yet:** 2, *Not yet started*, *`/draft`*, *`/change` and
+  `/ask`* and *`/tell`*: pressed or sent alone, each leaves its name and
+  a space in the box, the caret after it, where it goes to its place
+  not yet started; no such place is drawn or kept [in flight: change
+  4200].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

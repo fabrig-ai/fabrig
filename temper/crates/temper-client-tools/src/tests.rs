@@ -1,4 +1,3 @@
-mod boundary;
 pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
 mod help;

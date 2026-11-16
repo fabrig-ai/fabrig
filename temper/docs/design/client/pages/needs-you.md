@@ -44,6 +44,62 @@
   reason", each the forge's request, a refusal said in its words. Kind
   holds "Finding" among its choices. The card leaves once the finding
   leaves `new` or stops being theirs.
+- **A group of findings** (`../../draft/home-for-a-person.md`, 5;
+  `../../domain/areas.md`, 6, *Its groups*): a question, by `message` or
+  a person task in words, whose whole words name findings in their line
+  form (`../../domain/agent/agents.md`, 2, a `Findings:` line) is a
+  group's card, on this page and on Home (`home.md`, 1, **Findings,
+  drawn**, *A group's card*), where one of them at least is read. It is
+  the question's card still: its kind, its answers, its why line, Later,
+  At and the held send are a question's, and it is the inbox's card, so
+  Kind and the filters place it as a question.
+  - *Its findings' read:* the findings store watches, for each project
+    whose person's findings it watches (1, *A finding that is the
+    person's*: as `decided` is), the project's open findings, the subject `findings` with `state` `new`
+    and `mine` false (`../forge/records.md`), its own handle beside the
+    person's, while one of that project's open cards names findings, and
+    unwatches it once none does or the project leaves the store. Those
+    findings are the triager's, which the person's watch, `mine`, never
+    holds.
+  - *Its rows:* the findings its line names that are among its
+    project's open findings' rows, matched by project and number, in the
+    line's order; a finding named of another project, past the
+    document's rows (`cut`), or no longer `new` is no row. A card whose
+    findings' document is read and that has no row is a plain question.
+  - *Its card waits,* as a question's waits for `decided` (*Why it
+    reached you*, *Its card waits*), until its project's open findings are
+    delivered, or their watch is refused or ended, so that its rows never
+    move its choices under a finger. A card whose project the store
+    doesn't watch, or with no project, waits for nothing and is a plain
+    question.
+  - *The domain's group,* in `temper-client-domain-pages`'s
+    `pages::findings`: `Group<'a> { project: u32, noun: Box<[u8]>, phrase:
+    Box<[u8]>, rows: Box<[&'a w::FindingRow]> }`, the noun and phrase its
+    `Group:` line's, empty with none, and `Group::severity(&self) ->
+    w::Severity`, its rows' highest, and `Group::oldest(&self) -> Wall`,
+    its rows' earliest `at`. `Store::group<'a>(&'a self, need: Need<'_>)
+    -> Option<Group<'a>>` gives a card's, none for any card that is no
+    group's. `Need::severity(self, store: &Store) -> Option<w::Severity>`
+    is a finding's, a group's highest, none for any other card; the
+    cards' order (1, **What the client keeps**) and `counted` read it.
+    `Need::ready` holds a group's card while it waits.
+  - *On this page,* the open card is a question's (1, **Needs you**,
+    *The card*), but its from line: on the unfiltered address the
+    project's chip; then the group's chip of findings, "3 bugs" on its
+    highest severity's ground (`home.md`, 1, **Findings, drawn**, *A chip
+    of findings*), its count the rows' in digits and its noun, or "3
+    findings", "1 finding" with none; then the phrase, " · " and "the
+    oldest 1 d", its oldest row's span, or the one row's span alone, "1
+    d"; then " · " and the asked task's link, its TITLE as the question's
+    from line has it; " · later" with it. Under its question, its rows, a
+    row a finding (`home.md`, 1, **Findings, drawn**, *A finding's row*),
+    each kind said only where the rows hold more than one; then its
+    context, "What the agent saw", its reason line, its choices, the
+    recommended one first, and *Tell it something else*, as a question's.
+    A group's row's title is text, no link: no page shows a finding the
+    person doesn't hold (`../../draft/home-for-a-person.status.md`). Its
+    *SHORT* is its question's line. In the terminal's inbox the card is a
+    question's, its words as written.
 - **An update's card** has its heading as the link that opens it and marks
   a result seen. It repeats no project line or task-number link. The heading
   says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
@@ -190,7 +246,8 @@
     in the terminal's inbox "Later" too, its key
     `ObjectKey::Task` of the change, so that Later works on it as on any card.
     The open cards are the inbox's needs and these rows together: the inbox's
-    first, in its order, then the rows in theirs, and those marked later last.
+    first, in its order, then the rows in theirs, and those marked later last,
+    then ordered by severity as *What the client keeps* says (1).
     A filter by project takes the project's rows, one by goal the rows of the
     changes under that goal, and one by kind none, since no kind of the
     inbox's is theirs. They join once the inbox has answered, and until the
@@ -273,6 +330,50 @@
       a budget always waits for you." An approval, whose rule its context
       names, and a person task not in words, the person's own work, have
       no line.
+    - *A finding the person holds* (1, *A finding that is the person's*;
+      `../../draft/home-for-a-person.md`, 3), by *Tell temper*'s rule
+      (*Where it goes*) read for the finding: with an area, "Reached you as
+      AREA’s owner."; else, where the project's settings name a triager
+      that stands and *Goes to* would name it "you" (the party `me`
+      names), "Reached you as PROJECT’s triager: findings that no area
+      owns come to you."; else "Reached you as PROJECT’s owner: findings
+      that no area owns come to you." PROJECT is the project's name as
+      `me` names it. Until the project's `findings` document is read, no
+      line. No Stop asking: no reach brought it. It is drawn on this
+      page's finding card over its acts, and on Home's (`home.md`, 1,
+      **Findings, drawn**, *A finding's own card*).
+    - *The domain's reason,* `pages::needs::Why`, gains `Finding {
+      project: u32, holds: needs::Holds }`, `Holds` one of `Area { name:
+      Box<[u8]> }`, `Triager` and `Owner`, and is compared whole
+      (`PartialEq`), Home's *One why* reading two cards' lines as the same
+      where their `Why`s are equal (`home.md`, 1). A finding's is
+      `pages::findings::why(root: &dyn Root, need: findings::Need<'_>) ->
+      Option<needs::Why>`, which gives any other card's by
+      `pages::needs::why`.
+    - *In the plural,* the line Home says once for several cards
+      (`home.md`, 1, *One why*): "These reached you" for "Reached you",
+      and its clause said of them: "it is a wording choice", "they are
+      wording choices"; "it retries or splits a failing task", "they retry
+      or split failing tasks"; "it is an implementation choice", "they are
+      implementation choices"; "it changes only tests", "they change only
+      tests"; "it adds a dependency", "they add dependencies"; "it departs
+      from a landed design", "they depart from a landed design"; "it spends
+      money past a budget", "they spend money past a budget"; "it can’t be
+      undone", "they can’t be undone"; "it changes what reaches you",
+      "they change what reaches you"; "no kind of decision names it", "no
+      kind of decision names them"; "it changes NAME", "they change NAME";
+      " under “WORDS”" and CLASS as they are. Then "These reached you
+      because their goals always ask you.", "These reached you because
+      they were asked of you directly.", "These reached you because
+      proposals always wait for whoever may accept them.", "These reached
+      you because held tasks always wait for whoever may release them.",
+      "These reached you because money past a budget always waits for
+      you.", and a finding's "These reached you as AREA’s owner.", "These
+      reached you as PROJECT’s triager: findings that no area owns come to
+      you." and "These reached you as PROJECT’s owner: findings that no
+      area owns come to you." One function of the view's shared words,
+      beside the singular's (`temper_client_view::shared::why`), gives
+      either form.
     - *Its card waits:* a card of a question, on this page and on Home,
       draws once its project's `decided` document is delivered or its watch
       refused or ended, as the column waits for the inbox, so that a line
@@ -498,8 +599,20 @@
   lines, the refused answers and the proposals of settings, the oldest going
   first, a line still held never:
   - *Later,* the cards marked later. *The open cards* are the needs'
-    groups as `Inbox` reads them, less those answered, in the inbox's
-    order, those marked later last.
+    groups as `Inbox` reads them, less those answered, with the approvals
+    (1, *An approval*) and the findings the person holds (1, *A finding
+    that is the person's*), in one order, `findings::Session::all`'s, which
+    Home, Home on All projects and this page share
+    (`../../draft/home-for-a-person.md`, 3): those marked later last; before
+    them, a card about findings by its highest severity, high first, then
+    medium, then low, any other card with high's; within each, as before,
+    the oldest first, the findings joining the inbox's cards and the
+    approvals by when they were filed. A card's severity is
+    `findings::Need::severity` (`home.md`, 1, **Findings, drawn**,
+    *Counted*): a group's card (1, *A group of findings*) is about
+    findings, ranked by its highest and placed by when it was asked. So a medium finding filed an hour ago comes after a
+    question asked a minute ago, and before a low finding filed a day
+    ago. The head's "oldest first" stays: within a severity, it holds.
   - *Answered,* a bounded list: each card's object, project, title,
     label and when. The label is the choice's words, or `Replied: “…”`,
     its words cut at 57 characters plus "…" past 60. A line shows on

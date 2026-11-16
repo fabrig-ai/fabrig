@@ -18,7 +18,13 @@ use skein_lib::Wall;
 fn changed_tracks_creation_real_changes_backward_walls_restore_and_ending() {
     let mut test = Harness::new();
     test.env.wall = Wall::from_nanos(100);
-    test.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([task(1, &[])]) });
+    test.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(9),
+        batch: Box::new([task(1, &[])]),
+    });
     assert_eq!(test.domain.task(1).expect("created").changed, test.env.wall);
     test.env.wall = Wall::from_nanos(200);
     test.send(Event::Hold { task: 1, why: Hold::Stopped });
@@ -53,7 +59,13 @@ fn duplicate_live_publication_does_not_replace_the_last_change_wall() {
     master.recurring =
         Some(Box::new(RecurringTemplate { key: 1, batch: Box::new([task(1, &[])]), overlap: RecurringOverlap::Skip }));
     test.env.wall = Wall::from_nanos(100);
-    test.send(Event::Make { reply_to: to(), creator: Party::Deployment { project: 1 }, batch: Box::new([master]) });
+    test.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Deployment { project: 1 },
+        batch: Box::new([master]),
+    });
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 1000 });
     test.env.wall = Wall::from_nanos(200);
     test.send(Event::TickRecurring { task: 100, period: 1 });
@@ -92,12 +104,19 @@ fn part_saves(out: &[Request], number: u64) -> Vec<Key> {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one lifecycle observes the complete hot and cold save sequence")]
 fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_end() {
     let mut h = Harness::new();
     h.env.limits.spec_bytes = 4096;
     let mut made = task(7, &[]);
     made.spec.words = vec![b'w'; 4096].into();
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([made]) });
+    let out = h.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(9),
+        batch: Box::new([made]),
+    });
     assert_eq!(part_saves(&out, 7), [Key::Live(7), Key::LiveCold(7)]);
     let out = h.send(Event::Prepare { reply_to: to(), task: 7 });
     assert_eq!(part_saves(&out, 7), [Key::Live(7)]);

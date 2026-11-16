@@ -38,6 +38,14 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
     let host = temper_engine_smith::room::host_part(&agent.run_limits);
     let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &mut defaults.charters {
+        if charter.number == 5 {
+            // Finish's object wrapper (smith/docs/design/protocol/llm.md, 3) costs 95 bytes; this fixture lowers the host bound, and charter 5 is not under test.
+            let shortfall = ENOUGH.saturating_sub(host.room(charter));
+            if shortfall > 0 {
+                let keep = charter.policy.instructions.len().checked_sub(usize::try_from(shortfall).unwrap()).unwrap();
+                charter.policy.instructions = charter.policy.instructions.get(..keep).unwrap().into();
+            }
+        }
         if charter.number == CHARTER {
             charter.policy.instructions = Box::new([]);
             // Smith adds two line-ending bytes after these non-newline instructions.

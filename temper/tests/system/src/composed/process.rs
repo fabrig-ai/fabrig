@@ -42,6 +42,8 @@ pub(crate) struct Process {
     history: Option<smith::Transcript>,
     pub(super) fresh: Option<Script>,
     pub(super) history_messages: Option<u32>,
+    pub(super) tool_payload: Option<u32>,
+    pub(super) configure_settings: Option<fn(&mut Settings)>,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
     up: VecDeque<agent::Up>,
@@ -59,6 +61,8 @@ pub(crate) struct Process {
     sent_deliveries: usize,
     owner: Option<Token>,
     producer: Option<Producer>,
+    /// Pause Smith after the selected query, before consuming its response.
+    pub(super) held_query: Option<usize>,
 }
 
 /// The process service's live producer, played here because smith's domain
@@ -123,6 +127,8 @@ impl Process {
             history: None,
             fresh: None,
             history_messages: None,
+            tool_payload: None,
+            configure_settings: None,
             mounts: Vec::new(),
             agent: None,
             up: VecDeque::new(),
@@ -139,6 +145,7 @@ impl Process {
             sent_deliveries: 0,
             owner: None,
             producer: None,
+            held_query: None,
         }
     }
 
@@ -190,11 +197,15 @@ impl Process {
         let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
         let clocked = self.clocked;
+        let tool_payload = self.tool_payload;
+        let configure_settings = self.configure_settings;
         *self = Process::new(self.seed, script);
         self.history = history;
         self.fresh = fresh;
         self.history_messages = history_messages;
         self.clocked = clocked;
+        self.tool_payload = tool_payload;
+        self.configure_settings = configure_settings;
     }
 
     /// Whether the next activation is waiting to spawn its process.
@@ -240,7 +251,10 @@ impl Process {
                 self.reaping = Some(owner);
                 return;
             }
-            agent::process::Request::Signal { owner, .. } => agent::process::Event::Signalled { owner },
+            agent::process::Request::Signal { owner, .. } => {
+                around.observed.killed += 1;
+                agent::process::Event::Signalled { owner }
+            }
         };
         around.events.push_back(worker::Event::Process(Box::new(event)));
     }
@@ -294,6 +308,7 @@ impl Process {
             }
             agent::Down::Cancel => {
                 around.observed.cancels += 1;
+                self.held_query = None;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
             agent::Down::Drain => {
@@ -309,7 +324,7 @@ impl Process {
     fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &Around<'_>) {
         self.check_start(&start, window, around);
         let assignment = around.assignment.expect("committed assignment");
-        let receiving = receiving();
+        let receiving = receiving(self.tool_payload);
         for directory in &mut start.directories {
             directory.host = [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice();
         }
@@ -346,6 +361,9 @@ impl Process {
             settings.limits.session.history_bytes = 4 * 1_048_576;
             settings.provider.script_bytes = 4 * 1_048_576;
             settings.provider.query_bytes = 4 * 1_048_576;
+        }
+        if let Some(configure) = self.configure_settings {
+            configure(&mut settings);
         }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let event = smith::Event::Start(smith::Start {
@@ -427,7 +445,10 @@ impl Process {
 
     fn drive(&mut self, now: Time, around: &mut Around<'_>) {
         let Some(agent) = self.agent.as_mut() else { return };
-        if self.settled || self.producer.as_ref().is_some_and(|producer| producer.holding) {
+        if self.settled
+            || self.held_query.is_some_and(|query| agent.prompts().len() >= query)
+            || self.producer.as_ref().is_some_and(|producer| producer.holding)
+        {
             return;
         }
         // A composed clock waits for the outer world before firing a lower deadline.
@@ -678,7 +699,7 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
     }
 }
 
-fn receiving() -> run::Limits {
+fn receiving(tool_payload: Option<u32>) -> run::Limits {
     use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
     let declarations = Configuration {
         role_bound: None,
@@ -699,9 +720,12 @@ fn receiving() -> run::Limits {
             },
         }]),
     };
-    let template: serde_json::Value =
+    let mut template: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
             .expect("shipped agent settings");
+    if let Some(bytes) = tool_payload {
+        template["profile"]["declared"]["tool_payload"] = bytes.into();
+    }
     let selected = smith_agent_shell::config::profile_from_value(template.get("profile").expect("profile").clone())
         .expect("shipped receiving profile");
     profile::derive(&selected, &declarations).expect("production receiving profile").domain.run

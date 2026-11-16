@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Demo · Scripted model · ● Live                                      playground
+ ● Live · Demo · Scripted model                                      playground
 --
 ................................................................................
 ..abbb...cccccc.................................................................
@@ -46,7 +46,7 @@
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 ggeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee..............................
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-.ffffeeeffffffffffffffeeehhhhhh......................................ffffffffff.
+.hhhhhheeeffffeeeffffffffffffff......................................ffffffffff.
 --
 a: fore #1B76FD
 b: fore #00C4FE

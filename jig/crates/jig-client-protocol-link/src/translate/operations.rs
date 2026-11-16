@@ -2,7 +2,7 @@
 use super::asks;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{List, bytes};
 
 pub(super) fn answer(value: &c::AnswerOn, limits: &w::Limits) -> Result<w::AnswerOn, w::Problem> {
@@ -166,6 +166,17 @@ pub(super) fn create(project: u32, tasks: &List<c::NewTask>, limits: &w::Limits)
     Ok(w::Ask::Create(w::Create::new(
         limits,
         w::CreateParts { project, tasks: batch(tasks, limits.create_tasks, limits)? },
+    )?))
+}
+pub(super) fn delegate(
+    project: u32,
+    task: u64,
+    tasks: &List<c::NewTask>,
+    limits: &w::Limits,
+) -> Result<w::Ask, w::Problem> {
+    Ok(w::Ask::Delegate(w::Delegate::new(
+        limits,
+        w::DelegateParts { project, task, tasks: batch(tasks, limits.delegate_tasks, limits)? },
     )?))
 }
 fn batch(tasks: &List<c::NewTask>, bound: u32, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -427,4 +438,8 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
 fn restore_wake(value: Option<&w::WakePolicy>) -> Option<c::WakePolicy> {
     let wake = value?;
     Some(super::facts::wake_policy(wake))
+}
+
+pub(super) fn restore_delegate(value: &w::Delegate, limits: &crate::Limits) -> Result<c::Ask, w::Problem> {
+    Ok(c::Ask::Delegate { project: value.project(), task: value.task(), tasks: restore_batch(value.tasks(), limits)? })
 }

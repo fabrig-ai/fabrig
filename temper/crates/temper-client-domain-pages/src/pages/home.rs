@@ -329,6 +329,7 @@ pub enum Needs {
     Count {
         count: u32,
         cut: bool,
+        findings: super::findings::Counted,
     },
 }
 
@@ -531,13 +532,16 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
         skip_refused = home.skip_refused;
     }
     let needs = match root.pages().inbox() {
-        Some(inbox) if inbox.filter.project == Some(project) && inbox.known() => Needs::Count {
-            count: u32::try_from(root.pages().needs().all(inbox, root.forge().approvals()).len())
-                .expect("inbox cards fit"),
-            cut: *inbox.cut.first().expect("needs cut")
-                || root.forge().approvals().more() > 0
-                || root.pages().needs().findings().cut_for(inbox.filter),
-        },
+        Some(inbox) if inbox.filter.project == Some(project) && inbox.known() => {
+            let open = root.pages().needs().all(inbox, root.forge().approvals());
+            Needs::Count {
+                count: u32::try_from(open.len()).expect("inbox cards fit"),
+                cut: *inbox.cut.first().expect("needs cut")
+                    || root.forge().approvals().more() > 0
+                    || root.pages().needs().findings().cut_for(inbox.filter),
+                findings: super::findings::counted(root.pages().needs().findings(), &open),
+            }
+        }
         Some(_) | None => Needs::Unknown,
     };
     let status = match home {

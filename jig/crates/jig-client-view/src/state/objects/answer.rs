@@ -61,6 +61,7 @@ pub fn recovery(object: &Object) -> Recovery {
             | Refusal::SignInRedirect { .. }
             | Refusal::AccountMove { .. }
             | Refusal::Provider
+            | Refusal::Concluded { .. }
             | Refusal::KeyConflict => {}
         },
         Card::Open | Card::NotSent { .. } | Card::Deciding { .. } | Card::Leaving { .. } => {}

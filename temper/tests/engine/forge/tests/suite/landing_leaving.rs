@@ -57,6 +57,7 @@ fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bo
             ignored: Box::new([b"file".as_slice().into()]),
             blocking: false,
             base: false,
+            report: None,
         });
     }
     gates.push(landing::Gate {
@@ -65,6 +66,7 @@ fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bo
         ignored: Box::new([b"docs".as_slice().into()]),
         blocking: true,
         base: false,
+        report: None,
     });
     assert!(world.project_landing(
         PROJECT,
@@ -210,6 +212,26 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
     for commit in [candidate, base] {
         let hex: String = String::from_utf8(top::commit_text(&commit).into_vec()).expect("hex commit");
         assert!(brief.contains(&hex));
+    }
+    let receipt = world
+        .stored()
+        .iter()
+        .find_map(|(_, row)| match row {
+            top::Stored::Receipt { receipt, .. } if !receipt.passed && receipt.candidate == candidate => {
+                Some(receipt.clone())
+            }
+            _ => None,
+        })
+        .expect("failed receipt");
+    assert_eq!(receipt.base, Some(base));
+    assert_eq!(
+        receipt.jobs.iter().map(|job| job.name.as_ref()).collect::<Vec<_>>(),
+        [b"test".as_slice(), b"lint".as_slice()]
+    );
+    let calls = world.take_calls();
+    for job in &receipt.jobs {
+        assert!(calls.iter().any(|call| matches!(call, api::Op::Read(api::Read::Job { attempt, .. })
+            if attempt.head == candidate && attempt.run == receipt.run.id && attempt.job == job.job && attempt.attempt == job.attempt)));
     }
     left(&mut world, landing::Leave::Failed { gate, run });
     world.push(MEMBER, b"fixed");

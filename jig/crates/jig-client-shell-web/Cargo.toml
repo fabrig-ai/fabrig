@@ -12,7 +12,7 @@ skein-http.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true
 jig-client-protocol-http.workspace = true
-jig-client-view.workspace = true
+jig-client-view-words.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true

@@ -601,6 +601,7 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
+            | Event::Conclude { .. }
             | Event::Cancel { .. }
             | Event::Release { .. }
             | Event::Propose { .. }
@@ -705,6 +706,7 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
+            | Event::Conclude { .. }
             | Event::Cancel { .. }
             | Event::Release { .. }
             | Event::MoveToNewest { .. }
@@ -1096,7 +1098,6 @@ impl World {
                 | Stored::EndedDelegate(_)
                 | Stored::Delegate(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::PersonProposal(_)
@@ -1140,7 +1141,6 @@ impl World {
                 | Stored::ClosedLedger(_)
                 | Stored::DecidedProposal(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::History(_)
@@ -1215,7 +1215,6 @@ impl World {
             | Stored::Stub(_)
             | Stored::Ledger(_)
             | Stored::Activity(_)
-            | Stored::Milestone(_)
             | Stored::Attempt(_)
             | Stored::Hold(_)
             | Stored::History(_)
@@ -1226,12 +1225,24 @@ impl World {
         }
     }
 
+    /// The connector step the tasks child would request, if any.
+    #[must_use]
+    pub fn procedure_due(&self, task: u64) -> Option<(u16, u32, u64)> {
+        self.domain.procedure_due(task)
+    }
+
     pub fn make(&mut self, creator: Party, batch: Vec<New>) -> Reply {
         let before = self.records.keys().copied().collect::<BTreeSet<_>>();
         let members = batch.iter().map(|task| task.number).collect();
         let reply_to = self.to();
         let call = self.call;
-        self.send(Event::Make { reply_to, creator, batch: batch.into_boxed_slice() });
+        self.send(Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to,
+            creator,
+            batch: batch.into_boxed_slice(),
+        });
         let reply = self.replies[&call].clone();
         let made = self
             .records
@@ -1249,7 +1260,6 @@ impl World {
                 | Key::LiveCold(_)
                 | Key::Stub(_)
                 | Key::Ledger(_)
-                | Key::Milestone { .. }
                 | Key::Attempt { .. }
                 | Key::Hold { .. }
                 | Key::Activity { .. }
@@ -1356,7 +1366,6 @@ impl World {
                 | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::History(_)
@@ -1703,7 +1712,6 @@ fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
         | Stored::PlacedHold(_)
         | Stored::PersonProposal(_)
         | Stored::History(_)
-        | Stored::Milestone(_)
         | Stored::Attempt(_)
         | Stored::Hold(_)
         | Stored::Activity(_)

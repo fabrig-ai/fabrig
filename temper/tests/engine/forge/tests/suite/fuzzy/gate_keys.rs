@@ -27,6 +27,7 @@ fn non_base_gate_keys_ignore_generated_bases_and_ignored_paths() {
                         ignored: Box::new([ignored.as_bytes().into()]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: Box::new([]),
                 }])

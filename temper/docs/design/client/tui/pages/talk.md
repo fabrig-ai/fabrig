@@ -116,15 +116,16 @@ choices under the box):
   with no notice. `/quit` and Ctrl+C close the TUI, and the talk lapses
   (`../../pages/talk.md`, 4).
 - **The quiet line** (`README.md`, section 1, *The quiet line*):
-  - *at its left,* the project's name, " · ", NAME (`tui-hint`), then the
-    link's state only while it is not Live, as a design session's;
+  - *at its left,* "●" and the link's state first, Live included, as on
+    every screen (`README.md`, *The link's state*), then " · ", the
+    project's name, " · " and NAME (`tui-hint`);
   - *at its right,* while the person's talk is open, "this session 9 min"
     and, while its cost is known, " · 0.60" (`tui-hint`), its length as
     leaving words it and its cost as Team's sessions say a cost
     (`../../pages/team.md`, 1, *Its sessions*); then the project's count of
     what needs the person, as a chat's.
 
-  Illustrative: ` vsr-rs · Porter          this session 9 min · 0.60 · 2 need you`.
+  Illustrative: ` ● Live · vsr-rs · Porter      this session 9 min · 0.60 · 2 need you`.
 - **Its commands** (`README.md`, section 2, *Offered*): `/new`, `/chats`,
   `/open`, `/tell`, `/theme`, `/help` and `/quit`, and `/exit` whole to
   leave; none of a chat's own. `/open` opens the role's card on Team,

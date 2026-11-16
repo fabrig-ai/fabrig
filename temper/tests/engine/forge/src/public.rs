@@ -57,6 +57,7 @@ pub fn world(passes: u32) -> World {
         ignored: Box::new([]),
         blocking: true,
         base: false,
+        report: None,
     }]);
     assert!(world.project_landing(
         landings::PROJECT,

@@ -665,7 +665,9 @@ pub(crate) fn route_activate(
     }
     if core.settling || !ready || !core.start_opened() || core.start_stopped() {
         remember_due(core, context);
-    } else if core.tasks.recurring_template(number).is_none() {
+    } else if core.tasks.recurring_template(number).is_none()
+        && context.executor != (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING })
+    {
         match context.executor {
             tasks::Executor::Person(_) => {}
             tasks::Executor::Job { .. } => match super::jobs::admission(core, &context, env.wall, Box::new([])) {

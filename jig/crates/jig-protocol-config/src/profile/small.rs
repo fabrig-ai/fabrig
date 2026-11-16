@@ -213,7 +213,9 @@ pub(super) const CORE: core::Limits = core::Limits {
     routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
-        versions: 8,
+        // A release can replace all nine stock-sized defaults while revision 1 is held:
+        // 1 * 9 older versions besides the newest's, within sixteen places.
+        versions: 16,
         history: 64,
         proposals: 4,
         alternatives: 63,
@@ -300,7 +302,7 @@ pub(super) const IO: skein_io::Limits = skein_io::Limits {
 // raise fleet max_out 21 -> 25 and core room by 8 * 4 = 32 positions.
 // Close cancels each of Small's two pending sign-ins (protocol/llm.md, 5.2).
 // Account moves count 18 core route positions for their emitted outputs.
-// Retained-revision release adds 2 * 4 heads + 8 versions + one extent = 17.
+// Retained-revision release adds 2 * 4 heads + 16 versions + one extent = 25.
 // Placed holds: tightened core room plus 18 connector slots needs 20,801 writes.
 pub(super) const JOURNAL: super::JournalSizes =
     super::JournalSizes { commits: 3, writes: 20_801, door: 256, release: 256 };
@@ -344,7 +346,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v24::CEILINGS,
+    wire: jig_client_protocol_wire::v26::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 
@@ -435,16 +437,16 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     // Settings history with 16 charters, 21 executor kinds and 32,768-byte run policies,
     // including replacement values and composed application settings, fits 4,580,852 bytes.
     value: 4_580_852,
-    // A log append and two places per journal write, three creation rows and an orphan erase: 3 * 20,801 + 4.
-    ops: 62_407,
-    // 256 MiB values + 62,407 operations * (2,079 key + 9 framing) + 26 frame bytes.
-    commit: 398_741_298,
+    // A log append and two places per journal write, four creation rows and an orphan erase: 3 * 20,801 + 5.
+    ops: 62_408,
+    // 256 MiB values + 62,408 operations * (2,079 key + 9 framing) + 26 frame bytes.
+    commit: 398_743_386,
     queued: 3,
     // Three queued commits; segment holds two, snapshot follows one.
-    queued_bytes: 1_196_223_894,
+    queued_bytes: 1_196_230_158,
     budget: 268_435_456,
-    segment: 797_482_596,
-    snapshot_after: 398_741_298,
+    segment: 797_486_772,
+    snapshot_after: 398_743_386,
     chunk: 4_582_951,
     // The revision envelope, including what its items replaced, fits with its key.
     page: skein_kv::Page { rows: 2, bytes: 4_582_931 },

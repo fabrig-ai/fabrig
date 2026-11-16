@@ -29,6 +29,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             | DocumentOutcome::Adopted { .. }
             | DocumentOutcome::Left { .. }
             | DocumentOutcome::Stopped { .. }
+            | DocumentOutcome::Concluded { .. }
             | DocumentOutcome::Cancelled { .. }
             | DocumentOutcome::Lifted { .. }
             | DocumentOutcome::Released { .. }

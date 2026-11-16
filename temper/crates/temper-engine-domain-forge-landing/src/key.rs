@@ -47,7 +47,8 @@ pub struct KeyLimits {
 
 /// Workflow, ignored-path count and paths, each length-prefixed by a
 /// big-endian u16; then one byte for blocking and, only when true, base
-/// (domain/landing.md, 6.1).
+/// (domain/landing.md, 6.1). An optional report follows with tag 2, its
+/// length-prefixed artifact and format (domain/landing-search-by-test.md, 2).
 #[must_use]
 pub fn definition(gate: &Gate) -> Box<[u8]> {
     let mut length = gate.workflow.len().checked_add(5).expect("definition header fits");
@@ -55,6 +56,10 @@ pub fn definition(gate: &Gate) -> Box<[u8]> {
     for path in &gate.ignored {
         length = length.checked_add(2).expect("path length prefix fits");
         length = length.checked_add(path.len()).expect("definition fits");
+    }
+    if let Some(report) = &gate.report {
+        length =
+            length.checked_add(4).expect("report header fits").checked_add(report.artifact.len()).expect("report fits");
     }
     assert!(u16::try_from(length).is_ok(), "definition fits its encoded length");
     let mut out = Writer::new(length);
@@ -68,6 +73,16 @@ pub fn definition(gate: &Gate) -> Box<[u8]> {
     out.put(&[u8::from(gate.blocking)]).expect("sized blocking flag");
     if gate.base {
         out.put(&[1]).expect("sized base flag");
+    }
+    if let Some(report) = &gate.report {
+        out.put(&[2]).expect("sized report tag");
+        put_word(&mut out, report.artifact.len());
+        out.put(&report.artifact).expect("sized artifact");
+        let format = match report.format {
+            crate::Format::Junit => 0,
+            crate::Format::Lines => 1,
+        };
+        out.put(&[format]).expect("sized report format");
     }
     out.finish()
 }

@@ -50,22 +50,17 @@ pub(super) fn send(host: &mut Host, words: &[u8]) -> Option<(skein_lib::Token, f
 }
 #[test]
 fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
-    for chat in [false, true] {
+    for (chat, place) in [(false, false), (false, true), (true, false), (true, true)] {
         let mut host = home_host(false);
         if chat {
             person_chat(&mut host);
         }
-        for pressed in [false, true] {
-            if pressed {
-                give(&mut host, Event::Own { command: Own::Tell });
-            } else {
-                typed(&mut host, b"/tell");
-                give(&mut host, Event::Send);
-            }
-            assert_eq!(host.words(), b"/tell ", "bare or pressed, chat={chat}");
+        if place {
+            give(&mut host, Event::Own { command: Own::Tell });
+            assert_eq!(host.words(), []);
         }
         if chat {
-            typed(&mut host, b"/tell The export button is grey");
+            typed(&mut host, if place { WORDS } else { b"/tell The export button is grey" });
             give(&mut host, Event::Send);
             let tell = host.root.pages().tell().expect("chat sends the Tell act");
             assert_eq!(tell.project, 3);
@@ -73,7 +68,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
             assert_eq!(host.words(), []);
             continue;
         }
-        let sent = send(&mut host, b"/tell The export button is grey");
+        let sent = send(&mut host, if place { WORDS } else { b"/tell The export button is grey" });
         assert!(
             sent.is_some(),
             "chat={chat}, tell={:?}, page={:?}, words={:?}",
@@ -93,6 +88,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
             exchange,
             f::Outcome::Filed(f::Filed::new(&f::CEILINGS, f::FiledParts { number: 12 }).unwrap()),
         );
+        assert_eq!(host.state().place(), None);
         assert_eq!(host.state().tell_serial(), 1);
         assert_eq!(host.state().notice(), Some(&Notice::Filed { number: 12, project: b"Project".as_slice().into() }));
         assert!(text(&mut host).contains("Filed as finding 12 on Project."));
@@ -105,12 +101,20 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
 }
 #[test]
 fn tell_restores_refused_lost_and_long_words_until_send_or_screen() {
-    for outcome in ["refused", "lost", "long"] {
+    for (outcome, place) in
+        [("refused", false), ("lost", false), ("long", false), ("refused", true), ("lost", true), ("long", true)]
+    {
         let mut host = home_host(false);
         let words = if outcome == "long" {
             format!("/tell {}", "x".repeat(4097))
         } else {
             "/tell The export button is grey".into()
+        };
+        let words = if place {
+            give(&mut host, Event::Own { command: Own::Tell });
+            words.strip_prefix("/tell ").unwrap().to_owned()
+        } else {
+            words
         };
         let sent = send(&mut host, words.as_bytes());
         let expected = match outcome {
@@ -137,6 +141,7 @@ fn tell_restores_refused_lost_and_long_words_until_send_or_screen() {
             _ => unreachable!(),
         };
         assert_eq!(host.words(), words.as_bytes(), "{outcome}");
+        assert_eq!(host.state().place(), place.then_some(Own::Tell));
         assert_eq!(host.state().tell_refusal(), Some(expected.as_ref()), "{outcome}");
         if outcome != "long" {
             assert!(

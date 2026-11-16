@@ -246,6 +246,18 @@ pub fn find<'a>(tree: &'a skein_ui::Tree, role: skein_ui::Role, words: &[u8]) ->
     }
     panic!("node says expected words: {role:?} {words:?}")
 }
+pub fn bottom_halves(tree: &skein_ui::Tree) -> (&skein_ui::Node, &skein_ui::Node) {
+    for bottom in tree.nodes() {
+        if bottom.region == Some(crate::look::BOTTOM) {
+            let left = &tree.nodes()[index(tree, bottom.id).checked_add(1).unwrap()];
+            let right = &tree.nodes()[index(tree, left.id).checked_add(usize::try_from(left.size).unwrap()).unwrap()];
+            assert_eq!(left.role, skein_ui::Role::Status);
+            assert_eq!(right.role, skein_ui::Role::Paragraph);
+            return (left, right);
+        }
+    }
+    panic!("fixture has a bottom row")
+}
 pub fn build(view: &mut crate::View, tui: &crate::Tui, root: &Domain) -> Queue<skein_ui::Patch> {
     let mut out = Queue::with_capacity(crate::limits(&limits(), &skein_ui::Limits::EMPTY, 512).unwrap().patches);
     crate::build(view, tui, root, NOW, &mut out);

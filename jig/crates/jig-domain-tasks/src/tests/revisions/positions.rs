@@ -106,7 +106,13 @@ fn question_cohort(last: u64) -> Harness {
             child
         })
         .collect::<Vec<_>>();
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: children.into_boxed_slice() });
+    let out = h.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(1),
+        batch: children.into_boxed_slice(),
+    });
     assert!(
         out.iter().any(|request| match request {
             Request::Made { .. } => true,

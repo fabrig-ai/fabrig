@@ -144,6 +144,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
+                report: None,
             }]),
             tiers: Box::new([forge::Tier {
                 name: b"fuzzy".as_slice().into(),
@@ -483,7 +484,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                     b"Drafter" => "When you start a draft",
                     b"Coordinator" => "For each goal",
                     b"Coding agent" | b"Reviewer" => "For each change",
-                    b"Status agent" => "When you look at Home after landings",
+                    b"Status agent" => "When you look at Home after landings or findings",
                     _ => panic!("unexpected role"),
                 };
                 let does = match *number {

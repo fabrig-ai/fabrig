@@ -136,12 +136,6 @@ fn summary_owners(
                 );
                 writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Summary(Box::new(summary.clone())))));
                 summaries.push(number);
-                writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Milestone(tasks::Milestone {
-                    task: number,
-                    position: 1,
-                    phase: tasks::Phase::Waiting,
-                    at: Wall::EPOCH,
-                }))));
                 writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
                     task: number,
                     position: 1,

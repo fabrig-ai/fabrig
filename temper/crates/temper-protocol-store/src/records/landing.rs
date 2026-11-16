@@ -88,6 +88,7 @@ fn encode_proof(proof: &d::GateProof) -> w::GateProof {
         w::GateProofParts {
             proof: state,
             posted: match proof.posted {
+                d::Posted::ByTest => w::GatePosted::ByTest,
                 d::Posted::Nothing => w::GatePosted::Nothing,
                 d::Posted::Pending => w::GatePosted::Pending,
                 d::Posted::Verdict => w::GatePosted::Verdict,
@@ -112,6 +113,7 @@ fn decode_proof(proof: w::GateProof) -> d::GateProof {
     d::GateProof {
         proof,
         posted: match posted {
+            w::GatePosted::ByTest => d::Posted::ByTest,
             w::GatePosted::Nothing => d::Posted::Nothing,
             w::GatePosted::Pending => d::Posted::Pending,
             w::GatePosted::Verdict => d::Posted::Verdict,
@@ -265,10 +267,17 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
     w::LandingRound::new(
         &w::CEILINGS,
         w::LandingRoundParts {
-            search: match round.search {
+            search: match &round.search {
                 Some(search) => Some(
-                    w::LandingSearch::new(&w::CEILINGS, w::LandingSearchParts { green: search.green, red: search.red })
-                        .expect(FITS),
+                    w::LandingSearch::new(
+                        &w::CEILINGS,
+                        w::LandingSearchParts {
+                            green: search.green,
+                            red: search.red,
+                            tests: encode_search_tests(&search.tests),
+                        },
+                    )
+                    .expect(FITS),
                 ),
                 None => None,
             },
@@ -312,7 +321,11 @@ fn decode_round(round: w::LandingRound) -> d::Round {
     } = round.into_parts();
     d::Round {
         search: match search {
-            Some(search) => Some(d::Search { green: search.green(), red: search.red() }),
+            Some(search) => Some(d::Search {
+                green: search.green(),
+                red: search.red(),
+                tests: decode_search_tests(search.into_parts().tests),
+            }),
             None => None,
         },
         changed,
@@ -345,6 +358,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     let landing = w::LandingState::new(
         &w::CEILINGS,
         w::LandingStateParts {
+            searched: encode_searched(row.landing.searched.as_ref()),
             task: row.landing.task,
             project: row.landing.project,
             phase: encode_phase(&row.landing.phase),
@@ -441,6 +455,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         round,
         own_hold,
         last_left,
+        searched,
     } = landing.into_parts();
     if phase.held().is_some() && own_hold.is_some() {
         return Err(super::Undecodable::Malformed);
@@ -479,6 +494,13 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
     Ok(top::LandingRow {
         job: super::history::decode_job_record(job),
         landing: d::Landing {
+            searched: match searched {
+                Some(value) => {
+                    let value = value.into_parts();
+                    Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() })
+                }
+                None => None,
+            },
             last_left,
             task,
             project,
@@ -528,18 +550,72 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
         },
     )
     .expect(FITS);
-    let receipt = encode_receipt_value(receipt);
-    w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
+    w::ReceiptRow::new(
+        &w::CEILINGS,
+        w::ReceiptRowParts { report: encode_report(&receipt.report), key, receipt: encode_receipt_value(receipt) },
+    )
+    .expect(FITS)
 }
+fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
+    match report {
+        top::ReceiptReport::Unset => w::ReceiptReport::Unset,
+        top::ReceiptReport::Unread => w::ReceiptReport::Unread,
+        top::ReceiptReport::Many { bound } => w::ReceiptReport::Many(
+            w::ReceiptMany::new(&w::CEILINGS, w::ReceiptManyParts { bound: *bound }).expect(FITS),
+        ),
+        top::ReceiptReport::Tests(tests) => {
+            let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
+            for test in tests {
+                kept.push(
+                    w::ReceiptTest::new(&w::CEILINGS, w::ReceiptTestParts { key: test.key.clone(), fuzzy: test.fuzzy })
+                        .expect(FITS),
+                )
+                .expect(FITS);
+            }
+            w::ReceiptReport::Tests(
+                w::ReceiptTests::new(&w::CEILINGS, w::ReceiptTestsParts { tests: kept }).expect(FITS),
+            )
+        }
+    }
+}
+fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
+    match report {
+        w::ReceiptReport::Unset => top::ReceiptReport::Unset,
+        w::ReceiptReport::Unread => top::ReceiptReport::Unread,
+        w::ReceiptReport::Many(many) => top::ReceiptReport::Many { bound: many.into_parts().bound },
+        w::ReceiptReport::Tests(tests) => {
+            let tests = tests.into_parts().tests;
+            let mut kept = List::with_capacity(tests.len());
+            for test in tests.into_boxed() {
+                let w::ReceiptTestParts { key, fuzzy } = test.into_parts();
+                kept.push(top::ReceiptTest { key, fuzzy }).expect(FITS);
+            }
+            top::ReceiptReport::Tests(kept.into_boxed())
+        }
+    }
+}
+
+// Gate reports belong to ReceiptRow, not the value a tier result embeds.
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     let run = w::ReceiptRun::new(
         &w::CEILINGS,
         w::ReceiptRunParts { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() },
     )
     .expect(FITS);
+    let mut jobs = List::with_capacity(16);
+    for job in &receipt.jobs {
+        let job = w::ReceiptJob::new(
+            &w::CEILINGS,
+            w::ReceiptJobParts { job: job.job, attempt: job.attempt, name: job.name.clone() },
+        )
+        .expect(FITS);
+        jobs.push(job).expect(FITS);
+    }
     w::Receipt::new(
         &w::CEILINGS,
         w::ReceiptParts {
+            base: receipt.base,
+            jobs,
             failures: match &receipt.failures {
                 Some(f) => Some(super::verification::encode_failures(f)),
                 None => None,
@@ -555,21 +631,31 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
 }
 
 pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
-    let w::ReceiptRowParts { key, receipt } = row.into_parts();
+    let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
     let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
     let check = match check_name {
         w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
         w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
     };
+    let mut receipt = decode_receipt_value(receipt)?;
+    receipt.report = decode_report(report);
     Ok(top::Stored::Receipt {
         key: top::ReceiptKey { project, repository: names::decode_repository(repository), check, key },
-        receipt: decode_receipt_value(receipt)?,
+        receipt,
     })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
-    let w::ReceiptParts { failures, passed, run, candidate, ended, logs } = receipt.into_parts();
+    let w::ReceiptParts { base, jobs, failures, passed, run, candidate, ended, logs } = receipt.into_parts();
     let w::ReceiptRunParts { id, number, url } = run.into_parts();
+    let mut kept = List::with_capacity(16);
+    for job in jobs.into_boxed() {
+        let w::ReceiptJobParts { job, attempt, name } = job.into_parts();
+        kept.push(top::ReceiptJob { job, attempt, name }).expect(FITS);
+    }
     Ok(top::Receipt {
+        report: top::ReceiptReport::Unset,
+        base,
+        jobs: kept.into_boxed(),
         logs,
         failures: match failures {
             Some(f) => Some(super::verification::decode_failures(f)?),
@@ -638,4 +724,109 @@ fn decode_combine(combined: Option<w::LandingCombine>) -> Option<d::Combine> {
         Some(w::LandingCombine::Squash) => Some(d::Combine::Squash),
         None => None,
     }
+}
+
+fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
+    match search {
+        d::SearchTests::Whole => w::LandingSearchTests::Whole,
+        d::SearchTests::WholeAgain => w::LandingSearchTests::WholeAgain,
+        d::SearchTests::ByTest { gates, probed } => {
+            let mut selected = List::with_capacity(u32::try_from(gates.len()).expect(FITS));
+            for gate in gates {
+                let selection = match gate {
+                    Some(ids) => {
+                        let mut tests = List::with_capacity(u32::try_from(ids.len()).expect(FITS));
+                        for id in ids {
+                            tests
+                                .push(
+                                    w::FailingTest::new(&w::CEILINGS, w::FailingTestParts { test_id: id.clone() })
+                                        .expect(FITS),
+                                )
+                                .expect(FITS);
+                        }
+                        Some(w::LandingSelection::new(&w::CEILINGS, w::LandingSelectionParts { tests }).expect(FITS))
+                    }
+                    None => None,
+                };
+                selected
+                    .push(
+                        w::LandingSelectedGate::new(&w::CEILINGS, w::LandingSelectedGateParts { selection })
+                            .expect(FITS),
+                    )
+                    .expect(FITS);
+            }
+            let mut outcomes = List::with_capacity(u32::try_from(probed.len()).expect(FITS));
+            for outcome in probed {
+                outcomes
+                    .push(
+                        w::LandingProbed::new(
+                            &w::CEILINGS,
+                            w::LandingProbedParts {
+                                member: outcome.member,
+                                gate: outcome.gate,
+                                run: outcome.run,
+                                passed: outcome.passed,
+                            },
+                        )
+                        .expect(FITS),
+                    )
+                    .expect(FITS);
+            }
+            w::LandingSearchTests::ByTest(
+                w::LandingByTest::new(&w::CEILINGS, w::LandingByTestParts { gates: selected, probed: outcomes })
+                    .expect(FITS),
+            )
+        }
+    }
+}
+fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
+    match search {
+        w::LandingSearchTests::Whole => d::SearchTests::Whole,
+        w::LandingSearchTests::WholeAgain => d::SearchTests::WholeAgain,
+        w::LandingSearchTests::ByTest(value) => {
+            let value = value.into_parts();
+            let mut gates = List::with_capacity(value.gates.len());
+            for gate in value.gates.into_boxed() {
+                let selection = match gate.into_parts().selection {
+                    Some(selection) => {
+                        let selection = selection.into_parts();
+                        let mut ids = List::with_capacity(selection.tests.len());
+                        for id in selection.tests.into_boxed() {
+                            ids.push(id.into_parts().test_id).expect(FITS);
+                        }
+                        Some(ids.into_boxed())
+                    }
+                    None => None,
+                };
+                gates.push(selection).expect(FITS);
+            }
+            let mut probed = List::with_capacity(value.probed.len());
+            for outcome in value.probed.into_boxed() {
+                let outcome = outcome.into_parts();
+                probed
+                    .push(d::Probed {
+                        member: outcome.member,
+                        gate: outcome.gate,
+                        run: outcome.run,
+                        passed: outcome.passed,
+                    })
+                    .expect(FITS);
+            }
+            d::SearchTests::ByTest { gates: gates.into_boxed(), probed: probed.into_boxed() }
+        }
+    }
+}
+fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched> {
+    let searched = searched?;
+    let mut changes = List::with_capacity(u32::try_from(searched.changes.len()).expect(FITS));
+    for change in &searched.changes {
+        changes.push(*change).expect(FITS);
+    }
+    Some(
+        w::LandingSearched::new(
+            &w::CEILINGS,
+            w::LandingSearchedParts { red: searched.red, green: searched.green, changes },
+        )
+        .expect(FITS),
+    )
 }

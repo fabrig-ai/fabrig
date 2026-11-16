@@ -129,6 +129,22 @@ impl Worker {
             return Err(problem(b"root", What::Bound));
         }
         let prepared = worker_settings::prepare(settings, agent, limits)?;
+        Self::prepared(settings, agent, limits, files, runtime, seed, prepared)
+    }
+
+    /// Constructs the worker from its checked bounds and channel table (protocol/wires.md, 4).
+    pub fn prepared(
+        settings: &crate::settings::Worker,
+        agent: &Agent,
+        limits: &worker_settings::Limits,
+        files: &Files,
+        runtime: WorkerRuntime,
+        seed: u64,
+        prepared: worker_settings::Prepared,
+    ) -> Result<Self, Problems> {
+        if runtime.path.len() > WORKER_PATH_BYTES {
+            return Err(problem(b"root", What::Bound));
+        }
         let config = &settings.jig;
         let secret = files.contents(&config.secret).ok_or(problem(b"secret", What::Unreadable))?;
         let bytes = secret.strip_suffix(b"\n").unwrap_or(secret);
@@ -144,8 +160,8 @@ impl Worker {
             }
             None => jig_protocol_worker_wire::spoken(),
         };
-        let link =
-            link::Component::new(&prepared.link, jig, credential, seed).or(Err(problem(b"limits", What::Bound)))?;
+        let link = link::Component::with_schema(&prepared.link, jig, credential, seed, prepared.schema)
+            .or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
@@ -1352,6 +1368,129 @@ fn owner_of(event: &mut io::Event, new: Token) {
 
 fn worker_root(limits: &root::Limits) -> root::Domain {
     root::Domain::new(limits, worker_settings::job_kinds())
+}
+
+#[cfg(test)]
+mod prepared_tests {
+    use crate::tests::fixtures;
+    use jig_protocol_worker_link::{Event, Request};
+    use skein_channel::{Lower, LowerEvent};
+    use skein_lib::{List, Queue, Time, Token, stream};
+
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the test refuses every unexpected opening request")]
+    fn opening(
+        worker: &mut super::Worker,
+        limits: &jig_protocol_worker_link::Limits,
+        schema: &skein_channel::Schema,
+    ) -> List<stream::OutputDown> {
+        let channel = jig_protocol_worker_link::channel_limits(limits).expect("channel limits");
+        let version = jig_protocol_worker_wire::VERSION;
+        let accept = skein_channel::control_frame(&skein_channel::Control::Accept { version, features: 0 }, &channel)
+            .expect("accept frame");
+        let mut entries = List::uncapped();
+        for kind in &schema.version(version).expect("current version").kinds {
+            if kind.direction == skein_channel::Direction::FromInitiator {
+                entries.push(skein_channel::Term { kind: kind.kind, largest: kind.largest }).expect("uncapped terms");
+            }
+        }
+        let terms = skein_channel::control_frame(&skein_channel::Control::Terms { entries }, &channel)
+            .expect("peer terms frame");
+        let input = skein_lib::bytes::concat(&[accept.bytes(), terms.bytes()]);
+        let mut remaining = input.as_ref();
+        let mut out = Queue::uncapped();
+        worker.link.fire(Time::ZERO, &mut out);
+        let Request::Dial = out.pop().expect("first dial") else { panic!("first dial") };
+        assert!(out.is_empty());
+        let connection = Token::new(1);
+        worker.link.down(Time::ZERO, Event::Dialled { connection }, &mut out);
+        let mut writes = List::uncapped();
+        for _ in 0_u8..32 {
+            let Some(request) = out.pop() else { break };
+            match request {
+                Request::Lower { lower: Lower::Write(write), .. } => {
+                    if let stream::OutputDown::Room { right, .. } = &write {
+                        worker.link.down(
+                            Time::ZERO,
+                            Event::Lower {
+                                connection,
+                                event: LowerEvent::Write(stream::OutputUp::Settled {
+                                    right: *right,
+                                    outcome: stream::OutputOutcome::Granted,
+                                }),
+                            },
+                            &mut out,
+                        );
+                    }
+                    writes.push(write).expect("uncapped writes");
+                }
+                Request::Lower {
+                    lower: Lower::Read(stream::Down::Demand { read: stream::Read::Fill(count), .. }),
+                    ..
+                } => {
+                    if let Some((bytes, rest)) = remaining.split_at_checked(usize::try_from(count).expect("read count"))
+                    {
+                        let bytes = skein_lib::bytes::copy_of(bytes);
+                        remaining = rest;
+                        worker.link.down(
+                            Time::ZERO,
+                            Event::Lower { connection, event: LowerEvent::Read(stream::Up::Bytes(bytes)) },
+                            &mut out,
+                        );
+                    }
+                }
+                Request::Lower { lower: Lower::Read(_), .. } => {}
+                other => panic!("unexpected opening request: {other:?}"),
+            }
+        }
+        assert!(out.is_empty());
+        assert_eq!(remaining, b"");
+        let mut sent = 0_u8;
+        for write in &writes {
+            match write {
+                stream::OutputDown::Send { .. } => sent = sent.checked_add(1).expect("bounded frames"),
+                stream::OutputDown::Room { .. }
+                | stream::OutputDown::Cancel { .. }
+                | stream::OutputDown::Release { .. } => {}
+            }
+        }
+        assert_eq!(sent, 2, "the credential statement and the received-kind terms");
+        writes
+    }
+
+    #[test]
+    fn a_prepared_worker_keeps_its_table_and_opens_as_a_new_worker() {
+        let settings = fixtures::worker_settings();
+        let agent = fixtures::worker_agent();
+        let limits = fixtures::worker_limits();
+        let files = fixtures::worker_files();
+        let prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
+        let bodies = jig_protocol_worker_wire::sizes::limits(&prepared.link.sizes).expect("codec limits");
+        assert_eq!(prepared.schema, jig_protocol_worker_wire::schema(&bodies).expect("channel table"));
+        let link_limits = prepared.link;
+        let table = prepared.schema.clone();
+        let mut worker =
+            super::Worker::prepared(&settings, &agent, &limits, &files, fixtures::worker_runtime(), 7, prepared)
+                .expect("prepared worker");
+        let mut new =
+            super::Worker::new(&settings, &agent, &limits, &files, fixtures::worker_runtime(), 7).expect("new worker");
+        let expected = opening(&mut new, &link_limits, &table);
+        assert_eq!(opening(&mut worker, &link_limits, &table), expected);
+
+        let mut prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
+        let last = prepared.schema.versions.len().checked_sub(1).expect("nonempty table");
+        let current = prepared.schema.versions.get_mut(last).expect("current table");
+        for index in 0..current.kinds.len() {
+            let kind = current.kinds.get_mut(index).expect("kind in table");
+            if kind.direction == skein_channel::Direction::FromResponder {
+                kind.largest = kind.largest.checked_sub(1).expect("nonempty body");
+                break;
+            }
+        }
+        let mut changed =
+            super::Worker::prepared(&settings, &agent, &limits, &files, fixtures::worker_runtime(), 7, prepared)
+                .expect("worker with changed receiving bound");
+        assert_ne!(opening(&mut changed, &link_limits, &table), expected, "the supplied table sets the terms");
+    }
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@
 ────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / fo
 ────────────────────────────────────────
- Hello · ● Live             1 needs you
+ ● Live · Hello             1 needs you
 --
 ........................................
 ..abbb...cccccc.........................
@@ -22,7 +22,7 @@
 ffffffffffffffffffffffffffffffffffffffff
 ggffffffffffffffffffffffffffffffffffffff
 ffffffffffffffffffffffffffffffffffffffff
-.eeeeefffhhhhhh.............ggggggggggg.
+.hhhhhhfffeeeee.............ggggggggggg.
 --
 a: fore #1B76FD
 b: fore #00C4FE
