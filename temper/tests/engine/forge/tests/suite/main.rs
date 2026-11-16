@@ -18,7 +18,9 @@ mod landing_judgement;
 mod landing_leaving;
 mod landing_proofs;
 mod landing_red_four;
+mod landing_reports;
 mod landing_rounds;
+mod landing_search_tests;
 mod member_message;
 mod memory;
 mod protection;
@@ -32,6 +34,7 @@ mod tiers;
 mod train_drills;
 mod trains;
 mod update_lost;
+mod workflow_flights;
 mod writer;
 
 mod fuzzy {

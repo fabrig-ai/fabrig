@@ -1518,7 +1518,12 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
             Repair::LandingAt {
                 gate: 1,
                 candidate: SHA1,
-                below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+                below: Some(super::forge_change::Below {
+                    green: SHA256,
+                    changes: [None; 4],
+                    by_test: false,
+                    top: false,
+                }),
             },
             [1, 3],
         ),
@@ -1706,7 +1711,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
     let why = super::forge_change::Repair::LandingAt {
         gate: 1,
         candidate: SHA1,
-        below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+        below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4], by_test: false, top: false }),
     };
     let mut row = change_row(Some(42));
     row.change.last_head = Some(SHA1);
@@ -2265,7 +2270,11 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let red = [0xaa; 32];
     let green = [0xbb; 32];
     let changes = [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None];
-    let why = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes }) };
+    let why = Repair::LandingAt {
+        gate: 1,
+        candidate: red,
+        below: Some(Below { by_test: false, top: false, green, changes }),
+    };
     let opening = b"Repair landing gate 1 at 0123456789ab: failed at prefix aaaaaaaaaaaa above bbbbbbbbbbbb\n";
     let reason = b"Repair the failed landing gate. The landing's gates passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
     let list = b" Changes landing below it: 2341 (#7), 2342 (#8).";
@@ -2293,7 +2302,11 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     assert!(!last_kept);
     assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION, &lines])));
     assert!(cut.len() <= usize::try_from(bound).unwrap());
-    let base = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes: [None; 4] }) };
+    let base = Repair::LandingAt {
+        gate: 1,
+        candidate: red,
+        below: Some(Below { by_test: false, top: false, green, changes: [None; 4] }),
+    };
     assert_eq!(
         super::repair_words(&row, base, Some(&failure), &[], 4096).unwrap(),
         concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION, &lines])
@@ -2361,6 +2374,44 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
             super::repair_words(&row, why, None, &[], 4096).unwrap(),
             skein_lib::bytes::concat(&[&required, b"\nGate run: the landing no longer keeps its failure"])
         );
+    }
+}
+
+#[test]
+fn a_blamed_by_test_repair_keeps_both_sentences_before_a_bounded_list() {
+    use super::forge_change::{Below, Landed, Repair};
+    use skein_lib::bytes::concat;
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some([0xcc; 32]);
+    let opening = b"Repair landing gate 1 at cccccccccccc: failed at prefix aaaaaaaaaaaa above bbbbbbbbbbbb\n";
+    let reason = b"Repair the failed landing gate. Its failing tests passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
+    let top_words = b" They passed at every probed prefix below it: they may fail only with this change's unit on the others, or be flaky.";
+    let ci = b" The CI section gives its run, base and failed jobs.";
+    let missing = b"\nGate run: the landing no longer keeps its failure";
+    for top in [false, true] {
+        let why = Repair::LandingAt {
+            gate: 1,
+            candidate: [0xaa; 32],
+            below: Some(Below {
+                green: [0xbb; 32],
+                by_test: true,
+                top,
+                changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
+            }),
+        };
+        let before = concat(&[opening, reason, if top { top_words } else { b"" }]);
+        let expected = concat(&[
+            &before,
+            b" Changes landing below it: 2341 (#7), 2342 (#8).",
+            ci,
+            super::REPAIR_PRESERVATION,
+            missing,
+        ]);
+        assert_eq!(super::repair_words(&row, why, None, &[], 1024).unwrap(), expected);
+        let bound =
+            u32::try_from(before.len() + ci.len() + super::REPAIR_PRESERVATION.len() + missing.len() + 3).unwrap();
+        let cut = super::repair_words(&row, why, None, &[], bound).unwrap();
+        assert_eq!(cut, concat(&[&before, b"...", ci, super::REPAIR_PRESERVATION, missing]));
     }
 }
 
@@ -3586,6 +3637,8 @@ fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_boun
                 gate: 1,
                 candidate: SHA256,
                 below: Some(change::Below {
+                    by_test: false,
+                    top: false,
                     green: SHA1,
                     changes: [Some(change::Landed { change: 12, pull: 3 }), None, None, None],
                 }),
@@ -5830,6 +5883,8 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
         gate: 1,
         candidate: SHA1,
         below: Some(Below {
+            by_test: false,
+            top: false,
             green: SHA256,
             changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
         }),

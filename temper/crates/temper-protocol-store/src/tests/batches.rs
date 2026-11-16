@@ -58,10 +58,11 @@ fn upgraded(before: &[u8]) -> v25::LandingRow {
     let bytes =
         patched(19, 8, b"LandingRow", patched(18, 7, b"LandingRow", patched(17, 6, b"LandingRow", before.into())));
     let bytes = patched(20, 9, b"LandingRow", bytes);
+    let bytes = current_layout(b"LandingRow", bytes);
     v25::LandingRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
 fn stored(row: v25::LandingRow) -> forge::Stored {
-    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(row) }).unwrap();
+    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) }).unwrap();
     let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut writer).unwrap();
     let bytes = writer.finish();
@@ -151,7 +152,7 @@ fn batch_members_and_leave_causes_round_trip() {
         }
         row.landing.members = members.into_boxed();
         row.landing.round.changed = Some(1);
-        row.landing.round.search = Some(landing::Search { green: 1, red: 2 });
+        row.landing.round.search = Some(landing::Search { tests: landing::SearchTests::Whole, green: 1, red: 2 });
         row.asks = Box::new([None, None, None]);
         let row = forge::Stored::Landing(row);
         let limits = forge::Limits { landing_members: 3, ..fixtures::LIMITS };
@@ -171,9 +172,11 @@ fn landing_repair_context_round_trips_and_old_rows_have_none() {
     for (index, slot) in changes.iter_mut().enumerate() {
         *slot = Some(Landed { change: 2341 + u64::try_from(index).unwrap(), pull: 7 + u64::try_from(index).unwrap() });
     }
-    for below in
-        [None, Some(Below { green: [0xbb; 32], changes: [None; 4] }), Some(Below { green: [0xbb; 32], changes })]
-    {
+    for below in [
+        None,
+        Some(Below { by_test: false, top: false, green: [0xbb; 32], changes: [None; 4] }),
+        Some(Below { by_test: false, top: false, green: [0xbb; 32], changes }),
+    ] {
         let mut row = seed.clone();
         row.landing.phase = landing::Phase::Preparing;
         row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
@@ -230,6 +233,71 @@ fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
         panic!("landing")
     };
     assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));
+}
+
+#[test]
+fn searches_by_test_round_trip_and_older_searches_are_whole_without_a_line() {
+    use crate::patches::kept::temper_store::v25 as old;
+    let schema = kept_schema(25);
+    let (value, row) = kept_value(&schema, b"LandingRow", kept_golden(25, "record_landing_row_full.bin"));
+    let state = value.field(row, old::landing_row::LANDING).unwrap();
+    let bytes = replaced(&value, value.field(state, old::landing_state::OWN_HOLD).unwrap(), &[0]);
+    let bytes = current_layout(b"LandingRow", bytes);
+    let wire = v25::LandingRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let forge::Stored::Landing(mut row) = stored(wire) else { panic!("landing") };
+    assert_eq!(row.landing.round.search.as_ref().unwrap().tests, landing::SearchTests::Whole);
+    assert_eq!(row.landing.searched, None);
+    row.landing.phase = landing::Phase::Proving;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for tests in [
+        landing::SearchTests::ByTest {
+            gates: Box::new([Some(Box::new([Box::from(b"a".as_slice()), Box::from(b"b".as_slice())])), None]),
+            probed: Box::new([
+                landing::Probed { member: 1, gate: 0, run: 72, passed: true },
+                landing::Probed { member: 2, gate: 0, run: 73, passed: false },
+            ]),
+        },
+        landing::SearchTests::WholeAgain,
+    ] {
+        row.landing.round.search = Some(landing::Search { green: 1, red: 3, tests });
+        row.landing.searched =
+            Some(landing::Searched { red: [8; 32], green: Some([7; 32]), changes: Box::new([11, 12]) });
+        row.landing.members[0].gates[0].posted = landing::Posted::ByTest;
+        let stored = forge::Stored::Landing(row.clone());
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+    }
+    assert_eq!(bounds.limits.landing_by_test_gates, fixtures::LIMITS.gates);
+    assert_eq!(
+        bounds.limits.landing_by_test_probed,
+        fixtures::LIMITS.gates.checked_mul(fixtures::LIMITS.landing_members).unwrap()
+    );
+    assert_eq!(bounds.limits.landing_selection_tests, fixtures::LIMITS.tiers.failing_tests);
+    assert_eq!(bounds.limits.landing_searched_changes, fixtures::LIMITS.landing_members);
+}
+
+#[test]
+fn a_by_test_repair_keeps_its_top_fact_and_older_boundaries_have_neither_fact() {
+    use temper_engine_domain_forge_change::{Ask, Below, Repair, State};
+    let schema = kept_schema(17);
+    let forge::Stored::Landing(seed) = stored(upgraded(&v17_landing(&schema))) else { panic!("landing") };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (by_test, top) in [(true, false), (true, true), (false, true)] {
+        let below = Some(Below { green: [0xbb; 32], changes: [None; 4], by_test, top });
+        let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Repairing {
+            requested: true,
+            why: Repair::LandingAt { gate: 1, candidate: [0xaa; 32], below },
+        })));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        let mut row = seed.clone();
+        row.landing.phase = landing::Phase::Preparing;
+        row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
+        let row = forge::Stored::Landing(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+    // The registered layout adds defaults to a boundary written before either fact existed.
+    let bytes = current_layout(b"LandingBelow", skein_lib::bytes::concat(&[&[0xbb; 32], &0_u32.to_be_bytes()]));
+    let below = v25::LandingBelow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!((below.by_test(), below.top()), (false, false));
 }
 
 #[test]

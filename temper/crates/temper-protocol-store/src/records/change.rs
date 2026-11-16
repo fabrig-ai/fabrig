@@ -140,12 +140,18 @@ pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
             )
             .expect(FITS);
     }
-    Some(w::LandingBelow::new(&w::CEILINGS, w::LandingBelowParts { green: below.green, changes }).expect(FITS))
+    Some(
+        w::LandingBelow::new(
+            &w::CEILINGS,
+            w::LandingBelowParts { green: below.green, changes, by_test: below.by_test, top: below.top },
+        )
+        .expect(FITS),
+    )
 }
 
 pub(super) fn decode_below(below: Option<w::LandingBelow>) -> Option<d::Below> {
-    let w::LandingBelowParts { green, changes } = below?.into_parts();
-    let mut below = d::Below { green, changes: [None; 4] };
+    let w::LandingBelowParts { green, changes, by_test, top } = below?.into_parts();
+    let mut below = d::Below { green, changes: [None; 4], by_test, top };
     for (slot, landed) in below.changes.iter_mut().zip(&changes) {
         *slot = Some(d::Landed { change: landed.change(), pull: landed.pull() });
     }

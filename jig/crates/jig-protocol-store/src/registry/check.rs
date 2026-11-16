@@ -93,6 +93,7 @@ pub(super) fn prefix_end(prefix: &[u8]) -> Option<Box<[u8]>> {
     None
 }
 fn derive(
+    binary: &mut texts::Binary,
     layouts: &Layouts,
     row: &Row,
     new: &Schema,
@@ -113,10 +114,9 @@ fn derive(
     let old_root = old.root(row.value.root(), variant).ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.
-    let fingerprint = match old.layout(old_root, old_held.as_slice()) {
-        Ok(layout) => layout.digest(),
-        Err(_) => return Err(Unplanned::Text),
-    };
+    let fingerprint = binary
+        .layout(layouts, *row.value.text(), row.value.root(), variant, row.value.held())
+        .ok_or(Unplanned::Text)?;
     if fingerprint != *row.value.layout() {
         return Err(Unplanned::Text);
     }
@@ -187,19 +187,14 @@ fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::Valu
 pub(super) fn plans(
     store: &mut Store,
     layouts: &mut Layouts,
-    binary: &texts::Binary,
+    binary: &mut texts::Binary,
     work: &mut Workspace,
 ) -> Result<(), OpenRefusal> {
     let mut keys = List::uncapped();
     for (key, _) in &layouts.rows {
         keys.push(key.clone()).expect("uncapped row keys");
     }
-    let mut family = None;
     for key in &keys {
-        if family != Some(key.0.as_ref()) {
-            texts::clear(layouts);
-            family = Some(key.0.as_ref());
-        }
         let dropping = settling(store, &key.0, key.1)?;
         let row = layouts.rows.get(key).expect("held row");
         if row.retire {
@@ -249,7 +244,7 @@ pub(super) fn plans(
             let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(layouts, row, new, declaration, held.as_slice(), dropping)
+                derive(binary, layouts, row, new, declaration, held.as_slice(), dropping)
             } else {
                 Err(Unplanned::Text)
             };

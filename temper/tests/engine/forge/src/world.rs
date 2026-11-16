@@ -226,7 +226,7 @@ impl World {
             false,
             12,
             true,
-            workflow,
+            workflow.map(|workflow| Box::<[raw::Workflow]>::from([workflow])),
             config,
             None,
             4,
@@ -259,6 +259,10 @@ impl World {
     /// The search's five-unit example retains the initial and probe statuses together.
     #[must_use]
     pub fn search_turn(seed: u64, workflow: raw::Workflow) -> World {
+        Self::search_workflows(seed, Box::new([workflow]))
+    }
+    #[must_use]
+    pub fn search_workflows(seed: u64, workflows: Box<[raw::Workflow]>) -> World {
         let mut config = fake_config();
         config.limits.files = 8;
         config.limits.statuses = 16;
@@ -271,7 +275,7 @@ impl World {
             false,
             12,
             true,
-            Some(workflow),
+            Some(workflows),
             config,
             None,
             5,
@@ -323,6 +327,11 @@ impl World {
     }
     pub fn runner_labels(&mut self, labels: Option<Box<[Box<[u8]>]>>) {
         self.forge_env.limits.runner_labels = labels;
+    }
+    /// Reopen the connector with a smaller forge dispatch entrance.
+    pub fn dispatch_room(&mut self, bytes: u32) {
+        self.env.limits.client.op_bytes = bytes;
+        self.restart();
     }
     pub fn runner_setup_faults(&mut self, faults: u32) {
         self.forge_env.limits.setup_faults = faults;
@@ -643,7 +652,7 @@ impl World {
             signatures,
             branches,
             turn,
-            tier,
+            tier.map(|workflow| Box::<[raw::Workflow]>::from([workflow])),
             fake_config(),
             None,
             LIMITS.landing_members,
@@ -663,7 +672,7 @@ impl World {
         signatures: bool,
         branches: u32,
         turn: bool,
-        tier: Option<raw::Workflow>,
+        tier: Option<Box<[raw::Workflow]>>,
         config: forge::Config,
         passes: Option<u32>,
         members: u32,
@@ -681,13 +690,15 @@ impl World {
             },
             ..LIMITS
         };
-        let config = scenario_config(config, branches, turn, tiered, protection.as_ref());
+        let mut config = scenario_config(config, branches, turn, tiered, protection.as_ref());
+        let workflows = workflows(turn, tier);
+        config.limits.workflows = u32::try_from(workflows.len()).expect("workflow room");
         let mut fake = forge::Domain::new(&config, seed);
         forge::repository(
             &mut fake,
             &config,
             raw::Setup {
-                workflows: workflows(turn, tier),
+                workflows,
                 id: 2,
                 name: Box::from(&b"org/repo"[..]),
                 default: Box::from(&b"main"[..]),
@@ -798,6 +809,14 @@ impl World {
         self.stored
             .insert(top::Key::Tier { repository: row.repository, tier: row.tier.clone() }, top::Stored::Tier(row))
             .expect("fixture tier room");
+        self.restart();
+    }
+
+    /// A previously completed gate run is part of the durable restart snapshot.
+    pub fn restore_receipt(&mut self, key: top::ReceiptKey, receipt: top::Receipt) {
+        self.stored
+            .insert(top::Key::Receipt(key.clone()), top::Stored::Receipt { key, receipt })
+            .expect("fixture receipt room");
         self.restart();
     }
 
@@ -913,7 +932,7 @@ impl World {
             false,
             4,
             true,
-            Some(workflow.clone()),
+            Some(Box::new([workflow.clone()])),
             repository_config(2),
             None,
             LIMITS.landing_members,
@@ -2120,9 +2139,9 @@ fn configured_forge() -> top::Configured {
     }
 }
 
-fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
+fn workflows(turn: bool, tier: Option<Box<[raw::Workflow]>>) -> Box<[raw::Workflow]> {
     if let Some(tier) = tier {
-        Box::new([tier])
+        tier
     } else if turn {
         Box::new([raw::Workflow {
             requirements: Box::new([]),
