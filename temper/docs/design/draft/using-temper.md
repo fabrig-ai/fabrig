@@ -58,7 +58,7 @@ another machine first (section 16).
 - **The market** (section 10): developers who already live in a coding
   agent and have met its ceiling.
 - **The gaps** (section 11) are mostly seams: adoption that reads the
-  repository and tells the person nothing, a project's checks and
+  repository and never says in one place whether a change can pass, a project's checks and
   toolchain that only an operator can set, and a deployment the person
   can't reach away from the machine it runs on. v0.1.0 needs the second
   door from another machine, the newcomer's reading, `.temper/`, the
@@ -87,8 +87,8 @@ that afternoon.
   Ask temper's M3b; configuring's rung D; the release's file, checksums
   and fresh-machine walk (`../release.status.md`).
 - **Not walked:** most landed milestones' walks and render checks still
-  follow. Seven journeys are recorded, three on the web and four in the
-  terminal, all on fakes (`../client/web/journeys.md`, section 9;
+  follow. Ten journeys are recorded at `5b6698daa7`, three on the web and
+  seven in the terminal, all on fakes (`../client/web/journeys.md`, section 9;
   `../client/tui/journeys.md`, section 9). None goes from the download to
   a person's own repository, their change, its approval and its landing.
   Standing roles have never run on a real project.
@@ -104,7 +104,7 @@ that afternoon.
 | 1, Pair | one change at a time | its diff, in the forge's review | every approval | a pull request | "nothing reaches main until I've approved it" |
 | 2, Delegate | changes, several at once | what landed, on Work | questions alone | pull requests that temper merges | "agents review, and code lands it" |
 | 3, Draft | a goal, from a design session | its report's headline | the draft's questions, a held goal | an issue | "a draft becomes a goal, landed whole" |
-| 4, Plan | a milestone, from a large draft | its strip | its goals' questions, a held goal | a milestone | "big work is a milestone, and each goal lands when done" |
+| 4, Plan | a milestone, from a large draft | its strip | its goals' questions, a held goal | its goals' issues alone (`milestones.md`, section 2) | "big work is a milestone, and each goal lands when done" |
 | 5, Own | an area, or a follow, to a standing role | its owner's Now, and the brief | what passes what reaches them | an owner, as a CODEOWNERS file names one, in words | "Prover owns the tests; Porter the port" |
 
 - **Each rung is the one below at a larger size:** a goal is a set of
@@ -169,10 +169,11 @@ that afternoon.
 | 1 or 2 | 3 | a request too large for one change, as the chat's agent judges it, or several changes started on one subject | the chat's "Make it a draft?", opening a design session |
 | 3 | 4 | a draft whose parts can land apart | "Start it as a milestone" (section 13) |
 | 2 to 4 | 5 | the person triaging findings or reds of one area, again and again | "Hand tests to a role", Team's act (`surfaces.md`, section 6) |
-| any | lower | a red after landing traced to a kind of change agents landed alone | "Ask you again for changes like this", as Keep asking narrows a rule (`what-reaches-you.md`, section 5) |
+| any | lower | a red after landing traced to a kind of change agents landed alone | "Ask you again for changes like this": a rule by path moving the item back to asking, composed as Stop asking's change is, in reverse (`what-reaches-you.md`, section 5). New |
 
-- **Down is as easy as up:** Keep asking, a rule by path, or "Give the
-  area back" (`surfaces.md`, section 6), each one proposal. A person who
+- **Down is as easy as up:** a rule by path that asks again, from that
+  offer or from Ask temper in the person's words, or "Give the area back"
+  (`surfaces.md`, section 6), each one proposal. A person who
   climbs too fast climbs back without losing anything.
 - **Nobody needs to know the next rung exists.** A person at Pair meets
   rung 2 as an offer about their own tests, not as a mode to read about.
@@ -226,11 +227,12 @@ each stops today.
 
 1. The site's one line downloads `temper` and runs `temper box`. The
    terminal shows the box starting in front of its services, then its
-   welcome, and the browser opens on it (`tui.status.md`, *Design
-   departs*).
+   welcome and its sign-in link, which the person opens in a browser on
+   that machine; the terminal never opens it (`../client/tui/box.md`).
 2. "Try the playground": the Demo project on fakes, its suggested requests
    answered, and "Add CSV export to widget" delegated, checked, reviewed
-   and landed (`v0.1.0.md`, 2.1, rung A).
+   and landed (`first-run-projects.md`). It is not v0.1.0's rung A, which
+   runs on real backends (`v0.1.0.md`, 2.1).
 3. "Set up temper →": Forge, Model, Ready (`first-run-projects.md`,
    section 4).
 
@@ -249,14 +251,19 @@ coding agent every day.
    lends (`../client/pages/welcome.md`).
 2. **Adopt:** Ready makes the project and, on GitHub, adopts nothing, so
    Home offers what the App reaches (`first-run-projects.md`, section 4).
-3. **temper says whether a first change can pass,** before any work. From
-   what adoption reads already (`../domain/forge/adoption.md`) and a few
-   reads more: main's last CI run; the workflows that run on a pull
+3. **temper says whether a first change can pass,** before any work, on
+   one card. Adoption already warns of a read-only installation and of
+   protection it couldn't read, and says what branch rules mean for
+   landing (`../domain/forge/adoption.md`); the card gathers those and a
+   few reads more: main's last CI run; the workflows that run on a pull
    request; branch protection that would refuse temper's merge; a reviewer
    identity for You approve; whether the repository has an `AGENTS.md`, and
    what its `.temper/` holds, a delivery check, `.temper/pre-pr`, above all
    (`../domain/agent/charter.md`, section 4; section 15). Each line says
-   what to do. New (G2).
+   what to do. A read that failed, a CI that has never run and a file it
+   couldn't fetch are "unknown", never "ready" or "absent". Whether a
+   worker holds the repository's toolchain it can't know until G4, and
+   says so. New (G2).
 4. **temper learns the repository:** the card's `.temper/` line opens
    `temper help repository`, and the person, or their own agent, writes the
    delivery check from it, a script running the repository's own build and
@@ -301,12 +308,15 @@ breaking main, which a coding agent alone in a terminal doesn't give.
 3. **The foundation's goal:** `/goal` starts it. Its first change replaces
    the starter workflow, which only echoes success, with the real build and
    tests, and writes `AGENTS.md` and `.temper/pre-pr`; every later change
-   passes them (G3).
+   passes them (G3). Since it changes `.temper/`, it waits for the person's
+   approval in every stock way (15.4), so on GitHub the person must be a
+   reviewer the forge counts (`../domain/forge/change/gates.md`, section
+   1), as in J1.
 4. **The features:** a goal each, or one milestone (rung 4).
 
 **The starting rung is the project's, not the person's:** a repository
-with no code has nothing to approve line by line, and its design is what
-matters, so a new project starts at rung 3; an existing one starts at rung
+with no code has nothing to approve line by line but its foundation, and
+its design is what matters, so a new project starts at rung 3; an existing one starts at rung
 1, since its code is someone's. It shows "say how you work" and "say what
 to build" at once.
 
@@ -409,7 +419,7 @@ stops. Each stop is a gap of section 11.
 | A new project | "Make an empty one" on Forgejo; on GitHub, made there and adopted | the starter workflow echoes success; no build, test, `AGENTS.md` or delivery check is written (G3) |
 | Their own agent | `temper help`, `temper ctl` signed in, `change open` for a branch it pushed | on the deployment's machine alone, since `temper ctl` refuses an address off loopback, and no page gives the person the words for their agent (G7) |
 | A design session | `/draft`, the draft beside it, `/goal` | built, and recorded on fakes |
-| A milestone | none yet | in flight (`home-for-a-person.execution.md`, M1 to M3) |
+| A milestone | none yet | jig's part landed; temper's milestones and the pages' not started (`home-for-a-person.execution.md`, M1 to M3) |
 | An owner | Team's "Hand an area to a role", `/talk` | built, and never run on a real project (G1) |
 | The phone | Home, Needs you, Ask; push, once an owner has set it up over HTTPS | a box on loopback is out of a phone's reach; no mail or digest (G5) |
 | The overnight goal | a goal from a draft, landing whole | a box stops with its laptop; moving temper to a machine that stays on is an operator's setup from nothing (`../../help/server.md`) (G5) |
@@ -443,7 +453,7 @@ becomes a change that lands or is held with its reason.
 |---|---|---|
 | a design session with an agent, outside temper, from a laptop or a phone | `/draft` in the terminal, or Draft on the web | built; not used on a real project |
 | the draft landed as a document, said ready | `temper ctl draft ready`, then Work's Drafts | built; ready is said through `temper ctl` alone |
-| an execution file's milestones, each a goal, started in order on the person's approval | a milestone, its goals waiting on each other (`milestones.md`, section 6) | in flight |
+| an execution file's milestones, each a goal, started in order on the person's approval | a milestone, its goals waiting on each other (`milestones.md`, section 6) | not started (`home-for-a-person.execution.md`, M2) |
 | sessions watching goals and answering what they ask as the person would | the coordinator's wakes; Away and Decided for you | built |
 | the landing queue | temper's landing | built and in daily use |
 | sessions owning what follows landing: reds, tiers, budgets | tiers after landing, the triager, Prover | built; a project's tiers are the deployment's document |
@@ -561,10 +571,12 @@ blocking for v0.1.0").
   backends after landing; V is the user's own week (section 12).
 - **G2, an adopted repository that can take a first change.** Adoption
   reads its branch rules, merge styles, collaborators and workflow names
-  (`../domain/forge/adoption.md`, sections 4 and 7) and tells the person
-  nothing of whether a change can pass. For v0.1.0, a readiness card on
-  the project's Home, from those reads and a few more, each line with its
-  act. After it, "Teach temper this repository", a stock first change
+  (`../domain/forge/adoption.md`, sections 4 and 7), and warns of a
+  read-only installation and of protection it couldn't read, but nothing
+  says in one place whether a first change can pass. For v0.1.0, a
+  readiness card on the project's Home, from those reads and warnings and
+  a few reads more, each line with its act, and "unknown" where a read
+  failed. After it, "Teach temper this repository", a stock first change
   that writes `.temper/pre-pr` and `.temper/AGENTS.md` from the
   repository's own CI and docs, the agent judging and the person
   approving.
@@ -615,11 +627,13 @@ Plans use the focused and fuzzy suites alone; walks come after landing.
 - **The second door from another machine** (section 16): `temper ctl` and
   the terminal signed in at a fake deployment's `https://` address, over
   TLS with a test root; an approval asked from another host, its code
-  typed on the page, which says who asked, from where and when; a
-  stranger's asks never crowding out the person's; a client of another
+  typed on the page, which marks what the client says of itself; sustained
+  anonymous asks never keeping the person out; the terminal's credential
+  and kept requests never sent to another origin; a client of another
   version refused, naming the deployment's.
 - **`.temper/`** (section 15): `.temper/AGENTS.md` in a run's prompt after
-  the root's guide, under its line; a change touching `.temper/` asking
+  the root's guide, under its line; a reviewer's guides read from the
+  branch the change lands into; a change touching `.temper/` asking
   the person in each stock way; `temper help repository`'s section held to
   the help's own checks.
 - **J1 and J2 as journeys** (`../client/web/journeys.md`;
@@ -707,12 +721,22 @@ repo."
   a change adding a test suite adds its check in the same commit. Who
   decides, what reaches whom and what may be spent stays in the store, the
   people's (`configuring.md`, section 3): ways and rules by path, roles
-  and their areas, follows, budgets, members. So no change can grant
-  itself trust.
-- **What governs a landing is read from the branch the change lands
-  into,** never from the change's own tree: once gates are `.temper/`'s, a
-  change is held to the gates it found, and one that changes them governs
-  the changes after it.
+  and their areas, follows, budgets, members. So no change to a
+  repository changes who decides.
+- **Each part is read from a tree of its own:**
+  - a producer's guide and its delivery check, from its own checkout, so
+    a change may change both, as today (`../domain/agent/charter.md`,
+    section 4). The check is no security boundary but an early catch
+    inside the run that can fix it; the line is the forge's CI and the
+    gates (smith's `domain/run.md`, 8.1);
+  - the merge job, from the merge in progress, as today
+    (`../protocol/tooling.md`, 4.1);
+  - a reviewer's guides, from the branch the change lands into, so that
+    no change instructs its own review (15.3). New;
+  - gates and tiers, once they are `.temper/`'s, from the branch the
+    change lands into, so a change is held to the gates it found. How a
+    train holding a change to them cuts over is their own draft's
+    (`using-temper.execution.md`, section 2).
 - **One folder,** so a maintainer sees temper's whole footprint at a
   glance, and a repository that leaves temper deletes one folder. What
   lives outside it is the repository's own, its CI and its `AGENTS.md`,
@@ -723,13 +747,16 @@ repo."
 | Path | What | Today |
 |---|---|---|
 | `.temper/pre-pr` | the delivery check, run on a run's checkout before anything is pushed (`../domain/agent/charter.md`, section 4) | built |
-| `.temper/merge` | the merge job, a catch-up's producer | built; its path named by the deployment's document, `merge_job` (`../protocol/configuration/engine.md`) |
+| `.temper/merge` | the merge job, run from the merge in progress (`../protocol/tooling.md`, 4.1) | built; its path named by the deployment's document, `merge_job` (`../protocol/configuration/engine.md`) |
 | `.temper/close` | the close job, a goal's close step | built; likewise, `close_job` |
-| `.temper/known-reds.md` | reds owned by no live change, which delivery's checks pass | fabrig's charters' (`stock-charters.md`, section 10) |
 | `.temper/AGENTS.md` | temper's guide (15.3) | new (G11) |
 | gates and tiers | the forge's checks a change waits for, the workflows run after landing, and their words | the deployment's document (`../protocol/configuration/engine.md`); here by a draft of their own (section 13) |
 | what its runs need | a toolchain, a kernel, a machine, which placement reads | absent (G4) |
 | a charter overlay | the project's own rules over the stock charters | later (`stock-charters.md`, section 11) |
+
+A goal's known reds are no file of the folder: the goal keeps them as
+records, and a delivery's check reads them from the worker
+(`../domain/forge/reds.md`).
 
 ### 15.3 temper's guide
 
@@ -737,6 +764,10 @@ repo."
   directory's guide, `AGENTS.md` (smith's `domain/run.md`, 3.3). At the
   repository's root, `.temper/AGENTS.md` follows the root's, under a line
   saying it is temper's and wins where the two differ.
+- **A reviewer reads both as the branch the change lands into has them,**
+  not as the change has them, so a change can't tell its own reviewer what
+  to pass. A producer, a repair and a resolution read their checkout's, as
+  today.
 - **The repository's `AGENTS.md` stays for every agent,** the person's own
   among them; `.temper/AGENTS.md` is for temper's alone: how to deliver
   here, what never to run, what a goal's report should say.
@@ -745,18 +776,24 @@ repo."
 
 ### 15.4 A change to it reaches the person
 
-- **A change to `.temper/` changes what code checks,** so every stock way
-  asks the person for one, by a rule by path the stock carries
-  (`what-reaches-you.md`, section 7). A project narrows or drops it as any
-  rule, as one whose agents tune their own checks every day would. Without
-  it, an agent could loosen the check its own change must pass.
+- **A change to `.temper/` changes what temper's agents are told and what
+  its jobs run,** so every stock way asks the person for one, by a rule by
+  path the stock carries (`what-reaches-you.md`, section 7). A project
+  narrows or drops it as any rule, as one whose agents tune their own
+  checks every day would.
+- **It is no security boundary.** A check's code may live outside the
+  folder, as fabrig's `.temper/pre-pr` runs `tools/pre-pr/`, and so may
+  the CI workflows and tests it mirrors. The line stays the forge's CI and
+  the gates. A person who wants a check's code to ask them too adds its
+  paths to the same rule, and `temper help repository` says so.
 
 ### 15.5 What a person does with it
 
 - **J1:** the readiness card's `.temper/` line opens `temper help
   repository`, which says what each file is and shows one; the person or
   their agent writes `.temper/pre-pr` (5.2, step 4).
-- **J2:** the foundation's goal writes it (5.3).
+- **J2:** the foundation's goal writes it, and the person approves it
+  (5.3).
 - **The pilot:** vsr's `.temper/` is written and reviewed on day 0, and
   none of vsr's own files changes (9.3).
 - **fabrig's own repository** has `.temper/pre-pr`, `merge` and `close`
@@ -776,7 +813,8 @@ on their machine, driving a temper that runs on another.
 - **The terminal is on loopback alone too** (`../client/tui/README.md`,
   section 1), and signs in by the link or by the person's browser
   approving it on the approval page (`../client/README.md`, 4.1;
-  `../client/pages/README.md`, section 2).
+  `../client/pages/README.md`, section 2). It keeps one directory for
+  whatever address it opens.
 - **A browser's approval between hosts** is jig's open question, defaulting
   to loopback alone (jig's `protocol/client/README.md`, section 12;
   `protocol/client/sign-in.md`).
@@ -790,9 +828,10 @@ Illustrative; its milestone settles the forms.
 1. **Sign in, once per deployment:** `temper ctl ~/.temper/dev sign-in
    --address https://dev.fabrig.ai` prints the approval page's address
    and a code, and waits. The person, signed in on the web, opens the
-   page, types the code, reads which client asked, from where and how long
-   ago, and approves; ctl prints who it is signed in as. `temper
-   https://dev.fabrig.ai` signs the terminal in the same way.
+   page, types the code, reads what the deployment knows of the ask, and
+   approves; ctl prints who it is signed in as. `temper
+   https://dev.fabrig.ai` signs the terminal in the same way, into that
+   deployment's own place (16.3).
 2. **Tell their agent, once:** a line in the `AGENTS.md` the agent already
    reads, the repository's or their own:
 
@@ -811,15 +850,30 @@ Illustrative; its milestone settles the forms.
 - **`https://` at the deployment's public address,** whatever serves its
   TLS, with the machine's roots, as temper's GitHub connection does
   (`../protocol/configuration/engine.md`); `http://` stays for loopback
-  alone. A directory holds one deployment, as today, and every call
-  names it.
-- **The browser approves; an agent never does.** An approval is decided by
-  a browser's cookie alone, so a program holding the person's credential
-  can't approve (jig's `protocol/client/sign-in.md`). Between hosts the
-  code is typed on the page, never carried in its address, and the page
-  says which client asked, from where and when, so a person who didn't
-  just ask approves nothing. A stranger's asks never crowd out the
-  person's.
+  alone.
+- **A credential goes only to the deployment that gave it.** ctl's
+  directory holds one deployment already, and every call names it. The
+  terminal keeps a credential and its kept requests per deployment, by
+  its origin, and opening another origin never sends the old one's
+  credential or requests.
+- **Who may ask, and how often, before a deployment enables it in
+  public.** An ask is anonymous today, and a deployment holds four at
+  once for ten minutes each (jig's `protocol/client/sign-in.md`), so four
+  strangers' asks keep the person out. Between hosts, asking, polling and
+  guessing are bounded so that sustained anonymous asks can't, and U6's
+  acceptance shows it.
+- **What the page can vouch for.** The page tells apart what the
+  deployment attests, the ask's time and, behind a proxy it trusts, the
+  address it came from, from what the client says of itself, its name and
+  machine, shown as the client's own words. The code is typed on the
+  page, never carried in its address, so a person who didn't just ask
+  approves nothing.
+- **An approval guards against strangers, not against the person's own
+  agent.** A browser's cookie and a bearer carry the same secret (jig's
+  `protocol/client/default-http.md`), so a program holding the person's
+  credential can approve as a browser would. Whether approving should
+  need more than that credential is U6's to settle; the draft promises no
+  more than it gives.
 - **The sign-in is the person's,** with their roles: their agent acts as
   them, as fabrig's sessions act as the deployment's first owner today. A
   service, made by `party make` and signed in by `sign-in --service
@@ -843,9 +897,11 @@ Illustrative; its milestone settles the forms.
   its words are always that build's.
 - **A walk for the driver:** `temper help` gains the walk an agent follows
   to hand work over: signing in, a pushed branch opened as a change, a
-  draft said ready and its goal started, a milestone from an execution
-  file, needs answered, and waits. It is the second door's help page
-  (section 13), written once for every handover, not for milestones alone.
+  draft said ready and its goal started, needs answered, and waits. It is
+  the second door's help page (section 13), written once for every
+  handover, not for milestones alone. A milestone from an execution file
+  joins it with `temper ctl milestone`, which
+  `home-for-a-person.execution.md`'s M2 brings.
 - **No skill or server packaged for agents in v0.1.0:** either would copy
   what the help says and drift from the binary. One generated from the
   help can come later (section 14).
