@@ -9,8 +9,13 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups/turn-landing")
 }
 fn place() -> Place {
-    Place::new([7101, 7102, 7103, 7104, 7105, 7106, 7107, 7108, 7109], "/turn".into(), "/programs".into())
-        .expect("test place")
+    Place::new(
+        [7101, 7102, 7103, 7104, 7105, 7106, 7107, 7108, 7109],
+        "/turn".into(),
+        "/programs".into(),
+        Some("/turn/bundle".into()),
+    )
+    .expect("test place")
 }
 fn rendered(name: &str) -> Box<[u8]> {
     let bytes = std::fs::read(root().join("config").join(name)).expect("setup document");

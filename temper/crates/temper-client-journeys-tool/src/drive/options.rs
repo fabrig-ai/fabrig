@@ -66,9 +66,6 @@ impl Options {
         }
         let bin = bin.ok_or("missing --bin DIR")?;
         if deployment.is_some() {
-            if ctl {
-                return Err("--ctl and --deployment cannot be given together".into());
-            }
             if ports.is_none() {
                 return Err("--deployment requires --ports LIST".into());
             }
@@ -262,9 +259,6 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
         executable(&options.bin.join(name))?;
     }
     if let Some(deployment) = &mut options.deployment {
-        if options.ctl {
-            return Err("--ctl and --deployment cannot be given together".into());
-        }
         if options.ports.is_none() {
             return Err("--deployment requires --ports LIST".into());
         }
@@ -298,7 +292,7 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
     for script in &mut options.scripts {
         *script = absolute(script)?;
     }
-    let chromium = if options.ctl || options.deployment.is_some() {
+    let chromium = if options.ctl {
         PathBuf::new()
     } else {
         let chromium =

@@ -139,15 +139,15 @@ pub(super) fn session_options(
 ) -> Result<drive::Options, String> {
     let mut arguments = arguments.to_vec();
     if let Some(config) = chain.config_dir(setups) {
-        if arguments.iter().any(|arg| arg.as_ref() == b"--bundle") {
-            return Err("a deployment walk takes no --bundle".into());
-        }
         arguments.push(b"--deployment".as_slice().into());
         arguments.push(config.as_os_str().as_bytes().into());
     }
     let mut options = drive::Options::parse(&arguments)?;
     options.scripts = chain.scripts(setups);
-    options.ctl = chain.kind() == super::Kind::Box && chain.ctl_only();
+    options.ctl = chain.ctl_only();
+    if !options.ctl && options.bundle.is_none() {
+        return Err("missing --bundle DIR".into());
+    }
     Ok(options)
 }
 pub(super) fn catalogue(reader: &Reader<'_>, mut names: Vec<String>) -> Vec<String> {
