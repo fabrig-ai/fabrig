@@ -128,25 +128,24 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     assert!(effective["application"].get("charter").is_none());
     assert!(effective["application"].get("landing").is_none());
     let effective_agent = json(&docs.agent);
-    let forge = &effective["application"]["machine"]["github"];
+    let forge = &effective["application"]["test"]["github"];
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));
     assert_eq!(forge["remote"], "http://127.0.0.1:9101");
     assert_eq!(forge["web"], "http://127.0.0.1:9101");
     assert_eq!(forge["transport"], "plaintext");
     let document = crate::read::document(&docs.temper).expect("effective document");
     let app = super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
-    let at = super::member(&document, app, b"machine", &jig_protocol_config::Path::root()).expect("machine");
-    let mut problems = temper_forge_setup::problem::Problems::empty();
-    let machine = temper_forge_setup::machine::read(
+    assert!(effective["application"]["machine"].get("github").is_none());
+    let at = super::member(&document, app, b"test", &jig_protocol_config::Path::root()).expect("test");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let github = temper_forge_setup::machine::read_test(
         &document,
-        at,
-        &temper_forge_setup::limits::small(),
+        Some(at),
         &jig_protocol_config::Directories::working(),
         &mut problems,
     )
-    .expect("ordinary machine format");
+    .expect("fake GitHub");
     assert!(problems.is_empty());
-    let github = machine.github.expect("fake GitHub");
     assert!(!github.tls);
     assert_eq!(github.git.as_deref(), Some(b"/effective/data/demo/bin/git".as_slice()));
     let peer: Value = serde_json::from_slice(&docs.forgejo).expect("peer document");

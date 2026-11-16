@@ -183,8 +183,7 @@
           "email": "ada@example.invalid"
         },
         "remote": "http://127.0.0.1:3000"
-      },
-      "github": null
+      }
     },
     "clients": {
       "listener": {

@@ -68,7 +68,7 @@ fn prepare_with_limits(
     let setup::Deployment { mut named, checked, limits, .. } =
         setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = engine::settings(bytes, directories, given);
-    let engine::Runtimes { roots, github } = engine::runtimes(&named.machine)?;
+    let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
     let agent = named.worker.as_ref().map(agent::prepare_worker).transpose()?;
     if let Some(worker) = &named.worker {

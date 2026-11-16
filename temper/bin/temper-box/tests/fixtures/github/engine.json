@@ -157,7 +157,8 @@
       "bundle": null,
       "public": null
     }},
-    "machine": {{"github": {{"api": {{"socket": "{proc.forge.ready.address}"}}, "transport": "plaintext", "remote": "http://{proc.forge.ready.address}", "web": "http://{proc.forge.ready.address}"}}}},
+    "machine": {{}},
+    "test": {{"github": {{"api": {{"socket": "{proc.forge.ready.address}"}}, "transport": "plaintext", "remote": "http://{proc.forge.ready.address}", "web": "http://{proc.forge.ready.address}"}}}},
     "demo": null, "sign_in": null,
     "limits": {{
       "profile": "small",

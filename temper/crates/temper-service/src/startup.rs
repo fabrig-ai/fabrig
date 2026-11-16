@@ -127,6 +127,7 @@ fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWork
 #[derive(Debug)]
 pub struct Named {
     pub machine: temper_forge_setup::machine::Machine,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub files: Box<[config::File]>,
     pub asked_files: Box<[config::File]>,
     pub redirects: Box<[RedirectPort]>,
@@ -452,7 +453,11 @@ fn load_document(
     checks::records(engine.as_ref().expect("required engine checked"), &application.limits, &mut problems);
     checks::limits(&application.limits, &application.limits.git_component, &mut problems);
     checks::names(
-        checks::machine_remote(&application.machine, application.limits.forge.name_bytes),
+        checks::machine_remote(
+            &application.machine,
+            application.test_github.as_ref(),
+            application.limits.forge.name_bytes,
+        ),
         &application.limits,
         &mut problems,
     );
@@ -525,6 +530,7 @@ pub fn named_with(
     let files = all_files(&parsed);
     Ok(Named {
         machine: parsed.application.machine,
+        test_github: parsed.application.test_github,
         files,
         asked_files: Box::new([]),
         redirects: redirects(&parsed.engine),
@@ -633,9 +639,15 @@ pub(crate) fn checked_start_with(
     let own = &parsed.application.limits;
     checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
-    let remote =
-        u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
-            .ok();
+    let remote = u32::try_from(
+        checks::longest_remote(
+            &parsed.application.machine,
+            parsed.application.test_github.as_ref(),
+            own.forge.name_bytes,
+        )
+        .unwrap_or(u64::MAX),
+    )
+    .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
         repositories: own.checkout.repositories,
         name_bytes: own.forge.name_bytes,
@@ -661,6 +673,7 @@ pub(crate) fn checked_start_with(
         Some(&engine_bounds),
         if agent.is_some() { Some(&worker_bounds) } else { None },
         Some(&parsed.application.machine),
+        parsed.application.test_github.as_ref(),
         own,
         &mut problems,
     );
@@ -700,6 +713,7 @@ pub(crate) fn checked_start_with(
         },
         host_part,
         machine: parsed.application.machine,
+        test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
@@ -963,6 +977,7 @@ impl Named {
     pub fn into_engine(self) -> temper_engine_service::startup::Named {
         temper_engine_service::startup::Named {
             machine: self.machine,
+            test_github: self.test_github,
             files: self.files,
             asked_files: self.asked_files,
             redirects: self.redirects,

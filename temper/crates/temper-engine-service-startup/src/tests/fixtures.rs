@@ -50,6 +50,7 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         machine: machine(),
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -135,7 +136,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
 }
 
 pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
+    temper_forge_setup::machine::Machine { owned: None, fake: None }
 }
 
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {

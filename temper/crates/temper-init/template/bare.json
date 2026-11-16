@@ -214,9 +214,7 @@
     }
   ],
   "application": {
-    "machine": {
-      "github": null
-    },
+    "machine": {},
     "clients": {
       "listener": {
         "socket": "$listener"

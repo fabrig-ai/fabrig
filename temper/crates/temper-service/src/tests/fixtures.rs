@@ -69,6 +69,7 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         machine: machine(),
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -455,7 +456,7 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
 }
 
 pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
+    temper_forge_setup::machine::Machine { owned: None, fake: None }
 }
 
 #[expect(clippy::disallowed_macros, reason = "the fixture renders its project name")]

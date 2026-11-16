@@ -20,8 +20,8 @@ const APPLICATION: &[u8] = br#"{
  "runner":{"binary":"fetched","labels":["temper-host:host"],"capacity":1,"path":"/usr/bin:/bin"},
  "person":{"login":"person","email":"person@localhost"},"public":"https://forge.example.test",
  "mirror":{"forgejo":"https://downloads.example.test","runner":"https://runner.example.test"}},
- "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"},
- "github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
+ "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}},
+ "test":{"github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
  "remote":"https://git.example.test","web":"https://web.example.test","git":"demo/bin/github-git"}},
 "clients":{"listener":{"socket":"127.0.0.1:8367"},"bundle":"/bundle","public":"https://temper.example.test"},
 "welcome":true,
@@ -195,4 +195,35 @@ fn the_rows_have_unique_names_and_bounded_lines() {
             assert!(!row.line.is_empty() && row.line.len() <= 160 && row.line.ends_with('.'), "{row:?}");
         }
     }
+}
+
+#[test]
+fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
+    let input: serde_json::Value = serde_json::from_slice(&expanded()).unwrap();
+    for test in [None, Some(serde_json::json!({})), Some(serde_json::json!({"github":null}))] {
+        let mut input = input.clone();
+        input["application"].as_object_mut().unwrap().remove("test");
+        if let Some(test) = test {
+            input["application"]["test"] = test;
+        }
+        let input = serde_json::to_vec(&input).unwrap();
+        let parsed = startup::load(&input, &config::Directories::working(), false).expect("optional test");
+        assert!(parsed.1.expect("engine application").application.test_github.is_none());
+    }
+    for (test, expected) in [
+        (serde_json::json!({"other":null}), "application.test.other: unknown member\n"),
+        (serde_json::json!(null), "application.test: wrong value kind\n"),
+        (serde_json::json!({"github":false}), "application.test.github: wrong value kind\n"),
+    ] {
+        let mut input = input.clone();
+        input["application"]["test"] = test;
+        let input = serde_json::to_vec(&input).unwrap();
+        let problems = startup::load(&input, &config::Directories::working(), false).expect_err("invalid test");
+        assert_eq!(startup::lines(&problems).as_ref(), expected.as_bytes());
+    }
+    let mut input = input;
+    input["application"]["machine"]["github"] = serde_json::Value::Null;
+    let problems = startup::load(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), false)
+        .expect_err("machine.github is unknown");
+    assert_eq!(startup::lines(&problems).as_ref(), b"application.machine.github: unknown member\n");
 }

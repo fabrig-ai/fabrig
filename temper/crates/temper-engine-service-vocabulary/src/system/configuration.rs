@@ -22,9 +22,12 @@ pub const GITHUB_REMOTE: &[u8] = b"https://github.com";
 
 /// Machine places passed to the root (temper/docs/design/protocol/configuration/engine.md).
 #[must_use]
-pub fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
+pub fn machine_config(
+    machine: &temper_forge_setup::machine::Machine,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
+) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
-    let github = match &machine.github {
+    let github = match test_github {
         Some(github) => {
             let (host, port) = match &github.api {
                 jig_protocol_config::Address::Host { name, port } => (name.clone(), *port),
@@ -65,7 +68,7 @@ pub fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_
             None => None,
         },
         github,
-        github_git_program: match &machine.github {
+        github_git_program: match test_github {
             Some(github) => github.git.clone(),
             None => None,
         },

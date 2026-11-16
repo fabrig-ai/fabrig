@@ -60,6 +60,7 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         machine: machine(),
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -348,7 +349,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
         ways_stock: settings.ways_stock,
         forge,
         identities,
-        machine: Some(crate::system::machine_config(&settings.machine)),
+        machine: Some(crate::system::machine_config(&settings.machine, settings.test_github.as_ref())),
         forges: Box::new([]),
         under_box: false,
         playground: None,
@@ -1390,7 +1391,7 @@ pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
 
 /// The deployment's machine parts; forge records are kept separately.
 pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
+    temper_forge_setup::machine::Machine { owned: None, fake: None }
 }
 /// Admit a runtime forge through the root's kept-record request.
 pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {

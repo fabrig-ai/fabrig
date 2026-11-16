@@ -30,7 +30,7 @@ fn red_payload_ceilings_refuse_startup_with_the_forge_limit_named() {
         (payload::Bounds { red_key_bytes: 513, ..normal }, b"forge.red_key_bytes"),
     ] {
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::channel(Some(&bounds), None, None, &own, &mut problems);
+        crate::startup::checks::channel(Some(&bounds), None, None, None, &own, &mut problems);
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             problems.problems.get(0).unwrap().path,

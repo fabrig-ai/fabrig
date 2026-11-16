@@ -75,6 +75,9 @@ fn render(init: &[u8], shapes: &[Shape], rows: &[Member], engine: bool, out: &mu
         out.put(b"Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.\n")?;
     }
     for shape in shapes {
+        if shape.name == "test" || shape.name.starts_with("test-") {
+            continue;
+        }
         let mut heading = None;
         for path in &paths(shape, engine) {
             if accepted(path, engine) {
@@ -114,6 +117,9 @@ fn render_row(
     engine: bool,
     out: &mut Writer,
 ) -> Result<(), Overflow> {
+    if shape.name == "application" && row.name == "test" {
+        return Ok(());
+    }
     if engine && row.name == "models" && (shape.name == "llm" || shape.name == "llm-provider") {
         return Ok(());
     }
@@ -285,6 +291,9 @@ fn paths(shape: &Shape, engine: bool) -> List<&'static str> {
     }
     if engine && shape.name == "address" {
         for path in members::ADDRESS_PATHS {
+            if path.starts_with("application.test.") {
+                continue;
+            }
             paths.push(*path).expect("shared address paths counted");
         }
     }

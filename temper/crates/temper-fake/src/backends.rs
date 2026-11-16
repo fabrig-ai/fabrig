@@ -524,7 +524,6 @@ fn forge(
     edits: &mut Edits,
     ap: &Path,
 ) -> Result<(), Refusal> {
-    let machine = member(d, application, b"machine", ap)?;
     let origin = text(&read::joined(&[b"http://", github]))?;
     let value = read::joined(&[
         b"{\"api\":",
@@ -537,7 +536,11 @@ fn forge(
         &origin,
         b"}",
     ]);
-    object_member(d, machine, b"github", &value, edits)
+    let mut object = read::object(d, application, ap)?;
+    match object.member(d, b"test") {
+        Some(test) => object_member(d, test, b"github", &value, edits),
+        None => object_member(d, application, b"test", &read::joined(&[b"{\"github\":", &value, b"}"]), edits),
+    }
 }
 fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path) -> Result<(), Refusal> {
     let providers = member(d, llm_at, b"providers", ep)?;

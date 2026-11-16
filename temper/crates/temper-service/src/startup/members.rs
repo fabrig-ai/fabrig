@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 35] = [
+pub static SHAPES: [Shape; 36] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -125,10 +125,11 @@ pub static SHAPES: [Shape; 35] = [
     machine::SHAPES[6],
     machine::SHAPES[7],
     machine::SHAPES[8],
+    machine::SHAPES[9],
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 128] = [
+pub static MEMBERS: [Member; 129] = [
     Member {
         shape: "document",
         name: "engine",
@@ -154,6 +155,15 @@ pub static MEMBERS: [Member; 128] = [
         bound: "",
         required: true,
         line: "The machine, listeners and application limits.",
+        gone: None,
+    },
+    Member {
+        shape: "application",
+        name: "test",
+        kind: "test",
+        bound: "test only; not public configuration",
+        required: false,
+        line: "The test's fake GitHub place.",
         gone: None,
     },
     Member {
@@ -1068,6 +1078,6 @@ pub const ADDRESS_PATHS: &[&str] = &[
     "application.webhooks.listener",
     "application.machine.owned.listen",
     "application.machine.fake.listen",
-    "application.machine.github.api",
+    "application.test.github.api",
     "application.demo.llm.listen",
 ];

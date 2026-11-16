@@ -69,7 +69,7 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     provider["number"] = 2.into();
     provider["endpoint"] = "second".into();
     document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
-    document["application"]["machine"]["github"] = serde_json::json!({
+    document["application"]["test"]["github"] = serde_json::json!({
         "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
         "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"
     });

@@ -255,8 +255,7 @@
         },
         "remote": "$forge_git",
         "git": "demo/bin/git"
-      },
-      "github": null
+      }
     },
     "clients": {
       "listener": {

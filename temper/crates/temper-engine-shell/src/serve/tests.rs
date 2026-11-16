@@ -17,28 +17,33 @@ fn github_defaults_are_unresolved_in_resolution_order() {
 }
 
 #[test]
-fn github_machine_names_wait_and_machine_sockets_are_used_without_log_origins() {
-    let roots = super::trust(None).expect("machine trust roots");
-    let mut machine = temper_forge_setup::machine::GitHubMachine {
-        git: None,
-        api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),
-        tls: false,
-        remote: b"http://127.0.0.1:3001".as_slice().into(),
-        web: b"http://127.0.0.1:3001".as_slice().into(),
-    };
-    let fake = super::github_runtime(Some(&machine), &roots).expect("machine socket");
+fn github_test_names_wait_and_test_sockets_are_used_without_log_origins() {
+    let document = jig_protocol_config::document(
+        br#"{"github":{"api":{"socket":"127.0.0.1:3001"},"transport":"plaintext","remote":"http://127.0.0.1:3001","web":"http://127.0.0.1:3001","git":"bin/git"}}"#,
+        &jig_protocol_config::DocumentLimits { bytes: 4096, tokens: 128, depth: 8 },
+    ).expect("test member");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let mut test_github = temper_forge_setup::machine::read_test(
+        &document,
+        Some(0),
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    )
+    .expect("test GitHub");
+    assert!(problems.is_empty());
+    let super::Runtimes { github: fake, .. } = super::runtimes(Some(&test_github)).expect("test socket");
     assert!(fake.log_origins.is_empty());
     assert_eq!(fake.address, ([127, 0, 0, 1], 3001).into());
     assert!(matches!(fake.transport, skein_forge_connection::settings::Transport::Plaintext { .. }));
-    machine.api = jig_protocol_config::Address::Host { name: b"machine.github.test".as_slice().into(), port: 8443 };
-    machine.tls = true;
-    let named = super::github_runtime(Some(&machine), &roots).expect("machine name waits");
+    test_github.api = jig_protocol_config::Address::Host { name: b"github.example.test".as_slice().into(), port: 8443 };
+    test_github.tls = true;
+    let super::Runtimes { github: named, .. } = super::runtimes(Some(&test_github)).expect("test name waits");
     assert_eq!(named.address, temper_engine_service::forge::HELD_ADDRESS);
     assert!(named.log_origins.is_empty());
     let skein_forge_connection::settings::Transport::Tls { server_name, .. } = named.transport else {
-        panic!("TLS machine")
+        panic!("TLS test peer")
     };
-    assert_eq!(server_name, skein_tls::Name::new("machine.github.test").unwrap());
+    assert_eq!(server_name, skein_tls::Name::new("github.example.test").unwrap());
 }
 
 #[test]

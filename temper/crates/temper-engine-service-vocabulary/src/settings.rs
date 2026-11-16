@@ -107,6 +107,7 @@ pub struct Engine {
     /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent/tools.md).
     pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,

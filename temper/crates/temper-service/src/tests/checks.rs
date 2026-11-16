@@ -72,8 +72,8 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
 }
 #[test]
 fn the_longest_remote_of_an_empty_machine_measures_github_com() {
-    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
-    assert_eq!(checks::machine_remote(&machine, 10), Some(44));
+    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None };
+    assert_eq!(checks::machine_remote(&machine, None, 10), Some(44));
 }
 #[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
@@ -271,7 +271,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
     };
     let mut found = Problems::empty();
     let too_many = payload::Bounds { repositories: u32::MAX, ..normal };
-    checks::channel(Some(&too_many), Some(&normal), None, &own, &mut found);
+    checks::channel(Some(&too_many), Some(&normal), None, None, &own, &mut found);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         found.problems.get(0).unwrap().path,

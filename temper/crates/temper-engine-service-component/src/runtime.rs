@@ -82,7 +82,7 @@ impl engine::Engine {
             landings: settings.landings,
             forge: forge_config,
             identities,
-            machine: Some(machine_config(&settings.machine)),
+            machine: Some(machine_config(&settings.machine, settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),

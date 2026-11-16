@@ -147,7 +147,7 @@ fn prepare_given(
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = settings(bytes, directories, given);
-    let Runtimes { roots, github } = runtimes(&named.machine)?;
+    let Runtimes { roots, github } = runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
     let Inputs { files, google, bundle } = before_root(
         &mut named.files,
@@ -286,9 +286,9 @@ pub struct Runtimes {
     pub roots: skein_tls::Config,
     pub github: service::ForgeRuntime,
 }
-pub fn runtimes(machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
+pub fn runtimes(test_github: Option<&temper_forge_setup::machine::GitHubMachine>) -> Result<Runtimes, String> {
     let roots = trust(None)?;
-    let github = github_runtime(machine.github.as_ref(), &roots)?;
+    let github = github_runtime(test_github, &roots)?;
     Ok(Runtimes { roots, github })
 }
 /// Engine inputs checked after agent preflight and before the worker root.

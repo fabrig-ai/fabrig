@@ -256,11 +256,22 @@ pub fn limits(limits: &limits::Limits, _: &limits::GitComponent, problems: &mut 
 }
 /// The longest routed remote: base, two separators, owner, name and `.git`.
 #[must_use]
-pub fn longest_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
-    Some(machine_remote(machine, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
+pub fn longest_remote(
+    machine: &temper_forge_setup::machine::Machine,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
+    name_bytes: u32,
+) -> Option<u64> {
+    Some(
+        machine_remote(machine, test_github, name_bytes)?
+            .max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)),
+    )
 }
 #[must_use]
-pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
+pub fn machine_remote(
+    machine: &temper_forge_setup::machine::Machine,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
+    name_bytes: u32,
+) -> Option<u64> {
     let mut base = skein_lib::len_u64(crate::system::GITHUB_REMOTE.len());
     if let Some(owned) = &machine.owned {
         base = base.max(skein_lib::len_u64(owned.remote.len()));
@@ -268,7 +279,7 @@ pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes
     if let Some(fake) = &machine.fake {
         base = base.max(skein_lib::len_u64(fake.remote.len()));
     }
-    if let Some(github) = &machine.github {
+    if let Some(github) = test_github {
         base = base.max(skein_lib::len_u64(github.remote.len()));
     }
     remote(base, name_bytes)
@@ -336,13 +347,14 @@ pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
     machine: Option<&temper_forge_setup::machine::Machine>,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
     if engine.is_some()
         && let Some(machine) = machine
     {
-        names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
+        names(machine_remote(machine, test_github, limits.forge.name_bytes), limits, problems);
     }
     // Both sides carry checkout repositories; forge watches need no directories.
     let repository_shape = match (engine, worker) {
@@ -566,7 +578,7 @@ pub fn root(
         landings,
         forge,
         identities,
-        machine: Some(crate::system::machine_config(&engine.machine)),
+        machine: Some(crate::system::machine_config(&engine.machine, engine.test_github.as_ref())),
         forges: Box::new([]),
         under_box: false,
     };

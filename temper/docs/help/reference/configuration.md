@@ -243,7 +243,6 @@ Shape: `machine`. Paths: `application.machine`. The machine places offered when 
 
 - `owned`: machine-owned; optional; init writes object. The box’s owned Forgejo place, absent when none is offered.
 - `fake`: machine-fake; optional; init writes object. The playground’s fake forge place, absent when none is offered.
-- `github`: machine-github or null; optional; init writes null. GitHub’s place, null for the public service.
 
 ## application.machine.owned
 
@@ -265,16 +264,6 @@ Shape: `machine-fake`. Paths: `application.machine.fake`. The playground’s fak
 - `listen`: address, loopback socket, unique among listeners; required; init writes {"socket":"127.0.0.1:8369"}. The fake forge listener.
 - `remote`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init writes "http://127.0.0.1:8369". The base of the fake forge’s repository remotes.
 - `git`: text, data path; at most 4,096 bytes; required; init writes "demo/bin/git". The fake git program for the playground’s repositories.
-
-## application.machine.github
-
-Shape: `machine-github`. Paths: `application.machine.github`. A GitHub test peer’s addresses and transport.
-
-- `api`: address, socket or host and port; required; init leaves it out. The GitHub API address.
-- `transport`: machine-transport or text, plaintext on loopback, or TLS; required; init leaves it out. The transport to the GitHub API.
-- `remote`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init leaves it out. The base of the GitHub repository remotes.
-- `web`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init leaves it out. The base of GitHub’s browser pages.
-- `git`: text, data path; at most 4,096 bytes; optional; init leaves it out. The git program for repositories on the test peer.
 
 ## application.machine.owned.runner
 
@@ -298,19 +287,6 @@ Shape: `machine-mirror`. Paths: `application.machine.owned.mirror`. HTTPS origin
 
 - `forgejo`: text, HTTPS origin; at most 4,096 bytes; required; init leaves it out. The origin serving the pinned Forgejo binary.
 - `runner`: text, HTTPS origin; at most 4,096 bytes; required; init leaves it out. The origin serving the pinned runner binary.
-
-## application.machine.github.transport
-
-Shape: `machine-transport`. Paths: `application.machine.github.transport`. A TLS transport object, or plaintext as text.
-
-- `tls`: machine-tls; required; init leaves it out. The API’s TLS server name and trust roots.
-
-## application.machine.github.transport.tls
-
-Shape: `machine-tls`. Paths: `application.machine.github.transport.tls`. TLS identity and trust for the GitHub test peer.
-
-- `server_name`: text, at most 4,096 bytes; required; init leaves it out. The server name checked during the TLS handshake.
-- `trust`: text or null, at most 1,048,576 bytes; required; init leaves it out. The trust roots, or null for the machine’s roots.
 
 ## The merge command
 

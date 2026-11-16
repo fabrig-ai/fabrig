@@ -536,7 +536,7 @@ mod box_tests {
     #[test]
     fn machine_context_carries_only_the_owned_persons_login() {
         let mut machine = fixtures::machine();
-        assert!(super::machine_config(&machine).owned_person.is_empty());
+        assert!(super::machine_config(&machine, None).owned_person.is_empty());
         let temper_forge_setup::setup::Mode::Owned(owned) = fixtures::owned_setup(1).entry.mode else {
             panic!("owned machine fixture")
         };
@@ -550,6 +550,6 @@ mod box_tests {
             forgejo: owned.forgejo,
             runner: owned.runner,
         });
-        assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
+        assert_eq!(super::machine_config(&machine, None).owned_person.as_ref(), b"owner");
     }
 }

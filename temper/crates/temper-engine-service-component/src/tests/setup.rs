@@ -2004,7 +2004,6 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
             remote: b"http://127.0.0.1:9".as_slice().into(),
             git: b"/data/fake/git".as_slice().into(),
         }),
-        github: None,
     };
     config.directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     fixtures::fill_files(&mut config);

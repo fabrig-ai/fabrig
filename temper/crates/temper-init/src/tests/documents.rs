@@ -274,8 +274,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                         "listen": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
                         "remote": format!("http://127.0.0.1:{}", facts.ports.forge),
                         "git": "demo/bin/git"
-                    },
-                    "github": null
+                    }
                 }),
             ),
             ("/application/demo", demo(facts.ports.llm.get())),
@@ -675,7 +674,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         let mut expected = parse(content(&boxed, b"temper.json"));
         assert_eq!(expected["application"]["welcome"], true, "{row}");
         expected["application"].as_object_mut().unwrap().remove("welcome");
-        expected["application"]["machine"] = json!({"github": null});
+        expected["application"]["machine"] = json!({});
         expected["application"]["demo"] = Value::Null;
         expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
         expected["engine"]["owners"][0]["subject"] = json!("owner-a");

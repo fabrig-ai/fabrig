@@ -1104,12 +1104,15 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 }
 
 #[test]
-fn fake_github_machine_passes_ordinary_admission_without_document_forges() {
+fn fake_github_test_passes_ordinary_admission_without_document_forges() {
     let scratch = Scratch::new("four-forge-admission-r2");
     let (_source, first) = prepared_source(&scratch);
     crate::setup::check(&first.bytes, &jig_directories(&first.directories)).expect("ordinary admission");
-    let machine = crate::box_command::machine(&first.bytes, &first.directories).expect("machine");
-    assert_eq!(crate::address(&machine.github.expect("fake GitHub").api).expect("socket"), first.peers.github);
+    let deployment = crate::setup::check(&first.bytes, &jig_directories(&first.directories)).expect("test peer");
+    assert_eq!(
+        crate::address(&deployment.named.test_github.expect("fake GitHub").api).expect("socket"),
+        first.peers.github
+    );
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
     let operations =
         crate::operations_in(&[], b"/", &first.directories, &first.bytes).expect("ordinary computed startup sizing");

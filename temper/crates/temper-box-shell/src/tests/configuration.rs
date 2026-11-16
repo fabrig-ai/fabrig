@@ -55,6 +55,8 @@ fn the_pages_configuration_are_what_the_tables_render() {
         render(&init, &mut out).expect("configuration page fits its measured length");
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
+        assert!(!rendered.contains("application.test"), "test peers are not public configuration");
+        assert!(!rendered.contains("- `test`:"), "the test member is not public configuration");
         assert_eq!(rendered.matches("restart").count(), 1, "one restart rule per page");
         render(&init, &mut Writer::new(rendered.len() - 1)).expect_err("one byte short");
         let path = directory.join(name).with_extension("md");

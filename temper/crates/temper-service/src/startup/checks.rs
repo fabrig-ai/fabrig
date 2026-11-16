@@ -155,13 +155,14 @@ pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
     machine: Option<&temper_forge_setup::machine::Machine>,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
     if engine.is_some()
         && let Some(machine) = machine
     {
-        names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
+        names(machine_remote(machine, test_github, limits.forge.name_bytes), limits, problems);
     }
     // Both sides carry checkout repositories; forge watches need no directories.
     let repository_shape = match (engine, worker) {

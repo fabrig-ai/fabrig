@@ -20,6 +20,7 @@ pub struct Members {
     pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub demo: Option<settings::Demo>,
     pub welcome: bool,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
@@ -247,6 +248,7 @@ fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Pr
     let value = clients(document, at, &path.member(b"webhooks"), false, problems)?;
     Some(Webhooks { listener: value.listener })
 }
+#[expect(clippy::too_many_lines, reason = "the application decoder keeps its member reads and cross-checks together")]
 pub fn parse(
     document: &Document,
     at: u32,
@@ -258,6 +260,7 @@ pub fn parse(
     let mut object = read::object(document, at, "application", &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
     let machine_at = read::required(&mut object, document, b"machine", &path, problems);
+    let test_at = object.member(document, b"test");
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
     let limits = match limit_at {
@@ -301,6 +304,9 @@ pub fn parse(
         }
         None => None,
     };
+    let mut found = config::Problems::empty();
+    let test_github = temper_forge_setup::machine::read_test(document, test_at, directories, &mut found);
+    problems.append(found, &Path::root());
     if let Some(machine) = &machine
         && let Some(owned) = &machine.owned
         && let Some(client) = &owned.sign_in
@@ -344,6 +350,7 @@ pub fn parse(
         push,
         webhooks,
         machine: machine?,
+        test_github,
         demo,
         welcome,
         workers: workers.into_boxed(),
