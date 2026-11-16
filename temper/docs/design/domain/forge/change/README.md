@@ -245,6 +245,20 @@ project's turn, the change sends no merge: its landing's merge is the
 landing's (`../../landing.md`, section 3), and a candidate already in
 the branch stays the landing's to judge (8).
 
+**A write that finds the outbox full waits** (2026-11-16). Each of the
+change's writes below (its opening, a reopening, a branch made again,
+an update, a prepare, a re-run, a follow's check and its merge) that
+finds no room in the forge's outbox waits for it in the outbox's line,
+in the order the writes found it full (`../room.md`, 3): never a hold,
+and no write a person must release. It waits at the step its decision
+started from, saving its place alone, holding no entry number and
+polling nothing. Asked once room frees, it reads its facts afresh and
+decides again, sending what that decision says, which may differ from
+what waited; a decision for no write leaves the line. Its wait counts
+against no allowance and no stall, keeps its place across a restart,
+and ends with a cancel (`../room.md`, 4). Its panel says it waits
+(section 5).
+
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
 proves and lands it (`../../landing.md`, section 3).
@@ -601,6 +615,10 @@ What the connector makes of a change for the client's panel
   remains evidence at its exact head; a no-CI landing never makes it a
   passing verdict. The requirement is read from the held rules when the
   panel is made, including after restoration.
+- **Its wait for the outbox's room:** none, or `OutboxRoom` while its
+  record holds a place in the outbox's line (`../room.md`, 7), cleared
+  by the save that admits it or takes it out of the line. The client
+  says `Waiting for room in the forge outbox.` while it is not held.
 - **Its place in its queue** is computed as the document is made,
   in `../queues.md`'s order among the changes queued or first in its
   landing branch at the core's time: its place from 1, and the tasks

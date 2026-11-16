@@ -130,6 +130,12 @@ which is not the head temper saw. A pull request GitHub takes out of
 its queue for any reason but its merge is repaired, as a failed CI is,
 the repairing step naming GitHub's reason. Forgejo has no such queue.
 
+A change whose write waits for room in the forge's outbox
+(`../../domain/forge/room.md`, 7) stays at the step its decision
+started from, and its panel carries the wait: the page says "Waiting
+for room in the forge outbox." beneath that step's line until it is
+admitted (`../pages/task.md`, 3). A held change shows its hold instead.
+
 ### 2.2 What it shows
 
 - **Its pull request:** number, title, head and base, state,
