@@ -539,7 +539,7 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
                 cut: *inbox.cut.first().expect("needs cut")
                     || root.forge().approvals().more() > 0
                     || root.pages().needs().findings().cut_for(inbox.filter),
-                findings: super::findings::counted(&open),
+                findings: super::findings::counted(root.pages().needs().findings(), &open),
             }
         }
         Some(_) | None => Needs::Unknown,

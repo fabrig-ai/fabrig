@@ -1,5 +1,9 @@
 //! The person's findings in Needs you (temper/docs/design/client/pages/needs-you.md, 1).
-use super::{Pages, Request, inbox::Inbox, needs};
+use super::{
+    Pages, Request,
+    inbox::{Inbox, QuestionWords},
+    needs,
+};
 use crate::pages::{Root, Routing};
 use crate::{
     Limits,
@@ -9,16 +13,46 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
-use skein_lib::{Env, List, Queue, Wall};
+use skein_lib::{Env, List, Map, Queue, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
 pub const PROJECTS: u32 = 4;
 pub const ROWS: u32 = 128;
 pub const CARDS: u32 = PROJECTS.checked_mul(ROWS).expect("finding rows fit");
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Id {
+pub use forge::findings::Id;
+
+/// A question's rows, in the order its line names them (client/pages/needs-you.md, 1).
+#[derive(Debug)]
+pub struct Group<'a> {
     pub project: u32,
-    pub number: u32,
+    pub noun: Box<[u8]>,
+    pub phrase: Box<[u8]>,
+    pub rows: Box<[&'a w::FindingRow]>,
+}
+impl Group<'_> {
+    #[must_use]
+    pub fn severity(&self) -> w::Severity {
+        let mut highest = w::Severity::Low;
+        for row in &self.rows {
+            match row.severity() {
+                w::Severity::High => return w::Severity::High,
+                w::Severity::Medium => highest = w::Severity::Medium,
+                w::Severity::Low => {}
+            }
+        }
+        highest
+    }
+    #[must_use]
+    pub fn oldest(&self) -> Wall {
+        let mut oldest = None;
+        for row in &self.rows {
+            oldest = Some(match oldest {
+                Some(at) => row.at().min(at),
+                None => row.at(),
+            });
+        }
+        Wall::from_nanos(oldest.unwrap_or(0))
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
@@ -73,6 +107,9 @@ impl Card {
 struct Watched {
     project: u32,
     handle: Handle,
+    open_handle: Option<Handle>,
+    open_document: Option<w::Findings>,
+    open_ended: bool,
     goals_handle: Option<Handle>,
     goals: Option<Box<c::Tasks>>,
     document: Option<w::Findings>,
@@ -98,6 +135,49 @@ impl Store {
             shown: None,
             next: u64::MAX.checked_sub(4).expect("reserved findings handles"),
         }
+    }
+    #[must_use]
+    pub fn group<'a>(&'a self, need: Need<'_>) -> Option<Group<'a>> {
+        let Need::Existing(needs::Need::Card(card)) = need else { return None };
+        let project = card.project?;
+        let parsed = question(need)?;
+        for held in &self.projects {
+            if held.project != project || held.open_ended {
+                continue;
+            }
+            let document = held.open_document.as_ref()?;
+            let mut rows = List::with_capacity(crate::question::FINDINGS);
+            for id in &parsed.findings {
+                if id.project != project {
+                    continue;
+                }
+                for row in document.rows() {
+                    if row.number() == id.number && *row.state() == w::FindingState::New {
+                        rows.push(row).expect("named findings bounded");
+                        break;
+                    }
+                }
+            }
+            if rows.is_empty() {
+                return None;
+            }
+            let label = parsed.group.unwrap_or(crate::question::Group { noun: Box::default(), phrase: Box::default() });
+            return Some(Group { project, noun: label.noun, phrase: label.phrase, rows: rows.into_boxed() });
+        }
+        None
+    }
+    fn ready(&self, need: Need<'_>) -> bool {
+        let Need::Existing(needs::Need::Card(card)) = need else { return true };
+        if let Some(parsed) = question(need)
+            && !parsed.findings.is_empty()
+        {
+            for held in &self.projects {
+                if Some(held.project) == card.project {
+                    return held.open_document.is_some() || held.open_ended;
+                }
+            }
+        }
+        true
     }
     #[must_use]
     pub fn cards(&self) -> Box<[&Card]> {
@@ -187,6 +267,20 @@ impl Store {
     pub(super) fn told(&mut self, told: &Told, client: &Client, limits: forge::Limits) -> bool {
         for project in self.projects.iter_mut() {
             if let Told::Changed { handle } = told {
+                if project.open_handle == Some(*handle) {
+                    if let Some(document) = client.document(*handle) {
+                        if document.state == jig_client::State::Ended {
+                            project.open_document = None;
+                            project.open_ended = true;
+                        } else if let Some(Latest::Family(record)) = document.latest
+                            && let Some(document) = forge::findings::document(record, &limits)
+                            && document.project() == project.project
+                        {
+                            project.open_document = Some(document);
+                        }
+                    }
+                    return true;
+                }
                 if *handle == project.handle {
                     if let Some(document) = client.document(*handle)
                         && let Some(Latest::Family(record)) = document.latest
@@ -246,6 +340,11 @@ impl Store {
                 }
             }
             if let Told::Ended { handle, .. } = told {
+                if project.open_handle == Some(*handle) {
+                    project.open_document = None;
+                    project.open_ended = true;
+                    return true;
+                }
                 if *handle == project.handle {
                     project.cards.clear();
                     project.document = None;
@@ -299,6 +398,14 @@ pub enum Need<'a> {
     Existing(needs::Need<'a>),
     Finding(&'a Card),
 }
+fn question(need: Need<'_>) -> Option<crate::question::Parsed> {
+    let Need::Existing(needs::Need::Card(card)) = need else { return None };
+    match card.question_words()? {
+        QuestionWords::Whole(words) => Some(crate::question::parse(words, false)),
+        QuestionWords::Reading(_) | QuestionWords::Cut(_) => None,
+    }
+}
+
 /// A finding's holder reason, or another card's reach (client/pages/needs-you.md, 1).
 #[must_use]
 pub fn why(root: &dyn Root, need: Need<'_>) -> Option<needs::Why> {
@@ -340,36 +447,59 @@ impl Default for Counted {
         Self { high: 0, medium: 0, low: 0, only: false }
     }
 }
-#[must_use]
-pub fn counted(open: &[Need<'_>]) -> Counted {
-    let mut counts = Counted { only: !open.is_empty(), ..Counted::default() };
-    for need in open {
-        let count = match need.severity() {
-            Some(w::Severity::High) => &mut counts.high,
-            Some(w::Severity::Medium) => &mut counts.medium,
-            Some(w::Severity::Low) => &mut counts.low,
-            None => {
-                counts.only = false;
-                continue;
-            }
+impl Counted {
+    #[must_use]
+    pub fn total(self) -> u32 {
+        self.high
+            .checked_add(self.medium)
+            .expect("counted findings fit")
+            .checked_add(self.low)
+            .expect("counted findings fit")
+    }
+    fn add(&mut self, seen: &mut Set<Id>, id: Id, severity: &w::Severity) {
+        if !seen.insert(id).expect("open cards' findings fit") {
+            return;
+        }
+        let count = match severity {
+            w::Severity::High => &mut self.high,
+            w::Severity::Medium => &mut self.medium,
+            w::Severity::Low => &mut self.low,
         };
-        *count = count.checked_add(1).expect("open cards fit");
+        *count = count.checked_add(1).expect("open cards' findings fit");
+    }
+}
+#[must_use]
+pub fn counted(store: &Store, open: &[Need<'_>]) -> Counted {
+    let mut counts = Counted { only: !open.is_empty(), ..Counted::default() };
+    let capacity = u32::try_from(open.len())
+        .expect("open cards fit")
+        .checked_mul(crate::question::FINDINGS)
+        .expect("open cards' findings fit");
+    let mut seen = Set::with_capacity(capacity);
+    for need in open {
+        match need {
+            Need::Finding(card) => counts.add(&mut seen, card.id, card.row.severity()),
+            Need::Existing(_) => match store.group(*need) {
+                Some(group) => {
+                    for row in &group.rows {
+                        counts.add(&mut seen, Id { project: group.project, number: row.number() }, row.severity());
+                    }
+                }
+                None => counts.only = false,
+            },
+        }
     }
     counts
 }
 impl Need<'_> {
     #[must_use]
-    pub fn severity(self) -> Option<w::Severity> {
+    pub fn severity(self, store: &Store) -> Option<w::Severity> {
         match self {
             Self::Finding(card) => Some(card.row.severity().clone()),
-            Self::Existing(_) => None,
-        }
-    }
-    fn rank(self) -> u8 {
-        match self.severity() {
-            Some(w::Severity::High) | None => 0,
-            Some(w::Severity::Medium) => 1,
-            Some(w::Severity::Low) => 2,
+            Self::Existing(_) => match store.group(self) {
+                Some(group) => Some(group.severity()),
+                None => None,
+            },
         }
     }
     #[must_use]
@@ -390,7 +520,7 @@ impl Need<'_> {
     #[must_use]
     pub fn ready(self, root: &dyn Root) -> bool {
         match self {
-            Self::Existing(need) => needs::ready(root, need),
+            Self::Existing(need) => needs::ready(root, need) && root.pages().needs().findings().ready(self),
             Self::Finding(_) => true,
         }
     }
@@ -431,7 +561,6 @@ impl needs::Session {
         for need in &existing {
             rows.push(Need::Existing(*need)).expect("needs fit");
         }
-        let existing_count = rows.len();
         if inbox.filter.goal.is_none() && (inbox.filter.kind.is_none() || inbox.filter.kind == Some(Kind::Finding)) {
             for card in &self.findings.cards() {
                 if inbox.filter.project.is_none() || inbox.filter.project == Some(card.id.project) {
@@ -439,26 +568,29 @@ impl needs::Session {
                 }
             }
         }
-        if rows.len() == existing_count {
+        // Compute a group's severity once, since it parses the question's words.
+        let mut ordered = Map::with_capacity(rows.len());
+        let mut findings = false;
+        for (index, need) in rows.iter().enumerate() {
+            let severity = need.severity(&self.findings);
+            findings |= severity.is_some();
+            let rank = match severity {
+                Some(w::Severity::High) | None => 0_u8,
+                Some(w::Severity::Medium) => 1,
+                Some(w::Severity::Low) => 2,
+            };
+            let later = match need {
+                Need::Existing(need) => self.later(need.object()),
+                Need::Finding(_) => false,
+            };
+            ordered.insert((later, rank, need.at(), index), *need).expect("one key per need");
+        }
+        if !findings {
             return rows.into_boxed();
         }
-        // Later marks last, then severity and the oldest wait within each rank.
-        // With no findings, the inbox and approvals keep their own ordering.
-        for index in 1..rows.len() {
-            let mut at = index;
-            while at > 0 {
-                let previous = at.checked_sub(1).expect("positive index");
-                let left = *rows.get(previous).expect("bounded needs");
-                let right = *rows.get(at).expect("bounded needs");
-                let left_later = if let Need::Existing(need) = left { self.later(need.object()) } else { false };
-                let right_later = if let Need::Existing(need) = right { self.later(need.object()) } else { false };
-                if (left_later, left.rank(), left.at()) <= (right_later, right.rank(), right.at()) {
-                    break;
-                }
-                *rows.get_mut(previous).expect("bounded needs") = right;
-                *rows.get_mut(at).expect("bounded needs") = left;
-                at = previous;
-            }
+        rows.clear();
+        for (_, need) in &ordered {
+            rows.push(*need).expect("ordered needs fit");
         }
         rows.into_boxed()
     }
@@ -618,12 +750,28 @@ fn send(card: &mut Card, request: w::Request, serial: &mut u64, env: &Env<Limits
     out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the store correlates its person's, open findings' and goal menu watches together"
+)]
 pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
     let wanted = super::decided::wanted(&*root);
     let more = match root.pages().me(root.client()) {
         Some(me) => wanted.len() == PROJECTS && me.projects.len() > wanted.len(),
         None => false,
     };
+    let mut groups = Set::with_capacity(PROJECTS);
+    if let Some(inbox) = root.pages().inbox() {
+        for card in &root.pages().needs().open(inbox) {
+            if let Some(project) = card.project
+                && wanted.as_slice().contains(&project)
+                && let Some(parsed) = question(Need::Existing(needs::Need::Card(card)))
+                && !parsed.findings.is_empty()
+            {
+                groups.insert(project).expect("open cards' projects fit");
+            }
+        }
+    }
     let mut requests = Queue::uncapped();
     let parts = root.parts();
     let pages = parts.pages;
@@ -633,6 +781,9 @@ pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
             kept.push(held).expect("four projects");
         } else {
             requests.push(jig_client::Event::Unwatch { handle: held.handle });
+            if let Some(handle) = held.open_handle {
+                requests.push(jig_client::Event::Unwatch { handle });
+            }
             if let Some(handle) = held.goals_handle {
                 requests.push(jig_client::Event::Unwatch { handle });
             }
@@ -649,6 +800,9 @@ pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
             kept.push(Watched {
                 project,
                 handle,
+                open_handle: None,
+                open_document: None,
+                open_ended: false,
                 goals_handle: None,
                 goals: None,
                 document: None,
@@ -663,6 +817,23 @@ pub fn reconcile(root: &mut dyn Routing, env: &Env<Limits>) {
     // Goal menus are watched only after a person opens Route to a goal.
     let shown = pages.needs.findings.shown;
     for held in pages.needs.findings.projects.iter_mut() {
+        if groups.contains(&held.project) && held.open_handle.is_none() {
+            if let Some(subject) =
+                forge::findings::watching(held.project, Some(w::FindingState::New), false, &env.limits.forge)
+            {
+                let handle = Handle { asker: Owner::Pages.asker(), number: pages.needs.findings.next };
+                pages.needs.findings.next = pages.needs.findings.next.checked_sub(1).expect("finding handles fit");
+                held.open_handle = Some(handle);
+                held.open_ended = false;
+                requests.push(jig_client::Event::Watch { handle, subject });
+            }
+        } else if !groups.contains(&held.project)
+            && let Some(handle) = held.open_handle.take()
+        {
+            held.open_document = None;
+            held.open_ended = false;
+            requests.push(jig_client::Event::Unwatch { handle });
+        }
         let mut routing = false;
         for card in &held.cards {
             routing |= card.mode == Mode::Route && Some(card.id) == shown;

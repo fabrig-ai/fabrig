@@ -438,7 +438,7 @@ fn intro(
         temper_client_domain::pages::home::Needs::Count {
             count: u32::try_from(open.len()).expect("bounded inbox"),
             cut,
-            findings: temper_client_domain::pages::findings::counted(open),
+            findings: temper_client_domain::pages::findings::counted(root.pages().needs().findings(), open),
         },
         b"",
     );
