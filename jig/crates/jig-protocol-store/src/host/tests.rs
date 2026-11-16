@@ -6,6 +6,8 @@ use skein_io::kernel::{Complete, Error, Fd, Op};
 use skein_lib::{Queue, Token};
 use skein_sim::{Config, Handle, Pid, Sim};
 
+mod rehearsal;
+
 struct World {
     host: Drivers,
     store: Store,
