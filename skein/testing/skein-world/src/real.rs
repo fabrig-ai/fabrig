@@ -31,7 +31,7 @@ use crate::deadline::{Deadline, Expired, Figures, sched_elapsed, starved_passes,
 use crate::heap::Heap;
 use crate::program::Startup;
 pub use crate::referee::Controls;
-use crate::referee::Referee;
+use crate::referee::{Control, Referee};
 use crate::{HostedProgram, Inherited, StartupAppends, StartupRoots};
 use std::os::unix::ffi::OsStrExt;
 
@@ -693,7 +693,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             self.settle_root_signals();
             self.submit_cleanup(kernel.room());
             self.ring.enter(kernel, Wait::No);
-            if self.work_pending(now) || self.ring.has_ready() || !self.world.controls.signals.borrow().is_empty() {
+            if self.work_pending(now) || self.ring.has_ready() || !self.world.controls.pending.borrow().is_empty() {
                 continue;
             }
             if self.settled(kernel.in_flight()) {
@@ -894,7 +894,11 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
 
     fn signals(&mut self) {
         loop {
-            let Some((host, signal)) = self.world.controls.signals.borrow_mut().pop() else { break };
+            let Some(control) = self.world.controls.pending.borrow_mut().pop() else { break };
+            let (host, signal) = match control {
+                Control::Signal { host, signal } => (host, signal),
+                Control::Cut { .. } => crate::fail("referee cuts need a simulated world"),
+            };
             assert!(
                 self.processes.get(host).expect("a signal names an admitted host").exit.is_none(),
                 "a signal names a running service"
