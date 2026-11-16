@@ -1457,6 +1457,113 @@ mod prepared_tests {
         writes
     }
 
+    fn cap(wire: &jig_protocol_worker_wire::Spoken, versions: &[(&str, u16)]) -> jig_protocol_worker_wire::Spoken {
+        let mut version = wire.lowest;
+        for (name, chosen) in versions {
+            if *name == wire.name {
+                version = *chosen;
+                break;
+            }
+        }
+        jig_protocol_worker_wire::Spoken::current(
+            wire.name,
+            version,
+            wire.layout(version).expect("chosen version is kept"),
+        )
+    }
+
+    #[test]
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the test refuses every unexpected opening request")]
+    fn the_worker_s_opening_states_chosen_versions() {
+        use jig_protocol_worker_link as link;
+        use skein_lib::Reader;
+
+        let settings = fixtures::worker_settings();
+        let prepared =
+            crate::worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits())
+                .expect("worker bounds");
+        // The seam accepts chosen versions too, not just the default floors.
+        let chosen = [("smith-charter", 5)];
+        let mut application = temper_protocol_worker_wire::application(&prepared.payload).expect("worker application");
+        for wire in application.spoken.iter_mut() {
+            *wire = cap(wire, &chosen);
+        }
+        let mut jig = jig_protocol_worker_wire::spoken();
+        for wire in jig.iter_mut() {
+            *wire = cap(wire, &chosen);
+        }
+        let expected_jig = jig.clone();
+        let expected_application = application.spoken.clone();
+        let mut credential = crate::worker_settings::credential(&settings, fixtures::WORKER_SECRET, &prepared.payload)
+            .expect("worker credential");
+        credential.application = application;
+        let mut worker =
+            link::Component::with_schema(&prepared.link, jig, credential, 7, prepared.schema).expect("worker link");
+        let mut out = Queue::uncapped();
+        worker.fire(Time::ZERO, &mut out);
+        let Request::Dial = out.pop().expect("first dial") else { panic!("first dial") };
+        let connection = Token::new(1);
+        worker.down(Time::ZERO, Event::Dialled { connection }, &mut out);
+        let mut opening = None;
+        for _ in 0_u8..32 {
+            let Some(request) = out.pop() else { break };
+            match request {
+                Request::Lower { lower: Lower::Write(stream::OutputDown::Room { right, .. }), .. } => worker.down(
+                    Time::ZERO,
+                    Event::Lower {
+                        connection,
+                        event: LowerEvent::Write(stream::OutputUp::Settled {
+                            right,
+                            outcome: stream::OutputOutcome::Granted,
+                        }),
+                    },
+                    &mut out,
+                ),
+                Request::Lower { lower: Lower::Write(stream::OutputDown::Send { bytes, .. }), .. } => {
+                    let (header, body) = bytes.split_at_checked(8).expect("channel frame header");
+                    let header = skein_channel::parse_header(header).expect("channel frame");
+                    let channel_limits = link::channel_limits(&prepared.link).expect("channel limits");
+                    let skein_channel::Control::Open { credential, lowest, highest, .. } =
+                        skein_channel::decode_control(header.kind, body, &channel_limits).expect("opening frame")
+                    else {
+                        panic!("open control")
+                    };
+                    assert_eq!((lowest, highest), (12, 12));
+                    opening = Some(
+                        jig_protocol_worker_wire::Credential::decode(
+                            &jig_protocol_worker_wire::v14::CEILINGS,
+                            &mut Reader::new(&credential),
+                        )
+                        .expect("worker credential"),
+                    );
+                }
+                Request::Lower { lower: Lower::Read(_) | Lower::FinishWrite, .. }
+                | Request::Lower {
+                    lower: Lower::Write(stream::OutputDown::Cancel { .. } | stream::OutputDown::Release { .. }),
+                    ..
+                } => {}
+                other => panic!("unexpected opening request: {other:?}"),
+            }
+        }
+        let opening = opening.expect("the worker sent an opening");
+        assert_eq!(opening.wires().len(), 5);
+        let mut charter = None;
+        for wire in opening.wires() {
+            if wire.name() == b"smith-charter" {
+                charter = Some(wire);
+                break;
+            }
+        }
+        let charter = charter.expect("charter stated");
+        assert_eq!(charter.lowest(), 5, "the chosen version overrides the floor");
+        for (stated, wire) in opening.wires().iter().zip(expected_jig.iter().chain(expected_application.iter())) {
+            assert_eq!(stated.name(), wire.name.as_bytes());
+            assert_eq!(stated.lowest(), wire.lowest);
+            assert_eq!(stated.layouts().as_slice(), wire.layouts.as_slice());
+            assert_eq!(stated.layouts().len(), 1, "one version of every wire");
+        }
+    }
+
     #[test]
     fn a_prepared_worker_keeps_its_table_and_opens_as_a_new_worker() {
         let settings = fixtures::worker_settings();
