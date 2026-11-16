@@ -427,19 +427,41 @@
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
-  The drawing's rules (the path's and the legend's) and the tabs', line's,
-  card's and act's hold under How work runs' frame as under Ask temper's
-  page (`../pages/settings.md`, 2), each selector naming both. With a fourth tab,
+  The drawing's rules (the path's and the legend's) and the card's hold
+  under How work runs' frame as under Ask temper's page
+  (`../pages/settings.md`, 2), each selector naming both; the tabs', their
+  axis line's and the foot's act rules are How work runs' alone, Ask
+  temper's page drawing no tabs. With a fourth tab,
   "Yours", at 760 px and under the tabs stand two by two, as the whole
   story's `whole-story.css` has them, so that "Agents review" keeps its
   words whole on a phone.
-  Ask temper's lede reads "Choose how work runs, or describe how you work
-  below.", naming no project. Its acts row holds "How does temper work?"
-  before the way's act, alone where the way has none; the button has no
-  style token of its own, taking `.temper-ways-acts > button`'s outlined
-  look. Its hint names the fixed message it sends (`../pages/ask-temper.md`, 1).
-  The row's buttons wrap on a phone. This button is Ask's opening's alone,
-  never How work runs' (`ask-opening`, 2026-11-12).
+  Ask temper's page takes `ways-current`'s rules (2026-11-16), scoped
+  under the session, `#app > .temper-session`, on tokens of their own,
+  `temper-way-*`: the region `.temper-way`, 18 px under the lede; its
+  head `.temper-way-head`, one row that wraps, the line
+  `.temper-way-line` at its left, 15 px in `--gf-ink-2`, its acts
+  `.temper-way-acts` at its right, each outlined, 34 px high, 13.5 px
+  at 500, "Use this" and "Keep it" filled in ink, at their left on a
+  phone; "Stock ways" `.temper-way-pick`, its button outlined with its
+  words in `--gf-ink-2` and a chevron in `--gf-muted`, its menu
+  `.temper-way-menu` the composer's model menu's panel and rows
+  (`.temper-model-menu`; `../pages/chat/composer.md`, 1, *The work's
+  account and model*), 6 px under its button at its right,
+  the way the project runs ticked at 500 with a "✓" in the good marks'
+  green; and the last line `.temper-way-ask` under a `--gf-line` rule,
+  14 px in `--gf-ink-2`, its mark `.temper-way-ask-mark` in ink. Where
+  skein draws the menu otherwise than the request's page (its button
+  made by skein beside the menu, a row a `menuitem`, the tick the state
+  skein draws for a chosen item), the selector names what is drawn and
+  keeps the request's declarations. The rules for "Keep it" and "Use
+  this" in the foot of Ask temper's page go: the foot holds "How does
+  temper work?" alone, at the same height in every state.
+  Ask temper's lede reads "How a change is produced and lands in
+  PROJECT.". "How does temper work?" has no style token of its own,
+  taking `.temper-ways-acts > button`'s outlined look. Its hint names the
+  fixed message it sends (`../pages/ask-temper.md`, 1). This button is
+  Ask's opening's alone, never How work runs' (`ask-opening`,
+  2026-11-12).
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui/web/README.md`, 10) gives way under `.temper-ways-path` by one rule of the

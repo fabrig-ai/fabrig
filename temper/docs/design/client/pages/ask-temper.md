@@ -38,41 +38,53 @@
     mark, way's word and card in it comes from the project's `ways` read
     (`../forge/records.md`; `settings.md`, 2, *A way's acts*), none written by hand; a way's words are
     the read's. Until the read answers, the ways' region holds nothing; if
-    its watch ends, it says, muted, "The ways can't be read now.". In this
-    order:
-    - *the lede,* in ink, "Choose how work runs, or describe how you work
-      below.", naming no project, so that describing one's own way to
-      temper, in the composer, reads as the other choice; "how work runs"
-      is the rail's and Settings' name for it, and no new noun (the look
-      request `ask-opening`, 2026-11-12);
-    - *the ways,* a region named "Ways of working", 22 pixels under the
-      lede: one control of tabs named "Ways of working", the full width
-      in a lined frame, a tab for each way in the read's order, from
-      more of the person to more of their agents, "You approve", "Agents
-      review" and "Draft first", then "Yours" where the project runs no
-      stock way; the current way's tab adds "now", small, in mono, in the
-      signal's colour; the tab shown is filled. Under it, small, faint and
-      in mono, "more of you" at its left and "more of your agents" at its
-      right, a line named "From more of you to more of your agents";
-    - *the shown way,* 26 pixels under the tabs, a group named by its
-      name: its line in ink, the read's `line` ("Yours" has none); its
-      path, temper's drawing of a path pressed (`chat/conversation.md`, 3), named "The way a
-      change goes", its fallback a stop a line; while a stop is open, its
-      card (below); then its foot, the legend at its left, a line named
-      "An agent, a person, code; no merge tool above the dotted line",
-      small, faint and in mono, "agent", "person", "code" and "no merge
-      tool above", each after its mark, and its act at its right;
-    - *its act,* as `settings.md`, 2, *A way's acts*, says: "Use this" on a way the
-      project doesn't run, filled in ink (the signal's orange at night),
-      or "Keep it" on the current one while To begin's first step is
-      left; none on "Yours", for a person who may not change settings,
-      or on the current way once that step is done; disabled while one
-      is out. A refusal stands under the foot in jig's words with the
-      forge's reason, as Settings says one under its row (`settings.md`, 2); an act
-      answered says its toast (`settings.md`, 2).
-    - *"How does temper work?",* in the same row, before the way's act, on
-      every tab and whether or not the way has an act (the row then holds
-      it alone): a button in the row's outlined look
+    its watch ends, it says, muted, "The ways can't be read now.". It shows
+    one way at a time, with no tabs (the look request `ways-current`, the
+    person's words of 2026-11-16): the way the project runs, or a stock way
+    chosen from "Stock ways", which way is shown being the page's state, in
+    no address. In this order:
+    - *the lede,* in ink, "How a change is produced and lands in PROJECT.",
+      PROJECT the project's name;
+    - *the ways,* a region named "How work runs", 18 pixels under the
+      lede, holding the head, the path and the last line;
+    - *the head,* one row: at its left, the shown way in one line, 15 px
+      in ink-2: a stock way's `line` from the read ("An agent makes each
+      change, another reviews it, and code lands it."); on a way of the
+      project's own, the `lede` of the project's words, kind 10's
+      `ProjectWords`, which the read carries and Ask temper writes with
+      the proposal that moves the project off a stock way; where they are
+      absent or their `lede` empty, "PROJECT runs settings of its own.".
+      At its right, in this order: the way's act (below); "Back" while a
+      way the project doesn't run is shown, outlined, which shows the way
+      the project runs again; and "Stock ways", a menu so named: its
+      button "Stock ways", outlined, with a chevron, and a plain menu of
+      the read's stock ways by name, in its order ("You approve", "Agents
+      review", "Draft first"), in the model menu's look, the way the
+      project runs ticked where it is a stock one. Choosing a stock way
+      shows it in place, its line, its path and its act, as a tab showed
+      one; choosing the way the project runs shows it again, as "Back"
+      does. Either closes an open stop's card;
+    - *its path,* a group named "How work runs" while the way the project
+      runs is shown, else by the shown way's name: temper's drawing of the
+      way (`chat/conversation.md`, 3), named "The way a change goes", its
+      fallback a stop a line; while a stop is open, its card (below); then
+      its foot, the legend at its left, a line named "An agent, an agent
+      when needed, a person, code; no merge tool above the dotted line",
+      small, faint and in mono, "agent", "when needed", "person", "code"
+      and "no merge tool above", each after its mark, and "How does temper
+      work?" alone at its right, so that the foot is the same height in
+      every state;
+    - *its act,* at the head's right, as `settings.md`, 2, *A way's acts*,
+      says: "Use this" on a stock way the project doesn't run, filled in
+      ink (the signal's orange at night), or "Keep it" on the way it runs
+      while To begin's first step is left, filled likewise; none on a way
+      of the project's own, for a person who may not change settings, or
+      on the way it runs once that step is done; disabled while one is
+      out. A refusal stands under the foot in jig's words with the
+      forge's reason, as Settings says one under its row (`settings.md`,
+      2); an act answered says its toast (`settings.md`, 2).
+    - *"How does temper work?",* in the foot, at the legend's right, with
+      every way shown: a button in the foot's outlined look
       (`.temper-ways-acts > button`), its hint "Sends: Briefly, how does
       temper work, from my ask to main? And how do these three differ?".
       Pressed, it starts the chat as "Send" does (below), its first message
@@ -81,12 +93,13 @@
       shown in the chat as any other; the composer's words are neither
       sent nor changed. It is disabled while "Send" can't start a chat
       (no template 5, or a start out), and goes with the opening once the
-      chat opens. On a phone the row's buttons wrap as "Keep it" does
-      (the look request `ask-opening`, 2026-11-12).
+      chat opens (the look request `ask-opening`, 2026-11-12).
+    - *the last line,* under a rule, "✦", in ink, then "Change anything by
+      asking temper below.", in ink-2.
     - *a stop's card:* a stop pressed, in the drawing or as its line in
       the fallback, opens its card under the path, the drawing's caret
       at the stop (`chat/conversation.md`, 3); pressed again it closes, another stop moves
-      it, another tab closes it, as the page's state, in no address. It
+      it, choosing another way closes it, as the page's state, in no address. It
       is the stop's `card` from the read, framed as the tabs are: a
       level-3 heading, the stop's words with a capital ("Review"), its
       `who` beside it in grey ("an agent · holds a change until it
@@ -100,14 +113,19 @@
       "Asked to"; a person's role and what they decide; code's checks,
       the queue or the turn). A bar opens no card.
 
-    On a phone the tabs keep one row, smaller; the path runs down the
-    page (`chat/conversation.md`, 3); the card has no caret and its facts stack, each label
-    over its value; the act fills the foot's width. The terminal has no
-    style to tell them apart: the tabs print a line each, the current
-    one's words "NAME, now"; the path its fallback, a stop a line, its
-    actor in words; the card its heading, line, link and facts; then the
-    legend and the act. The opening goes after a first message, as the
-    chat it starts opens in its place.
+    On a phone the head wraps: the line first, then the act, "Back" and
+    "Stock ways" from the left, the menu opening under its button; the
+    path runs down the page (`chat/conversation.md`, 3); the card has no
+    caret and its facts stack, each label over its value. At 1366 by 745
+    the opening fits the conversation with no scrolling, the menu open or
+    closed. The terminal has no style to tell them apart: the line; the
+    path its fallback, a stop a line, its actor in words; the card its
+    heading, line, link and facts; the legend and "How does temper
+    work?"; the act and "Back" where shown; then "Stock ways:" and the
+    three names, a line each, the way the project runs "NAME, now" where
+    it is a stock one, its tick in words; then the last line. The
+    opening goes after a first message, as the chat it starts opens in
+    its place.
   - *The composer,* a form named "Ask temper", at the
     foot, focused as the page opens: its text area "Ask temper, or tell it
     how you work", that its placeholder too, its text 14
@@ -177,10 +195,10 @@
 
 - **Ask temper's ways after landing** (1, *Ask temper's page*; `settings.md`, 2;
   `chat/conversation.md`, 3): temper/ui compares the look request `ask-temper-ways` with main
-  at 1440, 1000 and 420 px (`../web/look-requests.md`, 4): each tab, a
-  stop's card open on an agent, a person and code, "Yours", a refusal, a
-  member with no act, "Keep it" gone once To begin's step is done, at
-  night, and the terminal's print. With them, the repairs of its first
+  at 1440, 1000 and 420 px (`../web/look-requests.md`, 4): each way shown, a
+  stop's card open on an agent, a person and code, a way of the project's
+  own, a refusal, a member with no act, "Keep it" gone once To begin's
+  step is done, at night, and the terminal's print. With them, the repairs of its first
   render check: the path's marks and labels with no outline
   (`../web/look.md`), the path at 1000 px 658 by 127.94, the open card
   14 px under it at every width, the gallery's print at 420 down the page
@@ -194,6 +212,24 @@
   (`settings.md`, 1, *A role's or a rule's page*), which no request draws and no gallery
   state prints. Owner: temper/ui. Default: each difference a finding
   filed back under the request's trailer.
+- **Ask temper's head after landing** (1, *Ask temper's page*): temper/ui
+  compares the look request `ways-current`'s pages with main at 1440,
+  1000 and 420 px (`../web/look-requests.md`, 4): the head on Agents
+  review with "Keep it", on a way of the project's own, its line from
+  the project's words and without them, "Stock ways" open on each, a
+  stock way chosen with "Use this" and "Back", a stop's card and a
+  refusal under the head's new place, the head wrapping on a phone with
+  its menu under its button, the foot's one height in every state, and
+  the terminal's print. Owner: temper/ui. Default: each difference a
+  finding filed back under the request's trailer.
+- **A way of the project's own, its words** (1, *Ask temper's page*,
+  *the head*): Ask temper's charter already asks for project words with
+  a proposal that leaves the project on, or moves it to, a way of its own
+  (stock `ask.txt`); the request's recorded proposal carried the landing
+  rule alone, so the line falls back to "PROJECT runs settings of its
+  own.". Whether its proposals carry them is the agent's, not the page's.
+  Owner: temper/ui, in the small chat's trial below. Default: the
+  fallback line.
 - **Ask temper after landing** (`README.md`, `../view.md`, 3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The other views and sketches join at M3b of

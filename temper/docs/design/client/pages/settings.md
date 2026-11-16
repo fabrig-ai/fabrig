@@ -304,10 +304,15 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     (`ask-temper.md`, 1, *Ask temper's page*); then the frame's tabs.
   - *The path of a change,* a section: its title, and at its head's right,
     small and muted, "the way: NAME", NAME the current way's, or "its own"
-    where it runs none. Under it the ways' tabs as Ask temper's page draws
-    them (`README.md`): a tab a way of the read, in its order, then "Yours" where
-    the project runs no stock way, the current one's "now", the shown one
-    selected, and the line "From more of you to more of your agents"; the
+    where it runs none. Under it the ways' tabs, How work runs' own since
+    Ask temper's page shows one way at a time (`ask-temper.md`, 1, *Ask
+    temper's page*): one control of tabs named "Ways of working", the full
+    width in a lined frame, a tab a way of the read, in its order, then
+    "Yours" where the project runs no stock way, the current one's "now",
+    small, in mono, in the signal's colour, the shown one selected and
+    filled; under it, small, faint and in mono, "more of you" at its left
+    and "more of your agents" at its right, a line named "From more of
+    you to more of your agents"; the
     shown way's `line`; its path, the drawing Ask temper's page draws
     (`chat/conversation.md`, 3), its stops pressed, laid out by the box's width, the legend
     under it as Ask temper's page has it; while a stop is open, its card,
@@ -804,6 +809,14 @@ the document gives them; the client hides nothing of its own.
   (`../../protocol/configuration/README.md`, section 9).
 
 ## 3. Open questions
+
+- **How work runs' tabs** (2, *The path of a change*): Ask temper's page
+  shows the way the project runs under a head, with the stock ways in a
+  drop-down and no tabs (the look request `ways-current`, 2026-11-16),
+  which does not decide this page's tabs under its own heading and lede.
+  The request's default is the same head and drop-down here; the person
+  is asked whether to build it (2026-11-16). Default until they answer:
+  the tabs as they are.
 
 - **Settings, Models after landing** (`README.md`): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,

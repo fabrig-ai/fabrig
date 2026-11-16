@@ -164,15 +164,18 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede and the ways, Agents review current and shown, its row "How does temper work?" then "Keep it", Send disabled while the words are empty |
-| `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and the row "How does temper work?" then "Use this" |
-| `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" shown: its two landings, the goal branch's bar dimmer, "verify" before main |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede "How a change is produced and lands in PROJECT." and the ways, Agents review run and shown: the head, its line, "Keep it" and "Stock ways"; its path, the foot's legend and "How does temper work?" alone; the last line; Send disabled while the words are empty |
+| `ask-ways-menu` | `ask-first-run` with "Stock ways" open: "You approve", "Agents review" ticked, "Draft first" |
+| `ask-ways-approve` | `ask-first-run` with "You approve" chosen from "Stock ways": its line, its path with "you approve" and no review, the head's "Use this", "Back" and "Stock ways" |
+| `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" chosen: its two landings, the goal branch's bar dimmer, "verify" before main |
 | `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
 | `ask-ways-card-person` | `ask-ways-approve` with "you approve" pressed: a person's card, the role and what they decide |
-| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way: a fourth tab, "Yours", current and shown, its path, "How does temper work?" alone in the acts row |
+| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way, with the project's words: their `lede` as the head's line, "Stock ways" alone at its right, its path, "How does temper work?" alone in the foot |
+| `ask-ways-yours-bare` | `ask-ways-yours` with no project words: the line "PROJECT runs settings of its own." |
+| `ask-ways-yours-menu` | `ask-ways-yours` with "Stock ways" open: the three ways, none ticked |
 | `ask-ways-refused` | `ask-ways-approve` with "Use this" refused for too few approvers: the forge, the role, how many it asks and how many can, under the foot |
-| `ask-ways-member` | a member's page: the tabs and the paths, "How does temper work?" alone in the acts row |
-| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review current with "How does temper work?" alone in the acts row, To begin's first step done |
+| `ask-ways-member` | a member's page: the line and the path, "Stock ways" alone at the head's right, "How does temper work?" alone in the foot |
+| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review shown with "Stock ways" alone at the head's right, To begin's first step done |
 | `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
 | `ask-sending` | the Ask temper start out; Send and "How does temper work?" disabled, words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
