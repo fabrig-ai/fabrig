@@ -4,10 +4,6 @@
 
 
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
-- **Not yet:** 2: *The path of a change*: How work runs draws the ways'
-  tabs with "now" and the axis line and the act at the section's right,
-  not Ask temper's head with "Back" and the "Stock ways" menu
-  [in flight: change 4521].
 
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
