@@ -76,3 +76,12 @@ fn a_mark_only_upgrade_closes_a_signal_stopped_chats_window_and_opens_again_at_e
 fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
     temper_one_process_world::upgrade::story::unsettled();
 }
+
+#[test]
+fn the_settled_image_matches_the_story() {
+    let scratch = skein_scratch::Scratch::new("settled-upgrade-image");
+    temper_one_process_world::upgrade::story::settled_image(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/settled"),
+        scratch.path(),
+    );
+}

@@ -865,6 +865,33 @@ paths = ["temper/tests/one-process/golden/baseline/README.md"]
 disposition = "provenance"
 reason = "Baseline commit, making story and once-only export provenance."
 
+# The current build's settled upgrade stop and every case that loads it.
+[[fixture]]
+paths = [
+    "temper/tests/one-process/golden/settled/state/**",
+    "temper/tests/one-process/golden/settled/worker/**",
+    "temper/tests/one-process/golden/settled/client/**",
+    "temper/tests/one-process/golden/settled/setup/**",
+    "temper/tests/one-process/golden/settled/configuration.json",
+    "temper/tests/one-process/golden/settled/modes.txt",
+    "temper/tests/one-process/golden/settled/forge.image",
+    "temper/tests/one-process/golden/settled/outside.json",
+    "temper/tests/one-process/golden/settled/ledger.jsonl",
+]
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & (test(=upgrade::the_settled_image_matches_the_story) | test(=upgrade::a_story_keeps_its_history_through_a_settled_upgrade) | test(=upgrade::power_lost_at_a_drawn_moment_keeps_a_whole_generation))"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(/^fuzzy::upgrade::/)"
+
+[[fixture]]
+paths = ["temper/tests/one-process/golden/settled/README.md"]
+disposition = "provenance"
+reason = "Settled story, rewrite command and image file descriptions."
+
 # Recording provenance for the B0 and B1 replay fixtures.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/README.md"]
