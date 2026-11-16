@@ -197,7 +197,11 @@ build since the floor's check (5), so it is gone with its patch table.
   from the active generation's store, by the test in its own copy: the
   start is refused `OlderBuild { why: Floor }` (jig's
   `protocol/store/opening.md`, 1.8), its words naming `FLOOR_BRIDGE`,
-  with `active` and every file unchanged.
+  with `active` unchanged and every file the copy held unchanged, its
+  path and bytes. The only files added are the empty log segments each
+  store's recovery starts before the open is checked (skein's
+  `data/kv.md`, 3: a new segment starts after recovery), the test
+  naming each and asserting it empty.
 - **Its rehearsal, focused:** `upgrade --check` (`../draft/upgrades.md`,
   3.1) over the files decodes every record of the store and reaches its
   report with nothing pending; over a copy with a record broken, it names
