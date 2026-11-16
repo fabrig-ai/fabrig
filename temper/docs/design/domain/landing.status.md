@@ -2,7 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 11: a landing's write that finds the outbox full waits in the outbox's line; it refuses and holds the landing (`temper-engine-domain-forge/src/landing.rs`, `refuse_entry`) [in flight: change 4916].
 
 
 Section 13.1 has no known gap in what a branch's path reads: the

@@ -6,8 +6,6 @@
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
-- **Not yet:** 2: a change's write that finds the outbox full waits in the outbox's line; it is refused and holds the task (`temper-engine-domain-forge/src/domain.rs`, `emit_change_effect`) [in flight: change 4909].
-- **Not yet:** 5: its wait for the outbox's room on its panel [in flight: change 4917].
 - **Not yet:** 2, step 1: an early start merges its dependencies' branch
   heads as last read, not their last checked heads [in flight: change
   4064].

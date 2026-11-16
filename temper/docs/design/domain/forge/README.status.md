@@ -7,10 +7,6 @@
 - **Not yet:** 2: the follow procedure, its task making follow changes
   (`follows.md`) [in flight: change 110].
 
-- **Not yet:** 4: a change's effect that finds the outbox full waits in the outbox's line (`room.md`) rather than holding its task [in flight: change 4909].
-- **Not yet:** 4: an agent call's room reserved from its check to its entry [in flight: change 4914].
-- **Not yet:** 4: release cleanup waits in the outbox's line rather than failing [in flight: change 4915].
-- **Not yet:** 4: a landing's write waits in the outbox's line rather than holding the landing [in flight: change 4916].
 
 
 - **Not yet:** 5.1: follows reading the landings on a branch

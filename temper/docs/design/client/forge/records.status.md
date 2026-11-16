@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** *A change's panel, the subject `change`*: its wait, `ChangeWait`, on the wire [in flight: change 4917].
 
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s

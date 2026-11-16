@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [task.md](task.md).
 
-- **Not yet:** 3: its wait's notice, "Waiting for room in the forge outbox." [in flight: change 4917].
 
 Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes

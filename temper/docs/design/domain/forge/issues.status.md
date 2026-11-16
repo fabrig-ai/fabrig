@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [issues.md](issues.md).
 
-- **Not yet:** a projection's check behind the outbox's line, and its room reserved from its step to its entry (`room.md`, 2) [in flight: change 4914].
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `change/gates.status.md`, 1.
   -  the real-process update-recovery trial remains `README.status.md`, 6 and 10.
