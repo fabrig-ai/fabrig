@@ -559,7 +559,7 @@ layer's budget, per-test reference and ideal
 (`tools/tiers/budgets.md`, 4), and its elapsed wall time; the gate
 reports them for both suites. The guides above are each layer's per-test
 references there, a tree's testing document setting its own where it has
-one. The three questions in 8.1 govern a
+one, and the gate holds them (8.1). The three questions in 8.1 govern a
 budget missed, including whether a randomized test belongs in the fuzzy
 suite. Raising a budget is the user's decision, not a fix.
 
@@ -655,7 +655,8 @@ machine's CPU, or a busy one's, isn't the gate's (the user, 11-16;
 processes, descendants included, summed per suite (a tree's tier):
 measured per test in the slow tiers, where each test is a process, and per
 process in the focused and fuzzy suites, where a binary's tests share one
-and no test's CPU is measured (`tools/tiers/design.md`, 11). The focused
+and a test's CPU is measured only in a process of its own, after the
+suite (`tools/tiers/design.md`, 11; `tools/tiers/references.md`, 4). The focused
 and fuzzy suites' budgets are by layer: each tree has one for each layer
 it has in each suite, and the repository's checks one of their own, in
 `tools/tiers/budgets.toml` (`tools/tiers/budgets.md`, 2). They started at
@@ -682,6 +683,18 @@ moves down the pyramid with the tests a change places lower** (section
 to that of a layer below it, in any tree, and the gate checks that it
 goes down and applies it to the ceiling and the held budget alike. A
 move up is a raise (`tools/tiers/budgets.md`, 10).
+
+**Each test is held to its reference at the gate,** its layer's per-test
+guide (section 8). A new test, one main's ledger lacks, is run alone after
+the suite, in a process of its own, and stays within its reference, or is
+red. An existing test stays within the larger of its reference and half
+again its own CPU at main: its wall in the shared run flags it, past twice
+its figure at main and at least 50 ms over it, and a flagged test is run
+alone at the head and at the base and judged by the two figures. A test
+may pass its reference by a line beside the budgets giving its figure and
+why, which the change's review judges; it still counts in its layer, so a
+reason never raises a budget. Every other run judges nothing alone
+(`tools/tiers/references.md`).
 
 **Every test binary is in one layer,** a tier of section 2, since a
 process runs one binary's tests and its CPU is the binary's:

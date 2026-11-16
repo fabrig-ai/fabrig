@@ -689,9 +689,9 @@ and `process-temper` are 145, 85 and 360 raised by half by the user's word
 of 11-08, for now, as `budgets.toml`'s comments say: revisiting them is the
 user's.
 
-The gate's budgets by layer, the ledger that judges a partial run whole
-and each test's reference held are `tools/tiers/budgets.md`'s, its section
-7 for what is left for later.
+The gate's budgets by layer and the ledger that judges a partial run whole
+are `tools/tiers/budgets.md`'s, and each test's reference held
+`tools/tiers/references.md`'s; each one's "Later" holds what is left.
 
 `run` and `cpu-run` take no hold (section 3): nextest runs their tests under
 the cargo command that built them, but a prerequisite's built tool that the
@@ -767,15 +767,20 @@ change to the build command a caller wraps changes none of them.
   and 7).
 - `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
   (7.5).
-- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--gate] [--json]`:
+- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--base DIR] [--gate] [--json]`:
   prints `summary`'s result (10.2) as text, or with `--json` as one JSON
   object, and exits 0 for a valid run within its CPU budgets or with none
   set, 1 over a CPU budget, and 2 for invalid input or unverified
   coverage (7.3). A one-process run's directory reads the same way (11).
-  `--gate` asks for the gate's verdict on its layers, and `--ledger` judges
-  them whole against main's ledger (`tools/tiers/budgets.md`, 5 and 8).
+  `--gate` asks for the gate's verdict on its layers and its tests run
+  alone, `--ledger` judges them whole against main's ledger
+  (`tools/tiers/budgets.md`, 5 and 8), and `--base` gives the base's
+  figures for its flagged tests (`tools/tiers/references.md`, 6).
 - `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
+- `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
+  a head run's flagged tests run alone at this checkout, the base's
+  (`tools/tiers/references.md`, 5).
 
 ### 10.2 `cpu.py`
 
@@ -821,7 +826,9 @@ Relative paths are the caller's working directory's, the checkout root.
   it makes itself. `walls`, a walls file's path or none, gives the run's
   `global-timeout` (11.7). `gate` is given to `summary`: true asks for the
   gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). `ledger`,
-  main's ledger as `ledger` read it or none, is given to `summary` too, and
+  main's ledger as `ledger` read it or none, is given to `run`, which runs
+  the new and flagged tests alone after the suite
+  (`tools/tiers/references.md`, 3 and 4), and to `summary`, and is
   folded with the run's figures into the run's `ledger.json`
   (`tools/tiers/budgets.md`, 7 and 8). It holds `wall_hard_s` from `limits` as `execute` does,
   writes 11.8's files, prints the summary as text and returns as `execute`
@@ -833,13 +840,16 @@ Relative paths are the caller's working directory's, the checkout root.
 - `ledger(path)`: main's ledger for one suite, at `path`, as a dictionary,
   checked against its form; a refused one raises `ValueError`
   (`tools/tiers/budgets.md`, 7).
-- `summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None)`: the verdict
+- `summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None)`: the verdict
   on a finished run directory, as the dictionary below. With `gate`, a
-  one-process run's layer over its budget is red; without, a warning
-  (`tools/tiers/budgets.md`, 4). With `ledger`, a one-process run's layers
+  one-process run's layer over its budget, or test over its reference, is
+  red; without, a warning (`tools/tiers/budgets.md`, 4;
+  `tools/tiers/references.md`, 6). With `ledger`, a one-process run's layers
   are judged whole, what it didn't run counted from the ledger, and held to
   the budgets main's figures give (`tools/tiers/budgets.md`, 8 and 9); for
-  any other run it is refused. A run nextest's
+  any other run it is refused. `base`, the directory of a run at the base
+  (`tools/tiers/references.md`, 5), gives its flagged tests' figures at
+  main; for a run other than one-process's it is refused. A run nextest's
   `global-timeout` cancelled is starved as one past the hard wall is (7.3):
   `summary` reads that from `command-output.txt`, so a caller never writes
   `run.json` itself. `pair` defaults to
@@ -869,6 +879,7 @@ Relative paths are the caller's working directory's, the checkout root.
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
 | `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
+| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where
@@ -885,8 +896,12 @@ only processes have it (section 11). In a one-process run:
   run never reached, `attempt` 1; `warnings` holds each `may depend on an
   earlier test` label, each leaked process and each unobserved test;
 - a process's `kind` is `"tests"`, `"fresh"` (after a process that ended
-  before its names did, 11.6) or `"alone"` (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
-  process's CPU is in the suite's: every process with a record is counted.
+  before its names did, 11.6), `"alone"` (a diagnostic), `"reference"` (one
+  test alone, for its reference) or `"empty"` (its binary selecting no test)
+  (`tools/tiers/references.md`, 4), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
+  process's CPU is in the suite's: every process with a record of the
+  first three kinds is counted. A `reference` or `empty` process counts in
+  no sum: it measures one test after the suite.
   A forced kill can leave a started process without a record; its CPU is
   unknown and excluded, so the sum is a lower bound (11.7).
 
@@ -918,7 +933,9 @@ configuration, nextest's inputs, not results. A directory
 `execute_one_process` made holds 11.8's files instead: `run.json` with its
 `mode` and `lanes`, `command-output.txt`, `junit.xml`, `results.json`,
 `ledger.json` (`tools/tiers/budgets.md`, 7), `plan.json` (the lanes' input,
-no result) and `starved.json` as above; no `records/`. A directory `cpu-run` wrote
+no result) and `starved.json` as above; no `records/`. A directory
+`tools/tiers/one-process --alone` wrote holds `run.json`, `plan.json`,
+`results.json` and `command-output.txt` (`tools/tiers/references.md`, 5). A directory `cpu-run` wrote
 holds one suite record for each ID, `<ID-sanitized>.json` (7.5); a name
 ending `.tmp` is no record.
 
@@ -945,7 +962,11 @@ rusage, and a suite's CPU is their sum. No test's CPU is measured: the
 kernel's per-process times tick at 10 ms, and libtest reports a result after
 it has moved on, so an outer runner can't divide a process among its tests.
 A test's record carries its outcome and wall time, and its CPU is null, "not
-measured", never a share or a guess. No `/proc` sampling.
+measured", never a share or a guess. No `/proc` sampling. A test is
+measured only in a process of its own: with main's ledger, a new or
+flagged test runs alone after the suite, its CPU that process's less its
+binary's run selecting no test, outside every sum of the suite
+(`tools/tiers/references.md`, 3 and 4).
 
 ### 11.1 Entry points and refusals
 
@@ -958,7 +979,9 @@ holds anything) and writes 11.8's files; `execute_one_process` adds the
 summary and the exit status. `walls`, a walls file's path or none, gives the
 profile's `global-timeout` in place of `config`'s (11.7). A further argument,
 `layers=Path('tools/tiers/layers.toml')`, is the layers file by which it
-places each binary in its tree and layer (`tools/tiers/budgets.md`, 3).
+places each binary in its tree and layer (`tools/tiers/budgets.md`, 3),
+and `ledger=None`, main's ledger as `ledger` reads it, picks the tests it
+runs alone after the suite (`tools/tiers/references.md`, 3 and 4).
 
 `command` is the caller's nextest command, as it would pass it to `execute`
 without `prepare`'s arguments: its first element whose basename is `cargo`
@@ -1277,7 +1300,9 @@ In the directory `run` made, once it has returned:
   process, none where a forced kill left that process without a record (11.7),
   the tests before it and its alone result where it failed, its output where it
   did not pass), the unobserved tests, the selection's count and the
-  cancellation; `summary` reads it;
+  cancellation, and `references`, each test run alone for its reference
+  after the suite, with its `reference` and `empty` processes among the
+  processes (`tools/tiers/references.md`, 4); `summary` reads it;
 - `ledger.json`, written by `execute_one_process` once the summary is made:
   main's ledger for the suite as it will stand should the run's candidate
   land, the ledger it was given, or none, with the run's figures folded in
@@ -1334,7 +1359,15 @@ no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
 tests or given twice, no names, or a `DIR` not fresh; `--budgets`,
 `--walls`, `--ledger` or `--gate` with `--again` is an invalid invocation too, since
 the plan holds its run's bound. The hold is as
-above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`.
+above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
+nothing alone for a reference.
+
+**At the base.** `tools/tiers/one-process --alone HEAD_DIR [--out DIR]
+[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone
+the tests the head's run in `HEAD_DIR` flagged, and writes their figures
+for `cpu-summary --base` (`tools/tiers/references.md`, 5, which gives its
+listing, files and exit statuses). It lists and builds as a run does, the
+flagged binaries' packages alone, and takes the hold as above.
 
 ### 11.10 Offline proof
 
