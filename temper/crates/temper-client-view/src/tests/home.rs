@@ -1968,6 +1968,10 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     let mut goals = chat_fixture(live, ended, false, false);
     for row in goals.live.rows.iter_mut() {
         row.tracked = Some(1);
+        if row.chip.task == 9 {
+            row.delegates_done = 5;
+            row.delegates_total = 6;
+        }
     }
     if let c::EndedGroup::Rows { rows, .. } = &mut goals.ended.ended {
         for row in rows.iter_mut() {
@@ -2008,7 +2012,7 @@ fn goals_takes_chats_place() {
     let root = home_goals(2, 3, false);
     assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
     assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+    for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let region = main_find(view.tree(), Role::Region, b"Goals");
         main_find(view.tree(), Role::Heading { level: 2 }, b"Goals");
         for node in main_nodes(view.tree()) {
@@ -2019,9 +2023,18 @@ fn goals_takes_chats_place() {
         contains(&text, "A goal report.");
         contains(&text, "needs you");
         contains(&text, "planning");
+        contains(&text, "5 / 6");
+        if browser {
+            let bar = main_find(view.tree(), Role::Figure, b"5 done of 6");
+            assert_eq!(subtree(view.tree(), bar)[0].styles.as_slice(), [crate::look::GOAL_BAR]);
+        } else {
+            for node in main_nodes(view.tree()) {
+                assert!(!node.styles.as_slice().contains(&crate::look::GOAL_BAR));
+            }
+        }
         contains(&text, "landed");
         main_find(view.tree(), Role::Button, b"Tell it something else");
-        let row = main_find(view.tree(), Role::Link, b"README \xc2\xb7 needs you");
+        let row = main_find(view.tree(), Role::Link, b"README \xc2\xb7 5 / 6 \xc2\xb7 needs you");
         assert_eq!(
             crate::act(&mut view, row, Act::Press),
             Some(d::Action::Pages(d::pages::Act::Go { address: Address::Task { task: 9 } }))

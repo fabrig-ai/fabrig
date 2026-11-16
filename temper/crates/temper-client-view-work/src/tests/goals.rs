@@ -26,12 +26,12 @@ const EMPTY: u32 = 0;
 
 const ONE: u32 = 1;
 
-// One link, top, title, metadata, state and headline in the browser contract.
-const ROW_NODES: usize = 6;
+// The row has one link and a top line with title and progress.
+const ROW_NODES: usize = 17;
 
-const TOP_NODES: u32 = 4;
+const TOP_NODES: u32 = 15;
 
-const META_NODES: u32 = 2;
+const META_NODES: u32 = 13;
 
 // Seven states, with the two needs words checked separately.
 const STATE_CASES: usize = 8;
@@ -129,8 +129,9 @@ fn a_row_is_one_link_to_its_task() {
     assert_eq!(fixtures::node_text(&tree, 2).as_ref(), b"Hello");
     assert_eq!(nodes[3].role, Role::Text);
     assert_eq!(nodes[3].size, META_NODES);
-    assert_eq!(nodes[5].role, Role::Text);
-    assert_eq!(nodes[5].styles.as_slice(), [look::GOALS_LINE]);
+    assert_eq!(nodes[3].styles.as_slice(), [look::GOALS_PROGRESS]);
+    assert_eq!(nodes[16].role, Role::Text);
+    assert_eq!(nodes[16].styles.as_slice(), [look::GOALS_LINE]);
 }
 
 #[test]
@@ -161,12 +162,81 @@ fn each_state_says_its_word_and_carries_its_token() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "test inspects whether a bar is drawn")]
 fn its_count_is_left_out_with_no_delegates() {
     for (total, expected) in [(EMPTY, b"Hellorunning".as_slice()), (TOTAL, "Hello6 / 9 · running".as_bytes())] {
         let mut line = line();
         line.delegates_total = total;
         let (tree, _) = tree(&line, State::Running, None, &fixtures::browser_words());
         assert_eq!(styled_text(&tree, look::GOALS_TOP).as_ref(), expected);
+        assert_eq!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::GOAL_BAR)), total != 0);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test locates the progress subtree")]
+fn its_bar_counts_done_tasks_and_one_live_task() {
+    for (done, total, state, expected, name, count) in [
+        (5, 6, State::Running, "LLLLLR", "5 done of 6", "5 / 6 · running"),
+        (3, 7, State::Running, "LLLR---", "3 done of 7", "3 / 7 · running"),
+        (6, 6, State::Landed, "LLLLLL", "6 done of 6", "6 / 6 · landed"),
+        (3, 7, State::Closed, "LLL----", "3 done of 7", "3 / 7 · closed"),
+        (6, 6, State::Running, "LLLLLL", "6 done of 6", "6 / 6 · running"),
+    ] {
+        let mut line = line();
+        line.delegates_done = done;
+        line.delegates_total = total;
+        let (tree, _) = tree(&line, state, None, &fixtures::browser_words());
+        let progress =
+            tree.nodes().iter().position(|node| node.styles.as_slice().contains(&look::GOALS_PROGRESS)).unwrap();
+        assert_eq!(fixtures::node_text(&tree, progress).as_ref(), count.as_bytes());
+        let bar = &tree.nodes()[progress + 1];
+        assert_eq!(bar.role, Role::Figure);
+        assert_eq!(bar.styles.as_slice(), [look::GOAL_BAR]);
+        assert_eq!(bar.name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(bar.size, total + 1);
+        for (node, expected) in tree.nodes()[progress + 2..].iter().zip(expected.bytes()) {
+            assert_eq!(node.role, Role::Text);
+            let styles: &[Style] = match expected {
+                b'L' => &[look::GOAL_BAR_LANDED],
+                b'R' => &[look::GOAL_BAR_RUNNING],
+                b'-' => &[],
+                _ => panic!("part"),
+            };
+            assert_eq!(node.styles.as_slice(), styles);
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "test makes Unicode titles and inspects the row link"
+)]
+fn its_title_is_cut_on_a_word_within_eighty_characters() {
+    for (title, expected) in [
+        ("é".repeat(80), "é".repeat(80)),
+        ("word ".repeat(20), format!("{}…", "word ".repeat(16).trim_end())),
+        ("é".repeat(81), format!("{}…", "é".repeat(79))),
+        (format!("{} end", "é".repeat(79)), format!("{}…", "é".repeat(79))),
+        ("Short. Another sentence".into(), "Short. Another sentence".into()),
+    ] {
+        let mut line = line();
+        line.chip.title = fixtures::goal::text(title.as_bytes());
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, _) = tree(&line, State::Running, None, &words);
+            let control = tree.nodes().iter().find(|node| node.role == Role::Link).unwrap();
+            let name = control.name.as_deref().unwrap();
+            assert!(name.starts_with(expected.as_bytes()));
+            assert_eq!(name.get(expected.len()..), Some(" · 6 / 9 · running".as_bytes()));
+            let drawn = if words.shell == crate::words::Shell::Browser {
+                format!("{expected}6 / 9 · runningSix of nine tasks done.")
+            } else {
+                format!("{expected} · 6 / 9 · runningSix of nine tasks done.")
+            };
+            assert_eq!(fixtures::text(&tree).as_ref(), drawn.as_bytes());
+        }
     }
 }
 
@@ -182,10 +252,10 @@ fn its_headline_is_the_reports_or_its_states() {
     };
     for (state, fallback) in [
         (State::Planning, b"Planning from the draft.".as_slice()),
-        (State::Running, b"6 of 9 tasks done.".as_slice()),
-        (State::Paused, b"6 of 9 tasks done.".as_slice()),
-        (State::Needs { funds: true }, b"6 of 9 tasks done.".as_slice()),
-        (State::Needs { funds: false }, b"6 of 9 tasks done.".as_slice()),
+        (State::Running, b"Six of nine tasks done.".as_slice()),
+        (State::Paused, b"Six of nine tasks done.".as_slice()),
+        (State::Needs { funds: true }, b"Six of nine tasks done.".as_slice()),
+        (State::Needs { funds: false }, b"Six of nine tasks done.".as_slice()),
         (State::Landed, b"Landed.".as_slice()),
         (State::Closed, b"Closed by you.".as_slice()),
         (State::Failed, b"Failed.".as_slice()),
@@ -194,6 +264,18 @@ fn its_headline_is_the_reports_or_its_states() {
             let (tree, _) = tree(&line(), state, given, &fixtures::browser_words());
             assert_eq!(styled_text(&tree, look::GOALS_LINE).as_ref(), expected, "{state:?}");
         }
+    }
+    for (done, total, expected) in [
+        (5, 6, b"Five of six tasks done.".as_slice()),
+        (5, 12, b"Five of 12 tasks done.".as_slice()),
+        (12, 15, b"12 of 15 tasks done.".as_slice()),
+        (0, 6, b"None of six tasks done.".as_slice()),
+        (1, 2, b"One of two tasks done.".as_slice()),
+    ] {
+        let mut line = line();
+        line.delegates_done = done;
+        line.delegates_total = total;
+        assert_eq!(goals::headline(&fixtures::browser_words(), &line, State::Running, None).as_ref(), expected);
     }
     for state in [State::Needs { funds: true }, State::Needs { funds: false }] {
         let mut line = line();
@@ -215,7 +297,7 @@ fn an_ended_row_is_marked() {
 fn a_row_reads_in_the_terminal() {
     for (total, name, headline) in [
         (EMPTY, "Hello · needs funds", b"Planning from the draft.".as_slice()),
-        (TOTAL, "Hello · 6 / 9 · needs funds", b"6 of 9 tasks done.".as_slice()),
+        (TOTAL, "Hello · 6 / 9 · needs funds", b"Six of nine tasks done.".as_slice()),
     ] {
         let mut line = line();
         line.delegates_total = total;
@@ -228,6 +310,7 @@ fn a_row_reads_in_the_terminal() {
         let mut bound = EMPTY;
         let mut binding = None;
         for item in tree.nodes() {
+            assert!(!item.styles.as_slice().contains(&look::GOAL_BAR));
             if item.binding.is_some() {
                 bound = bound.checked_add(ONE).unwrap();
             }

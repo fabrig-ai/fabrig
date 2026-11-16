@@ -170,6 +170,8 @@ pub const GOALS_ROW: Style = Style { owner: owner(), token: 283 };
 pub const GOALS_ROW_ENDED: Style = Style { owner: owner(), token: 284 };
 /// A goal’s title, counts and state (client/pages/README.md).
 pub const GOALS_TOP: Style = Style { owner: owner(), token: 285 };
+/// A goal row’s bar, count and state (client/pages/work.md, 1).
+pub const GOALS_PROGRESS: Style = Style { owner: owner(), token: 448 };
 /// A goal’s report headline (client/pages/README.md).
 pub const GOALS_LINE: Style = Style { owner: owner(), token: 286 };
 /// Goals’ filter buttons (client/pages/README.md).
@@ -1176,7 +1178,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-late",
         b"temper-decision-overturned",
         b"temper-reserved-447",
-        b"temper-reserved-448",
+        b"temper-goals-progress",
         b"temper-reserved-449",
         b"temper-reserved-450",
         b"temper-reserved-451",

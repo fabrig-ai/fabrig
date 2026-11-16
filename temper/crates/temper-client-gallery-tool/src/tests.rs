@@ -2033,7 +2033,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "goal-no-report",
-        heading: "6 of 9 tasks done.",
+        heading: "Six of nine tasks done.",
         parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
     },
     Holds {
@@ -3179,7 +3179,7 @@ static HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Text { text: "Planning from the draft." },
-            Part::Text { text: "0 of 1 tasks done." },
+            Part::Text { text: "None of one tasks done." },
         ],
     },
     Holds {
@@ -4631,7 +4631,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-solo-T3",
-        heading: "0 of 2 tasks done.",
+        heading: "None of two tasks done.",
         parts: &[
             Part::Text { text: "CSV import" },
             Part::Text { text: "needs you" },
@@ -5161,7 +5161,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-reference-T12",
-        heading: "3 of 9 tasks done.",
+        heading: "Three of nine tasks done.",
         parts: &[Part::Text { text: "Harness" }, Part::Named { role: Role::Disclosure, name: "1 landed" }],
     },
     Holds {
