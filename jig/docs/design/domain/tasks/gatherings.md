@@ -50,6 +50,13 @@ section 4), and its requester ends it with `Conclude` (section 3).
   - *no dependencies:* a batch naming one for it, and an amendment
     adding one, are refused. It waits on nothing, so it is active from
     the commit that makes it, and never kept (`lifecycle.md`, 8).
+- **Its template,** where an application offers one: a template whose
+  executor is chosen, whose ending is `Requester` and which is no
+  conversation is a gathering's.
+  The configuration checks its flags as a gathering's
+  (`../../protocol/configuration.md`, 3.1), and its creator fills the
+  gathering's executor, as temper's milestone template does
+  (`temper/docs/design/domain/milestones.md`, section 2).
 - **The rest is any task's:** its words (what it is for), parameters
   none, tracked and priority, label, listed and retention, budget,
   deadline and authority. Its authority bounds its delegates, as any
@@ -100,9 +107,17 @@ section 4), and its requester ends it with `Conclude` (section 3).
   Words a party sends it wait in its inbox as any task's, within its
   bounds; it reads none.
 - **It decides nothing,** as no procedure does (`proposals.md`): its
-  delegates' proposals and escalations pass it to its requester. A
-  question a delegate asks its requester in the question form waits in
-  its inbox, which no run reads (section 7).
+  delegates' proposals and escalations pass it to its requester.
+- **It answers no question:** a question a delegate asks its requester,
+  the gathering, in the question form, goes to the gathering's
+  requester where that is a person. It is an entry of that person's
+  inbox as a question from the delegate (`../people/README.md`, section
+  5), waiting until they answer it, as a conversation's question to its
+  person waits; their answer reaches the delegate as its requester's
+  answer, in the answer form, and the gathering's inbox holds neither.
+  The gathering's own answer to it is refused, as a conversation's is.
+  Where the gathering's requester is the deployment, the question waits
+  in its inbox, which no run reads.
 - **It spends nothing of its own.** It has no run; what it spends is its
   delegates' (`../authority.md`, section 7).
 
@@ -122,19 +137,19 @@ concluded with delegates live and ended with the last of them, its
 words counting each ending; a batch beneath it refused once concluded; a
 cancel of it concluded or not; a hold that keeps it from ending until
 its release; more delegates over its life than its inbox holds; the
-latch across a restart. The core world (`jig/tests/core`) has a party's
+latch across a restart; a delegate's question to it reaching its
+person's inbox, answered there and refused to the gathering, and one
+under a deployment's gathering waiting in its inbox. The core
+configuration tests check a chosen template ended by `Requester` with
+no conversation accepted as a gathering's, one with a conversation
+still checked as an agent's, and a gathering's template whose flags
+fit no gathering refused. The core world (`jig/tests/core`) has a party's
 `Create`, `Delegate` and `Conclude` through to its end, and the client
 protocol world (`jig/tests/client-protocol`) the requests and its
 document on the wire.
 
 ## 7. Later
 
-- **Questions to a gathering's requester:** a delegate's question to its
-  requester waits in the gathering's inbox. An application whose
-  delegates ask routes them to the gathering's requester itself
-  (temper's milestone's goals ask its maker,
-  `temper/docs/design/draft/milestones.md`, section 3); whether jig
-  passes such a question up past a procedure is open.
 - **A task line's `concluded`,** for lists that show it without the
   document: an application's need first.
 - **A gathering made by a task,** gatherings within gatherings, a

@@ -175,16 +175,18 @@ new to say. Its charter is the stock's 9
   is: jig forgets a result only for a person's request.
 - **Its instructions,** the stock's `status.txt`, whole, these words:
 
-  > You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: "Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked." Say only what the facts say. No greetings, no lists, no advice.
+  > You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: "Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked." Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice.
 
   The file is those bytes alone, with no newline at its end.
 - **Its words,** made by the forge, and the root adding the goals and
   the standing roles, which are core's: the span since the last brief,
   the landed count, the titles of the changes the landing log holds since
   the last brief (at most 20), the project's live goals each with its
-  delegates done and total, the failing tests each tier of the project's
-  repositories holds, the project's open findings, and each live
-  standing role's Now. They say only what the engine keeps.
+  delegates done and total, a goal in a milestone named by its milestone
+  first, the project's live milestones and those ended since the last
+  brief (`../milestones.md`, section 9), the failing tests each tier of
+  the project's repositories holds, the project's open findings, and
+  each live standing role's Now. They say only what the engine keeps.
 - **The open findings** (`../findings.md`, 2): the project's findings
   in state `new` or `backlog`, as the forge holds them. Their part of
   the words, made by the forge in the same decision as the rest of its
@@ -309,7 +311,9 @@ no brief or wake (`../../draft/what-reaches-you.md`, sections 4 and 6).
   person the question would have reached. Of a task whose requester is a
   person, a goal, a chat or any task a person made, that person; of a
   task whose requester is a task, the person of the chat serving it
-  (jig's `served_chat`) where that chat's requester is a person. A
+  (jig's `served_chat`) where that chat's requester is a person, or the
+  milestone's requester where that task is a milestone and its
+  requester a person (`../milestones.md`, section 5). A
   standing role's requester is its person, so it is that person
   (`../agent/standing.md`, section 3). Any other caller is answered ask by the root, with nothing
   asked of the connector: its questions go to its requester, a task,

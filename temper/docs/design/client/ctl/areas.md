@@ -7,8 +7,9 @@ The table grows area by area, each with its stories (`testing.md`).
    of `tools.md`, 2 other than the general proposal read of area 2; the watched
    reads' waits (`tools.md`, 4); every act of 5.3.
 2. **Goals and plans:** `goal start --project PROJECT [--template TEMPLATE]
-   [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
-   (`shapes::set_goal`, keyed), `proposal show PROPOSAL`, `task amend
+   [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT | --as-allowed]
+   [--deadline TIME | --no-deadline] [--milestone TASK] [--after TASK]... TEXT`
+   (`shapes::set_goal`, keyed; its last three flags area 8's), `proposal show PROPOSAL`, `task amend
    TASK [--rev REV] CHANGE... REASON`, `proposal withdraw PROPOSAL`,
    `seen`.
 
@@ -588,7 +589,13 @@ The table grows area by area, each with its stories (`testing.md`).
    - **`--json`** prints the outcome's row, or the panel's rows, as the
      wire has them, a commit whole.
 
-- **Areas 1, 5, 6 and 7 are designed here in full.** Areas 2 to 4 name their
+8. **Milestones** (`../../domain/milestones.md`): the group
+   `milestone`, `milestone new`, `whole`, `list` and `show`, and `goal
+   start`'s `--milestone`, `--after` and `--no-deadline`, designed in
+   full in `milestones.md`.
+
+- **Areas 1, 5, 6 and 7 are designed here in full,** and area 8 in
+  `milestones.md`. Areas 2 to 4 name their
   tools and jig's operations; each area's arguments are checked against
   jig's operations as they stand when the area is built.
 - **A tool no area names** is a design question, and joins the table as

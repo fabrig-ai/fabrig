@@ -582,6 +582,14 @@
   `FindingAnswer`: its `FindingRow`, its `body`, its `filer`, a task or a
   party, its `goal`, option, the task it was routed to, and its
   `reason`, option, a drop's; or `no_finding`.
+- **A milestone's totals, the read `Milestone`:** `MilestoneRead {
+  project, task }`, in the project's scope by a party with a role
+  there. Its answer, `MilestoneAnswer`: `totals`, a `MilestoneTotals`,
+  `task`, `done`, `failed`, `closed` and `live` (u32 each), `ended`,
+  option, a wall, `last_landing`, option, a `MilestoneLanding`, `at`, a
+  wall, `goal` and `change`, and `spent` (u64); or `not_milestone`
+  (`../../domain/milestones.md`, section 7). It moves `CLIENT_VERSION`
+  by one.
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
