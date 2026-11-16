@@ -2,7 +2,6 @@
 
 2026-11-16. Where the tree's code lags or departs from [work.md](work.md).
 
-- **Not yet:** 1, *Goals*: a row has no bar, its title is not cut, and its headline counts in digits [in flight: change 4302].
 
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].
