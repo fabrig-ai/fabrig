@@ -14,7 +14,7 @@ fn link(secret: &str) -> Event {
 fn signing_in() -> Machine {
     let (mut m, _) = Machine::start(plan(), Time::ZERO);
     let actions = step(&mut m, link("first"));
-    assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::Start { process: Process::SignIn, .. }]));
+    assert!(matches!(actions.as_slice(), [Action::Start { process: Process::SignIn, .. }]));
     m
 }
 fn opening() -> Machine {
