@@ -8,16 +8,16 @@ use jig_store_world::{
 use skein_lib::{Env, Queue, Reader, Time, Token, Wall};
 
 const SEED: u64 = 960;
-// Initial commit, four public patch pages and the seal in Records::story.
-const PATCHED_LAST: u64 = 6;
-const RESTORED_LAST: u64 = PATCHED_LAST + 1;
+// Initial commit, job page, end page and the seal in Records::story.
+const UPGRADED_LAST: u64 = 4;
+const RESTORED_LAST: u64 = UPGRADED_LAST + 1;
 const RESTORED_KEY: &[u8] = b"restored";
 const RESTORED_VALUE: &[u8] = b"copy alone";
 const SWITCH: Token = Token::new(961);
 
 pub(crate) fn pending() -> World {
     let mut world = Records::story().committed(SEED, BASE);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
     world.open().expect("checked pending copy");
     world
@@ -37,7 +37,7 @@ fn manifest(world: &mut World) -> codec::component::Manifest {
 }
 
 #[test]
-fn a_patched_copy_opens_pending_and_switches_when_asked() {
+fn a_job_copy_opens_pending_and_switches_when_asked() {
     let mut world = pending();
     let original = patches::source(&mut world);
     assert!(world.pending);
@@ -53,7 +53,7 @@ fn a_patched_copy_opens_pending_and_switches_when_asked() {
     world.crash(SEED);
     assert_eq!(world.open(), Some(RESTORED_LAST));
     assert!(!world.pending);
-    assert_eq!((world.patched()).len(), 0);
+    assert_eq!(world.ran(), []);
     assert_eq!(world.application(true).get(RESTORED_KEY), Some(&Box::from(RESTORED_VALUE)));
 }
 
@@ -65,9 +65,9 @@ fn a_start_that_ends_before_asking_leaves_the_old_generation_active() {
     world.lay(&[skein_fake_machine::Item::file(b"generations/2/pending-copy", b"discard me")]);
     world.crash(SEED);
     assert_eq!(world.active(), b"1\n");
-    assert_eq!(world.open(), Some(PATCHED_LAST));
+    assert_eq!(world.open(), Some(UPGRADED_LAST));
     assert!(world.pending);
-    assert_ne!((world.patched()).len(), 0);
+    assert_ne!(world.ran(), []);
     assert!(!world.application(false).contains_key(RESTORED_KEY));
     assert!(!world.paths().iter().any(|path| path == b"generations/2/pending-copy"));
     patches::kept(&original, &patches::source(&mut world), &"abandoned restore");
@@ -154,14 +154,14 @@ pub(crate) fn a_switch_cut_leaves_one_generation_whole(cut: u32) -> bool {
     assert_eq!(world.operation_count(), cut, "switch cut reached");
     world.crash(u64::from(cut));
     let old_active = world.active() == b"1\n";
-    assert_eq!(world.open(), Some(PATCHED_LAST), "cut {cut}");
-    assert_eq!(world.pending, old_active, "only the old generation patches again: cut {cut}");
+    assert_eq!(world.open(), Some(UPGRADED_LAST), "cut {cut}");
+    assert_eq!(world.pending, old_active, "only the old generation runs the job again: cut {cut}");
     if world.pending {
         world.switch();
     }
     patches::whole(&mut world);
     patches::kept(&original, &patches::source(&mut world), &cut);
-    Records::story().check(&mut world, 2, &cut);
+    Records::story().check(&mut world, &cut);
     old_active
 }
 

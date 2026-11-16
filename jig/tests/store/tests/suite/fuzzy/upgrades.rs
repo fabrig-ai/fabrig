@@ -18,9 +18,9 @@ fn drop_copy_and_switch_recover_after_every_mutation() {
 fn cuts_across_check_and_switch_recover_whole_maps() {
     let records = patches::Records::story();
     let mut complete = records.committed(check::SEED, patches::BASE);
-    complete.patch_sets(patches::SETS);
+    complete.owner_sets(patches::SETS);
     complete.trace_writes();
-    complete.open_switched().expect("complete patch to enumerate its cuts");
+    complete.open_switched().expect("complete job upgrade to enumerate its cuts");
     let (first, after_switch, _) = check::seal_and_switch(&complete);
     let mut source_opened = false;
     let mut switched = false;

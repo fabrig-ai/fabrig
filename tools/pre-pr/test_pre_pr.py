@@ -1,5 +1,6 @@
 """Delivery selection, goal reds and inherited counts (tools/pre-pr/design.md, 3, 5, 9)."""
 import contextlib
+import fnmatch
 import hashlib
 import importlib.util
 import io
@@ -66,17 +67,20 @@ sys.exit(int(count > 0))
         self.command('git', 'commit', '-qm', 'base')
         self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
 
+    def metadata(self, packages, directories=None, dependencies=None):
+        dependencies = {} if dependencies is None else dependencies
+        return {'packages': [{'name': name, 'id': name,
+                              'dependencies': [dict(dependency, path=str(self.root / dependency['name'].lower()))
+                                               for dependency in dependencies.get(name, [])],
+                              'manifest_path': str(self.root / (directories or {}).get(name, name.lower()) / 'Cargo.toml')} for name in packages],
+                'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
+
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
                 build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None):
         calls = []
         events = [] if events is None else events
-        dependencies = {} if dependencies is None else dependencies
-        data = {'packages': [{'name': name, 'id': name,
-                              'dependencies': [dict(dependency, path=str(self.root / dependency['name'].lower()))
-                                               for dependency in dependencies.get(name, [])],
-                              'manifest_path': str(self.root / (directories or {}).get(name, name.lower()) / 'Cargo.toml')} for name in packages],
-                'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
+        data = self.metadata(packages, directories, dependencies)
 
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
@@ -221,6 +225,61 @@ sys.exit(int(count > 0))
                     self.assertIn('pre-pr: no package changed', log)
                 if row == 'unknown reader':
                     self.assertIn('pre-pr: path reader missing: not a workspace member, skipped', log)
+
+    def test_nested_package_ownership(self):
+        data = self.metadata(('A', 'B'), directories={'A': 'a', 'B': 'a/b'})
+        for path, package in (('a/b/c.rs', 'B'), ('a/bc/d.rs', 'A'), ('a/x.rs', 'A'),
+                              ('a/b/input.bin', 'B'), ('a/../input.bin', 'A'), ('a', 'A')):
+            with self.subTest(path=path):
+                self.assertEqual(PRE_PR.code_inputs([path], data, self.root), [path])
+                self.assertEqual(PRE_PR.select(data, {self.root / path: path}, ''),
+                                 ([package], [package]))
+
+    def test_selection_large_change(self):
+        # 400 packages, with a child package under each of the 200 parents.
+        directories = {f'{kind}-{i}': f'packages/p{i}' + suffix
+                       for i in range(200) for kind, suffix in (('parent', ''), ('child', '/nested'))}
+        directories.update(dependent='dependent', transitive='transitive', reader='reader')
+        data = self.metadata(directories, directories=directories, dependencies={
+            'dependent': [{'name': 'parent-0', 'kind': 'dev'}],
+            'transitive': [{'name': 'dependent', 'kind': None}],
+        })
+        patterns = ('packages/p0/docs/read-*.md', 'packages/*/nested/docs/read-*.md',
+                    'packages/p1/docs/note-*.md')
+        self.write('.config/gate/read-by-tests.txt', patterns[0] + '\n')
+        self.write('.config/fixture-readers.toml',
+                   f'[[fixture]]\npaths = ["{patterns[1]}"]\nregenerate = ["{patterns[2]}"]\n'
+                   '[[fixture.reader]]\npair = "default"\npackage = "reader"\nfilter = "kind(lib)"\n')
+        always = 'reader packages/p0-sibling/\n'
+        self.write('.config/gate/always.txt', always)
+        paths = []
+        for i in range(200):
+            for j in range(50):
+                for suffix in ('', '/nested', '/nested-sibling', '-sibling', '/docs', '/nested/docs'):
+                    name = (f'read-{j}.md' if j % 2 else f'note-{j}.md') if 'docs' in suffix else f'value-{j}.bin'
+                    paths.append(f'packages/p{i}{suffix}/{name}')
+
+        # Reference: the longest package directory prefix, by whole components.
+        # It enumerates the rule, independently of the driver's parent walk.
+        package_parts = {Path(directory).parts: name for name, directory in directories.items()}
+        owners = {}
+        for path in paths:
+            parts = Path(path).parts
+            directory = max((directory for directory in package_parts
+                             if parts[:len(directory)] == directory), key=len, default=None)
+            owners[path] = package_parts.get(directory)
+        expected_code = [path for path in paths
+                         if (not path.endswith('.md') and owners[path] is not None)
+                         or any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+                         or path.startswith('packages/p0-sibling/')]
+        expected_lints = {owners[path] for path in expected_code} - {None}
+        expected_tests = expected_lints | {'dependent', 'reader'}
+
+        selected = PRE_PR.code_inputs(paths, data, self.root)
+        self.assertEqual(selected, expected_code)
+        lints, tests = PRE_PR.select(data, {self.root / path: path for path in selected}, always)
+        self.assertEqual(lints, sorted(expected_lints))
+        self.assertEqual(tests, sorted(expected_tests))
 
     def test_moved_pin_misses_the_cache(self):
         for row in ('first pin', 'moved pin'):

@@ -160,7 +160,7 @@ Event::Job { owner: Token, of: Owner, job: Box<str>, page: JobPage }
 Request::Job { owner: Token, answer: Result<JobAnswer, JobRefusal> }
 Event::Ran { owner: Token, of: Owner, job: Box<str>, rows: u64, commits: u64, counts: Box<[JobCount]> }
 pub struct JobCount { pub name: Box<str>, pub count: u64 } // a declared name and its answers' sum
-pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub room: JobRoom } // `layout`: a written job's, on its first page
+pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub room: JobRoom } // `layout`: a written job's, on each of its pages
 pub struct JobRoom { pub writes: u32, pub bytes: u64 } // what the answer's writes may hold together
 impl JobWrite { pub fn bytes(&self) -> u64; } // a write's bytes as the store counts them against `room.bytes`
 pub struct JobRow { pub key: Box<[u8]>, pub value: Box<[u8]> }
@@ -187,9 +187,11 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 
 - **Its pages** hold only the values of its value type whose head is the
   id of its `from` layout in the registry, as they are stored: the read
-  edge leaves them unconverted, and its first page carries that layout's
-  root, variant and texts (`JobLayout`), from the registry's rows. Values
-  at other layouts are not handed to it.
+  edge leaves them unconverted, and each of its pages carries that
+  layout's root, variant and texts (`JobLayout`), from the registry's
+  rows, so that a dispatch keeps no state between pages. Values at other
+  layouts are not handed to it, and a written job's page without its
+  layout is the owner's refusal (`JobRefusal`).
 - **Its owner's function** reads each old value as a generic value of
   that text (skein's `data/codec/README.md`, section 8; the head is the
   layout id, which the function passes over) and writes the new one by

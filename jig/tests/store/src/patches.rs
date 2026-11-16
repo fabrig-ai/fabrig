@@ -1,30 +1,36 @@
-//! The two fixture binaries and their independent record model (protocol/store/README.md 9).
+//! Equal-level fixture binaries and their independent record model (protocol/store/README.md 9).
 use crate::{World, root, world::Change};
-use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, SecretOwner, Secrets, Write};
-use jig_test_patches::{self as fixture, patches as app};
+use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets, Write};
+use jig_test_layouts::{self as fixture, records as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Secret;
 use std::collections::BTreeMap;
 const LABEL: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
-    types: &[],
-    flights: &[],
+    current: app::LABEL,
+    types: &[jig_protocol_store::ValueType {
+        number: 0,
+        root: "Label",
+        variant: None,
+        keys: &[jig_protocol_store::KeyRange { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO }],
+    }],
     frames: None,
     name: "fixture-label",
     map: KeptMap::Store,
-    texts: app::kept::fixture_label::TEXTS,
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
-    types: &[],
-    flights: &[],
+    current: app::SHELF,
+    types: &[jig_protocol_store::ValueType {
+        number: 0,
+        root: "Shelf",
+        variant: None,
+        keys: &[jig_protocol_store::KeyRange { from: fixture::keys::SHELVES_FROM, to: fixture::keys::SHELVES_TO }],
+    }],
     frames: None,
     name: "fixture-shelf",
     map: KeptMap::Store,
-    texts: app::kept::fixture_shelf::TEXTS,
     keys: &[Keys {
         from: fixture::keys::SHELVES_FROM,
         to: fixture::keys::SHELVES_TO,
@@ -33,85 +39,68 @@ const SHELF: KeptFamily = KeptFamily {
 };
 const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
+    current: app::TOKEN,
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-token",
-    texts: app::kept::fixture_token::TEXTS,
     map: KeptMap::Secrets,
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
     retired: &[],
-    current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
-    types: &[],
-    flights: &[],
+    current: jig::kept::fixture_note::TEXTS[0],
+    types: &[jig_protocol_store::ValueType {
+        number: 0,
+        root: "Note",
+        variant: None,
+        keys: &[jig_protocol_store::KeyRange { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO }],
+    }],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
-    texts: jig::kept::fixture_note::TEXTS,
     keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
 };
-const APPLICATION: PatchSet = PatchSet {
+const APPLICATION: OwnerSet = OwnerSet {
     jobs: &[],
-    fresh: None,
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
-    level: Some(2),
-    patches: app::PATCHES,
+    level: Some(0),
 };
-const JIG: PatchSet = PatchSet {
-    jobs: &[],
-    fresh: None,
-    owner: Owner::Jig,
-    name: upstream::NAME,
-    families: &[NOTE],
-    level: Some(2),
-    patches: jig::PATCHES,
+const JIG: OwnerSet =
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], level: Some(0) };
+/// A read-only fixture job makes an upgrade without changing any layout or level
+/// (protocol/store/jobs.md, 1–3). Each test's source omits its done row.
+pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
+    name: "inspect-fixtures",
+    keys: &[jig_protocol_store::KeyRange { from: b"s", to: b"t" }],
+    converts: None,
+    settles: false,
+    counts: &[],
 };
-pub const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
-pub const BASE: PatchSets = PatchSets {
+pub const BASE: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };
+pub const SETS: OwnerSets = OwnerSets { sets: &[OwnerSet { jobs: &[JOB], ..APPLICATION }, JIG] };
+/// A distinct pending job makes the next upgrade, still at the same levels.
+pub const NEXT: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
-            families: &[
-                KeptFamily {
-                    current: app::kept::fixture_label::TEXTS[0],
-                    texts: &[app::kept::fixture_label::TEXTS[0]],
-                    ..LABEL
-                },
-                KeptFamily {
-                    current: app::kept::fixture_shelf::TEXTS[0],
-                    texts: &[app::kept::fixture_shelf::TEXTS[0]],
-                    ..SHELF
-                },
-                KeptFamily {
-                    current: app::kept::fixture_token::TEXTS[0],
-                    texts: &[app::kept::fixture_token::TEXTS[0]],
-                    ..TOKEN
-                },
-            ],
-            level: Some(0),
-            patches: &[],
-            ..APPLICATION
-        },
-        PatchSet {
-            families: &[KeptFamily {
-                current: jig::kept::fixture_note::TEXTS[0],
-                texts: &[jig::kept::fixture_note::TEXTS[0]],
-                ..NOTE
-            }],
-            level: Some(0),
-            patches: &[],
-            ..JIG
-        },
+        OwnerSet { jobs: &[JOB, jig_protocol_store::Job { name: "inspect-fixtures-again", ..JOB }], ..APPLICATION },
+        JIG,
     ],
 };
 
+/// The fixture consumes each page without rewriting rows. Tests inspect the
+/// copy, not a conversion invented to reach it.
+#[must_use]
+pub fn job(of: Owner, name: &str, page: &jig_protocol_store::JobPage) -> Option<jig_protocol_store::JobAnswer> {
+    if of != Owner::Application || ![JOB.name, NEXT.sets[0].jobs[1].name].contains(&name) {
+        return None;
+    }
+    assert!(page.layout.is_none());
+    Some(jig_protocol_store::JobAnswer { writes: Box::new([]), through: None, counts: Box::new([]) })
+}
+
 /// Fixture rows need 64 bytes; 1024 also leaves room for the component's
-/// format, layouts and deployment header. A walk's page holds at most
-/// `commits.writes` puts: at 32, each family's range is one page.
+/// format, registry and deployment header. Jobs consume bounded pages.
 #[must_use]
 pub fn limits() -> jig_protocol_store::Limits {
     let mut limits = root::limits();
@@ -130,8 +119,7 @@ pub fn limits() -> jig_protocol_store::Limits {
     limits
 }
 
-/// Two labels, three shelves, two notes and three tokens: two-put pages
-/// split the shelves and the tokens.
+/// Two labels, three shelves, two notes and three tokens.
 pub const STORY_LABELS: u32 = 2;
 pub const STORY_SHELVES: u32 = 3;
 pub const STORY_NOTES: u32 = 2;
@@ -157,22 +145,16 @@ fn text(out: &mut Vec<u8>, bytes: &[u8]) {
     out.extend(u32::try_from(bytes.len()).expect("fixture text length").to_be_bytes());
     out.extend(bytes);
 }
-fn label(caption: &[u8], version: u16) -> Vec<u8> {
-    let mut out = version.to_be_bytes().to_vec();
+fn label(caption: &[u8]) -> Vec<u8> {
+    let mut out = 1_u16.to_be_bytes().to_vec();
     text(&mut out, caption);
-    if version == 2 {
-        out.push(0);
-    }
     out
 }
 
-fn token(bytes: &[u8], issued: u64, version: u16) -> Vec<u8> {
-    let mut out = version.to_be_bytes().to_vec();
+fn token(bytes: &[u8], issued: u64) -> Vec<u8> {
+    let mut out = 1_u16.to_be_bytes().to_vec();
     text(&mut out, bytes);
     out.extend(issued.to_be_bytes());
-    if version == 2 {
-        out.push(0);
-    }
     out
 }
 
@@ -194,49 +176,38 @@ impl Records {
         }
     }
 
-    /// Independent wire model: no patch function computes expected bytes.
+    /// Independent wire model for the fixture layouts.
     #[must_use]
-    pub fn rows(&self, version: u16) -> BTreeMap<Box<[u8]>, Box<[u8]>> {
+    pub fn rows(&self) -> BTreeMap<Box<[u8]>, Box<[u8]>> {
         let mut rows = BTreeMap::new();
         for (key, caption) in &self.labels {
-            rows.insert(key.clone().into_boxed_slice(), label(caption, version).into_boxed_slice());
+            rows.insert(key.clone().into_boxed_slice(), label(caption).into_boxed_slice());
         }
         for Shelf { key, name, books, caption } in &self.shelves {
-            let mut out = version.to_be_bytes().to_vec();
+            let mut out = 1_u16.to_be_bytes().to_vec();
             text(&mut out, name);
             out.extend(books.to_be_bytes());
-            text(&mut out, &label(caption, version));
-            if version == 2 {
-                out.extend((books * 10 + u32::try_from(key.len()).expect("relative key length")).to_be_bytes());
-            }
+            text(&mut out, &label(caption));
             rows.insert(key.clone().into_boxed_slice(), out.into_boxed_slice());
         }
         for (key, content) in &self.notes {
-            let mut out = version.to_be_bytes().to_vec();
+            let mut out = 1_u16.to_be_bytes().to_vec();
             text(&mut out, content);
-            if version == 2 {
-                out.push(0);
-            }
             rows.insert(key.clone().into_boxed_slice(), out.into_boxed_slice());
         }
         rows
     }
 
     #[must_use]
-    pub fn writes(&self, version: u16) -> Box<[Write]> {
+    pub fn writes(&self) -> Box<[Write]> {
         let mut writes = vec![Write::Save(root::header(1)), Write::Wires];
-        writes.extend(self.rows(version).into_iter().map(|(key, value)| Write::Put { key, value }));
+        writes.extend(self.rows().into_iter().map(|(key, value)| Write::Put { key, value }));
         writes.into_boxed_slice()
     }
 
     #[must_use]
-    pub fn committed(&self, seed: u64, sets: PatchSets) -> World {
-        self.committed_at(seed, sets, 1)
-    }
-
-    #[must_use]
-    pub fn committed_at(&self, seed: u64, sets: PatchSets, version: u16) -> World {
-        self.committed_with(seed, sets, version, limits(), &[])
+    pub fn committed(&self, seed: u64, sets: OwnerSets) -> World {
+        self.committed_with(seed, sets, limits(), &[])
     }
 
     /// Base rows and limits for the check's honest refusal scenarios.
@@ -244,15 +215,14 @@ impl Records {
     pub fn committed_with(
         &self,
         seed: u64,
-        sets: PatchSets,
-        version: u16,
+        sets: OwnerSets,
         limits: jig_protocol_store::Limits,
         rows: &[jig_domain_core::Record],
     ) -> World {
         let mut world = World::unopened_observed(seed, limits, None);
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         assert_eq!(world.open_switched(), Some(0));
-        let mut writes = self.writes(version).into_vec();
+        let mut writes = self.writes().into_vec();
         writes.extend(rows.iter().cloned().map(Write::Save));
         assert_eq!(world.commit(writes.into_boxed_slice()), Some(1));
         for (number, bytes) in &self.tokens {
@@ -261,7 +231,7 @@ impl Records {
                 owner: SecretOwner::Application,
                 number: *number,
                 value: jig_protocol_store::SecretValue::Application(Secret::new(
-                    token(bytes, *number, version).into_boxed_slice(),
+                    token(bytes, *number).into_boxed_slice(),
                 )),
             });
             assert!(matches!(events.as_slice(), [Event::Kept { .. }]), "token kept: {events:?}");
@@ -271,7 +241,7 @@ impl Records {
     }
 
     /// Decode by each family's kept text as well as compare every modeled byte.
-    pub fn check(&self, world: &mut World, version: u16, context: &dyn std::fmt::Debug) {
+    pub fn check(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         world.mark_if_needed();
         for (number, bytes) in &self.tokens {
             let events = world.secret(Secrets::Get { owner: SecretOwner::Application, number: *number });
@@ -280,29 +250,27 @@ impl Records {
             else {
                 panic!("token {number}: {events:?}, {context:?}");
             };
-            assert_eq!(value.expose(), token(bytes, *number, version), "token {number}, {context:?}");
-            let schema =
-                skein_codec::schema::parse(app::kept::fixture_token::TEXTS[usize::from(version - 1)].as_bytes())
-                    .expect("token schema");
+            assert_eq!(value.expose(), token(bytes, *number), "token {number}, {context:?}");
+            let schema = skein_codec::schema::parse(app::TOKEN.as_bytes()).expect("token schema");
             let root = schema.find(b"Token").expect("token root");
             let mut decoded = skein_codec::value::Value::with_room(16);
             decoded.decode(&schema, root, Box::from(value.expose())).expect("token decodes at its level");
         }
-        self.check_public(world, version, context);
+        self.check_public(world, context);
     }
 
     /// The copy's public restore is checked before the start can serve secrets.
-    pub fn check_public(&self, world: &mut World, version: u16, context: &dyn std::fmt::Debug) {
+    pub fn check_public(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         let rows = world.application(false);
-        assert_eq!(rows, self.rows(version), "all records belong to one whole level: {context:?}");
+        assert_eq!(rows, self.rows(), "all fixture records are preserved: {context:?}");
         for (key, bytes) in rows {
-            let (texts, root) = match key[0] {
-                b'l' => (app::kept::fixture_label::TEXTS, "Label"),
-                b's' => (app::kept::fixture_shelf::TEXTS, "Shelf"),
-                b'n' => (jig::kept::fixture_note::TEXTS, "Note"),
+            let (text, root) = match key[0] {
+                b'l' => (app::LABEL, "Label"),
+                b's' => (app::SHELF, "Shelf"),
+                b'n' => (jig::kept::fixture_note::TEXTS[0], "Note"),
                 _ => panic!("fixture key"),
             };
-            let schema = skein_codec::schema::parse(texts[usize::from(version - 1)].as_bytes()).expect("kept schema");
+            let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept schema");
             let root = schema.find(root.as_bytes()).expect("record root");
             let mut value = skein_codec::value::Value::with_room(16);
             value.decode(&schema, root, bytes).expect("record decodes at its level");
@@ -396,75 +364,62 @@ pub fn counts(world: &mut World) -> Vec<(Vec<u8>, u64, u64)> {
     let contents = world.contents();
     let bytes = contents
         .get(b"generations/2/manifest".as_slice())
-        .expect("patched manifest")
+        .expect("upgrade manifest")
         .as_ref()
         .expect("manifest is a file");
     let manifest = jig_protocol_store::codec::component::Manifest::decode(bytes).expect("manifest codec");
     manifest.counts.iter().map(|count| (count.family().to_vec(), count.before(), count.after())).collect()
 }
 
-/// Frame-only sets: only smith moves across the fresh mark.
-pub const FRESH_AFTER: PatchSets = PatchSets {
+/// Frame patches are used only at read; opens compare equal owner levels.
+pub const FRAME_SETS: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             level: Some(2),
-            patches: jig::PATCHES,
-            fresh: None,
             families: &[KeptFamily {
                 retired: &[],
                 current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-frame",
-                texts: jig::kept::fixture_frame::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_jig::FRAME_ROOT),
+                frames: Some(jig_protocol_store::Frames {
+                    root: jig_test_patches_jig::FRAME_ROOT,
+                    texts: jig::kept::fixture_frame::TEXTS,
+                    patches: jig::PATCHES,
+                }),
             }],
         },
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             level: Some(1),
-            patches: jig_test_patches_smith::patches::PATCHES,
-            fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
                 retired: &[],
                 current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-turn",
-                texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_smith::ROOT),
+                frames: Some(jig_protocol_store::Frames {
+                    root: jig_test_patches_smith::ROOT,
+                    texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
+                    patches: jig_test_patches_smith::patches::PATCHES,
+                }),
             }],
         },
     ],
 };
-pub const FRESH_BEFORE: PatchSets = PatchSets {
-    sets: &[
-        FRESH_AFTER.sets[0],
-        PatchSet {
-            level: Some(0),
-            patches: &[],
-            families: &[KeptFamily {
-                current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],
-                texts: &[jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0]],
-                ..FRESH_AFTER.sets[1].families[0]
-            }],
-            ..FRESH_AFTER.sets[1]
-        },
-    ],
-};
+/// The frame fixture declares its job only on the upgrading open.
+pub const FRAME_BASE: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
+pub const FRAME_JOBS: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
 
-/// Tight fixture limits: four puts per closing page and small file chunks.
 #[must_use]
-pub fn fresh_limits() -> jig_protocol_store::Limits {
+pub fn frame_limits() -> jig_protocol_store::Limits {
     let mut limits = limits();
     limits.commits.writes = 4;
     limits
@@ -472,12 +427,12 @@ pub fn fresh_limits() -> jig_protocol_store::Limits {
 
 /// Six proofs force two crossing pages at the world's four-put journal.
 /// Five have windows; every task has two committed fixture turns.
-pub const FRESH_WINDOWS: &[bool] = &[true, true, true, true, true, false];
-pub const FRESH_SAID: &[u8] = b"said";
-pub const FRESH_REPLAY: &[u8] = b"replay";
+pub const FRAME_WINDOWS: &[bool] = &[true, true, true, true, true, false];
+pub const FRAME_SAID: &[u8] = b"said";
+pub const FRAME_REPLAY: &[u8] = b"replay";
 
 #[must_use]
-pub fn fresh_proof(task: u64, window: bool, crossed: bool) -> jig_domain_core::Record {
+pub fn frame_proof(task: u64, window: bool, crossed: bool) -> jig_domain_core::Record {
     let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut proof)) = root::run_proof(task) else {
         panic!("proof fixture")
     };
@@ -501,11 +456,11 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 }
 
 #[must_use]
-pub fn fresh_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
-    let mut world = World::unopened_observed(seed, fresh_limits(), None);
-    world.patch_sets(FRESH_BEFORE);
-    world.open_switched().expect("fresh fixture open");
-    let bytes = fixture_turn(1, FRESH_SAID, FRESH_REPLAY, 0);
+pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
+    let mut world = World::unopened_observed(seed, frame_limits(), None);
+    world.owner_sets(FRAME_BASE);
+    world.open_switched().expect("frame fixture open");
+    let bytes = fixture_turn(1, FRAME_SAID, FRAME_REPLAY, 0);
     let mut number = 0;
     for (index, window) in windows.iter().enumerate() {
         let task = root::LIVE + u64::try_from(index).expect("task index");
@@ -520,11 +475,16 @@ pub fn fresh_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
         // Keep the last turn proof with the designated window and crossing state.
         number += 1;
         world
-            .commit(Box::new([Write::Save(root::header(number)), Write::Save(fresh_proof(task, *window, crossed))]))
+            .commit(Box::new([Write::Save(root::header(number)), Write::Save(frame_proof(task, *window, crossed))]))
             .expect("proof committed");
     }
     world.crash(seed);
     world
 }
 
-pub mod flights;
+/// Current real owner sets for the registry and opening-metadata suites. No
+/// eager map patch is part of these binaries; frame fixtures use `FRAME_SETS`.
+#[must_use]
+pub const fn current(sets: OwnerSets) -> OwnerSets {
+    sets
+}

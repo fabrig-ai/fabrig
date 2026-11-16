@@ -6,7 +6,7 @@
     reason = "ordinary Rust step tests"
 )]
 use super::*;
-use crate::{JIG_STORE_PATCH_SET as SET, Owner, PatchSet, Unplanned, codec, keys, registry_v1 as wire};
+use crate::{JIG_STORE_SET as SET, Owner, OwnerSet, Unplanned, codec, keys, registry_v1 as wire};
 use alloc::collections::VecDeque;
 use jig_domain_core_vocabulary::{Key, Record};
 use jig_domain_tasks as tasks;
@@ -14,8 +14,8 @@ use skein_lib::{List, Reader, Writer};
 
 const TASKS: &str = include_str!("../fixtures/cb429613c6-tasks-v13.schema");
 const CORE: &str = include_str!("../fixtures/cb429613c6-core-v6.schema");
-const KEPT: &str = include_str!("../../../schema/kept/jig-store-tasks-v13.schema");
-fn old_set() -> PatchSet {
+const KEPT: &str = include_str!("../fixtures/store-floor-tasks-v13.schema");
+fn old_set() -> OwnerSet {
     let families = SET
         .families
         .iter()
@@ -28,7 +28,7 @@ fn old_set() -> PatchSet {
             ..*family
         })
         .collect::<Vec<_>>();
-    PatchSet {
+    OwnerSet {
         families: Box::leak(families.into_boxed_slice()),
         jobs: Box::leak(
             SET.jobs
@@ -252,10 +252,9 @@ fn dev_layouts_13_14_and_7_settle_before_ended_talk_and_task_logs_and_reopen_in_
             break;
         }
     }
-    let schemas = [crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, SET]
+    let schemas = [crate::SKEIN_SET, crate::SMITH_SET, SET]
         .iter()
         .flat_map(|set| set.families)
-        .filter(|family| !family.texts.is_empty())
         .map(|family| skein_codec::schema::parse(family.current.as_bytes()).unwrap())
         .collect::<Vec<_>>();
     let held = schemas.iter().collect::<Vec<_>>();

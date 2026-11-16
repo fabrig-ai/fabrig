@@ -89,8 +89,8 @@ rules, as Rust resolves them, from the source text alone:
 A file's lines are its lines as Rust's `str::lines` counts them: blank lines and comments included,
 and a last line without a newline counted. **A library's lines** are the sum over its module tree's
 files, outside generated record code. So a crate's own tests count, as do its patches and glue.
-Integration tests under its `tests/`, its benches and its examples do not count. This is the draft's
-measure: `jig-protocol-store`'s 69,000 are its `src/` and `patches/`, outside its eight families.
+Integration tests under its `tests/`, its benches and its examples do not count. `jig-protocol-store`'s
+about 68,000 are its `src/`, outside its generated families; registered map patches are absent.
 
 ### 2.4 A package's test binaries
 
@@ -151,8 +151,7 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 |---|---|---|
 | `jig-domain-core` | about 100,000, and about 88,000 after G6 | `Core`'s state grouped into owned parts (`jig/docs/development/debt/D003-core-one-object.md`), then a split along them: G6 moves its vocabulary out, but `Core` can't be cut (`jig/docs/design/domain/engine/README.md`, 3) |
 | `temper-engine-domain-forge` | about 79,000, and about 70,000 after G5 | `Domain`'s state grouped into owned parts (`temper/docs/development/debt/D013-forge-one-object.md`), then a split along them: G5 moves its vocabulary out, but `Domain` can't be cut (`temper/docs/design/domain/forge/README.md`, 3) |
-| `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
-| `temper-protocol-store` | 60,366, including 42,356 in generated `patches/mod.rs` | the store change that moves its generated `patches/mod.rs` out of the library, not yet planned |
+| `jig-protocol-store` | about 68,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
 | `jig-client-protocol-wire`'s own family | about 130,000 | a crate of its own for its `public` family (section 5) |
 | `temper-client-protocol-wire`'s own family | about 38,000 | a crate of its own for its `public` family (section 5) |
 
@@ -366,8 +365,11 @@ codec check's do:
 |---|---|
 | `skein-codec-tests` | skein's codec fixtures: its `every` texts compare the old and new generated decoders |
 | `skein-codec-patches` | skein's patch fixtures: its `label` and `shelf` families move as their stories need |
-| `jig-test-patches` | jig's patch fixtures: `fixture-label` and `fixture-shelf` at two versions |
 | `jig-test-patches-jig` | jig's patch fixtures over jig's own patches: `fixture-note` at two versions |
+
+`jig-test-layouts` holds registry layouts and record texts as test fixtures, with no generated
+codec or `schema/` directory, so it needs no version allowance. `temper-protocol-store` is about
+20,000 library lines, with no patch module or separate patch package.
 
 It has no exceptions: milestone C2 brings `temper-protocol-store-codec`, `temper-protocol-store`,
 `jig-protocol-store-people`, `smith-transcript` and `smith-channel` to one version as it lands.

@@ -23,7 +23,9 @@ drive session are Q2's (`../../client/recipe.md`,
 - **A setup restored** (section 4) by `temper-qa pass setup NAME`: the
   newest copy of the recipe's chain unpacked and its check walked; a
   copy the build refuses by name made again from the nearest ancestor
-  whose copy restores, each recipe's copy saved on the way.
+  whose copy restores, each recipe's copy saved on the way. A copy
+  leaves out what a start pins from the place's `bin/`, saved and
+  unpacked alike.
 - **The drive session held open** (section 5): `pass open` starts a
   holder that keeps one drive session on the place's box; `pass line`
   gives it a line and prints its answer; `pass close` ends it and prints
@@ -97,7 +99,8 @@ drive session are Q2's (`../../client/recipe.md`,
 - **The cache stays:** `box/cache/` is kept across copies and builds; a
   copy holds `config/` and `data/` alone, those of them its box made (a
   box with fake backends makes no `config/`), the fake forges' state among
-  them (`../../protocol/setup/box.md`, 5).
+  them (`../../protocol/setup/box.md`, 5), but for what its processes
+  pin at their start (section 4).
 - **No Forgejo and no runner:** every setup's forge is the box's fake
   Forgejo (`setups.md`, 2), so no box at a place sets up its own
   Forgejo, and the place's cache holds none of its binaries; a case
@@ -175,10 +178,36 @@ installs another build.
 - **Its copy** is `copies/R/HASH-COMMIT.tar`, HASH the chain's hash of R
   (`../../client/recipe.md`, 4), COMMIT the build that made it. A file
   there with another hash is no copy of R's chain as it stands.
+- **What a start pins, left out:** a worker writes its agent's program,
+  a copy of the place's `bin/` file its agent document names, and that
+  document, into its root's `agent/` as it starts, the previous ones
+  removed first (`../../protocol/binaries.md`, 5;
+  `../../domain/worker/README.md`, 5). That directory is the build's,
+  not the setup's state, so a copy leaves it out: a copy's save never
+  archives it, and a restore never unpacks it, from any copy that holds
+  it. A copy holds the setup's state alone, and every box restored at
+  the place pins its agent from the place's `bin/` as it starts, the
+  pass's build's. The directory, by its path below the scratch
+  directory, matched whole and only there, so that a directory of the
+  same name elsewhere, in a checkout or a fake forge's state, is kept:
+  - **a box's place:** its fake backends' worker's,
+    `data/box/fake-backends/data/workspaces/agent`, the box's isolated
+    sandbox under `DATA/box/fake-backends`
+    (`../../protocol/configuration/directories.md`, 1;
+    `../../protocol/setup/box.md`, 5), whose worker's root is
+    `workspaces` under its data directory;
+  - **a deployment's place:** its worker's,
+    `data/worker/workspaces/agent` (`deployment.md`, 2 and 3).
+
+  Absent, as when a walk stopped before its worker started, nothing is
+  left out and nothing fails. A box whose worker's root lies elsewhere
+  only makes copies that carry its program, which its next start pins
+  again.
 - **The walk,** with the chain R1 to Rk, root first, Rk being NAME:
   1. **The nearest restoring copy:** from Rk back to R1, the first Rj
      with a copy: the box's `config/` and `data/` removed and the copy
-     unpacked into `box/`. With none, the box emptied as for `fresh`.
+     unpacked into `box/`, but for what a start pins (above). With none,
+     the box emptied as for `fresh`.
   2. **Each recipe after Rj, one walk each,** the first of them walking
      Rj's check before its steps (`../../client/recipe.md`, 5.1):
      `recipe walk Ri --from Ri-1` for each Ri after Rj, in order; where
@@ -193,7 +222,8 @@ installs another build.
   3. **Each walk's exit:**
      - **0:** walked; for each Ri walked past a copy, its copy saved:
        `tar --create` of the scratch directory's `config` and `data`
-       (`box/` or `deployment/`) into a temporary
+       (`box/` or `deployment/`), but for what a start pins (above),
+       into a temporary
        file in `copies/Ri/`, renamed to `HASH-COMMIT.tar`, and every
        other file in `copies/Ri/` removed. A copy whose check walks is
        kept as it is: one copy per recipe, the newest that restored
@@ -360,6 +390,8 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
     refused one removed; a chain with no copy walked from a fresh box;
   - a walk stopped at a line exiting 5 with the landings since the
     copy's build;
+  - a copy saved without its worker's pinned `agent/`, the rest of
+    `data/` with it, and a copy holding one restored without it;
   - the install's checksum refused for a file the manifest disagrees
     with;
   - a holder giving lines and answers through the socket, `pass line`'s

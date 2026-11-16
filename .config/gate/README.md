@@ -51,9 +51,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     module docs: the layout, `main.rs`'s size, no features, and declared
     environment names (check 5), with their exceptions.
 11. **The patch check:** `tools/tiers/one-process default -p fabrig-boundary`,
-    part of item 4's focused suite. Rule: `temper/docs/design/protocol/baseline.md`, 7,
-    and `tests/boundary/tests/patches.rs`: every stored owner passes `check` against
-    git's landed files and `current`, and the owner list covers every kept crate.
+    part of item 4's focused suite. Rule: `skein/docs/design/data/codec/command.md`, 2,
+    and `tests/boundary/tests/patches.rs`: wires and formats outside the registry
+    pass `check` against git's landed files and `current`, and the owner list
+    covers every crate with `schema/kept/`. Registered map families keep no history.
 12. **The size check:** `tools/tiers/one-process default -p fabrig-boundary`,
     part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.1, and
     `tests/boundary/tests/sizes.rs`'s module doc: library and shared-family lines,

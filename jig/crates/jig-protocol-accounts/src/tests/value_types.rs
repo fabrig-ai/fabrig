@@ -89,7 +89,7 @@ fn registered_value_type_numbers_are_pinned() {
         ),
     ];
     let mut expected = expected.iter();
-    for family in crate::JIG_PATCH_SET.families {
+    for family in crate::JIG_SET.families {
         if family.types.is_empty() {
             continue;
         }

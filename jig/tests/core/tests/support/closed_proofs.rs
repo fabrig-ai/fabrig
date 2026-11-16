@@ -1,0 +1,163 @@
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
+use jig_domain_core as core;
+use jig_domain_link::{Hello, Hosting};
+use jig_domain_tasks as tasks;
+use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
+use jig_test_domain as root;
+use jig_test_patches_smith as fixture;
+use skein_lib::{Duration, Token};
+
+pub const SEED: u64 = 118;
+const TURN: KeptFamily = KeptFamily {
+    retired: &[],
+    current: fixture::patches::kept::fixture_turn::TEXTS[0],
+    types: &[],
+    name: "fixture-turn",
+    map: KeptMap::Store,
+    keys: &[],
+    frames: Some(jig_protocol_store::Frames {
+        root: fixture::ROOT,
+        texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
+        patches: &[],
+    }),
+};
+const FIXTURE: OwnerSet =
+    OwnerSet { jobs: &[], owner: Owner::Smith, name: fixture::NAME, families: &[TURN], level: Some(0) };
+pub const SETS: OwnerSets = OwnerSets { sets: &[FIXTURE] };
+// The fixture binary renders the said field of each loaded v1 turn.
+pub const TAIL: &[u8] = b"closed windowwindow continuation";
+
+fn turn_text(bytes: &[u8]) -> Option<Box<[u8]>> {
+    let schema = skein_codec::schema::parse(TURN.current.as_bytes()).ok()?;
+    let root = schema.find(fixture::ROOT.as_bytes())?;
+    let mut value = skein_codec::value::Value::with_room(3);
+    let turn = value.decode(&schema, root, bytes.into()).ok()?;
+    let said = value.field(turn, fixture::patches::kept::fixture_turn::v1::turn::SAID).ok()?;
+    Some(value.content(said).ok()?.into())
+}
+
+pub fn turn(said: &[u8]) -> Box<[u8]> {
+    // Independent v1 encoding: version, said's text and replay's bytes.
+    let mut bytes = 1_u16.to_be_bytes().to_vec();
+    for field in [said, b"fixture replay".as_slice()] {
+        bytes.extend(u32::try_from(field.len()).expect("fixture field size").to_be_bytes());
+        bytes.extend(field);
+    }
+    let schema = skein_codec::schema::parse(TURN.current.as_bytes()).expect("kept v1 schema");
+    let root = schema.find(fixture::ROOT.as_bytes()).expect("fixture root");
+    // One record and its two fields: validate the independent bytes against
+    // the kept text, then take the value's canonical encoding.
+    let mut value = skein_codec::value::Value::with_room(3);
+    value.decode(&schema, root, bytes.into_boxed_slice()).expect("fixture v1 turn");
+    value.bytes().into()
+}
+
+pub fn parked() -> World {
+    let mut world = World::new(Setup { seed: SEED, owner_sets: SETS, ..Setup::default() });
+    world.store.transcript_text(turn_text);
+    world.turn(1, 1, None, &turn(b"earlier window"));
+    world.park_for_message(1);
+    let read = world.say(86);
+    world.window_turn(1, 1, Some(read), &turn(b"closed window"));
+    world.turn(2, 2, Some(read), &turn(b"window continuation"));
+    world.park_for_message(2);
+    world
+}
+
+// Commit the fixture's closed proofs before the restart, leaving every other field alone.
+pub fn close(world: &mut World) {
+    let rows = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = row {
+                let mut proof = proof.clone();
+                proof.crossed = true;
+                if let Some(window) = &mut proof.window {
+                    window.closed = true;
+                }
+                Some(root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    world.seed(rows.into_boxed_slice());
+}
+
+pub fn restart(world: &mut World) {
+    world.restart(SEED, false);
+    hello(world);
+    world.grant_account(1);
+}
+pub fn hello(world: &mut World) {
+    hello_hosting(world, Box::new([]));
+}
+
+pub fn hello_hosting(world: &mut World, hosting: Box<[Hosting]>) {
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
+        worker: 0,
+        channel: Token::new(7),
+        hello: Hello {
+            jobs: Box::default(),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: Duration::from_millis(100),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting,
+        },
+    })));
+}
+
+pub fn proof(world: &World) -> &core::RunProof {
+    let task = world.assigned.as_ref().expect("chat assignment").task;
+    let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
+    let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = &world.store.rows[&key] else {
+        panic!("durable run proof")
+    };
+    proof
+}
+pub fn tail(world: &World) -> Option<&[u8]> {
+    world.assigned.as_ref().expect("chat assignment").brief.iter().find_map(|section| {
+        if let jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::TranscriptTail, text, .. } = section
+        {
+            Some(text.as_ref())
+        } else {
+            None
+        }
+    })
+}
+pub fn tries(world: &World) -> tasks::Tries {
+    let task = proof(world).task;
+    let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
+    let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = &world.store.rows[&key] else {
+        panic!("live chat")
+    };
+    row.tries
+}
+pub fn activity(world: &World) -> Vec<tasks::Line> {
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row))) = row {
+                Some(row.line.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+pub fn fresh(world: &World) {
+    let assignment = world.assigned.as_ref().expect("fresh assignment");
+    assert!(!assignment.run.policy.resume);
+    assert!(assignment.transcript.is_empty());
+    assert_eq!(assignment.conversation, assignment.attempt);
+    assert_eq!(proof(world).conversation, assignment.attempt);
+    assert_eq!(proof(world).window, None);
+    assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
+    assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
+}

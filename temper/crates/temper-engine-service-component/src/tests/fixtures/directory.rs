@@ -1,6 +1,6 @@
 //! Directory opens and restarts on the fake machine (jig protocol/store/jobs.md, 2–3).
 use crate::{Service, store::Store};
-use jig_protocol_store::{Event, Get, PatchSet, PatchSets, Request, Row};
+use jig_protocol_store::{Event, Get, OwnerSet, OwnerSets, Request, Row};
 use skein_fake_machine::{Machine, serve};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle, Pid, Sim};
@@ -13,17 +13,17 @@ const PASSES: u32 = 10_000; // Bounded calm directory operations, including gene
     clippy::disallowed_types,
     reason = "ordinary Rust fixture builds a static patch set with only the pending job omitted"
 )]
-fn old_sets() -> PatchSets {
-    PatchSets {
+fn old_sets() -> OwnerSets {
+    OwnerSets {
         sets: Box::leak(
-            crate::store::PATCH_SETS
+            crate::store::OWNER_SETS
                 .sets
                 .iter()
                 .map(|set| {
                     let jobs = Box::leak(
                         set.jobs.iter().copied().filter(|job| job.name != JOB).collect::<Vec<_>>().into_boxed_slice(),
                     );
-                    PatchSet { jobs, ..*set }
+                    OwnerSet { jobs, ..*set }
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
@@ -49,12 +49,12 @@ impl Directory {
     pub fn service(&self) -> Service {
         self.service_with_sets(None)
     }
-    fn service_with_sets(&self, sets: Option<PatchSets>) -> Service {
+    fn service_with_sets(&self, sets: Option<OwnerSets>) -> Service {
         let settings = super::start_settings(super::engine(), &[(1, 100)]);
         let mut service = Service::engine(settings, &super::seeds(), None, super::forge_runtime()).expect("engine");
         let store = &mut service.engine.as_mut().expect("engine").store;
         if let Some(sets) = sets {
-            store.patch_sets(sets);
+            store.owner_sets(sets);
         }
         store.adopt(self.fd, 0).expect("directory adopted");
         service
