@@ -13,6 +13,7 @@
   - 7: `../protocol/configuration/derived.md` derives the turn's, the payload's and the clients' carriers and a worker's places, but not the graces, and not the engine's limits on workers from the workers' settings.
 - **Design departs:**
   - 5.2: the stock agent's tool payload is 63,740, dev's, not 64 KiB, since skein's rule, (payload + 260) × 6 ≤ output × 8, admits no more at the stock's output of 48,000 (`../protocol/configuration/derived.md`, section 3). Decided by N1's design, 2026-11-16.
+  - 5.2: the stock's `fleet.slots` is below twice dev.fabrig.ai's 36 (80): the engine's link to a worker caps its bytes at a u32, slots × (a slot's assignment + message frame × inbox), near 61 MB a slot at jig's stock (39,671,967 + 263,201 × 82), so 4,294,967,295 holds about 70 slots, and fewer at temper's derived figures. The ceiling is the largest round figure at most 80 the cap holds, never below 36 (`../protocol/configuration/derived.md`, 5.3). Widening skein's channel cap to u64 is not N1's. Decided by the user, 2026-11-16.
   - 8: `upgrades.md`, section 10, has each release read the previous release's configuration members. This draft's builds refuse a member that moved, and dev.fabrig.ai moves by its operators' steps, by the user's word until v0.1.0 has users (`notes.md`, section 21).
 - **Open:**
   - 11: a raise taken at once by every child; the memory budget's stock; an override's reason; the webhooks' listener. Each has a default in its question.

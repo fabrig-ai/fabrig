@@ -29,7 +29,11 @@
   count at twice dev.fabrig.ai's figure of 2026-11-16 where that is above
   the figure the stock had, rounded up to the least d × 10ⁿ, 2ⁿ or
   3 × 2ⁿ. Its machine's concurrency is sized the same way: the hub's and
-  the fleet's slots, the workers, and the clients' streams.
+  the fleet's slots, the workers, and the clients' streams. The fleet's
+  slots are the one exception: the engine's link to a worker carries a
+  u32 cap, slots times a slot's assignment, message frames and inbox, so
+  the stock's `fleet.slots` is the largest such figure at most 80 that the
+  cap holds at the stock's figures, and never below dev.fabrig.ai's 36.
 - **Derived in the reader:**
   - **The stream carriers.** Where `clients.exchanges` or
     `clients_http.calls` isn't overridden, it follows the stream bounds

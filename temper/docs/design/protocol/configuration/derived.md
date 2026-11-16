@@ -117,8 +117,14 @@ writes only `slots`.
 
 - **The engine admits each worker at its hello's slots,** up to
   `fleet.slots`, a ceiling per worker. The stock's ceiling covers any
-  worker of fabrig's development, at twice dev.fabrig.ai's (`limits.md`,
-  sized from what), so a worker's own `slots` decide its places. The
+  worker of fabrig's development, so a worker's own `slots` decide its
+  places. It is the largest round figure (`limits.md`, sized from what)
+  at most 80, twice dev.fabrig.ai's 36 rounded up, that the engine's link
+  to a worker holds: that link's cap is a u32, slots times a slot's
+  assignment, message frames and inbox, near 61 MB a slot at jig's
+  stock. It is never below dev's 36. Where temper's derived figures
+  make a slot larger than jig's, temper's base sets its own lower
+  `fleet.slots` by the same rule. The
   engine's document needs neither `fleet.slots` nor `hub.slots`, and an
   override of either is still read.
 - **A box's worker** is admitted at its document's `slots`, which the
