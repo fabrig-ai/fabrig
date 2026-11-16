@@ -213,7 +213,9 @@ pub(super) const CORE: core::Limits = core::Limits {
     routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
-        versions: 8,
+        // A release can replace all nine stock-sized defaults while revision 1 is held:
+        // 1 * 9 older versions besides the newest's, within sixteen places.
+        versions: 16,
         history: 64,
         proposals: 4,
         alternatives: 63,
@@ -300,7 +302,7 @@ pub(super) const IO: skein_io::Limits = skein_io::Limits {
 // raise fleet max_out 21 -> 25 and core room by 8 * 4 = 32 positions.
 // Close cancels each of Small's two pending sign-ins (protocol/llm.md, 5.2).
 // Account moves count 18 core route positions for their emitted outputs.
-// Retained-revision release adds 2 * 4 heads + 8 versions + one extent = 17.
+// Retained-revision release adds 2 * 4 heads + 16 versions + one extent = 25.
 // Placed holds: tightened core room plus 18 connector slots needs 20,801 writes.
 pub(super) const JOURNAL: super::JournalSizes =
     super::JournalSizes { commits: 3, writes: 20_801, door: 256, release: 256 };

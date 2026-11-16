@@ -327,6 +327,76 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
 }
 
 #[test]
+fn small_allows_a_release_changing_every_charter_with_a_held_revision() {
+    use crate::settings::Decider;
+    // The baseline deployment keeps revision 1 and nine charter defaults.
+    // Its release needs 1 * 9 older versions besides the new defaults.
+    let mut limits = limits();
+    // Retention figures from jig-protocol-config/src/profile/small.rs. Keeping
+    // them here avoids a dev-dependency cycle through configuration's core tests.
+    limits.settings = crate::settings::Limits {
+        revisions: 4,
+        versions: 16,
+        history: 64,
+        proposals: 4,
+        alternatives: 63,
+        permissions: 32,
+    };
+    limits.tasks.charters = 9;
+    let mut configured = config(401);
+    let mut charters = List::with_capacity(limits.tasks.charters);
+    for number in 1..=limits.tasks.charters {
+        let mut charter = configured.defaults.charters[0].clone();
+        charter.number = number;
+        charters.push(charter).unwrap();
+    }
+    configured.defaults.charters = charters.into_boxed();
+    let mut stored_configuration = config(401);
+    stored_configuration.defaults.charters = configured.defaults.charters.clone();
+    let stored = Core::new(stored_configuration, &limits).expect("stored defaults");
+    let rows = settings_rows(&stored);
+    for charter in &mut configured.defaults.charters {
+        charter.policy.instructions = b"Released instructions".as_slice().into();
+    }
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut core = Core::new(configured, &limits).expect("release defaults");
+    let _begin = core.start_begin(false, env.wall);
+    for row in rows.into_boxed() {
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    assert!(core.settings_restored(&env));
+    let (mut source, source_limits) = crate::tests::tree_core();
+    crate::tests::make_task(&mut source, &source_limits, 1);
+    let task = source.tasks.task(1).unwrap().clone();
+    assert_eq!(task.settings.task, 1);
+    assert_eq!(
+        core.restore(&env, crate::Record::Tasks(crate::tasks::Stored::Live(Box::new(task)))),
+        crate::Restore::Kept
+    );
+    assert_eq!(core.tasks.holders(1), 1);
+    let out = core.commit_restored_settings(&env, crate::settings::writes_bound(&limits).unwrap());
+    assert_eq!(core.start_failure(), None);
+    assert_eq!(core.current.head.by, Decider::Release);
+    assert_eq!(core.current.newest(), 2);
+    assert!(core.held(1));
+    let mut kept = 0_u32;
+    for request in &out {
+        if let crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Charter {
+            revision: 1,
+            ..
+        })))) = request
+        {
+            kept += 1;
+        }
+    }
+    assert_eq!(kept, 9);
+    for number in 1..=limits.tasks.charters {
+        assert_eq!(core.charter_at(number, 1), stored.charter(number));
+        assert_eq!(core.charter(number).unwrap().policy.instructions.as_ref(), b"Released instructions");
+    }
+}
+
+#[test]
 fn stored_policies_fill_the_project_table_and_name_the_first_overflow() {
     let (mut core, env) = loaded();
     let limit = env.limits.authority.projects;

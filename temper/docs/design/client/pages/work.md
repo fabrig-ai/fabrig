@@ -235,11 +235,28 @@
 
   **A row** is one link to the goal's `Task`, public as `goals::row`, since
   Home's area will reuse it: its top line the chip's title (its spec's first
-  line) at the left and at the right "6 / 9 · " and its state's word; then its
+  line) at the left and at the right, in `temper-goals-progress`, its bar,
+  "6 / 9 · " and its state's word; then its
   headline. "6 / 9" is done, then total, of the goal's direct delegates, not
   counting cancelled ones, as its task line counts them (jig's
   `client/domain/contract/documents.md`, 1), true past one page; it is left out, with
-  its " · ", while there are none. An ended row is marked.
+  its " · " and its bar, while there are none. An ended row is marked.
+  The same row is Home's and this list's (`../../draft/home-for-a-person.md`, 3):
+  - *Its bar,* the browser's alone, as the mockup
+    `../web/home-for-a-person/home.html` draws it: the goal's page's
+    `temper-goal-bar` (`goal.md`, 2), 84 px wide in the row, its parts 4 px
+    tall with a 2 px radius, a part a task of the total: the done ones in
+    ink (`temper-goal-bar-landed`), then, while the goal is live and done
+    is short of total, one in grey (`temper-goal-bar-running`), the rest in
+    the line's colour. So "5 / 6 · running" has five in ink and one grey.
+    It counts tasks done, whatever they did, so it is approximate, as the
+    headline's count is (2, *A goal row's count of landings*); the goal's
+    page keeps the exact one. Its name is "5 done of 6"; the terminal draws
+    none, the count's words saying it.
+  - *Its title,* past 80 characters, is cut at the last space that leaves
+    it at most 80 with "…", or at a character's edge where there is none:
+    one function of the view's parts, which the chats' heading's cut
+    (`chat::short_title`, at 72) shares.
 
   **A goal's state** is a pure function, `goals::state`, the first that matches:
 
@@ -254,7 +271,10 @@
   | failed | ended, failed | "failed" |
 
   A row's **headline** is its report's. With no report: "Planning from the
-  draft." planning; "N of M tasks done." running or paused, N its direct
+  draft." planning; "N of M tasks done." running or paused, N and M in
+  number words to nine, digits after, its first word capitalised, "Five
+  of six tasks done.", "Five of 12 tasks done.", "None of six tasks
+  done." for none (`../../draft/home-for-a-person.md`, 3), N its direct
   delegates ended done, whatever they did, since `TaskLine` counts no landings
   (`../README.md`, section 5); "Landed." landed;
   "Closed by you." closed; "Failed." failed; a goal that needs the person

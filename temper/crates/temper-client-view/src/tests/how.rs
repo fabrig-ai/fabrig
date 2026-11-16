@@ -112,7 +112,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
             [
                 (7, "Chat", "For each chat"),
                 (2, "Coding agent", "For each change"),
-                (9, "Status agent", "When you look at Home after landings"),
+                (9, "Status agent", "When you look at Home after landings or findings"),
             ]
             .into_iter()
             .map(|(charter, name, who)| {
@@ -438,7 +438,7 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 for (row, (charter, who, model)) in rows.into_iter().zip([
                     (7, "For each chat", true),
                     (2, "For each change", false),
-                    (9, "When you look at Home after landings", true),
+                    (9, "When you look at Home after landings or findings", true),
                 ]) {
                     assert_eq!(row.role, Role::Disclosure);
                     assert_eq!(row.description.as_deref(), Some(who.as_bytes()));

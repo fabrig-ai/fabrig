@@ -37,13 +37,21 @@ impl Need<'_> {
     }
 }
 /// Why a need reached the person (temper/docs/design/client/pages/README.md, Needs you, Why it reached you).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Why {
     Reach { project: u32, reach: temper_protocol_reaches::Reach },
     Direct,
     Proposal,
     Held,
     Funds,
+    Finding { project: u32, holds: Holds },
+}
+/// How a finding came to the person (client/pages/needs-you.md, 1, Why it reached you).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Holds {
+    Area { name: Box<[u8]> },
+    Triager,
+    Owner,
 }
 fn asking(card: &Card) -> Option<(Option<u64>, Option<Wall>)> {
     if let Some(ReadValue::Question(question)) = &card.page {

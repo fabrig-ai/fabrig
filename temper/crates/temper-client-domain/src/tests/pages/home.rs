@@ -1,5 +1,6 @@
 //! Home's pure reading and owned watches (temper/docs/design/client/pages/README.md).
 use super::welcome::{default_answer, deliver, event, press_default, ready_default_with_forges};
+use crate::pages::findings::Counted;
 use crate::tests::fixtures as f;
 use crate::{
     Action, Address, Domain, Event, Place, Request, forge,
@@ -660,7 +661,10 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
             assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "each card must answer");
             up(&mut f.root, Up::ReadDone { read: *read, result: Readout::Limit });
         }
-        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: NEED_GROUPS, cut });
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Count { count: NEED_GROUPS, cut, findings: Counted::default() }
+        );
         let inbox = f.root.pages().inbox().unwrap();
         for (card, group) in inbox.needs().zip([
             c::InboxGroup::Questions,
@@ -675,13 +679,16 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         assert_eq!(
             home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
-            Needs::Count { count: NEED_GROUPS, cut },
+            Needs::Count { count: NEED_GROUPS, cut, findings: Counted::default() },
             "known needs stand through the refresh"
         );
         for (read, _) in inbox_reads(&out) {
             inbox_page(&mut f.root, read, List::with_capacity(EMPTY), false);
         }
-        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: 0, cut: false });
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Count { count: 0, cut: false, findings: Counted::default() }
+        );
     }
 }
 #[test]
@@ -711,7 +718,10 @@ fn home_hears_its_chats_and_its_inbox_alike() {
             }
             assert!(pages::shown(f.root.pages()) > before, "both pages redraw Home");
         }
-        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: 0, cut: true });
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Count { count: 0, cut: true, findings: Counted::default() }
+        );
     }
 }
 
@@ -1518,7 +1528,10 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Later { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: BOTH, cut: true });
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+        Needs::Count { count: BOTH, cut: true, findings: Counted::default() }
+    );
     event(
         &mut f.root,
         Event::Act {
@@ -1528,12 +1541,18 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
             })),
         },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: true });
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+        Needs::Count { count: ONE, cut: true, findings: Counted::default() }
+    );
     event(
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: BOTH, cut: true });
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+        Needs::Count { count: BOTH, cut: true, findings: Counted::default() }
+    );
 }
 
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];

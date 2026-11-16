@@ -784,7 +784,7 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
     story.sees(b"I carried on with the small implementation before asking anyone.");
     story.visit_home();
     story.sees(b"One thing was decided for you.");
-    story.sees(b"The small implementation fits the design.");
+    story.does_not_see(b"The small implementation fits the design.");
     story.sees(b"Small");
     assert!(
         !Temper::tree(&story.view())
@@ -926,7 +926,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     );
     story.needs();
     story.sees("Decided for you · 1".as_bytes());
-    story.sees("Allowed: implementation choices are decided while you’re away.".as_bytes());
+    story.sees(b"Allowed: implementation choices.");
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");
 
@@ -998,7 +998,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     );
     story.needs();
     story.sees("Decided for you · 2".as_bytes());
-    story.sees(b"Allowed: implementation choices are decided and listed.");
+    story.sees(b"Allowed: implementation choices.");
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");
 }

@@ -43,15 +43,17 @@ pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> 
 pub fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
     match needs {
         Needs::Unknown => unknown.into(),
-        Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
-        Needs::Count { count: 0, cut: false } => w.say(Word::HomeNeedsNone, &[]),
-        Needs::Count { count: 1, cut: false } => w.say(Word::HomeNeedsOne, &[]),
-        Needs::Count { count, cut: false } => {
+        Needs::Count { count, cut: true, .. } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
+        Needs::Count { count: 0, cut: false, .. } => w.say(Word::HomeNeedsNone, &[]),
+        Needs::Count { count: 1, cut: false, findings } => {
+            w.say(if findings.only { Word::HomeNeedsFindingOne } else { Word::HomeNeedsOne }, &[])
+        }
+        Needs::Count { count, cut: false, findings } => {
             let number = match number_word(count) {
                 Some(word) => w.say(word, &[]),
                 None => skein_lib::Decimal::of(u64::from(count)).as_bytes().into(),
             };
-            w.say(Word::HomeNeedsMany, &[Hole::Name(number)])
+            w.say(if findings.only { Word::HomeNeedsFindingMany } else { Word::HomeNeedsMany }, &[Hole::Name(number)])
         }
     }
 }

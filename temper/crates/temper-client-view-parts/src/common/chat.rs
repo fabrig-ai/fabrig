@@ -40,6 +40,16 @@ pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
         end = end.checked_sub(1).expect("trailing byte is within the words");
     }
     let words = title.get(..end).expect("trimmed words are within the title");
+    cut_title(words, SHORT_TITLE, true)
+}
+
+/// Cut at a word to a character bound, including the ellipsis (client/pages/work.md, 1).
+/// Chat headings also trim punctuation at the cut (client/pages/README.md).
+#[must_use]
+pub fn cut_title(words: &[u8], bound: usize, trim_punctuation: bool) -> Box<[u8]> {
+    if bound == 0 {
+        return Box::default();
+    }
     let mut characters = 0_usize;
     let mut hard_end = 0;
     let mut word_end = 0;
@@ -47,10 +57,10 @@ pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
     for (index, byte) in words.iter().enumerate() {
         if byte & 0xc0 != 0x80 {
             characters = characters.checked_add(1).expect("title character count fits");
-            if characters > SHORT_TITLE {
+            if characters > bound {
                 break;
             }
-            if characters == SHORT_TITLE {
+            if characters == bound {
                 hard_end = index;
             }
             if *byte == b' ' || *byte == b'\t' {
@@ -58,22 +68,24 @@ pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
             }
         }
     }
-    if characters <= SHORT_TITLE {
+    if characters <= bound {
         return skein_lib::bytes::copy_of(words);
     }
     let mut end = word_end;
-    for byte in words.get(..word_end).expect("word boundary is within the words").iter().rev() {
-        if !title_space(*byte) && !b",;:".contains(byte) {
-            break;
+    if trim_punctuation {
+        for byte in words.get(..word_end).expect("word boundary is within the words").iter().rev() {
+            if !title_space(*byte) && !b",;:".contains(byte) {
+                break;
+            }
+            end = end.checked_sub(1).expect("trailing byte is within the prefix");
         }
-        end = end.checked_sub(1).expect("trailing byte is within the prefix");
     }
     if end == 0 {
         end = hard_end;
     }
     let prefix = words.get(..end).expect("cut is at a character boundary within the words");
     let mark = "…".as_bytes();
-    let bytes = end.checked_add(mark.len()).expect("short title bytes fit");
+    let bytes = prefix.len().checked_add(mark.len()).expect("short title bytes fit");
     let mut out = skein_lib::Writer::new(bytes);
     out.put(prefix).expect("short title length counted");
     out.put(mark).expect("short title length counted");
