@@ -1,4 +1,4 @@
-//! Calm file drivers for the unseeded-store catch-up fixture.
+//! Calm file drivers for directory-store job and floor fixtures.
 use jig_protocol_store::{self as store, Arrived, Event, Io, Request, Root, Store};
 use skein_fake_machine::{Machine, serve};
 use skein_io::{

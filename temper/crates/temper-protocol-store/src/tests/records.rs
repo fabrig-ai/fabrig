@@ -969,36 +969,6 @@ fn every_application_outcome_preserves_its_complete_record() {
     );
 }
 #[test]
-fn an_application_refusal_written_by_people_sixteen_decodes_through_seventeen() {
-    // The v16 layout writes Unknown as tag 10, with no payload or version prefix.
-    let refusal = Box::from([10]);
-    let text = jig_protocol_store::patches::kept::jig_store_people::TEXTS.get(2).expect("kept people 16");
-    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept people 16 text");
-    assert_eq!(schema.version(), 16);
-    let mut value = skein_codec::value::Value::with_room(1);
-    let root = value.decode(&schema, schema.find(b"Refusal").unwrap(), refusal).expect("v16 refusal");
-    let variant = schema.variant(value.tag(root).unwrap());
-    assert_eq!(schema.spelled(variant.name), b"unknown");
-    let refusal = value.take().into_exposed();
-    let value = v25::CoreRefused::new(&v25::CEILINGS, v25::CoreRefusedParts { refusal }).expect("small piece");
-    let stored = v25::Application::new(
-        &v25::CEILINGS,
-        v25::ApplicationParts { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) },
-    )
-    .expect("application");
-    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Application(stored) }).expect("row");
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(
-        records::decode(&fixtures::encoded_row(&row), &bounds),
-        Ok(forge::Stored::Application {
-            token: 9,
-            until: skein_lib::Wall::from_nanos(10),
-            outcome: forge::ApplicationOutcome::CoreRefused(jig_domain_people::Refusal::Unknown),
-        })
-    );
-}
-
-#[test]
 fn appended_people_refusals_round_trip_in_application_answers() {
     use jig_domain_people::Refusal;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");

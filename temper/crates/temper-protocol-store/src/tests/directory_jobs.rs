@@ -1,4 +1,4 @@
-//! Landed patches run before a real store's registry seed (jig protocol/store/layouts.md, 5.1).
+//! Current jobs run over a directory store (jig protocol/store/jobs.md, 2).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,
@@ -7,56 +7,17 @@
     reason = "ordinary Rust disk fixtures"
 )]
 use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
-use jig_protocol_store::{self as store, Event, Get, KeptFamily, PatchSet, PatchSets, Request, Row, Store, Write};
+use jig_protocol_store::{self as store, Event, Get, PatchSet, PatchSets, Request, Row, Store, Write};
 use skein_lib::Token;
-#[path = "upgrade_disk.rs"]
+#[path = "directory_disk.rs"]
 pub(super) mod disk;
 use disk::Disk;
 
 pub(super) const SETS: PatchSets = PatchSets {
     sets: &[store::SKEIN_PATCH_SET, store::SMITH_PATCH_SET, jig_protocol_accounts::JIG_PATCH_SET, crate::PATCH_SET],
 };
-fn old_sets() -> PatchSets {
-    PatchSets {
-        sets: Box::leak(
-            SETS.sets
-                .iter()
-                .map(|set| {
-                    let patches = match set.name {
-                        "jig" => &set.patches[..5],
-                        "temper" => &set.patches[..12],
-                        _ => set.patches,
-                    };
-                    let families = Box::leak(
-                        set.families
-                            .iter()
-                            .map(|f| {
-                                let texts = match f.name {
-                                    "jig-store-tasks" => f.texts.split_last().unwrap().1,
-                                    "temper-store" => &f.texts[..13], // v11 through the source fixture's v23.
-                                    _ => f.texts,
-                                };
-                                KeptFamily { retired: &[], texts, current: texts.last().unwrap(), types: &[], ..*f }
-                            })
-                            .collect::<Vec<_>>()
-                            .into_boxed_slice(),
-                    );
-                    PatchSet {
-                        level: set.level.map(|_| u32::try_from(patches.len()).unwrap()),
-                        patches,
-                        families,
-                        jobs: &[],
-                        ..*set
-                    }
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        ),
-    }
-}
 pub(super) fn component(disk: &Disk, sets: PatchSets) -> Store {
-    let mut app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-    app.version = if sets.sets.last().unwrap().level == Some(12) { 23 } else { crate::STORE_VERSION };
+    let app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
     let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
     store.patch_sets(sets);
     store
@@ -76,83 +37,6 @@ pub(super) fn header(number: u64) -> Record {
         commits: number,
     }))
 }
-fn put(key: Box<[u8]>, value: Box<[u8]>) -> skein_kv::Op {
-    skein_kv::Op::Put { key, value }
-}
-fn kv_get(disk: &mut Disk, map: &mut skein_kv::Store, key: Box<[u8]>) -> Option<Box<[u8]>> {
-    let events = disk.kv(map, skein_kv::Request::Get { owner: Token::new(1), key });
-    let [skein_kv::Event::Got { value, .. }] = events.as_slice() else { panic!("get: {events:?}") };
-    value.clone()
-}
-#[test]
-fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
-    let mut disk = Disk::new();
-    let old = old_sets();
-    let mut before = component(&disk, old);
-    let events = disk.open(&mut before);
-    let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_slice() else { panic!("open: {events:?}") };
-    let events = disk.request(&mut before, Request::Commit { number: 1, writes: Box::new([Write::Save(header(1))]) });
-    let [Event::Committed { number: 1, .. }] = events.as_slice() else { panic!("commit: {events:?}") };
-    drop(before);
-    disk.restart();
-
-    // Plant the previous binary's encodings without passing them through today's codecs.
-    let mut map = disk.map(1);
-    let mut format = store::format::current(23, [7; 16]);
-    format.tasks = 12;
-    format.levels =
-        store::codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(5), application: Some(12) };
-    let codec = store::codec::limits(&disk.limits().core).unwrap();
-    let ops = vec![
-        put(store::keys::encode_own(&store::keys::Own::Format, 1024).unwrap(), format.encode().unwrap()),
-        put(
-            store::keys::encode(&header(2).key(), 1024).unwrap(),
-            store::codec::encode(&header(2), &codec, &[]).unwrap(),
-        ),
-    ];
-    let events = disk.kv(&mut map, skein_kv::Request::Commit { owner: Token::new(1), ops: ops.into() });
-    let [skein_kv::Event::Committed { number: 2, .. }] = events.as_slice() else { panic!("plant: {events:?}") };
-    let layout_key = |family: &str, number, id| {
-        store::keys::encode_own(&store::keys::Own::Layout { family: family.into(), number, id }, 1024).unwrap()
-    };
-    assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 20, 25)).is_none());
-    disk.kv(&mut map, skein_kv::Request::Close { owner: Token::new(1) });
-
-    drop(map);
-    disk.restart();
-    let mut current = component(&disk, SETS);
-    let mut events = alloc::collections::VecDeque::from(disk.open(&mut current));
-    let mut patched = Vec::new();
-    let mut opened = false;
-    while let Some(event) = events.pop_front() {
-        match event {
-            Event::Patched { of, patch, .. } => patched.push((of, patch)),
-            Event::Job { owner, of, job, page } => {
-                let answer = match of {
-                    store::Owner::Application => {
-                        let bounds =
-                            crate::bounds(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-                        let present = crate::jobs::read_present(&mut current, &bounds).unwrap();
-                        crate::jobs::page(&job, &page, &present, &bounds)
-                    }
-                    store::Owner::Jig => store::jobs::page(&job, &page),
-                    store::Owner::Skein | store::Owner::Smith => panic!("no upstream jobs"),
-                };
-                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
-            }
-            Event::Opened { pending: true, .. } => opened = true,
-            Event::Census { .. } | Event::Ran { .. } => {}
-            other => panic!("upgrade: {other:?}; {:?}", current.start_open_failure()),
-        }
-    }
-    assert!(opened);
-    assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6), (store::Owner::Application, 14)]);
-    let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
-    let [Event::Switched { .. }] = switched.as_slice() else { panic!("switch: {switched:?}") };
-    drop(current);
-    disk.restart();
-}
-
 fn without_deleted_repository_job() -> PatchSets {
     PatchSets {
         sets: Box::leak(
@@ -221,7 +105,7 @@ fn deleted_repository_job_runs_over_directory_pages_once_and_preserves_present_a
         ended_application,
     ];
     rows.extend(kept.clone());
-    // Seed the registry and the old set's job markers before the fixture rows.
+    // Commit the registry and the set's job markers before the fixture rows.
     let events = disk.request(&mut before, Request::Commit { number: 1, writes: Box::new([Write::Save(header(1))]) });
     let [Event::Committed { .. }] = events.as_slice() else { panic!("seed: {events:?}") };
     let mut number = 1;
