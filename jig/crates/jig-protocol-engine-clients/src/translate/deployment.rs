@@ -171,6 +171,9 @@ fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w:
             limits,
             w::PersonCapacityActionStopParts { task },
         )?),
+        people::CapacityAction::Conclude { task } => w::PersonCapacityAction::Conclude(
+            w::PersonCapacityActionConclude::new(limits, w::PersonCapacityActionConcludeParts { task })?,
+        ),
         people::CapacityAction::Cancel { task } => w::PersonCapacityAction::Cancel(w::PersonCapacityActionCancel::new(
             limits,
             w::PersonCapacityActionCancelParts { task },

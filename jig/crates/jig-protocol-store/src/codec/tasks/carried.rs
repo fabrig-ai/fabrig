@@ -321,6 +321,10 @@ pub(super) fn encode_refusal(value: &tasks::Refusal, limits: &Limits) -> Result<
         tasks::Refusal::AuthorityShape => wire::Refusal::AuthorityShape,
         tasks::Refusal::Inputs => wire::Refusal::Inputs,
         tasks::Refusal::NotStanding => wire::Refusal::NotStanding,
+        tasks::Refusal::Concluded { at } => wire::Refusal::Concluded(wire::RefusalConcluded::new(
+            limits,
+            wire::RefusalConcludedParts { at: at.as_nanos() },
+        )?),
         tasks::Refusal::NoTalk => wire::Refusal::NoTalk,
         tasks::Refusal::TalkOpen { party } => {
             wire::Refusal::TalkOpen(wire::TalkOpen::new(limits, wire::TalkOpenParts { party: *party })?)
@@ -385,6 +389,7 @@ pub(super) fn decode_refusal(value: wire::Refusal) -> tasks::Refusal {
         wire::Refusal::AuthorityShape => tasks::Refusal::AuthorityShape,
         wire::Refusal::Inputs => tasks::Refusal::Inputs,
         wire::Refusal::NotStanding => tasks::Refusal::NotStanding,
+        wire::Refusal::Concluded(value) => tasks::Refusal::Concluded { at: skein_lib::Wall::from_nanos(value.at()) },
         wire::Refusal::NoTalk => tasks::Refusal::NoTalk,
         wire::Refusal::TalkOpen(value) => tasks::Refusal::TalkOpen { party: value.party() },
         wire::Refusal::State => tasks::Refusal::State,

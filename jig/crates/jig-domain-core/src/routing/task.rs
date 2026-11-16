@@ -95,6 +95,8 @@ pub(crate) fn route_connector_repair(
         })));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: None,
+        places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
@@ -135,6 +137,8 @@ pub(crate) fn route_person_task(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: None,
+        places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
         batch: Box::new([tasks::New {
@@ -196,7 +200,7 @@ pub(crate) fn route_tasks(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Make { reply_to, creator, batch } = &mut event {
+    if let tasks::Event::Make { reply_to, creator, batch, .. } = &mut event {
         let mut tracked = 0_u32;
         for row in batch.as_ref() {
             if row.tracked.is_some() {
@@ -219,7 +223,7 @@ pub(crate) fn route_tasks(
             return tag_task_outputs(core, env, out);
         }
     }
-    let event = if let tasks::Event::Make { reply_to, creator, mut batch } = event {
+    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places } = event {
         if let Err(problem) = core.admit_batch(creator, &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -228,7 +232,7 @@ pub(crate) fn route_tasks(
             core,
             env,
             reply_to,
-            crate::effects::resources::Kind::Creation { creator },
+            crate::effects::resources::Kind::Creation { creator, maker, places },
             batch,
             &mut out,
         ) {
@@ -257,6 +261,10 @@ pub(crate) fn route_tasks(
         }
     } else {
         event
+    };
+    let event = match super::party::batch_reads::admit(core, env, work, event) {
+        Ok(event) => event,
+        Err(requests) => return requests,
     };
     let event = question_event(core, event);
     super::step::step_tasks(core, env, event, &mut out);

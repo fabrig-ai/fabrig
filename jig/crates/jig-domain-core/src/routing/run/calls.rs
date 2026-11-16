@@ -145,7 +145,7 @@ pub(crate) fn named_proposal_accept(
                     batch,
                 }
             } else {
-                tasks::Event::Make { reply_to: ReplyTo::new(token), creator, batch }
+                tasks::Event::Make { maker: None, places: Box::new([]), reply_to: ReplyTo::new(token), creator, batch }
             }
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => {
@@ -631,6 +631,7 @@ pub(crate) fn named_action(
                         | jig_domain_people::Refusal::Kept { .. }
                         | jig_domain_people::Refusal::Role { .. }
                         | jig_domain_people::Refusal::Authority { .. }
+                        | jig_domain_people::Refusal::Concluded { .. }
                         | jig_domain_people::Refusal::Ended { .. }
                         | jig_domain_people::Refusal::Taken { .. }
                         | jig_domain_people::Refusal::NotWaiting

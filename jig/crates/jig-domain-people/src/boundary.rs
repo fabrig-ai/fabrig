@@ -231,6 +231,11 @@ pub enum NoteChange {
     )
 )]
 pub enum Ask {
+    /// Conclude a gathering (jig/docs/design/domain/tasks/gatherings.md, 3).
+    Conclude {
+        project: u32,
+        task: u64,
+    },
     /// Propose the settings as a revision left them (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/people/acts.md, 1).
     Restore {
         revision: u32,
@@ -259,6 +264,12 @@ pub enum Ask {
     /// Make these roots together (domain/people/acts.md, 1).
     Create {
         project: u32,
+        batch: Box<[crate::Member]>,
+    },
+    /// Make delegates beneath a task (jig/docs/design/domain/tasks/README.md, 4).
+    Delegate {
+        project: u32,
+        task: u64,
         batch: Box<[crate::Member]>,
     },
     /// Mark results or one conversation's replies seen under this party's key.
@@ -506,9 +517,11 @@ impl Ask {
             | Self::HandBackPerson { project, .. }
             | Self::AnswerPerson { project, .. }
             | Self::Stop { project, .. }
+            | Self::Conclude { project, .. }
             | Self::Cancel { project, .. }
             | Self::Release { project, .. }
             | Self::Create { project, .. }
+            | Self::Delegate { project, .. }
             | Self::Propose { project, .. }
             | Self::Withdraw { project, .. } => AskFamily::Project(*project),
             Self::Application { scope, .. } => AskFamily::Application(*scope),
@@ -552,10 +565,12 @@ impl Ask {
             | Self::HandBackPerson { .. }
             | Self::AnswerPerson { .. }
             | Self::Stop { .. }
+            | Self::Conclude { .. }
             | Self::Cancel { .. }
             | Self::Lift { .. }
             | Self::Release { .. }
             | Self::Create { .. }
+            | Self::Delegate { .. }
             | Self::Propose { .. }
             | Self::Withdraw { .. }
             | Self::AccountSignIn { .. }
@@ -656,6 +671,10 @@ pub enum OutcomeFamily {
 /// final outcomes with the parent's task decision. (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// The gathering keeps its concluding word.
+    Concluded {
+        task: u64,
+    },
     AccountReading {
         count: u32,
     },
@@ -1475,6 +1494,7 @@ impl Outcome {
             | Self::Withdrawn { .. }
             | Self::Left { .. }
             | Self::Stopped { .. }
+            | Self::Concluded { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
             | Self::Released { .. }
@@ -1529,6 +1549,7 @@ impl Outcome {
             | Self::Withdrawn { .. }
             | Self::Left { .. }
             | Self::Stopped { .. }
+            | Self::Concluded { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
             | Self::Released { .. }

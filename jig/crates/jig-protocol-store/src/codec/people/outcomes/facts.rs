@@ -581,6 +581,10 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
                 pending: names(pending, limits.refusal_kept_pending, wire::Path::RefusalKeptPending)?,
             },
         )?),
+        domain::Refusal::Concluded { at } => wire::Refusal::Concluded(wire::RefusalConcluded::new(
+            limits,
+            wire::RefusalConcludedParts { at: at.as_nanos() },
+        )?),
         domain::Refusal::Dependency { dependency, how } => wire::Refusal::Dependency(wire::RefusalDependency::new(
             limits,
             wire::RefusalDependencyParts {
@@ -708,6 +712,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
             domain::Refusal::Circle { tasks: tasks.into_boxed(), cut }
         }
         wire::Refusal::Kept(value) => domain::Refusal::Kept { pending: value.into_parts().pending.into_boxed() },
+        wire::Refusal::Concluded(value) => domain::Refusal::Concluded { at: Wall::from_nanos(value.at()) },
         wire::Refusal::Dependency(value) => {
             let wire::RefusalDependencyParts { dependency, how } = value.into_parts();
             domain::Refusal::Dependency {

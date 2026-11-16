@@ -547,7 +547,7 @@ Allowed, the answer gives the creator's numbers after the reservations,
 and what the budget given `AsAllowed`, if any, resolved to (section 7).
 
 - **One check for every creator.** An agent's `delegate`, a procedure's
-  step, a party's `Create` and an accepted proposal's batch reach this
+  step, a party's `Create` or `Delegate` and an accepted proposal's batch reach this
   check alike. Only the source differs: a task's authority and what it
   has left; or a party's role's authority and what their pool has left
   (8.4); or, for an acceptance, the accepter's (section 9).
@@ -635,6 +635,17 @@ pool has left.
   place of what a task has left. A budget given `AsAllowed` is resolved
   here, against their pool and capped by their role's spend
   (section 7).
+- **A party's batch beneath a task** (`Delegate`, people/acts.md, 1) is
+  8.1's twice. With the party as its creator, each task fits under
+  their role's authority, its delegation's kinds naming each task's
+  executor, as a `Create`'s does. With the task it is made beneath as
+  its creator, it is within what that task has left (its delegation's
+  tasks and depth, its budget, its deadline), as that task's own batch
+  would be. Its budgets are carved from the task, never from the
+  party's pool, and a budget given `AsAllowed` resolves against what
+  the task has left, capped by their role's spend. Beyond either, it is
+  refused, naming what it lacked, and makes no claim of a proposal:
+  proposing one is later (tasks/gatherings.md, section 7).
 - **A party's root has someone to escalate to.** A party becomes a
   root's requester, by a batch, a move or an acceptance, only while its
   escalations have a holder (people/acts.md, 1); otherwise the request is

@@ -983,7 +983,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         }
                     }
                     jig_domain_people::Ask::Compound { operations, .. } => people_bytes::compound(operations),
-                    jig_domain_people::Ask::Create { batch, .. } => people_bytes::batch(batch),
+                    jig_domain_people::Ask::Create { batch, .. } | jig_domain_people::Ask::Delegate { batch, .. } => {
+                        people_bytes::batch(batch)
+                    }
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(skein_lib::len_u64(reason.len())),
@@ -1056,6 +1058,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::TakePerson { .. }
                     | jig_domain_people::Ask::SetPool { .. }
                     | jig_domain_people::Ask::HandBackPerson { .. }
+                    | jig_domain_people::Ask::Conclude { .. }
                     | jig_domain_people::Ask::Stop { .. }
                     | jig_domain_people::Ask::Lift { .. }
                     | jig_domain_people::Ask::Release { .. }
@@ -1382,6 +1385,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::Withdrawn { .. }
         | Outcome::Left { .. }
         | Outcome::Stopped { .. }
+        | Outcome::Concluded { .. }
         | Outcome::Cancelled { .. }
         | Outcome::Released { .. }
         | Outcome::PersonTaken { .. }

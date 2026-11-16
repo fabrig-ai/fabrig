@@ -480,6 +480,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        concluded: None,
         talk: None,
         activation_open,
         session: match session {
@@ -663,12 +664,20 @@ pub fn task_record(
         )?),
         None => None,
     };
-    wire::TaskRecord::new(limits, wire::TaskRecordParts { record: before_talk(source, limits, moved)?, talk })
+    wire::TaskRecord::new(
+        limits,
+        wire::TaskRecordParts {
+            record: before_talk(source, limits, moved)?,
+            talk,
+            concluded: concluded(source.concluded, limits)?,
+        },
+    )
 }
 
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
     let source = source.into_parts();
     let mut record = read_before_talk(source.record, limits)?;
+    record.concluded = read_concluded(source.concluded);
     record.talk = match source.talk {
         Some(talk) => Some(domain::Talk {
             party: talk.party(),
@@ -707,6 +716,7 @@ pub fn live_hot(
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::LiveHot, wire::Problem> {
     let domain::TaskRecord {
+        concluded: concluding,
         talk,
         session,
         activation_open,
@@ -913,6 +923,7 @@ pub fn live_hot(
     wire::LiveHot::new(
         limits,
         wire::LiveHotParts {
+            concluded: concluded(*concluding, limits)?,
             talk: match *talk {
                 Some(talk) => Some(wire::Talk::new(
                     limits,
@@ -998,6 +1009,7 @@ pub fn join(
     limits: &wire::Limits,
 ) -> Result<wire::TaskRecord, wire::Problem> {
     let wire::LiveHotParts {
+        concluded,
         activation_open,
         session,
         closer,
@@ -1116,5 +1128,23 @@ pub fn join(
             question_woken,
         },
     )?;
-    wire::TaskRecord::new(limits, wire::TaskRecordParts { record, talk })
+    wire::TaskRecord::new(limits, wire::TaskRecordParts { record, talk, concluded })
+}
+
+fn concluded(
+    source: Option<domain::Concluded>,
+    limits: &wire::Limits,
+) -> Result<Option<wire::Concluded>, wire::Problem> {
+    Ok(match source {
+        Some(value) => {
+            Some(wire::Concluded::new(limits, wire::ConcludedParts { by: value.by, at: value.at.as_nanos() })?)
+        }
+        None => None,
+    })
+}
+fn read_concluded(source: Option<wire::Concluded>) -> Option<domain::Concluded> {
+    match source {
+        Some(value) => Some(domain::Concluded { by: value.by(), at: Wall::from_nanos(value.at()) }),
+        None => None,
+    }
 }

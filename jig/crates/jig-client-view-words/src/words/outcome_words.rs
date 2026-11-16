@@ -34,6 +34,7 @@ pub enum OutcomePhrase {
     Left,
     Stopped,
     /// The task cancelled saying.
+    Concluded,
     Cancelled,
     /// The task released saying.
     Released,
@@ -131,7 +132,7 @@ pub enum OutcomePhrase {
     HostFailed,
 }
 /// Every outcome phrase in stable owner order.
-pub const ALL: [OutcomePhrase; 70] = [
+pub const ALL: [OutcomePhrase; 71] = [
     OutcomePhrase::Created,
     OutcomePhrase::FirstTask,
     OutcomePhrase::LastTask,
@@ -145,6 +146,7 @@ pub const ALL: [OutcomePhrase; 70] = [
     OutcomePhrase::Adopted,
     OutcomePhrase::Left,
     OutcomePhrase::Stopped,
+    OutcomePhrase::Concluded,
     OutcomePhrase::Cancelled,
     OutcomePhrase::Released,
     OutcomePhrase::PersonTaken,
@@ -221,6 +223,7 @@ impl OutcomePhrase {
             Self::Adopted => 6404,
             Self::Left => 6476,
             Self::Stopped => 6407,
+            Self::Concluded => 6477,
             Self::Cancelled => 6408,
             Self::Released => 6409,
             Self::PersonTaken => 6410,
@@ -321,6 +324,7 @@ impl OutcomePhrase {
             | Self::Adopted
             | Self::Left
             | Self::Stopped
+            | Self::Concluded
             | Self::Cancelled
             | Self::Released
             | Self::PersonTaken
@@ -388,6 +392,7 @@ pub fn english() -> Language {
             OutcomePhrase::Adopted => b"Project adopted",
             OutcomePhrase::Left => b"Talk ended",
             OutcomePhrase::Stopped => b"Task stopped",
+            OutcomePhrase::Concluded => b"Gathering concluded",
             OutcomePhrase::Cancelled => b"Task cancelled",
             OutcomePhrase::Released => b"Task released",
             OutcomePhrase::PersonTaken => b"Person task taken",

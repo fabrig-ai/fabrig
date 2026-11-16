@@ -10,7 +10,8 @@ Authority, which every action here is checked against, is ../authority.md;
 what an agent's run is, ../engine/executors.md; a connector's procedures,
 ../connectors.md, section 6; what a party asks, ../people/acts.md; a task
 that stands, its budget per period, its sessions and its Now,
-`standing.md`. What
+`standing.md`; a gathering, which parties fill with delegates and its
+requester concludes, `gatherings.md`. What
 is still open is listed in `README.md`, section 8.
 
 ## 1. In one page
@@ -282,8 +283,9 @@ A batch is what one decision makes: one task or many, with the
 dependencies among them.
 
 - **Made by** an agent's `delegate` tool, a procedure's step, a party's
-  `Create` (../people/acts.md, 1), an accepted proposal, or a recurring task at
+  `Create` or `Delegate` (../people/acts.md, 1), an accepted proposal, or a recurring task at
   a period. Its tasks' requester is the task or the party that made it,
+  the task a party's `Delegate` names,
   or the accepter of the proposal that asked for them to be its
   (`proposals.md`).
 - **A party's batch is an agent's.** Each task names the same things,
@@ -299,10 +301,31 @@ dependencies among them.
   or past them (`proposals.md`). A party becomes a root's requester only
   while its escalations have a holder (../people/acts.md, 1); otherwise the
   request is refused, whatever authority it fits.
-- **Dependencies** name tasks in the same batch, or live tasks the
-  creator reaches: for a task, its own delegates, or a task it is
+- **A party's batch beneath a task.** A party's `Delegate` makes a batch
+  beneath a live task they may act on: in their tree, or any of the
+  project's for a maintainer; an agent's or a procedure's; neither
+  closing nor concluded (`gatherings.md`, section 3). Its tasks are that
+  task's delegates: the task their requester and their funder, their
+  root and depth below it, as if it had made them; none of them is a
+  root, so it needs no holder of its own escalations. It is checked as
+  both: within the party's role and within what the task has left
+  (../authority.md, 8.4). It reaches as the party does: its
+  dependencies and inputs within the party's reach, never the task's.
+  The history of each task it makes names the party.
+- **Dependencies** name tasks in the same batch, or tasks the
+  creator reaches: for a task, its own live delegates, or a live task it is
   introduced to (`messages.md`, 5); for a party, a task in their tree, or any task of
-  the project for a maintainer (../people/acts.md, 1). An amendment may add
+  the project for a maintainer (../people/acts.md, 1). A party's batch,
+  a `Create`'s or a `Delegate`'s, may name a task that has ended, judged
+  on its stored row as an amendment's added dependency is (`changes.md`,
+  *An ended one* and *Its prerequisite*): one done adds no wait and is
+  kept as a met dependency, its result read as any dependency's; one
+  failed or cancelled refuses the batch, naming it and how it ended
+  (*dependency*, `../../client/domain/contract/README.md`, section 3).
+  Each is judged at the batch's admission, against the state the batch
+  commits in, never by an earlier read: a dependency that ends while the
+  batch waits for another's row is judged as it ended. A task's batch
+  names live tasks alone (section 8). An amendment may add
   more once a task is made (`changes.md`). Admission checks the batch's new
   waits with the live ones (`holds.md`, 7): its tasks' dependencies, the queues
   they join and the holds handed down to them, and its creator's wait
@@ -380,6 +403,10 @@ Procedures the core owns, stepped by this child domain:
   section 7). If the last batch is still live, the period passes, or the
   new batch waits, as its maker chose. A recurring task ends when it is
   cancelled.
+- **Gathering.** A task whose procedure does nothing: parties make its
+  delegates with `Delegate`, and it ends done on its requester's
+  `Conclude` once they have ended (`gatherings.md`). It is never
+  stepped, and takes no dependency.
 
 The core has no other procedure. A static plan is a batch; waiting for
 several tasks is a dependency; anything that needs a condition over
@@ -584,6 +611,10 @@ the newest when it moved.
 - **Dependencies on a failure:** whether a task should be able to depend
   on another's ending, whatever its result, for clean-ups; until wanted,
   a requester makes the clean-up task itself.
+- **A run's batch naming an ended dependency** (section 4): a party's
+  batch may, judged on the ended task's stored row; a task's names live
+  tasks alone, its delegates' results reaching it as inputs. Until an
+  agent needs it, its tool keeps that.
 - **Priorities among tasks that are not goals,** when hosts or pools are
   scarce: they are ordered by when each became due.
 - **Pools across projects:** whether a pool's slots are shared fairly

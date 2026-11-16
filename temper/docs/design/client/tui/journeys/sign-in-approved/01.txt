@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:46353                                     │
+│ Sign in this terminal to 127.0.0.1:46263                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ KDKC-BWNH, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:46353/terminal?code=KDKC-BWNH                  │
+│ HHGS-RFBH, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:46263/terminal?code=HHGS-RFBH                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:46353/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:46263/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

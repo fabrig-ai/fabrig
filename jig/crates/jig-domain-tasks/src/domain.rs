@@ -470,7 +470,7 @@ impl Domain {
         if record.phase != Phase::Active(Active::Due) {
             return None;
         }
-        if record.recurring.is_some() {
+        if record.recurring.is_some() || crate::gathering::executor(record.executor) {
             return None;
         }
         match record.executor {
@@ -670,6 +670,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
         }
+        Event::Conclude { reply_to, by, task } => crate::gathering::conclude(domain, env, reply_to, by, task, out),
         Event::Cancel { reply_to, by, operation } => {
             crate::control::cancel(domain, env, reply_to, by, operation, out);
         }
@@ -741,7 +742,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ResizePeriod { reply_to, project, period, budget } => {
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
-        Event::Make { reply_to, creator, batch } => make(domain, env, reply_to, creator, batch, out),
+        Event::Make { reply_to, creator, maker, batch, places } => {
+            make(domain, env, reply_to, creator, maker, batch, &places, out);
+        }
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
             make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
         }
@@ -772,6 +775,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::DelegateResult { task, word } => {
             crate::inbox::delegate_result(domain, env, task, word, out);
             crate::recurring::after_delegate(domain, env, task, out);
+            crate::gathering::settle(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
         Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
@@ -983,6 +987,9 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// Changed connector facts wake an idle procedure or survive its pending step.
 pub(crate) fn wake_procedure(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, task) else { return };
+    if crate::gathering::executor(row.executor) {
+        return;
+    }
     match row.executor {
         crate::Executor::Procedure { .. } => {}
         crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => return,
@@ -1355,21 +1362,39 @@ pub(crate) fn save_cold(task: &Task, out: &mut Queue<Request>) {
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "make keeps its creator and the party behind delegation separate")]
 pub(crate) fn make(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     creator: Party,
+    maker: Option<u64>,
     batch: Box<[New]>,
+    places: &[crate::DependencyPlace],
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
         return refused(to, None, Refusal::NotReady, out);
     }
-    if let Err(problem) = crate::batch::check(domain, &env.limits, creator, &batch) {
+    if let Err(problem) = crate::batch::check_places(domain, &env.limits, creator, maker, &batch, places) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);
+    if let Some(person) = maker {
+        for &number in &numbers {
+            crate::control::history(domain, number, env.wall, Party::Person(person), crate::Change::Made, &[], out);
+            publish(domain, env, number, out);
+        }
+    }
+    for row in places {
+        if row.status == crate::Status::Done {
+            crate::closing::remember_stub(
+                domain,
+                crate::Stub { task: row.number, phase: row.status, result: skein_lib::Token::new(row.number) },
+                out,
+            );
+        }
+    }
     out.push(Request::Made { reply_to: to, tasks: numbers });
 }
 
@@ -1532,7 +1557,14 @@ pub(crate) fn make_admitted(
     }
     for new in batch {
         let number = new.number;
+        let mut waiting = List::with_capacity(env.limits.dependencies);
+        for dependency in &new.dependencies {
+            if domain.names.contains_key(dependency) || numbers.as_slice().contains(dependency) {
+                waiting.push(*dependency).expect("admitted pending dependencies");
+            }
+        }
         let task = Task::new(TaskRecord {
+            concluded: None,
             session: None,
             talk: None,
             activation_open: false,
@@ -1603,7 +1635,7 @@ pub(crate) fn make_admitted(
             authority: new.authority,
             numbers: new.numbers,
             funder: new.funder,
-            waiting_on: new.dependencies.clone(),
+            waiting_on: waiting.into_boxed(),
             holdings: new.holdings,
             holds_taken: false,
             hold_wait_since: None,

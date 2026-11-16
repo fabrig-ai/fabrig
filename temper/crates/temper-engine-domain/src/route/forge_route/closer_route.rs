@@ -414,6 +414,7 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         | Refusal::Circle { .. }
         | Refusal::DependencyEnded { .. }
         | Refusal::Kept
+        | Refusal::Concluded { .. }
         | Refusal::KeptQuestion { .. }
         | Refusal::PersonAnswers { .. }
         | Refusal::Executor

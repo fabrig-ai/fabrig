@@ -111,6 +111,8 @@ pub struct World {
     fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,
     pub store: Store,
+    /// Hold ended-row demands while a story supplies intervening decisions.
+    pub pending_ended_loads: Option<Vec<core::Now>>,
     internal_reads: std::collections::BTreeSet<Token>,
     pub systems: [System; 2],
     protocol: crate::protocol::Stand,
@@ -510,11 +512,11 @@ impl World {
                     }
                     root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
                     root::Request::Now(now @ core::Now::StartPreparation { .. }) => self.transcript_loaded(now),
+                    root::Request::Now(now @ core::Now::EndedTask { .. }) => self.ended_load(now),
                     root::Request::Now(
                         now @ (core::Now::SeenConversation { .. }
                         | core::Now::LoadEndedRead { .. }
                         | core::Now::EndedPersonTask { .. }
-                        | core::Now::EndedTask { .. }
                         | core::Now::PartyInputs { .. }
                         | core::Now::EndedProposal { .. }
                         | core::Now::DecidedProposal { .. }

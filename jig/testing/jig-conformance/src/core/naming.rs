@@ -251,9 +251,11 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::HandBackPerson { project, .. }
         | people::Ask::AnswerPerson { project, .. }
         | people::Ask::Stop { project, .. }
+        | people::Ask::Conclude { project, .. }
         | people::Ask::Cancel { project, .. }
         | people::Ask::Release { project, .. }
         | people::Ask::Create { project, .. }
+        | people::Ask::Delegate { project, .. }
         | people::Ask::Propose { project, .. }
         | people::Ask::Withdraw { project, .. } => Some(*project),
         people::Ask::Restore { .. }
