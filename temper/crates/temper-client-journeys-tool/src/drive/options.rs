@@ -155,7 +155,10 @@ impl Plan {
         }
         let mut program = self.program("temper-box", args, Input::Null);
         if let Some(ports) = &self.options.ports {
-            program.environment.push(("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into()));
+            program.environment.push((
+                "TEMPER_INTERNAL_FAKE_BOX_PORTS".into(),
+                super::place::Ports::parse(ports).expect("validated ports").list().into(),
+            ));
         }
         program
     }

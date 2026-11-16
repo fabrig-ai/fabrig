@@ -18,7 +18,7 @@ const JSON: tokenizer::Limits = tokenizer::Limits {
 /// All paths are absolute; port positions are those of the place, not process order.
 #[derive(Clone, Debug)]
 pub struct Place {
-    ports: [u16; 9],
+    ports: super::place::Ports,
     scratch: PathBuf,
     bin: PathBuf,
     bundle: Option<PathBuf>,
@@ -34,17 +34,17 @@ impl Place {
         if ports.contains(&0) || ports.iter().collect::<std::collections::BTreeSet<_>>().len() != 9 {
             return Err("place requires nine distinct nonzero ports".into());
         }
-        Ok(Self { ports, scratch, bin, bundle })
+        Ok(Self { ports: super::place::Ports::new(ports), scratch, bin, bundle })
     }
     /// NAME without the `place.` prefix or braces.
     #[must_use]
     pub fn value(&self, name: &str) -> Option<Box<[u8]>> {
         let port = match name {
-            "clients" => Some(self.ports[0]),
-            "workers" => Some(self.ports[1]),
-            "webhooks" => Some(self.ports[4]),
-            "model" => Some(self.ports[7]),
-            "forgejo" => Some(self.ports[8]),
+            "clients" => Some(self.ports.clients),
+            "workers" => Some(self.ports.owned),
+            "webhooks" => Some(self.ports.webhooks),
+            "model" => Some(self.ports.model),
+            "forgejo" => Some(self.ports.forgejo),
             _ => None,
         };
         if let Some(port) = port {

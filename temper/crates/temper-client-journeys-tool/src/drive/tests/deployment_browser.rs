@@ -115,9 +115,7 @@ fn browser_start_failures_close_before_stops_and_classify_with_deployment_tails(
             (machine.step(Event::Deadline, at), words)
         };
         assert!(actions.iter().any(|a| matches!(a, Action::CloseBrowser)), "{actions:?}");
-        assert!(
-            !actions.iter().any(|a| matches!(a, Action::StopDeployment { .. } | Action::Classify | Action::KillBox))
-        );
+        assert!(!actions.iter().any(|a| matches!(a, Action::Stop { .. } | Action::Classify)));
         stop(&step(&mut machine, Event::FaceDone(Ok(()))), Process::Worker, false);
         assert!(matches!(finish_stops(&mut machine).as_slice(), [Action::DeploymentLogs]));
         let actions = step(
@@ -140,7 +138,7 @@ fn full_deployment_lines_and_end_use_the_engine_origin_and_close_clients_first()
     running_tui(&mut machine);
     let actions = step(&mut machine, Event::End);
     assert!(actions.iter().any(|a| matches!(a, Action::StopTui)));
-    assert!(!actions.iter().any(|a| matches!(a, Action::CloseBrowser | Action::StopDeployment { .. })));
+    assert!(!actions.iter().any(|a| matches!(a, Action::CloseBrowser | Action::Stop { .. })));
     assert!(matches!(step(&mut machine, Event::TuiStopped).as_slice(), [Action::CloseBrowser]));
     stop(&step(&mut machine, Event::FaceDone(Ok(()))), Process::Worker, false);
     assert_eq!(finish(&finish_stops(&mut machine)).status, 0);

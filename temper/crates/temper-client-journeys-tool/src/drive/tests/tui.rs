@@ -154,7 +154,10 @@ fn stop_is_idempotent_restarts_and_end_stops_tui_first() {
     step(&mut m, Event::TuiWritten);
     assert!(matches!(step(&mut m, Event::End).as_slice(), [Action::CancelFace, Action::StopCtl, Action::StopTui]));
     assert!(matches!(step(&mut m, Event::TuiStopped).as_slice(), [Action::CloseBrowser]));
-    assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+    assert!(matches!(
+        step(&mut m, Event::FaceDone(Ok(()))).as_slice(),
+        [Action::Stop { process: Process::Box, force: false }]
+    ));
 }
 #[test]
 fn exit_and_failed_approval_leave_session_usable() {

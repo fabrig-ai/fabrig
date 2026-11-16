@@ -2,8 +2,9 @@ use super::*;
 pub(crate) mod forge;
 mod logging;
 mod page;
+mod places;
 use skein_fake_person::Target;
-use std::{collections::VecDeque, ffi::OsStr, path::Path};
+use std::{collections::VecDeque, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
 pub(super) fn plan() -> Plan {
     Plan::new(
         Options {
@@ -453,7 +454,10 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     }
     let mut m = ready();
     line(&mut m, "end");
-    assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+    assert!(matches!(
+        step(&mut m, Event::FaceDone(Ok(()))).as_slice(),
+        [Action::Stop { process: Process::Box, force: false }]
+    ));
     assert_eq!(
         *finish(&step(&mut m, exited(Process::Box, 0))),
         Exit { status: 0, shown: vec!["ended".into()], error: None }
@@ -469,7 +473,7 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     step(&mut m, Event::FaceDone(Ok(())));
     assert!(matches!(
         m.step(Event::Deadline, Time::ZERO.saturating_add(STEP)).as_slice(),
-        [Action::KillBox, Action::Classify]
+        [Action::Stop { process: Process::Box, force: true }, Action::Classify]
     ));
 }
 #[test]
@@ -492,7 +496,10 @@ fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
         let exit = finish(&actions);
         assert_eq!(exit.status, expected, "{line}");
         if expected == 3 {
-            assert_eq!(exit.shown, [format!("refused: {}", String::from_utf8_lossy(strip_log_time(line.as_bytes())))]);
+            assert_eq!(
+                exit.shown,
+                [format!("refused: {}", String::from_utf8_lossy(place::strip_log_time(line.as_bytes())))]
+            );
         }
     }
     let scratch = skein_scratch::Scratch::new("drive-forge-refused");
@@ -653,7 +660,7 @@ fn ctl_start_is_ready_after_sign_in_and_stops_without_a_browser() {
         matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == b"ctl task list")
     );
     let actions = step(&mut machine, Event::End);
-    assert!(matches!(actions.as_slice(), [Action::StopCtl, Action::TerminateBox]));
+    assert!(matches!(actions.as_slice(), [Action::StopCtl, Action::Stop { process: Process::Box, force: false }]));
     assert_eq!(finish(&step(&mut machine, exited(Process::Box, 0))).status, 0);
 }
 

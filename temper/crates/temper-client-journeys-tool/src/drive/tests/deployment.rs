@@ -70,7 +70,7 @@ fn deployment_ready() -> Machine {
     machine
 }
 fn stop(actions: &[Action], expected: Process, force: bool) {
-    assert!(actions.iter().any(|action| matches!(action, Action::StopDeployment { process, force: forced } if *process == expected && *forced == force)), "{actions:?}");
+    assert!(actions.iter().any(|action| matches!(action, Action::Stop { process, force: forced } if *process == expected && *forced == force)), "{actions:?}");
 }
 fn stopped(machine: &mut Machine) -> Vec<Action> {
     step(machine, Event::End);

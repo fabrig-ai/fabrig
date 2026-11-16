@@ -8,7 +8,7 @@ use skein_forge::forgejo::{
 use skein_http::Method;
 use skein_json::{Document, Kind, document, tokenizer, writer};
 use skein_lib::{Duration, Time};
-use std::{os::unix::ffi::OsStrExt, path::PathBuf};
+use std::path::PathBuf;
 
 const CHECKS: Duration = Duration::from_secs(300);
 const POLL: Duration = Duration::from_secs(2);
@@ -54,7 +54,6 @@ impl Machine {
             ),
             Forge::Checks { repository } => (repository.clone(), None, None, vec![]),
         };
-        let log = self.plan.options.scratch.join("session/box.log");
         self.wait(Phase::Forge, now, if message.is_some() { STEP } else { CHECKS });
         self.forge = Some(Pending {
             token_file: PathBuf::new(),
@@ -72,24 +71,28 @@ impl Machine {
             path: Box::new([]),
             last: "no status read".into(),
         });
-        if let Some(values) = self.deployment.as_ref().and_then(|state| state.values.as_ref()) {
-            let pending = self.forge.as_mut().expect("forge started");
-            pending.api = [values.forgejo_git.as_ref(), b"/api/v1"].concat().into();
-            pending.token_file = PathBuf::from(std::ffi::OsStr::from_bytes(&values.forgejo_admin));
-            pending.stage = if pending.message.is_some() { Stage::Files } else { Stage::Repository };
-            match pending.request(self.until.expect("forge bound")) {
-                Ok(action) => out.push(action),
-                Err(why) => self.answer(Some(why), out),
+        match self.place.forge_hands(None) {
+            Ok(Some((api, token_file))) => {
+                let pending = self.forge.as_mut().expect("forge started");
+                pending.hands(api, token_file);
+                match pending.request(self.until.expect("forge bound")) {
+                    Ok(action) => out.push(action),
+                    Err(why) => self.answer(Some(why), out),
+                }
             }
-        } else {
-            out.push(Action::ReadBoxLog { path: log });
+            Ok(None) => out.push(super::Place::read_values(&self.plan)),
+            Err(why) => self.answer(Some(why), out),
         }
     }
     pub(super) fn forge_event(&mut self, event: Event, now: Time, out: &mut Vec<Action>) {
         let Some(mut pending) = self.forge.take() else { return };
         let result = match event {
             Event::BoxLog(result) if pending.stage == Stage::Log => {
-                result.and_then(|bytes| pending.log(&bytes)).map(|()| None)
+                result.and_then(|bytes| self.place.forge_hands(Some(&bytes))).map(|hands| {
+                    let (api, token_file) = hands.expect("forge values supplied");
+                    pending.hands(api, token_file);
+                    None
+                })
             }
             Event::ForgeFiles(result) if pending.stage == Stage::Files => result.map(|contents| {
                 for (file, content) in pending.files.iter_mut().zip(contents) {
@@ -148,13 +151,10 @@ impl Machine {
     }
 }
 impl Pending {
-    fn log(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let git = super::values::read(bytes, crate::line::BoxValue::Git)?;
-        self.api = [git.as_ref(), b"/api/v1"].concat().into();
-        self.token_file =
-            PathBuf::from(std::ffi::OsStr::from_bytes(&super::values::read(bytes, crate::line::BoxValue::Admin)?));
+    fn hands(&mut self, api: Box<[u8]>, token_file: PathBuf) {
+        self.api = api;
+        self.token_file = token_file;
         self.stage = if self.message.is_some() { Stage::Files } else { Stage::Repository };
-        Ok(())
     }
     fn repo_path(&self) -> String {
         format!("/repos/{}", encoded(&self.repository, true))

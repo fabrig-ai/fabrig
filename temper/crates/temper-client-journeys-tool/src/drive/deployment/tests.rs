@@ -36,8 +36,8 @@ fn place_names_render_only_string_values() {
     assert!(why.contains("worker.json") && why.contains("missing"), "{why}");
     assert!(Place::new([1; 9], "/scratch".into(), "/bin".into(), None).is_err());
     assert!(Place::new([0, 1, 2, 3, 4, 5, 6, 7, 8], "/scratch".into(), "/bin".into(), None).is_err());
-    assert!(Place::new(place.ports, "relative".into(), "/bin".into(), None).is_err());
-    assert!(Place::new(place.ports, "/scratch".into(), "relative".into(), None).is_err());
+    assert!(Place::new(place.ports.array(), "relative".into(), "/bin".into(), None).is_err());
+    assert!(Place::new(place.ports.array(), "/scratch".into(), "relative".into(), None).is_err());
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn bundle_name_renders_the_absolute_bundle_and_requires_it_by_document_name() {
         json(&render("engine.json", input, &place).expect("bundle given")),
         json!({"application":{"clients":{"bundle":"/p/bundle"}}})
     );
-    assert!(Place::new(place.ports, "/scratch".into(), "/bin".into(), Some("relative".into())).is_err());
+    assert!(Place::new(place.ports.array(), "/scratch".into(), "/bin".into(), Some("relative".into())).is_err());
 }
 
 #[test]
