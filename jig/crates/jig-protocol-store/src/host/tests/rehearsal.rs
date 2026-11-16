@@ -20,13 +20,8 @@ const BASE: OwnerSet = OwnerSet {
     level: Some(0),
     jobs: &[],
 };
-const JOB: Job = Job {
-    name: "rewrite-labels",
-    keys: &[KeyRange { from: b"l", to: b"m" }],
-    converts: None,
-    settles: false,
-    counts: &[],
-};
+const JOB: Job =
+    Job { name: "rewrite-labels", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None, counts: &[] };
 const ROWS: u64 = 9;
 
 fn source() -> World {
@@ -58,7 +53,6 @@ fn source() -> World {
         assert!(world.above.is_empty());
     }
     // The fixture keeps task history in payload logs.
-    world.store.history_routing = true;
     world.host.down(
         &mut world.store,
         &fixtures::env(),

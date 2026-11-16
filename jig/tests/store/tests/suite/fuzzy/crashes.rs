@@ -7,11 +7,11 @@ use skein_lib::Rng;
 
 fn history_world() -> World {
     // This crash sweep holds log atomicity, not registry planning. Keep the
-    // binary's job and key ranges, without registering unrelated layouts.
+    // binary's key ranges, without registering unrelated layouts.
     const SETS: jig_protocol_store::OwnerSets = jig_protocol_store::OwnerSets {
         sets: &[jig_protocol_store::OwnerSet {
             level: None,
-            jobs: &[*jig_protocol_store::JIG_STORE_SET.jobs.last().expect("task-logs is last")],
+            jobs: &[],
             families: &[
                 jig_protocol_store::KeptFamily {
                     retired: &[],

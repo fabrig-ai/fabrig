@@ -72,7 +72,12 @@ impl Child {
             pump.request(if force {
                 io::Request::Close { entity: child }
             } else {
-                io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child }
+                io::Request::Signal {
+                    child,
+                    signal: Signal::Terminate,
+                    to: Target::Child,
+                    reason: io::kernel::Reason::Unknown,
+                }
             });
             if force {
                 for entity in &self.pipes {

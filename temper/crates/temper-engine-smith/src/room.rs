@@ -1,83 +1,95 @@
-//! Measure a charter's non-brief host part from the declarations and smith's counter
-//! (temper/docs/design/domain/agent/tools.md).
+//! Costs measured by smith, supplied as facts to the domain
+//! (temper/docs/design/domain/agent/room.md, 4.4).
 
 use alloc::boxed::Box;
-use skein_lib::Duration;
+use skein_lib::{Duration, List};
 use smith_domain_run as run;
-use temper_engine_domain::room::HostPart;
+use smith_protocol_translate::{Endpoint, Endpoints};
+use temper_engine_domain::room::{Cost, HostPart};
 
-/// Build the table from the full host offer and smith's receiving schema costs.
+/// Measure the frame, models and declarations independently of either receiving bound.
 #[must_use]
-pub fn host_part(limits: &run::Limits) -> HostPart {
-    let mut declared = 0_u64;
-    let mut settings = 0_u64;
-    let mut asking = 0_u64;
-    let mut asking_settings = 0_u64;
+pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpoints) -> HostPart {
+    let mut longest = b"".as_slice();
+    for endpoint in endpoints.entries() {
+        if endpoint.name.len() > longest.len() {
+            longest = &endpoint.name;
+        }
+    }
+    let mut entries = List::with_capacity(1);
+    entries.push(Endpoint { name: longest.into(), number: 1, dialect: 1 }).expect("one measurement endpoint");
+    let endpoints = Endpoints::new(entries);
+    let mut charter = measurement_charter();
+    let fixed = measure(&charter, limits, &endpoints);
+    charter.models = Box::new([charter.llm.clone()]);
+    let model = difference(measure(&charter, limits, &endpoints), fixed);
+    charter.models = Box::new([]);
+    let mut table = HostPart { allowance, fixed, model, ..HostPart::EMPTY };
+    if let Some(limits) = limits {
+        table.bound = Some(limits.host_part);
+    }
     for tool in
         crate::calls::tools_for(Duration::from_secs(1), jig_domain_tasks::Tools(3_072), jig_domain_tasks::Tools(3_072))
     {
-        let mut bytes = 0_u64;
-        for text in [&tool.name, &tool.description, &tool.schema] {
-            bytes = bytes.checked_add(skein_lib::len_u64(text.len())).expect("bounded asking declaration");
-        }
-        if tool.name.as_ref() == b"propose_settings" {
-            asking_settings = bytes;
+        let settings = tool.name.as_ref() == b"propose_settings";
+        charter.grants.host_tools = Box::new([tool]);
+        let cost = difference(measure(&charter, limits, &endpoints), fixed);
+        if settings {
+            table.asking_settings = table.asking_settings.plus(cost);
         } else {
-            asking = asking.checked_add(bytes).expect("bounded asking declarations");
+            table.asking = table.asking.plus(cost);
         }
     }
-    let mut tools = crate::calls::tools_for(
+    for mut tool in crate::calls::tools_for(
         Duration::from_secs(1),
         temper_engine_domain::RunPolicy::EVERY_FAMILY,
         temper_engine_domain::RunPolicy::EVERY_FAMILY,
-    );
-    for tool in &mut tools {
-        let mut bytes = 0_u64;
-        for text in [&tool.name, &tool.description, &tool.schema] {
-            bytes = bytes.checked_add(skein_lib::len_u64(text.len())).expect("bounded tool declaration");
-        }
-        if tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings" {
-            settings = settings.checked_add(bytes).expect("bounded settings declarations");
-        } else {
-            declared = declared.checked_add(bytes).expect("bounded declarations");
-        }
-        // Charter 1's finite runs carry the largest reserve-tool offer.
+    ) {
+        let family = match tool.name.as_ref() {
+            b"delegate" | b"goal" | b"change" | b"finding" | b"red" | b"follow" => Some(0),
+            b"settings" | b"propose_settings" => Some(10),
+            _ => None,
+        };
+        // Charter 1's finite runs carry the reserved message and its wind-down words.
         tool.reserve = tool.name.as_ref() == b"message";
+        charter.grants.host_tools = Box::new([tool]);
+        let cost = difference(measure(&charter, limits, &endpoints), fixed);
+        match family {
+            Some(index) => {
+                let slot = table.families.get_mut(index).expect("JIG family slot");
+                *slot = slot.plus(cost);
+            }
+            None => table.always = table.always.plus(cost),
+        }
     }
-    let mut charter = measurement_charter();
-    charter.grants.host_tools = tools;
-    // Count independently of the receiving bound, including a profile too small for this offer.
-    let measuring = run::Limits { host_part: u64::from(u32::MAX), ..*limits };
-    let room = run::brief_room(&charter, None, &measuring).expect("bounded largest host offer");
-    let offered_fixed = measuring
-        .host_part
-        .checked_sub(u64::from(room))
-        .expect("measured host room")
-        .checked_sub(declared)
-        .expect("declarations counted by smith")
-        .checked_sub(settings)
-        .expect("settings counted by smith");
-    charter.grants.host_tools = Box::new([]);
-    let room = run::brief_room(&charter, None, &measuring).expect("bounded host mechanics");
-    let fixed = measuring.host_part.checked_sub(u64::from(room)).expect("measured host mechanics");
-    // A reserved host tool adds wind-down words. They belong to the ordinary
-    // offer, whose message declaration an asking charter does not carry.
-    declared = declared
-        .checked_add(offered_fixed.checked_sub(fixed).expect("host offer adds mechanics"))
-        .expect("bounded declared host part");
-    // Smith's built-in tools and mechanics are outside its host part. Alternative-model
-    // text is policy-dependent and is counted by HostPart::non_brief.
-    HostPart {
-        bound: limits.host_part,
-        fixed,
-        declared,
-        settings,
-        asking,
-        asking_settings,
-        inspect: 0,
-        modify: 0,
-        shell: 0,
-        agents: 0,
+    table
+}
+
+fn difference(whole: Cost, base: Cost) -> Cost {
+    Cost {
+        rendered: whole.rendered.checked_sub(base.rendered).expect("additive rendered cost"),
+        owned: whole.owned.checked_sub(base.owned).expect("additive ownership"),
+        encoded: whole.encoded.checked_sub(base.encoded).expect("additive encoding"),
+    }
+}
+
+fn measure(charter: &run::Charter, limits: Option<&run::Limits>, endpoints: &Endpoints) -> Cost {
+    let mut rendered = 0;
+    if let Some(limits) = limits {
+        let measuring = run::Limits { host_part: u64::from(u32::MAX), ..*limits };
+        rendered = measuring
+            .host_part
+            .checked_sub(u64::from(run::brief_room(charter, None, &measuring).expect("bounded measurement charter")))
+            .expect("measured room");
+    }
+    Cost {
+        rendered,
+        owned: charter.owned_bytes().expect("bounded measurement ownership"),
+        encoded: skein_lib::len_u64(
+            smith_protocol_translate::encode_charter(charter, &smith_charter::CEILINGS, endpoints)
+                .expect("bounded measurement encoding")
+                .len(),
+        ),
     }
 }
 
@@ -100,22 +112,25 @@ fn measurement_charter() -> run::Charter {
             reserve: charter::Reserve { turns: 1, time: Duration::from_secs(1) },
         },
         model: charter::Llm {
-            grant: None,
+            grant: Some(1),
             model: charter::Model {
-                prices: charter::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+                prices: charter::Prices { input: 1, cached: 1, cache_write: Some(1), output: 1, unit: 1 },
                 dialect: 1,
                 endpoint: 1,
                 name: Box::new([]),
                 window: 1,
                 output: 1,
-                effort: None,
+                effort: Some(Box::new([])),
             },
         },
         models: Box::new([]),
         workspace: charter::WorkspaceTools { inspect: false, modify: false, shell: false },
         delivers: false,
         agents: false,
-        conventions: None,
+        conventions: Some(charter::Conventions {
+            guide: b"AGENTS.md".as_slice().into(),
+            checks: b".temper/pre-pr".as_slice().into(),
+        }),
         words: u32::MAX,
         contract: charter::Contract {
             report: None,
@@ -135,5 +150,11 @@ fn measurement_charter() -> run::Charter {
             }),
         },
     };
-    jig_protocol_charter::charter(charter).expect("measurement charter's bounded contract")
+    // Optional model fields are present, effort empty: absent fields in stock models
+    // make this encoded sum conservative (room.md, 4.4), never an underestimate.
+    let mut measured = jig_protocol_charter::charter(charter).expect("measurement charter's bounded contract");
+    measured.grants.contract = crate::wire::VERSION;
+    // The project may supply a delivery-check bound, whose optional payload also belongs to the frame.
+    measured.check_timeout = Some(Duration::from_secs(86_400));
+    measured
 }

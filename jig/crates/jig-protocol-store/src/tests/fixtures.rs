@@ -37,6 +37,7 @@ pub(crate) use jig_protocol_store_kit::{
     with_hold, with_links, with_proposal_rows, with_question_lines, within,
 };
 
+pub use store::floor_put;
 pub use store::limits as store_limits;
 pub use store::{
     Answer, ROOT, answer, below, commit, committed, committed_with_places, directory, env, events, format_put, get_kv,

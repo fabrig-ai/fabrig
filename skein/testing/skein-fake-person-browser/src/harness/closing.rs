@@ -121,5 +121,10 @@ impl Closing {
     }
 }
 fn end(child: Token, requests: &mut VecDeque<io::Request>) {
-    requests.push_back(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child });
+    requests.push_back(io::Request::Signal {
+        child,
+        signal: Signal::Terminate,
+        to: Target::Child,
+        reason: io::kernel::Reason::Unknown,
+    });
 }

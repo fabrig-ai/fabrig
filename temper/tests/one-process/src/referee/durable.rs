@@ -277,8 +277,9 @@ impl Store {
         let mut committed = Vec::new();
         let Some(bytes) = self.files.get(path) else { return Ok(committed) };
         let start = self.validated.get(path).copied().unwrap_or(0);
-        let after = self.generation(path).map_or(self.applied, |generation| generation.number);
-        let (frames, used) = frames(&bytes[start..], after);
+        // A copied segment can arrive after a newer segment of the same generation.
+        // Per-key positions in record keep its newer writes while filling that prefix.
+        let (frames, used) = frames(&bytes[start..], 0);
         self.validated.insert(path.to_vec(), start + used);
         for (number, ops) in frames {
             if !self.record(path, number, &ops, false) {

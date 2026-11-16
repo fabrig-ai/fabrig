@@ -144,93 +144,10 @@
   names `tasks.subscriptions` as its own room's refusals do. A
   subscription that would leave no room in the task's inbox for its news
   is refused as any call past the inbox is, naming the inbox.
-- **The host part's budget.** smith refuses a run whose host part (its
-  host tools, instructions, brief, and finish and deliver schemas) passes
-  its bound, the room of the agent's smallest window (`charter.md`, 5), before any
-  turn. The largest stock charter's non-brief host part is charter 1's
-  with a Change contract and the control family's plan form of
-  `change` (1); with the authorised brief, its task section a whole
-  spec (`../../protocol/configuration/limits.md`), and 1,472 bytes for
-  64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves a margin at `temper-box init`'s models
-  (`../../protocol/configuration/README.md`, section 9); `temper-service`'s step tests hold each stock charter's
-  figures. A gathered brief spends what the non-brief host part leaves. So a new
-  host tool is offered only where a family and the charter gate it,
-  never to every run, and a charter's room is measured before a tool
-  joins it.
-- **The brief fits the room its charter leaves.** smith counts a run's
-  brief in its host part, beside the charter's offered tools, its
-  instructions and the finish and deliver schemas. Before sending an
-  assignment, the engine fits gathered sections to its charter bound for
-  both the encoded charter, including framing, and its decoded ownership.
-  The bound is the smaller of the configured `hub.charter_bytes` and the
-  charter allowance of the worker that receives it, so the engine never
-  sends a run a charter its worker would refuse: a worker refuses at
-  decoding a charter whose ownership passes its smith `run_bytes`, before
-  its own fit. Where the process has a local agent, that allowance is the
-  agent's `run_bytes`, as a task read's room is its `host_reply_text`
-  (`../routing.md`, 2). Where it doesn't know its worker's, it takes smith's
-  at its floor, 65,536, which the stock agent's `tool_payload` of 10,662
-  does not raise (smith's `protocol/limits.md`, 3.10): the smaller of the
-  two defaults, and how the engine learns a remote worker's is `README.md`, section 8
-  's. Instructions, tools, contracts,
-  models and run identity stay whole. The worker service also fits the
-  brief after the workspace is prepared and before encoding the start,
-  using the receiving run's limits and measured schema costs. It fits both
-  rendered host room and the decoded charter ownership left after smith
-  charges the prepared workspace against `run_bytes`, including resolved
-  host paths and conflict paths. Smith supplies that remaining allowance
-  through `charter_room`; temper keeps the incoming charter allowance too.
-  `temper-protocol-brief` owns
-  the fitter, which the engine's translation, `temper-engine-smith`, and
-  the worker service each link; the translation's typed start takes
-  explicit receiving limits and fits the brief too. A brief already within each entrance's room is kept
-  whole. Otherwise, fitting cuts bodies from the last
-  section in the core's order, at UTF-8 boundaries, keeping each cut
-  section's title and ending its body with its own line:
-  `[cut N bytes; whole: READ]`. `N` counts original body bytes removed,
-  excluding the added separator and cut line. `READ` is
-  `read_job/read_checks` for `CI`, `read_pull/read_pull_files` for
-  `Pull request`, `read_reviews/read_remarks` for `Reviews`, `read_docs`
-  for `Home`, `recall` for `Notes`, `the task's plan` for `Plan`, and
-  `the task's activity` for the other core sections; other titles use
-  `read_docs or the task's activity`.
-  When a title and its minimum cut line cannot fit, whole trailing
-  sections are omitted. One line records them, in their original order:
-  `[N sections omitted: TITLE, TITLE; whole: the task's activity]`.
-  It follows the last retained body, or stands in an untitled section
-  if none remains, only when it fits without cutting more retained
-  text. If even that line cannot fit, it is left out, down to an empty
-  brief at zero room. Fitting also keeps the charter within its admitted
-  ownership allowance. No run is refused for its brief's size; if the
-  non-brief host part or fixed declarations plus workspace alone exceed
-  their receiving bound, smith's declaration refusal still applies.
-- **Checked before a run meets it:** at start, and at temper's three
-  entrances of a change of settings that touches a charter (the
-  engine's `ChangeSettings` and `ProposeSettings` routes and a run's
-  `propose_settings`), temper sums each charter's offered tools, its
-  instructions with every one of its parts joined to them, the most any
-  of its runs can select, and the fixed parts, and refuses one that leaves its
-  brief less than 2,048 bytes, naming the charter and both figures
-  (`../../protocol/configuration/limits.md`). An item setting an
-  overlay is judged on the charter it makes over the charter's current
-  default (jig's `domain/engine/overlays.md`, 1), and the start's check,
-  over the defaults and again once the stored settings are restored,
-  judges each overlaid charter as its runs read it, so that a release
-  whose new default leaves an overlaid charter too little room stops
-  the start, naming the charter. A stored proposal's
-  acceptance, a restore and a reset carry values that passed an
-  entrance or the start, and the bound does not move while the engine
-  runs. The sum is a table of each host family's declaration bytes and
-  the charter's own text, where the domain reads it, not a call into
-  smith; a step test in `temper-engine-smith` holds the table equal to
-  smith's own measure. The bound is the engine's size profile's, the
-  one its workers are configured from (51,717 in the small one, for a
-  window of 177,523 tokens; in `standard`, the room of luna's window,
-  `charter.md`, 5); an
-  engine without that figure skips the start's check. A run smith
-  refuses for its host part anyway is held with smith's reason, the
-  bound and the figure, never a bare "invalid".
+- **A charter's room** is `room.md`'s: smith's host part's budget, the
+  allowance a charter is fitted to, how its brief is cut, what a refusal
+  names when the rest alone doesn't fit, and the checks at start and at
+  each change of settings.
 - **`repository`,** one of the project's repositories as `owner/name`:
   among its adopted repositories of any role, on forges not ended, the
   one named, or with no name the only one; with several and no name, or
@@ -521,14 +438,6 @@
   `temper-engine-smith`'s `turn` takes a turn request alone, and
   answers any other request, a job's included, as not a turn
   (`Problem::Type`).
-
-The refusal says `charter N leaves its brief R bytes of its host part's B;
-it needs at least 2,048`, with thousands' commas in the figures and room
-zero when the non-brief part consumes the bound. A party's direct change or
-proposal is refused as a judged charter item, naming its item index; a run's
-proposal receives a host error with these words and its run continues. On
-restart, a stored current charter that fails the check ends startup with
-`temper-box serve: restart refused: ` and the same diagnostic (2026-11-04).
 
 ## 1. A change, in the run's words
 
@@ -847,16 +756,6 @@ change, and the change lands, at a goal's run more than the chat's own
   parser's errors. Default: those words, until a proposal needs the same
   kind-specific guidance. Both tools' schemas name the numbered kinds.
 
-- **A charter where the process has no local agent.** The engine does not
-  know its remote worker's charter allowance, so it fits a charter
-  to the smaller of `hub.charter_bytes` and smith's 65,536 (`tools.md`), and a
-  remote worker that takes more, the reference's 127,480 among them,
-  receives its brief cut at 65,536. The worker's hello on jig's link, which
-  names its reply bound (`tools.md`), could carry the allowance beside it, or the
-  engine's document could name it in `hosts.workers`, and the request
-  `landing-behind-main` of 2026-11-08 asks it be sized as that bound is.
-  Default: the smaller of the two defaults.
-
 - **A collaborator's login in `read_collaborators`** (`tools.md`). Default: ids,
   with `read_permission` naming each.
 
@@ -872,7 +771,7 @@ change, and the change lands, at a goal's run more than the chat's own
   `settings` and delegate families alone, an asking charter its own tools
   alone, and every other host tool in every other charter (`tools.md`), and the
   authority refuses what it does not allow. Whether to declare only what the
-  charter names for the other families too, which the host part's budget (`tools.md`)
+  charter names for the other families too, which the host part's budget (`room.md`, 1)
   may force, and how a brief teaches an LLM when to delegate a task rather
   than a sub-agent. `withdraw`, offered to a chat and refused by its
   authority, since policy 1 gives no decide family

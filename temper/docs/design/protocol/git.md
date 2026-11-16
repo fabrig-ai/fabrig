@@ -888,9 +888,11 @@ variable of the worker's own process reaches git.
 - **One deadline per operation:** the domain's, from the checkout's
   `remote_timeout` or `local_timeout`. It covers the whole sequence,
   Commit's scan included. When it passes, the component signals `Kill` to
-  the current invocation's group and closes it; no further invocation
+  the current invocation's group, its reason `Deadline` (skein's
+  `runtime/io/processes.md`, section 5), and closes it; no further invocation
   starts; the operation ends `TimedOut` once the child has closed.
-- **Cancel** does the same and ends `Cancelled`. An operation whose last
+- **Cancel** does the same, its kill's reason `Cancelled`, and ends
+  `Cancelled`. A kill for broken io names `Closed`. An operation whose last
   invocation had already exited, its output read, when the cancel came
   ends with its own terminal: the outcome that won the race (the
   checkout's boundary, `Request::Cancel`). A cancel between two

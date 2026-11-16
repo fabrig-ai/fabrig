@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Reason, Signal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_world::{Host, Inherited, Machine};
 
@@ -11,6 +11,8 @@ use skein_world::{Host, Inherited, Machine};
 pub enum Act {
     /// The parent asks to start the hosted program.
     Spawn,
+    /// The parent starts the named hosted program.
+    SpawnProgram(&'static [u8]),
     /// Sets a terminal window size through its master.
     Resize(usize, skein_io::kernel::Size),
     /// Reads the terminal modes through its master.
@@ -41,6 +43,8 @@ pub enum Act {
     CloseLaunch,
     /// The parent sends an interrupt, termination or kill signal to its child.
     Signal(Signal),
+    /// The parent kills its child's group for this cause, as io's close does.
+    Kill(Reason),
     /// The child waits for a catchable signal from its parent.
     ReadSignal,
     /// The script stops until this simulated instant.
@@ -128,6 +132,14 @@ impl Script {
         script
     }
 
+    /// A hosted parent uses its last startup root to launch its own child.
+    #[must_use]
+    pub fn hosted_parent(inherited: &Inherited, acts: &[Act]) -> Self {
+        let mut script = Self::child(inherited, acts);
+        script.root = Some(script.roots.pop().expect("hosted parent's launch root"));
+        script
+    }
+
     /// Adopts scripted pipe or terminal descriptors opened by the binary kit.
     #[must_use]
     pub fn pipes(fds: Vec<Fd>, acts: &[Act]) -> Self {
@@ -144,9 +156,12 @@ impl Script {
 
     fn start(&mut self, act: Act, now: Time) {
         let kind = match act {
-            Act::Spawn | Act::SpawnStderr => Op::Spawn {
+            Act::Spawn | Act::SpawnStderr | Act::SpawnProgram(_) => Op::Spawn {
                 spawn: Box::new(Spawn {
-                    program: Box::from(&b"hosted"[..]),
+                    program: Box::from(match act {
+                        Act::SpawnProgram(program) => program,
+                        _ => &b"hosted"[..],
+                    }),
                     args: self.args.clone(),
                     env: Box::new([Box::from(&b"KEY=value"[..])]),
                     root: self.root.expect("parent root"),
@@ -184,9 +199,23 @@ impl Script {
             Act::ReadFile(index) => Op::Read { fd: self.fds[index], buf: Box::new([0; 32]), at: 0 },
             Act::CloseLaunch => Op::Close { fd: self.root.take().expect("launch root") },
             Act::Wait => Op::Wait { pidfd: self.pidfd.expect("spawned child"), reap: false },
-            Act::Signal(signal) => {
-                Op::Signal { pidfd: self.pidfd.expect("spawned child"), signal, to: skein_io::kernel::Target::Child }
-            }
+            Act::Signal(signal) => Op::Signal {
+                pidfd: self.pidfd.expect("spawned child"),
+                signal,
+                to: skein_io::kernel::Target::Child,
+                reason: match signal {
+                    Signal::Kill => skein_io::kernel::Reason::Asked,
+                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => {
+                        skein_io::kernel::Reason::Unknown
+                    }
+                },
+            },
+            Act::Kill(reason) => Op::Signal {
+                pidfd: self.pidfd.expect("spawned child"),
+                signal: Signal::Kill,
+                to: skein_io::kernel::Target::Group,
+                reason,
+            },
             Act::AwaitStderr(bytes) => {
                 self.awaiting = Some(bytes);
                 return;

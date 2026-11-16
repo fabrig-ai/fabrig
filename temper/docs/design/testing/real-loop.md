@@ -300,7 +300,23 @@ in the lower world that owns it, never here.
   undeclared obligation fails the story, and so does a declared leftover
   whose task has ended.
   Teardown's own check stays beside it: no child is killed but those a
-  story asks for.
+  story asks for, as many kills as its `Kill` steps and each a
+  `Signal(9)`, no more strict and no less.
+- **A kill no story asked for names its cause.** The check's finding
+  prints every kill the world recorded, one line each as skein's
+  `testing/README.md`, section 5 writes it, then each one's time from the run's
+  start in milliseconds, and then the service's notes from the run's
+  last 5 seconds: each note the service root took, kept with the
+  iteration's `now` it was taken at, those taken no more than 5 seconds
+  before the run's end, the latest 100 at most, oldest first, each as
+  its time from the run's start in milliseconds and its `Debug`. A
+  story's checks are `check(&Ran) -> Result<(), String>`, the finding
+  as a value (`README.md`, 4.2), which `checked` panics on, so a test
+  that runs a story to its end without them reads the finding itself.
+  A focused story whose agent ignores its cancellation and its grace
+  holds it: smith's supervision kills the agent, and the finding names
+  the agent's program, the service root as its killer and `forced after
+  its grace`.
 - **The forge and git:** skein's forge peer (skein's `testing/fakes/forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake

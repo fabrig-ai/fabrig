@@ -66,9 +66,9 @@ Its `store/` and `secrets/` must stand, or the start refuses,
 
 ### 1.4 The stores open
 
-The stores open (step 1), and the format row, the layouts and the
+The stores open (step 1), and the format row, the floor, the layouts and the
 deployment's header are read and checked (step 2, `records.md`, 3). Every refusal of
-the levels, versions, layouts and deployment comes here, and nothing has
+the levels, the floor, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
 (its next segment, a leftover snapshot's removal, and the snapshot a torn
 tail or a replay past its bound starts; skein's `data/kv.md`, sections 3 and
@@ -128,8 +128,9 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
   the baseline, the first build whose stores later builds upgrade, and this
-  start has changed nothing in it. A store from before the baseline is not
-  translated, so every start refuses this one until it is moved. To start
+  start has changed nothing in it. No build translates a store from before
+  the baseline, build `<bridge>` included, so every start refuses this one
+  until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
   the next start makes a new, empty store. The new store has no tasks,
@@ -137,13 +138,20 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
 - `OlderBuild { why: Behind }`: "`<deployment>` holds a store from an
   older build, at patch levels behind this build's, and this start has
   changed nothing in it. This build keeps no patch: start build
-  c1019509e3 on `<deployment>` and let it open, which brings it to this
+  `<bridge>` on it and let it open, which brings it to this
   build's levels, then start this build."
-- `OlderBuild { why: Unregistered }`: "`<deployment>` holds a store from
-  an older build, with values and no registry of their layouts, and this
-  start has changed nothing in it. This build registers no older store's
-  layouts: start build c1019509e3 on `<deployment>` and let it open,
-  which registers them, then start this build."
+- `OlderBuild { why: Floor }` (`records.md`, 3): "`<deployment>` holds a
+  store older than this build opens: it has no floor, or one below this
+  build's, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+- `OlderBuild { why: Unregistered }` (`layouts.md`, 5.1): "`<deployment>`
+  holds a store older than this build opens: it has no registry of its
+  layouts, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+
+`<bridge>` is `FLOOR_BRIDGE` (`records.md`, 3) in every refusal of a store
+older than the build, and only there.
+
 - `Ahead`: "`<deployment>` holds a store from a later build, at patch levels
   past this build's, and this start has changed nothing in it. No patch runs
   backwards: start the later build again, or restore `<deployment>` from a
@@ -195,7 +203,7 @@ pub enum OpenRefusal {
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
 pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2)
-pub enum Older { Layout(Family), Directory, Unleveled, Behind, Unregistered }
+pub enum Older { Layout(Family), Directory, Unleveled, Floor, Behind, Unregistered }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
 pub enum Check { Load { key }, Private { name } }
 ```
@@ -203,11 +211,11 @@ pub enum Check { Load { key }, Private { name } }
 `Older::Layout` is the component's own row at the binary's version that
 does not decode (`records.md`, 3), the only family it names now;
 `Unleveled` a level none where the binary's is set, the baseline's
-among them; `Behind` a level behind the binary's; `Unregistered` a store
-holding values and no registry (`layouts.md`, 5.1). The two last name
-the build that brings such a store to this one, c1019509e3, store-floor's
-F0, which still walks patches and seeds a registry (temper's
-`draft/store-floor.md`, section 3); `Check` names what
+among them; `Floor` a missing floor row or one below `FLOOR`, before a plan or
+rehearsal decoding; `Behind` a level behind the binary's; `Unregistered`
+a store holding values and no registry (`layouts.md`, 5.1). These three
+name `FLOOR_BRIDGE`, the build that brings such a store to this one
+(temper's `draft/store-floor.md`, section 3); `Check` names what
 failed: a row that does not load, by its key; a secrets' file
 that is not private, by its name. A job's write too large for a commit
 alone is the job's refusal (`jobs.md`, 3), so no check refuses a record
@@ -288,8 +296,7 @@ upgraded by the registry's commit and the jobs alone (temper's
    written, and no transcript.
    The store's
    last commit, one of its own after the last page's and the last job's, writes the format
-   row's levels and versions and the layouts, the binary's (`records.md`, 3), the
-   floor row where the store has none or one below the binary's floor (`records.md`, 3), and
+   row's levels and versions and the layouts, the binary's (`records.md`, 3), and
    the deployment's header as upgraded, naming that commit's number
    (`README.md`, section 5). The commits before it leave the header naming `A`'s
    last, which nothing reads: a cut removes `A + 1` (4), and the
@@ -655,7 +662,7 @@ deployment's lock as a start does (1, step 1).
   rehearsal there, with `Event::Undecodable` naming its family, version
   and place, and the plan does not run; all decoding, `Event::Decoded`
   with the count, and the plan runs. A store 1 refuses (ahead, behind,
-  unleveled, unregistered: `records.md`, 3; `layouts.md`, 5.1) is not
+  unleveled, below the floor, unregistered: `records.md`, 3; `layouts.md`, 5.1) is not
   walked: the refusal, the same as a start's, says why.
 - **Going back** (`Store::back`, over the deployment's directory): once
   an upgraded generation is active, its previous one, `A`, stays on disk

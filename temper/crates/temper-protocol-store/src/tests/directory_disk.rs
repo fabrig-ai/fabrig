@@ -49,46 +49,6 @@ impl Disk {
         let seeded = store::seed([a, b, c], 1);
         Self { machine, sim, pid, root: Root { token: Token::new(1), fd }, io, files, env, seeded }
     }
-    pub fn active(&mut self) -> Vec<u8> {
-        let root = self.machine.reopen_root(0);
-        let opened = self.machine.open(root, b"active", skein_fake_machine::How::ReadNoFollow).unwrap();
-        let bytes = self.machine.read(opened, 0, 64).unwrap();
-        self.machine.close(opened);
-        self.machine.close(root);
-        bytes
-    }
-    pub fn contents(&mut self) -> Vec<(Vec<u8>, u32, Vec<u8>)> {
-        let root = self.machine.reopen_root(0);
-        let mut found = Vec::new();
-        self.walk(root, b"", &mut found);
-        self.machine.close(root);
-        found.sort();
-        found
-    }
-    fn walk(&mut self, root: skein_fake_machine::Opened, path: &[u8], found: &mut Vec<(Vec<u8>, u32, Vec<u8>)>) {
-        use skein_fake_machine::{How, Is};
-        let dir = self.machine.open(root, if path.is_empty() { b"." } else { path }, How::DirectoryNoFollow).unwrap();
-        loop {
-            let entries = self.machine.list(dir, 32, 8192).unwrap();
-            if entries.is_empty() {
-                break;
-            }
-            for (kind, name) in entries {
-                let path = if path.is_empty() { name.to_vec() } else { [path, b"/", &name].concat() };
-                let file = self.machine.open(root, &path, How::ReadNoFollow).unwrap();
-                let mode = self.machine.stat(file).mode;
-                let bytes = if kind == Is::File { self.machine.read(file, 0, u32::MAX).unwrap() } else { vec![] };
-                self.machine.close(file);
-                if kind != Is::File || !bytes.is_empty() {
-                    found.push((path.clone(), mode, bytes));
-                }
-                if kind == Is::Directory {
-                    self.walk(root, &path, found);
-                }
-            }
-        }
-        self.machine.close(dir);
-    }
     pub fn restart(&mut self) {
         self.machine.crash(1);
         let handle = self.machine.reopen_root(0);
@@ -176,38 +136,5 @@ impl Disk {
         assert!(events.is_empty());
         let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
         Arrived { event, fd }
-    }
-    pub fn map(&mut self, generation: u64) -> skein_kv::Store {
-        let root = self.file(
-            0,
-            file::Request::OpenDirectory {
-                owner: Token::new(1),
-                root: self.root.fd,
-                name: format!("generations/{generation}/store").into_bytes().into(),
-                no_follow: true,
-            },
-        );
-        let mut map = skein_kv::Store::new(&self.env.limits.store);
-        let events = self.kv(&mut map, skein_kv::Request::Open { owner: Token::new(1), root: root.fd.unwrap() });
-        let [skein_kv::Event::Opened { .. }] = events.as_slice() else { panic!("fixture map opens: {events:?}") };
-        map
-    }
-    pub fn kv(&mut self, map: &mut skein_kv::Store, request: skein_kv::Request) -> Vec<skein_kv::Event> {
-        let env = self.env.with(self.env.limits.store);
-        let mut above = Queue::uncapped();
-        let mut below = Queue::uncapped();
-        skein_kv::down(map, &env, request, &mut above, &mut below);
-        for _ in 0_u32..10_000 {
-            let Some(request) = below.pop() else {
-                let mut events = Vec::new();
-                while let Some(event) = above.pop() {
-                    events.push(event);
-                }
-                return events;
-            };
-            let arrived = self.file(0, request);
-            skein_kv::up(map, &env, arrived.event, &mut above, &mut below);
-        }
-        panic!("fixture map settles");
     }
 }

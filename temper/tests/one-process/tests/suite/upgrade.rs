@@ -16,13 +16,6 @@ fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit(
     temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
 }
 #[test]
-fn the_golden_store_rehearsal_refuses_retired_milestones_without_writing() {
-    temper_one_process_world::upgrade::check::golden(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
-    );
-}
-
-#[test]
 fn power_lost_at_the_copys_first_write_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(0);
 }
@@ -47,45 +40,49 @@ fn a_story_keeps_its_history_through_a_settled_upgrade() {
     temper_one_process_world::upgrade::story::settled();
 }
 #[test]
-fn golden_rehearsal_decodes_all_kept_records_before_refusing_retired_milestones() {
+fn golden_rehearsal_decodes_every_record_and_restores_without_pending_work() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
-        false,
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),
     );
 }
 
 #[test]
 fn deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store() {
     temper_one_process_world::upgrade::rehearsal::deployment_check(
-        &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
+        &skein_scratch::paths::tree().join("tests/one-process/golden/floor"),
     );
 }
 
 #[test]
 fn configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report() {
     temper_one_process_world::upgrade::rehearsal::accounts_check(
-        &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
-    );
-}
-
-#[test]
-fn broken_golden_rehearsal_names_temper_record_and_leaves_source_unchanged() {
-    temper_one_process_world::upgrade::rehearsal::golden_check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
-        true,
+        &skein_scratch::paths::tree().join("tests/one-process/golden/floor"),
     );
 }
 
 #[test]
 fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
     temper_one_process_world::upgrade::golden_ranges(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),
     );
 }
 
 #[test]
 fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
     temper_one_process_world::upgrade::story::unsettled();
+}
+
+#[test]
+fn golden_rehearsal_names_the_broken_record() {
+    temper_one_process_world::upgrade::rehearsal::broken_check(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),
+    );
+}
+#[test]
+fn floorless_golden_rehearsal_refuses_before_decoding() {
+    temper_one_process_world::upgrade::rehearsal::floorless_check(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),
+    );
 }
 
 #[test]

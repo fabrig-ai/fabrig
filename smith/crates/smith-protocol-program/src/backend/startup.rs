@@ -567,7 +567,7 @@ fn follow(startup: &mut Startup, above: &mut Queue<mcp::Up>, below: &mut Queue<B
     startup.state = match state {
         State::Closing(Resources::CancelCheck(mut check)) => {
             let mut requests = Queue::uncapped();
-            check.cancel(&mut requests);
+            check.cancel(io::kernel::Reason::Closed, &mut requests);
             for _ in 0..requests.len() {
                 below.push(Below::Io(requests.pop().expect("command request")));
             }

@@ -177,32 +177,6 @@ fn catalogue_name(name: &[u8]) -> s::ModelName {
     }
 }
 
-pub(super) fn overlay() -> s::Overlay {
-    let charter = charter();
-    s::Overlay {
-        rest: Some(charter.rest),
-        model: Some(charter.policy.model),
-        alternatives: Some(charter.policy.alternatives),
-        inspect: Some(charter.policy.inspect),
-        modify: Some(charter.policy.modify),
-        shell: Some(charter.policy.shell),
-        agents: Some(charter.policy.agents),
-        tools: Some(charter.policy.tools),
-        hosts: Some(charter.hosts),
-        waiting: Some(charter.policy.waiting),
-        resume: Some(charter.policy.resume),
-        turns: Some(charter.policy.turns),
-        time: Some(charter.policy.time),
-        reserve_turns: Some(charter.policy.reserve_turns),
-        reserve_time: Some(charter.policy.reserve_time),
-        call_timeout: Some(charter.policy.call_timeout),
-        spend: Some(charter.spend),
-        documents: Some(charter.documents),
-        instructions: charter.policy.instructions,
-        parts: charter.parts,
-    }
-}
-
 mod applications;
 #[path = "models.rs"]
 mod models;

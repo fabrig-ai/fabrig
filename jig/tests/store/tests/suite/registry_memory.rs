@@ -9,7 +9,7 @@ use skein_heap::Meter;
 // Empty: peak 1,232,458, registry and read workspace retained 8,751 bytes.
 const EMPTY_PEAK: u64 = 1_600_000;
 const EMPTY_REGISTRY: u64 = 9_900;
-// Seeded at the last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
+// Seeded at current core/tasks and the other families' last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
 // Log-held conversion plans retain their fitted workspace and value buffer.
 const SEEDED_PEAK: u64 = 7_000_000;
 const SEEDED_REGISTRY: u64 = 2_400_000;
@@ -20,8 +20,6 @@ const SETS: OwnerSets =
 // A source binary registers these fixture layouts in its first commit.
 fn kept_text(family: &KeptFamily) -> &'static str {
     match family.name {
-        "jig-store-core" => include_str!("fixtures/jig-store-core-v6.schema"),
-        "jig-store-tasks" => include_str!("fixtures/jig-store-tasks-v13.schema"),
         "jig-store-people" => include_str!("fixtures/jig-store-people-v17.schema"),
         "jig-store-notes" => include_str!("fixtures/jig-store-notes-v1.schema"),
         "jig-store-accounts" => include_str!("fixtures/jig-store-accounts-v2.schema"),
@@ -72,20 +70,7 @@ fn sets(kept: bool, registered: bool) -> OwnerSets {
                 .collect::<Vec<_>>();
             OwnerSet {
                 families: Box::leak(families.into_boxed_slice()),
-                jobs: if !registered {
-                    &[]
-                } else if kept {
-                    Box::leak(
-                        set.jobs
-                            .iter()
-                            .filter(|job| !["settle-layouts", "ended-talk", "task-logs"].contains(&job.name))
-                            .copied()
-                            .collect::<Vec<_>>()
-                            .into_boxed_slice(),
-                    )
-                } else {
-                    set.jobs
-                },
+                jobs: if registered { set.jobs } else { &[] },
                 ..*set
             }
         })

@@ -971,6 +971,7 @@ impl Service {
                         child,
                         signal: kernel::Signal::Terminate,
                         to: kernel::Target::Child,
+                        reason: kernel::Reason::Unknown,
                     });
                 }
             }
@@ -2106,6 +2107,7 @@ pub(crate) mod pressure {
                 child,
                 signal: skein_io::kernel::Signal::Terminate,
                 to: skein_io::kernel::Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
             });
         }
     }

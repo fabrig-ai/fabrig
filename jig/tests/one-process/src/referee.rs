@@ -346,6 +346,19 @@ pub(super) fn terminals(store: &Store) -> u32 {
         .try_into()
         .expect("fixture terminals")
 }
+// A recovered claim can need a history append before its startup settlement is durable.
+fn claims_have_terminals(store: &Store) -> bool {
+    store.rows.values().all(|row| {
+        if let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = row {
+            store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Terminal {
+                task: proof.task,
+                attempt: proof.attempt,
+            })))
+        } else {
+            true
+        }
+    })
+}
 pub(super) fn settled(store: &Store) -> u32 {
     store
         .rows
@@ -689,7 +702,12 @@ impl Referee {
                     && (settled(&self.store.borrow()) > 0 || interrupted(&self.store.borrow()) > 0)
             }
             Scenario::MarkGate => gate_ready,
-            Scenario::Fault { .. } => *self.restarts.borrow() > 0 && clients_done && self.cold.is_none(),
+            Scenario::Fault { .. } => {
+                *self.restarts.borrow() > 0
+                    && clients_done
+                    && self.cold.is_none()
+                    && claims_have_terminals(&self.store.borrow())
+            }
         };
         if !self.done && reached {
             service.draining_after = Some(service.commits.len());

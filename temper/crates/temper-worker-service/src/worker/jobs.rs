@@ -1,4 +1,6 @@
 //! Job file and process operations (temper/docs/design/protocol/tooling.md, 2, 3 and 6).
+//! Each kill keeps the job's cause, including across a pending spawn
+//! (temper/docs/design/domain/worker/jobs.md, "A command is a process").
 mod files;
 use super::Worker;
 use alloc::boxed::Box;
@@ -22,7 +24,7 @@ struct Process {
     ended: [bool; 2],
     exit: Option<Exit>,
     told: bool,
-    killed: bool,
+    killed: Option<io::kernel::Reason>,
     aborted: bool,
     tail: ByteRing,
     setup: Box<[u8]>,
@@ -152,7 +154,11 @@ impl Worker {
                     }
                 }
                 if let Some(token) = found {
-                    self.jobs.processes.get_mut(&token).expect("owned job").kill(false, &mut self.io);
+                    self.jobs
+                        .processes
+                        .get_mut(&token)
+                        .expect("owned job")
+                        .kill(io::kernel::Reason::Cancelled, &mut self.io);
                 }
             }
             Request::Started { .. } | Request::StartRefused { .. } | Request::Ended { .. } | Request::Gone { .. } => {}
@@ -205,7 +211,8 @@ impl Worker {
             if abort {
                 process.abort(&mut self.io);
             } else {
-                process.kill(true, &mut self.io);
+                process.exit = Some(Exit::Deadline);
+                process.kill(io::kernel::Reason::Deadline, &mut self.io);
             }
         }
     }
@@ -253,7 +260,7 @@ impl Process {
             ended: [false; 2],
             exit: None,
             told: false,
-            killed: false,
+            killed: None,
             aborted: false,
             tail: ByteRing::new(tail_bytes),
             setup: joined(&[b"spawn command ", root, b"/", program, b" in ", root, b"/", dir]),
@@ -264,7 +271,7 @@ impl Process {
             return;
         }
         self.aborted = true;
-        self.kill(false, io);
+        self.kill(io::kernel::Reason::Closed, io);
         self.close_aborted(io);
     }
     fn close_aborted(&self, io: &mut Queue<io::Request>) {
@@ -275,17 +282,19 @@ impl Process {
             io.push(io::Request::Abort { entity: *pipe });
         }
     }
-    fn kill(&mut self, deadline: bool, io: &mut Queue<io::Request>) {
-        if self.killed {
+    fn kill(&mut self, reason: io::kernel::Reason, io: &mut Queue<io::Request>) {
+        if self.killed.is_some() {
             return;
         }
-        self.killed = true;
+        self.killed = Some(reason);
         self.deadline = None;
-        if deadline {
-            self.exit = Some(Exit::Deadline);
-        }
         if let Some(child) = self.child {
-            io.push(io::Request::Signal { child, signal: io::kernel::Signal::Kill, to: io::kernel::Target::Group });
+            io.push(io::Request::Signal {
+                child,
+                signal: io::kernel::Signal::Kill,
+                to: io::kernel::Target::Group,
+                reason,
+            });
         }
     }
     fn demand(pipe: Token, io: &mut Queue<io::Request>) {
@@ -307,11 +316,12 @@ impl Process {
                 self.child = Some(child);
                 self.pipes = [pipes.first().copied(), pipes.get(1).copied()];
                 above(events, self.owner, Event::Spawned { owner: self.owner });
-                if self.killed {
+                if let Some(reason) = self.killed {
                     io.push(io::Request::Signal {
                         child,
                         signal: io::kernel::Signal::Kill,
                         to: io::kernel::Target::Group,
+                        reason,
                     });
                 }
                 if self.aborted {

@@ -95,7 +95,15 @@ fn a_killed_childs_unread_output_is_settled() {
     assert_eq!(
         child
             .world
-            .call(child.parent, Op::Signal { pidfd: child.pidfd, signal: Signal::Kill, to: Target::Group })
+            .call(
+                child.parent,
+                Op::Signal {
+                    pidfd: child.pidfd,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: skein_io::kernel::Reason::Unknown
+                }
+            )
             .result,
         Ok(Done::Nothing)
     );
@@ -128,7 +136,10 @@ fn a_group_signal_reaches_a_member_the_leader_started_before_and_after_its_exit(
         }
         let reading = world.submit(parent, Op::PipeRead { fd: output, buf: Box::from([0_u8; 1]) });
         assert!(world.reap(parent).is_empty(), "the descendant keeps the pipe open");
-        let signalling = world.submit(parent, Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group });
+        let signalling = world.submit(
+            parent,
+            Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group, reason: skein_io::kernel::Reason::Unknown },
+        );
         let completed = world.reap(parent);
         assert_eq!(
             completed.iter().find(|complete| complete.op == reading).expect("the pipe ended").result,
@@ -179,7 +190,17 @@ fn an_unhandled_interrupt_ends_a_plain_child_with_signal_two() {
     for target in [Target::Child, Target::Group] {
         let (mut world, parent, root, pidfd) = rooted(Program::Never);
         assert_eq!(
-            world.call(parent, Op::Signal { pidfd, signal: Signal::Interrupt, to: target }).result,
+            world
+                .call(
+                    parent,
+                    Op::Signal {
+                        pidfd,
+                        signal: Signal::Interrupt,
+                        to: target,
+                        reason: skein_io::kernel::Reason::Unknown
+                    }
+                )
+                .result,
             Ok(Done::Nothing)
         );
         assert!(world.sim.trace().iter().any(|entry| matches!(
@@ -267,7 +288,7 @@ fn hosted_signal(signal: Signal, expected: ServiceSignal) {
         let source = world.sim.open_signal_source(service);
         world.sim.join_group(parent, member, parent, leader);
         let pidfd = if target == Target::Child { member } else { leader };
-        world.call(parent, Op::Signal { pidfd, signal, to: target });
+        world.call(parent, Op::Signal { pidfd, signal, to: target, reason: skein_io::kernel::Reason::Unknown });
         assert_eq!(
             world.call(service, Op::ReadSignal { fd: source }).result,
             Ok(Done::Signalled(skein_io::kernel::Signalled::Termination { signal: expected, sender: None }))
@@ -276,7 +297,15 @@ fn hosted_signal(signal: Signal, expected: ServiceSignal) {
         world.close(service, source);
         world.sim.finish_service(service, Exit::Code(0));
         if target == Target::Child {
-            world.call(parent, Op::Signal { pidfd: leader, signal: Signal::Kill, to: Target::Child });
+            world.call(
+                parent,
+                Op::Signal {
+                    pidfd: leader,
+                    signal: Signal::Kill,
+                    to: Target::Child,
+                    reason: skein_io::kernel::Reason::Unknown,
+                },
+            );
         }
         for pidfd in [leader, member] {
             world.call(parent, Op::Wait { pidfd, reap: false });
@@ -320,7 +349,10 @@ fn a_signal_after_the_reap_fails_the_world() {
     let (mut world, parent, _, pidfd) = rooted(Program::Exit(0));
     world.call(parent, Op::Wait { pidfd, reap: false });
     world.call(parent, Op::Wait { pidfd, reap: true });
-    let submit = Submit { op: world.token(), kind: Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group } };
+    let submit = Submit {
+        op: world.token(),
+        kind: Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group, reason: skein_io::kernel::Reason::Unknown },
+    };
     let finding = world.sim.check_submission(parent, &submit).unwrap_err();
     assert!(finding.contains("an operation after the reap"), "{finding}");
 }

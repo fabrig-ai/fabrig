@@ -167,7 +167,7 @@ impl Below {
                 self.spawn(owner, spawn);
             }
             records::Request::Stream { stream, down } => self.stream(stream, down),
-            records::Request::Signal { child, signal, to } => {
+            records::Request::Signal { child, signal, to, .. } => {
                 assert!(self.children.contains_key(&child));
                 assert_eq!(signal, kernel::Signal::Kill);
                 assert_eq!(to, kernel::Target::Group);

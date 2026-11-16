@@ -1,5 +1,6 @@
 use super::*;
 pub(crate) mod forge;
+mod logging;
 mod page;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
@@ -116,9 +117,7 @@ fn startup_orders_sign_ins_and_confines_programs() {
     }
     let first = b"http://127.0.0.1:9/link?secret=first\n";
     let actions = step(&mut m, Event::BoxLine { output: Output::Stdout, line: first.as_slice().into() });
-    let [Action::Log { .. }, Action::Start { process: Process::SignIn, program }] = actions.as_slice() else {
-        panic!("{actions:?}")
-    };
+    let [Action::Start { process: Process::SignIn, program }] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "-"]);
     assert_eq!(program.input, Input::Bytes(first.as_slice().into()));
@@ -126,10 +125,7 @@ fn startup_orders_sign_ins_and_confines_programs() {
         matches!(step(&mut m, exited(Process::SignIn, 0)).as_slice(), [Action::Open(url)] if url.as_ref() == first.strip_suffix(b"\n").expect("newline"))
     );
     let fresh = b"http://127.0.0.1:9/link?secret=fresh";
-    assert!(matches!(
-        step(&mut m, Event::BoxLine { output: Output::Stdout, line: fresh.as_slice().into() }).as_slice(),
-        [Action::Log { .. }]
-    ));
+    assert!(step(&mut m, Event::BoxLine { output: Output::Stdout, line: fresh.as_slice().into() }).is_empty());
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == fresh));
     assert!(
         matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == b"http://127.0.0.1:9/")
@@ -521,7 +517,7 @@ fn ctl_ready() -> Machine {
         &mut machine,
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
     );
-    assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::Start { process: Process::SignIn, .. }]));
+    assert!(matches!(actions.as_slice(), [Action::Start { process: Process::SignIn, .. }]));
     assert!(matches!(step(&mut machine, exited(Process::SignIn, 0)).as_slice(), [Action::Ready]));
     assert!(machine.ready());
     machine

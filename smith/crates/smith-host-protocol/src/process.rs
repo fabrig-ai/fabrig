@@ -263,10 +263,10 @@ impl Process {
         self.channel_below.pop()
     }
 
-    /// Send a domain stop to io's child and acknowledge its accepted request.
-    pub fn signal(&self, signal: kernel::Signal, below: &mut Queue<IoRequest>) {
+    /// Send a domain stop to io's child with its sender's reason.
+    pub fn signal(&self, signal: kernel::Signal, reason: kernel::Reason, below: &mut Queue<IoRequest>) {
         let child = self.child.expect("a signal names a spawned child");
-        below.push(IoRequest::Signal { child, to: kernel::Target::Child, signal });
+        below.push(IoRequest::Signal { child, to: kernel::Target::Child, signal, reason });
     }
 
     /// Consume an io observation for this child or one of its pipes.

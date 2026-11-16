@@ -88,6 +88,41 @@ pub enum Path {
     RecordTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ProjectSectionTag => "ProjectSection (tag)",
+            Self::TaskSectionTag => "TaskSection (tag)",
+            Self::AddressInboxProject => "AddressInbox.project",
+            Self::AddressInboxTail => "AddressInbox (tail)",
+            Self::AddressConversationsProject => "AddressConversations.project",
+            Self::AddressConversationsTail => "AddressConversations (tail)",
+            Self::AddressTaskTask => "AddressTask.task",
+            Self::AddressTaskSection => "AddressTask.section",
+            Self::AddressTaskTail => "AddressTask (tail)",
+            Self::AddressProjectProject => "AddressProject.project",
+            Self::AddressProjectSection => "AddressProject.section",
+            Self::AddressProjectTail => "AddressProject (tail)",
+            Self::AddressTag => "Address (tag)",
+            Self::PlaceParty => "Place.party",
+            Self::PlaceAddress => "Place.address",
+            Self::PlaceTail => "Place (tail)",
+            Self::DraftParty => "Draft.party",
+            Self::DraftTask => "Draft.task",
+            Self::DraftWords => "Draft.words",
+            Self::DraftTouched => "Draft.touched",
+            Self::DraftTail => "Draft (tail)",
+            Self::JigRecordTag => "JigRecord (tag)",
+            Self::RecordStoreVersion => "Record.store_version",
+            Self::RecordRecord => "Record.record",
+            Self::RecordVersion => "Record (version)",
+            Self::RecordTail => "Record (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

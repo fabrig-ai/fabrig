@@ -149,9 +149,7 @@ its parts, `../tasks/messages.md`, 6.
   2, after its catch-up patch; old values retain their fields and gain
   no overlay (`temper/docs/design/protocol/baseline.md`, 7). A stored
   charter version is one root, `CharterVersion`, with an optional
-  overlay. jig's written job `charter-versions` puts each version
-  stored before it again as that root
-  (`../../protocol/store/layouts.md`, 2). The client
+  overlay (`../../protocol/store/layouts.md`, 2). The client
   wire moves from version 19 to 20, and a client of another version is
   refused (`../../protocol/client/README.md`, 6).
 - **Bounds:** an overlay's instructions and each part are bounded as a

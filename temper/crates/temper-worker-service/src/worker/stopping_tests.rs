@@ -221,9 +221,12 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             match request {
-                io::Request::Signal { child, signal: kernel::Signal::Kill, to: kernel::Target::Group }
-                    if child == Token::new(901) =>
-                {
+                io::Request::Signal {
+                    child,
+                    signal: kernel::Signal::Kill,
+                    to: kernel::Target::Group,
+                    reason: kernel::Reason::Closed,
+                } if child == Token::new(901) => {
                     killed = true;
                 }
                 io::Request::Abort { entity } | io::Request::Close { entity }
