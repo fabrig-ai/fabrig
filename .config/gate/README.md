@@ -20,15 +20,19 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 3. **The wasm32 clippy:** `cargo clippy --target wasm32-unknown-unknown -p PKG ... -- -D warnings`,
    with a `-p` for each package in `.config/gate/wasm32.txt`.
    Rule: `skein/docs/design/testing/README.md`, 10, “Checked in the gate”.
-4. **The focused and fuzzy suites:** `tools/tiers/one-process default` (focused)
-   and `tools/tiers/one-process fuzzy`, the profiles `.config/nextest.toml`
+4. **The focused and fuzzy suites:** `tools/tiers/one-process --walls
+   .config/gate/walls.toml default` (focused) and `tools/tiers/one-process
+   --walls .config/gate/walls.toml fuzzy`, the profiles `.config/nextest.toml`
    defines: each test binary's selected tests in one process, one at a time, and
    binaries in parallel (`tools/tiers/design.md`, 11), with nextest as their front
    end, selecting and building. For a selection, add a `-p` for each package, as
-   in item 2; with none, each runs the whole workspace. Rules:
+   in item 2; with none, each runs the whole workspace. The walls file holds
+   the gate's wall limits, 270 s focused and 215 s fuzzy, in place of the
+   profiles' own (`tools/tiers/design.md`, 11.7). Rules:
    `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: each tree's CPU
-   budget, over budget is red, starved is a warning. Slow-tier profiles never run
-   in the gate.
+   budget, over budget is red, starved is a warning; a run its wall stopped
+   runs once more, and stopped again it is red unless the gate's own cgroup
+   was starved. Slow-tier profiles never run in the gate.
 5. **The old-forms counts:** `(cd TREE && python3 -I -B scripts/old_forms.py)` for
    each tree the branch touches; add `--write` to lower counts for what it removed.
    Counts only fall (`tools/old_forms/README.md`).
