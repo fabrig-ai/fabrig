@@ -62,6 +62,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if !floor(store, owner, above) {
+        return;
+    }
     if !crate::rehearsal::records(store, owner, found_levels, above) {
         return;
     }
@@ -133,6 +136,35 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
             corrupt_header(store, owner, restore::DecodeFailure::KeyValueDisagree, above);
         }
     }
+}
+
+/// The floor precedes planning and rehearsal decoding (protocol/store/records.md, 3).
+fn floor(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
+    let key = keys::encode_own(&keys::Own::Floor, store.limits.store.key).expect("floor key fits");
+    let bytes = match get_open(store, owner, key.clone()) {
+        Ok(bytes) => bytes,
+        Err(why) => {
+            refuse(store, owner, why, above);
+            return false;
+        }
+    };
+    let number = if let Some(bytes) = bytes {
+        let Ok(row) =
+            crate::component_v3::Floor::decode(&crate::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+        else {
+            data(store, &key, restore::DecodeFailure::Value);
+            corrupt(store, owner, above);
+            return false;
+        };
+        Some(row.number())
+    } else {
+        None
+    };
+    if number < Some(crate::FLOOR) {
+        refuse(store, owner, OpenRefusal::OlderBuild { why: Older::Floor }, above);
+        return false;
+    }
+    true
 }
 
 fn wanted(store: &Store, found: plan::Levels, binary: plan::Levels, deployment: [u8; 16]) -> codec::component::Format {

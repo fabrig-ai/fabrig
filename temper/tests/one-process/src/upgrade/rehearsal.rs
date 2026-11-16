@@ -176,17 +176,15 @@ fn collect(disk: &mut Machine, root: Opened, prefix: &[u8], found: &mut Contents
     }
 }
 
-/// Rehearse the production sets; the broken copy has a valid KV commit holding
-/// an invalid application record. Only the scratch may change in either case.
-pub fn golden_check(directory: &Path, broken: bool) {
-    golden_check_with(directory, broken, golden::read_configuration(directory));
+/// Rehearse the production sets; the floor refuses before records are decoded.
+pub fn golden_check(directory: &Path) {
+    golden_check_with(directory, golden::read_configuration(directory));
 }
 
 /// A deployment's remote workers and owned Forgejo must stay unstarted.
 pub fn deployment_check(directory: &Path) {
     golden_check_with(
         directory,
-        false,
         serde_json::to_vec(&deployment_document(directory)).expect("deployment configuration"),
     );
 }
@@ -236,22 +234,11 @@ pub fn accounts_check(directory: &Path) {
             "redirect_path":"callback"
         }});
     }
-    golden_check_with(directory, false, serde_json::to_vec(&document).expect("accounts configuration"));
+    golden_check_with(directory, serde_json::to_vec(&document).expect("accounts configuration"));
 }
 
-fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
+fn golden_check_with(directory: &Path, configuration: Vec<u8>) {
     let mut disk = golden::files::load(directory);
-    let maps = super::maps::Maps::read(&mut disk);
-    let expected = maps.store.len() - 4 + maps.secrets.len();
-    let key = maps
-        .store
-        .keys()
-        .find(|key| key.first() == Some(&jig_protocol_store::keys::APPLICATION))
-        .expect("temper record")
-        .clone();
-    if broken {
-        break_record(&mut disk, &maps, &key);
-    }
     let before = contents(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
     CONFIGURATION.with(|bytes| *bytes.borrow_mut() = configuration);
@@ -272,81 +259,20 @@ fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
     let outcome = world.run();
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let (lines, code) = render(&tool.0);
-    eprintln!("golden maps: {expected} kept records\n{lines}");
+    eprintln!("{lines}");
     assert_eq!(code, 1, "{lines}");
-    if broken {
-        use std::fmt::Write;
-        let mut hex = String::new();
-        for byte in key {
-            write!(hex, "{byte:02x}").expect("hex key");
-        }
-        assert!(lines.contains(&format!("record not decodable: temper-store 11, store key {hex}\n")), "{lines}");
-        assert!(!lines.contains("decoded ") && !lines.contains("patched "), "no plan runs: {lines}");
-    } else {
-        assert!(lines.contains(&format!("decoded {expected} records\n")), "{lines}");
-        assert!(
-            lines.contains(
-                "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
-            ),
-            "{lines}"
-        );
-        assert!(!lines.contains("patched ") && !lines.contains("patches and restores pass"), "{lines}");
-    }
+    assert!(
+        lines.contains("holds a store older than this build opens: it has no floor, or one below this build's"),
+        "{lines}"
+    );
+    assert!(
+        !lines.contains("decoded ")
+            && !lines.contains("record not decodable:")
+            && !lines.contains("patched ")
+            && !lines.contains("patches and restores pass"),
+        "{lines}"
+    );
     let mut disk = outcome.machine.0.borrow_mut();
     assert_eq!(contents(&mut disk, 0), before, "every source path and byte unchanged");
     assert!(contents(&mut disk, 2).is_empty(), "close emptied scratch");
-}
-
-fn break_record(disk: &mut Machine, maps: &super::maps::Maps, key: &[u8]) {
-    let active = maps.active;
-    let files = contents(disk, 0);
-    let prefix = format!("generations/{active}/store/log-");
-    let last = files
-        .iter()
-        .filter(|(path, _)| path.starts_with(prefix.as_bytes()))
-        .flat_map(|(_, bytes)| {
-            crate::referee::durable::frames(bytes.as_ref().expect("log bytes"), 0)
-                .0
-                .into_iter()
-                .map(|(number, _)| number)
-        })
-        .max()
-        .expect("golden log commits");
-    let header_key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
-    let encoded_key = jig_protocol_store::keys::encode(&header_key, 64).expect("header key");
-    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(mut header)) =
-        jig_protocol_store::codec::decode(
-            &header_key,
-            maps.store.get(encoded_key.as_ref()).expect("header"),
-            &fixtures::codec(),
-            fixtures::store_names(),
-        )
-        .expect("header decodes")
-    else {
-        panic!("deployment header")
-    };
-    header.commits = last + 1;
-    let header = jig_protocol_store::codec::encode(
-        &jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)),
-        &fixtures::codec(),
-        fixtures::store_names(),
-    )
-    .expect("header encodes");
-    let mut body = Vec::new();
-    for (key, value) in [(key, b"".as_slice()), (encoded_key.as_ref(), header.as_ref())] {
-        body.push(1);
-        body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
-        body.extend(key);
-        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
-        body.extend(value);
-    }
-    let mut frame = b"SKVC".to_vec();
-    frame.extend(1_u16.to_be_bytes());
-    frame.extend((last + 1).to_be_bytes());
-    frame.extend(2_u32.to_be_bytes());
-    frame.extend(u32::try_from(body.len()).expect("frame length").to_be_bytes());
-    frame.extend(body);
-    let crc = jig_protocol_store::transcripts::frame::crc32c(&frame);
-    frame.extend(crc.to_be_bytes());
-    machine::lay_handover(disk, format!("state/generations/{active}/store/log-{:020}", last + 1).as_bytes(), &frame);
 }

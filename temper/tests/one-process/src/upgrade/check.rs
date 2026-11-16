@@ -132,7 +132,7 @@ pub fn prebaseline_rehearsals() {
     let before_levels =
         [0, 3, 0, 3, 0, 6, 0, 9, 0, 13, 0, 1, 0, 2, 0, 1, 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7];
     for format in [unleveled.encode().expect("unleveled format"), Box::from(before_levels)] {
-        source_rehearsal(&format, "A store from before the baseline is not translated");
+        source_rehearsal(&format, "No build translates a store from before the baseline");
     }
 }
 
@@ -309,9 +309,7 @@ pub fn golden(directory: &Path) {
     assert_eq!(code, 1, "{report}");
     assert!(patches.is_empty(), "refusal precedes every patch");
     assert!(
-        report.contains(
-            "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
-        ),
+        report.contains("holds a store older than this build opens: it has no floor, or one below this build's"),
         "{report}"
     );
     assert!(!report.contains("patches and restores pass"), "{report}");

@@ -39,22 +39,7 @@ pub(super) fn begin(
     let Some(layouts_key) = keys::encode_own(&keys::Own::Layouts, store.limits.store.key) else {
         return refuse(store, above);
     };
-    let Some(floor_key) = keys::encode_own(&keys::Own::Floor, store.limits.store.key) else {
-        return refuse(store, above);
-    };
-    let floor = match crate::open::get(store, skein_lib::Token::new(0), floor_key.clone()) {
-        Ok(None) => true,
-        Ok(Some(bytes)) => {
-            let Ok(row) =
-                crate::component_v3::Floor::decode(&crate::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
-            else {
-                return refuse(store, above);
-            };
-            row.number() < crate::FLOOR
-        }
-        Err(_why) => return refuse(store, above),
-    };
-    let capacity = if floor { 4 } else { 3 };
+    let capacity = 3;
     if store.limits.store.ops < capacity {
         return refuse(store, above);
     }
@@ -66,14 +51,6 @@ pub(super) fn begin(
             return refuse(store, above);
         }
         ops.push(skein_kv::Op::Put { key, value }).expect("three sealing puts");
-    }
-    if floor {
-        let value = codec::component::floor(store.build_name);
-        let Some(total) = put_size(&floor_key, &value, size) else { return refuse(store, above) };
-        if total > u64::from(store.limits.store.commit) {
-            return refuse(store, above);
-        }
-        ops.push(skein_kv::Op::Put { key: floor_key, value }).expect("four sealing puts");
     }
     state(store, Patching::Sealing { number, before, counts });
     commits::submit(store, env, number, ops.into_boxed(), above, below);

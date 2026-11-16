@@ -112,25 +112,6 @@ fn assert_counts(parsed: &[&str], layouts: u32) {
 }
 
 #[test]
-fn seeding_and_older_rows_reuse_each_parse_and_layout() {
-    let mut store = planning_store(SETS);
-    fixtures::plant(
-        &mut store.stores,
-        &[skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 2, 0, 42]) }],
-    );
-    assert_eq!(super::open(&mut store, false), Ok(true));
-    assert_counts(&[KEPT, CURRENT], 2);
-    assert_schemas_dropped(&store.registry);
-    persist_registry(&mut store);
-
-    // The old row is still held by its values, beside the binary's stored row.
-    assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT], 2);
-    assert_eq!(store.registry.rows.len(), 2);
-    assert_schemas_dropped(&store.registry);
-}
-
-#[test]
 fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, true), Ok(true));
@@ -158,59 +139,6 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     for (_, row) in &store.registry.rows {
         assert!(!row.retire, "both stored ids have values and need their checks");
     }
-    assert_schemas_dropped(&store.registry);
-}
-
-#[test]
-fn seeding_families_share_held_parses_and_keep_distinct_layout_inputs() {
-    use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, HOLDER};
-    const OTHER: &str =
-        "family fixture-other 1\nversioned record Other { child: bytes 32 holds fixture-child Child }\n";
-    const HOLDER_FAMILY: KeptFamily = KeptFamily {
-        name: "fixture-holder",
-        texts: &[HOLDER],
-        current: HOLDER,
-        keys: &[Keys { from: b"h", to: b"i", root: "Row" }, Keys { from: b"j", to: b"k", root: "Row" }],
-        types: &[
-            ValueType { number: 0, root: "Row", variant: Some("changed"), keys: &[KeyRange { from: b"h", to: b"i" }] },
-            ValueType { number: 1, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"j", to: b"k" }] },
-        ],
-        ..FAMILY
-    };
-    const SETS: PatchSets = PatchSets {
-        sets: &[PatchSet {
-            families: &[
-                FAMILY,
-                HOLDER_FAMILY,
-                KeptFamily {
-                    name: "fixture-child",
-                    texts: &[CHILD],
-                    current: CHILD_CURRENT,
-                    keys: &[],
-                    types: &[],
-                    ..FAMILY
-                },
-                KeptFamily {
-                    name: "fixture-other",
-                    texts: &[OTHER],
-                    current: OTHER,
-                    keys: &[Keys { from: b"o", to: b"p", root: "Other" }],
-                    types: &[ValueType {
-                        number: 0,
-                        root: "Other",
-                        variant: None,
-                        keys: &[KeyRange { from: b"o", to: b"p" }],
-                    }],
-                    ..FAMILY
-                },
-            ],
-            ..SET
-        }],
-    };
-    let mut store = planning_store(SETS);
-    assert_eq!(super::open(&mut store, false), Ok(true));
-    assert_counts(&[KEPT, CURRENT, HOLDER, CHILD, CHILD_CURRENT, OTHER], 8);
-    assert_eq!(counting::get().held.len(), 6);
     assert_schemas_dropped(&store.registry);
 }
 

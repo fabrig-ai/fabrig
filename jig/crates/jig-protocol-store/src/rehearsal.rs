@@ -212,6 +212,16 @@ fn fresh(store: &mut Store, owner: Token) -> bool {
     if crate::format::compare(format.levels, crate::levels(&store.patch_sets)) != Ok(crate::format::Compared::Behind) {
         return false;
     }
+    let Some(key) = crate::keys::encode_own(&crate::keys::Own::Floor, store.limits.store.key) else { return false };
+    let Ok(Some(bytes)) = open::get(store, owner, key) else { return false };
+    let Ok(row) =
+        crate::component_v3::Floor::decode(&crate::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    else {
+        return false;
+    };
+    if row.number() < crate::FLOOR {
+        return false;
+    }
     let Ok(checked) = crate::patching::plan::checked(store) else { return false };
     let Ok(plan) =
         crate::patching::plan::plan(&store.patch_sets, checked, &format.levels, &crate::levels(&store.patch_sets))

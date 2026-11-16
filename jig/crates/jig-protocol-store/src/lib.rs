@@ -17,6 +17,8 @@ pub use census::{CENSUS_EVERY, Keyspaces};
 
 /// The oldest store this build serves (protocol/store/records.md, 3).
 pub const FLOOR: u32 = 1;
+/// The build to open older stores with before this build (protocol/store/records.md, 3).
+pub const FLOOR_BRIDGE: &str = "3d1c717d379e";
 mod directory;
 pub mod ended;
 pub mod format;

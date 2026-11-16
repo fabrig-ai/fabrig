@@ -499,9 +499,14 @@ pub fn read(directory: &Path) {
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
     assert!(
-        matches!(service.service.end(), Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
-        temper_service::EngineStop::StoreOpen { why: jig_protocol_store::OpenRefusal::Layout { family, value_type: 10, why: jig_protocol_store::Unplanned::Retired, .. } }
-    ))) if family.as_ref() == "jig-store-tasks"),
+        matches!(
+            service.service.end(),
+            Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
+                temper_service::EngineStop::StoreOpen {
+                    why: jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Floor }
+                }
+            )))
+        ),
         "{:?}",
         service.service.end()
     );

@@ -1,4 +1,4 @@
-//! A type absent from a kept text has no seed layout (protocol/store/layouts.md, 5.1).
+//! An added type registers its binary layout (protocol/store/layouts.md, 5.2).
 use super::*;
 
 fn added(variant: bool) -> PatchSet {
@@ -31,7 +31,7 @@ fn added(variant: bool) -> PatchSet {
 fn a_type_absent_from_the_kept_text_registers_only_its_current_layout_at_the_family_version() {
     for variant in [false, true] {
         let set = added(variant);
-        let mut disk = Disk::new(&base(false, true));
+        let mut disk = Disk::new(&base());
         let mut store = store(&disk, set);
         let events = disk.open(&mut store);
         let Some(Event::Opened { pending: true, .. }) = events.first() else { panic!("{events:?}") };
@@ -46,31 +46,5 @@ fn a_type_absent_from_the_kept_text_registers_only_its_current_layout_at_the_fam
         let mut reopened = self::store(&disk, set);
         let events = disk.open(&mut reopened);
         let Some(Event::Opened { pending: false, .. }) = events.first() else { panic!("{events:?}") };
-    }
-}
-
-#[test]
-fn a_type_absent_from_the_kept_text_refuses_existing_rows_in_its_range() {
-    for variant in [false, true] {
-        let mut disk = Disk::new(&base(false, false));
-        let old = KeptFamily { types: &[], current: KEPT, ..FAMILY };
-        let old = PatchSet { families: Box::leak(Box::new([old])), ..SET };
-        let mut store = store(&disk, old);
-        assert_opened(&disk.open(&mut store), 1);
-        raw(
-            &mut disk,
-            &mut store,
-            vec![skein_kv::Op::Put { key: b"\x02e/0".as_slice().into(), value: Box::from([0, 2, 1]) }],
-        );
-        let mut disk = Disk::new(&disk.items());
-        let before = snapshot(&mut disk);
-        let mut store = self::store(&disk, added(variant));
-        let events = disk.open(&mut store);
-        let [Event::OpenRefused { why: OpenRefusal::Set { owner: Owner::Application, patch: 0 }, .. }] =
-            events.as_ref()
-        else {
-            panic!("{events:?}")
-        };
-        assert_eq!(snapshot(&mut disk), before);
     }
 }

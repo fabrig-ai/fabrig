@@ -392,7 +392,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     check::retired(store, &mut layouts)?;
     let mut binary = texts::Binary::new(&store.patch_sets, &mut layouts)?;
     if !seeded && !empty {
-        rows::seed(store, &mut layouts, &mut binary)?;
+        return Err(OpenRefusal::OlderBuild { why: crate::Older::Unregistered });
     }
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();

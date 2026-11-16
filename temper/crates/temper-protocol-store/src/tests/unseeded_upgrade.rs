@@ -1,4 +1,4 @@
-//! Landed patches run before a real store's registry seed (jig protocol/store/layouts.md, 5.1).
+//! A store without a registry refuses before upgrading (jig protocol/store/layouts.md, 5.1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,
@@ -85,7 +85,7 @@ fn kv_get(disk: &mut Disk, map: &mut skein_kv::Store, key: Box<[u8]>) -> Option<
     value.clone()
 }
 #[test]
-fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
+fn unseeded_v23_and_v12_rows_refuse_before_upgrade() {
     let mut disk = Disk::new();
     let old = old_sets();
     let mut before = component(&disk, old);
@@ -121,36 +121,13 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     drop(map);
     disk.restart();
     let mut current = component(&disk, SETS);
-    let mut events = alloc::collections::VecDeque::from(disk.open(&mut current));
-    let mut patched = Vec::new();
-    let mut opened = false;
-    while let Some(event) = events.pop_front() {
-        match event {
-            Event::Patched { of, patch, .. } => patched.push((of, patch)),
-            Event::Job { owner, of, job, page } => {
-                let answer = match of {
-                    store::Owner::Application => {
-                        let bounds =
-                            crate::bounds(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-                        let present = crate::jobs::read_present(&mut current, &bounds).unwrap();
-                        crate::jobs::page(&job, &page, &present, &bounds)
-                    }
-                    store::Owner::Jig => store::jobs::page(&job, &page),
-                    store::Owner::Skein | store::Owner::Smith => panic!("no upstream jobs"),
-                };
-                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
-            }
-            Event::Opened { pending: true, .. } => opened = true,
-            Event::Census { .. } | Event::Ran { .. } => {}
-            other => panic!("upgrade: {other:?}; {:?}", current.start_open_failure()),
-        }
-    }
-    assert!(opened);
-    assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6), (store::Owner::Application, 14)]);
-    let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
-    let [Event::Switched { .. }] = switched.as_slice() else { panic!("switch: {switched:?}") };
-    drop(current);
-    disk.restart();
+    let events = disk.open(&mut current);
+    let [Event::OpenRefused { why: store::OpenRefusal::OlderBuild { why: store::Older::Unregistered }, .. }] =
+        events.as_slice()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(disk.active(), b"1\n");
 }
 
 fn without_deleted_repository_job() -> PatchSets {

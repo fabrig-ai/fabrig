@@ -16,7 +16,7 @@ fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit(
     temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
 }
 #[test]
-fn the_golden_store_rehearsal_refuses_retired_milestones_without_writing() {
+fn the_golden_store_rehearsal_refuses_the_floor_without_writing() {
     temper_one_process_world::upgrade::check::golden(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
     );
@@ -43,10 +43,9 @@ fn a_story_keeps_its_history_through_a_settled_upgrade() {
     temper_one_process_world::upgrade::story::settled();
 }
 #[test]
-fn golden_rehearsal_decodes_all_kept_records_before_refusing_retired_milestones() {
+fn golden_rehearsal_refuses_the_floor_before_decoding() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
-        false,
     );
 }
 
@@ -61,14 +60,6 @@ fn deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store() {
 fn configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report() {
     temper_one_process_world::upgrade::rehearsal::accounts_check(
         &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
-    );
-}
-
-#[test]
-fn broken_golden_rehearsal_names_temper_record_and_leaves_source_unchanged() {
-    temper_one_process_world::upgrade::rehearsal::golden_check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
-        true,
     );
 }
 

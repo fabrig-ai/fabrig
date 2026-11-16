@@ -1,5 +1,5 @@
-//! A baseline row reaches the copy-and-patch path through the simulated disk.
-use jig_protocol_store::{Family, OpenRefusal, Owner, PatchSet, PatchSets, codec, keys};
+//! A baseline row refuses at the floor through the simulated disk.
+use jig_protocol_store::{OpenRefusal, PatchSets, codec, keys};
 use jig_store_world::{World, patches, root};
 use skein_fake_machine::Item;
 
@@ -84,43 +84,6 @@ fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_pro
     world
 }
 
-// Keep the fixture's changes and sites, with the real jig changes that its
-// baseline format row now needs. The reviewed fixture patch files do not change.
-fn baseline_fixture_sets() -> PatchSets {
-    let jig = patches::SETS.sets[1];
-    let families =
-        jig.families.iter().chain(jig_protocol_accounts::JIG_PATCH_SET.families).copied().collect::<Vec<_>>();
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[0].split_once("\n\n").expect("real jig blocks");
-    let first: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[0]).into_boxed_str());
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[1].split_once("\n\n").expect("real overlay blocks");
-    let second: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[1]).into_boxed_str());
-    // The fixture has no third patch: its header names the fixture's owner, as the
-    // planner reads each patch's owner against its set's name.
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[2].split_once("\n\n").expect("real retry blocks");
-    let third: &'static str = Box::leak(format!("patch 1\nowner {} 3\n\n{blocks}", jig.name).into_boxed_str());
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[3].split_once("\n\n").expect("real terminal login blocks");
-    let fourth: &'static str = Box::leak(format!("patch 1\nowner {} 4\n\n{blocks}", jig.name).into_boxed_str());
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[4].split_once("\n\n").expect("real refusal reason blocks");
-    let fifth: &'static str = Box::leak(format!("patch 1\nowner {} 5\n\n{blocks}", jig.name).into_boxed_str());
-    let (_, blocks) = jig_protocol_store::patches::PATCHES[5].split_once("\n\n").expect("real question wake blocks");
-    let sixth: &'static str = Box::leak(format!("patch 1\nowner {} 6\n\n{blocks}", jig.name).into_boxed_str());
-    let texts = Box::leak(vec![first, second, third, fourth, fifth, sixth].into_boxed_slice());
-    PatchSets {
-        sets: Box::leak(Box::new([
-            jig_protocol_store::SKEIN_PATCH_SET,
-            jig_protocol_store::SMITH_PATCH_SET,
-            patches::SETS.sets[0],
-            PatchSet {
-                level: Some(6),
-                patches: texts,
-                families: Box::leak(families.into_boxed_slice()),
-                jobs: jig_protocol_store::JIG_STORE_PATCH_SET.jobs,
-                ..jig
-            },
-        ])),
-    }
-}
-
 const REAL_SETS: PatchSets = PatchSets {
     sets: &[
         jig_protocol_store::SKEIN_PATCH_SET,
@@ -130,79 +93,7 @@ const REAL_SETS: PatchSets = PatchSets {
 };
 
 #[test]
-fn real_jig_set_versions_match_each_level() {
-    let baseline = codec::component::Format {
-        application: root::APPLICATION.version,
-        deployment: root::DEPLOYMENT,
-        ..fixed::BASELINE.format
-    };
-    let binary = jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT);
-    for (level, mut expected, steps) in [
-        (
-            0,
-            baseline,
-            &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
-        ),
-        (
-            1,
-            codec::component::Format { tasks: 10, people: 15, settings: 2, ..binary },
-            &[(Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
-        ),
-        (
-            2,
-            codec::component::Format { tasks: 10, people: 15, ..binary },
-            &[(Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
-        ),
-        (
-            3,
-            codec::component::Format { tasks: 11, people: 16, ..binary },
-            &[(Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
-        ),
-        (4, codec::component::Format { tasks: 11, ..binary }, &[(Owner::Jig, 5), (Owner::Jig, 6)][..]),
-        (5, codec::component::Format { tasks: 12, ..binary }, &[(Owner::Jig, 6)][..]),
-        (6, binary, &[][..]),
-    ] {
-        expected.levels =
-            codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
-        let mut valid = source_world(expected, Vec::new(), REAL_SETS);
-        assert!(valid.open_switched().is_some(), "jig level {level}: {:?}", valid.refusal());
-        assert_eq!(
-            valid.patched().iter().map(|(owner, patch, _)| (*owner, *patch)).collect::<Vec<_>>(),
-            steps,
-            "jig level {level}"
-        );
-        for family in [
-            Family::Component,
-            Family::Core,
-            Family::Tasks,
-            Family::People,
-            Family::Notes,
-            Family::Accounts,
-            Family::Settings,
-        ] {
-            let mut bad = expected;
-            let version = match family {
-                Family::Component => &mut bad.component,
-                Family::Core => &mut bad.core,
-                Family::Tasks => &mut bad.tasks,
-                Family::People => &mut bad.people,
-                Family::Notes => &mut bad.notes,
-                Family::Accounts => &mut bad.accounts,
-                Family::Settings => &mut bad.settings,
-                _ => unreachable!("format family"),
-            };
-            let wanted = u32::from(*version);
-            *version = version.checked_add(1).expect("one past this family's level");
-            let found = u32::from(*version);
-            let mut world = source_world(bad, Vec::new(), REAL_SETS);
-            assert_eq!(world.open_switched(), None, "{family:?} at level {level}");
-            assert_eq!(world.refusal(), Some(&OpenRefusal::Format { family, found, wanted }));
-        }
-    }
-}
-
-#[test]
-fn baseline_rehearsal_decodes_first_kept_versions_before_patches() {
+fn baseline_rehearsal_refuses_the_floor_before_decoding() {
     let limits = patches::limits();
     let format = codec::component::Format {
         application: root::APPLICATION.version,
@@ -214,56 +105,25 @@ fn baseline_rehearsal_decodes_first_kept_versions_before_patches() {
         .into_iter()
         .map(|(key, value)| (keys::application(&key, limits.store.key).expect("application key"), value))
         .collect();
-    let mut world = source_world(format, rows, baseline_fixture_sets());
+    let mut world = source_world(format, rows, REAL_SETS);
     let before = world.contents();
     let events = world.rehearse();
-    assert!(matches!(events.get(1), Some(jig_protocol_store::Event::Decoded { records: 8, .. })), "{events:?}");
-    assert!(matches!(events.last(), Some(jig_protocol_store::Event::Opened { pending: true, .. })), "{events:?}");
+    assert!(
+        matches!(
+            events.as_slice(),
+            [
+                jig_protocol_store::Event::Rehearsing { fresh: false, .. },
+                jig_protocol_store::Event::OpenRefused {
+                    why: OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Floor },
+                    ..
+                }
+            ]
+        ),
+        "{events:?}"
+    );
     assert_eq!(world.contents(), before);
     let closed = world.request(jig_protocol_store::Request::Close { owner: skein_lib::Token::new(900) });
     assert!(matches!(closed.as_slice(), [jig_protocol_store::Event::Closed { removed: true, .. }]));
     assert!(world.scratch_contents().is_empty());
     assert_eq!(world.contents(), before);
-}
-
-#[test]
-fn baseline_store_is_patched_from_zero_and_opens() {
-    let baseline = &fixed::BASELINE;
-    let limits = patches::limits();
-    let format = codec::component::Format {
-        application: root::APPLICATION.version,
-        deployment: root::DEPLOYMENT,
-        ..baseline.format
-    };
-    let mut records = patches::Records::story();
-    records.tokens.clear();
-    let rows = records
-        .rows(1)
-        .into_iter()
-        .map(|(key, value)| (keys::application(&key, limits.store.key).expect("application key"), value))
-        .collect();
-    let mut world = source_world(format, rows, baseline_fixture_sets());
-    let opened = world.open_switched();
-    assert!(opened.is_some(), "baseline opens through patching: {:?}", world.refusal());
-    assert_eq!(world.active(), b"2\n");
-    assert_eq!(
-        world.patched().iter().map(|(owner, patch, _)| (*owner, *patch)).collect::<Vec<_>>(),
-        [
-            (Owner::Application, 1),
-            (Owner::Jig, 1),
-            (Owner::Application, 2),
-            (Owner::Jig, 2),
-            (Owner::Jig, 3),
-            (Owner::Jig, 4),
-            (Owner::Jig, 5),
-            (Owner::Jig, 6)
-        ]
-    );
-    records.check(&mut world, 2, &"baseline patched from zero");
-    let manifest = world.contents().remove(b"generations/2/manifest".as_slice()).flatten().expect("patched manifest");
-    let manifest = codec::component::Manifest::decode(&manifest).expect("manifest");
-    assert_eq!(
-        manifest.before,
-        codec::component::Levels { jig: Some(0), application: Some(0), skein: Some(0), smith: Some(0) }
-    );
 }

@@ -4,9 +4,9 @@ use crate::{Load, Restore};
 use skein_codec::{schema, value::Value};
 
 fn opened() -> (Disk, Store) {
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base());
     let mut store = store(&disk, SET);
-    assert_opened(&disk.open(&mut store), 4);
+    assert_opened(&disk.open(&mut store), 3);
     switch(&mut disk, &mut store);
     (disk, store)
 }
@@ -47,14 +47,14 @@ fn alias(store: &mut Store, number: u16, from: u16, to: u16) -> skein_kv::Op {
 }
 
 #[test]
-fn new_value_types_register_at_the_seed_and_read_back() {
+fn new_value_types_register_the_binary_layout_and_read_back() {
     const KEPT_NEW: &str = "family fixture-layouts 2\nenum Value { stable }\nversioned record Row { value: Value }\n";
     const CURRENT_NEW: &str = "family fixture-layouts 2\nrecord Payload { n: u8 }\nenum Value { stable, added: Payload }\nversioned record Row { value: Value }\nversioned record Added { n: u8 }\n";
     const NEW_FAMILY: KeptFamily = KeptFamily {
         texts: &[KEPT_NEW],
         current: CURRENT_NEW,
         keys: &[Keys { from: b"a", to: b"c", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
-        // New types occupy census-distinct prefixes so the seed can prove their ranges empty.
+        // Each type occupies its own key range.
         types: &[
             ValueType { number: 0, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"a", to: b"b" }] },
             ValueType { number: 1, root: "Row", variant: Some("added"), keys: &[KeyRange { from: b"b", to: b"c" }] },
@@ -63,11 +63,17 @@ fn new_value_types_register_at_the_seed_and_read_back() {
         ..FAMILY
     };
     const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], level: Some(0), patches: &[], ..SET };
+    const OLD_SET: PatchSet = PatchSet {
+        families: &[KeptFamily {
+            current: KEPT_NEW,
+            keys: &[Keys { from: b"a", to: b"b", root: "Row" }],
+            types: &[NEW_FAMILY.types[0]],
+            ..NEW_FAMILY
+        }],
+        ..NEW_SET
+    };
     let mut disk = Disk::new(&[]);
-    let mut before = fresh(
-        &mut disk,
-        PatchSet { families: &[KeptFamily { current: KEPT_NEW, types: &[], ..NEW_FAMILY }], ..NEW_SET },
-    );
+    let mut before = fresh(&mut disk, OLD_SET);
     raw(
         &mut disk,
         &mut before,
