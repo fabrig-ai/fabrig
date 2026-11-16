@@ -25,7 +25,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"role", line: b"Standing roles: start, list, read their Now or report, and talk" },
     Group { name: b"proposal", line: b"Proposals: read one, decide it" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
-    Group { name: b"change", line: b"Changes: read a change's way to landing" },
+    Group { name: b"change", line: b"Changes: open one or read its way to landing" },
     Group { name: b"finding", line: b"Findings: file, read, hand on and triage them" },
     Group { name: b"need", line: b"Needs: ask a person with choices and why" },
     Group { name: b"tier", line: b"Tiers: hold or release a repository's after-landing tier" },
@@ -152,6 +152,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::DEPLOYMENT_CENSUS,
     &crate::tier::HOLD,
     &crate::tier::RELEASE,
+    &crate::change::open::ROW,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;

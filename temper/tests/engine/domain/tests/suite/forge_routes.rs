@@ -55,6 +55,7 @@ mod rules_by_path;
 mod context_projects;
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
+mod opened_panel;
 #[path = "forge_routes/resource_admission.rs"]
 mod resource_admission;
 
@@ -92,6 +93,7 @@ mod light_rules;
 
 #[path = "forge_routes/catch_up.rs"]
 mod catch_up;
+mod opened;
 
 #[path = "forge_routes/squash_in.rs"]
 mod squash_in;

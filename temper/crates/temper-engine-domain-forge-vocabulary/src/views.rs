@@ -25,6 +25,7 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "the change document carries its bounded source panel inline")]
 pub enum Document {
     Findings(crate::Findings),
     Change(Panel),
@@ -222,6 +223,9 @@ impl Document {
                     .saturating_add(panel.landing.len())
                     .saturating_add(panel.approval_bytes())
                     .saturating_add(panel.gates.len().saturating_mul(size_of::<crate::PanelGate>()));
+                if let Some(source) = &panel.source {
+                    size = size.saturating_add(source.branch.len());
+                }
                 if let crate::PanelStep::Queued { ahead, .. } = &panel.step {
                     size = size.saturating_add(size_of_val(ahead.as_ref()));
                 }

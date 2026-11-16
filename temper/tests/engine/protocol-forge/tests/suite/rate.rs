@@ -103,6 +103,7 @@ impl Scheduler {
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
                         | change::Decision::Finish { .. }
+                        | change::Decision::Failed
                         | change::Decision::NoChange
                         | change::Decision::Cancel
                         | change::Decision::Hold(_)) => panic!("kept change must wait: {other:?}"),

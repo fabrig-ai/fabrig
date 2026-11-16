@@ -7,6 +7,12 @@ mod refusal;
 
 pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -> w::Application {
     let outcome = match outcome {
+        d::ApplicationOutcome::Opened { task } => {
+            w::ApplicationOutcome::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { task: *task }).expect(FITS))
+        }
+        d::ApplicationOutcome::OpenRefused(reason) => w::ApplicationOutcome::OpenRefused(
+            w::OpenRefused::new(&w::CEILINGS, w::OpenRefusedParts { reason: encode_open_refusal(reason) }).expect(FITS),
+        ),
         d::ApplicationOutcome::Follow(refusal) => w::ApplicationOutcome::Follow(
             w::FollowOutcome::new(&w::CEILINGS, w::FollowOutcomeParts { refusal: refusal.clone() }).expect(FITS),
         ),
@@ -48,6 +54,10 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
 pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let w::ApplicationParts { token, until, outcome } = value.into_parts();
     let outcome = match outcome {
+        w::ApplicationOutcome::Opened(value) => d::ApplicationOutcome::Opened { task: value.task() },
+        w::ApplicationOutcome::OpenRefused(value) => {
+            d::ApplicationOutcome::OpenRefused(decode_open_refusal(value.into_parts().reason))
+        }
         w::ApplicationOutcome::Follow(value) => d::ApplicationOutcome::Follow(value.into_parts().refusal),
         w::ApplicationOutcome::MakeKept => d::ApplicationOutcome::MakeKept,
         w::ApplicationOutcome::MakeRefused(why) => {
@@ -77,6 +87,58 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
         }
     };
     Ok(d::Stored::Application { token, until: Wall::from_nanos(until), outcome })
+}
+fn encode_open_refusal(value: &d::OpenRefusal) -> w::OpenRefusal {
+    match value {
+        d::OpenRefusal::NoRepository => w::OpenRefusal::NoRepository,
+        d::OpenRefusal::NotARepository => w::OpenRefusal::NotARepository,
+        d::OpenRefusal::NamePast { bound } => {
+            w::OpenRefusal::NamePast(w::NamePast::new(&w::CEILINGS, w::NamePastParts { bound: *bound }).expect(FITS))
+        }
+        d::OpenRefusal::UnderPrefix { owner, name, prefix } => w::OpenRefusal::UnderPrefix(
+            w::UnderPrefix::new(
+                &w::CEILINGS,
+                w::UnderPrefixParts { owner: owner.clone(), name: name.clone(), prefix: prefix.clone() },
+            )
+            .expect(FITS),
+        ),
+        d::OpenRefusal::Several(names) => {
+            let mut repositories = skein_lib::List::with_capacity(w::CEILINGS.several_repositories_repositories);
+            for named in names {
+                repositories
+                    .push(
+                        w::OpenRepository::new(
+                            &w::CEILINGS,
+                            w::OpenRepositoryParts { owner: named.owner.clone(), name: named.name.clone() },
+                        )
+                        .expect(FITS),
+                    )
+                    .expect(FITS);
+            }
+            w::OpenRefusal::Several(
+                w::SeveralRepositories::new(&w::CEILINGS, w::SeveralRepositoriesParts { repositories }).expect(FITS),
+            )
+        }
+    }
+}
+fn decode_open_refusal(value: w::OpenRefusal) -> d::OpenRefusal {
+    match value {
+        w::OpenRefusal::NoRepository => d::OpenRefusal::NoRepository,
+        w::OpenRefusal::NotARepository => d::OpenRefusal::NotARepository,
+        w::OpenRefusal::NamePast(value) => d::OpenRefusal::NamePast { bound: value.bound() },
+        w::OpenRefusal::UnderPrefix(value) => {
+            let value = value.into_parts();
+            d::OpenRefusal::UnderPrefix { owner: value.owner, name: value.name, prefix: value.prefix }
+        }
+        w::OpenRefusal::Several(value) => {
+            let mut repositories = skein_lib::List::with_capacity(w::CEILINGS.several_repositories_repositories);
+            for named in value.into_parts().repositories.into_boxed() {
+                let named = named.into_parts();
+                repositories.push(d::DraftRepository { owner: named.owner, name: named.name }).expect(FITS);
+            }
+            d::OpenRefusal::Several(repositories.into_boxed())
+        }
+    }
 }
 fn encode_reason(v: d::AdoptionRefusal) -> w::ForgeReason {
     match v {

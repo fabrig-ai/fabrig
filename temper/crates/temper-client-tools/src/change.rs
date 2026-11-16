@@ -1,5 +1,6 @@
 //! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
 mod history;
+pub(crate) mod open;
 use crate::{
     jig::{
         self,
@@ -27,7 +28,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 pub const READ: Tool = Tool {
     name: b"change show",
     line: b"Read a change's way to landing: its pull request, CI and step",
-    prints: b"`change N`, its repository, branch and landing branch, its pull request, step and CI at its head; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest",
+    prints: b"`change N`, its repository, branch and landing branch, its pull request, step and CI at its head; for an opened change, its source branch, the commit named or `its head`, and the head taking kept; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest",
     result: b"change",
     forms: &[&[
         positional(b"task", b"TASK", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The change task's number"),
@@ -884,6 +885,7 @@ fn landed(step: &w::Step) -> Option<&[u8; 32]> {
         w::Step::Cleared(value) => Some(value.merge()),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -906,6 +908,7 @@ fn step(step: &w::Step) -> &'static [u8] {
         w::Step::Ended => b"ended",
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -966,6 +969,7 @@ fn repair(step: &w::Step) -> Option<&'static [u8]> {
         }),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -1034,6 +1038,23 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
     out.key(b"head");
     match panel.head() {
         Some(head) => out.string(&hex(head)),
+        None => out.null(),
+    }
+    out.key(b"source");
+    match panel.source() {
+        Some(source) => {
+            out.object_start();
+            out.key(b"branch");
+            out.string(source.branch());
+            for (key, commit) in [(b"at".as_slice(), source.at()), (b"kept", source.kept())] {
+                out.key(key);
+                match commit {
+                    Some(commit) => out.string(&words::source_commit(commit)),
+                    None => out.null(),
+                }
+            }
+            out.object_end();
+        }
         None => out.null(),
     }
     out.key(b"pull");
@@ -1306,6 +1327,16 @@ fn text_heading(panel: &w::ChangePanel, out: &mut Text) {
     text_pull(panel, out);
     out.put(b"step: ");
     out.put(step(panel.step()));
+    if *panel.step() == w::Step::Taking
+        && let Some(source) = panel.source()
+    {
+        out.put(b" ");
+        out.put(source.branch());
+        if let Some(kept) = source.kept() {
+            out.put(b" ");
+            out.put(&words::source_commit(kept));
+        }
+    }
     if let w::Step::Landed(landed) = panel.step() {
         out.put(b" \xc2\xb7 merge commit ");
         out.put(&hex(landed.merge()));
@@ -1493,6 +1524,20 @@ fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
     out.put(b" \xc2\xb7 CI ");
     out.put(if panel.ci_required() { ci(panel.ci()) } else { b"not required" });
     out.put(b"\n");
+    if let Some(source) = panel.source() {
+        out.put(b"source: ");
+        out.put(source.branch());
+        out.put(b" at ");
+        match source.at() {
+            Some(at) => out.put(&words::source_commit(at)),
+            None => out.put(b"its head"),
+        }
+        if let Some(kept) = source.kept() {
+            out.put(b" \xc2\xb7 kept ");
+            out.put(&words::source_commit(kept));
+        }
+        out.put(b"\n");
+    }
     if panel.gates().is_empty() {
         out.put(b"gates: none\n");
     }
@@ -1581,6 +1626,7 @@ fn tier_lines(step: &w::Step) -> &[Box<[u8]>] {
         w::Step::Cleared(value) => value.tiers().as_slice(),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -1612,6 +1658,7 @@ fn progress(step: &w::Step) -> Progress {
         w::Step::Landed(_) | w::Step::Ended => Progress::Ended,
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating

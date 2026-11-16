@@ -240,6 +240,9 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
             w::NoChange::new(&w::CEILINGS, w::NoChangeParts { words: words.clone() }).expect(FITS),
         ),
         d::State::Ended => w::ChangeLive::Ended,
+        d::State::Taking { requested } => w::ChangeLive::Taking(
+            w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
+        ),
         d::State::Producing { requested } => w::ChangeLive::Producing(
             w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
         ),
@@ -349,6 +352,7 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
         d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
         d::State::NoChange { .. }
         | d::State::Ended
+        | d::State::Taking { .. }
         | d::State::Producing { .. }
         | d::State::Opening { .. }
         | d::State::Recreating { .. }
@@ -364,6 +368,7 @@ fn decode_live(value: w::ChangeLive) -> d::State {
     match value {
         w::ChangeLive::NoChange(value) => d::State::NoChange { words: value.into_parts().words },
         w::ChangeLive::Ended => d::State::Ended,
+        w::ChangeLive::Taking(value) => d::State::Taking { requested: value.requested() },
         w::ChangeLive::Producing(value) => {
             let w::ProducingParts { requested } = value.into_parts();
             d::State::Producing { requested }
@@ -464,6 +469,7 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
         w::ChangeLive::Uncleared(value) => d::State::Uncleared { merge: value.into_parts().merge },
         w::ChangeLive::NoChange(_)
         | w::ChangeLive::Ended
+        | w::ChangeLive::Taking(_)
         | w::ChangeLive::Producing(_)
         | w::ChangeLive::Opening(_)
         | w::ChangeLive::Recreating(_)
@@ -692,6 +698,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
     let top::ChangeCold {
+        source,
         task,
         repository,
         branch,
@@ -713,6 +720,7 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
     w::ChangeCold::new(
         &w::CEILINGS,
         w::ChangeColdParts {
+            source: encode_source(source.as_ref()),
             task: *task,
             repository: names::encode_repository(*repository),
             branch: branch.clone(),
@@ -745,6 +753,7 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
 }
 pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
     let w::ChangeColdParts {
+        source,
         task,
         repository,
         branch,
@@ -764,6 +773,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
         report,
     } = value.into_parts();
     top::ChangeCold {
+        source: decode_source(source),
         goal,
         task,
         repository: names::decode_repository(repository),
@@ -792,6 +802,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
+        kept,
         task_release,
         job,
         signed,
@@ -823,6 +834,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
+            kept: *kept,
             task_release: match task_release {
                 Some(release) => Some(
                     w::TaskRelease::new(
@@ -901,6 +913,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
+        kept,
         task_release,
         job,
         signed,
@@ -930,6 +943,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         history,
     } = value.into_parts();
     Ok(top::ChangeHot {
+        kept,
         task_release: match task_release {
             Some(release) => {
                 let w::TaskReleaseParts { revision, at } = release.into_parts();
@@ -1340,4 +1354,16 @@ fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
         faults,
         held,
     }
+}
+
+fn encode_source(value: Option<&top::ChangeSource>) -> Option<w::ChangeSource> {
+    let value = value?;
+    Some(
+        w::ChangeSource::new(&w::CEILINGS, w::ChangeSourceParts { branch: value.branch.clone(), at: value.at })
+            .expect(FITS),
+    )
+}
+fn decode_source(value: Option<w::ChangeSource>) -> Option<top::ChangeSource> {
+    let w::ChangeSourceParts { branch, at } = value?.into_parts();
+    Some(top::ChangeSource { branch, at })
 }

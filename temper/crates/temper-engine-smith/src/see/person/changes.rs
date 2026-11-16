@@ -82,6 +82,7 @@ pub(super) fn change(number: u64, document: &Document, lines: &mut List<Box<[u8]
             PanelStep::Ended
             | PanelStep::Ready { .. }
             | PanelStep::Preparing { .. }
+            | PanelStep::Taking
             | PanelStep::Producing
             | PanelStep::Opening
             | PanelStep::Recreating
@@ -154,6 +155,7 @@ fn step(value: &PanelStep) -> &'static [u8] {
         PanelStep::Ended => b"ended",
         PanelStep::Ready { .. } => b"ready",
         PanelStep::Preparing { .. } => b"preparing",
+        PanelStep::Taking => b"taking",
         PanelStep::Producing => b"producing",
         PanelStep::Opening => b"opening",
         PanelStep::Recreating => b"recreating",

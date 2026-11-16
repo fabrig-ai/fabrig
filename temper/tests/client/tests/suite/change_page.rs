@@ -180,6 +180,7 @@ fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
     let step = value.step().clone();
     let page = text(&world, client);
     let line = match step {
+        w::Step::Taking => "taking",
         w::Step::Ended => "Change ended.",
         w::Step::Ready(ref ready) => match ready.landing() {
             Some(_) => "Ready: its landing, task ",

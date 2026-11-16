@@ -1,13 +1,13 @@
 
-  ▄█▀▀   temper 0.0.0 (1e97a8e49d66-dirty)
- ▄█▄█▄█  127.0.0.1:44009
-
- Nothing needs you.
+  ▄█▀▀   temper 0.0.0 (bdd75c9b558d-dirty)
+ ▄█▄█▄█  127.0.0.1:40161
 
  Start
-   /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
+
+
+
 
 
 
