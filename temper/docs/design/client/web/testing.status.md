@@ -45,22 +45,6 @@
   1,048,576-byte bound. The passing long browser story spans three small
   windows, while the unanchored position history stays within one; neither
   substitutes for that whole-bound check (`README.md`, section 3).
-- **Not yet:** 3, 6: story 14 doesn't hold on a loaded machine (3, *A loaded
-  machine*): after landing it fails at a different step each run and passes
-  idle, its cause unknown. `latest`'s sent words "Sent while far back in the
-  conversation." missing, or seen with no box; `unanchored`'s second-last
-  message "Position paragraph 02." missing after opening, and its "Loading
-  earlier messages" missing after PageUp with serve stopped; once, at
-  `0599201e87`, `long`'s words moved across a read, from y=519 to y=558
-  (`held`). The repair `red-87-reading` ran it by name, alone, 30 times,
-  unloaded and under 16 CPU busy loops spread over a larger machine's cores,
-  and every run passed. [in flight: change 5439]
-- **Not yet:** 3, 6: story 2 doesn't hold on a loaded machine (3, *A loaded
-  machine*): after landing its call line's "Read 2 docs" is missing after the
-  reply, its press on Night mode across a reload is refused `Covered` or
-  `Hidden`, and its press on Closed lands on Drafts as the project's ways
-  arrive (7, *A filter row while its project's ways arrive*), the address
-  then `/chats?state=drafts`. Idle, it passes. [in flight: change 5440]
 - **Not yet:** 6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
