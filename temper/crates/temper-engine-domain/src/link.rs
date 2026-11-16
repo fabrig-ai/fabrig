@@ -842,6 +842,8 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            source: None,
+            kept: None,
             task_release: None,
             job: None,
             signed: Box::new([]),
@@ -879,6 +881,7 @@ mod tests {
                 owns_turn: false,
                 last_head: Some([7; 32]),
                 last_checked: None,
+                clock: None,
             },
             pull: Some(7),
             pending: None,

@@ -31,7 +31,8 @@ are comparable.
   age: the order above, aging included, chooses only who takes the turn
   next. It keeps its turn through a clean update, CI on its new head (a
   re-run of the runner's failures there included, `change/README.md`, 2,
-  step 3), its gates carried over and its merge, so no CI run is wasted
+  step 3, and its wait for a runner, `change/stalls.md`, 2.4), its gates
+  carried over and its merge, so no CI run is wasted
   by a change overtaking it. It **leaves the queue** on a conflict, on a
   check that fails (CI, a gate asked again), on a gate added, when held
   or closing, when its task is kept by a dependency added to it, when a
@@ -143,7 +144,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
 - **Its place there,** `Pull.queued`, is read with the pull request and
   shown in the change's panel ("in GitHub's merge queue, n";
   `../../client/forge/README.md`, a change's panel). The wait there is bounded by
-  the stall (`change/repairs.md`).
+  the stall (`change/stalls.md`).
 - **Cancelled while there,** the change waits for its merge's entry to
   settle, landed or ejected, and what landed counts (`change/README.md`, 4): temper never
   takes a pull request out of the forge's queue itself (`README.md`, section 11).

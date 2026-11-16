@@ -235,7 +235,10 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let temporary = directory.join("copy.tmp");
         remove(&temporary)?;
         private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
-        self.archive.create(&self.paths.scratch, &temporary)?;
+        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary) {
+            remove(&temporary)?;
+            return Err(why);
+        }
         let kept = directory.join(format!("{}-{}.tar", recipe.hash, self.pass.build));
         io(&kept, fs::rename(&temporary, &kept))?;
         for entry in io(&directory, fs::read_dir(&directory))? {

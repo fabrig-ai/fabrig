@@ -139,6 +139,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.change_policy.questions`: count, 4. Bounds questions raised in a change.
 - `forge.change_policy.tasks`: count, 6. Bounds the producer, reviews and repairs a change may create.
 - `forge.change_policy.stall_ms`: milliseconds, 1,800,000. Bounds the wait for a silent forge during a change.
+- `forge.change_policy.unknown_grace_ms`: milliseconds, 1,800,000. Bounds the grace for CI that says nothing of its execution at checking.
+- `forge.change_policy.runner_wait_ms`: milliseconds, 14,400,000. Bounds the wait for a runner at checking.
 - `forge.change_policy.gates`: count, 8. Bounds gates retained by a change.
 - `forge.change_policy.clean_heads`: count, 8. Bounds clean branch heads retained by a change.
 - `forge.issue_policy.plan_items`: count, 8. Bounds items in an issue plan.

@@ -276,7 +276,8 @@ fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
         | temper_engine_domain_forge_change::State::Red { merge, .. }
         | temper_engine_domain_forge_change::State::Cleared { merge }
         | temper_engine_domain_forge_change::State::Uncleared { merge } => *merge,
-        temper_engine_domain_forge_change::State::Producing { .. }
+        temper_engine_domain_forge_change::State::Taking { .. }
+        | temper_engine_domain_forge_change::State::Producing { .. }
         | temper_engine_domain_forge_change::State::Opening { .. }
         | temper_engine_domain_forge_change::State::Recreating { .. }
         | temper_engine_domain_forge_change::State::Reopening { .. }

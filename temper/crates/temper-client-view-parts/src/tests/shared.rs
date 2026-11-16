@@ -342,3 +342,59 @@ fn shared_finding_refusal_says_full_and_context_free_owners_and_areas() {
     );
     assert_eq!(shared::finding_refusal(&words, &held).as_ref(), b"Not yours: its owner is task 41");
 }
+
+#[test]
+fn findings_reach_words_name_the_triager_and_the_work() {
+    use d::pages::needs::Why;
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Offer, Reach, Reason, Subject};
+    let w = f::browser_words();
+    let root = d::unlinked(&f::domain_limits(), f::SEED);
+    let subject = Subject::Kind(Kind::Findings);
+    let classes = Classes {
+        items: Box::new([Item { subject, words: b"small repairs".as_slice().into(), class: Class::Ask }]),
+        sets: Box::default(),
+    };
+    let reach = Reach {
+        kind: Kind::Findings,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    for (plural, expected) in [
+        (false, "Reached you because it starts work on findings, which asks you unless you’re away."),
+        (true, "These reached you because they start work on findings, which asks you unless you’re away."),
+    ] {
+        assert_eq!(
+            shared::why_words(&root, &w, &Why::Reach { project: f::PROJECT, reach }, plural).as_deref(),
+            Some(expected.as_bytes())
+        );
+    }
+    for (under, object, allowed, offer, rule) in [
+        (
+            0,
+            "starting work on findings",
+            "Allowed: starting work on findings.",
+            "Let the triager start goals for findings, then tell you.",
+            "Stop asking: let the triager start goals for findings",
+        ),
+        (
+            1,
+            "starting work on findings under “small repairs”",
+            "Allowed: starting work on findings under “small repairs”.",
+            "Let the triager start goals for findings under “small repairs”, then tell you.",
+            "Stop asking: let the triager start goals for findings under “small repairs”",
+        ),
+    ] {
+        let reach = Reach { under, ..reach };
+        assert_eq!(shared::object(&w, subject, under, Some(&classes)).as_ref(), object.as_bytes());
+        assert_eq!(
+            shared::allowed(&w, &Reach { class: Class::Decide, ..reach }, Some(&classes)).as_ref(),
+            allowed.as_bytes()
+        );
+        assert_eq!(shared::offer(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), offer.as_bytes());
+        assert_eq!(shared::rule(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), rule.as_bytes());
+    }
+}

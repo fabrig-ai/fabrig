@@ -588,7 +588,7 @@ fn forge_document_forms_use_the_registered_connector_and_round_trip() {
 
 const PROJECT_WAYS: &[u8] = br#"{"kind":"project-ways","project":7}"#;
 const PROJECT_CLASSES: &[u8] = br#"{"kind":"project-classes","project":7}"#;
-const CLASSES: &[u8] = br#"{"items":[{"kind":"implementation","words":"","class":"decide"},{"kind":"tests","words":"Keep coverage","class":"ask"},{"set":1,"words":"","class":"ask-away"}],"sets":[{"number":1,"name":"Core","patterns":["src/**","Cargo.*"]}]}"#;
+const CLASSES: &[u8] = br#"{"items":[{"kind":"findings","words":"","class":"decide"},{"kind":"tests","words":"Keep coverage","class":"ask"},{"set":1,"words":"","class":"ask-away"}],"sets":[{"number":1,"name":"Core","patterns":["src/**","Cargo.*"]}]}"#;
 const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"way":4294967295}"#;
 #[test]
 fn project_ways_is_read_and_printed_whole() {

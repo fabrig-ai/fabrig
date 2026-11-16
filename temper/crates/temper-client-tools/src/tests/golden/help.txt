@@ -11,7 +11,7 @@ goal  Goals: start one from a project template
 role  Standing roles: start, list, read their Now or report, and talk
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
-change  Changes: read a change's way to landing
+change  Changes: open one or read its way to landing
 finding  Findings: file, read, hand on and triage them
 need  Needs: ask a person with choices and why
 tier  Tiers: hold or release a repository's after-landing tier

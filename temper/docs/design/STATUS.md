@@ -68,6 +68,14 @@ finding, its context and its choices; the stock triager groups what it
 keeps and asks one question a group; the headline and Needs you's head
 count the findings the open cards concern, each once. Its walk follows
 landing (`draft/home-for-a-person.status.md`; `client/pages/needs-you.md`, 1).
+Its milestone F2, goal 4747, says why a group reached its person: a
+kind of decision of its own, `findings`, starting work on findings,
+which the stock's Agents review and Draft first tables ask unless the
+person is away; the triager's question over a group names it, so its
+line reads "Reached you because it starts work on findings, which asks
+you unless you’re away.", said once on Home, with its Stop asking, "Let
+the triager start goals for findings, then tell you." Its walk follows
+landing (`draft/home-for-a-person.status.md`; `domain/forge/attention.md`, 6).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -227,7 +235,9 @@ range is bisected over its changed-key landings; each verdict is posted
 on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
 each member's pull request, `Repaired by #M` once a repair passes. A
 change's stall on CI and a landing's gate run past its bound name each
-pending job's state, read by skein's `JobState`; a tier's run that never
+pending job's state, read by skein's `JobState`, and count only the
+time CI runs, by an execution clock read each poll, a wait for a runner
+bounded apart (`domain/forge/change/stalls.md`, 2); a tier's run that never
 ends is held by no bound (`draft/tier-controls.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
@@ -359,6 +369,16 @@ its writes paged so that a restart part-way starts and resumes, while a
 context another project adopts stays (`domain/forge/adoption.md`, 1;
 `protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
 
+A person opens a change from a branch they pushed with `temper ctl
+change open`: the root expands the client's `OpenChange` into one change
+task of their own, requested and funded by them within their role's
+creating offer, and the change's first state, taking, reads the branch's
+head once, keeps it and makes the change's own branch at it, then lands
+it as any change, under `turn` or `queue`, leaving the pushed branch
+untouched; the client's wire moved its version for it
+(`domain/forge/change/opened.md`; `draft/mechanical-changes.status.md`,
+M1). Its walk on dev.fabrig.ai follows landing.
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -438,8 +458,10 @@ Design documents:
 - [`domain/forge/change/README.md`](domain/forge/change/README.status.md)
 - [`domain/forge/change/branch-path.md`](domain/forge/change/branch-path.status.md)
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
+- [`domain/forge/change/opened.md`](domain/forge/change/opened.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
+- [`domain/forge/change/stalls.md`](domain/forge/change/stalls.status.md)
 - [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
@@ -525,11 +547,13 @@ Drafts:
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
+- [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)

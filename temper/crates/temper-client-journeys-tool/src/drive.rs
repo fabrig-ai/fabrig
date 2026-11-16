@@ -317,6 +317,11 @@ impl Machine {
             }
         };
         let record = self.current.as_ref().expect("current line").record();
+        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
+            self.current = None;
+            self.answer(Some("this session takes ctl and forge lines alone".into()), out);
+            return;
+        }
         if matches!(record, Record::End) {
             self.end(now, out);
             return;
@@ -469,13 +474,18 @@ impl Machine {
                         self.answer(Some("the box exited".into()), out);
                         self.box_failed = Some(format!("box exited {code}"));
                     } else {
-                        self.fail_box(format!("box exited {code} before ready"), now, out);
+                        self.fail_box(before_ready(code, stderr), now, out);
                     }
                 }
             }
             Process::SignIn if self.phase == Phase::SignIn => {
                 if code != 0 {
                     self.fail_box(format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr)), now, out);
+                } else if self.plan.options.ctl {
+                    self.first = None;
+                    self.phase = Phase::Ready;
+                    self.until = None;
+                    out.push(Action::Ready);
                 } else {
                     self.wait(Phase::Spent, now, Duration::from_secs(30));
                     out.push(Action::Open(self.first.clone().expect("first link")));
@@ -652,6 +662,9 @@ impl Machine {
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
             out.extend([Action::CancelFace, Action::StopCtl, Action::StopTui]);
+        } else if self.plan.options.ctl {
+            out.push(Action::StopCtl);
+            self.stop_box(now, out);
         } else {
             self.wait(Phase::ClosingBrowser, now, STEP);
             out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);
@@ -772,6 +785,17 @@ fn duration(bytes: &[u8]) -> Option<u64> {
         (text, 1)
     };
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
+}
+/// A box's exit before its ready line, with the last of what it said that no
+/// log line took: a start that failed says why there (client/drive.md, 2.5).
+fn before_ready(code: i32, stderr: &[u8]) -> String {
+    let words = String::from_utf8_lossy(stderr);
+    let words = words.trim();
+    if words.is_empty() {
+        return format!("box exited {code} before ready");
+    }
+    let cut = words.char_indices().rev().nth(511).map_or(0, |(at, _)| at);
+    format!("box exited {code} before ready: {}", &words[cut..])
 }
 #[cfg(test)]
 pub(crate) mod tests;

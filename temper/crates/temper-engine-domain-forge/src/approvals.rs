@@ -40,7 +40,8 @@ impl Domain {
             }
             match row.change.state {
                 State::Queued { .. } | State::First { .. } | State::Landing { .. } => {}
-                State::Producing { .. }
+                State::Taking { .. }
+                | State::Producing { .. }
                 | State::Opening { .. }
                 | State::Recreating { .. }
                 | State::Reopening { .. }

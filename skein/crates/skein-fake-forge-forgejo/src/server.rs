@@ -42,6 +42,7 @@ pub struct Server {
     user: u64,
     scopes: Scopes,
     request: Option<Request>,
+    reference: Option<documents::Reference>,
     requests: Queue<Request>,
     select: response::Select,
     range: Result<Option<response::Range>, api::Error>,
@@ -75,6 +76,7 @@ impl Server {
             user: 0,
             scopes: Scopes { user: false, repository: false, admin: false, organization: false, writing: false },
             request: None,
+            reference: None,
             requests: Queue::uncapped(),
             select: response::Select::Document,
             range: Ok(None),
@@ -208,6 +210,35 @@ pub fn down(
     }
     if server.git.is_some() {
         git::down(server, service, env, result, above, below);
+        resume(server, service, env, above, below);
+        return;
+    }
+    if let Some(reference) = server.reference.take() {
+        match result {
+            Ok(api::Answer::Commit(commit)) => {
+                let request = reference.resolve(routes::object(commit));
+                let op = routes::op(&service.config, &request).expect("resolved reference read");
+                let repository = routes::repository(&service.config, &request).expect("reference repository");
+                server.select = response::select(&service.config, &request, None).expect("reference selection");
+                server.request = Some(request);
+                above.push(Event::Domain(domain::Event::Call {
+                    reply_to: ReplyTo::new(id.token()),
+                    user: server.user,
+                    repository,
+                    op,
+                }));
+                return;
+            }
+            Err(error) => {
+                retire(server, service);
+                error_reply(server, env, error);
+            }
+            Ok(answer) => {
+                drop(answer);
+                retire(server, service);
+                fail(server, &env.limits, 500);
+            }
+        }
         resume(server, service, env, above, below);
         return;
     }
@@ -350,6 +381,7 @@ pub fn close(
     retire(server, service);
     server.listing = None;
     server.request = None;
+    server.reference = None;
     server.decoder = None;
     server.git_decoder = None;
     server.json_events.clear();
@@ -424,6 +456,7 @@ fn http_event(
             server.git_decoder = None;
             server.listing = None;
             server.request = None;
+            server.reference = None;
             server.select = response::Select::Document;
             match reuse {
                 http::Reuse::Keep => next(server, service, env, above, below),
@@ -496,6 +529,12 @@ fn entrance(
             server.connection.requests.push(http::Request::Discard);
             decoded(server, service, domain, env, request, above);
         }
+        Ok(documents::Route::Reference(reference)) => {
+            let request = reference.lookup();
+            server.reference = Some(reference);
+            server.connection.requests.push(http::Request::Discard);
+            decoded(server, service, domain, env, request, above);
+        }
         Ok(documents::Route::Body(decoder)) => {
             server.connection.state = State::Body;
             if server.json_started {
@@ -529,7 +568,7 @@ fn decoded(
     above: &mut Queue<Event>,
 ) {
     server.requests.push(request.clone());
-    let route = crate::route(&request);
+    let route = request_route(server, &request);
     if service.refused == Some(route) {
         fail(server, &env.limits, 403);
         return;
@@ -896,4 +935,14 @@ fn malformed(server: &mut Server, env: &Env<Limits>) {
     server.json_started = false;
     server.connection.requests.push(http::Request::Discard);
     fail(server, &env.limits, 422);
+}
+
+fn request_route(server: &Server, request: &Request) -> crate::Route {
+    match &server.reference {
+        Some(reference) => match reference.read {
+            documents::ReferenceRead::Contents { .. } => crate::Route::Contents,
+            documents::ReferenceRead::CombinedStatus { .. } => crate::Route::CombinedStatus,
+        },
+        None => crate::route(request),
+    }
 }

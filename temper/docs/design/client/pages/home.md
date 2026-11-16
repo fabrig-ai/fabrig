@@ -297,7 +297,10 @@
       in its plural form (`needs-you.md`, 1, *Why it reached you*, *In the
       plural*), with its "Stop asking" where the cards' line has one: "These
       reached you as fabrig’s triager: findings that no area owns come to
-      you.", and no card draws its own. Two lines are the same where the
+      you.", or, for the triager's groups, "These reached you because they
+      start work on findings, which asks you unless you’re away." with its
+      Stop asking (`../../domain/areas.md`, 6, *Its groups*), and no card
+      draws its own. Two lines are the same where the
       domain's reasons are equal (`pages::needs::Why`, with a finding's
       by `pages::findings::why`: `needs-you.md`, 1, *Why it reached you*),
       so a line of a reach in two projects is two lines. Otherwise

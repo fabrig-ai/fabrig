@@ -210,6 +210,7 @@ mod tests {
     }
     fn panel_parts(step: w::Step) -> w::ChangePanelParts {
         w::ChangePanelParts {
+            source: None,
             way: w::Way::Queue,
             in_landing: None,
             task: TASK,
@@ -314,6 +315,7 @@ mod tests {
                 w::Step::Queued(_) | w::Step::First => (),
                 w::Step::Ready(_)
                 | w::Step::Preparing(_)
+                | w::Step::Taking
                 | w::Step::Producing
                 | w::Step::Opening
                 | w::Step::Recreating

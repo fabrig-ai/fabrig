@@ -398,6 +398,26 @@ fn each_callers_person_and_reach_are_kept() {
                 "implementation asks your person while they are here",
             )
         },
+        case(
+            "findings here",
+            Caller::Goal,
+            Kind::Findings,
+            Class::Ask,
+            false,
+            "findings asks your person while they are here",
+        ),
+        case("findings away", Caller::Goal, Kind::Findings, Class::Ask, true, ""),
+        Case {
+            custom: true,
+            ..case(
+                "old classes without findings",
+                Caller::Goal,
+                Kind::Findings,
+                Class::AskAway,
+                true,
+                "findings asks your person, even when away",
+            )
+        },
         case("goal away", Caller::Goal, Kind::Implementation, Class::Ask, true, ""),
         case("chat", Caller::Chat, Kind::Wording, Class::Decide, false, ""),
         case("person-made untracked task", Caller::PersonTask, Kind::Wording, Class::Decide, false, ""),

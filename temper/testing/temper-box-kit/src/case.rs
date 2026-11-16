@@ -904,11 +904,8 @@ impl Judge {
             Step::Terminal(_) => return Err("Terminal unsupported".into()),
             Step::Browse { .. } => return Err("Browse unsupported".into()),
             Step::Authorize => return Err("Authorize unsupported".into()),
-            Step::AuthorizeHeld => return Err("AuthorizeHeld unsupported".into()),
-            Step::HoldIssuerSocket => return Err("HoldIssuerSocket unsupported".into()),
-            Step::IssuerRejected => return Err("IssuerRejected unsupported".into()),
+            Step::TrialEnded => return Err("TrialEnded unsupported".into()),
             Step::Return => return Err("Return unsupported".into()),
-            Step::ClaudeTurn { .. } => return Err("ClaudeTurn unsupported".into()),
         }
         // The oracle's commands are the acts' verbs (Observed::with_commands).
         self.ran.push(step);
@@ -1146,14 +1143,11 @@ impl Referee<cluster::Root> for Judge {
 fn describe(step: &calls::Step) -> String {
     use calls::Step;
     match step {
-        Step::ClaudeTurn { source } => format!("ClaudeTurn {source}"),
         Step::EndsLeaving(leftovers) => format!("EndsLeaving {leftovers:?}"),
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),
-        Step::AuthorizeHeld => "AuthorizeHeld".into(),
-        Step::HoldIssuerSocket => "HoldIssuerSocket".into(),
-        Step::IssuerRejected => "IssuerRejected".into(),
+        Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),

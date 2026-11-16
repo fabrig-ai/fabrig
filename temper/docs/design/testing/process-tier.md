@@ -595,8 +595,8 @@
   - **A sign-in's usable model,** `suite::connect_model::a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account`:
     the account the sign-in makes reads usable from the engine, where
     before it read not.
-  - **The fake issuer's held sockets,** in the real loop (`real-loop.md`),
-    `tests/real-loop`'s `suite::sign_in::a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away`,
+  - **The fake issuer's held sockets,** in temper-fake's own tests on
+    skein's simulator (`../protocol/setup/box.md`, 5),
     on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;

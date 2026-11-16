@@ -9,6 +9,7 @@ pub(crate) mod forge_route;
 pub(crate) mod held;
 pub(crate) mod host_route;
 mod making;
+mod opened;
 pub(crate) mod playground;
 pub(crate) mod standing;
 pub use host_route::{

@@ -250,6 +250,10 @@ const FORGE: forge::Limits = forge::Limits {
         tasks: 6,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge/change/repairs.md).
         stall: Duration::from_secs(30 * 60),
+        // Execution unknown to CI has a grace before it counts (domain/forge/change/stalls.md, 2).
+        unknown_grace: Duration::from_secs(30 * 60),
+        // Waiting or blocked for a runner at checking has its own bound.
+        runner_wait: Duration::from_secs(4 * 60 * 60),
         // Gates retained by a change, from the engine forge world fixture.
         gates: 8,
         // Clean branch heads retained, from the engine forge world fixture.
@@ -676,6 +680,42 @@ mod making_tests {
         assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
         assert_eq!(limits.forge_component.deadline, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn checking_clock_limits_default_parse_and_are_named() {
+        let maximum = u64::MAX / 1_000_000;
+        for selected in [Profile::Small, Profile::Standard] {
+            let stock = profile(selected);
+            assert_eq!(stock.forge.change_policy.unknown_grace, Duration::from_secs(1800));
+            assert_eq!(stock.forge.change_policy.runner_wait, Duration::from_secs(14_400));
+            for (name, default) in [
+                (b"forge.change_policy.unknown_grace_ms".as_slice(), 1_800_000),
+                (b"forge.change_policy.runner_wait_ms".as_slice(), 14_400_000),
+            ] {
+                let entry = find(name).expect("checking limit named");
+                assert_eq!((entry.value)(&stock), default);
+                assert_eq!(entry.unit, Unit::Milliseconds);
+                assert!(temper_service_core::limits::known(name));
+                for millis in [0, 1, maximum] {
+                    let mut limits = stock;
+                    assert_eq!(apply(&mut limits, name, millis), Ok(()));
+                    let policy = limits.forge.change_policy;
+                    let field = if name == b"forge.change_policy.unknown_grace_ms" {
+                        policy.unknown_grace
+                    } else {
+                        policy.runner_wait
+                    };
+                    assert_eq!(field, Duration::from_millis(millis));
+                    assert_eq!((entry.value)(&limits), millis);
+                }
+                for millis in [maximum + 1, u64::MAX] {
+                    let mut limits = stock;
+                    assert_eq!(apply(&mut limits, name, millis), Err(Refused::Range));
+                    assert_eq!(limits.forge.change_policy, stock.forge.change_policy);
+                }
+            }
+        }
     }
 
     #[test]

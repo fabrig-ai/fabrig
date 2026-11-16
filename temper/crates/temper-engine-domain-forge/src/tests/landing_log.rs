@@ -69,6 +69,7 @@ fn a_pull_seen_merged_is_logged() {
     let pending = PendingStep {
         failed: change_ci::Failed::new(Box::new([])),
         stall: None,
+        execution: None,
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,

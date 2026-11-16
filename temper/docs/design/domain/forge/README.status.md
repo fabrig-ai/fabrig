@@ -73,7 +73,7 @@ differ, and keeps what it held when a read is refused
 No read of a real forge's directory is on record; `README.md`, section 11 keeps a
 workflow that runs on no pull request.
 
-`keeping-up.md`, section 3, `change/repairs.md` (*Stalls*) and `change/gates.md`, 2, rows 2 and 6, have no known
+`keeping-up.md`, section 3, `change/stalls.md`, section 1, and `change/gates.md`, 2, rows 2 and 6, have no known
 implementation gap in a head behind its base: `ancestry_status`
 (`temper-engine-domain-forge/src/domain.rs`) reads a range that lists a
 commit, whether or not more follow, or one refused `TooLarge`, as the

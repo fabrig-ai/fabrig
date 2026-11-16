@@ -108,7 +108,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
@@ -681,7 +681,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words),
                 None => 0,
             }),
-            ApplicationOutcome::CoreRefused(_)
+            ApplicationOutcome::OpenRefused(reason) => match reason {
+                OpenRefusal::NoRepository | OpenRefusal::NotARepository | OpenRefusal::NamePast { .. } => Some(0),
+                OpenRefusal::UnderPrefix { owner, name, prefix } => {
+                    bytes(owner).checked_add(bytes(name))?.checked_add(bytes(prefix))
+                }
+                OpenRefusal::Several(names) => {
+                    let mut held = skein_lib::len_u64(names.len())
+                        .checked_mul(u64::try_from(size_of::<DraftRepository>()).ok()?)?;
+                    for name in names {
+                        held = held.checked_add(bytes(&name.owner))?.checked_add(bytes(&name.name))?;
+                    }
+                    Some(held)
+                }
+            },
+            ApplicationOutcome::Opened { .. }
+            | ApplicationOutcome::CoreRefused(_)
             | ApplicationOutcome::ForgeRefused(_)
             | ApplicationOutcome::MakeKept
             | ApplicationOutcome::MakeRefused(_) => Some(0),
@@ -798,6 +813,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             total.checked_add(row.relay.held_bytes()?)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
+            .checked_add(match &row.source {
+                Some(source) => bytes(&source.branch),
+                None => 0,
+            })?
             .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
             .checked_add(skein_lib::len_u64(row.repair_tasks.len()).checked_mul(8)?)?
             .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
@@ -902,6 +921,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::ChangeCold(row) => u64::try_from(size_of::<ChangeCold>())
             .ok()?
+            .checked_add(match &row.source {
+                Some(source) => bytes(&source.branch),
+                None => 0,
+            })?
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
@@ -1042,7 +1065,8 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         change::State::Held { was, .. } => {
             u64::try_from(size_of::<change::State>()).ok()?.checked_add(change_state_bytes(was, depth.checked_add(1)?)?)
         }
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }

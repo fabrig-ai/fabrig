@@ -1635,6 +1635,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         w::ChangePanel::new(
             &l,
             w::ChangePanelParts {
+                source: None,
                 way: w::Way::Queue,
                 in_landing: None,
                 task,

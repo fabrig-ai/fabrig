@@ -134,9 +134,9 @@ pub(crate) fn run(
         members(d, env.wall, &context, None, event, out);
         changed = true;
     }
-    if changed {
+    if changed || same {
         row.entries.get_mut(index).expect("flight entry").run =
-            Some(LandingRun { id: run.id, attempt, ended: verdict.is_some() });
+            Some(LandingRun { id: run.id, attempt, ended: verdict.is_some(), clock: flight.clock });
     }
 }
 

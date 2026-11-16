@@ -814,7 +814,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
         (1, "project-ways", format!("project-ways {PROJECT}, revision 1\n{{\"drafts\":true,\"goals\":false,\"changes\":false,\"way\":0}}\nthe stock\n")),
         (2, "project-questions", format!("project-questions {PROJECT}, revision 1\n\"none\"\nthe stock\n")),
         (3, "charter-words 4", "charter-words 4, revision 1\n\"reviews each change at its head, and holds it until it approves\"\ndefault, 67 bytes\n".to_owned()),
-        (5, "project-classes", format!("project-classes {PROJECT}, revision 1\n{}\nthe stock\n", r#"{"items":[{"kind":"wording","words":"","class":"decide"},{"kind":"retry","words":"","class":"decide"},{"kind":"tests","words":"","class":"decide"},{"kind":"implementation","words":"","class":"ask"},{"kind":"dependency","words":"","class":"ask"},{"kind":"departure","words":"","class":"ask"}],"sets":[]}"#)),
+        (5, "project-classes", format!("project-classes {PROJECT}, revision 1\n{}\nthe stock\n", r#"{"items":[{"kind":"wording","words":"","class":"decide"},{"kind":"retry","words":"","class":"decide"},{"kind":"tests","words":"","class":"decide"},{"kind":"implementation","words":"","class":"ask"},{"kind":"dependency","words":"","class":"ask"},{"kind":"departure","words":"","class":"ask"},{"kind":"findings","words":"","class":"ask"}],"sets":[]}"#)),
         (4, "charter-words 7", "charter-words 7, revision 1\ncharter-words 7: none kept; Roles says the charter by its instructions' first sentence.\n".to_owned()),
     ] {
         let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {address}"));

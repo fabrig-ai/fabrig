@@ -167,6 +167,8 @@ pub enum Hold {
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum State {
+    /// Make the kept pushed head ours (temper/docs/design/domain/forge/change/opened.md, 4).
+    Taking { requested: bool },
     /// A producing delegate has yet to push the branch.
     Producing { requested: bool },
     /// A pushed branch needs a pull request.
@@ -295,6 +297,8 @@ pub struct Change {
     pub resolutions: u32,
     pub updates: u32,
     pub since: Wall,
+    /// CI's execution clock at checking (domain/forge/change/stalls.md, 2).
+    pub clock: Option<crate::Clock>,
     pub ready_since: Option<Wall>,
     pub owns_turn: bool,
     pub last_head: Option<Commit>,
@@ -365,6 +369,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
+    pub taken: Option<Commit>,
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
     pub fault: Fault,
     /// A failed check at `ci.head` names a job read at that head, and the change's forge writes a re-run.
@@ -379,6 +385,8 @@ pub struct Facts {
     pub expected_base: Commit,
     pub pull: Pull,
     pub ci: Ci,
+    /// Pending CI's execution reading (domain/forge/change/stalls.md, 2).
+    pub execution: Option<crate::Reading>,
     pub base_ci: Ci,
     pub base_tip: Commit,
     /// Whether the head contains `Updating.base` while updating, otherwise `base_tip`.
@@ -524,6 +532,8 @@ pub enum Effect {
 /// What the top does with the procedure's one decision.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
+    /// Taking refused its source; the top keeps its failure words (opened.md, 4).
+    Failed,
     /// Nothing is due in this snapshot.
     None,
     /// Wait for a fact or deadline to change.
@@ -579,6 +589,10 @@ pub struct Limits {
     /// Tasks a change's delegate may make beside its foremen.
     pub tasks: u32,
     pub stall: Duration,
+    /// Unknown CI execution time exempt from the stall (domain/forge/change/stalls.md, 2).
+    pub unknown_grace: Duration,
+    /// Wait for a runner at checking (domain/forge/change/stalls.md, 2).
+    pub runner_wait: Duration,
     pub gates: u32,
     pub clean_heads: u32,
 }

@@ -14,6 +14,7 @@
 extern crate alloc;
 
 mod boundary;
+mod clock;
 mod domain;
 mod passing;
 mod queue;
@@ -28,6 +29,7 @@ pub use boundary::{
     QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State, Status, Stepped,
     Verification, WORDS_WAITING, Waiting, Way,
 };
+pub use clock::{Clock, Execution, Reading};
 pub use domain::{authority_words, held_on_ci, prefix_verdict, released, review_failed, step};
 pub use passing::{Passed, WordAct, pass};
 pub use queue::first;

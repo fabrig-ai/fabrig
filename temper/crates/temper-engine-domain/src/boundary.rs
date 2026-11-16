@@ -765,6 +765,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    OpenChange(forge::OpenChange),
     Tier(forge::TierActRequest),
     Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
     Forge(forge::Ask),

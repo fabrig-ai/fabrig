@@ -246,6 +246,27 @@
   `not_held`, for a release of a tier not held; or `words`, the reason
   past its bounds or not UTF-8. None once the hold or the release has
   committed.
+- **`OpenChange`,** `open_change`, appended after `TierActRequest`: of
+  the project it names, from any party with a role there, the core
+  judging whether the role may make the change
+  (`../../domain/forge/change/opened.md`, 2 and 3): `project`, u32;
+  `repository`, an option of `DraftRepository`, none for the project's
+  only repository; `branch`, 1 to 1024 bytes; `at`, an option of 40 or
+  64 bytes, lowercase hexadecimal digits; `into`, an option of 1 to 1024
+  bytes, none for the repository's default branch; `title`, 1 to 256
+  bytes; `body`, an option of 1 to 16,384 bytes; and `budget`,
+  `OpenBudget`: `amount`, u64, or `as_allowed`, no fields. Its outcomes,
+  appended after the family's last: *opened*, `opened`, `Opened`, its
+  `task` (u64), once the core has made it; *open refused*,
+  `open_refused`, `OpenRefused`: `several`, the repositories by owner
+  and name, a list of at most 64 `DraftRepository`; `no_repository`;
+  `not_a_repository`; `under_prefix`, `UnderPrefix`, the repository's
+  `owner` and `name` and its `prefix`, at most 1024 bytes each; or
+  `name_past`, the deployment's forge name bound (u32), for a branch or a
+  landing branch past it; the family's *refused by the core*,
+  `core_refused`, jig's refusal facts whole, for the core's refusals and
+  the builder's (`../../domain/forge/change/opened.md`, 3); or
+  *unknown*, no longer held.
 - **`FindingRefusal`:** `no_area`, the project's areas' names, at most
   16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
   `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
@@ -412,8 +433,10 @@
     the forge (a byte string of at most 2048 bytes, empty for a forge
     with no address: GitHub's `web`, Forgejo's `git` base, none for a
     fake, `served.md`, 2);
-  - its step: producing, opening, recreating, reopening, checking,
-    gating, queued (its place, from 1 (u32), and the tasks ahead of it,
+  - its step: taking, appended after the step's last variant, while a
+    change opened from a pushed branch takes it
+    (`../../domain/forge/change/opened.md`, 4); producing, opening,
+    recreating, reopening, checking, gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
     repairing (its reason: CI, including a failed landing test gate,
     a gate by its number (u64), a semantic
@@ -444,7 +467,12 @@
     and where it stands: taken, asked
     of the change's requester, or answered and held for the change's
     dependencies. A change past its bound
-    shows the question that held it among them, as its hold says.
+    shows the question that held it among them, as its hold says;
+  - its source (`../../domain/forge/change/opened.md`, 6), `source`,
+    appended after the record's last field: none for a change with no
+    source, or `PanelSource`: the source `branch` (bytes, bounded as
+    `Adopt`'s), the `at` named (an option of a commit, 32 bytes) and the
+    `kept` head (an option of a commit, none before taking selects it).
 - **The deployment's forges, the subject `forges`** (`deployment.md` and `served.md`
   ): of the deployment's scope, with no fields, its window
   unused; on the wire `Watching`'s `forges`. Its document, `Forges`, a

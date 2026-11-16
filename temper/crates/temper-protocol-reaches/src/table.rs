@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 
 impl Kind {
-    pub const ALL: [Kind; 10] = [
+    pub const ALL: [Kind; 11] = [
         Self::Wording,
         Self::Retry,
         Self::Implementation,
@@ -17,14 +17,19 @@ impl Kind {
         Self::Irreversible,
         Self::Rules,
         Self::Other,
+        Self::Findings,
     ];
     #[must_use]
     pub const fn fixed(self) -> bool {
         match self {
             Self::Money | Self::Irreversible | Self::Rules | Self::Other => true,
-            Self::Wording | Self::Retry | Self::Implementation | Self::Tests | Self::Dependency | Self::Departure => {
-                false
-            }
+            Self::Wording
+            | Self::Retry
+            | Self::Implementation
+            | Self::Tests
+            | Self::Dependency
+            | Self::Departure
+            | Self::Findings => false,
         }
     }
     #[must_use]
@@ -40,6 +45,7 @@ impl Kind {
             Self::Irreversible => b"irreversible",
             Self::Rules => b"rules",
             Self::Other => b"other",
+            Self::Findings => b"findings",
         }
     }
     #[must_use]
@@ -143,6 +149,7 @@ impl Classes {
                     own(Kind::Implementation, Class::Ask),
                     own(Kind::Dependency, Class::Ask),
                     own(Kind::Departure, Class::Ask),
+                    own(Kind::Findings, Class::Ask),
                 ]),
                 sets: Box::default(),
             },

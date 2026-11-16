@@ -73,6 +73,7 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         texts: List::with_capacity(limits.inner),
         inputs: List::with_capacity(0),
         terminal: false,
+        changes: None,
         merge_id: None,
         committer: crate::forgejo::request::Author { name: Box::new([]), email: Box::new([]) },
     }))
@@ -146,6 +147,7 @@ pub(super) fn repository_route(method: Method, bytes: &[u8], limits: &Limits) ->
         texts: List::with_capacity(limits.inner),
         inputs: List::with_capacity(0),
         terminal: false,
+        changes: None,
         merge_id: None,
         committer: crate::forgejo::request::Author { name: Box::new([]), email: Box::new([]) },
     }))

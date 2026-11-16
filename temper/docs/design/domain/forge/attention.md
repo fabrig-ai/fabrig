@@ -379,12 +379,27 @@ setting of a project's, its classes (`../../protocol/configuration/settings.md`,
 wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
 
 - **The kinds,** `Kind`, named in the asker's call as the draft's table
-  names them: `wording`, `retry`, `implementation`, `tests`, `dependency`
-  and `departure`, which a project's classes may move; `money`,
-  `irreversible`, `rules` and `other`, *fixed*, which always wait. The
-  draft's `paths` is no call's kind: a call names its own kind and the
-  paths it would touch, and each path set those touch is an item of its
-  own beside the kind.
+  names them: `wording`, `retry`, `implementation`, `tests`, `dependency`,
+  `departure` and `findings`, which a project's classes may move; `money`,
+  `irreversible`, `rules` and `other`, *fixed*, which always wait.
+  `Kind::ALL`, the kit's order, is the draft's table's with `findings`
+  last, after `other`, as everywhere a kind is listed in order (the
+  wire's and the store's `ReachKind`, `decided`'s enumeration), and a
+  page that lists the movable kinds lists them in it, `findings` after
+  `departure`. The draft's `paths` is no call's kind: a
+  call names its own kind and the paths it would touch, and each path
+  set those touch is an item of its own beside the kind.
+  - *`findings`,* starting work on findings
+    (`../../draft/home-for-a-person.md`, 5): what becomes of findings
+    the asker holds, a goal started for them, the backlog or a hand-off,
+    as the triager's question over a group asks it (`../areas.md`, 6,
+    *Its groups*). On the wire and in the store it is `ReachKind`'s last
+    variant, `findings`, appended so that every earlier value keeps its
+    encoding (`../../protocol/configuration/settings.md`, 2): the
+    client wire's version moves with its layout
+    (`../../protocol/wires.md`, 9), and `temper-store`, a registered
+    family, takes the variant in place, its version unmoved and no
+    patch written (jig's `protocol/store/layouts.md`).
 - **The classes,** `Class`, strictest last: `Decide`, agents decide, then
   tell you; `Ask`, asks you, and Away may decide (4); `AskAway`, asks
   you, even when away; `Wait`, always waits for you, the fixed kinds'
@@ -419,8 +434,12 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
   (`../../draft/what-reaches-you.md`, section 2): *You approve*, no item, so
   every movable kind asks even when away; *Agents review* and *Draft
   first*, `wording`, `retry` and `tests` at `Decide`, then
-  `implementation`, `dependency` and `departure` at `Ask`, in that order;
-  no set in any. A project whose kind 8 holds no value has Agents
+  `implementation`, `dependency`, `departure` and `findings` at `Ask`,
+  in that order, so that starting work on findings asks unless the
+  person is away (`../../draft/home-for-a-person.md`, 5); no set in
+  any. A project whose kind 8 holds a table without a `findings` item
+  asks it even when away, as any subject with no item, until its
+  person's Stop asking or a proposal moves it. A project whose kind 8 holds no value has Agents
   review's, the stock way of kind 2's stock rule 1
   (`../../protocol/configuration/stock.md`).
 - **The judgement,** `judge(classes, ask) -> Reach`, of an

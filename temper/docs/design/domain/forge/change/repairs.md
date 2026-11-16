@@ -1,4 +1,4 @@
-# Repairs, resolutions and stalls
+# Repairs, resolutions and releases
 
 - **A repair** is a task for an agent whose workspace starts from the
   change's branch, its words opening with what it repairs (the failed
@@ -512,7 +512,7 @@
   | What the read met | Counts as | REASON |
   |---|---|---|
   | `Busy`, still refused at the brief's deadline | capacity | `the forge client is busy` |
-  | `NotConnected`: a wait for access, as for a stall above | capacity | `the forge is not connected` |
+  | `NotConnected`: a wait for access, as for a stall (`stalls.md`, 1) | capacity | `the forge is not connected` |
   | no room for another section or read in the connector | capacity | `the connector has no room for another read` |
   | `Unavailable` | transient | `the forge could not be reached` |
   | `Timeout` | transient | `the forge did not answer in time` |
@@ -609,107 +609,10 @@
   the replacement lifetime allowance. Cancellation comes before these
   commands so a bounded task summary retains a way out. They advertise
   only commands the client takes.
-- **Stalls:** each wait on the forge (CI that never reports, a
-  mergeability never known, an update or a merge whose answer or head
-  never shows, a forge's merge queue that neither lands nor ejects it, a
-  gate's task stuck) is bounded by a stall, the deployment's
-  `forge.change_policy.stall_ms` (`../../../protocol/configuration/limits.md`),
-  counted from the head's push, the write it waits on or the last
-  release; past it, the change is held. No step of a change's way waits
-  past it with no hold. The
-  default, 30 minutes, outlasts an ordinary CI run so a healthy change
-  is never held just for waiting, yet tells the person of a check that
-  never reports within the same sitting. A wait for access is not one:
-  while its forge is not connected, or its repository not reachable
-  (`../adoption.md`, 1, 3), the stall does not count. Nor is a wait for its agent:
-  while the change's producer, repair, resolution or merge job is a live
-  task, running, between its tries or waiting for a host, the stall does
-  not count. An agent working for an hour is working, and jig bounds what
-  it does (its tries, its executor's stall, its budget: jig's
-  `domain/tasks/lifecycle.md`, 6). The stall counts from that delegate's end, as
-  it does while a question of that agent's is open (`questions.md`, 1), from the step
-  that relays its last answer down. Nor is a wait for its dependencies:
-  while the change is at producing and its task has a dependency that
-  has not ended (jig's `domain/tasks/lifecycle.md`, 8), the stall does
-  not count, whatever the change waits on there: a producer not yet
-  started (`questions.md`, 1, *Early starts*), an early producer that
-  ended giving nothing, a read of the forge. It counts from the last
-  dependency's end, as it counts from a delegate's end, and a step
-  taken while the wait lasts counts it afresh, as a live agent's does.
-  At any other step a dependency changes nothing: a change done while
-  kept is checked, gated and held there as any change is. A gate's task is a wait on the forge
-  as this bullet names it, and stays bounded. A head behind its base is
-  no wait: a range that lists a commit, or one too large to list, says
-  the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
-  in conflict goes to its merge job and then a resolution, however many
-  commits behind it is.
-  **What a step reads is waited on too** (2026-11-13): the reads a
-  change makes to take its step (its branch, its base, its pull
-  request, its CI, the ancestry of its head and its base's tip) are a
-  wait on the forge as any is. A read with no answer, or one the forge
-  client keeps refusing for its own capacity, counts the stall from
-  its first read, and past it the change is held at that step, its
-  words that step's (*A stall's hold says where*, below). That count
-  is the reads' own (2026-11-14): kept while the reads start over on
-  news or are retried for capacity, counted afresh from a release or
-  from an exemption's end, and gone once the reads decide. It moves
-  nothing the step's own wait counts from, so the step's waits keep
-  their rules: a conflict's settling, an approval's wait, CI's alarm.
-  An exemption stands only while its cause does: its agent a
-  live task, that agent's question open, a dependency not ended, its
-  forge not connected or its repository out of reach. Once the cause
-  ends, the stall counts from that end, and no record left of a cause
-  that has ended (a question whose asker ended, a writer slot whose
-  writer ended) keeps it from counting.
-- **A stall's hold says where.** Its words name the step the change was
-  held at and what it waits on, commits at the forge's short length, in
-  one shape: `no progress at STEP for N minutes: waiting for WHAT`, N
-  the stall in whole minutes. For instance:
-
-  | Held at | WHAT |
-  |---|---|
-  | opening | `its pull request to open` |
-  | checking | `CI at 0123456789ab` |
-  | gating | `its gates at 0123456789ab` |
-  | first | `the forge to settle whether 0123456789ab merges` |
-  | updating | `its update of 0123456789ab with main at 89abcdef0123` |
-  | landing | `its merge of 0123456789ab` |
-
-  A step not listed says its own wait in the same shape. A change held
-  on its step's own reads (*What a step reads is waited on too*, above)
-  says that step's WHAT where the table gives one, and otherwise `the
-  forge to answer its reads` (2026-11-14): `no progress at producing for
-  30 minutes: waiting for the forge to answer its reads`.
-- **A stall on CI says why** (`../../../draft/ci-on-forgejo-17.md`,
-  section 3): before a change is held because CI at its head never
-  reported, it reads that head's checks afresh (skein's `Read::Checks`)
-  and the state of each pending check's job (skein's
-  `forge/job-state.md`), one read per job, only then: nothing on the
-  periodic path. The hold's words follow the stall's, one clause per
-  pending check, in the checks' order, after `; `:
-  `CONTEXT: waiting for a runner labelled L1, L2` (no runner with its
-  labels took it, `labelled` and its list left out when the job names
-  none), `CONTEXT: blocked by the jobs it needs`, `CONTEXT: running at
-  step N, NAME` (`running` alone when no step says so), `CONTEXT:
-  pending, no job linked` (a check whose status names no job: CI another
-  system reports, or a forge whose pending checks name none), `CONTEXT:
-  pending, its job unread` (the job's read failed or answered
-  `MissingJob`), and `CONTEXT: completed` (a job ended since the stall's
-  last read). At most 8 clauses, then `; and K more pending`; clauses
-  kept whole within the hold's bytes, those that do not fit counted in
-  K. For instance, `no progress at checking for 31 minutes: waiting for
-  CI at 0123456789ab; ci / test: waiting for a runner labelled docker;
-  ci / lint: blocked by the jobs it needs`. A checks read that fails
-  holds with the stall's words alone. The clauses live in the hold's
-  words alone, never in the store: a change held again after its
-  restoration (*Every hold reaches its task*, below) holds with the
-  stall's words alone.
-- **A stall holds as any hold does.** The change and its task are held
-  together, never one without the other: its escalation waits for its
-  holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the
-  goal above it where that goal may decide, otherwise its person or the
-  role the project's policy names. A decision to hold reaches the task
-  whatever step the procedure is at.
+- **Stalls:** every wait of a change on the forge is bounded, and past
+  its bound the change is held. What a stall counts and what it does
+  not, how checking counts CI by its execution, and what a stall's hold
+  says are `stalls.md`'s.
 - **Every hold reaches its task.** A change whose step fails for good
   (its producer's, a resolution's, a repair's, a job's or a write's)
   ends failed or holds, and its hold is its task's hold, never its
@@ -737,7 +640,7 @@
   on from producing, its stall counted from that end, the deployment
   releases its task, and its producer starts as at any producing. This
   clears a hold placed during a dependency's wait before the stall
-  stopped counting there (*Stalls*, above). A dependency that ends
+  stopped counting there (`stalls.md`, 1). A dependency that ends
   failed or cancelled ends no hold: it holds the change as any failed
   dependency does (jig's `domain/tasks/lifecycle.md`, 6), as before.
   A hold of any other cause, or a stall at producing with its producer
@@ -866,12 +769,6 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
 
 ## 1. Open questions
 
-- **A gate's live run past the stall** (`repairs.md`): a review's task stays a wait
-  the stall bounds, though a review working 30 minutes is as normal as a
-  producer. Its verdict is kept if it arrives on the hold, and a release goes
-  on from it. Default: as it stands, its wait being named by `repairs.md`; the request
-  `parallel-faults` of 2026-11-06 met no such hold.
-
 - **A green head no wake reaches** (`repairs.md`, `../keeping-up.md`, 2): a held change reads on a wake,
   and a poll wakes it only when what it read of the pull request moved. Under
   a rule's required contexts, a check they do not name can keep the pull
@@ -883,14 +780,6 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   so a backoff shorter than `poll_ms` can start another run at a green head,
   left to finish as any run is. Whether jig tells a procedure of its delegate's
   retry, so that none starts. Default: as it stands.
-
-- **A dependency amended away** (`repairs.md`, *Stalls*): the stall
-  counts from a dependency's end, and an amendment that removes the
-  last pending one ends the wait with no end. The stall then counts
-  from the last step taken while the change waited, so a change at
-  producing whose producer gave nothing, with no step between, can be
-  held at the step the amendment brings. Default: so; its requester
-  amended it, and releases it.
 
 - **A hold at gating at a green head** (`repairs.md`): past the bound or short of
   authority there, a hold can be a gate's or CI's, and its state does not say
