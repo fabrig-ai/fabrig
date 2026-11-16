@@ -65,9 +65,6 @@ observation and world-cost work.
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
-- **Not yet:** 9: the wires' commit that ends going back, cut before and
-  after it is durable, focused and swept under `fuzzy::` in
-  `jig-store-world::suite` [in flight: change 4634]
 
 - **Not yet:**
   7: the step crates' case tables and the two named-people tables run

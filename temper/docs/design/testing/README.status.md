@@ -141,10 +141,6 @@ that proof remains with the after-landing runs (11).
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).
 
-- **Not yet:** 2.5: the upgrade's power loss drawn once in focused, the
-  four named cuts each a whole story in fuzzy [in flight: change 4636]
-  2.5: the settled stop and the power-loss cases starting from the settled
-  image (`../protocol/baseline.md`, 8) [in flight: change 4638]
 
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
