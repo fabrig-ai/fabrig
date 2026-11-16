@@ -566,11 +566,11 @@ def print_summary(result, as_json=False):
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls)
     result = summary(directory, limits, profile)
     output = io.StringIO()
     with contextlib.redirect_stdout(output):

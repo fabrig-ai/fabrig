@@ -167,6 +167,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "syn 2.0.119",
+ "toml",
 ]
 
 [[package]]
