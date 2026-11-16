@@ -2,7 +2,7 @@
 
 2026-11-13. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`).
+- **Not yet:** 1, a making waits in the outbox's line beside changes, landings and releases, by place: makings wait only among themselves, ordered by the connector's sequence (`temper-engine-domain-forge/src/goal_branch.rs`, `next_room_waiter`) [in flight: change 4909].
 
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the

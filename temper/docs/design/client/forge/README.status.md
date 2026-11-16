@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2.1: a change waiting for room in the forge's outbox, said on its page [in flight: change 4917].
+
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, the path sets it signs off, partial-read notice, Open and Later. A
 counting viewer gets a safe files-page review link, using the sign-in
