@@ -213,8 +213,8 @@ A failure here refuses the redeploy with nothing stopped, exit 1.
   - exit 0, `workers may stay: no`, `workers may stay: unknown…`, or no
     such line: the engine started again on its old build, its openings
     waited for, then every part together (4.5).
-- **A backup** before the swap when the check's lines say it patched (a
-  line holding `upgrade: patched `): the engine's `backup`, `{name}`
+- **A backup** before the swap when the check's lines say it ran a job (a
+  line holding `upgrade: ran `): the engine's `backup`, `{name}`
   `COMMIT-YYYYMMDDTHHMMSSZ`, the time the backup's, UTC.
 
 ### 4.3 The engine alone
@@ -509,7 +509,9 @@ host: no `ssh`, no service manager, no network.
   engine started again and nothing swapped; a check saying no and
   unknown, the old engine started again, then the workers drained before
   the engine's stop; `--workers` one at a time, each waiting for its
-  logins; `--together`; a patching check's backup before the swap; a
+  logins; `--together`; a job-running check's backup before the swap (a
+  line holding `upgrade: ran `), no backup without such a line, and an
+  existing backup kept; a
   refusal at the opening; a step failing before and after the swap; the
   stop's lines read (4.2): a worker told, one not told, one with no
   line, each kept and printed, and the openings' bound the largest wait

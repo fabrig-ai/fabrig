@@ -243,13 +243,13 @@ impl Run<'_> {
         Ok(may_stay)
     }
     fn backup(&mut self) -> Result<(), Failure> {
-        let patched = self
+        let ran_job = self
             .journal
             .record
             .check
             .as_ref()
-            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: patched ")));
-        if !patched || self.journal.record.backup.is_some() {
+            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: ran ")));
+        if !ran_job || self.journal.record.backup.is_some() {
             return Ok(());
         }
         let at = self.hosts.now();
