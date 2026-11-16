@@ -8,7 +8,6 @@ Section 4 is designed, in `../domain/agent/charter.md`, 4, *Words a person reads
 
 - **Design lags:**
   - 5: `../domain/agent/agents.md`, 2's line form has no `Findings:` or `Group:` line; `../domain/areas.md`, 6's triager asks about no group; no reason kind names starting work on findings (`what-reaches-you.md`, section 5).
-  - 6: `../domain/forge/attention.md`, 3's words hold no findings, and a run starts on landings alone.
   - 7: `../domain/agent/agents.md`, 2's brief names its person by number alone.
   - 8: as `milestones.status.md` says.
 - **Design departs:** none.

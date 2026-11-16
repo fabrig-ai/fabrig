@@ -3520,6 +3520,8 @@ pub enum Path {
     StatusBriefAt,
     /// The `landed` field of `StatusBrief`.
     StatusBriefLanded,
+    /// The `findings` field of `StatusBrief`.
+    StatusBriefFindings,
     /// Bytes after `StatusBrief`.
     StatusBriefTail,
     /// The `task` field of `StatusRunning`.
@@ -3528,6 +3530,8 @@ pub enum Path {
     StatusRunningLanded,
     /// The `since` field of `StatusRunning`.
     StatusRunningSince,
+    /// The `findings` field of `StatusRunning`.
+    StatusRunningFindings,
     /// Bytes after `StatusRunning`.
     StatusRunningTail,
     /// The `project` field of `ProjectFacts`.
@@ -21257,6 +21261,8 @@ pub struct StatusBriefParts {
     pub at: u64,
     /// The `landed` field.
     pub landed: u64,
+    /// The `findings` field.
+    pub findings: Option<[u8; 32]>,
 }
 
 /// `StatusBrief` in this codec family.
@@ -21266,13 +21272,14 @@ pub struct StatusBrief {
     lede: Box<[u8]>,
     at: u64,
     landed: u64,
+    findings: Option<[u8; 32]>,
 }
 
 impl StatusBrief {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: StatusBriefParts) -> Result<Self, Problem> {
-        let StatusBriefParts { sentence, lede, at, landed } = parts;
-        let value = Self { sentence, lede, at, landed };
+        let StatusBriefParts { sentence, lede, at, landed, findings } = parts;
+        let value = Self { sentence, lede, at, landed, findings };
         value.check(limits)?;
         Ok(value)
     }
@@ -21293,9 +21300,13 @@ impl StatusBrief {
     #[must_use]
     pub fn landed(&self) -> u64 { self.landed }
 
+    /// Reads the `findings` field.
+    #[must_use]
+    pub fn findings(&self) -> &Option<[u8; 32]> { &self.findings }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> StatusBriefParts { StatusBriefParts { sentence: self.sentence, lede: self.lede, at: self.at, landed: self.landed } }
+    pub fn into_parts(self) -> StatusBriefParts { StatusBriefParts { sentence: self.sentence, lede: self.lede, at: self.at, landed: self.landed, findings: self.findings } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.sentence.len() > usize::try_from(limits.status_brief_sentence.min(CEILINGS.status_brief_sentence)).expect("u32 fits usize") { return Err(Problem { path: Path::StatusBriefSentence, reason: skein_codec::Reason::Bound }); }
@@ -21313,6 +21324,8 @@ pub struct StatusRunningParts {
     pub landed: u64,
     /// The `since` field.
     pub since: u64,
+    /// The `findings` field.
+    pub findings: Option<[u8; 32]>,
 }
 
 /// `StatusRunning` in this codec family.
@@ -21321,13 +21334,14 @@ pub struct StatusRunning {
     task: Option<u64>,
     landed: u64,
     since: u64,
+    findings: Option<[u8; 32]>,
 }
 
 impl StatusRunning {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: StatusRunningParts) -> Result<Self, Problem> {
-        let StatusRunningParts { task, landed, since } = parts;
-        let value = Self { task, landed, since };
+        let StatusRunningParts { task, landed, since, findings } = parts;
+        let value = Self { task, landed, since, findings };
         Ok(value)
     }
 
@@ -21343,9 +21357,13 @@ impl StatusRunning {
     #[must_use]
     pub fn since(&self) -> u64 { self.since }
 
+    /// Reads the `findings` field.
+    #[must_use]
+    pub fn findings(&self) -> &Option<[u8; 32]> { &self.findings }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> StatusRunningParts { StatusRunningParts { task: self.task, landed: self.landed, since: self.since } }
+    pub fn into_parts(self) -> StatusRunningParts { StatusRunningParts { task: self.task, landed: self.landed, since: self.since, findings: self.findings } }
 
 }
 
@@ -44469,6 +44487,11 @@ impl StatusBrief {
         size = size.checked_add(u32::try_from(field_lede.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_findings = &self.findings;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_findings.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -44484,6 +44507,14 @@ impl StatusBrief {
         writer.put(&field_at.to_be_bytes())?;
         let field_landed = &self.landed;
         writer.put(&field_landed.to_be_bytes())?;
+        let field_findings = &self.findings;
+        match field_findings {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -44499,7 +44530,8 @@ impl StatusBrief {
         let decoded_lede = { let length = match skein_codec::read_len(reader, limits.status_brief_lede.min(CEILINGS.status_brief_lede)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::StatusBriefLede, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::StatusBriefLede, reason: skein_codec::Reason::Short })?) };
         let decoded_at = reader.u64().ok_or(Problem { path: Path::StatusBriefAt, reason: skein_codec::Reason::Short })?;
         let decoded_landed = reader.u64().ok_or(Problem { path: Path::StatusBriefLanded, reason: skein_codec::Reason::Short })?;
-        Ok(Self { sentence: decoded_sentence, lede: decoded_lede, at: decoded_at, landed: decoded_landed })
+        let decoded_findings = match reader.u8().ok_or(Problem { path: Path::StatusBriefFindings, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::StatusBriefFindings, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::StatusBriefFindings, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { sentence: decoded_sentence, lede: decoded_lede, at: decoded_at, landed: decoded_landed, findings: decoded_findings })
     }
 }
 
@@ -44515,6 +44547,11 @@ impl StatusRunning {
         }
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_findings = &self.findings;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_findings.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -44532,6 +44569,14 @@ impl StatusRunning {
         writer.put(&field_landed.to_be_bytes())?;
         let field_since = &self.since;
         writer.put(&field_since.to_be_bytes())?;
+        let field_findings = &self.findings;
+        match field_findings {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -44546,7 +44591,8 @@ impl StatusRunning {
         let decoded_task = match reader.u8().ok_or(Problem { path: Path::StatusRunningTask, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::StatusRunningTask, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::StatusRunningTask, reason: skein_codec::Reason::Tag }) };
         let decoded_landed = reader.u64().ok_or(Problem { path: Path::StatusRunningLanded, reason: skein_codec::Reason::Short })?;
         let decoded_since = reader.u64().ok_or(Problem { path: Path::StatusRunningSince, reason: skein_codec::Reason::Short })?;
-        Ok(Self { task: decoded_task, landed: decoded_landed, since: decoded_since })
+        let decoded_findings = match reader.u8().ok_or(Problem { path: Path::StatusRunningFindings, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::StatusRunningFindings, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::StatusRunningFindings, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { task: decoded_task, landed: decoded_landed, since: decoded_since, findings: decoded_findings })
     }
 }
 
@@ -62705,6 +62751,7 @@ impl StatusBrief {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.status_brief_sentence))?)?.checked_add(4_u64.checked_add(u64::from(limits.status_brief_lede))?)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -62719,6 +62766,7 @@ impl StatusBrief {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.status_brief_sentence))?.checked_add(u64::from(limits.status_brief_lede))?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -62734,7 +62782,7 @@ impl StatusRunning {
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -62748,7 +62796,7 @@ impl StatusRunning {
     pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

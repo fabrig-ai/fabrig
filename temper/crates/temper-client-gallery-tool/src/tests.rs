@@ -1069,7 +1069,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Described {
                 role: Role::Disclosure,
                 name: "Status agent",
-                description: "When you look at Home after landings: writes the lines at its top",
+                description: "When you look at Home after landings or findings: writes the lines at its top",
             },
             Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
             Part::StyledText {

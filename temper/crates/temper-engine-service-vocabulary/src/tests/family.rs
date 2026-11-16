@@ -3399,7 +3399,7 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     for (number, name, who) in [
         (1, b"Chat".as_slice(), b"For each chat: talks with you and asks for the changes".as_slice()),
         (12, b"Drafter", b"When you start a draft: writes a draft with you, one question at a time, and starts nothing"),
-        (9, b"Status agent", b"When you look at Home after landings: writes the few lines at the top of Home, from what landed and what waits"),
+        (9, b"Status agent", b"When you look at Home after landings or findings: writes the few lines at the top of Home, from what landed and what waits"),
     ] {
         let mut role = card.clone();
         role.name = name.into();
@@ -3688,6 +3688,7 @@ fn looked_and_status_translate_both_ways() {
                 lede: b"The work landed.".as_slice().into(),
                 at: skein_lib::Wall::from_nanos(234),
                 landed: 5,
+                findings: Some([7; 32]),
             }),
             Some(skein_lib::Wall::from_nanos(345)),
         ),
