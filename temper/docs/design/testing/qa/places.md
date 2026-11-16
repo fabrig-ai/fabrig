@@ -94,7 +94,8 @@ drive session are Q2's (`../../client/recipe.md`,
   restored only at the place that made it, since its copies live in
   that place's directory.
 - **The cache stays:** `box/cache/` is kept across copies and builds; a
-  copy holds `config/` and `data/` alone, the fake forges' state among
+  copy holds `config/` and `data/` alone, those of them its box made (a
+  box with fake backends makes no `config/`), the fake forges' state among
   them (`../../protocol/setup/box.md`, 5).
 - **No Forgejo and no runner:** every setup's forge is the box's fake
   Forgejo (`setups.md`, 2), so no box at a place sets up its own

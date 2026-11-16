@@ -672,7 +672,7 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
         (None, true, true, false),
         (Some("middle"), false, false, false),
         (Some("middle"), true, false, false),
-        (Some("middle"), false, true, false),
+        (Some("middle"), false, true, true),
         (Some("middle"), true, true, true),
     ] {
         let result = walk::check_scratch(from, config, data);
