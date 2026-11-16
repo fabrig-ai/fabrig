@@ -551,7 +551,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
             name: b"milestone".as_slice().into(),
             executor: TemplateExecutor::Chosen,
             contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
-            shallower: 0,
+            shallower: 1,
             budget: TemplateBudget::Given,
             deadline: TemplateDeadline::None,
             tracked: Some(1),

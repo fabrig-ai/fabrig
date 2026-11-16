@@ -415,7 +415,7 @@ fn goal_choice_template(config: &mut engine::Config) {
     config.core.settings.models[0].effort = Some(b"low".as_slice().into());
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
     config.core.defaults.charters[0].policy.resume = false;
-    // This fixture admits a gathering and its two goals without template 8.
+    // This fixture admits the stock milestone and its two goals.
     let kinds: Box<[jig_domain_authority::Executor]> = Box::new([
         jig_domain_authority::Executor::Charter(1),
         jig_domain_authority::Executor::Procedure(jig_client::shapes::GATHERING),
@@ -424,6 +424,28 @@ fn goal_choice_template(config: &mut engine::Config) {
     for authority in [&mut config.core.defaults.rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
         authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 4, depth: 2 };
     }
+    let models = config
+        .core
+        .settings
+        .models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+            first_read: None,
+            number: u32::try_from(at).expect("fixture models") + 1,
+            model: model.clone(),
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect();
+    let stock = temper_engine_service_stock::stock::with_models(models, engine_limits().tasks.result_bytes);
+    let mut templates = config.core.defaults.templates.to_vec();
+    templates.push(stock.templates.iter().find(|template| template.number == 8).expect("stock milestone").clone());
+    config.core.defaults.templates = templates.into_boxed_slice();
     let template = &mut config.core.defaults.templates[1];
     template.executor = TemplateExecutor::Charter(1);
     template.deadline = TemplateDeadline::None;

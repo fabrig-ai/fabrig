@@ -40,6 +40,7 @@ mod specification;
 
 mod goal_milestone;
 mod goal_template;
+mod milestone;
 mod party;
 mod restore;
 mod role;

@@ -75,6 +75,10 @@ pub(crate) const TIER_HOLD: &[&str] =
     &["tier", "hold", "--project", "shop", "browser", "--reason", "maintenance", "--key", "tier-hold"];
 pub(crate) const TIER_RELEASE: &[&str] = &["tier", "release", "--project", "shop", "browser", "--key", "tier-release"];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
+    &["milestone", "whole", "812", "--key", "whole"],
+    &["milestone", "list", "--project", "1"],
+    &["milestone", "show", "812"],
     TIER_HOLD,
     TIER_RELEASE,
     FOLLOW_START,
@@ -734,6 +738,9 @@ impl Harness {
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
+                | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::MILESTONE_SHOW_AT
+                | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::FINDING_FILE_AT
@@ -898,7 +905,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 122;
+pub(super) const TOOL_FORMS: u32 = 126;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

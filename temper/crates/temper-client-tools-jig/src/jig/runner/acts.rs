@@ -1,6 +1,7 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub mod choice;
 mod goal;
+mod milestone;
 mod need;
 mod role;
 mod subject;
@@ -73,6 +74,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     }
     if called.call.tool == rows::CHAT_CREATE_AT
         || (called.call.tool == rows::GOAL_START_AT && number(&called.call, 11).is_none())
+        || called.call.tool == rows::MILESTONE_NEW_AT
         || called.call.tool == rows::ROLE_START_AT
         || called.call.tool == rows::NEED_ASK_AT
     {
@@ -199,6 +201,7 @@ fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     match call.tool {
         rows::GOAL_START_AT => goal::start(call, me, limits),
         rows::ROLE_START_AT => role::start(call, me, limits),
+        rows::MILESTONE_NEW_AT => milestone::new(call, me, limits),
         rows::NEED_ASK_AT => need::ask(call, me, limits),
         _ => chat(call, me, limits),
     }
@@ -481,6 +484,16 @@ fn build(
         && let Some(why) = vocabulary.release_again_refusal(task)
     {
         return Err(Failed::Refused(why));
+    }
+    if call.tool == rows::MILESTONE_WHOLE_AT {
+        return Ok((
+            Request::Act {
+                ask: c::Ask::Conclude { project, task: number(call, 0).expect("task argument") },
+                phase: subject::ended(document),
+                asked: None,
+            },
+            None,
+        ));
     }
     let offers = subject::offers(document);
     let act = kind(call);
@@ -1056,6 +1069,8 @@ fn draw_name(runner: &mut Runner, called: &mut Called) {
 fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
     match tool {
         rows::GOAL_START_AT => b"goal",
+        rows::MILESTONE_NEW_AT => b"milestone",
+        rows::MILESTONE_WHOLE_AT => b"whole",
         rows::ROLE_START_AT => b"role",
         rows::CLOSE_AT => b"close",
         _ => word,

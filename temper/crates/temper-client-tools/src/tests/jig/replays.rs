@@ -404,6 +404,9 @@ fn replay_cases_cover_every_keyed_verb_in_the_tools_table() {
     for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()).chain(PERSON_CALLS.iter()).chain(TALK_CALLS.iter()) {
         covered.push(f::call(argv).tool);
     }
+    for argv in super::milestone::KEYED {
+        covered.push(f::call(argv).tool);
+    }
     covered.push(rows::AMEND_AT);
     for (index, tool) in crate::table::TOOLS.iter().enumerate() {
         if tool.keyed != crate::jig::table::Keyed::Never {

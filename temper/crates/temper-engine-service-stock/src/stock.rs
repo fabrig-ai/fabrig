@@ -813,7 +813,7 @@ fn milestone(result_bytes: u32) -> Template {
     Template {
         number: 8,
         name: bytes::copy_of(b"milestone"),
-        shallower: 0,
+        shallower: 1,
         deadline: TemplateDeadline::None,
         flags: Flags { ended_by: EndedBy::Requester, conversation: false, listed: true, retention: Retention::Kept },
         label: 4,

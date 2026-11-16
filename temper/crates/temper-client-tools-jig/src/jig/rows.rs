@@ -1361,3 +1361,94 @@ pub const NEED_ASK: Tool = Tool {
     ]], keyed: Keyed::Required, area: 3,
     notes: b"Makes a person task without a template. The spec is the question,\na blank line, then Why: and the why. Choices are numbered from 1;\nthe specification's byte parameters keep their words under those codes.\nRead its answer with task show TASK. Jig's refusal prints in its words, exit 2.\n",
 };
+
+// client/ctl/milestones.md, 1: appended durable table positions.
+pub const MILESTONE_NEW_AT: u8 = 101;
+pub const MILESTONE_WHOLE_AT: u8 = 102;
+pub const MILESTONE_LIST_AT: u8 = 103;
+pub const MILESTONE_SHOW_AT: u8 = 104;
+pub const MILESTONE_NEW: Tool = Tool {
+    name: b"milestone new",
+    line: b"Make a milestone from project template 8",
+    prints: b"`done: task N, milestone`, or `proposed: PROPOSAL, to RECIPIENT`",
+    result: b"milestone_create",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        positional(
+            b"name",
+            b"NAME",
+            Kind::Literal,
+            Required,
+            b"Its name, 1 to 60 characters on one line, no control character",
+        ),
+        flag(b"words", b"TEXT", Kind::Text, Optional, b"Its words; - reads stdin"),
+        flag(
+            b"priority",
+            b"PRIORITY",
+            Kind::NumberRange { min: 0, max: 4_294_967_295 },
+            Optional,
+            b"Override the template's tracked priority",
+        ),
+        flag(
+            b"budget",
+            b"AMOUNT",
+            Kind::Number,
+            Optional,
+            b"Spend in the deployment's unit; required for a given budget unless --as-allowed",
+        ),
+        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        flag(b"deadline", b"TIME", Kind::Literal, Optional, b"UTC to the minute, as 2026-10-24T17:00Z"),
+    ]],
+    keyed: Keyed::Required,
+    area: 8,
+    notes: b"NAME is the spec's first line; --words follows a blank line.
+The executor is jig's gathering; no --charter. Budget and deadline
+controls replace template defaults; absent controls keep them.
+Within bounds, created; past them but proposable, proposed (exit 0);
+not offered or past ceilings, nothing sent (exit 1).
+Fill it with goal start --milestone TASK, then milestone whole TASK.
+",
+};
+pub const MILESTONE_WHOLE: Tool = Tool {
+    name: b"milestone whole",
+    line: b"Say every goal is in the milestone",
+    prints: b"`done: task N, whole`",
+    result: b"milestone_whole",
+    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The milestone's task number")]],
+    keyed: Keyed::Required,
+    area: 8,
+    notes: b"Whole cannot be undone. A second call keeps the first conclusion.
+A task that is not a gathering, or has ended, is refused (exit 2).
+Pause, resume and close are task's, as for any task.
+",
+};
+pub const MILESTONE_LIST: Tool = Tool {
+    name: b"milestone list",
+    line: b"Read one group of the project's milestones",
+    prints: b"Each milestone's number, name, D / N done and state; then read on with: or no more",
+    result: b"milestone_list",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        switch(b"ended", b"Read the ended group instead of the live"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"Read on from the printed cursor"),
+    ]],
+    keyed: Keyed::Never,
+    area: 8,
+    notes: b"Reads tracked tasks by template 8's label. State is live, or
+complete, ended when some goal failed, or closed when cancelled.
+Cancelled goals are left out of both counts.
+",
+};
+pub const MILESTONE_SHOW: Tool = Tool {
+    name: b"milestone show",
+    line: b"Read a milestone's facts, totals and goals",
+    prints: b"Its name, whole time, words, maker, counts, spend and last landing or end; then its goals in task order",
+    result: b"milestone_show",
+    forms: MILESTONE_WHOLE.forms,
+    keyed: Keyed::Never,
+    area: 8,
+    notes: b"Goals merge live and ended delegates, each with its number, title
+and state: live, done, failed or closed. A list past one page prints
+read on with: task list. Where forge totals are gone, totals: none.
+",
+};
