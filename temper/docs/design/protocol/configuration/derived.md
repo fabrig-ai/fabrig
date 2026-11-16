@@ -156,6 +156,13 @@ writes only `slots`.
   at twice them (2T and 2P, twice the slots, twice the stream bounds),
   and checks that it passes today's check and that one below it is
   refused, naming both.
+- **Where twice a source passes a ceiling** of a wire or the store
+  (jig's worker wire's `turn_body` of 33,554,432, and the store's
+  transcript ceiling, take no 2T at the stock's T of 18,431,842), the
+  test checks the formula's arithmetic at twice, and today's check at
+  the largest source that ceiling takes. At twice, it checks that the
+  start refuses, naming the figure and its source, and never panics.
+  The ceilings stay: raising one moves its wire.
 - **The stock agent's T and P** have a focused test that holds them
   equal to smith's derivation over the stock agent (section 3).
 
