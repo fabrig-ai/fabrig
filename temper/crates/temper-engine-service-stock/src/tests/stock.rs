@@ -1696,7 +1696,7 @@ fn every_stock_role_keeps_its_whole_line_in_who() {
         (5, b"For each goal"),
         (2, b"For each change"),
         (4, b"For each change"),
-        (9, b"When you look at Home after landings"),
+        (9, b"When you look at Home after landings or findings"),
     ] {
         let item = stock.iter().find(|item| item.kind == 9 && item.number == number).expect("role's stock words");
         let Value::CharterWords(line) = &item.value.value else { panic!("role's words") };
@@ -1993,7 +1993,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
