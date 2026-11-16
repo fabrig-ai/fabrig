@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 #[derive(Default)]
 pub(in crate::world) struct Terminals {
     pub(super) revision: u64,
-    pub(super) ended: Vec<u64>,
+    pub(in crate::world) ended: Vec<u64>,
     #[cfg(test)]
     pub(super) last_sync: Option<skein_lib::Token>,
     logs: BTreeMap<i32, Vec<u64>>,

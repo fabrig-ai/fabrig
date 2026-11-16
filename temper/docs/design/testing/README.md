@@ -267,6 +267,10 @@ terminal client, the captures and the faults.
     calls shows (../protocol/credentials.md, section 4);
   - a signal mid-run drains the engine, the worker ends, and the next
     start settles the worker's claims at once;
+  - a stop while a chat's run holds a turn of smith's fake `claude` on a
+    program's source: the turn interrupted, the engine drained, and no
+    program left running (`../protocol/setup/box.md`, 2); a program's
+    own cancel is smith's agent-process world's;
   - the service is killed, or the machine's power lost, at a drawn
     moment, then started again on the same disk, an adoption pending
     among what it finds;

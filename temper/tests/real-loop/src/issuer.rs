@@ -2,19 +2,6 @@
 use skein_fake_peers::{Transport, oauth};
 use skein_lib::Duration;
 
-/// The box's issuer; its registration permits the engine's kernel-chosen callback port.
-pub(crate) fn production(address: std::net::SocketAddr) -> oauth::Peer {
-    let document = serde_json::to_vec(&serde_json::json!({
-        "listen": {"socket": address.to_string()},
-        "redirect_port": 1455,
-        "redirect_path": "auth/callback"
-    }))
-    .expect("issuer document JSON");
-    temper_fake::oauth::Document::decode(&document).expect("issuer document").peer(SEED).expect("box issuer")
-}
-
-pub(crate) const SEED: u64 = 7;
-
 pub(crate) fn peer(address: std::net::SocketAddr, registration: &serde_json::Value) -> oauth::Peer {
     let bytes =
         |member: &str| -> Box<[u8]> { registration[member].as_str().expect("registration member").as_bytes().into() };
@@ -129,13 +116,6 @@ use skein_io::kernel::{Complete, Done, Family, Op};
 use skein_lib::Secret;
 use std::net::SocketAddr;
 
-#[derive(PartialEq, Eq)]
-enum Connection {
-    Close,
-    KeepAlive,
-    Idle,
-}
-
 /// One unfollowed GET on the world's ring. Deliberately has no Debug: the
 /// request and an authorization answer's Location carry a secret in transit.
 pub(crate) struct Visit {
@@ -145,8 +125,6 @@ pub(crate) struct Visit {
     pub(crate) redirect: Option<Secret>,
     pub(crate) answer: Returned,
     authorize: bool,
-    connection: Connection,
-    pub(crate) held: Option<skein_io::kernel::Fd>,
     pub(crate) done: bool,
 }
 impl Visit {
@@ -169,15 +147,8 @@ impl Visit {
             redirect: None,
             answer: Returned { status: None, body: Box::new([]), error: None },
             authorize,
-            connection: Connection::Close,
-            held: None,
             done: false,
         }
-    }
-    pub(crate) fn held(url: &[u8], idle: bool) -> Self {
-        let mut visit = Self::new(url, true);
-        visit.connection = if idle { Connection::Idle } else { Connection::KeepAlive };
-        visit
     }
     pub(crate) fn start(&self) -> Op {
         Op::Socket { family: Family::of(&self.address) }
@@ -196,17 +167,10 @@ impl Visit {
         match (complete.kind, done) {
             (Op::Socket { .. }, Done::Fd(fd)) => Some(Op::Connect { fd, addr: self.address }),
             (Op::Connect { fd, .. }, Done::Nothing) => {
-                if self.connection == Connection::Idle {
-                    self.held = Some(fd);
-                    self.done = true;
-                    return None;
-                }
                 let mut bytes = b"GET ".to_vec();
                 bytes.extend_from_slice(&self.target);
                 bytes.extend_from_slice(format!(" HTTP/1.1\r\nHost: {}\r\n", self.address).as_bytes());
-                if self.connection == Connection::Close {
-                    bytes.extend_from_slice(b"Connection: close\r\n");
-                }
+                bytes.extend_from_slice(b"Connection: close\r\n");
                 bytes.extend_from_slice(b"\r\n");
                 Some(Op::Send { fd, bytes: bytes.into(), from: 0 })
             }
@@ -223,13 +187,7 @@ impl Visit {
                 assert!(self.bytes.len() + count as usize <= Self::RESPONSE, "bounded sign-in answer");
                 self.bytes.extend_from_slice(&buf[..count as usize]);
                 if self.response() {
-                    if self.connection == Connection::KeepAlive {
-                        self.held = Some(fd);
-                        self.done = true;
-                        None
-                    } else {
-                        Some(Op::Close { fd })
-                    }
+                    Some(Op::Close { fd })
                 } else {
                     assert!(count > 0, "sign-in answer ended before its Content-Length");
                     Some(Op::Recv { fd, buf })
