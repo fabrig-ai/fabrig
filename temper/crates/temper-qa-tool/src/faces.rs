@@ -522,11 +522,21 @@ impl RealArchive {
         command
     }
 }
+/// A copy's members present in `scratch`: a box run with fake backends keeps its configuration under
+/// `data/`, so its `config/` may never be made (qa/places.md, 4).
+pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
+    let members: Vec<_> = ["config", "data"].into_iter().filter(|name| scratch.join(name).is_dir()).collect();
+    if members.is_empty() {
+        return Err(refused(format!("{} holds neither config nor data to copy", scratch.display())));
+    }
+    Ok(members)
+}
 impl ArchiveFace for RealArchive {
     fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+        let members = copy_members(scratch)?;
         checked(
             self.command("--create", scratch, archive)
-                .args(["config", "data"])
+                .args(members)
                 .output()
                 .map_err(|why| refused(format!("tar: {why}")))?,
             "tar --create",

@@ -146,7 +146,7 @@ pub(crate) fn finding(value: &Value) -> Result<Finding, Refusal> {
         return Err(refused(format!("unknown finding severity {severity}")));
     }
     let surface = text(object, "surface")?;
-    if surface != "web" && surface != "tui" {
+    if surface != "ctl" && surface != "web" && surface != "tui" {
         return Err(refused(format!("unknown finding surface {surface}")));
     }
     Ok(Finding {
