@@ -9,6 +9,10 @@
   lowercase letters' height, at 1366 by 745 and 761 wide. The stylesheet
   and view tests check the rules and tree, not rendered equality;
   compilation and print checks establish no rendered equality either.
+- **Not yet:** *The project's frame*: the rail's link word is 12.5 px,
+  centred on a row its foot's item rule pads 6 by 10 px, and Live's dot
+  6 px, not the foot's 13.5 px on temper's 24 px line with every dot 7 px
+  on the baseline [in flight: change 4457].
 
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
