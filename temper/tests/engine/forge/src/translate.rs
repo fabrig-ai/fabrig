@@ -812,7 +812,7 @@ fn run(run: forge::Run) -> client::Run {
             forge::RunEvent::Dispatch => client::Event::Dispatch,
         },
         actor: run.user,
-        state: state_in(run.state),
+        state: if run.wait.is_some() { client::RunState::Waiting } else { state_in(run.state) },
         conclusion: conclusion_in(run.conclusion),
         url: format!("http://forge/org/repo/actions/runs/{}", run.number).into_bytes().into_boxed_slice(),
         created: run.created,
