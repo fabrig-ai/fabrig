@@ -322,6 +322,17 @@ in section 2.3's voice.
   page gives the whole form, where the run's list carries the declared one
   (`../domain/agent/declarations.md`, 2): a run that needs a member its
   list leaves out reads it here.
+- **`host-tools` keeps within its page bound by shared forms:** a
+  subtree that two or more members anywhere on the page carry the same
+  (an object's members, or an enum's set of values) is rendered once, in a
+  `## Shared forms` section at the page's end, under the name of a member
+  that carries it (`wake`, `authority`); each member carrying it reads its
+  type, requiredness and description as any member's, then `the \`wake\`
+  form, under Shared forms.` in place of its members or values. The
+  renderer finds the repeats in the whole forms themselves, never from a
+  list written beside them, so every member, type, requiredness, value
+  and description is on the page once at least, and the page and the
+  decoders never differ.
 - **`host-tools` says who holds each tool,** since a run reads one page
   for every run: its lead says `A run calls only the tools in its own
   list: a tool here that your list lacks is not yours.`, and each tool's
