@@ -389,6 +389,7 @@ fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::ToAgent, out:
                 }
                 host::CallAnswer::Unavailable => smith::Reply::Unavailable,
                 host::CallAnswer::Withdrawn => smith::Reply::Withdrawn,
+                host::CallAnswer::Unsent => smith::Reply::Unsent,
                 host::CallAnswer::Busy => smith::Reply::Busy,
             };
             smith::parent::Event::Answer { agent, call: call.callback, reply }

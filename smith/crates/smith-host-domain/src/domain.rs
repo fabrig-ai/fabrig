@@ -575,7 +575,7 @@ fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>)
             assert!(call.kind == Kind::Host, "tool terminal matches tool call");
             if within(&body, env.limits.answer_bytes) { Reply::Host { error, body } } else { Reply::TooLarge }
         }
-        reply @ (Reply::Busy | Reply::Unavailable | Reply::Withdrawn | Reply::TooLarge) => {
+        reply @ (Reply::Busy | Reply::Unavailable | Reply::Withdrawn | Reply::Unsent | Reply::TooLarge) => {
             assert!(call.kind == Kind::Host, "submitted delivery owes its full terminal");
             reply
         }

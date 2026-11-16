@@ -292,6 +292,7 @@ impl Process {
                         run::HostReply::Answered(run::HostAnswer::new(body, error).expect("bounded host answer"))
                     }
                     agent::Reply::Withdrawn => run::HostReply::Withdrawn,
+                    agent::Reply::Unsent => run::HostReply::Unsent,
                     agent::Reply::Unavailable => run::HostReply::Unanswered(run::Unanswered::Lost),
                     agent::Reply::Busy => run::HostReply::Busy,
                     agent::Reply::TooLarge => run::HostReply::TooLarge,

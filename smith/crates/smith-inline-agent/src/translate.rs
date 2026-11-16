@@ -90,6 +90,7 @@ pub(crate) fn host_reply(value: host::Reply) -> Option<run::HostReply> {
         host::Reply::Busy => Some(run::HostReply::Busy),
         host::Reply::Unavailable => Some(run::HostReply::Unanswered(run::Unanswered::Lost)),
         host::Reply::Withdrawn => Some(run::HostReply::Withdrawn),
+        host::Reply::Unsent => Some(run::HostReply::Unsent),
         host::Reply::TooLarge => Some(run::HostReply::TooLarge),
         host::Reply::Delivery(_) => None,
     }

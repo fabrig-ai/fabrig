@@ -8,6 +8,51 @@ use jig_host_world::turn_world::World;
 use skein_lib::{Duration, Token};
 
 #[test]
+fn withdrawn_relays_are_unsent_until_the_link_may_have_carried_them() {
+    let mut world = World::new();
+    world.hold_relays();
+    world.assign(false);
+    // Before the first hello nothing could reach the engine.
+    world.call(false);
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Unsent));
+    world.reconnect();
+    world.call(false);
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Withdrawn));
+    world.call(false);
+    world.lose_contact();
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Withdrawn));
+    world.call(false);
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Unsent));
+    world.call(false);
+    world.reconnect();
+    world.lose_contact();
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Withdrawn));
+    world.shutdown();
+    world.reconnect();
+    world.acknowledge_answer();
+    world.assert_settled();
+}
+
+#[test]
+fn the_engine_hubs_unbroken_link_never_answers_unsent() {
+    let mut world = World::new();
+    world.reconnect();
+    world.assign(false);
+    world.hold_relays();
+    world.call(false);
+    world.withdraw_call();
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Withdrawn));
+    world.shutdown();
+    world.acknowledge_answer();
+    world.assert_settled();
+}
+
+#[test]
 fn a_host_call_reaches_the_engine_with_its_tool_write_flag_and_input() {
     let mut world = World::new();
     world.assign_conversation(Box::new([]), Box::new([]));

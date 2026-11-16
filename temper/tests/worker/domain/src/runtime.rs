@@ -402,6 +402,7 @@ impl World {
                     | agent::Reply::Busy
                     | agent::Reply::Unavailable
                     | agent::Reply::Withdrawn
+                    | agent::Reply::Unsent
                     | agent::Reply::TooLarge) => panic!("unexpected delivery result: {other:?}"),
                 }
             }

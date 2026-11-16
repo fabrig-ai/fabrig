@@ -193,6 +193,8 @@ pub enum Reply {
     Unavailable,
     /// Transport withdrawal terminal for generic tools; durable effects remain parent-owned.
     Withdrawn,
+    /// The withdrawn relay never reached what decides it; retry as after busy.
+    Unsent,
     /// Ordinary tool response exceeded receiving bytes.
     TooLarge,
 }

@@ -1,5 +1,5 @@
 //! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
-use crate::{kind, v8};
+use crate::{kind, v9};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
 
@@ -7,47 +7,47 @@ use skein_lib::Writer;
 #[derive(Debug)]
 pub enum Body {
     /// The `Start` wire body.
-    Start(v8::Start),
+    Start(v9::Start),
     /// The `Message` wire body.
-    Message(v8::Message),
+    Message(v9::Message),
     /// The `HostAnswer` wire body.
-    HostAnswer(v8::HostAnswer),
+    HostAnswer(v9::HostAnswer),
     /// The `Acknowledge` wire body.
-    Acknowledge(v8::Acknowledge),
+    Acknowledge(v9::Acknowledge),
     /// The `GrantRefresh` wire body.
-    GrantRefresh(v8::GrantRefresh),
+    GrantRefresh(v9::GrantRefresh),
     /// The `Cancel` wire body.
-    Cancel(v8::Cancel),
+    Cancel(v9::Cancel),
     /// The `Drain` wire body.
-    Drain(v8::Drain),
+    Drain(v9::Drain),
     /// The `Admitted` wire body.
-    Admitted(v8::Admitted),
+    Admitted(v9::Admitted),
     /// The `Call` wire body.
-    Call(v8::Call),
+    Call(v9::Call),
     /// The `Withdraw` wire body.
-    Withdraw(v8::Withdraw),
+    Withdraw(v9::Withdraw),
     /// The `Turn` wire body.
-    Turn(v8::Turn),
+    Turn(v9::Turn),
     /// The `Waiting` wire body.
-    Waiting(v8::Waiting),
+    Waiting(v9::Waiting),
     /// The `Long` wire body.
-    Long(v8::Long),
+    Long(v9::Long),
     /// The `LongDone` wire body.
-    LongDone(v8::LongDone),
+    LongDone(v9::LongDone),
     /// The `Unauthorized` wire body.
-    Unauthorized(v8::Unauthorized),
+    Unauthorized(v9::Unauthorized),
     /// The `Limited` wire body.
-    Limited(v8::Limited),
+    Limited(v9::Limited),
     /// The `Fact` wire body.
-    Fact(v8::Fact),
+    Fact(v9::Fact),
     /// The `Answer` wire body.
-    Answer(v8::Answer),
+    Answer(v9::Answer),
     /// The `MessageRefused` wire body.
-    MessageRefused(v8::MessageRefused),
+    MessageRefused(v9::MessageRefused),
     /// The `Live` wire body.
-    Live(v8::Live),
+    Live(v9::Live),
     /// The `AccountRefused` wire body.
-    AccountRefused(v8::AccountRefused),
+    AccountRefused(v9::AccountRefused),
 }
 
 /// Encode a body with its matching kind and exactly measured frame length.

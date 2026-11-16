@@ -87,3 +87,56 @@ fn random_worlds_settle_and_reach_every_ending() {
     assert!(missing.is_empty(), "every path is taken: {missing:?} are not");
     assert_eq!(seen.len(), 15 + paths.len(), "every path is taken: only {seen:?} are");
 }
+
+#[test]
+fn random_link_losses_and_hellos_preserve_which_withdrawals_are_unsent() {
+    for seed in 0..128 {
+        let mut rng = skein_lib::Rng::new(seed);
+        let mut world = jig_host_world::turn_world::World::new();
+        world.assign(false);
+        world.hold_relays();
+        let mut up = false;
+        let mut hello = 0;
+        let mut pending = None;
+        let mut unsent = 0;
+        let mut withdrawn = 0;
+        for _ in 0..256 {
+            match rng.below(4) {
+                0 => {
+                    world.lose_contact();
+                    up = false;
+                }
+                1 => {
+                    world.reconnect();
+                    up = true;
+                    hello += 1;
+                }
+                2 if pending.is_none() => {
+                    world.call(false);
+                    pending = Some((up, hello));
+                }
+                _ => {
+                    if let Some((sent_up, hello_at_relay)) = pending.take() {
+                        world.withdraw_call();
+                        let expected = if sent_up || hello != hello_at_relay {
+                            withdrawn += 1;
+                            jig_domain_host::CallAnswer::Withdrawn
+                        } else {
+                            unsent += 1;
+                            jig_domain_host::CallAnswer::Unsent
+                        };
+                        assert_eq!(world.reply(), Some(&expected), "seed {seed}");
+                    }
+                }
+            }
+        }
+        assert!(unsent > 0 && withdrawn > 0, "both withdrawal paths: seed {seed}");
+        if pending.is_some() {
+            world.withdraw_call();
+        }
+        world.shutdown();
+        world.reconnect();
+        world.acknowledge_answer();
+        world.assert_settled();
+    }
+}

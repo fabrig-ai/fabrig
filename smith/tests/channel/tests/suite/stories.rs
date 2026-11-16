@@ -978,6 +978,25 @@ fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
 }
 
 #[test]
+fn an_unsent_host_call_returns_under_its_live_relay() {
+    let mut world = World::admitted();
+    let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
+    let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
+    world.agent_calls_host(name, relay);
+    world.settle();
+    world.agent_withdraws(relay);
+    world.settle();
+    assert!(world.observations().contains(&Observation::HostWithdraw { call: skein_lib::Token::new(1) }));
+    world.host_answers(skein_lib::Token::new(1), smith_host_domain::channel::Reply::Unsent);
+    world.settle();
+    assert!(
+        world
+            .observations()
+            .contains(&Observation::AgentHostReturned { relay, reply: smith_domain::run::HostReply::Unsent })
+    );
+}
+
+#[test]
 fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
     let mut world = World::admitted();
     let owner = skein_lib::Token::new(50);

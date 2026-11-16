@@ -204,6 +204,7 @@ impl Component {
                 | smith_channel::Reply::Busy
                 | smith_channel::Reply::Unavailable
                 | smith_channel::Reply::Withdrawn
+                | smith_channel::Reply::Unsent
                 | smith_channel::Reply::TooLarge => return Err(Broken),
             },
         }

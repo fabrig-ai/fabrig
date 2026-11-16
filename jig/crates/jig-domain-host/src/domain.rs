@@ -14,6 +14,8 @@ use crate::turns::Turns;
 /// The host child domain's state.
 #[derive(Debug)]
 pub struct Hub {
+    /// Whether the root has asked for a hello since construction or link loss.
+    pub(crate) link_up: bool,
     pub(crate) job_kinds: Box<[crate::JobBound]>,
     pub(crate) sources: crate::sources::Domain,
     /// The run slots.
@@ -38,6 +40,7 @@ impl Hub {
     pub fn new(limits: &Limits) -> Hub {
         let calls = limits::calls(limits).expect("valid_hub accepted the limits");
         Hub {
+            link_up: false,
             job_kinds: Box::new([]),
             sources: crate::sources::Domain::new(limits.program_sources),
             hosted: Slab::with_capacity(limits.slots),
@@ -259,6 +262,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
     match event {
         Event::Ask { run, attempt, bytes } => crate::asks::ask(domain, env, run, attempt, bytes, out),
         Event::LinkLost => {
+            domain.link_up = false;
             crate::asks::lost(domain, out);
             crate::sources::lost(&mut domain.sources, out);
         }
@@ -300,6 +304,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::cancel_all(domain, reason);
         }
         Event::Opened { stop_bound, workstreams, bounds, jobs } => {
+            domain.link_up = true;
+            hosted::carried(domain);
             domain.job_kinds = jobs;
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
             if domain.shut {

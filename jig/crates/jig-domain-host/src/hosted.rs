@@ -349,7 +349,7 @@ pub(crate) fn relayed(
     };
     let entry = domain.calls.get_mut(call_id).expect("a relay lives until its terminal");
     match entry.state {
-        call::State::Relayed { agent } => {
+        call::State::Relayed { agent, .. } => {
             let name = take_name(entry);
             answer_call(
                 agent,
@@ -601,19 +601,19 @@ pub(crate) fn called(
 }
 
 fn called_named(domain: &mut Hub, env: &Env<Limits>, owner: Token, call: CallName, ask: Ask, out: &mut Queue<Request>) {
-    let Hub { hosted, calls, facts, .. } = domain;
+    let Hub { hosted, calls, facts, link_up, .. } = domain;
     let id = Id::<Hosted>::from_token(owner);
     let entry = hosted.get_mut(id).expect("a run lives until its agent has gone");
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         // A run that calls is at work, whatever it said before.
         State::Active { workspace, agent } => {
-            serve(entry, calls, id, workspace, Served { agent, call, ask }, &env.limits, out);
+            serve(entry, calls, id, workspace, Served { agent, call, ask, carried: *link_up }, &env.limits, out);
             State::Active { workspace, agent }
         }
         State::Waiting { workspace, agent } => {
             facts.push(Fact::Resumed { run: entry.run, attempt: entry.attempt });
-            serve(entry, calls, id, workspace, Served { agent, call, ask }, &env.limits, out);
+            serve(entry, calls, id, workspace, Served { agent, call, ask, carried: *link_up }, &env.limits, out);
             State::Active { workspace, agent }
         }
         // Once a run is cancelled or ending, its calls are not served.
@@ -630,6 +630,22 @@ fn called_named(domain: &mut Hub, env: &Env<Limits>, owner: Token, call: CallNam
     };
     drain_stopping(domain, env, id, out);
     conclude(domain, id, out);
+}
+
+/// The hello's report makes every held relay one the link may have carried (hub.md, 6).
+pub(crate) fn carried(domain: &mut Hub) {
+    for (_, entry) in &domain.hosted {
+        for id in &entry.relays {
+            let call = domain.calls.get_mut(*id).expect("a run owns its relays until their terminals");
+            match &mut call.state {
+                call::State::Relayed { carried, .. } => *carried = true,
+                call::State::Settling => {}
+                call::State::JobDelivering | call::State::Delivering { .. } | call::State::Closed => {
+                    unreachable!("the run holds only its relays")
+                }
+            }
+        }
+    }
 }
 
 pub(crate) fn withdrawn(domain: &mut Hub, owner: Token, call: Box<[u8]>, out: &mut Queue<Request>) {
@@ -1092,6 +1108,7 @@ fn deliver_message(agent: Token, message: NamedEvent, out: &mut Queue<Request>) 
 }
 
 struct Served {
+    carried: bool,
     agent: Token,
     call: CallName,
     ask: Ask,
@@ -1108,7 +1125,7 @@ fn serve(
     limits: &Limits,
     out: &mut Queue<Request>,
 ) {
-    let Served { agent, call, ask } = served;
+    let Served { agent, call, ask, carried } = served;
     let name_fits = len(&call) <= limits.event_bytes;
     let input_fits = match &ask {
         Ask::Relay { tool, input, .. } => match len(tool).checked_add(len(input)) {
@@ -1143,7 +1160,7 @@ fn serve(
         return;
     }
     let name = Some(call.clone());
-    let state = if delivery { call::State::Delivering { agent } } else { call::State::Relayed { agent } };
+    let state = if delivery { call::State::Delivering { agent } } else { call::State::Relayed { agent, carried } };
     // Calls answered in this iteration keep their slots until the reclaim
     // point: a call may find none free even within its run's limit.
     let Ok(call_id) = calls.insert(Call { hosted: id, state, name }) else {
@@ -1186,7 +1203,7 @@ fn serve(
 }
 
 /// The live run withdrew the call its agent names `call`: a relay in flight is
-/// answered as withdrawn, and closes. A delivery goes on, and is answered once it
+/// answered as withdrawn, or unsent if the link never carried it. A delivery goes on, and is answered once it
 /// settles; a call answered already is not found, and nothing happens.
 fn withdraw(entry: &mut Hosted, calls: &mut Slab<Call>, call: CallName, out: &mut Queue<Request>) {
     let mut found = None;
@@ -1202,9 +1219,10 @@ fn withdraw(entry: &mut Hosted, calls: &mut Slab<Call>, call: CallName, out: &mu
     };
     let relayed = calls.get_mut(call_id).expect("found above");
     match relayed.state {
-        call::State::Relayed { agent } => {
+        call::State::Relayed { agent, carried } => {
             let name = relayed.name.as_ref().expect("a pending relay has its name").clone();
-            answer_call(agent, name, CallAnswer::Withdrawn, out);
+            let answer = if carried { CallAnswer::Withdrawn } else { CallAnswer::Unsent };
+            answer_call(agent, name, answer, out);
             relayed.state = call::State::Settling;
             out.push(Request::CancelRelay { run: entry.run, attempt: entry.attempt, call });
         }
@@ -1221,7 +1239,7 @@ fn leave(run: Token, attempt: Token, relays: &Set<Id<Call>>, calls: &mut Slab<Ca
     for call_id in relays {
         let entry = calls.get_mut(*call_id).expect("a run's relays live until their terminals");
         match entry.state {
-            call::State::Relayed { agent } => {
+            call::State::Relayed { agent, .. } => {
                 let name = entry.name.as_ref().expect("a pending relay has its name").clone();
                 answer_call(agent, name.clone(), CallAnswer::Unavailable, out);
                 entry.state = call::State::Settling;

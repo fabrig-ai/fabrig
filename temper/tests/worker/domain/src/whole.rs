@@ -667,6 +667,7 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
         other @ (agent::Reply::Busy
         | agent::Reply::Unavailable
         | agent::Reply::Withdrawn
+        | agent::Reply::Unsent
         | agent::Reply::Delivery(_)) => {
             panic!("unscripted reply: {other:?}")
         }

@@ -106,6 +106,8 @@ pub struct Settings {
     pub job: Job,
     /// Host tool name declared by the fixture charter.
     pub host_tool_name: &'static [u8],
+    /// Timeout declared by the opaque host tool, independent of the caller deadline.
+    pub host_tool_timeout: Duration,
     pub limits: Limits,
     /// The run's token and wall-time allowance, shared across conversations.
     pub budget: run::Budget,
@@ -138,6 +140,7 @@ impl Settings {
             seed,
             job: Job::Coding,
             host_tool_name: b"host_action",
+            host_tool_timeout: Duration::from_millis(300),
             limits: LIMITS,
             budget: BUDGET,
             writable: true,
@@ -166,6 +169,12 @@ pub enum HostSchedule {
     Withdraw,
     /// Wait for withdrawal, but replay recorded answer.
     LateAnswer,
+    /// Every timed-out withdrawal is known never to have been sent.
+    Unsent,
+    /// The first timed-out withdrawal is unsent, then the host answers.
+    UnsentThenAnswer,
+    /// Every timed-out withdrawal settles without revealing an outcome.
+    Withdrawn,
 }
 
 /// Outside record of a root delivery handed to an opt-in parent bridge.
@@ -1264,7 +1273,13 @@ impl<B: Backend> World<B> {
                     HostSchedule::TooLarge => {
                         run::HostAnswer::new(vec![b'x'; 128].into(), false).expect("bounded oversized host text")
                     }
-                    HostSchedule::Answer | HostSchedule::Replay | HostSchedule::Withdraw | HostSchedule::LateAnswer => {
+                    HostSchedule::Answer
+                    | HostSchedule::Replay
+                    | HostSchedule::Withdraw
+                    | HostSchedule::LateAnswer
+                    | HostSchedule::Unsent
+                    | HostSchedule::UnsentThenAnswer
+                    | HostSchedule::Withdrawn => {
                         run::HostAnswer::new(b"opaque host answer: first decision".as_slice().into(), false)
                             .expect("bounded host text")
                     }
@@ -1278,6 +1293,15 @@ impl<B: Backend> World<B> {
                         2 => run::HostReply::Unanswered(run::Unanswered::Lost),
                         _ => run::HostReply::Answered(answer),
                     },
+                    HostSchedule::Unsent => run::HostReply::Unsent,
+                    HostSchedule::UnsentThenAnswer => {
+                        if relay.attempt == 1 {
+                            run::HostReply::Unsent
+                        } else {
+                            run::HostReply::Answered(answer)
+                        }
+                    }
+                    HostSchedule::Withdrawn => run::HostReply::Withdrawn,
                     HostSchedule::Withdraw => {
                         if relay.attempt == 1 {
                             run::HostReply::Unanswered(run::Unanswered::Withdrawn)
@@ -1300,13 +1324,17 @@ impl<B: Backend> World<B> {
                     }
                     run::HostReply::Busy => run::HostReply::Busy,
                     run::HostReply::Withdrawn => run::HostReply::Withdrawn,
+                    run::HostReply::Unsent => run::HostReply::Unsent,
                     run::HostReply::TooLarge => run::HostReply::TooLarge,
                     run::HostReply::Unanswered(run::Unanswered::Withdrawn) => {
                         run::HostReply::Unanswered(run::Unanswered::Withdrawn)
                     }
                 };
-                let at = if matches!(self.settings.host, HostSchedule::LateAnswer | HostSchedule::Withdraw)
-                    && relay.attempt == 1
+                let at = if matches!(self.settings.host, HostSchedule::Unsent | HostSchedule::Withdrawn)
+                    || (matches!(
+                        self.settings.host,
+                        HostSchedule::LateAnswer | HostSchedule::Withdraw | HostSchedule::UnsentThenAnswer
+                    ) && relay.attempt == 1)
                 {
                     deadline.saturating_add(Duration::from_millis(20))
                 } else {
@@ -1862,7 +1890,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
                     description: b"Opaque host write".as_slice().into(),
                     schema: br#"{"type":"object"}"#.as_slice().into(),
                     effect: run::HostEffect::Write,
-                    timeout: Duration::from_millis(300),
+                    timeout: settings.host_tool_timeout,
                 }])
             } else {
                 Box::new([])
