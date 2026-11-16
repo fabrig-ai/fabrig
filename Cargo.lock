@@ -881,7 +881,7 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-view",
+ "jig-client-view-words",
  "jig-protocol-config",
  "serde_json",
  "skein-fake-person",
@@ -1102,7 +1102,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
- "jig-client-view",
+ "jig-client-view-words",
  "skein-http",
  "skein-lib",
  "skein-ui",
