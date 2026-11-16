@@ -148,6 +148,7 @@ impl Offers {
             | Ask::Amend { .. }
             | Ask::Stop { .. }
             | Ask::Conclude { .. }
+            | Ask::Delegate { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }

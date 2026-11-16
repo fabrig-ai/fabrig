@@ -56,7 +56,7 @@ pub(crate) fn make_batch_at(
     tasks::step(
         &mut core.tasks,
         &Env { now: Time::ZERO, wall, limits: limits.tasks },
-        tasks::Event::Make { places: Box::new([]), reply_to: ReplyTo::new(Token::new(1)), creator, batch },
+        tasks::Event::Make { maker: None, places: Box::new([]), reply_to: ReplyTo::new(Token::new(1)), creator, batch },
         &mut out,
     );
     while let Some(request) = out.pop() {

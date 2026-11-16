@@ -1,7 +1,7 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
 use super::Untranslatable;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, length::len_u64};
 #[derive(Debug)]
@@ -68,6 +68,7 @@ fn decode(
         }
         w::Ask::Propose(value) => super::operations::propose(value, models, limits, names)?,
         w::Ask::Withdraw(value) => p::Ask::Withdraw { project: value.project(), proposal: value.proposal() },
+        w::Ask::Delegate(value) => super::operations::delegate(value, models, limits, names)?,
         w::Ask::Create(value) => super::operations::create(value, models, limits, names)?,
         w::Ask::Compound(value) => super::operations::compound(value, models, limits, names)?,
         w::Ask::Talk(value) => {

@@ -32,6 +32,7 @@ fn master() -> New {
 fn pending() -> Harness {
     let mut test = Harness::new();
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Deployment { project: 1 },

@@ -2016,6 +2016,9 @@ pub enum Event {
     /// Create an authorized whole batch and reservations atomically, producing `Made` or
     /// `Refused` plus bounded persistence/lifecycle outputs.
     Make {
+        /// Party behind a Delegate; reach and history are theirs, topology remains the creator's
+        /// (jig/docs/design/domain/tasks/README.md, 4).
+        maker: Option<u64>,
         /// Root-issued destination owed one `Made` or `Refused` terminal for the whole batch.
         reply_to: ReplyTo,
         /// Loaded ended places for a person creator (jig/docs/design/domain/tasks/README.md, 4).

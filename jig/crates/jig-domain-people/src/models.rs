@@ -91,7 +91,7 @@ fn members(values: &mut [Member], moved: &[u64; 64]) {
 /// fresh-request admission. Stored asks keep their original context and are never remapped.
 pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
     match ask {
-        Ask::Create { batch, .. } => members(batch, moved),
+        Ask::Create { batch, .. } | Ask::Delegate { batch, .. } => members(batch, moved),
         Ask::Amend { amendment: value, .. } => amendment(value, moved),
         Ask::Propose { action, .. } => match action {
             Action::Batch(batch) => members(batch, moved),
@@ -187,7 +187,7 @@ impl Selectors {
 fn selectors(ask: &Ask) -> Selectors {
     let mut selected = Selectors { bits: 0, any: false };
     match ask {
-        Ask::Create { batch, .. } => selected.members(batch),
+        Ask::Create { batch, .. } | Ask::Delegate { batch, .. } => selected.members(batch),
         Ask::Amend { amendment, .. } => selected.amendment(amendment),
         Ask::Propose { action, .. } => match action {
             Action::Batch(batch) => selected.members(batch),

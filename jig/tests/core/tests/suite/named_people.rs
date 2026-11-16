@@ -418,6 +418,7 @@ fn raw_batch(world: &mut World, person: u64, field: BatchName) -> Option<Refusal
         BatchName::Requester => creator = tasks::Party::Person(person),
     }
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
         creator,
@@ -469,6 +470,7 @@ fn agent_new(world: &mut World) -> tasks::New {
 fn requester_agent(world: &mut World, person: u64) -> bool {
     let row = agent_new(world);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
         creator: tasks::Party::Person(person),

@@ -170,7 +170,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             }
             Ok(())
         }
-        Ask::Create { batch: members, .. } => batch(key, limits, members),
+        Ask::Create { batch: members, .. } | Ask::Delegate { batch: members, .. } => batch(key, limits, members),
         Ask::Propose { action, reason, .. } => {
             within(key, RestoreBound::Words, reason.len(), limits.words)?;
             match action {

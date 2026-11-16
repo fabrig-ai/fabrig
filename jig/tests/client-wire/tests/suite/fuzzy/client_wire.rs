@@ -1,6 +1,6 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v25::*;
+use jig_client_protocol_wire::v26::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 

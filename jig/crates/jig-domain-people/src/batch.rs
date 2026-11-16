@@ -37,7 +37,7 @@ pub struct Symbol {
     pub symbol: u16,
 }
 
-/// One root requested by a party, mirroring the tasks child's New.
+/// One member of a party's batch, mirroring the tasks child's New.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Member {
     pub executor: TaskExecutor,

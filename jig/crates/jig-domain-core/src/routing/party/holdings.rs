@@ -237,16 +237,17 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                 super::propose::Proposal { request, person, reason, to, batch: creating.members, stubs },
             );
         }
-        CreationKind::Batch { person, given, stubs } => {
+        CreationKind::Batch { beneath, person, given, stubs } => {
             let first = creating.members.first().expect("nonempty batch").number;
             let project = creating.members.first().expect("nonempty batch").project;
-            let (period, pool) =
-                core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
-            if let Some(event) = period {
-                routed.work.push(Work::Event(Event::Tasks(event)));
-            }
-            if let Some(event) = pool {
-                routed.work.push(Work::Event(Event::Tasks(event)));
+            if beneath.is_none() {
+                let (period, pool) = core.open_person_pool(project, person);
+                if let Some(event) = period {
+                    routed.work.push(Work::Event(Event::Tasks(event)));
+                }
+                if let Some(event) = pool {
+                    routed.work.push(Work::Event(Event::Tasks(event)));
+                }
             }
             let request = core.fly(crate::routing::flight::Flight::Made {
                 request,
@@ -258,9 +259,16 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                 },
             });
             routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                maker: match beneath {
+                    Some(_) => Some(person),
+                    None => None,
+                },
                 places: Box::new([]),
                 reply_to: ReplyTo::new(request),
-                creator: tasks::Party::Person(person),
+                creator: match beneath {
+                    Some(task) => tasks::Party::Task(task),
+                    None => tasks::Party::Person(person),
+                },
                 batch: creating.members,
             })));
         }

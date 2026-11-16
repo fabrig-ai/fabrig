@@ -99,7 +99,7 @@ pub(crate) struct PersonEscalation {
 
 #[derive(Hash, Debug)]
 pub(crate) enum CreationKind {
-    Batch { person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
+    Batch { beneath: Option<u64>, person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
     Propose { person: u64, reason: Box<[u8]>, to: u32, stubs: Box<[tasks::Stub]> },
 }
 

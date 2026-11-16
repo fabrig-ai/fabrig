@@ -503,6 +503,7 @@ fn a_new_batch_records_an_ended_done_dependency_as_met_and_restores_its_stub() {
     let places = ended_place(&world, 2);
     assert_eq!(
         response(&mut world, |reply_to| Event::Make {
+            maker: None,
             reply_to,
             creator: PERSON_PARTY,
             batch: Box::new([task(3, &[2])]),
@@ -545,6 +546,7 @@ fn a_new_batch_refuses_failed_or_cancelled_places_and_absent_places_atomically()
         let before = world.records.clone();
         refused(
             response(&mut world, |reply_to| Event::Make {
+                maker: None,
                 reply_to,
                 creator: PERSON_PARTY,
                 batch: Box::new([task(3, &[]), task(4, &[2])]),

@@ -714,6 +714,7 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
         new.executor = crate::Executor::Person(crate::PersonAddress::Person(PERSON));
     }
     let out = h.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(parent),

@@ -1287,6 +1287,7 @@ fn make_follow_owner_task(
     for event in [
         tasks::Event::OpenPeriod { reply_to: READ_REPLY, project, period: 1, budget: 100 },
         tasks::Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to: READ_REPLY,
             creator: tasks::Party::Deployment { project },

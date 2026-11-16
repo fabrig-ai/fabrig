@@ -1,6 +1,6 @@
 use super::fixtures::{self, Client, SUBJECT_TASK, TASK};
 use crate::{Event, Handle, Message, Readable, Request, With, contract as c};
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{List, Reader, Secret, Time, Writer};
 
 fn client() -> Client {

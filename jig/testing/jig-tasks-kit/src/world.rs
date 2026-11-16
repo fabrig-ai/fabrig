@@ -1239,7 +1239,13 @@ impl World {
         let members = batch.iter().map(|task| task.number).collect();
         let reply_to = self.to();
         let call = self.call;
-        self.send(Event::Make { places: Box::new([]), reply_to, creator, batch: batch.into_boxed_slice() });
+        self.send(Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to,
+            creator,
+            batch: batch.into_boxed_slice(),
+        });
         let reply = self.replies[&call].clone();
         let made = self
             .records

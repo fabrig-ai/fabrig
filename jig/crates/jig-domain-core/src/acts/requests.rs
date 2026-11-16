@@ -41,6 +41,7 @@ pub(crate) fn request(
         | people::Ask::AccountChange { .. }
         | people::Ask::Conclude { .. } => return Ok(()),
         people::Ask::Create { .. }
+        | people::Ask::Delegate { .. }
         | people::Ask::Propose { action: people::Action::Batch(_) | people::Action::Amend { .. }, .. } => {
             return standing::role(core, project, role, Act::Amend);
         }
@@ -175,6 +176,7 @@ pub(crate) fn request(
         | people::Ask::Cancel { .. }
         | people::Ask::Move { .. }
         | people::Ask::Create { .. }
+        | people::Ask::Delegate { .. }
         | people::Ask::Propose { .. }
         | people::Ask::Withdraw { .. }
         | people::Ask::MarkSeen { .. }

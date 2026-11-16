@@ -742,7 +742,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ResizePeriod { reply_to, project, period, budget } => {
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
-        Event::Make { reply_to, creator, batch, places } => make(domain, env, reply_to, creator, batch, &places, out),
+        Event::Make { reply_to, creator, maker, batch, places } => {
+            make(domain, env, reply_to, creator, maker, batch, &places, out);
+        }
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
             make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
         }
@@ -1360,11 +1362,13 @@ pub(crate) fn save_cold(task: &Task, out: &mut Queue<Request>) {
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "make keeps its creator and the party behind delegation separate")]
 pub(crate) fn make(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     creator: Party,
+    maker: Option<u64>,
     batch: Box<[New]>,
     places: &[crate::DependencyPlace],
     out: &mut Queue<Request>,
@@ -1372,10 +1376,16 @@ pub(crate) fn make(
     if !domain.ready() {
         return refused(to, None, Refusal::NotReady, out);
     }
-    if let Err(problem) = crate::batch::check_places(domain, &env.limits, creator, &batch, places) {
+    if let Err(problem) = crate::batch::check_places(domain, &env.limits, creator, maker, &batch, places) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);
+    if let Some(person) = maker {
+        for &number in &numbers {
+            crate::control::history(domain, number, env.wall, Party::Person(person), crate::Change::Made, &[], out);
+            publish(domain, env, number, out);
+        }
+    }
     for row in places {
         if row.status == crate::Status::Done {
             crate::closing::remember_stub(

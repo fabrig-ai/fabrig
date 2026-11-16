@@ -19,6 +19,7 @@ fn changed_tracks_creation_real_changes_backward_walls_restore_and_ending() {
     let mut test = Harness::new();
     test.env.wall = Wall::from_nanos(100);
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Person(9),
@@ -59,6 +60,7 @@ fn duplicate_live_publication_does_not_replace_the_last_change_wall() {
         Some(Box::new(RecurringTemplate { key: 1, batch: Box::new([task(1, &[])]), overlap: RecurringOverlap::Skip }));
     test.env.wall = Wall::from_nanos(100);
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Deployment { project: 1 },
@@ -109,6 +111,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
     let mut made = task(7, &[]);
     made.spec.words = vec![b'w'; 4096].into();
     let out = h.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Person(9),

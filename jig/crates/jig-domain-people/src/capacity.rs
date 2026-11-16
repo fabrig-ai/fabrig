@@ -75,7 +75,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. } => CapacityAction::Policy,
         Ask::SetPool { person, .. } => CapacityAction::Pool { person: *person },
-        Ask::Restore { .. } | Ask::Create { .. } | Ask::Propose { .. } => CapacityAction::Create,
+        Ask::Restore { .. } | Ask::Create { .. } | Ask::Delegate { .. } | Ask::Propose { .. } => CapacityAction::Create,
         Ask::Withdraw { proposal, .. } => {
             CapacityAction::Proposal { proposer: crate::Proposer::Party(person), number: *proposal }
         }

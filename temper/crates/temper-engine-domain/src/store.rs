@@ -983,7 +983,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         }
                     }
                     jig_domain_people::Ask::Compound { operations, .. } => people_bytes::compound(operations),
-                    jig_domain_people::Ask::Create { batch, .. } => people_bytes::batch(batch),
+                    jig_domain_people::Ask::Create { batch, .. } | jig_domain_people::Ask::Delegate { batch, .. } => {
+                        people_bytes::batch(batch)
+                    }
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(skein_lib::len_u64(reason.len())),

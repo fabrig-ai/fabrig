@@ -440,11 +440,31 @@ pub(crate) fn tag_people_part(
                     people::Ask::DecideEscalation { task, revision, decision, .. } => {
                         escalation_request(core, env, &mut routed, party, task, revision, decision);
                     }
+                    people::Ask::Delegate { task, batch, .. } => super::create::create_request(
+                        core,
+                        env,
+                        &mut routed,
+                        super::create::Creation {
+                            request,
+                            person,
+                            project,
+                            role: role.expect("admitted role"),
+                            beneath: Some(task),
+                            batch,
+                        },
+                    ),
                     people::Ask::Create { batch, .. } => super::create::create_request(
                         core,
                         env,
                         &mut routed,
-                        super::create::Creation { request, person, project, role: role.expect("admitted role"), batch },
+                        super::create::Creation {
+                            request,
+                            person,
+                            project,
+                            role: role.expect("admitted role"),
+                            beneath: None,
+                            batch,
+                        },
                     ),
                     people::Ask::Propose { action, reason, .. } => match action {
                         people::Action::Settings { against, .. } => {
@@ -466,6 +486,7 @@ pub(crate) fn tag_people_part(
                                 person,
                                 project,
                                 role: role.expect("admitted role"),
+                                beneath: None,
                                 batch,
                             },
                             reason,

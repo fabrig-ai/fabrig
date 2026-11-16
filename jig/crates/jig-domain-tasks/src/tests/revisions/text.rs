@@ -17,6 +17,7 @@ fn refuse_batch(spec: Spec) {
     let mut test = Harness::new();
     let member = crate::New { spec, ..task(TASK, &[]) };
     let out = test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Person(REQUESTER),

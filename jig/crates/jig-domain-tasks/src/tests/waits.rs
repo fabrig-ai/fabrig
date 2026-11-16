@@ -25,6 +25,7 @@ fn a_holders_added_dependency_cannot_circle_through_a_delegates_queue() {
     let mut waiter = task(WAITER, &[]);
     waiter.holdings = Box::new([holding()]);
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(REQUESTER),
@@ -55,6 +56,7 @@ fn a_pool_only_propagates_stuckness_at_its_slot_threshold() {
     let mut waiter = task(WAITER, &[]);
     waiter.holdings = Box::new([pooled]);
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(REQUESTER),

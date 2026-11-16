@@ -293,6 +293,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         | people::Ask::Compound { .. }
         | people::Ask::Propose { .. }
         | people::Ask::Create { .. }
+        | people::Ask::Delegate { .. }
         | people::Ask::Withdraw { .. }
         | people::Ask::Application { .. }
         | people::Ask::AccountSignIn { .. }

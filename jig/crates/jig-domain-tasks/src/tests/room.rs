@@ -184,6 +184,7 @@ fn an_agents_delegation_refused_for_room_does_not_wait() {
     h.make(vec![task(1, &[])]);
     h.env.limits.tasks = 1;
     let out = h.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(1),

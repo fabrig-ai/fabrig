@@ -62,6 +62,7 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -538,6 +539,7 @@ fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -634,6 +636,7 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -675,6 +678,7 @@ fn pool_request(ask: &Ask) -> bool {
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -716,6 +720,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
@@ -1158,6 +1163,7 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Compound { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }

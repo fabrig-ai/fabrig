@@ -115,6 +115,7 @@ fn in_batch(batch: &[tasks::New], number: u64) -> bool {
 pub(crate) struct BatchRead {
     pub request: Token,
     pub creator: tasks::Party,
+    pub maker: Option<u64>,
     pub batch: Box<[tasks::New]>,
 }
 
@@ -143,10 +144,16 @@ pub(crate) fn admit(
         return Err(Queue::uncapped());
     }
     if let Some(next) = evidence.missing(core, role, batch) {
-        let tasks::Event::Make { reply_to, creator, batch, .. } = event else { unreachable!("make inspected") };
+        let tasks::Event::Make { reply_to, creator, maker, batch, .. } = event else { unreachable!("make inspected") };
         let request = reply_to.into_token();
         let mut out = Queue::uncapped();
-        crate::routing::run::results::wait_batch(core, work, &mut out, next, BatchRead { request, creator, batch });
+        crate::routing::run::results::wait_batch(
+            core,
+            work,
+            &mut out,
+            next,
+            BatchRead { request, creator, maker, batch },
+        );
         return Err(out);
     }
     for member in batch.as_ref() {
@@ -209,6 +216,7 @@ pub(crate) fn loaded(
         }
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: read.maker,
         reply_to: ReplyTo::new(read.request),
         creator: read.creator,
         batch: read.batch,

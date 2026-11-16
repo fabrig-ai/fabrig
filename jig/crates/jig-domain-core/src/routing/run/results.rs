@@ -24,9 +24,23 @@ pub(crate) struct ResultRead {
 
 #[derive(Hash, Debug)]
 pub(crate) enum ReadFor {
-    Conclude { party: crate::routing::party::dispatch::Party, task: u64 },
-    DeploymentClose { request: Token, project: u32 },
-    Preparation { task: u64, last_message: u64 },
+    Delegate {
+        party: crate::routing::party::dispatch::Party,
+        task: u64,
+        ended: Option<(u64, jig_domain_people::Refusal)>,
+    },
+    Conclude {
+        party: crate::routing::party::dispatch::Party,
+        task: u64,
+    },
+    DeploymentClose {
+        request: Token,
+        project: u32,
+    },
+    Preparation {
+        task: u64,
+        last_message: u64,
+    },
     Amendment(Box<AmendmentRead>),
     Batch(Box<BatchRead>),
 }
@@ -41,7 +55,10 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
             let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
             let token = id.token();
             let owner = match &read.why {
-                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Batch(_) => None,
+                ReadFor::Delegate { .. }
+                | ReadFor::Conclude { .. }
+                | ReadFor::DeploymentClose { .. }
+                | ReadFor::Batch(_) => None,
                 ReadFor::Preparation { task, .. } => Some(*task),
                 ReadFor::Amendment(read) => match &read.replay {
                     Replay::Agent { key, .. } => Some(key.task),
@@ -56,7 +73,8 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
         let Some(request) = request else { break };
         if let Some(read) = core.take_result_read(request) {
             match read.why {
-                ReadFor::Conclude { .. }
+                ReadFor::Delegate { .. }
+                | ReadFor::Conclude { .. }
                 | ReadFor::DeploymentClose { .. }
                 | ReadFor::Preparation { .. }
                 | ReadFor::Batch(_) => {}
@@ -79,7 +97,8 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ReadFor::Preparation { task: owner, .. } if owner == task => {
                 return out;
             }
-            ReadFor::Conclude { .. }
+            ReadFor::Delegate { .. }
+            | ReadFor::Conclude { .. }
             | ReadFor::DeploymentClose { .. }
             | ReadFor::Preparation { .. }
             | ReadFor::Amendment(_)
@@ -130,6 +149,9 @@ pub(crate) fn loaded(
 
     let Some(mut read) = core.take_result_read(request) else { return out };
     match read.why {
+        ReadFor::Delegate { party, task, ended } => {
+            delegate_loaded(core, env, work, &mut out, party, task, ended, row, busy);
+        }
         ReadFor::Conclude { party, task } => {
             let outcome = concluded_outcome(core, party, task, row, busy);
             work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
@@ -308,7 +330,10 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
                     }
                     Replay::Person { .. } | Replay::Agent { .. } => {}
                 },
-                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+                ReadFor::Delegate { .. }
+                | ReadFor::Conclude { .. }
+                | ReadFor::DeploymentClose { .. }
+                | ReadFor::Preparation { .. } => {}
             }
         }
         let Some(request) = found else { break };
@@ -316,7 +341,10 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
             match read.why {
                 ReadFor::Amendment(read) => discard_party(core, read.replay),
                 ReadFor::Batch(read) => batch_reads::discard(core, read.request),
-                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+                ReadFor::Delegate { .. }
+                | ReadFor::Conclude { .. }
+                | ReadFor::DeploymentClose { .. }
+                | ReadFor::Preparation { .. } => {}
             }
         }
     }
@@ -430,5 +458,111 @@ fn concluded_outcome(
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
             Outcome::Refused(Refusal::Unknown)
         }
+    }
+}
+
+/// An ended Delegate subject is reached on its place and, if needed, its root's
+/// (jig/docs/design/domain/tasks/README.md, 4). Stubs never prove reach.
+pub(crate) fn delegate_subject(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    party: crate::routing::party::dispatch::Party,
+    task: u64,
+) {
+    if core.result_read_flights() == core.flight_tasks_capacity {
+        crate::routing::refusals::pool_again(work, party.request, jig_domain_people::Again::Busy);
+        return;
+    }
+    retain(
+        core,
+        out,
+        ResultRead {
+            why: ReadFor::Delegate { party, task, ended: None },
+            ids: Box::new([task]),
+            at: 0,
+            results: List::with_capacity(0),
+        },
+    );
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the retained ended subject and its loaded root carry one reach decision"
+)]
+fn delegate_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    party: crate::routing::party::dispatch::Party,
+    task: u64,
+    ended: Option<(u64, jig_domain_people::Refusal)>,
+    row: Option<Box<tasks::TaskRecord>>,
+    busy: bool,
+) {
+    use crate::routing::refusals::{pool_again, pool_refused};
+    use jig_domain_people::Refusal;
+    if busy {
+        pool_again(work, party.request, jig_domain_people::Again::Busy);
+        return;
+    }
+    let Some(role) = core.people.role(party.person, party.project) else {
+        pool_refused(work, party.request, Refusal::Unknown);
+        return;
+    };
+    let Some(row) = row else {
+        pool_refused(work, party.request, Refusal::Unknown);
+        return;
+    };
+    if row.project != party.project {
+        pool_refused(work, party.request, Refusal::Unknown);
+        return;
+    }
+    if let Some((root, refusal)) = ended {
+        let why = if row.number == root
+            && (core.reaches_project(role, party.project) || row.requester == tasks::Party::Person(party.person))
+        {
+            refusal
+        } else {
+            Refusal::Unknown
+        };
+        pool_refused(work, party.request, why);
+        return;
+    }
+    if row.number != task {
+        pool_refused(work, party.request, Refusal::Unknown);
+        return;
+    }
+    let refusal = match &row.phase {
+        tasks::Phase::Ended(ending) => crate::routing::refusals::ended(ending),
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+            pool_refused(work, party.request, Refusal::Unknown);
+            return;
+        }
+    };
+    if core.reaches_project(role, party.project)
+        || row.requester == tasks::Party::Person(party.person)
+        || Core::person_tree(
+            party.person,
+            row.root,
+            env.limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0),
+        )
+    {
+        pool_refused(work, party.request, refusal);
+    } else if row.root != task && core.tasks.task(row.root).is_none() {
+        retain(
+            core,
+            out,
+            ResultRead {
+                why: ReadFor::Delegate { party, task, ended: Some((row.root, refusal)) },
+                ids: Box::new([row.root]),
+                at: 0,
+                results: List::with_capacity(0),
+            },
+        );
+    } else {
+        pool_refused(work, party.request, Refusal::Unknown);
     }
 }

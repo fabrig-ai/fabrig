@@ -82,6 +82,7 @@ fn a_batch_past_goals_per_project_is_refused_naming_the_limit() {
         row.tracked = Some(1);
     }
     let out = test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Person(REQUESTER),

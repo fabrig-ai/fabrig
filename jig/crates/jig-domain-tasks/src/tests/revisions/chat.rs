@@ -12,6 +12,7 @@ pub(super) fn cohort() -> Harness {
     let mut second = first.clone();
     second.number = 3;
     let out = test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(1),

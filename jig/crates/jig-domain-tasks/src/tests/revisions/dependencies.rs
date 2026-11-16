@@ -29,6 +29,7 @@ fn family() -> Harness {
     let mut parent = wealthy(AMENDER);
     parent.funder = Funder::Task(ROOT);
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(ROOT),
@@ -38,6 +39,7 @@ fn family() -> Harness {
         let mut child = task(number, &[]);
         child.funder = Funder::Task(requester);
         test.send(Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to: to(),
             creator: Party::Task(requester),

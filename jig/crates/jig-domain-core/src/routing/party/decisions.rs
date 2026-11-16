@@ -67,6 +67,7 @@ pub(crate) fn goal_decide(
                 tasks::PersonAction::Batch(mut batch) => {
                     crate::admission::deadlines::fund(&mut batch, source, env.wall);
                     tasks::Event::Make {
+                        maker: None,
                         places: Box::new([]),
                         reply_to: ReplyTo::new(request),
                         creator: tasks::Party::Person(proposer),
@@ -319,7 +320,13 @@ pub(crate) fn person_proposal_accept(
                     batch,
                 }
             } else {
-                tasks::Event::Make { places: Box::new([]), reply_to: ReplyTo::new(request), creator, batch }
+                tasks::Event::Make {
+                    maker: None,
+                    places: Box::new([]),
+                    reply_to: ReplyTo::new(request),
+                    creator,
+                    batch,
+                }
             }
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => {

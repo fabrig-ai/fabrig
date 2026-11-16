@@ -202,6 +202,7 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::Propose { action: ProposeAction::Batch { .. }, .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Talk { .. }
         | Ask::Leave { .. }
         | Ask::Message { .. }

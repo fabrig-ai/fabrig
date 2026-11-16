@@ -451,6 +451,7 @@ fn a_delegate_made_while_the_closer_lives_waits_the_closer() {
     child.funder = tasks::Funder::Task(TASK);
     let reply_to = world.to();
     world.stage(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to,
         creator: Party::Task(TASK),

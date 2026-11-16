@@ -131,6 +131,7 @@ record OperationStop { task: u64 }
 enum Operation { cancel: OperationCancel, move_task: OperationMove, amend: boxed OperationAmend, release: OperationRelease, message: OperationMessage, stop: OperationStop }
 record AskCompound { project: u32 operations: list 1024 Operation }
 record AskCreate { project: u32 batch: list 8 Member }
+record AskDelegate { project: u32 task: u64 batch: list 8 Member }
 record AskMarkSeen { seen: Seen }
 record ScopeProject { project: u32 }
 enum ApplicationScope { project: ScopeProject, deployment, own }
@@ -210,7 +211,7 @@ record AskMoveToNewest { revision: u32 }
 record AskRemoveProject { project: u32 grace: option u64 }
 record AskSetVisibility { project: u32 public: bool }
 record AskConclude { project: u32 task: u64 }
-enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject, restore: AskRestore, set_visibility: AskSetVisibility, talk: AskSay, leave: AskStop, conclude: AskConclude }
+enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject, restore: AskRestore, set_visibility: AskSetVisibility, talk: AskSay, leave: AskStop, conclude: AskConclude, delegate: AskDelegate }
 record StoredPerson { number: u64 identity: Identity }
 record StoredReadResults { party: u64 through: u64 }
 record StoredReadConversation { party: u64 task: u64 through: u64 }

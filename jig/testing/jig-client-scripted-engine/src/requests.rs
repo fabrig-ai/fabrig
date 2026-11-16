@@ -347,6 +347,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Amend { .. }
             | Ask::Stop { .. }
             | Ask::Conclude { .. }
+            | Ask::Delegate { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }
@@ -411,6 +412,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::Release { .. }
                 | Ask::Stop { .. }
                 | Ask::Conclude { .. }
+                | Ask::Delegate { .. }
                 | Ask::Cancel { .. }
                 | Ask::Move { .. }
                 | Ask::Seen { .. }
@@ -509,6 +511,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Amend { .. }
             | Ask::Stop { .. }
             | Ask::Conclude { .. }
+            | Ask::Delegate { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }
@@ -675,6 +678,7 @@ fn target(ask: &Ask) -> Option<Target> {
         | Ask::SignIn { .. }
         | Ask::SignOut { .. }
         | Ask::Conclude { .. }
+        | Ask::Delegate { .. }
         | Ask::AccountChange { .. } => return None,
         Ask::Compound { project, operations } => {
             compound_target(*project, operations).unwrap_or((Some(*project), None, ActKind::Message, None))

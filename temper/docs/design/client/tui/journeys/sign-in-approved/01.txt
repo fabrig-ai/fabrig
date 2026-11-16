@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:45961                                     │
+│ Sign in this terminal to 127.0.0.1:38853                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ DZTJ-HKHW, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:45961/terminal?code=DZTJ-HKHW                  │
+│ NLVR-RBWL, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:38853/terminal?code=NLVR-RBWL                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:45961/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:38853/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

@@ -191,6 +191,7 @@ pub(in crate::codec) fn wire_history_change(
     _limits: &w::Limits,
 ) -> Result<w::HistoryChange, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::HistoryChange::Made => w::HistoryChange::Made,
         c::HistoryChange::Concluded => w::HistoryChange::Concluded,
         c::HistoryChange::Cancelled => w::HistoryChange::Cancelled,
         c::HistoryChange::Released => w::HistoryChange::Released,

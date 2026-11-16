@@ -688,6 +688,7 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         let mut new = task(REQUESTER, &[]);
         new.spec.asks = true;
         let reply = response(&mut world, |reply_to| Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to,
             creator: PERSON_PARTY,

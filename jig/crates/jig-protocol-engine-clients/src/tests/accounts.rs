@@ -1,7 +1,7 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use jig_domain_accounts as a;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_people::CapacityAction as A;

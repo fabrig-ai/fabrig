@@ -217,6 +217,7 @@ pub struct HoldRow {
 /// One kind of durable task-tree change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
+    Made,
     Concluded,
     Cancelled,
     Released,

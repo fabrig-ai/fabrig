@@ -91,6 +91,7 @@ fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
         let mut h = Harness::new();
         h.make([task(1, &[])].into());
         let made = h.send(Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to: to(),
             creator: Party::Task(1),

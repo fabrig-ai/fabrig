@@ -338,6 +338,7 @@ pub(crate) fn refused(
     limits: &w::Limits,
 ) -> Result<Option<w::KeyedAnswer>, w::Problem> {
     let (at, found) = match record {
+        w::Ask::Delegate(value) => (None, batch(value.tasks(), models, limits)?),
         w::Ask::Create(value) => (None, batch(value.tasks(), models, limits)?),
         w::Ask::Propose(value) => match value.action() {
             w::ProposeAction::Settings(value) => (None, settings_items(value.items(), models, limits)?),

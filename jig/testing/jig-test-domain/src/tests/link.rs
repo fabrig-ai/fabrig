@@ -435,6 +435,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
             budget: 100,
         },
         tasks::Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },

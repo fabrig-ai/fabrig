@@ -3,7 +3,7 @@ use super::{asks, store};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{List, Reader, Writer};
 pub(super) fn encode(project: u32, values: &List<c::Operation>, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     let mut records = List::with_capacity(values.len());
@@ -53,6 +53,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::Propose(_)
         | w::Ask::Withdraw(_)
         | w::Ask::Create(_)
+        | w::Ask::Delegate(_)
         | w::Ask::Compound(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -115,6 +116,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::Propose { .. }
             | c::Ask::Withdraw { .. }
             | c::Ask::Create { .. }
+            | c::Ask::Delegate { .. }
             | c::Ask::Compound { .. }
             | c::Ask::Answer { .. }
             | c::Ask::Take { .. }

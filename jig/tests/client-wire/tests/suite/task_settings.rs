@@ -1,5 +1,5 @@
 //! Task settings revisions survive the complete task record's bytes.
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{Reader, Writer};
 
 #[test]

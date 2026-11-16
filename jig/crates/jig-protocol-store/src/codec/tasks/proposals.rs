@@ -339,6 +339,7 @@ pub fn read_proposal(source: wire::Proposal, limits: &wire::Limits) -> Result<do
 /// Translate `Change` to its store value.
 pub fn change(source: &domain::Change) -> Result<wire::Change, wire::Problem> {
     Ok(match source {
+        domain::Change::Made => wire::Change::Made,
         domain::Change::Concluded => wire::Change::Concluded,
         domain::Change::Cancelled => wire::Change::Cancelled,
         domain::Change::Released => wire::Change::Released,
@@ -354,6 +355,7 @@ pub fn change(source: &domain::Change) -> Result<wire::Change, wire::Problem> {
 /// Read `Change` from its store value.
 pub fn read_change(source: wire::Change) -> Result<domain::Change, wire::Problem> {
     Ok(match source {
+        wire::Change::Made => domain::Change::Made,
         wire::Change::Concluded => domain::Change::Concluded,
         wire::Change::Cancelled => domain::Change::Cancelled,
         wire::Change::Released => domain::Change::Released,

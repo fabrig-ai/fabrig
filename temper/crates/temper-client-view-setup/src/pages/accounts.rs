@@ -581,6 +581,7 @@ pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(
         | c::Ask::ChangeModel(_)
         | c::Ask::MoveToNewest(_)
         | c::Ask::Create { .. }
+        | c::Ask::Delegate { .. }
         | c::Ask::Propose { .. }
         | c::Ask::Withdraw { .. }
         | c::Ask::Talk { .. }

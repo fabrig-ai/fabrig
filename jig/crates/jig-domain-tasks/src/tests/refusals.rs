@@ -86,6 +86,7 @@ fn procedure() -> Harness {
 
 fn admission(h: &mut Harness, creator: Party, member: crate::New) -> Option<crate::Refusal> {
     let out = h.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: super::revisions::to(),
         creator,

@@ -1,5 +1,5 @@
 //! Closed immutable-history sayings (client/domain/view.md, 7).
-//! Phrase IDs 7600..7655 name history facts, independent of request editing.
+//! Phrase IDs 7600..7658 name history facts, independent of request editing.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -13,6 +13,7 @@ pub enum HistoryPhrase {
     History,
     Task,
     Revision,
+    Made,
     Concluded,
     Cancelled,
     Released,
@@ -68,10 +69,11 @@ pub enum HistoryPhrase {
     DependenciesAbsent,
     DependenciesCut,
 }
-pub const ALL: [HistoryPhrase; 57] = [
+pub const ALL: [HistoryPhrase; 58] = [
     HistoryPhrase::History,
     HistoryPhrase::Task,
     HistoryPhrase::Revision,
+    HistoryPhrase::Made,
     HistoryPhrase::Concluded,
     HistoryPhrase::Cancelled,
     HistoryPhrase::Released,
@@ -134,6 +136,7 @@ impl HistoryPhrase {
             Self::History => 7600,
             Self::Task => 7601,
             Self::Revision => 7602,
+            Self::Made => 7658,
             Self::Concluded => 7657,
             Self::Cancelled => 7603,
             Self::Released => 7604,
@@ -194,6 +197,7 @@ impl HistoryPhrase {
     fn hole(self) -> Option<HoleKind> {
         match self {
             Self::History
+            | Self::Made
             | Self::Concluded
             | Self::Cancelled
             | Self::Released
@@ -256,6 +260,7 @@ impl HistoryPhrase {
             Self::History => b"Semantic history",
             Self::Task => b"Task: ",
             Self::Revision => b"Revision: ",
+            Self::Made => b"Made",
             Self::Concluded => b"Concluded",
             Self::Cancelled => b"Cancelled",
             Self::Released => b"Released",
@@ -315,7 +320,7 @@ impl HistoryPhrase {
 }
 #[must_use]
 pub fn shapes() -> Box<[PhraseShape]> {
-    let mut values = List::with_capacity(57);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("closed history count fits u32"));
     for phrase in ALL {
         let holes: Box<[HoleShape]> = match phrase.hole() {
             Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
@@ -327,7 +332,7 @@ pub fn shapes() -> Box<[PhraseShape]> {
 }
 #[must_use]
 pub fn language() -> Language {
-    let mut values = List::with_capacity(57);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("closed history count fits u32"));
     for phrase in ALL {
         let segments: Box<[Segment]> = match phrase.hole() {
             Some(kind) => Box::new([Segment::Text(copy_of(phrase.label())), Segment::Hole { index: 0, kind }]),

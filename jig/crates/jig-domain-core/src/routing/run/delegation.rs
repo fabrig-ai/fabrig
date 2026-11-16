@@ -235,6 +235,7 @@ pub(crate) fn delegate_holdings(
             let request =
                 core.fly(crate::routing::flight::Flight::Delegating { request, route: (flight.key, stubs, given) });
             work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(request),
                 creator: tasks::Party::Task(flight.key.task),
@@ -639,6 +640,7 @@ pub(crate) fn start_recurring(
     }
     let Some(number) = crate::fresh(&mut core.counters, crate::Family::Task) else { return };
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Admission)),
         creator: tasks::Party::Deployment { project },

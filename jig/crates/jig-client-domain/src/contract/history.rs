@@ -24,6 +24,7 @@ pub struct HistoryLine {
 /// The owner's ten recorded semantic changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HistoryChange {
+    Made,
     Concluded,
     Cancelled,
     Released,

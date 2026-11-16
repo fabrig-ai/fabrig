@@ -102,6 +102,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Talk { .. }

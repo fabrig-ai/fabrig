@@ -161,7 +161,7 @@ record SettingHead { setting: Setting edit: SettingEdit }
 record ProposedSettings { against: u32 items: list 128 SettingHead projects: list 32 u32 }
 enum ProposalAction { batch: ProposedBatch, effect: ProposedEffect, procedure_effect: ProposedProcedureEffect, amend: boxed ProposedAmendment, widen: ProposedWidening, release: Task, release_placed: ReleasePlaced, settings: ProposedSettings }
 record Proposal { number: u64 proposer: u64 project: u32 action: ProposalAction reason: bytes 524288 as_holder: bool state: ProposalState }
-enum Change { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn, concluded }
+enum Change { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn, concluded, made }
 record Settings { tracked: option u32 addressed: option PersonAddress taken_by: option u64 instructions: option bytes 524288 spec: Spec wake: WakePolicy dependencies: list 64 Number authority: Authority llm: option LlmChoice }
 record AmendmentHistory { before: Settings after: Settings }
 record History { task: u64 revision: u64 by: Party change: Change reason: bytes 524288 proposal: option Proposal at: u64 amendment: option AmendmentHistory }

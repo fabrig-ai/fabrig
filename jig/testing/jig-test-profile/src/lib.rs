@@ -168,7 +168,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 25, maximum: 25 },
+                versions: core::documents::Versions { minimum: 26, maximum: 26 },
             },
             connectors: 2,
             resume_bytes: 256,

@@ -78,13 +78,25 @@ fn a_cancelled_lost_writer_survives_two_restarts() {
 fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     let mut w = World::new(20, LIMITS);
     let reply_to = w.to();
-    w.stage(Event::Make { places: Box::new([]), reply_to, creator: Party::Person(1), batch: Box::new([task(1, &[])]) });
+    w.stage(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to,
+        creator: Party::Person(1),
+        batch: Box::new([task(1, &[])]),
+    });
     assert_eq!(w.live(), 0);
     assert!(w.activations.is_empty());
     w.restart();
     assert_eq!(w.live(), 0);
     let reply_to = w.to();
-    w.stage(Event::Make { places: Box::new([]), reply_to, creator: Party::Person(1), batch: Box::new([task(2, &[])]) });
+    w.stage(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to,
+        creator: Party::Person(1),
+        batch: Box::new([task(2, &[])]),
+    });
     w.durable();
     assert!(w.activations.is_empty());
     w.restart();

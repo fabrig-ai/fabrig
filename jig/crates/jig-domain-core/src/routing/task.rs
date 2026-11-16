@@ -95,6 +95,7 @@ pub(crate) fn route_connector_repair(
         })));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: seed.project },
@@ -136,6 +137,7 @@ pub(crate) fn route_person_task(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
@@ -221,7 +223,7 @@ pub(crate) fn route_tasks(
             return tag_task_outputs(core, env, out);
         }
     }
-    let event = if let tasks::Event::Make { reply_to, creator, mut batch, places } = event {
+    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places } = event {
         if let Err(problem) = core.admit_batch(creator, &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -230,7 +232,7 @@ pub(crate) fn route_tasks(
             core,
             env,
             reply_to,
-            crate::effects::resources::Kind::Creation { creator, places },
+            crate::effects::resources::Kind::Creation { creator, maker, places },
             batch,
             &mut out,
         ) {

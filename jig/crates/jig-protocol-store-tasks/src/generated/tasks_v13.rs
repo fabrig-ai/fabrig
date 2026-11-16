@@ -8037,6 +8037,8 @@ pub enum Change {
     ProposalWithdrawn,
     /// `concluded` without a payload.
     Concluded,
+    /// `made` without a payload.
+    Made,
 }
 
 impl Change {
@@ -22384,7 +22386,7 @@ impl Change {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Cancelled | Self::Released | Self::Amended | Self::Moved | Self::Proposed | Self::ProposalPassed | Self::ProposalAccepted | Self::ProposalRejected | Self::ProposalWithdrawn | Self::Concluded => 1,
+            Self::Cancelled | Self::Released | Self::Amended | Self::Moved | Self::Proposed | Self::ProposalPassed | Self::ProposalAccepted | Self::ProposalRejected | Self::ProposalWithdrawn | Self::Concluded | Self::Made => 1,
         }
     }
 
@@ -22401,6 +22403,7 @@ impl Change {
             Self::ProposalRejected => writer.put(&[7_u8])?,
             Self::ProposalWithdrawn => writer.put(&[8_u8])?,
             Self::Concluded => writer.put(&[9_u8])?,
+            Self::Made => writer.put(&[10_u8])?,
         }
         Ok(())
     }
@@ -22425,6 +22428,7 @@ impl Change {
             7 => Self::ProposalRejected,
             8 => Self::ProposalWithdrawn,
             9 => Self::Concluded,
+            10 => Self::Made,
             _ => return Err(Problem { path: Path::ChangeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

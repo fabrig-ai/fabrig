@@ -23,6 +23,7 @@ fn control_task(executor: Executor) -> Harness {
             let mut parent = task(PARENT, &[]);
             parent.executor = PROCEDURE;
             test.send(Event::Make {
+                maker: None,
                 places: Box::new([]),
                 reply_to: to(),
                 creator: Party::Person(PERSON),
@@ -39,7 +40,7 @@ fn control_task(executor: Executor) -> Harness {
         }
         Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Person(_) => Party::Person(PERSON),
     };
-    test.send(Event::Make { places: Box::new([]), reply_to: to(), creator, batch: Box::new([member]) });
+    test.send(Event::Make { maker: None, places: Box::new([]), reply_to: to(), creator, batch: Box::new([member]) });
     test
 }
 
@@ -155,6 +156,7 @@ fn a_deployment_cancels_a_task_of_its_project_and_no_other() {
     ] {
         let mut test = Harness::new();
         test.send(Event::Make {
+            maker: None,
             places: Box::new([]),
             reply_to: to(),
             creator: Party::Person(9),
@@ -205,6 +207,7 @@ fn party_sender_labels() {
 fn cancel_permission_is_checked_before_its_shape() {
     let mut test = Harness::new();
     test.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Person(9),

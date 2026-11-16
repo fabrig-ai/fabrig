@@ -100,6 +100,12 @@ pub enum Ask {
         project: u32,
         tasks: List<super::NewTask>,
     },
+    /// Make a batch beneath a task (jig/docs/design/domain/tasks/README.md, 4).
+    Delegate {
+        project: u32,
+        task: u64,
+        tasks: List<super::NewTask>,
+    },
     /// Submit a proposal in the party's own name.
     Propose {
         project: u32,

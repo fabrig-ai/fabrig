@@ -266,6 +266,12 @@ pub enum Ask {
         project: u32,
         batch: Box<[crate::Member]>,
     },
+    /// Make delegates beneath a task (jig/docs/design/domain/tasks/README.md, 4).
+    Delegate {
+        project: u32,
+        task: u64,
+        batch: Box<[crate::Member]>,
+    },
     /// Mark results or one conversation's replies seen under this party's key.
     MarkSeen {
         seen: Seen,
@@ -515,6 +521,7 @@ impl Ask {
             | Self::Cancel { project, .. }
             | Self::Release { project, .. }
             | Self::Create { project, .. }
+            | Self::Delegate { project, .. }
             | Self::Propose { project, .. }
             | Self::Withdraw { project, .. } => AskFamily::Project(*project),
             Self::Application { scope, .. } => AskFamily::Application(*scope),
@@ -563,6 +570,7 @@ impl Ask {
             | Self::Lift { .. }
             | Self::Release { .. }
             | Self::Create { .. }
+            | Self::Delegate { .. }
             | Self::Propose { .. }
             | Self::Withdraw { .. }
             | Self::AccountSignIn { .. }

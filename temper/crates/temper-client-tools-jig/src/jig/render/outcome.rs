@@ -92,6 +92,7 @@ impl Operation {
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
                     (creation_word(tasks), None)
                 }
+                c::Ask::Delegate { task, .. } => (b"delegate", Some(*task)),
                 c::Ask::Talk { task, .. } => (b"talk", Some(*task)),
                 c::Ask::Leave { task, .. } => (b"leave", Some(*task)),
                 c::Ask::Message { task, .. } => (b"message", Some(*task)),
@@ -1235,6 +1236,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangeModel(_)
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
+            | c::Ask::Delegate { .. }
             | c::Ask::Withdraw { .. }
             | c::Ask::Talk { .. }
             | c::Ask::Leave { .. }

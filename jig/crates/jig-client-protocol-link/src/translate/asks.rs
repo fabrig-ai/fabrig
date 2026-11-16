@@ -2,7 +2,7 @@
 use crate::translate::too_large;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v25 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{List, Writer, bytes};
 pub(crate) fn wire_revision(value: c::Revision, limits: &w::Limits) -> Result<w::Revision, w::Problem> {
     w::Revision::new(limits, w::RevisionParts { value: value.value })
@@ -577,6 +577,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
         c::Ask::Withdraw { project, proposal } => {
             w::Ask::Withdraw(w::Withdraw::new(limits, w::WithdrawParts { project: *project, proposal: *proposal })?)
         }
+        c::Ask::Delegate { project, task, tasks } => super::operations::delegate(*project, *task, tasks, limits)?,
         c::Ask::Create { project, tasks } => super::operations::create(*project, tasks, limits)?,
         c::Ask::Compound { project, operations } => super::compound::encode(*project, operations, limits)?,
         c::Ask::Talk { project, task, words } => w::Ask::Talk(w::Message::new(

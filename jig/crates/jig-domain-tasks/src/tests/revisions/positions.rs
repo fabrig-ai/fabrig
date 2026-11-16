@@ -107,6 +107,7 @@ fn question_cohort(last: u64) -> Harness {
         })
         .collect::<Vec<_>>();
     let out = h.send(Event::Make {
+        maker: None,
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(1),

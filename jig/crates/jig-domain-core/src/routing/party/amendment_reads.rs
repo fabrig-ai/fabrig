@@ -127,6 +127,7 @@ pub(crate) fn waiting(core: &Core, key: CallKey) -> bool {
         match &read.why {
             crate::routing::run::results::ReadFor::DeploymentClose { .. }
             | crate::routing::run::results::ReadFor::Conclude { .. }
+            | crate::routing::run::results::ReadFor::Delegate { .. }
             | crate::routing::run::results::ReadFor::Batch(_)
             | crate::routing::run::results::ReadFor::Preparation { .. } => {}
             crate::routing::run::results::ReadFor::Amendment(read) => match &read.replay {

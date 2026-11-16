@@ -113,7 +113,13 @@ fn child(h: &mut Harness, parent: u64, number: u64, budget: u64) {
     new.authority.budget.spend = budget;
     new.numbers.budget = budget;
     new.funder = Funder::Task(parent);
-    h.send(Event::Make { places: Box::new([]), reply_to: to(), creator: Party::Task(parent), batch: Box::new([new]) });
+    h.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(parent),
+        batch: Box::new([new]),
+    });
     assert_eq!(h.domain.task(number).expect("funded delegate").funder, Funder::Task(parent));
 }
 

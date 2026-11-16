@@ -360,6 +360,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             limits,
             wire::AskWithdrawParts { project: *project, proposal: *proposal },
         )?),
+        domain::Ask::Delegate { project, task, batch } => wire::Ask::Delegate(wire::AskDelegate::new(
+            limits,
+            wire::AskDelegateParts { project: *project, task: *task, batch: super::batch::encode(batch, limits)? },
+        )?),
         domain::Ask::Create { project, batch } => wire::Ask::Create(wire::AskCreate::new(
             limits,
             wire::AskCreateParts { project: *project, batch: super::batch::encode(batch, limits)? },
@@ -583,6 +587,10 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
         wire::Ask::Withdraw(value) => {
             let wire::AskWithdrawParts { project, proposal } = value.into_parts();
             domain::Ask::Withdraw { project, proposal }
+        }
+        wire::Ask::Delegate(value) => {
+            let wire::AskDelegateParts { project, task, batch } = value.into_parts();
+            domain::Ask::Delegate { project, task, batch: super::batch::decode(batch, limits)? }
         }
         wire::Ask::Create(value) => {
             let wire::AskCreateParts { project, batch } = value.into_parts();

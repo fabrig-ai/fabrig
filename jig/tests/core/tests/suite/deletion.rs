@@ -309,6 +309,7 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::SetVisibility { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
+        | people::Ask::Delegate { project: owner, .. }
         | people::Ask::EditNote { project: owner, .. }
         | people::Ask::MakeService { project: owner, .. }
         | people::Ask::Adopt { project: owner, .. }

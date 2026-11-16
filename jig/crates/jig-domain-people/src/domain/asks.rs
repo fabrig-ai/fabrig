@@ -153,7 +153,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             None => false,
         },
         Ask::SetPool { person, .. } => *person != 0,
-        Ask::Create { batch, .. } => crate::batch::valid(limits, batch),
+        Ask::Create { batch, .. } | Ask::Delegate { batch, .. } => crate::batch::valid(limits, batch),
         Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => {
             crate::batch::valid(limits, batch) && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
@@ -241,9 +241,9 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Adopt { .. } => LimitKind::Resource,
         Ask::SetRoles { .. } => LimitKind::Roles,
         Ask::ChangePolicy { .. } => LimitKind::Policy,
-        Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
-            crate::batch::invalid(limits, batch)
-        }
+        Ask::Create { batch, .. }
+        | Ask::Delegate { batch, .. }
+        | Ask::Propose { action: crate::Action::Batch(batch), .. } => crate::batch::invalid(limits, batch),
         Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Restore { .. }
