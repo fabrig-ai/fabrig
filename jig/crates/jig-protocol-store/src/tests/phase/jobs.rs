@@ -1,30 +1,23 @@
-//! The shell drives job pages and observes commits over a copy (protocol/store/jobs.md, 5).
+//! The shell drives job pages and observes commits over a copy (protocol/store/jobs.md, 3 and 6).
 #![expect(clippy::arithmetic_side_effects, reason = "small fixed counts in disk step tests")]
 use super::*;
 use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, OwnerSet, OwnerSets};
 use alloc::collections::VecDeque;
 
 const UPSTREAM_JOB: Job = Job {
-    settles: false,
     counts: &[],
     name: "notes-to-labels",
     keys: &[KeyRange { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO }],
     converts: None,
 };
 const APP_JOB: Job = Job {
-    settles: false,
     counts: &[],
     name: "consume-fixtures",
     keys: &[KeyRange { from: b"l", to: b"m" }, KeyRange { from: b"s", to: b"t" }],
     converts: None,
 };
-const FOLLOW: Job = Job {
-    settles: false,
-    counts: &[],
-    name: "read-the-first-jobs-writes",
-    keys: &[KeyRange { from: b"l", to: b"m" }],
-    converts: None,
-};
+const FOLLOW: Job =
+    Job { counts: &[], name: "read-the-first-jobs-writes", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None };
 pub(super) const JOBS: OwnerSets = OwnerSets {
     // Deliberately downstream first: the component chooses Owner's order.
     sets: &[OwnerSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, OwnerSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
@@ -648,5 +641,48 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn jig_declares_no_jobs() {
+    assert!(crate::JIG_STORE_SET.jobs.is_empty());
+}
+
+#[test]
+fn job_pages_route_history_through_the_commit_path() {
+    let sets =
+        OwnerSets { sets: Box::leak(Box::new([BASE.sets[0], OwnerSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }])) };
+    let mut disk = Disk::new(&fixture_baseline());
+    let mut store = store(&disk, sets);
+    let mut events = disk.open(&mut store);
+    let records = [fixtures::history(5, 1), fixtures::history(5, 2)];
+    for (index, record) in records.iter().enumerate() {
+        let (owner, of, job, page) = page(events);
+        assert_eq!((of, job.as_ref()), (Owner::Jig, UPSTREAM_JOB.name));
+        assert_eq!(page.end, index == 1);
+        let key = crate::keys::encode(&record.key(), fixtures::KEY_LIMIT).unwrap();
+        let value = crate::codec::encode(record, &store.codec_limits, &store.names).unwrap();
+        events = disk.request(
+            &mut store,
+            Request::Job {
+                owner,
+                answer: Ok(JobAnswer {
+                    writes: Box::new([JobWrite::Put { key: key.clone(), value }]),
+                    through: None,
+                    counts: Box::new([]),
+                }),
+            },
+        );
+        assert_eq!(fixtures::get_kv(&mut store, &key), None);
+    }
+    assert!({ if let Some(Event::Ran { commits: 2, .. }) = events.first() { true } else { false } }, "{events:?}");
+    assert!(events.iter().any(|event| { if let Event::Opened { pending: true, .. } = event { true } else { false } }));
+    let switched = disk.request(&mut store, Request::Switch { owner: Token::new(1) });
+    assert!({ if let [Event::Switched { .. }] = switched.as_ref() { true } else { false } }, "{switched:?}");
+    for record in records {
+        let events = disk.request(&mut store, Request::Get { owner: Token::new(9), key: Get::Jig(record.key()) });
+        let [Event::Got { row: Some(Row::Jig(found)), .. }] = events.as_ref() else { panic!("{events:?}") };
+        assert_eq!(found, &record);
     }
 }

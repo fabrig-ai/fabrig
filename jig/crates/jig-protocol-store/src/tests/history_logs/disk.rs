@@ -32,20 +32,6 @@ fn setup() -> (Disk, Store) {
     }
     (disk, store)
 }
-fn commit_ops(disk: &mut Disk, store: &mut Store, ops: Box<[skein_kv::Op]>) {
-    let number = store.stores.store.last().checked_add(1).unwrap();
-    store.phase = Phase::Ready { next: number.checked_add(1).unwrap(), format_due: false };
-    let mut above = Queue::uncapped();
-    let mut below = fixtures::below();
-    crate::commits::submit(store, &fixtures::env(), number, ops, &mut above, &mut below);
-    disk.drive(&mut below, |io, below| crate::up(store, &fixtures::env(), io, &mut above, below));
-    let events = fixtures::events(&mut above);
-    let [Event::Committed { .. }] = events.as_ref() else { panic!("committed: {events:?}") };
-}
-fn moved(disk: &mut Disk, store: &mut Store, task: u64) {
-    let ops = move_operations(store, task);
-    commit_ops(disk, store, ops);
-}
 fn begin(store: &mut Store, range: reads::Range) -> (Queue<Event>, Below) {
     let mut above = Queue::uncapped();
     let mut below = fixtures::below();
@@ -78,15 +64,13 @@ fn answer(events: Box<[Event]>) -> reads::Loaded {
 #[test]
 fn dropping_histories_erases_extents_places_and_durable_files() {
     let (mut disk, mut store) = setup();
-    moved(&mut disk, &mut store, CHILD);
-    moved(&mut disk, &mut store, GOAL);
     let files: Vec<_> = disk
         .tree()
         .into_iter()
         .filter(|(path, kind, _)| path.windows(5).any(|part| part == b"logs/") && *kind == skein_io::kernel::Kind::File)
         .map(|(path, _, _)| path)
         .collect();
-    assert_eq!(files.len(), 2, "the helper appended both logs through skein-kv");
+    assert_eq!(files.len(), 2, "the commits appended both logs through skein-kv");
     for task in [CHILD, GOAL] {
         let extent = logs::extent_key(logs::history(task).unwrap());
         let place = keys::encode_own(&keys::Own::History { task }, store.limits.store.key).unwrap();
@@ -129,8 +113,6 @@ fn two_tasks_missed_in_one_run_are_fetched_before_one_answer() {
         },
     );
     let before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: range.clone() }));
-    moved(&mut disk, &mut store, CHILD);
-    moved(&mut disk, &mut store, GOAL);
     let (mut above, mut below) = begin(&mut store, range);
     let starts = drive(&mut disk, &mut store, &mut above, &mut below);
     assert_eq!(starts.iter().filter(|&&at| at == 0).count(), 4);
@@ -141,8 +123,6 @@ fn a_fetched_owner_discovers_another_tasks_history() {
     let (mut disk, mut store) = setup();
     let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
     let before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: range.clone() }));
-    moved(&mut disk, &mut store, CHILD);
-    moved(&mut disk, &mut store, GOAL);
     let (mut above, mut below) = begin(&mut store, range);
     let starts = drive(&mut disk, &mut store, &mut above, &mut below);
     assert!(
@@ -169,14 +149,16 @@ fn an_ended_frame_is_read_directly_then_new_intervals_of_that_task_are_fetched()
     assert_eq!(rows.len(), 1);
     let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
     let before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: range.clone() }));
-    let key =
-        keys::encode(&Key::Tasks(tasks::Key::History { task: CHILD, revision: 1 }), store.limits.store.key).unwrap();
-    let value = fixtures::get_kv(&mut store, &key).unwrap();
-    let ops = append_operations(&mut store, CHILD, Box::new([(key, Some(value))]), true);
-    commit_ops(&mut disk, &mut store, ops);
     let at = store.stores.store.log_end(logs::history(CHILD).unwrap());
-    assert!(at > 0);
-    moved(&mut disk, &mut store, CHILD);
+    let number = store.stores.store.last().checked_add(1).unwrap();
+    let events = disk.request(
+        &mut store,
+        fixtures::commit(
+            number,
+            Box::new([fixtures::header(number), fixtures::save(fixtures::ended_of(CHILD, tasks::Party::Task(GOAL)))]),
+        ),
+    );
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("ended saved: {events:?}") };
     let (mut above, mut below) = begin(&mut store, range);
     let starts = drive(&mut disk, &mut store, &mut above, &mut below);
     assert_eq!(starts.first(), Some(&at));
@@ -184,7 +166,7 @@ fn an_ended_frame_is_read_directly_then_new_intervals_of_that_task_are_fetched()
     equal(&before, &answer(fixtures::events(&mut above)));
     let (mut above, mut below) = begin(&mut store, reply);
     let starts = drive(&mut disk, &mut store, &mut above, &mut below);
-    assert_eq!(starts.iter().filter(|&&offset| offset == 0).count(), 2);
+    assert_eq!(starts.iter().filter(|&&offset| offset == 0).count(), 4);
     equal(&reply_before, &answer(fixtures::events(&mut above)));
 }
 #[test]
@@ -192,8 +174,6 @@ fn a_commit_asked_during_a_fetch_answers_after_the_read() {
     let (mut disk, mut store) = setup();
     let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
     let before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: range.clone() }));
-    moved(&mut disk, &mut store, CHILD);
-    moved(&mut disk, &mut store, GOAL);
     let (mut above, mut below) = begin(&mut store, range);
     let number = store.stores.store.last().checked_add(1).unwrap();
     crate::down(
@@ -218,7 +198,6 @@ fn a_commit_asked_during_a_fetch_answers_after_the_read() {
 #[test]
 fn an_unread_history_frame_fails_the_read_as_undecodable() {
     let (mut disk, mut store) = setup();
-    moved(&mut disk, &mut store, CHILD);
     let (mut above, mut below) = begin(&mut store, fixtures::read(ALICE, reads::Scope::Task { task: CHILD }));
     let mut damaged = false;
     for _ in 0_u32..64 {

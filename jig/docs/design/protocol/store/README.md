@@ -191,9 +191,9 @@ skein-io                        files: the ring, or the simulator's disk
 
   > `<deployment>` holds a store from an older build, in the layout
   > before generations (`store/`, `secrets/` or `transcripts/` at its
-  > top), and this start has changed nothing in it. Before the first
-  > release a store is not translated, so every start refuses this one
-  > until it is moved. To start afresh, stop the service, move
+  > top), and this start has changed nothing in it. No build translates
+  > a store from before generations, build `<bridge>` included, so every
+  > start refuses this one until it is moved. To start afresh, stop the service, move
   > `store/`, `secrets/` and `transcripts/` out of `<deployment>`
   > together, and start again: nothing is deleted, and the next start
   > makes a new, empty store. The new store has no tasks, sign-ins,
@@ -204,8 +204,9 @@ skein-io                        files: the ring, or the simulator's disk
 
   > `<deployment>` holds a store whose <family> family is at another
   > version than this build's, and this start has changed nothing in it.
-  > A store from before the baseline is not translated, so every start
-  > refuses this one until it is moved. To start afresh, stop the service,
+  > No build translates a store from before the baseline, build
+  > `<bridge>` included, so every start refuses this one until it is
+  > moved. To start afresh, stop the service,
   > move `active`, `generations/` and `transcripts/` out of `<deployment>`
   > together, and start again: nothing is deleted, and the next start
   > makes a new, empty store. The new store has no tasks, sign-ins,
@@ -251,6 +252,9 @@ skein-io                        files: the ring, or the simulator's disk
     service, move `active`, `generations/` and `transcripts/` out of
     `<deployment>` together, and start again: nothing is deleted, and
     the next start makes a new, empty store."
+  - `Floor` and `Unregistered`, the stores a build still upgrades:
+    "Start build `<bridge>` on it and let it open, then this build."
+    (`opening.md`, 1.8; `<bridge>` is `records.md`, 3's `FLOOR_BRIDGE`.)
 - **A backup** copies, with the engine stopped, the deployment's
   directory whole. Online, which stays open (section 11),
   it would copy `active`, then the generation `active` names, then

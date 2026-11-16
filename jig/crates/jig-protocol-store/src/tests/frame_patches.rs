@@ -749,7 +749,6 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
         name: "frame-upgrade",
         keys: &[crate::KeyRange { from: b"l", to: b"m" }],
         converts: None,
-        settles: false,
         counts: &[],
     };
     const UPGRADE: OwnerSets =

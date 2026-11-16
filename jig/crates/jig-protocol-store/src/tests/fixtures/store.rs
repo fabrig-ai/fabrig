@@ -59,12 +59,29 @@ fn stores_with(limits: &Limits) -> Stores {
 }
 
 pub fn plant(stores: &mut Stores, ops: &[skein_kv::Op]) {
+    let mut planted = List::uncapped();
+    let mut format = false;
+    let mut floor = false;
+    for op in ops {
+        match op {
+            skein_kv::Op::Put { key, .. } => {
+                format |= keys::decode_own(key) == Some(keys::Own::Format);
+                floor |= keys::decode_own(key) == Some(keys::Own::Floor);
+            }
+            skein_kv::Op::Erase { key } => floor |= keys::decode_own(key) == Some(keys::Own::Floor),
+            skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {}
+        }
+        planted.push(op.clone()).expect("uncapped fixture");
+    }
+    if stores.store.last() == 0 && format && !floor {
+        planted.push(floor_put()).expect("uncapped fixture");
+    }
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
         &mut stores.store,
         &crate::memory_env(kv_limits()),
-        skein_kv::Request::Commit { owner: Token::new(0), ops: Box::from(ops) },
+        skein_kv::Request::Commit { owner: Token::new(0), ops: planted.into_boxed() },
         &mut above,
         &mut below,
     );
@@ -79,6 +96,13 @@ pub fn format_put(deployment: [u8; 16]) -> skein_kv::Op {
     skein_kv::Op::Put {
         key: keys::encode_own(&keys::Own::Format, KEY_LIMIT).expect("format key fits"),
         value: format::current(APPLICATION.version, deployment).encode().expect("format fits"),
+    }
+}
+
+pub fn floor_put() -> skein_kv::Op {
+    skein_kv::Op::Put {
+        key: keys::encode_own(&keys::Own::Floor, KEY_LIMIT).expect("floor key fits"),
+        value: codec::component::floor(""),
     }
 }
 

@@ -226,28 +226,21 @@ fn task_joins(
 #[cfg(test)]
 mod tests {
     use super::{Spent, owner};
-    use crate::tests::fixtures::{self, ENDED, LIVE};
+    use crate::tests::fixtures::{self, LIVE};
 
     #[test]
-    fn every_owner_lookup_spends_exactly_one_join() {
+    fn live_and_missing_owner_lookups_spend_exactly_one_join() {
         const MISSING: u64 = 99;
         // One lookup must use the one available join, including on a miss.
         const LOOKUP_JOINS: u32 = 1;
         let mut store = fixtures::opened();
-        fixtures::committed(
-            &mut store,
-            Box::new([
-                fixtures::header(1),
-                fixtures::save(fixtures::live_task(LIVE)),
-                fixtures::save(fixtures::ended_task(ENDED)),
-            ]),
-        );
-        for (number, present) in [(LIVE, true), (ENDED, true), (MISSING, false)] {
+        fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(fixtures::live_task(LIVE))]));
+        for (number, present) in [(LIVE, true), (MISSING, false)] {
             let mut spent = Spent { rows: 1, bytes: u64::MAX, joins: LOOKUP_JOINS };
             let Ok(found) = owner(&mut store, number, &mut spent) else { panic!("lookup fits one join: {number}") };
             assert_eq!(found.is_some(), present, "owner {number}");
             if let Some(found) = found {
-                let record = if number == LIVE { fixtures::live_task(number) } else { fixtures::ended_task(number) };
+                let record = fixtures::live_task(number);
                 assert_eq!(Some(found.as_ref()), super::as_task(&record), "owner joined whole");
             }
             assert_eq!(spent.joins, 0, "owner {number}");

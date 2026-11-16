@@ -25,7 +25,7 @@ fn child_store() -> Store {
 fn load(store: &mut Store, range: reads::Range) -> reads::Loaded {
     let events = fixtures::run(store, Request::Read { owner: Token::new(7), range });
     let mut events = events.into_iter();
-    let Some(Event::Read { owner, result }) = events.next() else { panic!("one read event") };
+    let Some(Event::Read { owner, result }) = events.next() else { panic!("one read event: {events:?}") };
     assert_eq!(owner, Token::new(7));
     assert!(events.next().is_none());
     result
@@ -204,7 +204,7 @@ fn task_scopes_share_their_joined_owner() {
         reads::Scope::Result { task: CHILD },
     ] {
         let mut store = child_store();
-        let result = super::history_logs::same(&mut store, &[CHILD, GOAL], fixtures::read(ALICE, scope));
+        let result = load(&mut store, fixtures::read(ALICE, scope));
         assert_eq!(one_row(&result).related, Some(fixtures::terminal(CHILD, 1)));
     }
 }
@@ -349,7 +349,7 @@ fn a_party_proposal_joins_its_kept_decision() {
 #[test]
 fn a_task_proposal_reads_its_proposers_history_row_by_key() {
     let mut store = history_store();
-    let result = super::history_logs::same(&mut store, &[CHILD], proposal_range(PROPOSAL));
+    let result = load(&mut store, proposal_range(PROPOSAL));
     assert_eq!(one_row(&result).value, fixtures::history_with_proposal(CHILD, 3, PROPOSAL));
 }
 
@@ -363,14 +363,14 @@ fn an_escalation_reads_the_decision_its_task_names() {
 #[test]
 fn an_escalation_joins_its_hold_row_by_position() {
     let mut store = escalation_store();
-    let result = super::history_logs::same(&mut store, &[CHILD], escalation_range());
+    let result = load(&mut store, escalation_range());
     assert_eq!(one_row(&result).related, Some(fixtures::hold_row(CHILD, 13)));
 }
 
 #[test]
 fn a_question_joins_the_line_that_answers_it() {
     let mut store = question_store();
-    let result = super::history_logs::same(&mut store, &[CHILD, GRANDCHILD], question_range(QUESTION));
+    let result = load(&mut store, question_range(QUESTION));
     assert_eq!(one_row(&result).related, Some(fixtures::answer_line(GRANDCHILD, 11, QUESTION)));
 }
 
@@ -393,7 +393,7 @@ fn a_reply_reads_its_notified_line_by_key() {
         Box::new([fixtures::header(2), fixtures::save(fixtures::notified_line(CHILD, QUESTION_POSITION, ALICE))]),
     );
     let range = fixtures::read(ALICE, reads::Scope::Reply { task: CHILD, activity: QUESTION_POSITION });
-    let result = super::history_logs::same(&mut store, &[CHILD, GOAL], range);
+    let result = load(&mut store, range);
     assert_eq!(one_row(&result).value, fixtures::notified_line(CHILD, 7, ALICE));
 }
 
@@ -504,7 +504,7 @@ fn read_result(events: Box<[Event]>) -> reads::Loaded {
 }
 
 fn read_disk(store: &mut Store, mut below: Below, disk: &[u8]) -> reads::Loaded {
-    for _ in 0_u32..8 {
+    for _ in 0_u32..32 {
         let Some(file::Request::ReadAt { owner, offset, max, .. }) = below.transcripts.pop() else {
             panic!("one frame read request");
         };
@@ -520,7 +520,7 @@ fn read_disk(store: &mut Store, mut below: Below, disk: &[u8]) -> reads::Loaded 
             return read_result(events);
         }
     }
-    panic!("two fixture frames finish within four reads");
+    panic!("two fixture frames and their history fetches finish within the bounded walk");
 }
 
 #[test]
@@ -689,7 +689,7 @@ fn a_tasks_history_joins_changes_then_attempts_then_holds() {
         ]),
     );
     let range = fixtures::read(ALICE, reads::Scope::History { task: CHILD, subtree: false });
-    let (rows, next) = page(super::history_logs::same(&mut store, &[CHILD, GOAL], range));
+    let (rows, next) = page(load(&mut store, range));
     assert_eq!(
         values(&rows).as_ref(),
         [fixtures::history(CHILD, 3), fixtures::attempt_row(CHILD, 2), fixtures::hold_row(CHILD, 1)]
@@ -865,12 +865,18 @@ fn an_activity_window_stops_at_position_one() {
 }
 
 #[test]
-fn an_encoded_activity_cut_keeps_the_newest_prefix() {
-    let mut store = activity_store();
-    store.limits.store.page.bytes = 80;
-    let (rows, next) = page(load(&mut store, activity_range(None)));
-    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 5)]);
-    assert_eq!(next, Some(activity_position(5)));
+fn an_activity_log_frame_past_the_encoded_page_is_corrupt() {
+    for backwards in [false, true] {
+        let mut store = activity_store();
+        store.limits.store.page.bytes = 80;
+        let mut range = activity_range(None);
+        range.backwards = backwards;
+        let events = fixtures::run(&mut store, Request::Read { owner: Token::new(7), range });
+        let [Event::Corrupt { owner }] = events.as_ref() else {
+            panic!("history frame exceeds the encoded page: {events:?}")
+        };
+        assert_eq!(*owner, Token::new(7));
+    }
 }
 
 #[test]

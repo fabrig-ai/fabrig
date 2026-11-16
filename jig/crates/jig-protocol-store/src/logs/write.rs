@@ -1,29 +1,9 @@
 //! One history record per task per commit (protocol/store/logs.md, 3).
-use crate::{CommitCheck, Store, codec, jobs, keys, logs, view};
+use crate::{CommitCheck, Store, codec, keys, logs, view};
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Set};
 
 type Rows = Map<Box<[u8]>, Option<Box<[u8]>>>;
-
-pub(crate) fn enabled(store: &mut Store, ops: &[skein_kv::Op]) -> Result<bool, CommitCheck> {
-    if store.history_routing {
-        return Ok(true);
-    }
-    if let Some(crate::upgrade::phase::Patching::Jobs(running)) = crate::directory::patching(store)
-        && running.writes_history()
-    {
-        return Ok(true);
-    }
-    let key = jobs::kept::key(store, crate::Owner::Jig, &jobs::task_logs::JOB).ok_or(CommitCheck::Encoding)?;
-    for op in ops {
-        if let skein_kv::Op::Put { key: written, .. } = op
-            && *written == key
-        {
-            return Ok(true);
-        }
-    }
-    Ok(view::raw_get(store, key).or(Err(CommitCheck::Reads))?.is_some())
-}
 
 pub(crate) fn route(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
     let mut tasks: Map<u64, Rows> = Map::uncapped();
@@ -90,7 +70,7 @@ fn history(store: &mut Store, task: u64, rows: &Rows, ops: &mut List<skein_kv::O
         }
         record.push((key.clone(), value.clone())).expect("record bounded by input operations");
     }
-    // An erase must not create a log, even when it removes a pre-job map row.
+    // An erase must not create a log, even when it removes a map row.
     if at == 0 && !puts {
         return Ok(());
     }

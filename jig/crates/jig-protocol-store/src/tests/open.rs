@@ -20,8 +20,8 @@ fn planted(ops: &[skein_kv::Op]) -> Store {
     fixtures::over(stores)
 }
 
-// Format, Layouts, deployment header and installation identifier.
-const OPENED_ROWS: usize = 4;
+// Format, floor, layouts, deployment header and installation identifier.
+const OPENED_ROWS: usize = 5;
 const LARGE_RESULT_BYTES: u32 = 2048;
 
 #[test]
@@ -51,6 +51,7 @@ fn the_settings_verdict_piece_ceiling_is_one_mebibyte() {
 
 fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {
     [
+        fixtures::floor_put(),
         fixtures::format_put(fixtures::DEPLOYMENT),
         fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
@@ -294,6 +295,18 @@ fn the_callers_two_stores_are_handed_back_without_changes() {
     assert_eq!(stores.store.used(), expected);
     assert_eq!(stores.secrets.last(), 0);
     assert!(stores.secrets.is_empty());
+}
+
+#[test]
+fn undecodable_floor_is_corrupt_at_its_key() {
+    let key = keys::encode_own(&keys::Own::Floor, fixtures::KEY_LIMIT).expect("floor key");
+    let mut store = replacing(skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) });
+    let events = open(&mut store);
+    let [Event::Corrupt { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let Some(crate::restore::OpenFailure::Data(failure)) = store.start_open_failure() else {
+        panic!("floor data failure")
+    };
+    assert_eq!(failure.row.as_ref().expect("floor site").key, key);
 }
 
 #[test]

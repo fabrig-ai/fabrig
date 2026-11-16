@@ -774,6 +774,7 @@ pub use store::{
     result_index, run, run_proof, save, sign_in_secret, stores, turn, window_turn,
 };
 
+pub use store::floor_put;
 pub use store::limits as store_limits;
 pub use store::{Answer, committed_with_places, events, opened_with_transcripts, script, written};
 

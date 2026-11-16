@@ -144,58 +144,79 @@ level the binary sets, when its versions and layouts are the baseline's
 (jig's `protocol/store/records.md`, 3, `BASELINE`); then it compares as
 for any store at level 0: equal, it opens; behind, it patches a copy. A
 row of levels none at any other layout is from before the baseline, and
-refused as an older build's, as it was. The rule holds for good: such a
-store keeps its row until the first patch it meets writes the levels.
+refused as an older build's, as it was. Such a store has no floor row,
+so the floor's check after the levels refuses it, naming the build to
+upgrade it through (jig's `protocol/store/records.md`, 3).
 
 ## 6. The golden store
 
-- **What:** the deployment's whole data as the baseline's build left it,
-  the files of every root of the one-process world's machine
+The golden store is at the floor (`../draft/store-floor.md`, section 3):
+the baseline's deployment, which has no floor row, is refused by every
+build since the floor's check (5), so it is gone with its patch table.
+
+- **What:** the deployment's whole data as a build at the floor left
+  it, the files of every root of the one-process world's machine
   (`../testing/README.md`, 2.5): the deployment's directory (`active`,
   the generation's `store/` and `secrets/`, `transcripts/`), the
   worker's and the client's roots, the setup's, and the configuration
   the world started the service with, kept as a file beside them. Kept
-  in `tests/one-process/golden/baseline/`, one directory per root, with
-  a `README.md` naming the commit and the story that made it.
-- **Made once, by the baseline's code:** a story of the one-process
-  world, run with the production crates as at `bc23255eb7`, before any
-  change of this design touched what a start writes: a person signs in
-  by the printed link and adds an account; a repository adopted on the
-  fake forge, its records and secrets kept; a change landed through it,
-  as story A lands one; a chat that replied and waits; a coding task
-  mid-run; then a signal, the settled stop. The story stays a test of
-  the world; it writes its files only into the test's own temporary
-  directory, and they were copied into `golden/` once, by hand. Nothing
-  writes `golden/baseline/` again.
+  in `tests/one-process/golden/floor/`, one directory per root, with a
+  `README.md` naming the commit and the story that made it. Its store
+  holds the floor row at floor 1 (jig's `protocol/store/records.md`, 3),
+  written by its first commit.
+- **Made once, by the code of the landing that brings it:** the story
+  that made the baseline's, a story of the one-process world run with
+  the production crates: a person signs in by the printed link and adds
+  an account; a repository adopted on the fake forge, its records and
+  secrets kept; a change landed through it, as story A lands one; a
+  chat that replied and waits; a coding task mid-run; then a signal,
+  the settled stop. The story stays a test of the world; it writes its
+  files only into the test's own temporary directory, and they are
+  copied into `golden/floor/` once, by hand. Nothing writes
+  `golden/floor/` again; a landing that moves the floor makes the store
+  at the new floor beside it and removes this one.
 - **Its test, focused:** every build loads the files into a fresh
   machine and starts the service on them with its production sets. The
-  open patches through every landed patch (none at the baseline), the
-  root restores, and once the start's wires are durable the test
-  asserts, from literals written once from the story, never from
-  today's encoders: the deployment's and the installation's ids; the
-  person still signed in by the client's kept token; the account and
-  its source; the project and its repository; the landed change's task
-  ended and its landing recorded; the paused chat's turns read in the
-  current version; the mid-run task's attempt crossed and its next one
-  started; and the next task number above every kept one.
+  open writes nothing where nothing is pending (no patch or job: no new
+  generation), the root restores, and once the start's wires are
+  durable the test asserts, from literals written once from the story,
+  never from today's encoders: the deployment's and the installation's
+  ids; the person still signed in by the client's kept token; the
+  account and its source; the project and its repository; the landed
+  change's task ended and its landing recorded; the paused chat's turns
+  read; the mid-run task as the restart leaves it; the next task number
+  above every kept one; and that the service serves the person a read
+  of a kept task.
+- **A line per step over it:** `golden/floor/upgraded.txt` holds one
+  line per `Patched` or `Ran` event the start answers over it, in order
+  (jig's `protocol/store/opening.md`, 2, and `protocol/store/jobs.md`, 3): its owner, its
+  patch's number or its job's name, and its counts. The test fails
+  unless the start's events equal it. Empty at the floor. A landing
+  that adds a job adds its line, its counts reviewed.
+- **Its refusal, focused:** the same files with the floor row erased
+  from the active generation's store, by the test in its own copy: the
+  start is refused `OlderBuild { why: Floor }` (jig's
+  `protocol/store/opening.md`, 1.8), its words naming `FLOOR_BRIDGE`,
+  with `active` unchanged and every file the copy held unchanged, its
+  path and bytes. The only files added are the empty log segments each
+  store's recovery starts before the open is checked (skein's
+  `data/kv.md`, 3: a new segment starts after recovery), the test
+  naming each and asserting it empty.
+- **Its rehearsal, focused:** `upgrade --check` (`../draft/upgrades.md`,
+  3.1) over the files decodes every record of the store and reaches its
+  report with nothing pending; over a copy with a record broken, it names
+  that record (`Undecodable`); over the copy with its floor row erased,
+  it refuses at the floor before decoding; its source unchanged each
+  time.
 - **Its configuration, as a start reads it:** the kept
   `configuration.json` is the world's test configuration, whose small
   profile sets limits below a production deployment's. Where a later
-  build raises a limit's floor (main's added brief section raised
-  `brief.sections`' floor by one, to 8 when `tasks.charter_documents`
-  is 0), or configures more of a thing than the override bounds (its
-  default charters, against `tasks.charters` 9), the test raises that
-  override to this build's floor or count in the copy it starts the
-  service with, and the file stays as kept. Nothing
-  else in the configuration is changed: a member the build refuses by
-  name stays a red for the change that refused it
+  build raises a limit's floor or configures more of a thing than the
+  override bounds, the test raises that override to this build's floor
+  or count in the copy it starts the service with, and the file stays
+  as kept. Nothing else in the configuration is changed: a member the
+  build refuses by name stays a red for the change that refused it
   (`../draft/upgrades.md`, 10).
-- **A step per patch over it:** `golden/baseline/patched.txt` holds one
-  line per patch the open applies, `<owner> <patch> <records> <commits>`
-  in plan order, from the start's `Patched` events; the test fails
-  unless the start's lines equal it. Empty at the baseline. A landing
-  that adds a patch adds its line, its counts reviewed: the patch's
-  step over the golden store, beside its own goldens (7).
 - **Under 1 MB** in all; its paths a glob in `.config/fixture-readers.toml`.
 
 ## 7. The policy and the gate
@@ -351,9 +372,8 @@ dev.fabrig.ai's, upgrades to it.
   reviewed. Another family `main` changed by the merge comes the same way:
   a value needed moves its version in its owner's patch; none needed
   refreshes its kept text.
-- **Their step over the golden store:** a line each in `patched.txt`
-  (6), `jig 1 …` then `temper 1 …`, the counts from the start and
-  reviewed; the golden test's assertions hold under them.
+- **Their step over the golden store:** none since it is at the floor
+  (6), whose store has run them.
 - **What moves with them:** the binary's levels, jig 1 and temper 1, so
   `versions` prints `level jig 1` and `level temper 1`; the fixture patch
   (8) follows the devices' patch 2, the closer question relay's patch 3

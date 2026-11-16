@@ -3,8 +3,8 @@
 What the store keeps of ended work, and for how long: each keyspace's
 horizon, declared by its owner, and the domain's passes that erase what
 has passed it (temper's `draft/store-shape.md`, sections 6 and 10.1,
-milestone S6). Until S7 moves history into a log per task, all of it is
-in the map, so retention is what bounds the map's growth.
+milestone S6). A task's history is kept in its logs (`logs.md`), and
+retention bounds both the map and the logs.
 
 ## 1. In one page
 
@@ -32,9 +32,6 @@ in the map, so retention is what bounds the map's growth.
 - **Readers** (7): a shrunk task is listed from its summary, and any
   other read of it answers Gone. A task whose turns were dropped shows
   its activity lines without their turns.
-- **At the upgrade** (8), a job at open writes the summary and the
-  retention row of each task already ended, and a row for each person
-  proposal already decided. Nothing is erased at once.
 - **Connectors** (9) hear `Unname` when a task's full record goes.
 
 ## 2. Horizons
@@ -274,18 +271,10 @@ also puts a `Proposal` row, `since` the decision's time.
 
 ## 8. At the upgrade
 
-Two jobs at open of jig's (`jobs.md`), run once per store:
-
-- **`retention-rows`,** over `tasks.ended`: for each ended task, its
-  summary (3) and its retention row (4), `Turns` if its record says it
-  turned, otherwise `Record`, with `since` its `ended_at` (its `changed`
-  where none is kept). About 2,600 tasks on dev.fabrig.ai, two puts each.
-- **`retention-proposals`,** over the core's decisions on proposals by a
-  party: for each, a `Proposal` row with `since` the decision's time.
-
-No row is erased by either. The first pass after the upgrade erases only
-what is due: on dev.fabrig.ai, the first turns about 11-24 and the first
-full records about 12-10.
+No job: every store at the floor has run `retention-rows` and
+`retention-proposals` (temper's `draft/store-floor.md`, section 4.3),
+so every ended task has its summary and retention row, and every
+decided proposal its row.
 
 ## 9. Connectors
 
@@ -303,8 +292,7 @@ full records about 12-10.
   round-trip through the tasks family's codec, and their keys sort as
   section 4 says; the census names `tasks.summaries` and
   `tasks.retention`; the summary's bound holds at its texts' bounds;
-  the two jobs write the rows section 8 gives over a fixture store; a
-  task query's row joins a summary when the record is gone; an activity
+  a task query's row joins a summary when the record is gone; an activity
   page of a task with no transcript carries every turn line and goes on.
 - **The core's world** (`jig/tests/core`), its clock moved on: a task
   ended past the turns horizon loses its transcript; past the records
