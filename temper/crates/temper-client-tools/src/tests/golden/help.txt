@@ -6,6 +6,7 @@ me  Read your party: its projects, what it may start, and what waits on it
 inbox  Read what waits on your party, then its updates
 task  Tasks: read one and its parts, and act on it
 chat  Chats: start one, read its conversation, close it
+milestone  Milestones: make one, say whole, list and show its goals
 goal  Goals: start one from a project template
 role  Standing roles: start, list, read their Now or report, and talk
 proposal  Proposals: read one, decide it

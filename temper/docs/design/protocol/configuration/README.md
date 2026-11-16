@@ -199,7 +199,8 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **Templates are jig's two defaults,** chat (template 1, label 1) and
   goal (template 2, label 2), as jig's `protocol/configuration.md`,
   3.1 gives them, the chat's executor the charter chats run under;
-  temper defines no template of its own. One flag departs from jig's
+  temper's own, templates 4 to 8, are the stock's (`stock.md`), template
+  8 a milestone's (`../../domain/milestones.md`, section 2). One flag departs from jig's
   defaults: the chat is ended by its requester, `"ended_by":
   "requester"` (jig's `protocol/configuration.md`, 3.2), so that a chat
   stays open past its run's turn until its person closes it

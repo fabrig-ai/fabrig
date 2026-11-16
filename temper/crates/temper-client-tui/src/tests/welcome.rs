@@ -1031,6 +1031,7 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                     w::Read::Setting(_)
                     | w::Read::Finding(_)
                     | w::Read::History(_)
+                    | w::Read::Milestone(_)
                     | w::Read::ProposalItems(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProgramEnvironment

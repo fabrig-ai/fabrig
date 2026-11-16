@@ -159,6 +159,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
         task_release: None,
         job: None,
         signed: Box::new([]),
+        milestone: None,
         goal: None,
         ending: Some(forge::Ending::NoChange),
         repair_tasks: Box::new([]),
@@ -359,6 +360,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Change(_)
+        | forge::Key::Milestone(_)
         | forge::Key::Issue(_)
         | forge::Key::Release(_)
         | forge::Key::Application(_)
@@ -490,6 +492,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         | forge::Stored::ForgeNumber { .. }
         | forge::Stored::Playground(_)
         | forge::Stored::Dismissed { .. }
+        | forge::Stored::Milestone(_)
         | forge::Stored::ProjectFacts(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)

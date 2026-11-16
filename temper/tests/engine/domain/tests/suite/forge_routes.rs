@@ -109,6 +109,7 @@ mod contained_landing;
 mod held_change;
 #[path = "forge_routes/landing.rs"]
 mod landing;
+mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
 mod question_target;

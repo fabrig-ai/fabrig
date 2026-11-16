@@ -117,7 +117,8 @@ pub(crate) fn person_question(
     if recipient.requester != Party::Person(person) || word.kind != MessageKind::Question {
         return refused(reply_to, Some(task), Refusal::Reference, out);
     }
-    let plan = match crate::inbox::check_message(
+    let gathering = crate::gathering::executor(recipient.executor);
+    let mut plan = match crate::inbox::check_message(
         domain,
         &crate::compound::Staged::new(0),
         env,
@@ -128,6 +129,16 @@ pub(crate) fn person_question(
         Ok(plan) => plan,
         Err(problem) => return crate::capacity::refused(domain, env, reply_to, *problem, out),
     };
+    // A gathering keeps the question's activity, not an unread word.
+    if gathering {
+        let mut kept = List::with_capacity(env.limits.inbox_messages);
+        for word in &plan.prepared.inbox {
+            if word.number != plan.prepared.word.number {
+                kept.push(word.clone()).expect("inbox subset fits");
+            }
+        }
+        plan.prepared.inbox = kept.into_boxed();
+    }
     let source = plan.asked_by;
     let (task, word) = crate::inbox::apply_message(domain, env, plan, out);
     if let Some(source) = source {
@@ -191,11 +202,12 @@ pub(crate) fn person_answer(
         crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question), asked_by: None },
         out,
     );
-    // The inbox owner retains the answer's location even when its sender is a
-    // person after a move. Its reserved notice replaces that open position.
+    // The asked task retains the answer's location even when its sender is a
+    // person after a move. A gathering keeps no answer notice in its inbox.
     let heard = crate::AnswerLine { task: asker, position: record(domain, asker).expect("answered asker").activity };
     crate::positions::sent_answer(domain, env, Party::Task(recipient), question, heard, out);
     if recipient != asker
+        && !crate::gathering::executor(record(domain, recipient).expect("question recipient live").executor)
         && let Some((previous, word)) = append_notice(
             domain,
             env,

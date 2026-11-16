@@ -26,8 +26,9 @@ impl Start {
             return None;
         }
         if let Ask::Jig(ask) = ask
-            && let c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } =
-                ask.as_ref()
+            && let c::Ask::Create { tasks, .. }
+            | c::Ask::Delegate { tasks, .. }
+            | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } = ask.as_ref()
             && let Some(task) = tasks.get(0)
         {
             return Some(Self { executor: task.executor, choice: task.llm.clone(), flags: None });

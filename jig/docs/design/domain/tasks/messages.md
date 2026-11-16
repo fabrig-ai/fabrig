@@ -194,6 +194,10 @@ connectors offer for goals are the core's to keep, not its executor's
   (../people/README.md, section 7), which its charter's authority allows, an
   entry of that party's inbox, whose answer reaches the conversation
   as that delegate's result.
+- **A gathering's questions:** a question a delegate asks its
+  requester that is a gathering goes to the gathering's requester,
+  where that is a person: an entry of their inbox, whose answer reaches
+  the delegate as its requester's answer (`gatherings.md`, section 4).
 
 ## 6. Why a run runs, and what it is offered
 

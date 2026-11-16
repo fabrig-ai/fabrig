@@ -26,6 +26,8 @@ mod approvals;
 mod change_history;
 pub mod history;
 mod landing_proofs;
+#[path = "milestones.rs"]
+mod milestone_rows;
 mod readiness;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
