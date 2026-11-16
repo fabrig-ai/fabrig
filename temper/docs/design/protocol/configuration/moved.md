@@ -18,8 +18,10 @@ bundle`) stay as they are until then.
   those jig lets an application fix (jig's `protocol/configuration.md`,
   3.4); of temper's, a worker's workspaces and its git.
 - **One table names them,** in `temper-service-core`'s startup: each
-  moved member's path and its words. The refusals read it, and so does
-  the `configuration` reference page, which lists where each went
+  moved member's path and its words. The refusals read it, and so do
+  the `configuration` and `configuration-engine` reference pages, where
+  each is one row of its shape saying that a start refuses it and where
+  it went, as the members that left for the store are
   (`../documentation.md`, section 8).
 - **What moved to the store or to set-up** is designed where it lives:
   the welcome, a setting (section 4); a forge's place, chosen when it's
@@ -38,7 +40,7 @@ worker's two itself:
 
 | Member | Its constant |
 |---|---|
-| `engine.deployment` | the directory `deployment` in the data directory, as `temper-box init` writes it; the seed 7 |
+| `engine.deployment` | the directory `state` in the data directory, as the owned example and dev.fabrig.ai have it (the user, 2026-11-16); the seed 7. A box made before by `temper-box init`, whose store is in `deployment`, moves that directory to `state` while stopped, or starts afresh |
 | `engine.providers` | 1, the printed link's (`link`); 2, the deployment's own (`deployment`); 3, Google's sign-in (`application`), which `sign_in.google.provider` names |
 | `engine.connectors` | `[1]`, the forge connector (`README.md`, section 2) |
 | `engine.acts` | connector 1 may `remove_project`, `remove_account` and `adopt` |
@@ -72,7 +74,7 @@ at most 120 bytes:
 
 | Member | Words |
 |---|---|
-| `engine.deployment` | `moved: temper keeps the store in the data directory's deployment` |
+| `engine.deployment` | `moved: temper keeps the store in the data directory's state` |
 | `engine.providers` | `moved: temper fixes its identity providers: 1 link, 2 deployment, 3 Google's` |
 | `engine.connectors` | `moved: temper fixes its connector, the forge's, 1` |
 | `engine.acts` | `moved: temper fixes the forge connector's acts` |
@@ -84,8 +86,8 @@ at most 120 bytes:
 | `application.welcome` | `moved: the welcome is a setting; change it with temper ctl settings` |
 | `application.machine` | `moved: a forge's place is chosen when it's set up, and kept with the forge` |
 
-The `configuration` reference page lists the same rows under "Moved", so
-a person who meets a refusal finds where the member went.
+The reference pages give the same words in each member's row, so a
+person who meets a refusal finds where the member went.
 
 ## 4. The welcome
 
