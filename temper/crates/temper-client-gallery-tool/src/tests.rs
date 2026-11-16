@@ -6493,10 +6493,14 @@ fn the_accounts_tabs_sign_out_hides_over_a_phones_width_alone() {
 fn the_rails_link_state_is_one_word_out_of_the_foot_over_a_phones_width_alone() {
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let foot = "#app > .temper-rail > .temper-rail-foot";
+    // :is() takes its most specific argument: the word's [role=status].temper-behind
+    // makes (1, 4, 0), outweighing the item's (1, 3, 0) regardless of source order.
+    let item = format!("{foot} > :is(a, [role=status], [data-region=temper-link])");
+    let mut item_found = false;
     let rules = [
         (
-            " > :is([data-region=temper-link], .temper-behind)",
-            "position:absolute;top:28px;right:20px;display:flex;align-items:center;min-height:24px;padding:0;font-size:12.5px;",
+            " > :is([data-region=temper-link], [role=status].temper-behind)",
+            "position:absolute;top:28px;right:20px;display:flex;min-height:24px;padding:0;font-size:13.5px;line-height:24px;",
         ),
         (" > [data-region=temper-link] > *", "gap:6px;"),
         (" > [data-region=temper-link]:has(> .temper-live)", "display:flex;"),
@@ -6507,8 +6511,16 @@ fn the_rails_link_state_is_one_word_out_of_the_foot_over_a_phones_width_alone() 
             " > .temper-behind::before",
             "content:\"\";width:7px;height:7px;border-radius:50%;flex:none;background:var(--temper-amber);",
         ),
+        (
+            concat!(
+                " > [data-region=temper-link] > :is(.temper-live, .temper-connecting, .temper-offline), ",
+                "#app > .temper-rail > .temper-rail-foot > :is([data-region=temper-link], [role=status].temper-behind).temper-behind"
+            ),
+            "align-items:baseline;",
+        ),
+        (" > [data-region=temper-link] > .temper-live::before", "width:7px;height:7px;"),
     ];
-    let mut found = [false; 7];
+    let mut found = [false; 9];
     let mut selectors = Vec::new();
     let mut start = 0;
     let mut query = None;
@@ -6522,6 +6534,9 @@ fn the_rails_link_state_is_one_word_out_of_the_foot_over_a_phones_width_alone() 
             }
             '}' => {
                 let (selector, _) = selectors.pop().unwrap();
+                if selector == item {
+                    item_found = true;
+                }
                 let declarations = css[start..at].split_whitespace().collect::<String>();
                 for (index, (suffix, expected)) in rules.iter().enumerate() {
                     if selector == format!("{foot}{suffix}") {
@@ -6551,6 +6566,7 @@ fn the_rails_link_state_is_one_word_out_of_the_foot_over_a_phones_width_alone() 
     for ((suffix, _), found) in rules.iter().zip(found) {
         assert!(found, "missing {foot}{suffix}");
     }
+    assert!(item_found, "the foot's item selector has the pinned lower specificity");
     assert_eq!(hiding_rules, 1, "only Behind replaces Live");
 }
 
