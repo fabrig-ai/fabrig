@@ -459,6 +459,7 @@ Design documents:
 - [`domain/agent/agents.md`](domain/agent/agents.status.md)
 - [`domain/agent/ask-temper.md`](domain/agent/ask-temper.status.md)
 - [`domain/agent/charter.md`](domain/agent/charter.status.md)
+- [`domain/agent/declarations.md`](domain/agent/declarations.status.md)
 - [`domain/agent/room.md`](domain/agent/room.status.md)
 - [`domain/agent/standing.md`](domain/agent/standing.status.md)
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)

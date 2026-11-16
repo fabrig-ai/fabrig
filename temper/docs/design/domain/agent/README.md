@@ -24,6 +24,10 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **Which tools a run is declared** (`declarations.md`): its charter's
+  families' tools, each in a short declared form within 1,024 bytes, its
+  whole form on the `host-tools` page, and the contract the declarations
+  make, with the versions it answers.
 - **A charter's room** (`room.md`): the allowance a charter is fitted to,
   its brief cut to what the rest leaves, a refusal naming what didn't fit,
   and the checks at start and at each change of settings.
