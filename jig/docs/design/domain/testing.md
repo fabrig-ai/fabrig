@@ -479,8 +479,12 @@ in `jig-store-world::suite`, on the simulated disk. Focused cuts each a few
 times, chosen for what a cut there can lose: a first start's first directory
 and its switch, a stray's first and last removal, the drop, the copy and the
 switch of a patch, the seal and the check, a patched read's first and last file
-operation. Their whole sweeps are under `fuzzy::` in the same binary, each with
-its focused cuts' body. Layout,
+operation, and the wires' commit that ends going back
+(`../protocol/store/opening.md`, 2, step 8), cut before and after it is
+durable: before, going back still opens the previous generation and the next
+start of the new sets opens the switched one without patching again and commits
+its wires; after, going back refuses as committed. Their whole sweeps are under
+`fuzzy::` in the same binary, each with its focused cuts' body. Layout,
 manifest and admission cases are data rows of their behaviour's table;
 copy mutations and check/switch cuts have one owner each. These are
 component-world scenarios, not a separate tier. `jig-test::process` also
