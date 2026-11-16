@@ -520,8 +520,9 @@ fn measure_turn(number: u32) {
     let meter = Meter::new();
     meter.start();
     let mut domain = smith_domain::Domain::new(&limits, config.service.domain, 7);
-    let charter = temper_engine_smith::charter(&assignment);
+    let mut charter = temper_engine_smith::charter(&assignment);
     let workspace = workspace(number != 4);
+    temper_protocol_brief::fit_brief(&mut charter, Some(&workspace), &limits.run);
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {
