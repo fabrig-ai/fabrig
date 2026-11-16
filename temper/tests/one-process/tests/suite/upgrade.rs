@@ -1,4 +1,4 @@
-//! Baseline owner admission, coverage and the application's mark-only fixture.
+//! Baseline owner admission, coverage and the application's mark-only fixture, with one drawn power loss.
 #[test]
 fn an_opened_worker_may_stay_after_its_deployment_stops() {
     temper_one_process_world::upgrade::check::opened_worker_rehearsal();
@@ -23,20 +23,8 @@ fn the_golden_store_rehearsal_refuses_retired_milestones_without_writing() {
 }
 
 #[test]
-fn power_lost_at_the_copys_first_write_keeps_a_whole_generation() {
-    temper_one_process_world::upgrade::story::power_loss(0);
-}
-#[test]
-fn power_lost_at_the_patch_commit_keeps_a_whole_generation() {
-    temper_one_process_world::upgrade::story::power_loss(1);
-}
-#[test]
-fn power_lost_at_the_switch_rename_keeps_a_whole_generation() {
-    temper_one_process_world::upgrade::story::power_loss(2);
-}
-#[test]
-fn power_lost_at_the_wires_commit_keeps_a_whole_generation() {
-    temper_one_process_world::upgrade::story::power_loss(3);
+fn power_lost_at_a_drawn_moment_keeps_a_whole_generation() {
+    temper_one_process_world::upgrade::story::drawn_power_loss(5);
 }
 #[test]
 fn a_story_keeps_its_history_through_a_settled_upgrade() {
