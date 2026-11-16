@@ -25,14 +25,11 @@ const FOLLOW: Job = Job {
     keys: &[KeyRange { from: b"l", to: b"m" }],
     converts: None,
 };
-const JOBS: PatchSets = PatchSets {
+pub(super) const JOBS: PatchSets = PatchSets {
     // Deliberately downstream first: the component chooses Owner's order.
     sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
 };
-const PATCHES_AND_JOBS: PatchSets = PatchSets {
-    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..SETS.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..SETS.sets[1] }],
-};
-fn store(disk: &Disk, sets: PatchSets) -> Store {
+pub(super) fn store(disk: &Disk, sets: PatchSets) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
     store.application.version = 0;
     store.patch_sets(sets);
@@ -79,7 +76,7 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
     if page.end {
         assert!(page.rows.is_empty());
         let writes: Box<[JobWrite]> = if job == APP_JOB.name {
-            Box::new([JobWrite::Put { key: b"l/finished".as_slice().into(), value: label(1) }])
+            Box::new([JobWrite::Put { key: b"l/finished".as_slice().into(), value: label() }])
         } else {
             Box::new([])
         };
@@ -91,7 +88,7 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
         return JobAnswer {
             counts: Box::new([]),
             writes: Box::new([
-                JobWrite::Put { key: Box::from([2, b'l', b'/', b'0']), value: label(2) },
+                JobWrite::Put { key: Box::from([2, b'l', b'/', b'0']), value: label() },
                 JobWrite::Erase { key: first.key.clone() },
             ]),
             through: Some(first.key.clone()),
@@ -99,11 +96,11 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
     }
     if job == FOLLOW.name {
         assert_eq!(first.key.as_ref(), b"l/finished", "a set's later job reads its earlier one's last writes");
-        assert_eq!(first.value, label(1));
+        assert_eq!(first.value, label());
         return JobAnswer { counts: Box::new([]), writes: Box::new([]), through: None };
     }
     if first.key.as_ref() == b"l/0" {
-        assert_eq!(first.value, label(2), "jig's writes precede the application's");
+        assert_eq!(first.value, label(), "jig's writes precede the application's");
     }
     JobAnswer {
         counts: Box::new([]),
@@ -111,7 +108,7 @@ fn answer(page: &JobPage, of: Owner, job: &str) -> JobAnswer {
         through: Some(first.key.clone()),
     }
 }
-fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> {
+pub(super) fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> {
     let mut events = VecDeque::from(first.into_vec());
     let mut progress = Vec::new();
     let mut rows = 0;
@@ -164,13 +161,7 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
                 last_key = None;
                 progress.push(event);
             }
-            Event::Site { owner, key, site, at, mut patcher, .. } => {
-                let mut context = jig_test_patches::patches::Context { key };
-                let (old, new) = patcher.parts();
-                let result = jig_test_patches::patches::written(site, old, new, at, &mut context);
-                events.extend(disk.request(store, Request::Site { owner, patcher, result }));
-            }
-            Event::Patched { .. } | Event::Opened { .. } | Event::Census { .. } => progress.push(event),
+            Event::Opened { .. } | Event::Census { .. } => progress.push(event),
             other => panic!("unexpected job start answer: {other:?}"),
         }
     }
@@ -195,7 +186,7 @@ fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -
 fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
     const JIG_ONLY: PatchSets = PatchSets { sets: &[BASE.sets[0], PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
     const APP_ONLY: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
-    let baseline = fixture_baseline(None);
+    let baseline = fixture_baseline();
     for (of, sets) in [(Owner::Jig, JIG_ONLY), (Owner::Application, APP_ONLY)] {
         for (extra_writes, extra_bytes) in [(1, 0), (0, 1)] {
             let mut disk = Disk::new(&baseline);
@@ -247,7 +238,7 @@ fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() 
                 PatchSet { jobs: if of == Owner::Jig { &[UPSTREAM_JOB] } else { &[] }, ..BASE.sets[1] },
             ])),
         };
-        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut disk = Disk::new(&fixture_baseline());
         let mut store = store(&disk, sets);
         // Fit three puts, their frame and the done row exactly.
         let writes: Box<[JobWrite]> = (0..3_u8)
@@ -257,7 +248,7 @@ fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() 
                 } else {
                     vec![2, b'l', b'/', b'x' + n].into()
                 },
-                value: label(1),
+                value: label(),
             })
             .collect();
         let declared = if of == Owner::Jig { UPSTREAM_JOB } else { FOLLOW };
@@ -309,7 +300,7 @@ fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() 
 }
 #[test]
 fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_more() {
-    let mut disk = Disk::new(&fixture_baseline(None));
+    let mut disk = Disk::new(&fixture_baseline());
     let before = snapshot(&mut disk);
     let mut store = store(&disk, JOBS);
     let opened = disk.open(&mut store);
@@ -329,7 +320,7 @@ fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_
     assert_eq!(follow.as_ref(), FOLLOW.name);
     assert_eq!(*last, FIXTURE_LAST + 13);
     assert_eq!(app(&mut store, b"l/0"), None);
-    assert_eq!(app(&mut store, b"l/finished"), Some(label(1)));
+    assert_eq!(app(&mut store, b"l/finished"), Some(label()));
     assert_eq!(snapshot(&mut disk), before, "A stays byte-identical until the switch");
     assert_sealed(&mut store, *last);
     let switched = disk.request(&mut store, Request::Switch { owner: Token::new(1) });
@@ -357,7 +348,7 @@ fn job_counts_sum_each_answer_in_declared_order_and_reset_between_jobs() {
         ([[2, 1], [3, 0], [7, 2]], [12, 3]),
         ([[u64::MAX, 0], [1, u64::MAX], [0, 1]], [u64::MAX, u64::MAX]),
     ] {
-        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut disk = Disk::new(&fixture_baseline());
         let mut store = store(&disk, SETS);
         let mut events = disk.open(&mut store);
         for (declared, answers, expected) in [
@@ -400,7 +391,7 @@ fn job_answers_with_counts_not_one_per_name_refuse_without_changing_the_active_g
                 PatchSet { jobs: Box::leak(Box::new([declared])), ..BASE.sets[1] },
             ])),
         };
-        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut disk = Disk::new(&fixture_baseline());
         let before = snapshot(&mut disk);
         let mut store = store(&disk, sets);
         let (owner, of, job, first) = page(disk.open(&mut store));
@@ -495,7 +486,7 @@ fn an_empty_stores_first_commit_marks_every_declared_job_done() {
 #[test]
 fn refused_or_out_of_bounds_answers_abandon_the_copy_and_retry_from_the_first_page() {
     for flaw in ["owner refusal", "operations", "bytes", "key", "value", "before first", "not a page key"] {
-        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut disk = Disk::new(&fixture_baseline());
         let before = snapshot(&mut disk);
         let mut store = store(&disk, JOBS);
         let (owner, of, job, first) = page(disk.open(&mut store));
@@ -560,7 +551,7 @@ fn refused_or_out_of_bounds_answers_abandon_the_copy_and_retry_from_the_first_pa
 #[test]
 fn a_nonempty_pages_through_must_consume_a_key_of_that_page() {
     for through in [b"".as_slice(), b"n/0", b"z"] {
-        let mut disk = Disk::new(&fixture_baseline(None));
+        let mut disk = Disk::new(&fixture_baseline());
         let mut store = store(&disk, JOBS);
         let (owner, _, _, first) = page(disk.open(&mut store));
         assert!(!first.end && !first.rows.is_empty());
@@ -577,26 +568,6 @@ fn a_nonempty_pages_through_must_consume_a_key_of_that_page() {
         });
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
-}
-#[test]
-fn patches_finish_before_pending_jobs_and_the_seal_follows_the_jobs() {
-    let mut disk = Disk::new(&fixture_baseline(None));
-    let mut store = store(&disk, PATCHES_AND_JOBS);
-    let opened = disk.open(&mut store);
-    let events = drive(&mut disk, &mut store, opened);
-    let steps: Vec<_> = events
-        .iter()
-        .map(|event| match event {
-            Event::Patched { .. } => "patch",
-            Event::Ran { .. } => "job",
-            Event::Opened { pending: true, .. } => "opened",
-            Event::Census { .. } => "census",
-            _ => panic!("{event:?}"),
-        })
-        .collect();
-    assert_eq!(steps, ["patch", "patch", "patch", "patch", "job", "job", "job", "opened", "census"]);
-    let last = store.stores.store.last();
-    assert_sealed(&mut store, last);
 }
 
 #[test]

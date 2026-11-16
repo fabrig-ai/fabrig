@@ -151,15 +151,6 @@ impl Machines {
     pub(crate) fn patcher(&mut self, family: FamilyIx) -> &mut Patcher {
         self.get_mut(family).patcher.as_mut().expect("patcher is in the component between sites")
     }
-    #[cfg(test)]
-    pub(crate) fn find(&self, set: usize, family: usize) -> Option<FamilyIx> {
-        for (ix, machine) in self.families.iter().enumerate() {
-            if machine.set == set && machine.family == family {
-                return Some(FamilyIx(u32::try_from(ix).expect("bounded families")));
-            }
-        }
-        None
-    }
     pub(crate) fn named(&self, name: &[u8]) -> Option<FamilyIx> {
         for (ix, machine) in self.families.iter().enumerate() {
             let set = self.sets.sets.get(machine.set).expect("machine's set exists");

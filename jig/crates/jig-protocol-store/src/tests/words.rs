@@ -143,30 +143,6 @@ fn a_job_refusal_says_the_designs_words() {
 }
 
 #[test]
-fn level_and_patch_refusals_say_the_designs_words() {
-    for (refusal, start) in [
-        (OpenRefusal::OlderBuild { why: Older::Unleveled }, "- `OlderBuild { why: Unleveled }`: \""),
-        (OpenRefusal::Ahead { owner: crate::Owner::Jig, found: Some(2), wanted: Some(1) }, "- `Ahead`: \""),
-        (
-            OpenRefusal::Patch {
-                owner: crate::Owner::Application,
-                patch: 2,
-                key: Box::new([]),
-                halt: skein_codec::patch::Halt::Order,
-            },
-            "- `Patch`: \"",
-        ),
-        (OpenRefusal::Set { owner: crate::Owner::Application, patch: 2 }, "- `Set`: \""),
-        (
-            OpenRefusal::InFlight { owner: crate::Owner::Application, family: "fixture", count: 0, keys: Box::new([]) },
-            "- `InFlight`: \"",
-        ),
-    ] {
-        says(refusal, start, "\"");
-    }
-}
-
-#[test]
 fn check_refusals_say_the_designs_words() {
     for (why, start) in [
         (Check::Large { key: Box::new([]) }, "- `Check { why: Large }`: \""),
@@ -174,5 +150,14 @@ fn check_refusals_say_the_designs_words() {
         (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
     ] {
         says(OpenRefusal::Check { why }, start, "\"");
+    }
+}
+#[test]
+fn ahead_and_admission_refusals_say_the_designs_words() {
+    for (refusal, start) in [
+        (OpenRefusal::Ahead { owner: crate::Owner::Jig, found: Some(2), wanted: Some(1) }, "- `Ahead`: \""),
+        (OpenRefusal::Set { owner: crate::Owner::Application, patch: 0 }, "- `Set`: \""),
+    ] {
+        says(refusal, start, "\"");
     }
 }

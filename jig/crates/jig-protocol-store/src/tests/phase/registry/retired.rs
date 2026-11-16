@@ -14,9 +14,9 @@ fn family(owner: Owner) -> KeptFamily {
 }
 fn baseline(owner: Owner, registry_row: bool, value: bool) -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let base = KeptFamily { types: &[], retired: &[], ..family(owner) };
+    let base = family(owner);
     let mut store = fresh(&mut disk, set(owner, base, &[]));
-    let mut ops = layout(CURRENT, 0, 2);
+    let mut ops = Vec::new();
     if registry_row {
         ops.extend(layout(WRITTEN, 1, 9));
     }

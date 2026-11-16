@@ -32,19 +32,20 @@ fn committed(sets: PatchSets) -> Vec<Item> {
 }
 
 #[test]
-fn patch_copy_and_reopen_share_one_set_check() {
-    let mut disk = Disk::new(&committed(BASE));
+fn job_copy_and_reopen_share_one_set_check() {
+    let mut disk = Disk::new(&committed(upgrade_sets(0)));
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(SETS);
+    store.patch_sets(upgrade_sets(1));
     let events = disk.open(&mut store);
+    let events = finish_empty_jobs(&mut disk, &mut store, events);
     assert!(
-        events.iter().any(|event| if let Event::Opened { pending: true, last: 2, .. } = event { true } else { false }),
+        events.iter().any(|event| if let Event::Opened { pending: true, last: 3, .. } = event { true } else { false }),
         "{events:?}"
     );
     let key = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key).expect("format key");
     let bytes = crate::open::get(&mut store, Token::new(1), key).expect("format read").expect("format row");
     let format = crate::codec::component::Format::decode(&bytes).expect("format");
-    assert_eq!(format.levels, crate::levels(&SETS), "the copy reopened at the binary's levels");
+    assert_eq!(format.levels, crate::levels(&upgrade_sets(1)), "the copy reopened at the binary's levels");
     assert!(store.directory.patch.is_none(), "the copy's check consumed the patch phase");
     once_and_dropped(&store);
 }
@@ -66,20 +67,9 @@ fn seeded_serving_open_checks_sets_once() {
 }
 
 #[test]
-fn rehearsal_fresh_and_the_open_share_one_set_check() {
-    let app = SETS.sets[0];
-    let marked = Box::leak(app.patches[0].replacen("\n\n", "\nmark fixture-fresh\n\n", 1).into_boxed_str());
-    let sets = PatchSets {
-        sets: Box::leak(Box::new([
-            crate::PatchSet {
-                patches: Box::leak(Box::new([marked, app.patches[1]])),
-                fresh: Some("fixture-fresh"),
-                ..app
-            },
-            SETS.sets[1],
-        ])),
-    };
-    let mut disk = Disk::new(&committed(BASE));
+fn rehearsal_jobs_and_the_open_share_one_set_check() {
+    let sets = upgrade_sets(1);
+    let mut disk = Disk::new(&committed(upgrade_sets(0)));
     let before = disk.contents();
     let mut store = disk.store_with_chunk(CHUNK);
     store.patch_sets(sets);
@@ -90,9 +80,10 @@ fn rehearsal_fresh_and_the_open_share_one_set_check() {
         Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
     );
     assert!(
-        events.iter().any(|event| if let Event::Rehearsing { fresh: true, .. } = event { true } else { false }),
+        events.iter().any(|event| if let Event::Rehearsing { fresh: false, .. } = event { true } else { false }),
         "{events:?}"
     );
+    let events = finish_empty_jobs(&mut disk, &mut store, events);
     assert!(events.iter().any(|event| if let Event::Opened { .. } = event { true } else { false }), "{events:?}");
     once_and_dropped(&store);
     assert_eq!(disk.contents(), before, "the source is unchanged");

@@ -1,4 +1,4 @@
-//! A settings-v3 store is seeded and converted once (protocol/store/layouts.md, 6).
+//! A registered settings-v3 store is converted once (protocol/store/layouts.md, 6).
 use super::*;
 use crate::tests::charter_versions::jig_set;
 use crate::tests::charter_versions::{key, old, record};
@@ -49,7 +49,7 @@ fn check_values(disk: &mut Disk, store: &mut Store) {
     }
 }
 #[test]
-fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writes() {
+fn charter_versions_open_runs_two_rows_marks_done_and_reopens_without_writes() {
     let mut disk = Disk::new(&[]);
     let set = jig_set();
     let old_set = PatchSet {
@@ -59,7 +59,7 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
                 .iter()
                 .map(|family| crate::KeptFamily {
                     retired: &[],
-                    types: &[],
+                    types: if family.name == "jig-store-settings" { family.types } else { &[] },
                     current: family.texts.last().unwrap(),
                     ..*family
                 })
@@ -82,7 +82,7 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     );
     let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
     let seed = crate::keys::encode_own(&seed, before.limits.store.key).unwrap();
-    assert!(fixtures::get_kv(&mut before, &seed).is_none());
+    assert!(fixtures::get_kv(&mut before, &seed).is_some());
     assert_eq!(jobs::done(&mut before, Owner::Jig, "charter-versions"), None);
     let mut disk = Disk::new(&disk.items());
     let mut current = store(&disk, jig_set());
@@ -107,7 +107,7 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
                         assert_eq!(layout.text.as_ref(), crate::tests::charter_versions::KEPT.as_bytes());
                         assert_eq!(layout.root.as_ref(), "CharterVersion");
                         assert_eq!(page.rows.len(), 2);
-                        // The seed exists before any page reaches its owner.
+                        // The source registration remains while the job converts its values.
                         let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
                         let seed = crate::keys::encode_own(&seed, current.limits.store.key).unwrap();
                         assert!(fixtures::get_kv(&mut current, &seed).is_some());

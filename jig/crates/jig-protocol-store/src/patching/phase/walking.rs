@@ -70,10 +70,6 @@ impl Walking {
             Waiting::Site(_) | Waiting::Commit { .. } => false,
         }
     }
-    #[cfg(test)]
-    pub(crate) fn closing(&self) -> bool {
-        self.step().is_none() && self.pending.plan.close()
-    }
     fn map(&self) -> KeptMap {
         if self.step().is_none() { KeptMap::Store } else { self.pending.machines.map(FamilyIx(self.family)) }
     }

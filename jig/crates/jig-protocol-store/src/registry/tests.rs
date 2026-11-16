@@ -4,11 +4,11 @@ use super::{Layouts, Text, counting, texts};
 use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, Store, ValueType};
 use alloc::boxed::Box;
-use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH};
+use jig_test_patches::layouts::{CURRENT, FIRST, KEPT};
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
-    texts: &[FIRST, KEPT],
+    texts: &[KEPT],
     current: CURRENT,
     retired: &[],
     map: KeptMap::Store,
@@ -21,7 +21,7 @@ const SET: PatchSet = PatchSet {
     owner: Owner::Application,
     name: "fixture-layouts",
     families: &[FAMILY],
-    patches: &[PATCH],
+    patches: &[],
     level: Some(1),
     fresh: None,
     jobs: &[],
@@ -87,6 +87,18 @@ fn planning_store(sets: PatchSets) -> Store {
     let mut store = fixtures::over(fixtures::stores());
     store.application.version = 0;
     store.patch_sets(sets);
+    let events = fixtures::run(
+        &mut store,
+        crate::Request::Open {
+            owner: skein_lib::Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
+    );
+    let [crate::Event::Opened { last: 0, .. }, crate::Event::Census { .. }] = events.as_ref() else {
+        panic!("{events:?}")
+    };
+    fixtures::committed(&mut store, Box::new([fixtures::header(1)]));
     store
 }
 
@@ -112,8 +124,10 @@ fn assert_counts(parsed: &[&str], layouts: u32) {
 }
 
 #[test]
-fn seeding_and_older_rows_reuse_each_parse_and_layout() {
-    let mut store = planning_store(SETS);
+fn held_rows_reuse_each_parse_and_layout() {
+    let mut store =
+        planning_store(PatchSets { sets: &[PatchSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] });
+    store.patch_sets(SETS);
     fixtures::plant(
         &mut store.stores,
         &[skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 2, 0, 42]) }],
@@ -133,9 +147,8 @@ fn seeding_and_older_rows_reuse_each_parse_and_layout() {
 #[test]
 fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     let mut store = planning_store(SETS);
-    assert_eq!(super::open(&mut store, true), Ok(true));
+    assert_eq!(super::open(&mut store, false), Ok(false));
     assert_counts(&[KEPT, CURRENT], 1);
-    persist_registry(&mut store);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
     let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
     value.encode(&mut writer).expect("fixture row encodes");
@@ -162,7 +175,7 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
 }
 
 #[test]
-fn seeding_families_share_held_parses_and_keep_distinct_layout_inputs() {
+fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
     use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, HOLDER};
     const OTHER: &str =
         "family fixture-other 1\nversioned record Other { child: bytes 32 holds fixture-child Child }\n";
@@ -208,15 +221,17 @@ fn seeding_families_share_held_parses_and_keep_distinct_layout_inputs() {
         }],
     };
     let mut store = planning_store(SETS);
-    assert_eq!(super::open(&mut store, false), Ok(true));
-    assert_counts(&[KEPT, CURRENT, HOLDER, CHILD, CHILD_CURRENT, OTHER], 8);
-    assert_eq!(counting::get().held.len(), 6);
+    assert_eq!(super::open(&mut store, false), Ok(false));
+    assert_counts(&[KEPT, CURRENT, HOLDER, CHILD, CHILD_CURRENT, OTHER], 4);
+    assert_eq!(counting::get().held.len(), 3);
     assert_schemas_dropped(&store.registry);
 }
 
 #[test]
 fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
     let mut store = planning_store(SETS);
+    // A new open starts with no serving edge, over the committed registry.
+    *store.registry = Layouts::new();
     let text = crate::registry_v1::Text::new(
         &crate::registry_v1::CEILINGS,
         crate::registry_v1::TextParts { text: Box::from(FIRST.as_bytes()) },
@@ -229,7 +244,7 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
             .expect("fixture text key");
     fixtures::plant(&mut store.stores, &[skein_kv::Op::Put { key, value: writer.finish() }]);
     let last = store.stores.store.last();
-    assert_eq!(super::open(&mut store, true), Err(crate::OpenRefusal::Set { owner: Owner::Application, patch: 0 }));
+    assert_eq!(super::open(&mut store, false), Err(crate::OpenRefusal::Set { owner: Owner::Application, patch: 0 }));
     assert!(store.registry.texts.is_empty());
     assert!(store.registry.rows.is_empty());
     assert!(store.registry.types.is_empty());

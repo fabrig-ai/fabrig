@@ -1,5 +1,5 @@
 //! Open failures and first causes (protocol/store/opening.md, 1–2).
-use super::{fixtures, patching::SETS};
+use super::{fixtures, owners::SETS};
 use crate::{Event, OpenRefusal, Request, Restore, Store, Write, keys, restore};
 use skein_lib::{List, Queue, Token};
 

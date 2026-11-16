@@ -47,23 +47,47 @@ pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> Pat
         jobs,
     }
 }
+fn declared(set: PatchSet) -> PatchSets {
+    const TEXT: &str = "family fixture-anchor 1\nversioned record Anchor { n: u8 }\n";
+    let (from, to): (&'static [u8], &'static [u8]) =
+        if set.owner == Owner::Application { (b"z", b"{") } else { (b"\x02z", b"\x02{") };
+    // Even an unregistered subject is admitted over a store with a registry.
+    let anchor = KeptFamily {
+        name: "fixture-anchor",
+        current: TEXT,
+        texts: &[TEXT],
+        retired: &[],
+        flights: &[],
+        frames: None,
+        map: KeptMap::Store,
+        keys: Box::leak(Box::new([Keys { from, to, root: "Anchor" }])),
+        types: types(vec![ValueType { number: 0, root: "Anchor", variant: None, keys: ranges(&[(from, to)]) }]),
+    };
+    let mut families = set.families.to_vec();
+    families.push(anchor);
+    PatchSets { sets: Box::leak(Box::new([PatchSet { families: Box::leak(families.into_boxed_slice()), ..set }])) }
+}
 fn opened(disk: &mut Disk, set: PatchSet) -> Box<[Event]> {
     let mut store = disk.store_with_chunk(CHUNK);
     store.application.version = 0;
-    store.patch_sets(PatchSets { sets: Box::leak(Box::new([set])) });
+    store.patch_sets(declared(set));
     disk.open(&mut store)
 }
 fn check(label: &str, set: PatchSet, accepted: bool) {
     let mut empty = Disk::new(&[]);
-    // A valid declaration seeds an equal-level store; refusal must not depend
-    // on whether the open is a first start or already at the binary's levels.
-    let valid = self::set(set.owner, family(set.owner), &[]);
-    assert_opened(&opened(&mut empty, valid), 0);
+    // The first commit registers the valid declaration before admission is retried.
+    let valid = if accepted { set } else { self::set(set.owner, family(set.owner), &[]) };
+    let mut first = empty.store_with_chunk(CHUNK);
+    first.application.version = 0;
+    first.patch_sets(declared(valid));
+    assert_opened(&empty.open(&mut first), 0);
+    let events = empty.request(&mut first, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
     let items = empty.items();
-    for mut disk in [Disk::new(&[]), Disk::new(&items)] {
+    for (last, mut disk) in [(0, Disk::new(&[])), (1, Disk::new(&items))] {
         let events = opened(&mut disk, set);
         if accepted {
-            assert_opened(&events, 0);
+            assert_opened(&events, last);
         } else {
             let [Event::OpenRefused { why: OpenRefusal::Set { owner, patch: 0 }, .. }] = events.as_ref() else {
                 panic!("{label}: {events:?}");

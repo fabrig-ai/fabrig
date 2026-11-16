@@ -2,9 +2,8 @@
 #![expect(clippy::arithmetic_side_effects, reason = "ordinary Rust disk step tests")]
 use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, Unplanned, ValueType};
-use jig_test_patches::layouts::{CURRENT, FIRST, KEPT, PATCH, WRITTEN};
+use jig_test_patches::layouts::{CURRENT, KEPT, WRITTEN};
 use skein_lib::{Buffer, Reader};
-mod added_types;
 mod edges;
 mod retired;
 mod settling;
@@ -13,7 +12,7 @@ mod turns;
 const FAMILY: KeptFamily = KeptFamily {
     retired: &[],
     name: "fixture-layouts",
-    texts: &[FIRST, KEPT],
+    texts: &[KEPT],
     current: CURRENT,
     map: KeptMap::Store,
     frames: None,
@@ -29,7 +28,7 @@ const SET: PatchSet = PatchSet {
     name: "fixture-layouts",
     families: &[FAMILY],
     level: Some(1),
-    patches: &[PATCH],
+    patches: &[],
     fresh: None,
     jobs: &[],
 };
@@ -42,42 +41,18 @@ fn store(disk: &Disk, set: PatchSet) -> Store {
     store.patch_sets(sets(set));
     store
 }
-fn base(first: bool, values: bool) -> Vec<Item> {
+fn base(values: bool) -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let family = KeptFamily {
-        texts: if first { &[FIRST] } else { &[FIRST, KEPT] },
-        current: if first { FIRST } else { KEPT },
-        types: &[],
-        ..FAMILY
-    };
-    let set = PatchSet {
-        families: Box::leak(Box::new([family])),
-        level: Some(u32::from(!first)),
-        patches: if first { &[] } else { &[PATCH] },
-        ..SET
-    };
-    let mut store = store(&disk, set);
+    let family = KeptFamily { current: KEPT, ..FAMILY };
+    let mut store = store(&disk, PatchSet { families: Box::leak(Box::new([family])), ..SET });
     assert_opened(&disk.open(&mut store), 0);
     let mut writes = vec![fixtures::header(1)];
     if values {
-        writes.push(Write::Put {
-            key: Box::from(b"a/0".as_slice()),
-            value: if first { Box::from([0, 1, 42]) } else { Box::from([0, 2, 0, 42]) },
-        });
-        writes.push(Write::Put {
-            key: Box::from(b"c/0".as_slice()),
-            value: if first { Box::from([0, 1, 1]) } else { Box::from([0, 2, 1]) },
-        });
+        writes.push(Write::Put { key: Box::from(b"a/0".as_slice()), value: Box::from([0, 2, 0, 42]) });
+        writes.push(Write::Put { key: Box::from(b"c/0".as_slice()), value: Box::from([0, 2, 1]) });
     }
-    assert!({
-        if let [Event::Committed { .. }] =
-            disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice())).as_ref()
-        {
-            true
-        } else {
-            false
-        }
-    });
+    let events = disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice()));
+    assert!({ if let [Event::Committed { .. }] = events.as_ref() { true } else { false } }, "{events:?}");
     disk.items()
 }
 fn app(store: &mut Store, key: &[u8]) -> Option<Box<[u8]>> {
@@ -119,7 +94,7 @@ fn snapshot(disk: &mut Disk) -> Contents {
         .collect()
 }
 #[test]
-fn a_new_value_type_has_no_seed_layout_and_registers_its_current_variant() {
+fn a_new_value_type_registers_its_current_variant() {
     let current = Box::leak(
         format!("{CURRENT}enum Value {{ later: Stable }}\nversioned record Row {{ value: Value }}\n").into_boxed_str(),
     );
@@ -138,9 +113,9 @@ fn a_new_value_type_has_no_seed_layout_and_registers_its_current_variant() {
         ..FAMILY
     };
     let set = PatchSet { families: Box::leak(Box::new([family])), ..SET };
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, set);
-    assert_opened(&disk.open(&mut store), 4);
+    assert_opened(&disk.open(&mut store), 3);
     let layout = row(&mut store, 2, 2).unwrap();
     assert_eq!(layout.root(), b"Row");
     assert_eq!(layout.variant().as_deref(), Some(b"later".as_slice()));
@@ -148,12 +123,12 @@ fn a_new_value_type_has_no_seed_layout_and_registers_its_current_variant() {
 }
 
 #[test]
-fn seed_and_binary_registration_never_rewrite_values_and_reopen_in_place() {
-    let mut disk = Disk::new(&base(false, true));
+fn binary_registration_keeps_held_layouts_and_values_and_reopens_in_place() {
+    let mut disk = Disk::new(&base(true));
     let before = snapshot(&mut disk);
     let mut store = store(&disk, SET);
     let events = disk.open(&mut store);
-    assert_opened(&events, 4); // five rows in two bounded registry commits, then the seal
+    assert_opened(&events, 3); // new layout and text, then the seal
     assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     assert_eq!(snapshot(&mut disk), before);
     for (number, root, id) in [(0, "Growing", 2), (1, "Stable", 2), (0, "Growing", 3)] {
@@ -186,24 +161,11 @@ fn seed_and_binary_registration_never_rewrite_values_and_reopen_in_place() {
     switch(&mut disk, &mut store);
     let mut again = self::store(&disk, SET);
     let events = disk.open(&mut again);
-    assert_opened(&events, 4);
+    assert_opened(&events, 3);
     assert!({ if let Some(Event::Opened { pending: false, .. }) = events.first() { true } else { false } });
     assert!(!disk.tree().iter().any(|(p, ..)| p.as_ref() == b"generations/3"));
 }
-#[test]
-fn patches_finish_before_the_seed_uses_the_binarys_kept_version() {
-    let mut disk = Disk::new(&base(true, true));
-    let mut store = store(&disk, SET);
-    let events = disk.open(&mut store);
-    assert!({ if let Some(Event::Patched { patch: 1, .. }) = events.first() { true } else { false } }, "{events:?}");
-    assert!(
-        { if let Some(Event::Opened { last: 6, pending: true, .. }) = events.get(1) { true } else { false } },
-        "{events:?}"
-    );
-    assert!(row(&mut store, 0, 1).is_none());
-    assert_eq!(*row(&mut store, 0, 2).unwrap().text(), hash(KEPT));
-    assert_eq!(app(&mut store, b"a/0").unwrap().as_ref(), &[0, 2, 0, 42]);
-}
+
 #[test]
 fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version() {
     let mut disk = Disk::new(&[]);
@@ -235,12 +197,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
         ],
     };
     let child = KeptFamily { name: "fixture-child", texts: &[CHILD], current: CHILD, keys: &[], types: &[], ..holder };
-    let set = PatchSet {
-        families: Box::leak(Box::new([KeptFamily { types: &[], ..holder }, child])),
-        level: Some(0),
-        patches: &[],
-        ..SET
-    };
+    let set = PatchSet { families: Box::leak(Box::new([holder, child])), level: Some(0), patches: &[], ..SET };
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, set);
     raw(
@@ -305,7 +262,7 @@ fn written_set() -> PatchSet {
 }
 #[test]
 fn an_underived_layout_refuses_before_the_copy_with_its_census_count() {
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base(true));
     let before = snapshot(&mut disk);
     let mut store = store(&disk, written_set());
     let events = disk.open(&mut store);
@@ -326,8 +283,8 @@ fn an_underived_layout_refuses_before_the_copy_with_its_census_count() {
 }
 #[test]
 fn a_wrong_tasks_version_refuses_before_an_underived_layout_without_writing() {
-    let mut disk = Disk::new(&base(false, true));
-    let family = KeptFamily { current: KEPT, types: &[], ..FAMILY };
+    let mut disk = Disk::new(&base(true));
+    let family = KeptFamily { current: KEPT, ..FAMILY };
     let mut old = store(&disk, PatchSet { families: Box::leak(Box::new([family])), ..SET });
     assert_opened(&disk.open(&mut old), 1);
     let key = crate::keys::encode_own(&crate::keys::Own::Format, old.limits.store.key).expect("format key fits");
@@ -351,9 +308,9 @@ fn a_wrong_tasks_version_refuses_before_an_underived_layout_without_writing() {
 }
 #[test]
 fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_values() {
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, SET);
-    assert_opened(&disk.open(&mut store), 4);
+    assert_opened(&disk.open(&mut store), 3);
     // The open has ended and shed its rows and texts; the default-adding
     // plan at the old id below must still convert without either of them.
     store.registry.assert_settled();
@@ -737,35 +694,10 @@ fn a_log_held_layout_without_a_plan_refuses_even_without_map_values() {
 }
 
 #[test]
-fn a_seeded_store_refuses_a_pending_patch_of_a_registered_family() {
-    let mut disk = Disk::new(&[]);
-    let family = KeptFamily { texts: &[FIRST], current: FIRST, ..FAMILY };
-    let store =
-        fresh(&mut disk, PatchSet { families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET });
-    assert_eq!(store.stores.store.last(), 1);
-    let mut disk = Disk::new(&disk.items());
-    let before = snapshot(&mut disk);
-    let mut store = self::store(&disk, SET);
-    let events = disk.open(&mut store);
-    assert!(
-        {
-            if let [Event::OpenRefused { why: OpenRefusal::Set { owner: Owner::Application, patch: 1 }, .. }] =
-                events.as_ref()
-            {
-                true
-            } else {
-                false
-            }
-        },
-        "{events:?}"
-    );
-    assert_eq!(snapshot(&mut disk), before);
-}
-#[test]
 fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_done() {
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, SET);
-    assert_opened(&disk.open(&mut store), 4);
+    assert_opened(&disk.open(&mut store), 3);
     switch(&mut disk, &mut store);
     raw(
         &mut disk,

@@ -73,7 +73,7 @@ pub(super) fn baseline(owner: Owner, values: &[&[u8]]) -> Vec<Item> {
     build(owner, values, false, false)
 }
 fn build(owner: Owner, values: &[&[u8]], done: bool, stable: bool) -> Vec<Item> {
-    let family = KeptFamily { types: &[], ..family(owner) };
+    let family = family(owner);
     let mut disk = Disk::new(&[]);
     let mut store = fresh(&mut disk, set(owner, family, &[]));
     let mut ops = Vec::new();

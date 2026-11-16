@@ -34,7 +34,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "JIG_ONLY", until: "jig's round" },
     Exception { what: "JIG_SETTINGS_PROPOSALS_SEED", until: "jig's round" },
     Exception { what: "JIG_SOURCE_CHECK", until: "jig's round" },
-    Exception { what: "JIG_STEP", until: "jig's round" },
     Exception { what: "JIG_TEST_BUNDLE", until: "jig's round" },
     Exception { what: "JIG_WORLD_TRACE", until: "jig's round" },
     Exception { what: "JIG_WRAPPER", until: "jig's round" },

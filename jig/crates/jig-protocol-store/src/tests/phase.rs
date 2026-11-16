@@ -1,4 +1,4 @@
-//! The patch phase on a simulated disk (protocol/store/opening.md 2 and 4).
+//! The upgrade phase on a simulated disk (protocol/store/opening.md 2 and 4).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -11,12 +11,10 @@ use super::fixtures::{
     self,
     disk::{Disk, Seen, file_limits},
 };
-use super::patching::{BASE, SETS, decoded, label, levels, shelf, token};
+use super::owners::{REGISTERED as BASE, SETS, label, shelf};
 use crate::directory::{OWNER, Opening};
-use crate::patching::phase::{Patching, Pending};
+use crate::patching::phase::Patching;
 use crate::{Arrived, Event, Get, Io, OpenRefusal, Phase, Request, Root, Row, Store, Write};
-use jig_test_patches::patches as app;
-use jig_test_patches_jig::patches as jig;
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
 use skein_io::{
     file,
@@ -38,16 +36,6 @@ mod value_types;
 const CHUNK: u32 = 4096;
 const KEY: &[u8] = b"row";
 const VALUE: &[u8] = b"committed";
-fn empty_pending() -> Pending {
-    let sets = crate::PatchSets::NONE;
-    let found = crate::patching::plan::binary(&sets);
-    let plan =
-        crate::patching::plan::plan(&sets, crate::patching::plan::bounds(&sets).expect("checked sets"), &found, &found)
-            .expect("empty plan");
-    let machines =
-        crate::patching::machines::make(&sets, &plan, &found, super::patching::ROOMS).expect("empty machines");
-    Pending { plan, machines, found }
-}
 fn assert_opened(events: &[Event], expected: u64) {
     let [Event::Opened { owner, last, .. }, Event::Census { .. }] = events else { panic!("one opened: {events:?}") };
     assert_eq!(*owner, Token::new(1));
@@ -75,21 +63,26 @@ fn baseline() -> Vec<Item> {
     baseline_with_proof(false)
 }
 fn baseline_with_proof(proof: bool) -> Vec<Item> {
-    baseline_with_sets(proof, crate::PatchSets::NONE)
+    baseline_with_sets(proof, upgrade_sets(0))
 }
 fn baseline_with_sets(proof: bool, sets: crate::PatchSets) -> Vec<Item> {
+    let (mut disk, _) = source_with_sets(proof, sets);
+    disk.items()
+}
+fn source_with_sets(proof: bool, sets: crate::PatchSets) -> (Disk, Store) {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
     store.patch_sets(sets);
     let events = disk.open(&mut store);
     assert!({ if let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_ref() { true } else { false } });
-    let mut writes = vec![fixtures::header(1), Write::Put { key: Box::from(KEY), value: Box::from(VALUE) }];
+    let mut writes =
+        vec![fixtures::header(1), Write::Put { key: Box::from(KEY), value: Box::from(VALUE) }, Write::Wires];
     if proof {
         writes.push(fixtures::save(fixtures::run_proof(1)));
     }
     let events = disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice()));
     assert!({ if let [Event::Committed { number: 1, .. }] = events.as_ref() { true } else { false } });
-    disk.items()
+    (disk, store)
 }
 fn read_row(disk: &mut Disk, store: &mut Store) {
     let events = disk.request(store, Request::Get { owner: Token::new(2), key: Get::Application(Box::from(KEY)) });
@@ -99,22 +92,28 @@ fn read_row(disk: &mut Disk, store: &mut Store) {
     assert_eq!(key.as_ref(), KEY);
     assert_eq!(value.as_ref(), VALUE);
 }
-fn patch(disk: &mut Disk) -> Store {
+fn upgrade(disk: &mut Disk, generation: usize) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
-    // An empty plan exercises the phase's file ordering without fixture records.
-    store.directory.patch = Some(Box::new(empty_pending()));
+    store.patch_sets(upgrade_sets(generation));
     let events = disk.open(&mut store);
+    let events = finish_empty_jobs(disk, &mut store, events);
     assert_opened(&events, store.stores.store.last());
     let events = disk.request(&mut store, Request::Switch { owner: Token::new(1) });
     assert!({ if let [Event::Switched { owner }] = events.as_ref() { *owner == Token::new(1) } else { false } });
     store
 }
 #[test]
-fn a_patch_opens_the_copy_with_the_committed_row_and_keeps_the_previous_whole() {
+fn an_upgrade_opens_the_copy_with_the_committed_row_and_keeps_the_previous_whole() {
     let mut disk = Disk::new(&baseline());
-    let mut store = patch(&mut disk);
+    let mut store = upgrade(&mut disk, 1);
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
-    assert_manifest(&disk.bytes(b"generations/2/manifest"), 2, crate::format::NONE, crate::format::NONE, 2);
+    assert_manifest(
+        &disk.bytes(b"generations/2/manifest"),
+        2,
+        crate::levels(&upgrade_sets(0)),
+        crate::levels(&upgrade_sets(1)),
+        3,
+    );
     let contents = disk.contents();
     // The maps are copied; each generation has its own manifest.
     for (path, kind, _, bytes) in contents
@@ -132,7 +131,8 @@ fn a_patch_opens_the_copy_with_the_committed_row_and_keeps_the_previous_whole() 
     read_row(&mut disk, &mut store);
     disk.crash(17);
     let mut store = disk.store_with_chunk(CHUNK);
-    assert_opened(&disk.open(&mut store), 2);
+    store.patch_sets(upgrade_sets(1));
+    assert_opened(&disk.open(&mut store), 3);
     assert_eq!(store.directory.active.expect("active read").number, 2);
     assert!(
         !disk
@@ -143,13 +143,19 @@ fn a_patch_opens_the_copy_with_the_committed_row_and_keeps_the_previous_whole() 
     read_row(&mut disk, &mut store);
 }
 #[test]
-fn the_next_patch_drops_one_keeps_two_and_opens_three() {
+fn the_next_job_drops_one_keeps_two_and_opens_three() {
     let mut first = Disk::new(&baseline());
-    patch(&mut first);
+    upgrade(&mut first, 1);
     let mut disk = Disk::new(&first.items());
-    let mut store = patch(&mut disk);
+    let mut store = upgrade(&mut disk, 2);
     assert_eq!(disk.bytes(b"active").as_ref(), b"3\n");
-    assert_manifest(&disk.bytes(b"generations/3/manifest"), 3, crate::format::NONE, crate::format::NONE, 3);
+    assert_manifest(
+        &disk.bytes(b"generations/3/manifest"),
+        3,
+        crate::levels(&upgrade_sets(1)),
+        crate::levels(&upgrade_sets(2)),
+        5,
+    );
     let tree = disk.tree();
     assert!(!tree.iter().any(|(p, ..)| p.as_ref() == b"generations/1"));
     for generation in [2_u64, 3] {
@@ -171,8 +177,7 @@ enum Stage {
     Dropping,
     Copying,
     Opening,
-    Walking,
-    Windows,
+    Jobs,
     Sealing,
     Checking,
     Manifest,
@@ -185,14 +190,7 @@ fn stage(store: &Store) -> Stage {
             Patching::Dropping(_) => Stage::Dropping,
             Patching::Copying(_) => Stage::Copying,
             Patching::Mapping { .. } | Patching::Recovering { .. } => Stage::Opening,
-            Patching::Walking(ref walking) => {
-                if walking.closing() {
-                    Stage::Windows
-                } else {
-                    Stage::Walking
-                }
-            }
-            Patching::Jobs(_) => Stage::Walking,
+            Patching::Walking(_) | Patching::Jobs(_) => Stage::Jobs,
             Patching::Sealing { .. } => Stage::Sealing,
             Patching::Checking(_) => Stage::Checking,
         },
@@ -256,12 +254,6 @@ fn change(ask: &Ask) -> Change {
         _ => Change::Other,
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SiteAnswer {
-    Written,
-    NoSite,
-    WrongOwner,
-}
 /// Same three real file drivers as `fixtures::disk`, with a seam inside Store's
 /// durable replace. Cuts and faults act on the simulator's machine calls.
 struct Harness {
@@ -280,12 +272,6 @@ struct Harness {
     fault_at: Option<Stage>,
     halted: bool,
     source: Option<Vec<Item>>,
-    sites: Vec<(crate::Owner, Box<[u8]>)>,
-    site_answer: SiteAnswer,
-    site_pages: bool,
-    site_commit_limit: Option<u32>,
-    site_secret_commit_limit: Option<u32>,
-    page_header: Option<u64>,
     check_entries: Vec<Item>,
     wall: skein_lib::Wall,
 }
@@ -322,12 +308,6 @@ impl Harness {
             fault_at: None,
             halted: false,
             source: None,
-            sites: Vec::new(),
-            site_answer: SiteAnswer::Written,
-            site_pages: false,
-            site_commit_limit: None,
-            site_secret_commit_limit: None,
-            page_header: None,
             check_entries: Vec::new(),
             wall: skein_lib::Wall::EPOCH,
         }
@@ -341,8 +321,9 @@ impl Harness {
         limits.secrets.value =
             CHUNK.checked_sub(limits.secrets.key).expect("key fits").checked_sub(20).expect("header fits");
         let mut store = Store::on_directory(&limits, fixtures::APPLICATION, &[], self.seeded);
+        store.patch_sets(upgrade_sets(0));
         if patch {
-            store.directory.patch = Some(Box::new(empty_pending()));
+            store.patch_sets(upgrade_sets(1));
         }
         store
     }
@@ -365,43 +346,19 @@ impl Harness {
                 if bridge_open(store, &env, &event, &mut switching, &mut above, &mut below) {
                     continue;
                 }
-                if let Event::Patched { of: crate::Owner::Application, patch: 2, .. } = &event {
-                    // Tests can lower the page limit after recovery, at the
-                    // first written site, and restore it before sealing.
-                    if self.site_commit_limit.is_some() {
-                        store.limits.store.commit = fixtures::store_limits().store.commit;
-                    }
-                }
-                if let Event::Site { owner, of, key, site, at, mut patcher } = event {
-                    self.sites.push((of, key.clone()));
-                    if self.site_pages {
-                        Self::check_site_pages(store);
-                    }
-                    if let Some(limit) = self.site_commit_limit {
-                        store.limits.store.commit = limit;
-                    }
-                    if let Some(limit) = self.site_secret_commit_limit {
-                        store.limits.secrets.commit = limit;
-                    }
-                    let result = if self.site_answer == SiteAnswer::NoSite {
-                        Err(skein_codec::patch::Halt::NoSite(site))
-                    } else {
-                        let mut cx = jig_test_patches::patches::Context { key };
-                        let (old, new) = patcher.parts();
-                        jig_test_patches::patches::written(site, old, new, at, &mut cx)
-                    };
+                if let Event::Job { owner, page, .. } = event {
+                    assert!(page.end && page.rows.is_empty());
                     crate::down(
                         store,
                         &env,
-                        Request::Site {
-                            owner: if self.site_answer == SiteAnswer::WrongOwner { Token::new(99) } else { owner },
-                            patcher,
-                            result,
+                        Request::Job {
+                            owner,
+                            answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None, counts: Box::new([]) }),
                         },
                         &mut above,
                         &mut below,
                     );
-                } else {
+                } else if if let Event::Ran { .. } = event { false } else { true } {
                     retained.push(event);
                 }
             }
@@ -417,7 +374,7 @@ impl Harness {
                 .or_else(|| below.secrets.pop().map(|r| (1, r)))
                 .or_else(|| below.transcripts.pop().map(|r| (2, r)));
             let Some((driver, request)) = next else {
-                if stage(store) == Stage::Walking || stage(store) == Stage::Windows {
+                if stage(store) == Stage::Jobs {
                     continue;
                 }
                 return fixtures::events(&mut above);
@@ -426,11 +383,6 @@ impl Harness {
             if stage == Stage::Checking && !self.check_entries.is_empty() {
                 let items = core::mem::take(&mut self.check_entries);
                 self.lay_private(&items);
-            }
-            if stage == Stage::Walking
-                && let Some(last) = self.page_header
-            {
-                assert_page_rows(store, last);
             }
             if stage == Stage::Closing && self.source.is_none() {
                 self.source = Some(self.source_items(store.directory.active.expect("active read").number));
@@ -449,17 +401,6 @@ impl Harness {
         }
         panic!("phase did not settle");
     }
-    fn check_site_pages(store: &mut Store) {
-        let range = || skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) };
-        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
-        assert_eq!(page.rows.len(), 1);
-        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
-        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
-        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
-        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
-        assert_eq!(page.rows[0].value, label(2));
-        assert!(page.next.is_none());
-    }
     fn file(&mut self, driver: usize, request: file::Request, stage: Stage) -> Option<Arrived> {
         let mut events = Queue::with_capacity(128);
         let mut subs: Queue<Submit> = Queue::with_capacity(128);
@@ -475,8 +416,7 @@ impl Harness {
                 let changing = change(&call.ask);
                 let targeted = (stage == Stage::Manifest
                     || stage == Stage::Opening
-                    || stage == Stage::Walking
-                    || stage == Stage::Windows
+                    || stage == Stage::Jobs
                     || stage == Stage::Sealing
                     || stage == Stage::Checking)
                     && changing != Change::Other;
@@ -593,10 +533,12 @@ impl Harness {
 #[test]
 fn the_phase_opens_pending_then_manifests_and_switches_without_reopening() {
     let mut first = Disk::new(&baseline());
-    patch(&mut first);
+    upgrade(&mut first, 1);
     let mut disk = Harness::new(&first.items());
     let mut store = disk.store(true);
-    assert_opened(&disk.open(&mut store), 3);
+    store.patch_sets(upgrade_sets(2));
+    assert_opened(&disk.open(&mut store), 5);
+    assert!(disk.changes.iter().all(|(stage, _)| *stage != Stage::Checking), "the check writes nothing");
     let stages: Vec<_> = disk.trace.iter().map(|(stage, _)| *stage).filter(|s| *s != Stage::Other).fold(
         Vec::new(),
         |mut stages, stage| {
@@ -613,6 +555,7 @@ fn the_phase_opens_pending_then_manifests_and_switches_without_reopening() {
             Stage::Dropping,
             Stage::Copying,
             Stage::Opening,
+            Stage::Jobs,
             Stage::Sealing,
             Stage::Checking,
             Stage::Manifest,
@@ -654,7 +597,7 @@ fn cuts_at_the_manifests_write_syncs_and_rename_and_copy_recovery_keep_a_whole_g
     let items = baseline();
     let mut completed = Harness::new(&items);
     let mut store = completed.store(true);
-    assert_opened(&completed.open(&mut store), 2);
+    assert_opened(&completed.open(&mut store), 3);
     let changes = completed.changes.clone();
     for change in [Change::Write, Change::Sync, Change::Rename] {
         assert!(changes.contains(&(Stage::Manifest, change)), "manifest {change:?}");
@@ -682,6 +625,7 @@ fn cuts_at_the_manifests_write_syncs_and_rename_and_copy_recovery_keep_a_whole_g
             assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
             let mut recovered = Disk::new(&disk.items());
             let mut store = recovered.store_with_chunk(CHUNK);
+            store.patch_sets(upgrade_sets(0));
             assert_opened(&recovered.open(&mut store), 1);
             read_row(&mut recovered, &mut store);
             assert!(!recovered.tree().iter().any(|(p, ..)| p.starts_with(b"generations/2")), "cut {cut} {target:?}");
@@ -715,6 +659,7 @@ fn a_manifest_write_fault_refuses_failed_and_the_next_start_removes_the_copy() {
     assert_opened(&disk.open(&mut store), 1);
     let mut recovered = Disk::new(&disk.items());
     let mut store = recovered.store_with_chunk(CHUNK);
+    store.patch_sets(upgrade_sets(0));
     assert_opened(&recovered.open(&mut store), 1);
     read_row(&mut recovered, &mut store);
     assert!(!recovered.tree().iter().any(|(p, ..)| p.starts_with(b"generations/2")));
@@ -727,7 +672,7 @@ fn the_run_proofs_transcript_cut_precedes_the_pending_open_and_switch() {
     items.push(Item::file(b"transcripts/0000000000000000/0000000000000001", b"uncommitted tail"));
     let mut disk = Harness::new(&items);
     let mut store = disk.store(true);
-    assert_opened(&disk.open(&mut store), 2);
+    assert_opened(&disk.open(&mut store), 3);
     let switch = disk.trace.iter().position(|(s, _)| *s == Stage::Switching).expect("switch");
     let cuts: Vec<_> = disk
         .trace
@@ -767,31 +712,25 @@ const SHELVES: u32 = 5;
 fn fixture_key(prefix: u8, number: u32) -> Box<[u8]> {
     format!("{}/{number}", char::from(prefix)).into_bytes().into_boxed_slice()
 }
-fn fixture_baseline(bad: Option<(u32, u16, u32)>) -> Vec<Item> {
-    fixture_baseline_with_secret(bad, false)
-}
-fn fixture_baseline_with_secret(bad: Option<(u32, u16, u32)>, secret: bool) -> Vec<Item> {
+fn fixture_baseline() -> Vec<Item> {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
     store.patch_sets(BASE);
     store.application.version = 0;
     assert_opened(&disk.open(&mut store), 0);
     let mut rows = vec![
-        Write::Put { key: fixture_key(b'l', 0), value: label(1) },
-        Write::Put { key: fixture_key(b'l', 1), value: label(1) },
+        Write::Put { key: fixture_key(b'l', 0), value: label() },
+        Write::Put { key: fixture_key(b'l', 1), value: label() },
         // keys::application adds exactly tag 2, so this lands inside the
         // fixture-jig family's whole-map range [02 6e, 02 6f).
-        Write::Put { key: Box::from(b"n/0".as_slice()), value: label(1) },
+        Write::Put { key: Box::from(b"n/0".as_slice()), value: label() },
     ];
     let note_key = crate::keys::application(b"n/0", store.limits.store.key).expect("tag");
     assert!(note_key.as_ref() >= jig_test_patches_jig::keys::NOTES_FROM);
     assert!(note_key.as_ref() < jig_test_patches_jig::keys::NOTES_TO);
     for number in 0..SHELVES {
-        let (version, books) = match bad {
-            Some((index, version, books)) if index == number => (version, books),
-            _ => (1, number.checked_add(1).expect("books")),
-        };
-        rows.push(Write::Put { key: fixture_key(b's', number), value: shelf(version, books, &label(1)) });
+        let books = number.checked_add(1).expect("books");
+        rows.push(Write::Put { key: fixture_key(b's', number), value: shelf(books, &label()) });
     }
     // Three rows and the header fit the fixture's four-write journal.
     let mut rows = rows.into_iter();
@@ -812,422 +751,9 @@ fn fixture_baseline_with_secret(bad: Option<(u32, u16, u32)>, secret: bool) -> V
         );
     }
     assert_eq!(store.stores.store.last(), FIXTURE_LAST);
-    if secret {
-        let events = disk
-            .request(&mut store, Request::Secrets { owner: Token::new(2), request: fixtures::sign_in_secret(1, 7) });
-        let [Event::Kept { .. }] = events.as_ref() else { panic!("fixture secret committed: {events:?}") };
-    }
     disk.items()
 }
 
-struct SecretFixture {
-    items: Vec<Item>,
-    store_last: u64,
-    secrets_last: u64,
-    carried: Box<[u8]>,
-    counter: Box<[u8]>,
-    accounts: Box<[u8]>,
-}
-fn secret_row(store: &mut Store, key: &[u8]) -> Box<[u8]> {
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    skein_kv::down(
-        &mut store.stores.secrets,
-        &crate::memory_env(store.limits.secrets),
-        skein_kv::Request::Get { owner: Token::new(0), key: Box::from(key) },
-        &mut above,
-        &mut below,
-    );
-    assert!(below.is_empty());
-    let Some(skein_kv::Event::Got { value: Some(value), .. }) = above.pop() else {
-        panic!("secret row exists");
-    };
-    value
-}
-fn secret_key(store: &Store, number: u64) -> Box<[u8]> {
-    crate::secrets::application(&number.to_be_bytes(), store.limits.secrets.key).expect("application prefix")
-}
-fn accounts_key(store: &Store) -> Box<[u8]> {
-    let key = crate::keys::encode(
-        &jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Next),
-        store.limits.store.key,
-    )
-    .expect("accounts counter key");
-    assert_eq!(key.as_ref(), &[1, 4, 0]);
-    key
-}
-fn secret_fixture() -> SecretFixture {
-    let mut disk = Disk::new(&fixture_baseline(None));
-    let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(BASE);
-    store.application.version = 0;
-    assert_opened(&disk.open(&mut store), FIXTURE_LAST);
-    let number = FIXTURE_LAST.checked_add(1).expect("counter commit");
-    let events = disk.request(
-        &mut store,
-        fixtures::commit(
-            number,
-            Box::new([
-                fixtures::header(number),
-                Write::Save(jig_domain_core_vocabulary::Record::Accounts(jig_domain_accounts::Stored::Next {
-                    number: 97,
-                })),
-                Write::Wires,
-            ]),
-        ),
-    );
-    let [Event::Committed { number, .. }] = events.as_ref() else { panic!("counter committed: {events:?}") };
-    assert_eq!(*number, FIXTURE_LAST.checked_add(1).expect("counter commit"));
-    for number in 0_u64..3 {
-        let events = disk.request(
-            &mut store,
-            Request::Secrets {
-                owner: Token::new(2),
-                request: crate::Secrets::Keep {
-                    owner: crate::SecretOwner::Application,
-                    number,
-                    value: crate::SecretValue::Application(skein_lib::Secret::new(token(
-                        b"token",
-                        number.checked_add(71).expect("issued"),
-                    ))),
-                },
-            },
-        );
-        let [Event::Kept { .. }] = events.as_ref() else { panic!("token kept: {events:?}") };
-    }
-    let events = disk.request(
-        &mut store,
-        Request::Secrets {
-            owner: Token::new(2),
-            request: crate::Secrets::Carry {
-                kind: crate::CarriedKind::Value,
-                value: skein_lib::Secret::new(Box::from(b"carried bytes".as_slice())),
-            },
-        },
-    );
-    let [Event::Carried { number, .. }] = events.as_ref() else { panic!("value carried: {events:?}") };
-    assert_eq!(*number, crate::CARRIED);
-    let key = secret_key(&store, crate::CARRIED);
-    let carried = secret_row(&mut store, &key);
-    let counter = secret_row(&mut store, &[2, 1]);
-    assert_eq!(
-        crate::secrets_v1::NextCarried::decode(&crate::secrets_v1::CEILINGS, &mut skein_lib::Reader::new(&counter))
-            .expect("versioned counter")
-            .next(),
-        crate::CARRIED.checked_add(1).expect("next carried number")
-    );
-    let key = accounts_key(&store);
-    let accounts = fixtures::get_kv(&mut store, &key).expect("accounts counter");
-    SecretFixture {
-        items: disk.items(),
-        store_last: store.stores.store.last(),
-        secrets_last: store.stores.secrets.last(),
-        carried,
-        counter,
-        accounts,
-    }
-}
-fn assert_tokens(store: &mut Store) {
-    use app::kept::fixture_token::v2::token as fields;
-    for number in 0_u64..3 {
-        let key = secret_key(store, number);
-        let bytes = secret_row(store, &key);
-        let (_, value, root) = decoded(app::kept::fixture_token::TEXTS[1], "Token", &bytes);
-        assert_eq!(value.content(value.field(root, fields::VALUE).expect("value")).expect("bytes"), b"token");
-        assert_eq!(
-            value.uint(value.field(root, fields::ISSUED).expect("issued")).expect("u64"),
-            number.checked_add(71).expect("issued")
-        );
-        assert_eq!(value.some(value.field(root, fields::EXPIRES).expect("expires")).expect("option"), None);
-    }
-}
-
-#[test]
-fn secret_tokens_patch_in_their_own_commits() {
-    let before = secret_fixture();
-    let mut disk = Harness::new(&before.items);
-    let mut store = fixture_store(&disk, 2, fixtures::store_limits().store.commit, levels(2, 2));
-    store.limits.secrets.ops = 2;
-    let events = disk.open(&mut store);
-    assert_tokens(&mut store);
-    let key = secret_key(&store, crate::CARRIED);
-    assert_eq!(secret_row(&mut store, &key), before.carried);
-    assert_eq!(secret_row(&mut store, &[2, 1]), before.counter);
-    let key = accounts_key(&store);
-    assert_eq!(fixtures::get_kv(&mut store, &key).expect("accounts counter"), before.accounts);
-    assert_eq!(store.stores.secrets.last(), before.secrets_last.checked_add(2).expect("token pages"));
-    let last = before.store_last.checked_add(9).expect("eight store pages and seal");
-    assert_opened(events.get(events.len().checked_sub(2).expect("opened and census")..).expect("last event"), last);
-    assert_eq!(
-        crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")),
-        Ok(crate::codec::component::Manifest {
-            generation: 2,
-            from: Some(1),
-            before: levels(0, 0),
-            after: levels(2, 2),
-            counts: fixture_counts(3),
-            store: last,
-            secrets: Some(store.stores.secrets.last()),
-            written: 0,
-        })
-    );
-    disk.assert_source_unchanged(1);
-}
-
-#[test]
-fn a_secrets_page_commits_in_the_secrets_store_alone() {
-    let before = secret_fixture();
-    let mut disk = Harness::new(&before.items);
-    let mut store = fixture_store(&disk, 2, fixtures::store_limits().store.commit, levels(2, 2));
-    store.limits.secrets.ops = 2;
-    let events = disk.open(&mut store);
-    assert_eq!(
-        patched(&events),
-        [
-            (crate::Owner::Application, 1, crate::Counts { records: 7, commits: 4 }),
-            (crate::Owner::Jig, 1, crate::Counts { records: 1, commits: 1 }),
-            (crate::Owner::Application, 2, crate::Counts { records: 8, commits: 5 }),
-            (crate::Owner::Jig, 2, crate::Counts { records: 0, commits: 0 }),
-        ]
-    );
-    assert_eq!(store.stores.secrets.last().checked_sub(before.secrets_last), Some(2));
-    assert_eq!(store.stores.store.last().checked_sub(before.store_last), Some(9));
-    assert_sealed(&mut store, before.store_last.checked_add(9).expect("eight store pages and seal"));
-}
-
-#[test]
-fn secrets_pages_use_their_own_byte_and_operation_limits() {
-    let before = secret_fixture();
-    // Each v1 row is 29 bytes; each v2 put is 39 plus the commit's 26.
-    // The journal alone must not split a secrets page. The secrets page
-    // bytes and commit bytes must each split it independently.
-    for (writes, ops, page_bytes, commit_bytes, commits) in
-        [(1, 3, 4096, 4096, 1), (2, 16, 58, 4096, 2), (2, 16, 4096, 104, 2)]
-    {
-        let mut disk = Harness::new(&before.items);
-        let mut store = fixture_store(&disk, writes, fixtures::store_limits().store.commit, levels(2, 2));
-        store.limits.secrets.ops = ops;
-        store.limits.secrets.page.bytes = page_bytes;
-        store.limits.secrets.commit = commit_bytes;
-        let events = disk.open(&mut store);
-        let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
-            panic!("patched open: {events:?}")
-        };
-        assert_eq!(store.stores.secrets.last().checked_sub(before.secrets_last), Some(commits));
-        assert_tokens(&mut store);
-    }
-}
-// Heads-alone fixture is local: the store world's counted patch levels stay fixed.
-const HEAD_OLD: &str =
-    "family heads 1\nrecord A { x: u8 } record B { x: u8 } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
-const HEAD_NEW: &str = "family heads 2\nrecord A { x: u8 } record B { x: u8 y: bool } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
-const HEAD_PATCH: &str = "patch 1\nowner heads 1\nfamily heads 1 to 2\nadd B.y bool true\n";
-const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
-    retired: &[],
-    current: HEAD_NEW,
-    types: &[],
-    name: "heads",
-    texts: &[HEAD_OLD, HEAD_NEW],
-    map: crate::KeptMap::Store,
-    keys: &[crate::Keys { from: b"h/", to: b"i/", root: "R" }],
-    flights: &[],
-    frames: None,
-};
-const HEAD_SET: crate::PatchSet = crate::PatchSet {
-    jobs: &[],
-    name: "heads",
-    owner: crate::Owner::Application,
-    families: &[HEAD_FAMILY],
-    level: Some(1),
-    patches: &[HEAD_PATCH],
-    fresh: None,
-};
-const HEAD_BASE: crate::PatchSets = crate::PatchSets {
-    sets: &[crate::PatchSet {
-        families: &[crate::KeptFamily { current: HEAD_OLD, texts: &[HEAD_OLD], ..HEAD_FAMILY }],
-        level: Some(0),
-        patches: &[],
-        ..HEAD_SET
-    }],
-};
-const HEAD_SETS: crate::PatchSets = crate::PatchSets { sets: &[HEAD_SET] };
-
-fn head_record(tag: u8) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(8);
-    writer.put(&1_u16.to_be_bytes()).expect("old head");
-    writer.put(&[tag]).expect("kind");
-    writer.put(&[7]).expect("payload");
-    writer.put(&9_u32.to_be_bytes()).expect("n");
-    writer.finish()
-}
-fn head_baseline(flaw: Option<u8>) -> Vec<Item> {
-    let mut disk = Disk::new(&[]);
-    let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(HEAD_BASE);
-    assert_opened(&disk.open(&mut store), 0);
-    let mut writes = vec![fixtures::header(1), Write::Wires];
-    for tag in 0..2 {
-        let mut value = head_record(tag).into_vec();
-        if flaw == Some(tag) {
-            value.push(99);
-        }
-        writes.push(Write::Put { key: fixture_key(b'h', u32::from(tag)), value: value.into_boxed_slice() });
-    }
-    let events = disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice()));
-    let [Event::Committed { number: 1, .. }] = events.as_ref() else { panic!("committed: {events:?}") };
-    disk.items()
-}
-fn head_machine() -> (skein_codec::patch::Patcher, skein_codec::patch::PlanIx, skein_codec::schema::DeclIx) {
-    use skein_codec::patch::{Capacity, Patcher};
-    let mut patcher = Patcher::new(Capacity { versions: 2, patches: 1, text: 4096, bytes: 64, nodes: 16 });
-    patcher.keep(HEAD_OLD.as_bytes()).expect("old");
-    patcher.keep(HEAD_NEW.as_bytes()).expect("new");
-    let plan = patcher.plan(HEAD_PATCH.as_bytes()).expect("plan").expect("family");
-    let root = patcher.schema(1).expect("old").find(b"R").expect("root");
-    (patcher, plan, root)
-}
-
-#[test]
-fn heads_alone_put_kept_kinds_without_decode_and_count_every_paged_record() {
-    use skein_codec::patch::{Halt, Step};
-    use skein_codec::value::Value;
-    for (flaw, writes, commits) in [(None, 8, 1), (None, 1, 2), (Some(0), 1, 2), (Some(1), 8, 0)] {
-        let mut disk = Harness::new(&head_baseline(flaw));
-        let mut store = disk.store(false);
-        store.limits.commits.writes = writes;
-        store.patch_sets(HEAD_SETS);
-        let events = disk.open(&mut store);
-        if flaw == Some(1) {
-            let Some(Event::OpenRefused {
-                why: OpenRefusal::Patch { owner, patch, key, halt: Halt::Decode(_) }, ..
-            }) = events.last()
-            else {
-                panic!("changed kind must decode and refuse: {events:?}");
-            };
-            assert_eq!((*owner, *patch, key.as_ref()), (crate::Owner::Application, 1, b"h/1".as_slice()));
-            assert_eq!(patched(&events), []);
-            assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-            continue;
-        }
-        assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 2, commits })]);
-        assert_opened(
-            events.get(events.len().checked_sub(2).expect("opened and census")..).expect("opened"),
-            2 + commits,
-        );
-        assert_eq!(disk.bytes(b"active").as_ref(), b"2\n", "walk and switch completed");
-        let (mut patcher, plan, root) = head_machine();
-        for tag in 0..2 {
-            let key =
-                crate::keys::application(&fixture_key(b'h', u32::from(tag)), store.limits.store.key).expect("key");
-            let actual = fixtures::get_kv(&mut store, &key).expect("patched record");
-            let original = head_record(tag);
-            patcher.start(plan, root, original.clone()).expect("valid old record");
-            assert_eq!(patcher.next(), Ok(Step::Done));
-            let mut expected = patcher.finish().expect("machine").to_vec();
-            if flaw == Some(tag) {
-                let mut malformed = original.into_vec();
-                malformed.push(99);
-                Value::with_room(16)
-                    .decode(patcher.schema(1).expect("old"), root, malformed.into_boxed_slice())
-                    .expect_err("old text refuses the trailing byte");
-                expected.push(99);
-            } else {
-                let new_root = patcher.schema(2).expect("new").find(b"R").expect("root");
-                Value::with_room(16)
-                    .decode(patcher.schema(2).expect("new"), new_root, actual.clone())
-                    .expect("new value");
-            }
-            assert_eq!(actual.as_ref(), expected);
-            if tag == 0 {
-                assert_eq!(actual.get(..2), Some(&[0, 2][..]));
-                assert_eq!(actual.get(2..8), head_record(tag).get(2..8));
-            }
-        }
-    }
-}
-
-// A binary with only the first application patch landed.
-const ONE: crate::PatchSets = crate::PatchSets {
-    sets: &[
-        crate::PatchSet { level: Some(1), patches: &[app::PATCHES[0]], ..SETS.sets[0] },
-        crate::PatchSet { level: Some(0), patches: &[], ..SETS.sets[1] },
-    ],
-};
-fn fixture_store(disk: &Harness, writes: u32, commit: u32, wanted: crate::patching::plan::Levels) -> Store {
-    let mut store = disk.store(false);
-    store.limits.commits.writes = writes;
-    store.limits.store.commit = commit;
-    store.patch_sets(if wanted == levels(1, 0) { ONE } else { SETS });
-    store
-}
-fn patched(events: &[Event]) -> Vec<(crate::Owner, u32, crate::Counts)> {
-    events
-        .iter()
-        .filter_map(|event| match event {
-            Event::Patched { owner, of, patch, counts } => {
-                assert_eq!(*owner, Token::new(1));
-                Some((*of, *patch, *counts))
-            }
-            Event::Opened { .. } | Event::Census { .. } | Event::OpenRefused { .. } => None,
-            _ => panic!("unexpected open answer: {event:?}"),
-        })
-        .collect()
-}
-fn assert_fixture_opened(events: &[Event], page_commits: u64) {
-    assert_opened(
-        events.get(events.len().checked_sub(2).expect("opened and census")..).expect("last event"),
-        FIXTURE_LAST.checked_add(page_commits).expect("pages").checked_add(1).expect("seal"),
-    );
-}
-fn fixture_rows(store: &mut Store, shelf_version: u16, note_version: u16) -> Vec<Box<[u8]>> {
-    let mut rows = Vec::new();
-    for number in 0..2 {
-        let key = crate::keys::application(&fixture_key(b'l', number), store.limits.store.key).expect("key");
-        let bytes = fixtures::get_kv(store, &key).expect("label");
-        drop(decoded(app::kept::fixture_label::TEXTS[1], "Label", &bytes));
-        assert_eq!(bytes, label(2));
-        rows.push(bytes);
-    }
-    for number in 0..SHELVES {
-        let relative = fixture_key(b's', number);
-        let key = crate::keys::application(&relative, store.limits.store.key).expect("key");
-        let bytes = fixtures::get_kv(store, &key).expect("shelf");
-        let text = app::kept::fixture_shelf::TEXTS
-            .get(usize::from(shelf_version.checked_sub(1).expect("version")))
-            .expect("text");
-        let (_, value, root) = decoded(text, "Shelf", &bytes);
-        let held = value
-            .content(value.field(root, app::kept::fixture_shelf::v1::shelf::LABEL).expect("label"))
-            .expect("bytes");
-        assert_eq!(held, label(2).as_ref());
-        if shelf_version == 2 {
-            let weight = value
-                .uint(value.field(root, app::kept::fixture_shelf::v2::shelf::WEIGHT).expect("weight"))
-                .expect("u32");
-            let expected = u64::from(number.checked_add(1).expect("books"))
-                .checked_mul(10)
-                .expect("weight")
-                .checked_add(len_u64(relative.len()))
-                .expect("weight");
-            assert_eq!(weight, expected);
-        }
-        rows.push(bytes);
-    }
-    let key = crate::keys::application(b"n/0", store.limits.store.key).expect("key");
-    let bytes = fixtures::get_kv(store, &key).expect("note");
-    let text =
-        jig::kept::fixture_note::TEXTS.get(usize::from(note_version.checked_sub(1).expect("version"))).expect("text");
-    let (_, value, root) = decoded(text, "Note", &bytes);
-    if note_version == 2 {
-        assert!(
-            !value
-                .boolean(value.field(root, jig::kept::fixture_note::v2::note::PINNED).expect("pinned"))
-                .expect("bool")
-        );
-    }
-    rows.push(bytes);
-    rows
-}
 fn assert_sealed(store: &mut Store, last: u64) {
     let header_key = crate::keys::encode(
         &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
@@ -1245,86 +771,7 @@ fn assert_sealed(store: &mut Store, last: u64) {
     let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
     assert_eq!(fixtures::get_kv(store, &key), Some(store.layouts.encode()));
 }
-#[test]
-fn fixture_patches_walk_in_plan_order_answer_relative_keys_and_seal_three_rows() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    disk.page_header = Some(FIXTURE_LAST);
-    disk.site_pages = true;
-    let events = disk.open(&mut store);
-    assert_eq!(
-        patched(&events),
-        [
-            (crate::Owner::Application, 1, crate::Counts { records: 7, commits: 2 }),
-            (crate::Owner::Jig, 1, crate::Counts { records: 1, commits: 1 }),
-            (crate::Owner::Application, 2, crate::Counts { records: 5, commits: 1 }),
-            (crate::Owner::Jig, 2, crate::Counts { records: 0, commits: 0 }),
-        ]
-    );
-    let expected_sites: Vec<_> = (0..SHELVES).map(|n| (crate::Owner::Application, fixture_key(b's', n))).collect();
-    assert_eq!(disk.sites, expected_sites);
-    assert_fixture_opened(&events, 4);
-    assert!(
-        store
-            .patch_page(
-                skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) },
-                None,
-                1
-            )
-            .is_err(),
-        "context reads require an outstanding site"
-    );
-    fixture_rows(&mut store, 2, 2);
-    assert_sealed(&mut store, FIXTURE_LAST.checked_add(5).expect("last"));
-    assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
-    assert_manifest(
-        &disk.bytes(b"generations/2/manifest"),
-        2,
-        levels(0, 0),
-        levels(2, 2),
-        FIXTURE_LAST.checked_add(5).expect("seal"),
-    );
-    disk.assert_source_unchanged(1);
-    // A plain restart reads the format and header from the durable seal too.
-    let mut disk = disk.crash(29);
-    let mut store = disk.store(false);
-    store.patch_sets(SETS);
-    assert_opened(&disk.open(&mut store), FIXTURE_LAST.checked_add(5).expect("last"));
-    fixture_rows(&mut store, 2, 2);
-    assert_sealed(&mut store, FIXTURE_LAST.checked_add(5).expect("last"));
-}
-#[test]
-fn patch_one_alone_rewrites_held_labels_but_keeps_shelves_at_version_one() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(1, 0));
-    let events = disk.open(&mut store);
-    assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 7, commits: 2 })]);
-    assert_fixture_opened(&events, 2);
-    assert_eq!(disk.sites.len(), 0);
-    fixture_rows(&mut store, 1, 1);
-}
-#[test]
-fn two_put_pages_take_three_shelf_commits_and_match_the_one_page_records() {
-    let items = fixture_baseline(None);
-    let mut whole = Harness::new(&items);
-    let mut store = fixture_store(&whole, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    whole.open(&mut store);
-    let expected = fixture_rows(&mut store, 2, 2);
-    let mut paged = Harness::new(&items);
-    let mut store = fixture_store(&paged, 2, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = paged.open(&mut store);
-    assert_eq!(
-        patched(&events),
-        [
-            (crate::Owner::Application, 1, crate::Counts { records: 7, commits: 4 }),
-            (crate::Owner::Jig, 1, crate::Counts { records: 1, commits: 1 }),
-            (crate::Owner::Application, 2, crate::Counts { records: 5, commits: 3 }),
-            (crate::Owner::Jig, 2, crate::Counts { records: 0, commits: 0 }),
-        ]
-    );
-    assert_fixture_opened(&events, 8);
-    assert_eq!(fixture_rows(&mut store, 2, 2), expected);
-}
+
 fn assert_refused(events: &[Event], store: &Store) {
     assert!(
         match events.last() {
@@ -1334,198 +781,6 @@ fn assert_refused(events: &[Event], store: &Store) {
         "{events:?}"
     );
     assert_eq!(store.phase, Phase::Stopped);
-}
-fn assert_abandoned(disk: Harness) {
-    assert_abandoned_at(disk, FIXTURE_LAST);
-}
-fn assert_abandoned_at(disk: Harness, last: u64) {
-    assert_abandoned_with(disk, last, BASE, 0);
-}
-fn assert_abandoned_with(disk: Harness, last: u64, sets: crate::PatchSets, version: u32) {
-    let (_, events) = reopen_abandoned(disk, sets, version);
-    assert_opened(&events, last);
-}
-fn reopen_abandoned(mut disk: Harness, sets: crate::PatchSets, version: u32) -> (Store, Box<[Event]>) {
-    disk.assert_source_unchanged(1);
-    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-    let source = disk.source_items(1);
-    let mut disk = disk.crash(31);
-    let mut store = disk.store(false);
-    store.patch_sets(sets);
-    store.application.version = version;
-    let events = disk.open(&mut store);
-    assert!(!disk.items().iter().any(|item| item.path.starts_with(b"generations/2")));
-    assert_eq!(disk.source_items(1), source);
-    (store, events)
-}
-#[test]
-fn a_shell_without_the_written_site_refuses_and_the_next_start_removes_the_copy() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    disk.site_answer = SiteAnswer::NoSite;
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    assert_eq!(patch_refusal(&events, 2, 0), &skein_codec::patch::Halt::NoSite(skein_codec::patch::Site::new(2, 0)));
-    assert_eq!(store.phase, Phase::Stopped);
-    assert_eq!(disk.sites.len(), 1);
-    assert_abandoned(disk);
-}
-#[test]
-fn an_empty_shelf_refuses_before_any_put_of_its_page_commits() {
-    let mut disk = Harness::new(&fixture_baseline(Some((1, 1, 0))));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    assert_eq!(patch_refusal(&events, 2, 1), &skein_codec::patch::Halt::Refused(app::refusal::p0002::EMPTY));
-    assert_eq!(store.phase, Phase::Stopped);
-    assert_eq!(disk.sites.len(), 2, "one successful record then Refused at the next site");
-    let key = crate::keys::application(&fixture_key(b's', 0), store.limits.store.key).expect("key");
-    assert_eq!(fixtures::get_kv(&mut store, &key).expect("uncommitted page"), shelf(1, 1, &label(2)));
-    assert_eq!(patched(&events).len(), 2, "the failed patch never reports Patched");
-    disk.assert_source_unchanged(1);
-    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-    let mut retry = disk.crash(31);
-    let mut store = fixture_store(&retry, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = retry.open(&mut store);
-    assert_eq!(patch_refusal(&events, 2, 1), &skein_codec::patch::Halt::Refused(app::refusal::p0002::EMPTY));
-    assert!(
-        retry
-            .trace
-            .iter()
-            .any(|(stage, trace)| *stage == Stage::Other && *trace == Trace::Remove(Box::from(b"2".as_slice()))),
-        "the next start removes the abandoned copy"
-    );
-    assert_abandoned(retry);
-}
-#[test]
-fn a_shelf_at_another_version_stops_the_start_without_changing_the_active_generation() {
-    let mut disk = Harness::new(&fixture_baseline(Some((1, 2, 2))));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    let skein_codec::patch::Halt::Decode(_) = patch_refusal(&events, 1, 1) else { panic!("version halt: {events:?}") };
-    assert_eq!(store.phase, Phase::Stopped);
-    assert!(disk.sites.is_empty(), "identity decoding refuses the version before patch two");
-    assert_abandoned(disk);
-}
-#[test]
-fn a_site_answer_from_another_owner_refuses_the_open() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    disk.site_answer = SiteAnswer::WrongOwner;
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    assert_refused(&disk.open(&mut store), &store);
-    assert_abandoned(disk);
-}
-#[test]
-fn a_site_request_without_a_waiting_site_refuses_failed() {
-    let mut disk = Disk::new(&baseline());
-    let mut store = disk.store_with_chunk(CHUNK);
-    assert_opened(&disk.open(&mut store), 1);
-    let patcher = Box::new(skein_codec::patch::Patcher::new(skein_codec::patch::Capacity {
-        versions: 0,
-        patches: 0,
-        text: 0,
-        bytes: 0,
-        nodes: 0,
-    }));
-    let events = disk.request(&mut store, Request::Site { owner: Token::new(1), patcher, result: Ok(()) });
-    assert_refused(&events, &store);
-}
-#[test]
-fn cuts_at_each_page_and_sealing_write_and_sync_reopen_the_unchanged_source() {
-    let items = fixture_baseline(None);
-    let mut completed = Harness::new(&items);
-    let mut store = fixture_store(&completed, 2, fixtures::store_limits().store.commit, levels(2, 2));
-    assert_fixture_opened(&completed.open(&mut store), 8);
-    let changes = completed.changes.clone();
-    for stage in [Stage::Walking, Stage::Sealing] {
-        for change in [Change::Write, Change::Sync] {
-            assert!(changes.contains(&(stage, change)), "{stage:?} {change:?}");
-        }
-    }
-    for (cut, (stage, change)) in changes.iter().enumerate().filter(|(_, (stage, change))| {
-        (match stage {
-            Stage::Walking | Stage::Sealing => true,
-            _ => false,
-        }) && match change {
-            Change::Write | Change::Sync => true,
-            _ => false,
-        }
-    }) {
-        for after in [false, true] {
-            let mut disk = Harness::new(&items);
-            disk.cut = Some((cut, after));
-            let mut store = fixture_store(&disk, 2, fixtures::store_limits().store.commit, levels(2, 2));
-            let events = disk.open(&mut store);
-            assert!(disk.halted, "cut {cut} {stage:?} {change:?} after={after}");
-            assert!(!events.iter().any(|e| match e {
-                Event::Opened { .. } | Event::OpenRefused { .. } => true,
-                _ => false,
-            }));
-            assert_abandoned(disk);
-        }
-    }
-}
-
-#[test]
-fn a_plan_without_any_matching_records_reports_zero_counts_and_still_seals() {
-    let mut disk = Harness::new(&baseline_with_sets(false, BASE));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    let zero = crate::Counts { records: 0, commits: 0 };
-    assert_eq!(
-        patched(&events),
-        [
-            (crate::Owner::Application, 1, zero),
-            (crate::Owner::Jig, 1, zero),
-            (crate::Owner::Application, 2, zero),
-            (crate::Owner::Jig, 2, zero)
-        ]
-    );
-    assert_opened(events.get(4..).expect("open after patches"), 2);
-    assert_sealed(&mut store, 2);
-}
-#[test]
-fn one_put_past_the_commit_byte_bound_stops_before_submitting_its_page() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    disk.site_commit_limit = Some(65); // 26 + (tagged key 4 + shelf 27 + put overhead 9) - 1.
-    let events = disk.open(&mut store);
-    assert_check(&events, &store, crate::Check::Large { key: fixture_key(b's', 0) });
-    assert_eq!(patched(&events).len(), 2, "patch two never commits its first page");
-    assert_eq!(store.stores.store.last(), FIXTURE_LAST.checked_add(3).expect("prior patches"));
-    assert_abandoned(disk);
-}
-#[test]
-fn page_and_sealing_write_faults_refuse_and_leave_the_source_active() {
-    let items = fixture_baseline(None);
-    for stage in [Stage::Walking, Stage::Sealing] {
-        let mut disk = Harness::new(&items);
-        disk.fault_at = Some(stage);
-        let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-        let events = disk.open(&mut store);
-        assert_refused(&events, &store);
-        assert_eq!(disk.fault_at, None, "fault reached {stage:?}");
-        assert_abandoned(disk);
-    }
-}
-
-#[test]
-fn a_full_byte_page_defers_the_next_finished_record_without_repeating_its_site() {
-    let items = fixture_baseline(None);
-    let mut whole = Harness::new(&items);
-    let mut store = fixture_store(&whole, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    whole.open(&mut store);
-    let expected = fixture_rows(&mut store, 2, 2);
-    let mut disk = Harness::new(&items);
-    // Exactly three shelf puts: 26 + 3 * (tagged key 4 + value 27 + 9).
-    disk.site_commit_limit = Some(146);
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    assert_eq!(
-        patched(&events).get(2),
-        Some(&(crate::Owner::Application, 2, crate::Counts { records: 5, commits: 2 }))
-    );
-    assert_fixture_opened(&events, 5);
-    assert_eq!(disk.sites.len(), skein_lib::length::usize_of(SHELVES));
-    assert_eq!(fixture_rows(&mut store, 2, 2), expected);
 }
 
 fn assert_manifest(
@@ -1542,156 +797,16 @@ fn assert_manifest(
             from: generation.checked_sub(1),
             before,
             after,
-            counts: if after == levels(2, 2) { fixture_counts(0) } else { skein_lib::List::with_capacity(0) },
+            counts: fixtures::manifest_counts(&[
+                ("fixture-label", 0, 0),
+                ("fixture-shelf", 0, 0),
+                ("fixture-token", 0, 0)
+            ]),
             store: last,
             secrets: Some(0),
             written: 0,
         })
     );
-}
-
-fn patch_refusal(events: &[Event], expected_patch: u32, number: u32) -> &skein_codec::patch::Halt {
-    let Some(Event::OpenRefused { owner: token, why: OpenRefusal::Patch { owner, patch, key, halt } }) = events.last()
-    else {
-        panic!("one patch refusal: {events:?}");
-    };
-    assert_eq!(*token, Token::new(1));
-    assert_eq!(*owner, crate::Owner::Application);
-    assert_eq!(*patch, expected_patch);
-    assert_eq!(key, &fixture_key(b's', number));
-    halt
-}
-
-#[test]
-fn a_patch_manifest_records_the_copys_secret_commit_and_write_clock() {
-    const WRITTEN: u64 = 73;
-    let mut disk = Harness::new(&fixture_baseline_with_secret(None, true));
-    disk.wall = skein_lib::Wall::from_nanos(WRITTEN);
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    assert_fixture_opened(&disk.open(&mut store), 4);
-    assert_eq!(
-        crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")),
-        Ok(crate::codec::component::Manifest {
-            generation: 2,
-            from: Some(1),
-            before: levels(0, 0),
-            after: levels(2, 2),
-            counts: fixture_counts(0),
-            store: 8,
-            secrets: Some(1),
-            written: WRITTEN,
-        })
-    );
-}
-
-fn assert_page_rows(store: &mut Store, last: u64) {
-    let key = crate::keys::encode(
-        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
-        store.limits.store.key,
-    )
-    .expect("header key");
-    let bytes = fixtures::get_kv(store, &key).expect("page keeps header");
-    let record = crate::codec::decode(
-        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
-        &bytes,
-        &store.codec_limits,
-        &store.names,
-    )
-    .expect("header decodes");
-    assert_eq!(record, fixtures::header_record(last), "page commits never write the header");
-    let key = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key).expect("format key");
-    let mut expected = crate::format::current(0, fixtures::DEPLOYMENT);
-    expected.levels = levels(0, 0);
-    assert_eq!(
-        fixtures::get_kv(store, &key),
-        Some(expected.encode().expect("format")),
-        "page commits never write the format"
-    );
-    let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
-    assert_eq!(
-        fixtures::get_kv(store, &key),
-        Some(crate::format::layouts().encode()),
-        "page commits never write layouts"
-    );
-}
-
-// component-v3.schema bounds: 64 counts, each family at most 64 bytes.
-const MANIFEST_FAMILIES: usize = 64;
-const MANIFEST_NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab";
-const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
-    retired: &[],
-    current: "",
-    types: &[],
-    flights: &[],
-    frames: None,
-    name: MANIFEST_NAME,
-    map: crate::KeptMap::Store,
-    texts: &[],
-    keys: &[],
-};
-const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
-    jobs: &[],
-    fresh: None,
-    owner: crate::Owner::Application,
-    name: "manifest-bounds",
-    families: &[],
-    level: None,
-    patches: &[],
-};
-
-#[test]
-fn manifest_bounds_accept_the_count_and_name_ceilings() {
-    let sets = crate::PatchSets {
-        sets: &[crate::PatchSet { families: &[MANIFEST_FAMILY; MANIFEST_FAMILIES], ..MANIFEST_SET }],
-    };
-    crate::patching::plan::bounds(&sets).expect("manifest family count and name ceilings fit");
-}
-
-#[test]
-fn manifest_bounds_refuse_a_count_or_name_past_the_ceiling() {
-    const HALF: usize = MANIFEST_FAMILIES / 2;
-    const PAST_HALF: usize = HALF + 1;
-    for sets in [
-        crate::PatchSets {
-            sets: &[
-                crate::PatchSet { families: &[MANIFEST_FAMILY; HALF], ..MANIFEST_SET },
-                crate::PatchSet { owner: crate::Owner::Jig, families: &[MANIFEST_FAMILY; PAST_HALF], ..MANIFEST_SET },
-            ],
-        },
-        crate::PatchSets {
-            sets: &[crate::PatchSet {
-                families: &[crate::KeptFamily {
-                    name: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc",
-                    ..MANIFEST_FAMILY
-                }],
-                ..MANIFEST_SET
-            }],
-        },
-    ] {
-        crate::patching::plan::bounds(&sets).expect_err("invalid sets");
-    }
-}
-
-fn fixture_counts(tokens: u64) -> skein_lib::List<crate::codec::component::Count> {
-    fixtures::manifest_counts(&[
-        ("fixture-label", 2, 2),
-        ("fixture-shelf", 5, 5),
-        ("fixture-token", tokens, tokens),
-        ("fixture-note", 1, 1),
-    ])
-}
-
-#[test]
-fn the_manifest_counts_each_kept_family_before_and_after() {
-    let before = secret_fixture();
-    let mut disk = Harness::new(&before.items);
-    let mut store = fixture_store(&disk, 2, fixtures::store_limits().store.commit, levels(2, 2));
-    disk.open(&mut store);
-    let manifest =
-        crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")).expect("checked manifest");
-    assert_eq!(manifest.counts, fixture_counts(3));
-    let check_changes: Vec<_> = disk.changes.iter().filter(|(stage, _)| *stage == Stage::Checking).collect();
-    assert!(check_changes.is_empty(), "the check writes nothing");
 }
 
 fn assert_check(events: &[Event], store: &Store, why: crate::Check) {
@@ -1702,12 +817,11 @@ fn assert_check(events: &[Event], store: &Store, why: crate::Check) {
 }
 
 fn fixture_with_record(record: jig_domain_core_vocabulary::Record) -> Vec<Item> {
-    let mut disk = Disk::new(&fixture_baseline(None));
+    let mut disk = Disk::new(&baseline());
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(BASE);
-    store.application.version = 0;
+    store.patch_sets(upgrade_sets(0));
     disk.open(&mut store);
-    let last = FIXTURE_LAST + 1;
+    let last = 2;
     let events =
         disk.request(&mut store, fixtures::commit(last, Box::new([fixtures::header(last), Write::Save(record)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("base record committed: {events:?}") };
@@ -1719,24 +833,25 @@ fn a_restart_row_past_the_deployments_lowered_limit_refuses_load() {
     let record = fixtures::live_task(fixtures::LIVE);
     let key = crate::keys::encode(&record.key(), fixtures::KEY_LIMIT).expect("live row key");
     let mut disk = Harness::new(&fixture_with_record(record));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
+    let mut store = disk.store(true);
     // The fixture task has a dependency, valid under the base's two-entry limit.
     store.limits.core.tasks.dependencies = 0;
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
     let events = disk.open(&mut store);
     assert_check(&events, &store, crate::Check::Load { key });
-    assert_abandoned_at(disk, FIXTURE_LAST + 1);
+    assert_abandoned_at(disk, 2);
 }
 
 #[test]
 fn a_secret_file_with_group_bits_or_another_link_refuses_private() {
-    let before = secret_fixture();
+    let (mut seeded, mut original) = source_with_sets(false, upgrade_sets(0));
+    let events = seeded
+        .request(&mut original, Request::Secrets { owner: Token::new(2), request: fixtures::sign_in_secret(1, 7) });
+    let [Event::Kept { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let before = seeded.items();
     let prefix = b"generations/1/secrets/";
-    let segment = before
-        .items
-        .iter()
-        .find_map(|item| item.path.strip_prefix(prefix.as_slice()))
-        .expect("source's secrets segment");
+    let segment =
+        before.iter().find_map(|item| item.path.strip_prefix(prefix.as_slice())).expect("source's secrets segment");
     // A refusal beyond a full listing page proves the scan does not stop at PAGE.
     let mut paged: Vec<_> = (0..crate::generations::PAGE)
         .map(|n| Item::file(format!("private-{n:02}").as_bytes(), b"page entry").mode(0o600))
@@ -1748,44 +863,32 @@ fn a_secret_file_with_group_bits_or_another_link_refuses_private() {
         (paged, b"z-group".as_slice()),
     ] {
         let name = Box::from(name);
-        let mut disk = Harness::new(&before.items);
+        let mut disk = Harness::new(&before);
         disk.check_entries = items;
-        let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
+        let mut store = disk.store(true);
         let events = disk.open(&mut store);
         assert_check(&events, &store, crate::Check::Private { name });
         assert_eq!(disk.check_entries.len(), 0);
-        assert_abandoned_at(disk, before.store_last);
+        assert_abandoned_at(disk, 1);
     }
 }
 
 #[test]
-fn a_secret_record_too_large_for_its_own_commit_refuses_large() {
-    let before = secret_fixture();
-    let mut disk = Harness::new(&before.items);
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    // The v1 token fits in 26 + 9 + 10 + 19 bytes; its v2 option adds one.
-    disk.site_secret_commit_limit = Some(64);
-    let events = disk.open(&mut store);
-    assert_check(&events, &store, crate::Check::Large { key: Box::new(0_u64.to_be_bytes()) });
-    assert_abandoned_at(disk, before.store_last);
-}
-
-#[test]
 fn a_file_fault_during_the_check_refuses_failed_before_the_switch() {
-    let mut disk = Harness::new(&fixture_baseline(None));
+    let mut disk = Harness::new(&baseline());
     disk.fault_at = Some(Stage::Checking);
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
+    let mut store = disk.store(true);
     let events = disk.open(&mut store);
     assert_refused(&events, &store);
     assert_eq!(disk.fault_at, None);
-    assert_abandoned(disk);
+    assert_abandoned_at(disk, 1);
 }
 
 #[test]
 fn a_restart_row_at_the_deployments_lowered_limit_loads() {
     let record = fixtures::live_task(fixtures::LIVE);
     let mut disk = Harness::new(&fixture_with_record(record));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
+    let mut store = disk.store(true);
     store.limits.core.tasks.dependencies = 1;
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
     let events = disk.open(&mut store);
@@ -1793,330 +896,6 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
         panic!("row within its bound loads: {events:?}")
     };
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
-}
-
-// Two open windows, an uncrossed closed window and a windowless proof
-// take two two-put commits. The fifth, already crossed and closed, is skipped.
-const FRESH_TASKS: u64 = 5;
-const FRESH_CLOSED_TASK: u64 = 3;
-fn fresh_record(task: u64, crossed: bool) -> jig_domain_core_vocabulary::Record {
-    use jig_domain_core_vocabulary::{CoreRecord, Record};
-    let mut proof = jig_domain_core_vocabulary::RunProof {
-        accounts: Box::new([]),
-        placement: None,
-        account_failure: None,
-        account_terminal: false,
-        task,
-        attempt: 1,
-        conversation: 1,
-        credentials: Box::new([]),
-        window: Some(jig_domain_core_vocabulary::CurrentWindow { attempt: 1, turn: 1, closed: false }),
-        crossed: false,
-        host: jig_domain_fleet::HostKind::Worker,
-        offered: None,
-        outstanding: Box::new([]),
-        turn: None,
-        terminal: None,
-    };
-    if task == FRESH_TASKS.checked_sub(1).expect("windowless task") {
-        proof.window = None;
-    } else {
-        proof.window.as_mut().expect("window fixture").closed =
-            crossed || task == FRESH_CLOSED_TASK || task == FRESH_TASKS;
-    }
-    proof.crossed = crossed || task == FRESH_TASKS;
-    Record::Core(CoreRecord::RunProof(proof))
-}
-fn fresh_baseline() -> Vec<Item> {
-    let mut disk = Disk::new(&[]);
-    let mut store = disk.store_with_chunk(CHUNK);
-    // A whole task fixture saves its hot and cold parts beside the header, proof and turn.
-    store.limits.commits.writes = 5;
-    store.patch_sets(FRESH_BEFORE);
-    assert_opened(&disk.open(&mut store), 0);
-    for task in 1..=FRESH_TASKS {
-        let turn = fixtures::window_turn(task, 1, 1, b"committed transcript");
-        let writes = Box::new([
-            fixtures::header(task),
-            fixtures::save(fixtures::live_task(task)),
-            fixtures::save(fresh_record(task, false)),
-            fixtures::save(jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::Turn(
-                turn,
-            ))),
-        ]);
-        let events = disk.request(&mut store, fixtures::commit(task, writes));
-        let [Event::Committed { number, .. }] = events.as_ref() else { panic!("fresh fixture commit: {events:?}") };
-        assert_eq!(*number, task);
-    }
-    disk.items()
-}
-fn fresh_store(disk: &Harness, after: bool) -> Store {
-    let mut store = disk.store(false);
-    store.limits.commits.writes = 2;
-    store.patch_sets(if after { FRESH_AFTER } else { FRESH_BEFORE });
-    store
-}
-// One credential exercises the closing walk's deployment-bounded decoder.
-const FRESH_CREDENTIALS: &[u32] = &[2];
-const FRESH_PROOF_TASK: u64 = 1;
-fn bounded_fresh_proof() -> jig_domain_core_vocabulary::Record {
-    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut proof)) =
-        fresh_record(FRESH_PROOF_TASK, false)
-    else {
-        panic!("fresh proof fixture")
-    };
-    proof.credentials = Box::from(FRESH_CREDENTIALS);
-    jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(proof))
-}
-fn fresh_proof_key() -> Box<[u8]> {
-    crate::keys::encode(
-        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::RunProof(FRESH_PROOF_TASK)),
-        fixtures::KEY_LIMIT,
-    )
-    .expect("fresh proof key")
-}
-fn fresh_source() -> (Disk, Store) {
-    let mut disk = Disk::new(&fresh_baseline());
-    let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(FRESH_BEFORE);
-    disk.open(&mut store);
-    (disk, store)
-}
-fn fresh_with_proof() -> Vec<Item> {
-    let (mut disk, mut store) = fresh_source();
-    disk.request(
-        &mut store,
-        fixtures::commit(
-            FRESH_TASKS + 1,
-            Box::new([fixtures::header(FRESH_TASKS + 1), Write::Save(bounded_fresh_proof())]),
-        ),
-    );
-    disk.items()
-}
-#[test]
-fn a_closing_proof_past_its_lowered_decode_limit_refuses_load() {
-    let mut disk = Harness::new(&fresh_with_proof());
-    let mut store = fresh_store(&disk, true);
-    store.limits.core.accounts.credentials = 0;
-    store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower proof decode limit");
-    let events = disk.open(&mut store);
-    assert_check(&events, &store, crate::Check::Load { key: fresh_proof_key() });
-    assert_abandoned_with(disk, FRESH_TASKS + 1, FRESH_BEFORE, fixtures::APPLICATION.version);
-}
-#[test]
-fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
-    let mut disk = Harness::new(&fresh_with_proof());
-    let mut store = fresh_store(&disk, true);
-    store.limits.core.accounts.credentials = 1;
-    store.codec_limits = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
-    let events = disk.open(&mut store);
-    let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
-        panic!("valid closing proof: {events:?}")
-    };
-    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut expected)) =
-        bounded_fresh_proof()
-    else {
-        panic!("proof fixture")
-    };
-    expected.window.as_mut().expect("window").closed = true;
-    expected.crossed = true;
-    let record = jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(expected));
-    assert_eq!(
-        proof_bytes(&mut store, FRESH_PROOF_TASK),
-        crate::codec::encode(&record, &store.codec_limits, &[]).expect("proof")
-    );
-    assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
-    disk.assert_source_unchanged(1);
-}
-// Private raw KV setup, driven by the existing disk: the public writer never
-// produces these mismatched or malformed run-proof keys.
-fn fresh_with_raw_proof(key: Box<[u8]>, record: jig_domain_core_vocabulary::Record) -> Vec<Item> {
-    let (mut disk, mut store) = fresh_source();
-    let ops = Box::new([
-        fixtures::header_put(fixtures::DEPLOYMENT, FRESH_TASKS + 1),
-        skein_kv::Op::Put { key, value: crate::codec::encode(&record, &store.codec_limits, &[]).expect("raw proof") },
-    ]);
-    let env = crate::memory_env(store.limits.store);
-    let mut above = Queue::uncapped();
-    let mut below = fixtures::below();
-    skein_kv::down(
-        &mut store.stores.store,
-        &env,
-        skein_kv::Request::Commit { owner: Token::new(1), ops },
-        &mut above,
-        &mut below.store,
-    );
-    disk.drive(&mut below, |io, below| {
-        let Io::Store(arrived) = io else { panic!("raw proof uses the public map driver") };
-        skein_kv::up(&mut store.stores.store, &env, arrived.event, &mut above, &mut below.store);
-    });
-    let Some(skein_kv::Event::Committed { number, .. }) = above.pop() else { panic!("raw proof committed") };
-    assert_eq!(number, FRESH_TASKS + 1);
-    assert!(above.is_empty());
-    disk.items()
-}
-#[test]
-fn a_closing_proof_at_another_tasks_key_refuses_load() {
-    let key = fresh_proof_key();
-    let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), fresh_record(2, false)));
-    let mut store = fresh_store(&disk, true);
-    let events = disk.open(&mut store);
-    assert_check(&events, &store, crate::Check::Load { key });
-    let (store, events) = reopen_abandoned(disk, FRESH_BEFORE, fixtures::APPLICATION.version);
-    assert_refused(&events, &store);
-}
-#[test]
-fn a_malformed_closing_proof_key_refuses_load() {
-    // A valid run-proof address followed by an extra tag stays in its range
-    // but cannot decode as a key (protocol/store/README.md 4.1).
-    let mut key = fresh_proof_key().into_vec();
-    key.push(0);
-    let key = key.into_boxed_slice();
-    let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), fresh_record(FRESH_PROOF_TASK, false)));
-    let mut store = fresh_store(&disk, true);
-    let events = disk.open(&mut store);
-    assert_check(&events, &store, crate::Check::Load { key });
-    let (store, events) = reopen_abandoned(disk, FRESH_BEFORE, fixtures::APPLICATION.version);
-    assert_refused(&events, &store);
-}
-fn proof_bytes(store: &mut Store, task: u64) -> Box<[u8]> {
-    let key = crate::keys::encode(
-        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::RunProof(task)),
-        store.limits.store.key,
-    )
-    .expect("proof key");
-    fixtures::get_kv(store, &key).expect("proof row")
-}
-fn assert_fresh_proofs(store: &mut Store, crossed: bool) {
-    for task in 1..=FRESH_TASKS {
-        let expected = crate::codec::encode(&fresh_record(task, crossed), &store.codec_limits, &store.names)
-            .expect("proof encoding");
-        assert_eq!(proof_bytes(store, task), expected, "task {task}");
-    }
-}
-fn transcript_items(items: &[Item]) -> Vec<Item> {
-    items.iter().filter(|item| item.path.starts_with(b"transcripts/")).cloned().collect()
-}
-#[test]
-fn fresh_closing_pages_keep_transcripts_and_previous_proofs_byte_identical() {
-    let items = fresh_baseline();
-    let mut disk = Harness::new(&items);
-    let mut store = fresh_store(&disk, true);
-    let events = disk.open(&mut store);
-    assert_eq!(patched(&events), [(crate::Owner::Smith, 1, crate::Counts { records: 0, commits: 0 })]);
-    assert_fresh_proofs(&mut store, true);
-    assert_eq!(store.stores.store.last(), FRESH_TASKS.checked_add(3).expect("two pages and seal"));
-    assert_eq!(transcript_items(&disk.items()), transcript_items(&items));
-    disk.assert_source_unchanged(1);
-}
-#[test]
-fn each_closing_write_and_sync_cut_retries_from_open_windows() {
-    let items = fresh_baseline();
-    let mut completed = Harness::new(&items);
-    let mut store = fresh_store(&completed, true);
-    completed.open(&mut store);
-    let cuts: Vec<_> = completed
-        .changes
-        .iter()
-        .enumerate()
-        .filter_map(|(index, (stage, change))| {
-            (*stage == Stage::Windows && [Change::Write, Change::Sync].contains(change)).then_some(index)
-        })
-        .collect();
-    assert_eq!(cuts.len(), 4, "two closing writes and syncs");
-    for cut in cuts {
-        let mut disk = Harness::new(&items);
-        disk.cut = Some((cut, false));
-        let mut store = fresh_store(&disk, true);
-        let events = disk.open(&mut store);
-        assert!(disk.halted, "cut {cut}: {events:?}");
-        disk.assert_source_unchanged(1);
-        let mut disk = disk.crash(u64::try_from(cut).expect("seed"));
-        let mut store = fresh_store(&disk, false);
-        assert_opened(&disk.open(&mut store), FRESH_TASKS);
-        assert_fresh_proofs(&mut store, false);
-        assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-        let mut disk = disk.crash(u64::try_from(cut).expect("seed"));
-        let mut store = fresh_store(&disk, true);
-        disk.open(&mut store);
-        assert_fresh_proofs(&mut store, true);
-        assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
-        assert_eq!(transcript_items(&disk.items()), transcript_items(&items));
-        disk.assert_source_unchanged(1);
-    }
-}
-#[test]
-fn a_closing_write_fault_refuses_failed_without_switching() {
-    let mut disk = Harness::new(&fresh_baseline());
-    disk.fault_at = Some(Stage::Windows);
-    let mut store = fresh_store(&disk, true);
-    let events = disk.open(&mut store);
-    let Some(Event::OpenRefused { why, .. }) = events.last() else { panic!("closing refusal: {events:?}") };
-    assert_eq!(*why, OpenRefusal::Failed);
-    assert_eq!(disk.fault_at, None, "fault reached the closing write");
-    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-    disk.assert_source_unchanged(1);
-}
-
-const FRESH_AFTER: crate::PatchSets = crate::PatchSets { sets: &[super::patching::SMITH] };
-const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
-    sets: &[crate::PatchSet {
-        level: Some(0),
-        patches: &[],
-        families: &[crate::KeptFamily {
-            current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0],
-            texts: &[jig_test_patches_smith::patches::kept::fixture_turn::TEXTS[0]],
-            ..super::patching::SMITH.families[0]
-        }],
-        ..super::patching::SMITH
-    }],
-};
-
-#[test]
-fn selected_closing_failures_keep_decode_category_and_source() {
-    use crate::restore::{Cause, DecodeFailure, OpenFailure};
-    for (key, record, expected) in [
-        (fresh_proof_key(), fresh_record(2, false), DecodeFailure::KeyValueDisagree),
-        (
-            {
-                let mut key = fresh_proof_key().into_vec();
-                key.push(0);
-                key.into_boxed_slice()
-            },
-            fresh_record(FRESH_PROOF_TASK, false),
-            DecodeFailure::Key,
-        ),
-    ] {
-        let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), record));
-        let mut store = fresh_store(&disk, true);
-        let events = disk.open(&mut store);
-        assert_check(&events, &store, crate::Check::Load { key: key.clone() });
-        let Some(OpenFailure::Data(failure)) = store.start_open_failure() else { panic!("typed closing failure") };
-        assert_eq!(failure.cause, Cause::Decode(expected));
-        assert_eq!(failure.row.as_ref().expect("proof site").key, key);
-        disk.assert_source_unchanged(1);
-    }
-}
-
-#[test]
-fn the_patched_copys_open_reports_its_recovered_and_patched_counts() {
-    let mut disk = Harness::new(&fixture_baseline(None));
-    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
-    let events = disk.open(&mut store);
-    let [.., Event::Opened { last, pending: true, .. }, Event::Census { census }] = events.as_ref() else {
-        panic!("patched open then census: {events:?}");
-    };
-    assert_eq!(*last, FIXTURE_LAST.checked_add(5).unwrap());
-    assert_eq!(census.commit, *last);
-    assert_eq!(census.since, store.stores.store.census().since());
-    assert!(!census.keyspaces.is_empty());
-    assert_eq!(census.keyspaces.len(), u32::try_from(store.stores.store.census().keyspaces().len()).unwrap());
-    for (row, counted) in census.keyspaces.iter().zip(store.stores.store.census().keyspaces()) {
-        assert_eq!(&*row.prefix, counted.prefix());
-        assert_eq!((row.rows, row.puts, row.erases), (counted.rows, counted.puts, counted.erases));
-    }
-    assert!(census.keyspaces.iter().any(|row| *row.prefix == [2, b's'] && row.puts > 0), "patched shelves counted");
-    assert_eq!(store.stores.secrets.census().keyspaces(), []);
 }
 
 fn jig_store(disk: &Disk, set: crate::PatchSet) -> Store {
@@ -2129,4 +908,144 @@ fn jig_store(disk: &Disk, set: crate::PatchSet) -> Store {
         sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])),
     });
     store
+}
+
+const UPGRADE_JOB: crate::Job = crate::Job {
+    name: "upgrade-fixture",
+    keys: &[crate::KeyRange { from: b"l", to: b"m" }],
+    converts: None,
+    settles: false,
+    counts: &[],
+};
+fn upgrade_sets(generation: usize) -> crate::PatchSets {
+    let jobs: &'static [crate::Job] = match generation {
+        0 => &[],
+        1 => &[UPGRADE_JOB],
+        2 => &[UPGRADE_JOB, crate::Job { name: "next-upgrade", ..UPGRADE_JOB }],
+        _ => panic!("fixture generation"),
+    };
+    crate::PatchSets { sets: Box::leak(Box::new([crate::PatchSet { jobs, ..BASE.sets[0] }])) }
+}
+fn assert_abandoned_at(mut disk: Harness, last: u64) {
+    disk.assert_source_unchanged(1);
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    let mut disk = disk.crash(31);
+    let mut store = disk.store(false);
+    assert_opened(&disk.open(&mut store), last);
+    assert!(!disk.items().iter().any(|item| item.path.starts_with(b"generations/2")));
+}
+
+fn finish_empty_jobs(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> {
+    let mut queue = alloc::collections::VecDeque::from(first.into_vec());
+    let mut events = Vec::new();
+    while let Some(event) = queue.pop_front() {
+        if let Event::Job { owner, page, .. } = event {
+            assert!(page.end && page.rows.is_empty());
+            queue.extend(
+                disk.request(
+                    store,
+                    Request::Job {
+                        owner,
+                        answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None, counts: Box::new([]) }),
+                    },
+                )
+                .into_vec(),
+            );
+        } else if if let Event::Ran { .. } = event { false } else { true } {
+            events.push(event);
+        }
+    }
+    events
+}
+
+#[test]
+fn a_job_upgrade_can_go_back_only_before_its_first_serving_commit() {
+    for committed in [false, true] {
+        let mut disk = Disk::new(&baseline());
+        let mut store = upgrade(&mut disk, 1);
+        if committed {
+            let events = disk.request(&mut store, fixtures::commit(4, Box::new([fixtures::header(4)])));
+            let [Event::Committed { number: 4, .. }] = events.as_ref() else { panic!("{events:?}") };
+        }
+        let mut disk = Disk::new(&disk.items());
+        let mut store = disk.store_with_chunk(CHUNK);
+        let root = disk.root();
+        let events = disk.request(&mut store, Request::Back { owner: Token::new(1), root });
+        if committed {
+            let [Event::BackRefused { why: crate::BackRefusal::Committed { manifest: 3, last: 4 }, .. }] =
+                events.as_ref()
+            else {
+                panic!("{events:?}")
+            };
+            assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
+        } else {
+            let [Event::Back { to: 1, .. }] = events.as_ref() else { panic!("{events:?}") };
+            assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+            let mut disk = Disk::new(&disk.items());
+            let mut store = disk.store_with_chunk(CHUNK);
+            store.patch_sets(upgrade_sets(0));
+            assert_opened(&disk.open(&mut store), 1);
+            read_row(&mut disk, &mut store);
+            assert!(!disk.tree().iter().any(|(path, ..)| path.starts_with(b"generations/2")));
+        }
+    }
+}
+
+#[test]
+fn a_job_manifest_records_the_copys_secret_commit_and_write_clock() {
+    const WRITTEN: u64 = 73;
+    let (mut before, mut store) = source_with_sets(false, upgrade_sets(0));
+    let events =
+        before.request(&mut store, Request::Secrets { owner: Token::new(2), request: fixtures::sign_in_secret(1, 7) });
+    let [Event::Kept { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let mut disk = Harness::new(&before.items());
+    disk.wall = skein_lib::Wall::from_nanos(WRITTEN);
+    let mut store = disk.store(true);
+    assert_opened(&disk.open(&mut store), 3);
+    let manifest = crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")).expect("manifest");
+    assert_eq!((manifest.store, manifest.secrets, manifest.written), (3, Some(1), WRITTEN));
+}
+
+fn upgraded_jobs() -> (Disk, Store, Vec<Event>) {
+    let mut disk = Disk::new(&fixture_baseline());
+    let mut store = jobs::store(&disk, jobs::JOBS);
+    let opened = disk.open(&mut store);
+    let events = jobs::drive(&mut disk, &mut store, opened);
+    (disk, store, events)
+}
+
+#[test]
+fn the_manifest_counts_each_kept_family_before_and_after() {
+    let (mut disk, mut store, _) = upgraded_jobs();
+    let events = disk.request(&mut store, Request::Switch { owner: Token::new(1) });
+    let [Event::Switched { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let manifest = crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")).expect("manifest");
+    assert_eq!(
+        manifest.counts,
+        fixtures::manifest_counts(&[
+            ("fixture-label", 2, 1),
+            ("fixture-shelf", 5, 0),
+            ("fixture-token", 0, 0),
+            ("fixture-note", 1, 0),
+        ])
+    );
+}
+
+#[test]
+fn the_job_upgraded_copys_open_reports_its_census() {
+    let (_, store, events) = upgraded_jobs();
+    let [.., Event::Opened { last, pending: true, .. }, Event::Census { census }] = events.as_slice() else {
+        panic!("{events:?}")
+    };
+    assert_eq!(*last, FIXTURE_LAST.checked_add(13).expect("job commits"));
+    assert_eq!(census.commit, *last);
+    assert_eq!(census.since, store.stores.store.census().since());
+    assert!(!census.keyspaces.is_empty());
+    assert_eq!(census.keyspaces.len(), u32::try_from(store.stores.store.census().keyspaces().len()).unwrap());
+    for (row, counted) in census.keyspaces.iter().zip(store.stores.store.census().keyspaces()) {
+        assert_eq!(&*row.prefix, counted.prefix());
+        assert_eq!((row.rows, row.puts, row.erases), (counted.rows, counted.puts, counted.erases));
+    }
+    assert!(census.keyspaces.iter().any(|row| *row.prefix == [2, b's'] && row.erases > 0), "job erasures counted");
+    assert_eq!(store.stores.secrets.census().keyspaces(), []);
 }
