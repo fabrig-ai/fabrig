@@ -1,9 +1,24 @@
 //! Completion sorting keeps io's queue across polls, and a spawn's directory goes
 //! beneath the session's root, without a kernel.
-use super::{Pump, ROOT_CLOSE, Report, take_root_close};
+use super::{Pump, ROOT_CLOSE, Report, page_report, take_root_close};
+use skein_browser::boundary::{Event, Trouble};
 use skein_io::kernel::{Complete, Done, Error, Op};
 use skein_lib::{Queue, Token};
 use std::path::Path;
+
+#[test]
+fn page_trouble_reports_kind_text_and_url_without_judging() {
+    let text: Box<[u8]> = b"status of 401 \xff".as_slice().into();
+    let url: Box<[u8]> = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=sample#part".as_slice().into();
+    let event = Event::Trouble { page: Token::new(100), trouble: Trouble::Log, text: text.clone(), url: url.clone() };
+    let report = page_report(event).expect("page observation");
+    let Report::Page { trouble, text: reported_text, url: reported_url } = report else { panic!("{report:?}") };
+    assert_eq!(trouble, Trouble::Log);
+    assert_eq!(reported_text, text);
+    assert_eq!(reported_url, url);
+    let event = Event::Opened { page: Token::new(100) };
+    assert!(matches!(page_report(event), Err(Event::Opened { .. })));
+}
 
 // Three ordinary completions and the root close fill the queue.
 const CAPACITY: u32 = 4;

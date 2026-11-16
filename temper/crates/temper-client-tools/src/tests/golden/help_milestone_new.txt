@@ -1,0 +1,18 @@
+milestone new --project PROJECT NAME [--words TEXT] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] --key KEY
+  --project PROJECT: a project's name or number; required. The project
+  NAME (name): text, at most 1048576 bytes; required. Its name, 1 to 60 characters on one line, no control character
+  --words TEXT: text, at most 1048576 bytes, or - to read stdin; optional. Its words; - reads stdin
+  --priority PRIORITY: a number from 0 to 4294967295; optional. Override the template's tracked priority
+  --budget AMOUNT: a number; optional. Spend in the deployment's unit; required for a given budget unless --as-allowed
+  --as-allowed: a switch. Take as much as allowed instead of a named budget
+  --deadline TIME: text, at most 1048576 bytes; optional. UTC to the minute, as 2026-10-24T17:00Z
+Make a milestone from project template 8
+Prints: `done: task N, milestone`, or `proposed: PROPOSAL, to RECIPIENT`
+--json: the record milestone_create.
+Key: --key KEY, required.
+NAME is the spec's first line; --words follows a blank line.
+The executor is jig's gathering; no --charter. Budget and deadline
+controls replace template defaults; absent controls keep them.
+Within bounds, created; past them but proposable, proposed (exit 0);
+not offered or past ceilings, nothing sent (exit 1).
+Fill it with goal start --milestone TASK, then milestone whole TASK.

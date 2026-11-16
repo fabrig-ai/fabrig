@@ -28,10 +28,8 @@ fn a_registered_layout_defaults_an_added_list() {
 fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
-    for (record, next) in [("record ChangeCold { ", "goal:"), ("record ChangeHot { ", "task_release:")] {
-        let start = before.find(record).unwrap() + record.len();
-        let end = start + before[start..].find(next).unwrap();
-        before.replace_range(start..end, "");
+    for field in ["source: option ChangeSource = none ", "kept: option fixed 32 = none "] {
+        before = before.replacen(field, "", 1);
     }
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
@@ -51,7 +49,7 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
         let mut work = skein_codec::layout::Workspace::new();
         assert!(work.fit(&plan));
         let mut out = skein_lib::Buffer::with_capacity(1024);
-        // The new leading option is absent from the earlier record's bytes.
+        // The added option's zero byte is absent from the earlier smallest record.
         plan.convert(&bytes[1..], &mut out, &mut work).unwrap();
         if root == b"ChangeCold" {
             let row =

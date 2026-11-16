@@ -6629,6 +6629,7 @@ dependencies = [
 name = "temper-engine-service-stock"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
@@ -6643,6 +6644,8 @@ dependencies = [
  "skein-world",
  "temper-charter-set",
  "temper-client-tools",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",

@@ -281,7 +281,11 @@
   takes running's words, or planning's with no delegates.
 
   **Ways** are one public function, `goals::ways`, of the view, the project's
-  templates with `tracked` set, in number order, each with a name and a line.
+  templates with `tracked` set and not ended by their requester, in number
+  order, each with a name and a line: so a milestone's template 8, ended by
+  its requester, is never a way (`../../domain/milestones.md`, section 10), and
+  every part that picks a way, the start sheet, the forge's default way,
+  the engine's start of a goal and a row's way, takes the same rule.
   Template `goal`: "Task by task", "The same plan; each task lands on its own
   once checked." Template `goal for a draft`: "Plan, tasks, land whole", "A plan
   from the draft, its tasks on a goal branch, landed as one change once all are

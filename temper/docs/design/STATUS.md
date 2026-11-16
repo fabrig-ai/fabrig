@@ -133,7 +133,10 @@ build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
 `batch` of two. Its passes follow landing; QA gaps are filed for people
-with no goal, then reopened for judgement by a closing landing
+with no goal, then reopened for judgement by a closing landing. By goal
+5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
+model as the person's account and scripts its reviews' approving
+verdicts, so that a ctl case's change lands by the stock rule
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
 `testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 
@@ -387,6 +390,7 @@ Design documents:
 - [`client/box-binary.md`](client/box-binary.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 - [`client/ctl/areas.md`](client/ctl/areas.status.md)
+- [`client/ctl/milestones.md`](client/ctl/milestones.status.md)
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
@@ -473,6 +477,7 @@ Design documents:
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
+- [`domain/milestones.md`](domain/milestones.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
@@ -557,7 +562,6 @@ Drafts:
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
-- [`draft/default-wall-230.md`](draft/default-wall-230.status.md)
 - [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
@@ -590,6 +594,7 @@ Drafts:
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
+- [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`).
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)

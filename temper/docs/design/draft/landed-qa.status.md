@@ -1,6 +1,6 @@
 # landed-qa: status
 
-2026-11-12. Where the design lags or departs from [landed-qa.md](landed-qa.md).
+2026-11-16. Where the design lags or departs from [landed-qa.md](landed-qa.md).
 
 Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the watcher on main's ref, the deployment's kept builds, triage, and the ledger's landings, cases and builds.
 
@@ -51,6 +51,7 @@ its place on its fake forges' state (`../testing/process-tier.md`).
   - 5: a place's box directory takes the umask's mode, and the drivers refuse it unless it is private (`../testing/qa/places.md`, 4; `../client/drive.md`); Q6 carries it.
   - 5, 7: a copy whose store a newer build refuses by name is made again with no finding (`../testing/qa/places.md`, 4), where the draft, since 2026-11-12, files a finding as well, so that passes prove the stores' patches; no milestone carries it yet.
 - **Design departs:**
+  - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.
   - 5: `project-landing` connects the box's fake Forgejo as its admin through a ctl line naming the box's values, where the draft names the web journey's setup as the first recipes' source: the web's connect takes the admin's token itself, which no recipe names, and gives no git program, so the box's agents would reach no fake forge's git. It reaches the journey's state, Hello with `work/hello` and ChatGPT, on the fake Forgejo (`../testing/qa/setups.md`, 2). The goal's designer, 2026-11-12.
   - 6, 10: a take reads the whole conversation, the agent's brief in its system text among it, rather than a tool's output alone, since a review's brief is where its pull request and head are named (skein's `testing/fakes/llm.md`, 2.6). The goal's designer, 2026-11-12.
   - 2, 12: bounds and places are tuned by the deployment from `temper-qa tune`'s figures and suggestions, never by the loop itself, since `qa.json` is the deployment's (`../testing/qa/ledger.md`, 6). More than one place gives each place its own ports (`../testing/qa/places.md`, 2). The goal's designer, 2026-11-12.

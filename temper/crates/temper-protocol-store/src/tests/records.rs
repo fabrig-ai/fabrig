@@ -3195,6 +3195,55 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
 }
 
 #[test]
+fn milestone_rows_and_change_membership_round_trip_in_family_order() {
+    use forge::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow};
+    use skein_lib::Wall;
+    let bounds = crate::bounds(&fixtures::LIMITS, 8192).unwrap();
+    for outcome in
+        [None, Some(MilestoneOutcome::Complete), Some(MilestoneOutcome::Ended), Some(MilestoneOutcome::Closed)]
+    {
+        let record = forge::Stored::Milestone(MilestoneRow {
+            project: 5,
+            task: 42,
+            name: "é".repeat(128).into_bytes().into_boxed_slice(),
+            last_landing: Some(MilestoneLanding { at: Wall::from_nanos(11), goal: 43, change: 44 }),
+            ended: match outcome {
+                Some(outcome) => {
+                    Some(MilestoneEnd { at: Wall::from_nanos(12), outcome, done: 7, failed: 2, closed: 3, spent: 29 })
+                }
+                None => None,
+            },
+        });
+        new_family_round_trip(&record);
+        let key = crate::keys::encode(&forge::stored_key(&record), u32::MAX).unwrap();
+        let mut expected = skein_kv::KeyWriter::new(u32::MAX);
+        expected.tag(49).u64(42);
+        assert_eq!(key, expected.finish().unwrap());
+        assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
+    }
+    let keys = [
+        forge::Key::ProjectFacts { project: u32::MAX },
+        forge::Key::ChangeCold(u64::MAX),
+        forge::Key::ChangeHot(u64::MAX),
+        forge::Key::Milestone(0),
+        forge::Key::Milestone(u64::MAX),
+        forge::Key::HistoryProject { project: 0 },
+    ];
+    for pair in keys.windows(2) {
+        let [first, second] = pair else { unreachable!() };
+        assert!(first < second);
+        assert!(crate::keys::encode(first, u32::MAX).unwrap() < crate::keys::encode(second, u32::MAX).unwrap());
+    }
+    let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+    change.milestone = Some(42);
+    let (cold, hot) = change.clone().split();
+    assert_eq!(forge::ChangeRow::join(cold.clone(), hot), change);
+    let record = forge::Stored::ChangeCold(Box::new(cold));
+    let key = crate::keys::encode(&forge::stored_key(&record), u32::MAX).unwrap();
+    assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
+}
+
+#[test]
 fn receipt_reports_round_trip_their_states_and_owned_bytes() {
     for report in [
         forge::ReceiptReport::Unset,

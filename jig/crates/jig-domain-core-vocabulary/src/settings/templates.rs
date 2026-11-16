@@ -56,6 +56,22 @@ pub fn merged(templates: &[Template], overrides: &[jig_domain_people::TemplateOv
     merged.into_boxed()
 }
 
+/// The executor whose flags a template admits (configuration.md, 3.1).
+#[must_use]
+pub fn shape_executor(flags: Flags, executor: TemplateExecutor) -> jig_domain_tasks::Executor {
+    use jig_domain_tasks::{EndedBy, Executor, PersonAddress};
+    match executor {
+        TemplateExecutor::Charter(charter) => Executor::Agent { charter },
+        TemplateExecutor::Chosen => match flags.ended_by {
+            EndedBy::Requester if !flags.conversation => {
+                Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING }
+            }
+            EndedBy::Requester | EndedBy::Standing => Executor::Agent { charter: 1 },
+            EndedBy::Result | EndedBy::Closer(_) => Executor::Person(PersonAddress::Person(1)),
+        },
+    }
+}
+
 /// Whether a template's retained choice fits its effective executor (configuration.md, 3.1).
 /// A chosen executor still requires configured models and valid efforts; a named charter must
 /// also allow every model. This checks data served in `me`, without granting task authority.
@@ -66,17 +82,8 @@ pub fn valid_executor(
     charters: &[crate::Charter],
     models: &[crate::Model],
 ) -> bool {
-    if !jig_domain_tasks::shaped(
-        template.flags,
-        match executor {
-            TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
-            // Creation checks the concrete executor; a standing template chooses an agent charter.
-            TemplateExecutor::Chosen if template.flags.ended_by == jig_domain_tasks::EndedBy::Standing => {
-                jig_domain_tasks::Executor::Agent { charter: 1 }
-            }
-            TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
-        },
-    ) || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
+    if !jig_domain_tasks::shaped(template.flags, shape_executor(template.flags, executor))
+        || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
     {
         return false;
     }
@@ -164,17 +171,8 @@ pub fn valid_current_executor(
     template: &Template,
     executor: TemplateExecutor,
 ) -> bool {
-    if !jig_domain_tasks::shaped(
-        template.flags,
-        match executor {
-            TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
-            // Creation checks the concrete executor; a standing template chooses an agent charter.
-            TemplateExecutor::Chosen if template.flags.ended_by == jig_domain_tasks::EndedBy::Standing => {
-                jig_domain_tasks::Executor::Agent { charter: 1 }
-            }
-            TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
-        },
-    ) || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
+    if !jig_domain_tasks::shaped(template.flags, shape_executor(template.flags, executor))
+        || (template.flags.ended_by == jig_domain_tasks::EndedBy::Standing && template.tracked.is_some())
     {
         return false;
     }

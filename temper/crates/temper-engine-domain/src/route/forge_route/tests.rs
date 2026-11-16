@@ -740,6 +740,40 @@ fn change_goal_holdings(
 }
 
 #[test]
+fn tracked_ancestry_skips_gatherings_and_plain_goals_have_no_milestone() {
+    use super::tasks;
+    let executor = tasks::Executor::Procedure { connector: 0, code: 1 };
+    let (domain, env, number) = crate::tests::live_task(Some(1), executor);
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number)), Some(number));
+    assert_eq!(super::milestones::of(&domain, Some(number)), None);
+    let mut gathering = domain.core.tasks.task(number).unwrap().clone();
+    gathering.executor =
+        tasks::Executor::Procedure { connector: jig_domain_core::RECURRING, code: jig_domain_core::GATHERING };
+    gathering.flags.ended_by = tasks::EndedBy::Requester;
+    let mut domain = crate::Domain::new(crate::tests::resume_fixture::config(7), &env.limits).unwrap();
+    let mut out = skein_lib::Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(gathering.clone())) },
+        &mut out,
+    );
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number)), None);
+    let mut goal = gathering;
+    goal.number = number + 1;
+    goal.requester = tasks::Party::Task(number);
+    goal.executor = executor;
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(goal)) },
+        &mut out,
+    );
+    assert_eq!(super::tracked_ancestor(&domain, tasks::Party::Task(number + 1)), Some(number + 1));
+    assert_eq!(super::milestones::of(&domain, Some(number + 1)), Some(number));
+}
+
+#[test]
 fn a_change_into_a_goal_branch_from_outside_its_goal_is_refused_naming_the_goal() {
     let (mut domain, env) = goal_holds_branch();
     for parent in [None, Some(GOAL_ROOT)] {
@@ -1331,6 +1365,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
