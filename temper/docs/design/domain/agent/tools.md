@@ -367,7 +367,10 @@
   bytes that the choice would change; `under`, optional, the number of an
   item with words of the project's classes the choice falls under;
   `question` at most 400 bytes, each option 120, `why` 400, a call past
-  those refused at decoding, saying so. The forge judges it (`../forge/attention.md`,
+  those refused at decoding, saying so. Within them, the charters' words
+  have the question one sentence and each option one line, for the
+  person who reads them (`charter.md`, 4, *Words a person reads first*);
+  nothing checks it. The forge judges it (`../forge/attention.md`,
   5 and 6): "Decided: carry on with TOOK." with a `Decided` row
   saved, or "Ask: REASON. HOW", REASON from its reach: "money always waits for your
   person", "implementation asks your person, even when away",
@@ -521,7 +524,8 @@ restart, a stored current charter that fails the check ends startup with
 The stock chat first reads the code a repository change touches with the
 forge's `read_branch` for its head, then `read_file`. It calls `change`
 with the person's request and only what it read, never describing code
-it has not read. Repository changes go through `change`, never through
+it has not read, its words opening with a title line written for a
+person (`charter.md`, 4, *Words a person reads first*). Repository changes go through `change`, never through
 writes to the chat's workspace. After delegation the chat says only that
 work started until the delegate reports. When a change reports successful
 `NoChange`, the chat tells the person that nothing changed and explains why
@@ -732,7 +736,8 @@ it as any `delegate`:
   its brief, then a blank line and the root's own line that it is a goal,
   the work its person asked for, as an advisor's follows its caller's
   words with its own line. The task's title, its spec's first line, is
-  the work. The root's line tells it to read the
+  the work, written for a person (`charter.md`, 4, *Words a person reads
+  first*). The root's line tells it to read the
   instructions meant for a goal as its own and those meant for a chat
   as not (charter 1's instructions name each). For an agreed goal
   (`agents.md`, 2), the root's lines are followed by its person's last words to the

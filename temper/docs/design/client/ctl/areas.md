@@ -12,6 +12,14 @@ The table grows area by area, each with its stories (`testing.md`).
    TASK [--rev REV] CHANGE... REASON`, `proposal withdraw PROPOSAL`,
    `seen`.
 
+   `goal start`'s TEXT is the goal's words, and their first line its
+   title, as Home and Work show it: `help goal start` says so, in
+   TEXT's line ("The goal's words; the first line, at most 60
+   characters, is its title") and in its notes, at most 60 characters
+   naming the work for a person, with an example, the rest of TEXT on
+   the lines below (`../../domain/agent/charter.md`, 4, *Words a person
+   reads first*). Nothing checks it.
+
    `goal start` defaults to stock template 2; `--template` names an
    offered template, including its charter, contract, tracking, label,
    flags, LLM choice and symbolic resources. The chosen executor needs

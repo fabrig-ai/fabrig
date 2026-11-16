@@ -225,6 +225,48 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   that need it; the coordinator's take it as the prerequisite a
   change's question needs (`../../protocol/configuration/stock.md`'s
   charter 5 row).
+- **Words a person reads first are written for them**
+  (`../../draft/home-for-a-person.md`, 4). Home, Work and Needs you
+  show three things an agent writes before the thing's own page. Each
+  is the agent's own field, with no second text beside it for the
+  person (that draft's section 10 keeps the question open), so the
+  stock charters' words have it written for both:
+  - **A goal's or a change's title,** its words' first line (`tools.md`,
+    1 and 2): at most 60 characters naming the work for a person, the
+    rest of the words on the lines below it. Charter 1's instructions,
+    for a goal and for the person's chat, and charters 13 to 16's shared
+    sections, which start goals and changes, say: "Open the words of
+    each goal and change you start with a title line: at most 60
+    characters naming the work for a person, as Store shape S7 ·
+    history in task logs; the rest follows on the lines below."
+    Charter 5's specs keep their own title line of at most 30
+    characters (`../../../charters/stock/goal.md`). `temper ctl goal
+    start`'s help says it of its words (`../../client/ctl/areas.md`,
+    area 2).
+  - **A decision's words,** `decided`'s (`tools.md`): every charter that
+    decides says, beside its call: "Write the question in one sentence,
+    the situation as a person reads it, and each option in one line."
+    They are charter 1's Asking paragraph, charter 5's *Asking your
+    requester* (its `goal` file), and the shared sections of charters 13
+    to 16, the standing role's, the triager's, the prover's and the
+    porter's. So the option `took` names reads as one line.
+  - **A goal's report headline** (`agents.md`, 3, *A goal's report*):
+    charter 1's goal paragraph, and charter 5's report note (its `goal`
+    file) and its designer's last words on that note (its `designer`
+    file), say the headline is one line for the person saying "where
+    the goal stands, naming no task, change or pull request by number,
+    as "5 of its 7 changes landed; the other 2 are building."". A
+    count is a person's; a number they would have to look up is the
+    body's.
+  - **A bound of the words, not of the code:** nothing refuses, cuts or
+    checks a title, a question or a headline for it, and the client's
+    own cut draws a longer one (`../../draft/home-for-a-person.md`, 3).
+    No tool's declaration says it: a member's description is part of
+    the host tools' contract's text (`../../protocol/wires.md`, 7), so a
+    word there would move that contract's version for no change of
+    meaning.
+  - **The agent's own text stays** where it is read whole: the thing's
+    page, and Overturn, which quotes the question back.
 - **No security boundary:** an agent can change what a check runs
   (smith's `domain/run.md`, 8.1); the landing's CI and its authority's
   requirements guard what lands on main.
