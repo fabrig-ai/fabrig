@@ -42,6 +42,8 @@ transient failures` with no line in either log, stands on reading: its
 evidence is outside the repository, and its proof is the next
 deployment's lines, which no record shows.
 
+- **Not yet:** the whole document: a job's kill names no reason, at its
+  deadline, its cancel or the worker's abort (*A command is a process*). [in flight: change 4906]
 - **Not yet:** the whole document: a result missing and one past its bound fail with the same why,
   `result missing or past its bound`, where `jobs.md` has the why say which: the
   job capability's `Read` answers no bytes for both
