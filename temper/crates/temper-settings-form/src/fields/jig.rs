@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 76] = [
+pub static FORMS: [Form; 80] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -109,8 +109,12 @@ pub static FORMS: [Form; 76] = [
     Form { shape: Shape::ProjectTriager, name: b"project-triager", choice: Choice::Every, line: b"A project's triager." },
     Form { shape: Shape::Area, name: b"area", choice: Choice::Every, line: b"A named scope of project work and its owner." },
     Form { shape: Shape::AreaOwner, name: b"area-owner", choice: Choice::One { words: &[] }, line: b"One owner: task, party, role or charter." },
+    Form { shape: Shape::Agents, name: b"agents", choice: Choice::Every, line: b"The agents' profile figures and each endpoint's limits, taken at each worker's next start." },
+    Form { shape: Shape::AgentProfile, name: b"agent-profile", choice: Choice::Every, line: b"An object of at most 128 names (64 UTF-8 bytes each) to unsigned integers: the profile's declared and policy integer figures over standard, each within its type, each name once." },
+    Form { shape: Shape::AgentEndpoints, name: b"agent-endpoints", choice: Choice::Every, line: b"An object of at most 64 endpoint names (64 UTF-8 bytes each) to agent-limits, each name once." },
+    Form { shape: Shape::AgentLimits, name: b"agent-limits", choice: Choice::Every, line: b"An endpoint's limits; every integer is positive." },
 ];
-pub static FIELDS: [Field; 261] = [
+pub static FIELDS: [Field; 270] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -159,6 +163,7 @@ pub static FIELDS: [Field; 261] = [
             Word { word: b"project-words", line: b"" },
             Word { word: b"project-areas", line: b"" },
             Word { word: b"project-triager", line: b"" },
+            Word { word: b"agents", line: b"" },
         ]),
         list: None,
         null: false,
@@ -1341,6 +1346,15 @@ pub static FIELDS: [Field; 261] = [
     Field { shape: Shape::AreaOwner, name: b"party", value: Value::Integer(Width::U64), list: None, null: false, line: b"A party with a role in the project." },
     Field { shape: Shape::AreaOwner, name: b"role", value: Value::Integer(Width::U32), list: None, null: false, line: b"Below authority.roles; 0 is the owners." },
     Field { shape: Shape::AreaOwner, name: b"charter", value: Value::Integer(Width::U32), list: None, null: false, line: b"From 1 through tasks.charters." },
+    Field { shape: Shape::Agents, name: b"profile", value: Value::Shape(Shape::AgentProfile), list: None, null: false, line: b"Overrides over the standard profile." },
+    Field { shape: Shape::Agents, name: b"endpoints", value: Value::Shape(Shape::AgentEndpoints), list: None, null: false, line: b"Limits by endpoint name." },
+    Field { shape: Shape::Agents, name: b"fallback", value: Value::Shape(Shape::AgentLimits), list: None, null: false, line: b"Limits for an endpoint not named here." },
+    Field { shape: Shape::AgentLimits, name: b"window", value: Value::Integer(Width::U32), list: None, null: false, line: b"Input tokens." },
+    Field { shape: Shape::AgentLimits, name: b"output", value: Value::Integer(Width::U32), list: None, null: false, line: b"Output tokens, reasoning included." },
+    Field { shape: Shape::AgentLimits, name: b"reasoning_item", value: Value::Integer(Width::U32), list: None, null: false, line: b"Reasoning item bytes." },
+    Field { shape: Shape::AgentLimits, name: b"head_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
+    Field { shape: Shape::AgentLimits, name: b"idle_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
+    Field { shape: Shape::AgentLimits, name: b"oversized", value: Value::Words(&[Word { word: b"fail", line: b"Refuse an oversized reasoning item." }, Word { word: b"drop", line: b"Drop an oversized reasoning item." }]), list: None, null: false, line: b"Oversized reasoning behavior." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"Verdict counts at its given head." },

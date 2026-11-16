@@ -196,6 +196,12 @@ This project's areas, or that it has none.
 
 Next: settings · revisions · help settings-fields
 
+## settings agents
+
+The agents' figures; stock where none is stored, marked so.
+
+Next: settings · revisions · help settings-fields
+
 ## settings project-triager
 
 This project's triager, or that it has none.

@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+mod agents;
 mod follow;
 
 fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
@@ -43,6 +44,15 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
     }
 }
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+    if kind == b"agents" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"agents has no number"));
+        }
+        if optional(fields, b"project").is_some() {
+            return Err(error(b"project", b"agents has no project"));
+        }
+        return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    }
     if [
         b"project-ways".as_slice(),
         b"project-questions",
@@ -118,6 +128,9 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 20 {
+        return agents::value(d, at);
+    }
     if kind == 14 || kind == 15 {
         return area_value(d, at, kind);
     }
@@ -426,6 +439,7 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
+        20 => return agents::render(bytes, out),
         14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

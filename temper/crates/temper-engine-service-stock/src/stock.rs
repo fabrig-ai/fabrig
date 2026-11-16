@@ -5,6 +5,8 @@
 )]
 mod kinds;
 pub use kinds::kinds;
+mod agents;
+pub use agents::{AGENT_ENDPOINTS, AGENT_FALLBACK, AGENT_PROFILE, agents};
 mod ways;
 pub use ways::ways;
 
@@ -895,6 +897,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
+        (20, 1, settings::Value::AgentFigures(agents())),
     ];
     let mut stock = List::with_capacity(17);
     for (kind, number, value) in values {

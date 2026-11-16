@@ -23,6 +23,19 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
         Some(_) | None => unreachable!("parsed setting kind"),
     }
 }
+/// The revision flag follows the selector's positional and project arguments.
+pub(crate) fn revision(call: &Call) -> Option<u64> {
+    number(
+        call,
+        if call.form == 9 {
+            1
+        } else if call.form == 2 || call.form == 7 {
+            3
+        } else {
+            2
+        },
+    )
+}
 fn input_files(call: &Call) -> Result<&[Value], Box<[u8]>> {
     let slot = match call.values.first() {
         Some(slot) => slot.as_ref(),

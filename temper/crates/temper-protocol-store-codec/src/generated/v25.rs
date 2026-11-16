@@ -300,6 +300,10 @@ pub struct Limits {
     pub area_name: u32,
     pub area_words: u32,
     pub project_areas_areas: u32,
+    pub agent_figure_name: u32,
+    pub agent_endpoint_limits_endpoint: u32,
+    pub agent_figures_profile: u32,
+    pub agent_figures_endpoints: u32,
     pub finding_signature_source: u32,
     pub finding_signature_ids: u32,
     pub finding_signature_ids_item: u32,
@@ -609,6 +613,10 @@ pub const CEILINGS: Limits = Limits {
     area_name: 32,
     area_words: 480,
     project_areas_areas: 16,
+    agent_figure_name: 64,
+    agent_endpoint_limits_endpoint: 64,
+    agent_figures_profile: 128,
+    agent_figures_endpoints: 64,
     finding_signature_source: 64,
     finding_signature_ids: 64,
     finding_signature_ids_item: 512,
@@ -623,7 +631,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 305] = [
+pub const LIMIT_NAMES: [&str; 309] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -918,6 +926,10 @@ pub const LIMIT_NAMES: [&str; 305] = [
     "area_name",
     "area_words",
     "project_areas_areas",
+    "agent_figure_name",
+    "agent_endpoint_limits_endpoint",
+    "agent_figures_profile",
+    "agent_figures_endpoints",
     "finding_signature_source",
     "finding_signature_ids",
     "finding_signature_ids_item",
@@ -934,7 +946,7 @@ pub const LIMIT_NAMES: [&str; 305] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 305] {
+    pub fn values(&self) -> [u32; 309] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
             self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
@@ -972,9 +984,9 @@ impl Limits {
             self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks,
             self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item,
             self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why,
-            self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids,
-            self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint,
-            self.device_label,
+            self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.agent_figure_name, self.agent_endpoint_limits_endpoint,
+            self.agent_figures_profile, self.agent_figures_endpoints, self.finding_signature_source, self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title,
+            self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -4438,6 +4450,42 @@ pub enum Path {
     ProjectTriagerOwner,
     /// Bytes after `ProjectTriager`.
     ProjectTriagerTail,
+    /// The `name` field of `AgentFigure`.
+    AgentFigureName,
+    /// The `value` field of `AgentFigure`.
+    AgentFigureValue,
+    /// Bytes after `AgentFigure`.
+    AgentFigureTail,
+    /// The tag of `Oversized`.
+    OversizedTag,
+    /// The `window` field of `AgentLimits`.
+    AgentLimitsWindow,
+    /// The `output` field of `AgentLimits`.
+    AgentLimitsOutput,
+    /// The `reasoning_item` field of `AgentLimits`.
+    AgentLimitsReasoningItem,
+    /// The `head_ms` field of `AgentLimits`.
+    AgentLimitsHeadMs,
+    /// The `idle_ms` field of `AgentLimits`.
+    AgentLimitsIdleMs,
+    /// The `oversized` field of `AgentLimits`.
+    AgentLimitsOversized,
+    /// Bytes after `AgentLimits`.
+    AgentLimitsTail,
+    /// The `endpoint` field of `AgentEndpointLimits`.
+    AgentEndpointLimitsEndpoint,
+    /// The `limits` field of `AgentEndpointLimits`.
+    AgentEndpointLimitsLimits,
+    /// Bytes after `AgentEndpointLimits`.
+    AgentEndpointLimitsTail,
+    /// The `profile` field of `AgentFigures`.
+    AgentFiguresProfile,
+    /// The `endpoints` field of `AgentFigures`.
+    AgentFiguresEndpoints,
+    /// The `fallback` field of `AgentFigures`.
+    AgentFiguresFallback,
+    /// Bytes after `AgentFigures`.
+    AgentFiguresTail,
     /// The tag of `SettingValue`.
     SettingValueTag,
     /// The `value` field of `SizedValue`.
@@ -4861,6 +4909,10 @@ fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
     if limits.area_name > CEILINGS.area_name { return Err(Problem { path: Path::AreaName, reason: skein_codec::Reason::Bound }); }
     if limits.area_words > CEILINGS.area_words { return Err(Problem { path: Path::AreaWords, reason: skein_codec::Reason::Bound }); }
     if limits.project_areas_areas > CEILINGS.project_areas_areas { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Bound }); }
+    if limits.agent_figure_name > CEILINGS.agent_figure_name { return Err(Problem { path: Path::AgentFigureName, reason: skein_codec::Reason::Bound }); }
+    if limits.agent_endpoint_limits_endpoint > CEILINGS.agent_endpoint_limits_endpoint { return Err(Problem { path: Path::AgentEndpointLimitsEndpoint, reason: skein_codec::Reason::Bound }); }
+    if limits.agent_figures_profile > CEILINGS.agent_figures_profile { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Bound }); }
+    if limits.agent_figures_endpoints > CEILINGS.agent_figures_endpoints { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Bound }); }
     if limits.finding_signature_source > CEILINGS.finding_signature_source { return Err(Problem { path: Path::FindingSignatureSource, reason: skein_codec::Reason::Bound }); }
     if limits.finding_signature_ids > CEILINGS.finding_signature_ids { return Err(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Bound }); }
     if limits.finding_signature_ids_item > CEILINGS.finding_signature_ids_item { return Err(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Bound }); }
@@ -27162,6 +27214,234 @@ impl ProjectTriager {
 
 }
 
+/// Movable fields of `AgentFigure`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentFigureParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `value` field.
+    pub value: u64,
+}
+
+/// `AgentFigure` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentFigure {
+    name: Box<[u8]>,
+    value: u64,
+}
+
+impl AgentFigure {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: AgentFigureParts) -> Result<Self, Problem> {
+        let AgentFigureParts { name, value } = parts;
+        let value = Self { name, value };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> u64 { self.value }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AgentFigureParts { AgentFigureParts { name: self.name, value: self.value } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.agent_figure_name.min(CEILINGS.agent_figure_name)).expect("u32 fits usize") { return Err(Problem { path: Path::AgentFigureName, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::AgentFigureName, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// `Oversized` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Oversized {
+    /// `fail` without a payload.
+    Fail,
+    /// `drop` without a payload.
+    Drop,
+}
+
+impl Oversized {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `AgentLimits`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentLimitsParts {
+    /// The `window` field.
+    pub window: u32,
+    /// The `output` field.
+    pub output: u32,
+    /// The `reasoning_item` field.
+    pub reasoning_item: u32,
+    /// The `head_ms` field.
+    pub head_ms: u64,
+    /// The `idle_ms` field.
+    pub idle_ms: u64,
+    /// The `oversized` field.
+    pub oversized: Oversized,
+}
+
+/// `AgentLimits` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentLimits {
+    window: u32,
+    output: u32,
+    reasoning_item: u32,
+    head_ms: u64,
+    idle_ms: u64,
+    oversized: Oversized,
+}
+
+impl AgentLimits {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AgentLimitsParts) -> Result<Self, Problem> {
+        let AgentLimitsParts { window, output, reasoning_item, head_ms, idle_ms, oversized } = parts;
+        let value = Self { window, output, reasoning_item, head_ms, idle_ms, oversized };
+        Ok(value)
+    }
+
+    /// Reads the `window` field.
+    #[must_use]
+    pub fn window(&self) -> u32 { self.window }
+
+    /// Reads the `output` field.
+    #[must_use]
+    pub fn output(&self) -> u32 { self.output }
+
+    /// Reads the `reasoning_item` field.
+    #[must_use]
+    pub fn reasoning_item(&self) -> u32 { self.reasoning_item }
+
+    /// Reads the `head_ms` field.
+    #[must_use]
+    pub fn head_ms(&self) -> u64 { self.head_ms }
+
+    /// Reads the `idle_ms` field.
+    #[must_use]
+    pub fn idle_ms(&self) -> u64 { self.idle_ms }
+
+    /// Reads the `oversized` field.
+    #[must_use]
+    pub fn oversized(&self) -> &Oversized { &self.oversized }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AgentLimitsParts { AgentLimitsParts { window: self.window, output: self.output, reasoning_item: self.reasoning_item, head_ms: self.head_ms, idle_ms: self.idle_ms, oversized: self.oversized } }
+
+}
+
+/// Movable fields of `AgentEndpointLimits`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentEndpointLimitsParts {
+    /// The `endpoint` field.
+    pub endpoint: Box<[u8]>,
+    /// The `limits` field.
+    pub limits: AgentLimits,
+}
+
+/// `AgentEndpointLimits` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentEndpointLimits {
+    endpoint: Box<[u8]>,
+    limits: AgentLimits,
+}
+
+impl AgentEndpointLimits {
+    /// Makes a value within the given limits.
+    pub fn new(skein_limits: &Limits, parts: AgentEndpointLimitsParts) -> Result<Self, Problem> {
+        let AgentEndpointLimitsParts { endpoint, limits } = parts;
+        let value = Self { endpoint, limits };
+        value.check(skein_limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `endpoint` field.
+    #[must_use]
+    pub fn endpoint(&self) -> &[u8] { &self.endpoint }
+
+    /// Reads the `limits` field.
+    #[must_use]
+    pub fn limits(&self) -> &AgentLimits { &self.limits }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AgentEndpointLimitsParts { AgentEndpointLimitsParts { endpoint: self.endpoint, limits: self.limits } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.endpoint.len() > usize::try_from(limits.agent_endpoint_limits_endpoint.min(CEILINGS.agent_endpoint_limits_endpoint)).expect("u32 fits usize") { return Err(Problem { path: Path::AgentEndpointLimitsEndpoint, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.endpoint.as_ref()) { return Err(Problem { path: Path::AgentEndpointLimitsEndpoint, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `AgentFigures`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentFiguresParts {
+    /// The `profile` field.
+    pub profile: List<AgentFigure>,
+    /// The `endpoints` field.
+    pub endpoints: List<AgentEndpointLimits>,
+    /// The `fallback` field.
+    pub fallback: AgentLimits,
+}
+
+/// `AgentFigures` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AgentFigures {
+    profile: List<AgentFigure>,
+    endpoints: List<AgentEndpointLimits>,
+    fallback: AgentLimits,
+}
+
+impl AgentFigures {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: AgentFiguresParts) -> Result<Self, Problem> {
+        let AgentFiguresParts { profile, endpoints, fallback } = parts;
+        let value = Self { profile, endpoints, fallback };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `profile` field.
+    #[must_use]
+    pub fn profile(&self) -> &List<AgentFigure> { &self.profile }
+
+    /// Reads the `endpoints` field.
+    #[must_use]
+    pub fn endpoints(&self) -> &List<AgentEndpointLimits> { &self.endpoints }
+
+    /// Reads the `fallback` field.
+    #[must_use]
+    pub fn fallback(&self) -> &AgentLimits { &self.fallback }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AgentFiguresParts { AgentFiguresParts { profile: self.profile, endpoints: self.endpoints, fallback: self.fallback } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.profile.capacity() > limits.agent_figures_profile.min(CEILINGS.agent_figures_profile) { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.profile.as_slice() {
+        item_0.check(limits)?;
+        }
+        if self.endpoints.capacity() > limits.agent_figures_endpoints.min(CEILINGS.agent_figures_endpoints) { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.endpoints.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
 /// `SettingValue` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
@@ -27189,6 +27469,8 @@ pub enum SettingValue {
     Areas(ProjectAreas),
     /// `triager` carrying `ProjectTriager`.
     Triager(ProjectTriager),
+    /// `agents` carrying `AgentFigures`.
+    Agents(AgentFigures),
 }
 
 impl SettingValue {
@@ -27206,6 +27488,7 @@ impl SettingValue {
             Self::Classes(record) => ProjectClasses::check(record, limits),
             Self::Follow(record) => Follow::check(record, limits),
             Self::Areas(record) => ProjectAreas::check(record, limits),
+            Self::Agents(record) => AgentFigures::check(record, limits),
             Self::Charter(_) | Self::Questions(_) | Self::Ways(_) | Self::Goal(_) | Self::Dependency(_) | Self::Triager(_) => Ok(()),
         }?;
         Ok(())
@@ -50998,6 +51281,214 @@ impl ProjectTriager {
     }
 }
 
+impl AgentFigure {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_value = &self.value;
+        writer.put(&field_value.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AgentFigureTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = match skein_codec::read_text(reader, limits.agent_figure_name.min(CEILINGS.agent_figure_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AgentFigureName, reason }), };
+        let decoded_value = reader.u64().ok_or(Problem { path: Path::AgentFigureValue, reason: skein_codec::Reason::Short })?;
+        Ok(Self { name: decoded_name, value: decoded_value })
+    }
+}
+
+impl Oversized {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Fail | Self::Drop => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Fail => writer.put(&[0_u8])?,
+            Self::Drop => writer.put(&[1_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::OversizedTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::OversizedTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Fail,
+            1 => Self::Drop,
+            _ => return Err(Problem { path: Path::OversizedTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl AgentLimits {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_window = &self.window;
+        writer.put(&field_window.to_be_bytes())?;
+        let field_output = &self.output;
+        writer.put(&field_output.to_be_bytes())?;
+        let field_reasoning_item = &self.reasoning_item;
+        writer.put(&field_reasoning_item.to_be_bytes())?;
+        let field_head_ms = &self.head_ms;
+        writer.put(&field_head_ms.to_be_bytes())?;
+        let field_idle_ms = &self.idle_ms;
+        writer.put(&field_idle_ms.to_be_bytes())?;
+        let field_oversized = &self.oversized;
+        field_oversized.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AgentLimitsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_window = reader.u32().ok_or(Problem { path: Path::AgentLimitsWindow, reason: skein_codec::Reason::Short })?;
+        let decoded_output = reader.u32().ok_or(Problem { path: Path::AgentLimitsOutput, reason: skein_codec::Reason::Short })?;
+        let decoded_reasoning_item = reader.u32().ok_or(Problem { path: Path::AgentLimitsReasoningItem, reason: skein_codec::Reason::Short })?;
+        let decoded_head_ms = reader.u64().ok_or(Problem { path: Path::AgentLimitsHeadMs, reason: skein_codec::Reason::Short })?;
+        let decoded_idle_ms = reader.u64().ok_or(Problem { path: Path::AgentLimitsIdleMs, reason: skein_codec::Reason::Short })?;
+        let decoded_oversized = Oversized::decode_from(limits, reader)?;
+        Ok(Self { window: decoded_window, output: decoded_output, reasoning_item: decoded_reasoning_item, head_ms: decoded_head_ms, idle_ms: decoded_idle_ms, oversized: decoded_oversized })
+    }
+}
+
+impl AgentEndpointLimits {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_endpoint = &self.endpoint;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_endpoint.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(29).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_endpoint = &self.endpoint;
+        writer.put(&u32::try_from(field_endpoint.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_endpoint.as_ref())?;
+        let field_limits = &self.limits;
+        field_limits.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AgentEndpointLimitsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_endpoint = match skein_codec::read_text(reader, limits.agent_endpoint_limits_endpoint.min(CEILINGS.agent_endpoint_limits_endpoint)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AgentEndpointLimitsEndpoint, reason }), };
+        let decoded_limits = AgentLimits::decode_from(limits, reader)?;
+        Ok(Self { endpoint: decoded_endpoint, limits: decoded_limits })
+    }
+}
+
+impl AgentFigures {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_profile = &self.profile;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_profile.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_endpoints = &self.endpoints;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_endpoints.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(29).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_profile = &self.profile;
+        writer.put(&field_profile.len().to_be_bytes())?;
+        for item_0 in field_profile.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_endpoints = &self.endpoints;
+        writer.put(&field_endpoints.len().to_be_bytes())?;
+        for item_0 in field_endpoints.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_fallback = &self.fallback;
+        field_fallback.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AgentFiguresTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_profile = { let count = match skein_codec::read_count(reader, limits.agent_figures_profile.min(CEILINGS.agent_figures_profile)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresProfile, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AgentFigure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_endpoints = { let count = match skein_codec::read_count(reader, limits.agent_figures_endpoints.min(CEILINGS.agent_figures_endpoints)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresEndpoints, reason }), }; if count > reader.remaining() / 33 { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AgentEndpointLimits::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_fallback = AgentLimits::decode_from(limits, reader)?;
+        Ok(Self { profile: decoded_profile, endpoints: decoded_endpoints, fallback: decoded_fallback })
+    }
+}
+
 impl SettingValue {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -51015,6 +51506,7 @@ impl SettingValue {
             Self::Dependency(record) => 1_u32.checked_add(Dependency::measure(record)).expect("schema ceilings fit u32"),
             Self::Areas(record) => 1_u32.checked_add(ProjectAreas::measure(record)).expect("schema ceilings fit u32"),
             Self::Triager(record) => 1_u32.checked_add(ProjectTriager::measure(record)).expect("schema ceilings fit u32"),
+            Self::Agents(record) => 1_u32.checked_add(AgentFigures::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -51033,6 +51525,7 @@ impl SettingValue {
             Self::Dependency(record) => { writer.put(&[9_u8])?; record.encode(writer)?; }
             Self::Areas(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
             Self::Triager(record) => { writer.put(&[11_u8])?; record.encode(writer)?; }
+            Self::Agents(record) => { writer.put(&[12_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -51059,6 +51552,7 @@ impl SettingValue {
             9 => Self::Dependency(Dependency::decode_from(limits, reader)?),
             10 => Self::Areas(ProjectAreas::decode_from(limits, reader)?),
             11 => Self::Triager(ProjectTriager::decode_from(limits, reader)?),
+            12 => Self::Agents(AgentFigures::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::SettingValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -66653,6 +67147,150 @@ impl ProjectTriager {
     }
 }
 
+impl AgentFigure {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.agent_figure_name))?)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.agent_figure_name))?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl Oversized {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl AgentLimits {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(Oversized::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Oversized::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AgentEndpointLimits {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.agent_endpoint_limits_endpoint))?)?.checked_add(AgentLimits::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.agent_endpoint_limits_endpoint))?.checked_add(AgentLimits::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AgentFigures {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.agent_figures_profile).checked_mul(AgentFigure::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.agent_figures_endpoints).checked_mul(AgentEndpointLimits::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(AgentLimits::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<AgentFigure>::price(limits.agent_figures_profile)?.checked_add(u64::from(limits.agent_figures_profile).checked_mul(AgentFigure::decoded_bound_within(limits)?)?)?)?.checked_add(List::<AgentEndpointLimits>::price(limits.agent_figures_endpoints)?.checked_add(u64::from(limits.agent_figures_endpoints).checked_mul(AgentEndpointLimits::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(AgentLimits::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl SettingValue {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -66669,6 +67307,7 @@ impl SettingValue {
         biggest = biggest.max(ProjectWords::encoded_bound_within(limits)?).max(ProjectClasses::encoded_bound_within(limits)?);
         biggest = biggest.max(Follow::encoded_bound_within(limits)?).max(Dependency::encoded_bound_within(limits)?);
         biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?).max(ProjectTriager::encoded_bound_within(limits)?);
+        biggest = biggest.max(AgentFigures::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -66687,6 +67326,7 @@ impl SettingValue {
         biggest = biggest.max(ProjectWords::decoded_bound_within(limits)?).max(ProjectClasses::decoded_bound_within(limits)?);
         biggest = biggest.max(Follow::decoded_bound_within(limits)?).max(Dependency::decoded_bound_within(limits)?);
         biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?).max(ProjectTriager::decoded_bound_within(limits)?);
+        biggest = biggest.max(AgentFigures::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -67631,6 +68271,11 @@ fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Area::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::encoded_bound_within(limits)?);
+    biggest = biggest.max(AgentFigure::encoded_bound_within(limits)?);
+    biggest = biggest.max(Oversized::encoded_bound_within(limits)?);
+    biggest = biggest.max(AgentLimits::encoded_bound_within(limits)?);
+    biggest = biggest.max(AgentEndpointLimits::encoded_bound_within(limits)?);
+    biggest = biggest.max(AgentFigures::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingValue::encoded_bound_within(limits)?);
     biggest = biggest.max(SizedValue::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingEdit::encoded_bound_within(limits)?);
@@ -68185,6 +68830,11 @@ fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Area::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::decoded_bound_within(limits)?);
+    biggest = biggest.max(AgentFigure::decoded_bound_within(limits)?);
+    biggest = biggest.max(Oversized::decoded_bound_within(limits)?);
+    biggest = biggest.max(AgentLimits::decoded_bound_within(limits)?);
+    biggest = biggest.max(AgentEndpointLimits::decoded_bound_within(limits)?);
+    biggest = biggest.max(AgentFigures::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingValue::decoded_bound_within(limits)?);
     biggest = biggest.max(SizedValue::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingEdit::decoded_bound_within(limits)?);

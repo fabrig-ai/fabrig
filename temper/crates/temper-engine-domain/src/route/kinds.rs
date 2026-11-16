@@ -156,6 +156,7 @@ fn judge(
             why: match item.kind {
                 14 => b"areas: value does not decode".as_slice().into(),
                 15 => b"triager: value does not decode".as_slice().into(),
+                20 => b"agents: value does not decode".as_slice().into(),
                 _ => settings::Refusal::Value.words(),
             },
         };
@@ -200,6 +201,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_) => return None,
     };
@@ -261,6 +263,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Ways(_) => return None,
@@ -712,7 +715,8 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Dependency(_)
-        | settings::Value::Follow(_) => None,
+        | settings::Value::Follow(_)
+        | settings::Value::AgentFigures(_) => None,
     }
 }
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {

@@ -76,6 +76,7 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectAreas(areas_from(record))
         }
+        20 => settings::Value::AgentFigures(v1::AgentFigures::decode(&v1::CEILINGS, &mut reader).ok()?),
         15 => {
             let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
@@ -92,6 +93,11 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 #[must_use]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::ProjectAreas(value) => {
             let record = wire_areas(value);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -171,6 +177,7 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
+        settings::Value::AgentFigures(record) => record.measure(),
         settings::Value::Rule(rule) => wire_rule(rule).measure(),
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),

@@ -387,6 +387,7 @@ fn drop_approvals(world: &mut World) {
                         | settings::Value::Goal(_)
                         | settings::Value::Classes(_)
                         | settings::Value::ProjectAreas(_)
+                        | settings::Value::AgentFigures(_)
                         | settings::Value::ProjectTriager(_)
                         | settings::Value::ProjectWords(_)
                         | settings::Value::Dependency(_)

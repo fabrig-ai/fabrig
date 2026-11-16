@@ -981,3 +981,38 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
         );
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
+fn agents_form_round_trips_named_maps_and_reports_duplicates() {
+    let setting = br#"{"kind":"agents"}"#;
+    let json = br#"{"profile":{"policy.max_turns":900,"declared.memory":18446744073709551615},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1,"output":1,"reasoning_item":1,"head_ms":1,"idle_ms":1,"oversized":"drop"}}"#;
+    let items = file::decode(&kind_file(setting, json), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
+    for (from, to, name) in [
+        ("\"policy.max_turns\":900", "\"policy.max_turns\":900,\"policy.max_turns\":901", "policy.max_turns"),
+        ("\"openai\":{", "\"openai\":{},\"openai\":{", "openai"),
+        ("\"output\":8192", "\"output\":4294967296", "output"),
+    ] {
+        let bad = core::str::from_utf8(json).unwrap().replace(from, to);
+        let why = file::decode(&kind_file(setting, bad.as_bytes()), &Limits::standard()).unwrap_err();
+        assert!(core::str::from_utf8(&why).unwrap().contains(name));
+    }
+    let page = crate::fields::page(&Limits::standard());
+    assert!(
+        core::str::from_utf8(&page)
+            .unwrap()
+            .contains("The agents' profile figures and each endpoint's limits, taken at each worker's next start.")
+    );
+}

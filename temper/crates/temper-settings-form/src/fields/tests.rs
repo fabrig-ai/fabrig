@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 76] = [
+const SHAPES: [Shape; 80] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -82,6 +82,10 @@ const SHAPES: [Shape; 76] = [
     Shape::ProjectTriager,
     Shape::Area,
     Shape::AreaOwner,
+    Shape::Agents,
+    Shape::AgentProfile,
+    Shape::AgentEndpoints,
+    Shape::AgentLimits,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -332,6 +336,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && field.name == b"number"
                         && [
                             b"rules".as_slice(),
+                            b"agents",
                             b"project-policy",
                             b"project-ways",
                             b"project-questions",
@@ -656,16 +661,16 @@ Kind: reference
 
 Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
 
-Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
+Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`. u8, u16, u32 and u64 are unsigned integers: respectively 0 to 255, 65,535, 4,294,967,295 and 18,446,744,073,709,551,615.
 
 ## file
 
 LINE
 
-- `number`: integer, 0 to 255.
-- `connector`: integer, 0 to 65,535.
-- `turns`: integer, 0 to 4,294,967,295.
-- `spend`: integer. LINE
+- `number`: u8.
+- `connector`: u16.
+- `turns`: u32.
+- `spend`: u64. LINE
 - `waiting`: nanoseconds.
 - `deadline`: nanoseconds since 1970 UTC, or null.
 - `cut`: true or false.
@@ -679,7 +684,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`, or null.
+- `set`: list of at most 32, each the value for `setting.kind`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

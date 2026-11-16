@@ -1,4 +1,4 @@
-family temper-client-wire 27
+family temper-client-wire 28
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -501,3 +501,10 @@ record ProjectTriager { owner: AreaOwner }
 
 record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
 versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }
+
+# The agents setting (protocol/configuration/figures.md, 5).
+record AgentFigure { name: text 64 value: u64 }
+enum Oversized { fail, drop }
+record AgentLimits { window: u32 output: u32 reasoning_item: u32 head_ms: u64 idle_ms: u64 oversized: Oversized }
+record AgentEndpointLimits { endpoint: text 64 limits: AgentLimits }
+record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndpointLimits fallback: AgentLimits }
