@@ -52,6 +52,7 @@ fn changes_setup(state: change::State, second_since: Wall) -> Domain {
 }
 fn pending(task: u64) -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task,
         entry: 100,
         follow_tree: List::with_capacity(env().limits.key_entries),

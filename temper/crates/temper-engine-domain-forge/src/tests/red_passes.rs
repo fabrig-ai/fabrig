@@ -46,6 +46,7 @@ fn a_merge_outcome_ends_passed_reds_but_not_a_later_generation_or_another_destin
 }
 fn merged_pull() -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
         entry: OPEN,

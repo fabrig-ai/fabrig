@@ -40,7 +40,10 @@ impl Domain {
             let task = *task;
             let Some(cold) = self.change_cold.get(&task).cloned() else { break };
             let hot = self.change_hot.remove(&task).expect("pending change part");
-            let row = crate::ChangeRow::join(cold, hot);
+            let mut row = crate::ChangeRow::join(cold, hot);
+            if row.frozen() {
+                row.room = None;
+            }
             self.changes.insert(task, row).expect("change room checked");
         }
     }

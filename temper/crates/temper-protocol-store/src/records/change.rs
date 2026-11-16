@@ -792,6 +792,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
+        room,
         task_release,
         job,
         signed,
@@ -823,6 +824,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
+            room: *room,
+
             task_release: match task_release {
                 Some(release) => Some(
                     w::TaskRelease::new(
@@ -901,6 +904,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
+        room,
         task_release,
         job,
         signed,
@@ -930,6 +934,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         history,
     } = value.into_parts();
     Ok(top::ChangeHot {
+        room,
         task_release: match task_release {
             Some(release) => {
                 let w::TaskReleaseParts { revision, at } = release.into_parts();

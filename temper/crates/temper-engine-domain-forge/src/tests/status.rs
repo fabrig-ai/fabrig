@@ -76,6 +76,7 @@ fn observe_pull(d: &mut Domain) {
         size: None,
     };
     let pending = PendingStep {
+        progress: List::uncapped(),
         failed: change_ci::Failed::new(Box::new([])),
         stall: None,
         pull_ci: false,

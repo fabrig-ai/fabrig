@@ -8,7 +8,7 @@ const CLOSING: u64 = 22;
 const GOAL_BRANCH: &[u8] = b"temper/7/g7";
 const TIP: skein_forge::api::Commit = [4; 32];
 
-fn name(branch: &[u8]) -> Name {
+pub(super) fn name(branch: &[u8]) -> Name {
     let mut parts = skein_lib::List::with_capacity(LIMITS.authority_segments);
     let mut start = 0;
     for index in 0..=branch.len() {
@@ -408,7 +408,10 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
             at_step(&mut d, &environment, Event::Resolve { entry: 1, again: false })
         };
         assert!(freed.contains(&Request::Erase { key: Key::Entry(1) }), "{cause}: {freed:?}");
-        assert!(d.is_ready(), "{cause}: freed room wakes without polling");
+        assert!(
+            freed.contains(&Request::ContinueGoalBranch { task: GOAL }),
+            "{cause}: freed room asks without polling"
+        );
         let mut resumed = Queue::uncapped();
         resume(&mut d, &environment, &mut resumed);
         let mut saved = skein_lib::List::with_capacity(u32::try_from(freed.len()).unwrap() + resumed.len());
@@ -423,7 +426,7 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
         for request in &saved {
             if let Request::ContinueGoalBranch { task } = request {
                 assert_eq!(*task, GOAL, "{cause}");
-                asks += 1;
+                asks = asks.checked_add(1).unwrap();
             }
         }
         assert_eq!(asks, 1, "{cause}: fresh number asked once: {saved:?}");
@@ -453,6 +456,17 @@ fn a_goal_branch_making_is_kept_and_sent_when_an_entry_frees() {
         let (_, op) = at_call(&mut d, &environment);
         assert_eq!(op, Op::Write(expected.effect.write), "{cause}");
     }
+}
+
+fn assert_room_ask(requests: &[Request], expected: u64) {
+    let mut asks = 0_u32;
+    for request in requests {
+        if let Request::ContinueGoalBranch { task } = request {
+            assert_eq!(*task, expected, "room goes to the first place");
+            asks = asks.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(asks, 1, "one ask for the freed room");
 }
 
 #[test]
@@ -503,16 +517,17 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
                 result: Ok(Answer::Commit(TIP)),
             }),
         ));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 1 });
-        let asked = ready(&mut d);
-        assert_eq!(asked.as_ref(), &[Request::ContinueGoalBranch { task: GOAL }]);
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 1 });
+        assert_room_ask(&asked, GOAL);
         assert!(!d.is_ready(), "one freed entry asks only one waiter, even before the answer");
-        assert!(ready(&mut d).is_empty());
+        let mut again = Queue::uncapped();
+        resume(&mut d, &environment, &mut again);
+        assert!(again.is_empty());
         at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 30 });
         let (reread, _) = at_call(&mut d, &environment);
         if case == "inverted tip answers" {
-            at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
-            assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+            let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
+            assert_room_ask(&asked, OTHER);
             d.repositories.get_mut(&REPO).unwrap().settings.default_branch = b"new-main".as_slice().into();
             at_step(&mut d, &environment, Event::ContinueGoalBranch { task: OTHER, entry: 31 });
             assert!(d.is_ready(), "before the younger reread");
@@ -603,12 +618,12 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
                 result: Ok(Answer::Commit(TIP)),
             }),
         ));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 31 });
-        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: GOAL }], "oldest keeps its place");
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 31 });
+        assert_room_ask(&asked, GOAL);
         at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 32 });
         at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
-        at_step(&mut d, &environment, Event::Withdraw { entry: 32 });
-        assert_eq!(ready(&mut d).as_ref(), &[Request::ContinueGoalBranch { task: OTHER }]);
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 32 });
+        assert_room_ask(&asked, OTHER);
     }
 }
 

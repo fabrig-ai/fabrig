@@ -994,6 +994,7 @@ pub struct TaskRelease {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub room: Option<u64>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1084,6 +1085,7 @@ pub struct ChangeCold {
 /// A change's hot store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
+    pub room: Option<u64>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1117,6 +1119,7 @@ impl ChangeRow {
     #[must_use]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
+            room,
             task_release,
             job,
             signed,
@@ -1182,6 +1185,7 @@ impl ChangeRow {
                 report,
             },
             ChangeHot {
+                room,
                 task_release,
                 job,
                 signed,
@@ -1235,6 +1239,7 @@ impl ChangeRow {
             report,
         } = cold;
         let ChangeHot {
+            room,
             task_release,
             job,
             signed,
@@ -1265,6 +1270,7 @@ impl ChangeRow {
         } = hot;
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
+            room,
             task_release,
             job,
             signed,
@@ -2355,6 +2361,10 @@ pub enum Event {
     },
     /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
     ReviewsChanged {
+        task: u64,
+    },
+    /// The root cannot step an asked waiter while its task is held.
+    RoomUnavailable {
         task: u64,
     },
     /// Gather fresh forge facts and step one registered change.

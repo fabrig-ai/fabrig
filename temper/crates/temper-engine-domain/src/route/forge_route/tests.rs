@@ -1289,6 +1289,7 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

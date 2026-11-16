@@ -2548,6 +2548,7 @@ pub(super) fn start_recovered_change(
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                room: None,
                 task_release: None,
                 job: None,
                 signed: Box::new([]),
@@ -5318,6 +5319,29 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::WakeProcedure { task } => {
+                if domain.forge.room_asked(task) {
+                    let can_step = match domain.core.tasks.task(task) {
+                        Some(row) => match row.phase {
+                            tasks::Phase::Active(_) => row.placed.is_none(),
+                            tasks::Phase::Waiting
+                            | tasks::Phase::Held { .. }
+                            | tasks::Phase::Closing(_)
+                            | tasks::Phase::Ended(_) => false,
+                        },
+                        None => false,
+                    };
+                    if !can_step {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                    if domain.core.tasks.procedure_due(task).is_some()
+                        && let Some(row) = domain.forge.change(task).cloned()
+                        && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                    {
+                        let step = change_step(domain, env, task, entry, row.repository, &row.base, false);
+                        domain.work.push(Work::Forge(step));
+                    }
+                }
                 step_dependents(domain, env, task);
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
@@ -5653,6 +5677,18 @@ pub(crate) fn outputs(
                 )));
             }
             forge::Request::ContinueGoalBranch { task } => {
+                if domain.forge.room_asked(task)
+                    && let Some(record) = domain.core.tasks.task(task)
+                {
+                    let held = match record.phase {
+                        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+                        tasks::Phase::Waiting | tasks::Phase::Active(_) => record.placed.is_some(),
+                    };
+                    if held {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                }
                 if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueGoalBranch { task, entry }));
                 } else {

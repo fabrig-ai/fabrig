@@ -10,7 +10,7 @@ fn send(d: &mut Domain, env: &Env<Limits>, event: Event) -> Queue<Request> {
     out
 }
 
-fn adopted_domain() -> Domain {
+pub(super) fn adopted_domain() -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -168,7 +168,7 @@ fn unwatching_names_the_watch_that_does_not_fit() {
     }
 }
 
-fn entry(number: u64) -> skein_forge_client::Entry {
+pub(super) fn entry(number: u64) -> skein_forge_client::Entry {
     skein_forge_client::Entry {
         number,
         task: TASK,
@@ -374,31 +374,4 @@ fn a_landing_subscription_keeps_each_watch_union_limit() {
         let out = send(&mut d, &env, Event::Subscribe { subscription: subscription() });
         limit(&out, TASK, member, configured, needed);
     }
-}
-
-#[test]
-fn emitting_a_change_effect_names_the_full_outbox() {
-    use skein_forge::api::{Answer, Check, Error};
-    let mut d = adopted_domain();
-    let mut row = fixtures::opening_row();
-    row.pending = None;
-    row.effect = change::EffectResult::None;
-    row.change.state = change::State::Opening { requested: false };
-    outputs(&mut d, Event::Change { row });
-    outputs(&mut d, Event::Enqueue { entry: entry(1) });
-    fixtures::step_change(&mut d);
-    for answer in [
-        Ok(Answer::Commit(fixtures::HEAD)),
-        Ok(Answer::Commit(fixtures::BASE)),
-        Err(Error::Missing),
-        Ok(fixtures::checks(Check::Passed)),
-        Ok(fixtures::checks(Check::Passed)),
-    ] {
-        fixtures::answer_next(&mut d, answer);
-    }
-    let (call, _) = fixtures::next_call(&mut d);
-    let mut env = env();
-    env.limits.entries = 1;
-    let out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    limit(&out, fixtures::CHANGE, "forge.entries", 1, 2);
 }

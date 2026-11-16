@@ -31,6 +31,7 @@ mod limits;
 mod link;
 mod make;
 mod making;
+mod outbox_room;
 mod panel;
 mod playground;
 mod projection;

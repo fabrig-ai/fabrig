@@ -152,6 +152,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
             | forge::Event::ReviewsChanged { .. }
+            | forge::Event::RoomUnavailable { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }

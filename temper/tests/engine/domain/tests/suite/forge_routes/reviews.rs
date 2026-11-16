@@ -2117,7 +2117,7 @@ fn concurrent_change(world: &mut World, key: u8, words: &[u8]) -> u64 {
     task
 }
 
-fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
+pub(super) fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..MAX_TICKS {
         world.tick();
         for run in &world.assigned {

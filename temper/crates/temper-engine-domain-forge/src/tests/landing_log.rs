@@ -67,6 +67,7 @@ fn a_pull_seen_merged_is_logged() {
     };
     let mut out = Queue::uncapped();
     let pending = PendingStep {
+        progress: List::uncapped(),
         failed: change_ci::Failed::new(Box::new([])),
         stall: None,
         pull_ci: false,

@@ -27,6 +27,7 @@ mod change_history;
 pub mod history;
 mod landing_proofs;
 mod readiness;
+mod room;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use temper_engine_domain_forge_vocabulary::boundary;

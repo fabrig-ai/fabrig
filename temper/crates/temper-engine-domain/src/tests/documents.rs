@@ -289,6 +289,7 @@ fn a_saved_close_preparation_hold_fails_its_held_change() {
 
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
+        room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

@@ -2996,6 +2996,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
         if row.task & 1 != 0 {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
+            row.room = Some(random.next_u64());
             let model = ModelEffort { model: 0, effort: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
