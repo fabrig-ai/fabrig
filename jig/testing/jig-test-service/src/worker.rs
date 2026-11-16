@@ -377,6 +377,7 @@ impl Worker {
                 link::Request::Closed => self.closed = true,
                 link::Request::Refused { .. }
                 | link::Request::Fact { .. }
+                | link::Request::Restarting { .. }
                 | link::Request::CannotSendWhole { .. }
                 | link::Request::Untranslated { .. } => {}
             }
@@ -1089,7 +1090,7 @@ mod admission_tests {
                     )
                     .expect("four wires");
             }
-            let record = wire::v14::Agreed::new(&codec, wire::v14::AgreedParts { wires }).expect("statement");
+            let record = wire::v15::Agreed::new(&codec, wire::v15::AgreedParts { wires }).expect("statement");
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut body).expect("statement body");
             let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");

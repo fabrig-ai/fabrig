@@ -4,7 +4,7 @@ use jig_domain_host as host;
 pub use jig_protocol_worker_wire::Loss;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
-use skein_lib::{Secret, Time, Token};
+use skein_lib::{Duration, Secret, Time, Token};
 #[derive(Debug)]
 pub enum Event {
     SourceFault,
@@ -59,6 +59,10 @@ pub enum Request {
     },
     Lost,
     GracePassed,
+    /// Each restart word, kept with its channel (protocol/channel/restart.md, 4).
+    Restarting {
+        wait: Duration,
+    },
     Closed,
     Down {
         down: host::LinkDown,

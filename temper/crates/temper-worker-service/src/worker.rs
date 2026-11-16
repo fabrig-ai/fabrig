@@ -51,6 +51,7 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     link: link::Component,
+    grace: skein_lib::Duration,
     link_out: Queue<link::Request>,
     out: Queue<root::Request>,
     pub(crate) events: Queue<root::Event>,
@@ -166,6 +167,7 @@ impl Worker {
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
         Ok(Self {
+            grace: prepared.link.grace,
             git,
             jobs: jobs::Jobs::new(slots),
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
@@ -548,6 +550,9 @@ impl Worker {
                     }
                 }
                 self.engine.push(root::Event::Lost);
+            }
+            link::Request::Restarting { wait } => {
+                self.notes.push(crate::worker_alone::Note::Restarting { keep: wait.max(self.grace) });
             }
             link::Request::GracePassed => self.engine.push(root::Event::GracePassed),
             link::Request::Resend { run, attempt, turn } => {
