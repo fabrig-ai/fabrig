@@ -60,8 +60,8 @@ its binary's generated code was made from and its value types:
 ```rust
 pub struct KeptFamily {
     // ... as `opening.md`, 3
-    pub current: &'static str,          // the binary's text of the family; a patched one's latest kept text
-    pub types: &'static [ValueType],    // its value types; empty for a family the store patches
+    pub current: &'static str,          // the binary's text of the family
+    pub types: &'static [ValueType],    // its value types; empty for a family outside the registry
     pub retired: &'static [Retired],    // its value types no binary writes again
 }
 pub struct Retired {
@@ -215,37 +215,27 @@ versioned record Job { ended: u64 }
 
 ## 5. At open
 
-### 5.1 The seed
+### 5.1 A store with no registry
 
-A store with no `Layout` row, once its pending patches have run, holds
-every registered value at the version of its family that the binary's
-levels give it (`records.md`, 3), which is what its head says. Its seed
-is a `Layout` row per value type of every registered family, at id that
-version, made from the family's kept text at that version (`KeptFamily::texts`)
-with the held families' kept texts at their versions; and a `Text` row
-for each text named. No value is read or rewritten: one commit of a row
-per value type, and a row per text. A value type whose root or variant
-the kept text at that version lacks has no layout there, and no value of
-it can be stored: the seed makes no row for it, and 5.2 registers its
-binary layout at its family's version. A census counting rows in such a
-type's key ranges refuses the open, `Set` with patch 0.
-
-A value type that the family's kept text at that version does not
-declare (its root, or its variant of a broad root, new since that text)
-has no seed row: no value of the store can be at a layout of it, since
-no binary before it wrote a key of its ranges. 5.2 registers its
-binary layout in the same commit, at the family's version as its id,
-as for any value type with no row. A store seeded and a binary that
-brings a new value type in one upgrade (temper's
-`draft/store-shape.execution.md`, S5 to S8, each adding one) therefore
-opens as a store seeded before it would.
+Every store a build opens holds its registry: an empty store's first
+commit writes it (5.2), and every store from before the registry was
+seeded at an open of a build before temper's store-floor F2 (temper's
+`draft/store-floor.md`, 4.2). A store that holds values and no `Layout`
+row is refused before anything is written, `OlderBuild` with why
+`Unregistered` (`opening.md`, 1.8): its values' heads are versions that
+no row names, and no build makes a registry from texts in its code. A
+value type that a store's registry has no row for, its root or variant
+new since the registry's rows, is registered by 5.2, at its family's
+version as its id, as for any value type with no row: no value of the
+store can be at a layout of it, since no binary before it wrote a key
+of its ranges.
 
 ### 5.2 The binary's layouts
 
 For each value type, its layout in `current`, with the binary's texts of
 the families it holds (each family's `current`): its row is the registry's of that
 fingerprint, whose id is the binary's id; with none, a new row at the
-next id (3) and its texts' rows, committed with the seed or alone. An
+next id (3) and its texts' rows, committed in the registry's commit (5.5). An
 empty store's first commit (`README.md`, section 5) writes the binary's
 layouts at their families' versions as ids, so its heads are its
 families' versions and the edges map nothing until a later binary moves
@@ -254,8 +244,7 @@ a layout.
 ### 5.3 The check
 
 Before anything is written, every open (whether it writes or not)
-plans each layout the registry holds, or will hold once its pending
-patches and its seed are made, to its value type's binary layout
+plans each layout the registry holds to its value type's binary layout
 (skein's `data/codec/layouts.md`): from its row's text and held texts
 and its root and variant, to `current`'s. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
@@ -304,11 +293,10 @@ value types but the binary's, having walked their ranges whole
 ### 5.5 When the open writes
 
 The open writes before serving, in a new generation made by links
-(`opening.md`, 2), when a patch is pending, when the registry is not
-seeded, when a binary layout is not registered, or when a job is
-pending (`jobs.md`, 2); then, after the patches, one commit (or as many
-as the store's commit edge needs, `records.md`, 4) writes the seed, the
-binary's new layouts and the retirements, before any job runs. An open
+(`opening.md`, 2), when a binary layout is not registered or when a job
+is pending (`jobs.md`, 2); then one commit (or as many as the store's
+commit edge needs, `records.md`, 4) writes the binary's new layouts and
+the retirements, before any job runs. An open
 with none of these writes nothing, so a binary that changes no layout
 and brings no job opens the store in place, as before (temper's
 `draft/store-shape.md`, section 4, step 3: an older binary can read all

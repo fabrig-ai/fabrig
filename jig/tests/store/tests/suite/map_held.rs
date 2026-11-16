@@ -43,7 +43,7 @@ pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
             codec::component::Transcript { length: 0, window: 0 }.encode().expect("file place"),
         ));
     }
-    let frame = super::upgrades::baseline::source_commit(&rows, 1);
+    let frame = super::upgrades::commits::source_commit(&rows, 1);
     let mut world = World::unopened_observed(seed, *limits, None);
     world.lay(&[
         Item::directory(b"transcripts").mode(0o700),

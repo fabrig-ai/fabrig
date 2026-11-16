@@ -1,13 +1,13 @@
-//! A settings-v3 store is seeded and converted once (protocol/store/layouts.md, 6).
+//! A registered settings-v3 store is converted once (protocol/store/layouts.md, 6).
 use super::*;
 use crate::tests::charter_versions::jig_set;
 use crate::tests::charter_versions::{key, old, record};
-use crate::{Owner, PatchSet, PatchSets};
+use crate::{Owner, OwnerSet, OwnerSets};
 use alloc::collections::VecDeque;
 
-fn store(disk: &Disk, set: PatchSet) -> Store {
+fn store(disk: &Disk, set: OwnerSet) -> Store {
     // This scene runs the charter job; the other jig jobs have their own page fixtures.
-    let set = PatchSet {
+    let set = OwnerSet {
         families: Box::leak(
             set.families
                 .iter()
@@ -36,7 +36,7 @@ fn store(disk: &Disk, set: PatchSet) -> Store {
     limits.store.budget = 2_097_152;
     limits.store.ops = 128;
     let mut store = disk.store_with_limits(&limits);
-    store.patch_sets(PatchSets { sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])) });
+    store.owner_sets(OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });
     store
 }
 fn check_values(disk: &mut Disk, store: &mut Store) {
@@ -49,18 +49,22 @@ fn check_values(disk: &mut Disk, store: &mut Store) {
     }
 }
 #[test]
-fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writes() {
+fn charter_versions_open_runs_two_rows_marks_done_and_reopens_without_writes() {
     let mut disk = Disk::new(&[]);
     let set = jig_set();
-    let old_set = PatchSet {
+    let old_set = OwnerSet {
         jobs: &[],
         families: Box::leak(
             set.families
                 .iter()
                 .map(|family| crate::KeptFamily {
                     retired: &[],
-                    types: &[],
-                    current: family.texts.last().unwrap(),
+                    types: if family.name == "jig-store-settings" { family.types } else { &[] },
+                    current: if family.name == "jig-store-settings" {
+                        super::super::charter_versions::KEPT
+                    } else {
+                        family.current
+                    },
                     ..*family
                 })
                 .collect::<Vec<_>>()
@@ -82,7 +86,7 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     );
     let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
     let seed = crate::keys::encode_own(&seed, before.limits.store.key).unwrap();
-    assert!(fixtures::get_kv(&mut before, &seed).is_none());
+    assert!(fixtures::get_kv(&mut before, &seed).is_some());
     assert_eq!(jobs::done(&mut before, Owner::Jig, "charter-versions"), None);
     let mut disk = Disk::new(&disk.items());
     let mut current = store(&disk, jig_set());
@@ -107,12 +111,12 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
                         assert_eq!(layout.text.as_ref(), crate::tests::charter_versions::KEPT.as_bytes());
                         assert_eq!(layout.root.as_ref(), "CharterVersion");
                         assert_eq!(page.rows.len(), 2);
-                        // The seed exists before any page reaches its owner.
+                        // The source registration remains while the job converts its values.
                         let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
                         let seed = crate::keys::encode_own(&seed, current.limits.store.key).unwrap();
                         assert!(fixtures::get_kv(&mut current, &seed).is_some());
                     } else {
-                        assert!(page.layout.is_none());
+                        assert!(page.layout.is_some());
                         assert!(page.end);
                     }
                     pages += 1;

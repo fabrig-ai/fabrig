@@ -171,7 +171,7 @@ impl Disk {
             crate::fire(store, &env(), &mut above, &mut below);
             let drove = self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below));
             let cut = self.cut.is_some_and(|cut| self.operations >= cut);
-            if !drove && (cut || !crate::patching::phase::ready(store)) {
+            if !drove && (cut || !crate::upgrade::phase::ready(store)) {
                 break;
             }
         }

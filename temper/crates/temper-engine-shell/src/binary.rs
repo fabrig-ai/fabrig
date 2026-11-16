@@ -168,7 +168,7 @@ fn refuse_document(command: &Command, directories: &Directories) -> Result<(), S
 pub fn versions() -> String {
     use std::fmt::Write;
     let mut text = String::new();
-    let levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
+    let levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     for (owner, level) in
         [("skein", levels.skein), ("smith", levels.smith), ("jig", levels.jig), ("temper", levels.application)]
     {

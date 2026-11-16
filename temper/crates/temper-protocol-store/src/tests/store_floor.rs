@@ -9,15 +9,15 @@ use super::{
     fixtures, jobs,
     unseeded_upgrade::{SETS, component, disk::Disk, header},
 };
-use crate::{PATCH_SET, records};
+use crate::{OWNER_SET, records};
 use jig_protocol_store::{self as store, Event, Get, Request, Row, Write, registry_v1 as w};
 use skein_lib::{List, Reader, Token, Wall, Writer};
 use temper_engine_domain_forge_vocabulary::{self as d, Stored, history as h};
 
 const DEV: &str = include_str!("cb429613c6-store-v25.schema");
-const KEPT: &str = include_str!("../../schema/kept/temper-store-v25.schema");
-fn old_sets() -> store::PatchSets {
-    store::PatchSets {
+const KEPT: &str = include_str!("fixtures/store-floor-store-v25.schema");
+fn old_sets() -> store::OwnerSets {
+    store::OwnerSets {
         sets: Box::leak(
             SETS.sets
                 .iter()
@@ -25,7 +25,7 @@ fn old_sets() -> store::PatchSets {
                     if set.name != "temper" {
                         return *set;
                     }
-                    store::PatchSet {
+                    store::OwnerSet {
                         families: Box::leak(
                             set.families
                                 .iter()
@@ -36,7 +36,7 @@ fn old_sets() -> store::PatchSets {
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
                         ),
-                        jobs: &PATCH_SET.jobs[..1],
+                        jobs: &OWNER_SET.jobs[..1],
                         ..*set
                     }
                 })
@@ -60,7 +60,7 @@ fn layouts(text: &str, id: u16) -> Vec<skein_kv::Op> {
         key: store::keys::encode_own(&store::keys::Own::Text(hash), 1024).unwrap(),
         value: out.finish(),
     }];
-    for ty in PATCH_SET.families.iter().flat_map(|family| family.types).filter(|ty| (41..=45).contains(&ty.number)) {
+    for ty in OWNER_SET.families.iter().flat_map(|family| family.types).filter(|ty| (41..=45).contains(&ty.number)) {
         let variant = ty.variant.map(str::as_bytes);
         let row = w::Layout::new(
             &w::CEILINGS,
@@ -116,7 +116,7 @@ fn old_bytes(row: &Stored, text: &str, id: u16) -> Box<[u8]> {
     let current = skein_codec::schema::parse(include_str!("../../schema/store-v25.schema").as_bytes()).unwrap();
     let old = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let key = jobs::encoded(row).key;
-    let ty = PATCH_SET
+    let ty = OWNER_SET
         .families
         .iter()
         .flat_map(|family| family.types)
@@ -171,7 +171,7 @@ fn baseline(retired: bool) -> Disk {
         });
     }
     if retired {
-        let value = super::catch_up::kept_golden(25, "enum_value_change_smallest.bin");
+        let value = kept_golden("enum_value_change_smallest.bin");
         ops.push(skein_kv::Op::Put {
             key: store::keys::application(&crate::keys::encode(&d::Key::Change(0), 1024).unwrap(), 1024).unwrap(),
             value: [&25_u16.to_be_bytes()[..], &value].concat().into(),
@@ -237,12 +237,11 @@ fn dev_layouts_25_and_26_settle_and_round_branches_counts_and_reopen_writes_noth
         .sets
         .iter()
         .flat_map(|set| set.families)
-        .filter(|family| !family.texts.is_empty())
         .map(|family| skein_codec::schema::parse(family.current.as_bytes()).unwrap())
         .collect::<Vec<_>>();
     let held = schemas.iter().collect::<Vec<_>>();
     let schema = skein_codec::schema::parse(include_str!("../../schema/store-v25.schema").as_bytes()).unwrap();
-    for ty in PATCH_SET.families.iter().flat_map(|family| family.types) {
+    for ty in OWNER_SET.families.iter().flat_map(|family| family.types) {
         let prefix = layout_key(ty.number, 0);
         let prefix = &prefix[..prefix.len() - 2];
         let events = disk.kv(
@@ -292,4 +291,15 @@ fn a_retired_change_refuses_layout_before_any_write() {
     };
     assert_eq!(family.as_ref(), "temper-store");
     assert_eq!(disk.contents(), before);
+}
+
+fn kept_golden(name: &str) -> Box<[u8]> {
+    let schema = skein_codegen::parse(KEPT).expect("floor fixture schema");
+    skein_codegen::generate(&schema)
+        .goldens
+        .into_iter()
+        .find(|golden| golden.name == name)
+        .expect("floor fixture golden")
+        .bytes
+        .into_boxed_slice()
 }

@@ -9,7 +9,7 @@ use std::{
 };
 use temper_qa_tool::{
     Home, Refusal,
-    faces::{ArchiveFace, RealDrive, copy_members},
+    faces::{ArchiveFace, RealArchive, RealDrive, copy_members},
     place::{PassPlace, PlacePaths, RecipeInput, place_busy},
 };
 
@@ -66,6 +66,8 @@ walk)
     fi
     mkdir -p box/config box/data
     printf '%s\n' "$name" > box/data/state
+    mkdir -p box/data/box/fake-backends/data/workspaces/agent
+    printf 'pinned\n' > box/data/box/fake-backends/data/workspaces/agent/temper-box
     printf 'walked %s\n' "$name"
     ;;
 *) exit 1 ;;
@@ -80,16 +82,17 @@ struct Archive {
     store: PathBuf,
 }
 impl ArchiveFace for Archive {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         assert_mode(archive, 0o600);
         self.saved.push(archive.to_owned());
         let snapshot = self.store.join(self.saved.len().to_string());
-        copy(&scratch.join("config"), &snapshot.join("config"));
-        copy(&scratch.join("data"), &snapshot.join("data"));
+        for member in ["config", "data"] {
+            copy(scratch, &snapshot, Path::new(member), left_out);
+        }
         fs::write(archive, snapshot.to_str().expect("snapshot path")).expect("archive marker");
         Ok(())
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         if let Some(refused) = &self.removed_before_retry
             && archive != refused
         {
@@ -97,16 +100,21 @@ impl ArchiveFace for Archive {
         }
         self.restored.push(archive.to_owned());
         let snapshot = fs::read_to_string(archive).expect("archive marker");
-        copy(Path::new(&snapshot), scratch);
+        copy(Path::new(&snapshot), scratch, Path::new(""), left_out);
         Ok(())
     }
 }
-fn copy(from: &Path, to: &Path) {
-    fs::create_dir_all(to).expect("copy directory");
-    for entry in fs::read_dir(from).expect("source") {
+fn copy(source: &Path, destination: &Path, relative: &Path, left_out: &[&str]) {
+    if left_out.iter().any(|path| relative == Path::new(path)) {
+        return;
+    }
+    let from = source.join(relative);
+    let to = destination.join(relative);
+    fs::create_dir_all(&to).expect("copy directory");
+    for entry in fs::read_dir(&from).expect("source") {
         let entry = entry.expect("entry");
         if entry.file_type().expect("type").is_dir() {
-            copy(&entry.path(), &to.join(entry.file_name()));
+            copy(source, destination, &relative.join(entry.file_name()), left_out);
         } else {
             fs::copy(entry.path(), to.join(entry.file_name())).expect("file copy");
         }
@@ -810,6 +818,106 @@ fn recipe_input_and_names_reject_paths_and_multiline_records() {
     }
     let paths = PlacePaths::new(&world.place.paths.directory);
     assert_eq!(paths.scratch, world.place.paths.directory.join("box"));
+}
+
+const PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
+const CHECKOUT_AGENT: &str = "data/box/fake-backends/data/workspaces/1/repo/agent/kept";
+
+fn write_copy_state(scratch: &Path, pinned: bool) {
+    let kept = scratch.join(CHECKOUT_AGENT);
+    fs::create_dir_all(kept.parent().expect("checkout agent parent")).expect("checkout agent directory");
+    fs::write(kept, "checkout state").expect("checkout agent state");
+    fs::write(scratch.join("data/state"), "setup state").expect("setup state");
+    if pinned {
+        let agent = scratch.join(PINNED_AGENT);
+        fs::create_dir_all(&agent).expect("pinned agent directory");
+        fs::write(agent.join("temper-box"), "pinned binary").expect("pinned binary");
+        fs::write(agent.join("agent.json"), "{}").expect("pinned document");
+    }
+}
+
+fn assert_copy_state(scratch: &Path) {
+    assert!(!scratch.join(PINNED_AGENT).exists(), "the pinned agent directory is left out");
+    assert_eq!(fs::read_to_string(scratch.join("data/state")).expect("setup state"), "setup state");
+    assert_eq!(fs::read_to_string(scratch.join(CHECKOUT_AGENT)).expect("checkout state"), "checkout state");
+}
+
+fn real_archive() -> RealArchive {
+    RealArchive { environment: vec![(Box::from(b"PATH".as_slice()), Box::from(b"/usr/bin:/bin".as_slice()))] }
+}
+
+#[test]
+fn real_copies_leave_out_only_the_pinned_agent_and_allow_its_absence() {
+    for pinned in [true, false] {
+        let scratch = Scratch::new("qa-real-copy");
+        let source = scratch.path().join("source");
+        let restored = scratch.path().join("restored");
+        let archive = scratch.path().join("copy.tar");
+        write_copy_state(&source, pinned);
+        fs::create_dir(&restored).expect("restore directory");
+        let mut face = real_archive();
+        face.create(&source, &archive, &[PINNED_AGENT]).expect("create copy");
+        // With a pin, inspect create's archive without masking it through extract's exclusion.
+        // Without one, exercise extract's exclusion of an absent directory as well.
+        let left_out: &[&str] = if pinned { &[] } else { &[PINNED_AGENT] };
+        face.extract(&archive, &restored, left_out).expect("restore copy");
+        assert_copy_state(&restored);
+    }
+}
+
+#[test]
+fn real_restore_leaves_out_the_pinned_agent_from_an_older_copy() {
+    let scratch = Scratch::new("qa-real-restore");
+    let source = scratch.path().join("source");
+    let restored = scratch.path().join("restored");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    fs::create_dir(&restored).expect("restore directory");
+    let output = Command::new("tar")
+        .arg("--create")
+        .arg("--file")
+        .arg(&archive)
+        .arg("--directory")
+        .arg(&source)
+        .arg("data")
+        .stdin(Stdio::null())
+        .output()
+        .expect("plain tar");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    real_archive().extract(&archive, &restored, &[PINNED_AGENT]).expect("restore older copy");
+    assert_copy_state(&restored);
+}
+
+#[test]
+fn a_place_saves_state_without_the_walks_pinned_agent() {
+    let mut world = World::new();
+    let (code, output) = world.setup("welcome");
+    assert_eq!(code, 0, "{output}");
+    assert!(world.place.paths.scratch.join(PINNED_AGENT).join("temper-box").exists(), "the walk pinned its agent");
+    assert_eq!(world.place.archive.saved.len(), 1);
+    let saved = world.place.paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar"));
+    let snapshot = fs::read_to_string(saved).expect("archive marker");
+    assert!(!Path::new(&snapshot).join(PINNED_AGENT).exists(), "save leaves out the pinned directory");
+    assert_eq!(fs::read_to_string(Path::new(&snapshot).join("data/state")).expect("saved state"), "welcome\n");
+}
+
+#[test]
+fn a_place_restores_an_older_copy_without_its_pinned_agent() {
+    let mut world = World::new();
+    let archive = world.copy("welcome", WELCOME, OLD);
+    let snapshot = fs::read_to_string(&archive).expect("archive marker");
+    write_copy_state(Path::new(&snapshot), true);
+    // Inspect the restored state without simulating another worker start in the check.
+    let check = TOOL.replace(
+        "    mkdir -p box/data/box/fake-backends/data/workspaces/agent\n    printf 'pinned\\n' > box/data/box/fake-backends/data/workspaces/agent/temper-box\n",
+        "",
+    ).replace("    printf '%s\\n' \"$name\" > box/data/state\n", "");
+    fs::write(world.place.paths.bin.join("temper-client-journeys"), check).expect("check script");
+    let (code, output) = world.setup("welcome");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.restored, [archive]);
+    assert_copy_state(&world.place.paths.scratch);
+    assert!(Path::new(&snapshot).join(PINNED_AGENT).exists(), "the existing copy is not rewritten");
 }
 
 #[test]

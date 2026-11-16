@@ -11,12 +11,8 @@ pub(crate) struct Decoder {
 impl Decoder {
     pub(crate) fn load(store: &mut Store) -> Result<Self, OpenRefusal> {
         let mut layouts = Box::new(Layouts::new());
-        rows::load(store, &mut layouts)?;
+        rows::open(store, &mut layouts, false)?;
         Ok(Self { layouts })
-    }
-
-    pub(crate) fn seeded(&self) -> bool {
-        !self.layouts.rows.is_empty()
     }
 
     pub(crate) fn family(&mut self) {

@@ -901,11 +901,13 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     }
     engine.step(trace.inputs.pop().expect("first productive input"));
     engine.release_trace = Some(trace);
-    engine.store.host.above.push(jig_protocol_store::Event::Patched {
+    engine.store.host.above.push(jig_protocol_store::Event::Ran {
         owner: Token::new(999),
         of: jig_protocol_store::Owner::Application,
-        patch: 999,
-        counts: jig_protocol_store::Counts { records: 1, commits: 1 },
+        job: "fixture-progress".into(),
+        rows: 1,
+        commits: 1,
+        counts: Box::new([]),
     });
     // Enter the release stage with an answer already waiting; the next service
     // pass must take that answer before another quantum of productive work.
@@ -927,7 +929,7 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     assert!(engine.store.host.above.is_empty(), "the waiting answer is taken between quanta");
     let mut answered = false;
     for note in &engine.notes {
-        if let crate::Note::Patched { patch: 999, .. } = note {
+        if let crate::Note::Ran { .. } = note {
             answered = true;
         }
     }

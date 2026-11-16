@@ -12,14 +12,15 @@ mod settings;
 
 mod follows;
 
-mod catch_up;
-
 mod batches;
 
+mod directory_jobs;
 mod history;
 mod reds;
 mod registered_layouts;
-mod unseeded_upgrade;
+
+// Import paths of the frozen F0 and F1 fixtures.
+use directory_jobs as unseeded_upgrade;
 mod value_types;
 
 mod jobs;

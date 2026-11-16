@@ -81,8 +81,9 @@
 
 ## 2. A run
 
-**A registered family** (`schema/registered`, 1) is passed over: its
-kept texts, its `.renames` and its patches stay as landed, its current
+**A registered family** (`schema/registered`, 1) is passed over: it
+has no kept text, `.renames` or patch, since a store keeps none of its
+history (temper's `draft/store-floor.md`, 4.1), its current
 text changes as its author writes it, its version stays `k`, and no
 block of the branch's patch names it. Its layouts are a store's to
 convert (`layouts.md`; jig's `protocol/store/layouts.md`): a change
@@ -91,13 +92,7 @@ one is its owner's written job (jig's `protocol/store/jobs.md`, 4). The
 run reports it `Registered`; the check finds a version moved, a kept
 text, `.renames` or patch block of the branch's for it, as
 `Registered { family }` (7). A name the file lists that is no family of
-the crate is the run's error, `Error::Registered`. **A patch file in a
-goal in flight,** written for a family before its owner registered it
-and not landed by then, goes when the goal catches up: its version
-moves back to the landed one, its block, kept text, written functions,
-goldens and the golden store's line go (temper's
-`protocol/baseline.md`, 7), and its change is made again by defaults and
-former names (`README.md`, section 3) or a written job.
+the crate is the run's error, `Error::Registered`.
 
 For each other family, in name order, with `K` its latest landed kept
 text at version `k` (none for a family new to the base) and `C` its
@@ -121,11 +116,13 @@ current text at version `c`:
    frozen text refreshed where every landed
    patch naming it still plans and keeps its goldens, would serve a
    variant appended and a bound widened alone, at the cost of landed
-   kept texts that never change. The rule binds the families a store
-   still patches (the component's own rows, the secrets' store, the
-   transcripts' frames: jig's `protocol/store/layouts.md`, 1) and the
-   wires; a registered family keeps no new text, so none of its texts
-   freezes (temper's `draft/store-shape.md`, section 3).
+   kept texts that never change. The rule binds the wires, and a
+   store's formats outside its registry (the component's own rows, the
+   secrets' store, the transcripts' frames: jig's
+   `protocol/store/layouts.md`, 1), which are fixed at their versions: a
+   change to one designs, in its own landing, how a deployed store gets
+   there (temper's `draft/store-floor.md`, section 5). A store keeps no
+   history of a registered family, so none of its texts freezes.
 
    **The wire rule.** A family `schema/wires` names is a wire's: two
    builds that speak one version of it must lay it out alike, so its
