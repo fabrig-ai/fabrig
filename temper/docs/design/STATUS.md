@@ -132,9 +132,10 @@ the fake Forgejo and the fake model, saved and restored with a newer
 build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
-`batch` of two. Its passes follow landing
+`batch` of two. Its passes follow landing; QA gaps are filed for people
+with no goal, then reopened for judgement by a closing landing
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
-`testing/qa/setups.md`; `draft/landed-qa.status.md`).
+`testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 
 The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
@@ -523,6 +524,7 @@ Design documents:
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
 - [`testing/qa/deployment.md`](testing/qa/deployment.status.md)
 - [`testing/qa/findings.md`](testing/qa/findings.status.md)
+- [`testing/qa/gaps.md`](testing/qa/gaps.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)

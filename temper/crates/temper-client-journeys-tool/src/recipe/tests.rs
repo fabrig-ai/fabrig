@@ -363,7 +363,7 @@ fn b1_plan_commits_exactly_the_twins_gate_before_waiting_on_checks() {
     let recipe = chain.recipes.last().expect("B1 plan");
     assert_eq!(recipe.after.as_deref(), Some("widget"));
     let mut steps = recipe.steps.iter();
-    let Record::Forge(Forge::Commit { repository, message, paths }) =
+    let Record::Forge(Forge::Commit { repository, message, paths, .. }) =
         steps.next().expect("gate is the first step").line.record()
     else {
         panic!("B1 starts by committing its gate");
@@ -822,4 +822,17 @@ fn walk_commits_each_recipes_own_files_even_when_paths_are_the_same() {
         }
     }
     assert_eq!(committed, ["cGFyZW50IGJ5dGVz", "Y2hpbGQgYnl0ZXM="]);
+}
+
+#[test]
+fn recipe_keeps_a_push_line_and_its_files_for_a_ctl_walk() {
+    let mut files = Files::new();
+    let source = r#"forge push forgejo work/hello work/topic "message" "a.txt""#;
+    put(&mut files, "pushed", "recipe", format!("recipe 1\n{source}\ncheck\nctl change list\n").as_bytes());
+    put(&mut files, "pushed", "files/a.txt", b"pushed bytes");
+    let chain = read(&files, "pushed").expect("push recipe");
+    assert_eq!(chain.recipes[0].files[b"a.txt".as_slice()], b"pushed bytes");
+    assert!(chain.lines(None).expect("walk lines").iter().any(|line| line.line.as_ref() == source.as_bytes()));
+    files.get_mut("pushed").expect("recipe").remove(OsStr::new("files/a.txt"));
+    assert!(read(&files, "pushed").map(|_| ()).expect_err("missing push file").why.contains("missing"));
 }

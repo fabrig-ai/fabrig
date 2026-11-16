@@ -44,6 +44,7 @@ fn commit(h: &mut Harness, files: &[skein_forge::forgejo::request::FileChange]) 
     let request = skein_forge::forgejo::request::Request::ChangeFiles {
         at: skein_forge::forgejo::request::Repo { owner: boxed(b"work"), name: boxed(b"hello") },
         branch: boxed(b"main"),
+        new_branch: None,
         message: boxed(b"Seed hello"),
         files: files.into(),
     };
@@ -184,4 +185,24 @@ fn contents_commit_ci_reads_the_new_heads_declaration() {
     assert_ne!(next, first);
     let sha = skein_forge::forgejo::id::write(&crate::routes::object(next));
     assert!(skein_lib::bytes::find(&h.body(), &sha).is_some());
+}
+
+#[test]
+fn contents_batch_new_branch_copies_the_base_and_refuses_existing_or_missing_base() {
+    let mut h = Harness::new(fixtures::config());
+    let base = h.domain.branch(b"org/repo", b"main").unwrap();
+    let contents = br#"{"branch":"main","new_branch":"topic","message":"push","files":[{"operation":"create","path":"pushed","content":"eA=="}]}"#;
+    h.ask(b"POST", b"/api/v1/repos/org/repo/contents", contents);
+    assert_eq!(h.status(), 201);
+    let head = h.domain.branch(b"org/repo", b"topic").unwrap();
+    assert_eq!(h.domain.object(head).unwrap().parent, Some(base));
+    assert_eq!(h.domain.branch(b"org/repo", b"main"), Some(base));
+    let room = h.domain.room().commits;
+    h.ask(b"POST", b"/api/v1/repos/org/repo/contents", contents);
+    assert_eq!(h.status(), 422);
+    h.ask(b"POST", b"/api/v1/repos/org/repo/contents", br#"{"branch":"missing","new_branch":"other","message":"push","files":[{"operation":"create","path":"pushed","content":"eA=="}]}"#);
+    assert_eq!(h.status(), 404);
+    assert_eq!(h.domain.branch(b"org/repo", b"other"), None);
+    assert_eq!(h.domain.branch(b"org/repo", b"topic"), Some(head));
+    assert_eq!(h.domain.room().commits, room);
 }

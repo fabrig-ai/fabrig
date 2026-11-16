@@ -79,7 +79,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
   them and a retained one keeps its own; a QA place's
   (`../testing/qa/places.md`, 2). A list that is not nine distinct
   nonzero ports refuses the session, naming it, before anything starts.
-- **`--files DIR`,** an existing directory that `forge commit` lines
+- **`--files DIR`,** an existing directory that `forge commit` and `forge push` lines
   read the files they commit from (3.5), read only: a QA pass's
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
@@ -199,7 +199,9 @@ no tui line walks in one (`recipe.md`, 5.1).
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
   `web`, `tui`, `ctl`, `forge` or `deployment`, then its record and its fields, as the
   journeys' file writes fields (`web/journeys.md`, 3.2): each after one
-  space, a word bare, bytes in double quotes. Or a look (3.2 to 3.3), or
+  space, a word bare, bytes in double quotes. Quoted bytes take printable
+  ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for
+  quote and backslash. Or a look (3.2 to 3.3), or
   `end`.
 - **An empty line** is answered `ok` and not kept.
 - **A line that does not parse** is answered `failed: line N: WHY`,
@@ -301,10 +303,11 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
 | Line | What the session does | Bound |
 |---|---|---|
 | `forge commit forgejo REPOSITORY MESSAGE PATH [PATH]...` | one commit to REPOSITORY's default branch, MESSAGE its message, of each PATH's file of the files directory, at PATH: created where the branch lacks PATH and replaced where it holds it; answers the new commit's id | 60 s |
+| `forge push forgejo REPOSITORY BRANCH MESSAGE PATH [PATH]...` | one commit as the person to BRANCH of REPOSITORY, of each PATH's file as for commit; makes an absent BRANCH at the default branch's head; answers the new commit's id | 60 s |
 | `forge checks forgejo REPOSITORY` | waits until the combined status at the default branch's head is `success`; answers the head and each status's context and state | 300 s |
 
 - **`forgejo`,** a word, names the box's fake Forgejo elsewhere; another
-  word does not parse. **REPOSITORY** is `OWNER/NAME`, a word; MESSAGE
+  word does not parse. **BRANCH** is a word. **REPOSITORY** is `OWNER/NAME`, a word; MESSAGE
   and each PATH are bytes. One to 16 PATHs, each relative, 1 to 256
   bytes, with no empty, `.` or `..` segment and no two alike. A line out
   of these bounds does not parse (3.1).
@@ -336,6 +339,13 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
   and every file, its content in base64, so that the branch gains one
   commit, the person its author. It answers `| ` and the commit's id
   from the response.
+- **The push:** the repository read gives its default branch, then
+  `GET /repos/OWNER/NAME/branches/BRANCH` tests the target branch. Present,
+  each PATH is read there and the contents batch names `branch` BRANCH.
+  Absent (404), each PATH is read at the default branch and the batch
+  names `branch` the default and `new_branch` BRANCH, making the branch
+  with the commit in that one request. Other refusals fail the line.
+  Its files, bounds, credentials, answer and keeping are the commit's.
 - **The checks:** the combined status (`GET
   /repos/OWNER/NAME/commits/BRANCH/status`) read every 2 seconds until
   its state is `success`, answering `| ` the head, then a line per

@@ -69,6 +69,14 @@ Any other merge is no landing: a change's merge into its goal's branch
 (`into OWNER/gN`), main merged into a goal's branch (`Merge branch
 'main' into ...`), or a person's merge with no goal.
 
+The watcher also reads each landing's commits' `QA-gap: N` trailers
+from `git log MERGE^1..MERGE`, as triage reads `QA:` (`triage.md`, 3).
+Once a kept build holds that landing, each named open or filed gap is
+closed with that landing and time; its case is queued again, or its
+landing triaged again on a build holding the closure (`gaps.md`, 7;
+`ledger.md`, 4.18). Unknown or malformed numbers and already closed
+gaps do nothing. No gap closes before such a build is kept.
+
 ## 5. Builds' landings
 
 At each read, every kept build whose `holds` is absent (`ledger.md`,

@@ -17,6 +17,10 @@ impl Ledger {
                 value["outcome"] = json!(outcome.result.name());
                 value["notes"] = json!(outcome.notes);
                 value["findings"] = json!(outcome.findings);
+                if outcome.result == crate::OutcomeResult::Gap
+                    && let Some(gap) = self.gaps.iter().rev().find(|gap| gap.case == Some(case.number) && gap.session == outcome.session) {
+                    value["gap"] = json!(gap.number);
+                }
             }
             value
         }).collect::<Vec<_>>();
@@ -27,8 +31,14 @@ impl Ledger {
             if let Some(linked) = finding.to { value["linked"] = json!(linked); }
             value
         }).collect::<Vec<_>>();
+        let gaps = self
+            .gaps
+            .iter()
+            .filter(|gap| pass.sessions.contains(&gap.session))
+            .map(crate::gap_document::document)
+            .collect::<Vec<_>>();
         Ok(
-            json!({"pass":number,"place":pass.place,"build":pass.build,"state":pass.state.name(),"cases":cases,"findings":findings,
+            json!({"pass":number,"place":pass.place,"build":pass.build,"state":pass.state.name(),"cases":cases,"findings":findings,"gaps":gaps,
             "notes":self.notes.iter().filter(|note| note.pass == number).map(|note| &note.words).collect::<Vec<_>>()}),
         )
     }

@@ -75,6 +75,7 @@ pub trait GitFace {
     fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal>;
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn qa_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
     fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal>;
@@ -215,6 +216,18 @@ impl GitFace for RealGit {
         for message in text.split('\0') {
             for (key, value) in trailers(message) {
                 if key == "QA" && !values.contains(&value) {
+                    values.push(value);
+                }
+            }
+        }
+        Ok(values)
+    }
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
+        let text = self.text(&["log", "--reverse", "--format=%B%x00", &format!("{parent}..{commit}"), "--"])?;
+        let mut values = Vec::new();
+        for message in text.split('\0') {
+            for (key, value) in trailers(message) {
+                if key == "QA-gap" && !values.contains(&value) {
                     values.push(value);
                 }
             }

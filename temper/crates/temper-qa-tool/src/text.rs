@@ -19,6 +19,7 @@ impl Ledger {
                 None => String::new(),
                 Some(Answer::None { why }) => format!("; no QA: {why}"),
                 Some(Answer::Cases) => "; cases".into(),
+                Some(Answer::Gap) => "; gap".into(),
             };
             writeln!(
                 text,
@@ -77,6 +78,14 @@ impl Ledger {
             .expect("String write");
         }
         self.show_passes(&mut text);
+        writeln!(
+            text,
+            "\ngaps: {} open; {} filed; {} closed",
+            self.gaps.iter().filter(|gap| gap.state == crate::GapState::Open).count(),
+            self.gaps.iter().filter(|gap| gap.state == crate::GapState::Filed).count(),
+            self.gaps.iter().filter(|gap| gap.state == crate::GapState::Closed).count()
+        )
+        .expect("string");
         text
     }
     fn show_passes(&self, text: &mut String) {
