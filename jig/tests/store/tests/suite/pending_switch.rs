@@ -17,7 +17,7 @@ const SWITCH: Token = Token::new(961);
 
 pub(crate) fn pending() -> World {
     let mut world = Records::story().committed(SEED, BASE);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
     world.open().expect("checked pending copy");
     world

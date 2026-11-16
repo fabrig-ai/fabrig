@@ -2,38 +2,34 @@
 //! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7 and 8).
 use super::{Layouts, Text, counting, texts};
 use crate::tests::fixtures::{self, disk::Disk};
-use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, Store, ValueType};
+use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
 use jig_test_patches::layouts::{CURRENT, FIRST, KEPT};
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
-    texts: &[KEPT],
     current: CURRENT,
     retired: &[],
     map: KeptMap::Store,
     frames: None,
-    flights: &[],
     keys: &[Keys { from: b"a", to: b"b", root: "Growing" }],
     types: &[ValueType { number: 0, root: "Growing", variant: None, keys: &[KeyRange { from: b"a", to: b"b" }] }],
 };
-const SET: PatchSet = PatchSet {
-    owner: Owner::Application,
-    name: "fixture-layouts",
-    families: &[FAMILY],
-    patches: &[],
-    level: Some(1),
-    fresh: None,
-    jobs: &[],
-};
-const SETS: PatchSets = PatchSets { sets: &[SET] };
+const SET: OwnerSet =
+    OwnerSet { owner: Owner::Application, name: "fixture-layouts", families: &[FAMILY], level: Some(1), jobs: &[] };
+const SETS: OwnerSets = OwnerSets { sets: &[SET] };
 
 #[test]
 fn checked_texts_stay_parsed_until_the_decoders_family_clear() {
     let mut layouts = Layouts::new();
-    texts::Binary::new(&SETS, &mut layouts).expect("fixture texts check");
-    let current = texts::digest(CURRENT.as_bytes());
     let kept = texts::digest(KEPT.as_bytes());
+    layouts
+        .texts
+        .insert(kept, Text { bytes: Box::from(KEPT.as_bytes()), schema: None, stored: true, current: false })
+        .expect("uncapped texts");
+    texts::Binary::new(&SETS, &mut layouts).expect("fixture texts check");
+    texts::parse(&mut layouts, kept).expect("stored text parses");
+    let current = texts::digest(CURRENT.as_bytes());
     assert_ne!(current, kept);
     assert!(layouts.texts.get(&current).expect("current text").schema.is_some());
     assert!(layouts.texts.get(&kept).expect("kept text").schema.is_some());
@@ -44,8 +40,8 @@ fn checked_texts_stay_parsed_until_the_decoders_family_clear() {
 
 #[test]
 fn current_equal_to_kept_keeps_its_checked_schema() {
-    const SETS: PatchSets =
-        PatchSets { sets: &[PatchSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] };
+    const SETS: OwnerSets =
+        OwnerSets { sets: &[OwnerSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] };
     let mut layouts = Layouts::new();
     texts::Binary::new(&SETS, &mut layouts).expect("fixture texts check");
     assert_eq!(layouts.texts.len(), 1);
@@ -75,7 +71,7 @@ fn stored_current_waits_for_first_parse_then_survives_family_clear() {
 fn opened(disk: &mut Disk) -> Store {
     let mut store = disk.store_with_chunk(4096);
     store.application.version = 0;
-    store.patch_sets(SETS);
+    store.owner_sets(SETS);
     let events = disk.open(&mut store);
     let [crate::Event::Opened { last: 0, .. }, crate::Event::Census { .. }] = events.as_ref() else {
         unreachable!("empty fixture disk opens: {events:?}");
@@ -83,10 +79,10 @@ fn opened(disk: &mut Disk) -> Store {
     store
 }
 
-fn planning_store(sets: PatchSets) -> Store {
+fn planning_store(sets: OwnerSets) -> Store {
     let mut store = fixtures::over(fixtures::stores());
     store.application.version = 0;
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     let events = fixtures::run(
         &mut store,
         crate::Request::Open {
@@ -126,8 +122,8 @@ fn assert_counts(parsed: &[&str], layouts: u32) {
 #[test]
 fn held_rows_reuse_each_parse_and_layout() {
     let mut store =
-        planning_store(PatchSets { sets: &[PatchSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] });
-    store.patch_sets(SETS);
+        planning_store(OwnerSets { sets: &[OwnerSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] });
+    store.owner_sets(SETS);
     fixtures::plant(
         &mut store.stores,
         &[skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 2, 0, 42]) }],
@@ -148,7 +144,7 @@ fn held_rows_reuse_each_parse_and_layout() {
 fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT], 1);
+    assert_counts(&[CURRENT], 1);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
     let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
     value.encode(&mut writer).expect("fixture row encodes");
@@ -166,7 +162,7 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
         ],
     );
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT], 1);
+    assert_counts(&[CURRENT], 1);
     assert_eq!(store.registry.rows.len(), 2);
     for (_, row) in &store.registry.rows {
         assert!(!row.retire, "both stored ids have values and need their checks");
@@ -176,12 +172,11 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
 
 #[test]
 fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
-    use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, HOLDER};
+    use jig_test_patches::layouts::{CHILD_CURRENT, HOLDER};
     const OTHER: &str =
         "family fixture-other 1\nversioned record Other { child: bytes 32 holds fixture-child Child }\n";
     const HOLDER_FAMILY: KeptFamily = KeptFamily {
         name: "fixture-holder",
-        texts: &[HOLDER],
         current: HOLDER,
         keys: &[Keys { from: b"h", to: b"i", root: "Row" }, Keys { from: b"j", to: b"k", root: "Row" }],
         types: &[
@@ -190,22 +185,14 @@ fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
         ],
         ..FAMILY
     };
-    const SETS: PatchSets = PatchSets {
-        sets: &[PatchSet {
+    const SETS: OwnerSets = OwnerSets {
+        sets: &[OwnerSet {
             families: &[
                 FAMILY,
                 HOLDER_FAMILY,
-                KeptFamily {
-                    name: "fixture-child",
-                    texts: &[CHILD],
-                    current: CHILD_CURRENT,
-                    keys: &[],
-                    types: &[],
-                    ..FAMILY
-                },
+                KeptFamily { name: "fixture-child", current: CHILD_CURRENT, keys: &[], types: &[], ..FAMILY },
                 KeptFamily {
                     name: "fixture-other",
-                    texts: &[OTHER],
                     current: OTHER,
                     keys: &[Keys { from: b"o", to: b"p", root: "Other" }],
                     types: &[ValueType {
@@ -222,7 +209,7 @@ fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
     };
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT, HOLDER, CHILD, CHILD_CURRENT, OTHER], 4);
+    assert_counts(&[CURRENT, HOLDER, CHILD_CURRENT, OTHER], 4);
     assert_eq!(counting::get().held.len(), 3);
     assert_schemas_dropped(&store.registry);
 }
@@ -244,7 +231,7 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
             .expect("fixture text key");
     fixtures::plant(&mut store.stores, &[skein_kv::Op::Put { key, value: writer.finish() }]);
     let last = store.stores.store.last();
-    assert_eq!(super::open(&mut store, false), Err(crate::OpenRefusal::Set { owner: Owner::Application, patch: 0 }));
+    assert_eq!(super::open(&mut store, false), Err(crate::OpenRefusal::Set { owner: Owner::Application }));
     assert!(store.registry.texts.is_empty());
     assert!(store.registry.rows.is_empty());
     assert!(store.registry.types.is_empty());

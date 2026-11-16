@@ -1,5 +1,5 @@
 //! The copy's read-only check before the switch (protocol/store/opening.md 2, step 5).
-use super::plan::Levels;
+use super::admission::Levels;
 use crate::codec::component::{Count, CountParts};
 use crate::directory::OWNER;
 use crate::generations::PAGE;
@@ -61,12 +61,12 @@ pub(crate) fn count(store: &mut Store, owner: Owner, family: &KeptFamily) -> Opt
 
 pub(crate) fn before(store: &mut Store) -> Option<List<Counted>> {
     let mut counts = List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             let before = count(store, set.owner, family)?;
             counts
                 .push(Counted { owner: set.owner, family: *family, before })
-                .expect("plan::bounds checked the families' count before the plan");
+                .expect("admission::bounds checked the families' count before the plan");
         }
     }
     Some(counts)
@@ -80,7 +80,7 @@ pub(crate) fn counts(store: &mut Store, before: List<Counted>) -> Result<List<Co
             &crate::component_v3::CEILINGS,
             CountParts { family: Box::from(counted.family.name.as_bytes()), before: counted.before, after },
         )
-        .expect("plan::bounds checked each family's name before the plan");
+        .expect("admission::bounds checked each family's name before the plan");
         counts.push(count).expect("one count per kept family");
     }
     Ok(counts)

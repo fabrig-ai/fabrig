@@ -12,7 +12,7 @@ fn selected_open_defers_a_missing_ended_owner_and_refusing_start_keeps_the_sourc
     let position = Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE + 1, party: 1, through: 1 });
     let mut world = Records::story().committed_with(913, BASE, patches::limits(), core::slice::from_ref(&position));
     let before = patches::source(&mut world);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open().expect("selected open leaves the upgraded copy pending");
     assert_eq!(world.start_open_failure(), None);
     assert_eq!(world.active(), b"1\n");
@@ -58,7 +58,7 @@ fn selected_open_still_refuses_an_undecodable_live_row_before_switch() {
     let before = patches::source(&mut world);
     let mut lowered = patches::limits();
     lowered.core.tasks.dependencies = 0;
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.restart_with_limits(916, lowered);
     assert_eq!(world.open(), None);
     assert_eq!(world.refusal(), Some(&OpenRefusal::Check { why: Check::Load { key: key.clone() } }));
@@ -88,7 +88,7 @@ fn selected_open_preserves_present_ended_owner_corruption_for_the_census() {
     let mut world = Records::story().committed_with(917, BASE, patches::limits(), &[ended, position]);
     let mut lowered = patches::limits();
     lowered.core.tasks.spec_bytes = 1;
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.restart_with_limits(918, lowered);
     world.open().expect("owner decoding belongs to census");
     let failure = world

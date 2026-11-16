@@ -1,6 +1,6 @@
 //! Equal-level fixture binaries and their independent record model (protocol/store/README.md 9).
 use crate::{World, root, world::Change};
-use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, SecretOwner, Secrets, Write};
+use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets, Write};
 use jig_test_patches::{self as fixture, patches as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Secret;
@@ -14,11 +14,9 @@ const LABEL: KeptFamily = KeptFamily {
         variant: None,
         keys: &[jig_protocol_store::KeyRange { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO }],
     }],
-    flights: &[],
     frames: None,
     name: "fixture-label",
     map: KeptMap::Store,
-    texts: &[app::kept::fixture_label::TEXTS[0]],
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
@@ -30,11 +28,9 @@ const SHELF: KeptFamily = KeptFamily {
         variant: None,
         keys: &[jig_protocol_store::KeyRange { from: fixture::keys::SHELVES_FROM, to: fixture::keys::SHELVES_TO }],
     }],
-    flights: &[],
     frames: None,
     name: "fixture-shelf",
     map: KeptMap::Store,
-    texts: &[app::kept::fixture_shelf::TEXTS[0]],
     keys: &[Keys {
         from: fixture::keys::SHELVES_FROM,
         to: fixture::keys::SHELVES_TO,
@@ -45,10 +41,8 @@ const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
     current: app::kept::fixture_token::TEXTS[0],
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-token",
-    texts: &[app::kept::fixture_token::TEXTS[0]],
     map: KeptMap::Secrets,
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
@@ -61,31 +55,20 @@ const NOTE: KeptFamily = KeptFamily {
         variant: None,
         keys: &[jig_protocol_store::KeyRange { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO }],
     }],
-    flights: &[],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
-    texts: &[jig::kept::fixture_note::TEXTS[0]],
     keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
 };
-const APPLICATION: PatchSet = PatchSet {
+const APPLICATION: OwnerSet = OwnerSet {
     jobs: &[],
-    fresh: None,
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
     level: Some(0),
-    patches: &[],
 };
-const JIG: PatchSet = PatchSet {
-    jobs: &[],
-    fresh: None,
-    owner: Owner::Jig,
-    name: upstream::NAME,
-    families: &[NOTE],
-    level: Some(0),
-    patches: &[],
-};
+const JIG: OwnerSet =
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], level: Some(0) };
 /// A read-only fixture job makes an upgrade without changing any layout or level
 /// (protocol/store/jobs.md, 1–3). Each test's source omits its done row.
 pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
@@ -95,12 +78,12 @@ pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
     settles: false,
     counts: &[],
 };
-pub const BASE: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
-pub const SETS: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[JOB], ..APPLICATION }, JIG] };
+pub const BASE: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };
+pub const SETS: OwnerSets = OwnerSets { sets: &[OwnerSet { jobs: &[JOB], ..APPLICATION }, JIG] };
 /// A distinct pending job makes the next upgrade, still at the same levels.
-pub const NEXT: PatchSets = PatchSets {
+pub const NEXT: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet { jobs: &[JOB, jig_protocol_store::Job { name: "inspect-fixtures-again", ..JOB }], ..APPLICATION },
+        OwnerSet { jobs: &[JOB, jig_protocol_store::Job { name: "inspect-fixtures-again", ..JOB }], ..APPLICATION },
         JIG,
     ],
 };
@@ -223,7 +206,7 @@ impl Records {
     }
 
     #[must_use]
-    pub fn committed(&self, seed: u64, sets: PatchSets) -> World {
+    pub fn committed(&self, seed: u64, sets: OwnerSets) -> World {
         self.committed_with(seed, sets, limits(), &[])
     }
 
@@ -232,12 +215,12 @@ impl Records {
     pub fn committed_with(
         &self,
         seed: u64,
-        sets: PatchSets,
+        sets: OwnerSets,
         limits: jig_protocol_store::Limits,
         rows: &[jig_domain_core::Record],
     ) -> World {
         let mut world = World::unopened_observed(seed, limits, None);
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         assert_eq!(world.open_switched(), Some(0));
         let mut writes = self.writes().into_vec();
         writes.extend(rows.iter().cloned().map(Write::Save));
@@ -390,51 +373,51 @@ pub fn counts(world: &mut World) -> Vec<(Vec<u8>, u64, u64)> {
 }
 
 /// Frame patches are used only at read; opens compare equal owner levels.
-pub const FRAME_SETS: PatchSets = PatchSets {
+pub const FRAME_SETS: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             level: Some(2),
-            patches: jig::PATCHES,
-            fresh: None,
             families: &[KeptFamily {
                 retired: &[],
                 current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-frame",
-                texts: jig::kept::fixture_frame::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_jig::FRAME_ROOT),
+                frames: Some(jig_protocol_store::Frames {
+                    root: jig_test_patches_jig::FRAME_ROOT,
+                    texts: jig::kept::fixture_frame::TEXTS,
+                    patches: jig::PATCHES,
+                }),
             }],
         },
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             level: Some(1),
-            patches: jig_test_patches_smith::patches::PATCHES,
-            fresh: None,
             families: &[KeptFamily {
                 retired: &[],
                 current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-turn",
-                texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_smith::ROOT),
+                frames: Some(jig_protocol_store::Frames {
+                    root: jig_test_patches_smith::ROOT,
+                    texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
+                    patches: jig_test_patches_smith::patches::PATCHES,
+                }),
             }],
         },
     ],
 };
 /// The frame fixture declares its job only on the upgrading open.
-pub const FRAME_BASE: PatchSets = PatchSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
-pub const FRAME_JOBS: PatchSets = PatchSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
+pub const FRAME_BASE: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
+pub const FRAME_JOBS: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
 
 #[must_use]
 pub fn frame_limits() -> jig_protocol_store::Limits {
@@ -476,7 +459,7 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 #[must_use]
 pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     let mut world = World::unopened_observed(seed, frame_limits(), None);
-    world.patch_sets(FRAME_BASE);
+    world.owner_sets(FRAME_BASE);
     world.open_switched().expect("frame fixture open");
     let bytes = fixture_turn(1, FRAME_SAID, FRAME_REPLAY, 0);
     let mut number = 0;
@@ -503,25 +486,6 @@ pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
 /// Current real owner sets for the registry and opening-metadata suites. No
 /// eager map patch is part of these binaries; frame fixtures use `FRAME_SETS`.
 #[must_use]
-pub fn current(sets: PatchSets) -> PatchSets {
-    PatchSets {
-        sets: Box::leak(
-            sets.sets
-                .iter()
-                .map(|set| PatchSet {
-                    patches: &[],
-                    fresh: None,
-                    families: Box::leak(
-                        set.families
-                            .iter()
-                            .map(|family| KeptFamily { flights: &[], ..*family })
-                            .collect::<Vec<_>>()
-                            .into_boxed_slice(),
-                    ),
-                    ..*set
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        ),
-    }
+pub const fn current(sets: OwnerSets) -> OwnerSets {
+    sets
 }

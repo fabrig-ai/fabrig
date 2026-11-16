@@ -437,13 +437,13 @@ fn only_the_first_commit_records_the_binarys_levels_and_layouts() {
     use super::owners::{BASE, SETS, levels};
     for (first_sets, later_sets, expected) in [(BASE, SETS, levels(0, 0)), (SETS, BASE, levels(2, 2))] {
         let mut store = fixtures::opened();
-        store.patch_sets(first_sets);
+        store.owner_sets(first_sets);
         assert_committed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
         let first = format_row(&mut store);
         assert_eq!(first.levels, expected);
         let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key");
         let layouts = fixtures::get_kv(&mut store, &key).expect("layouts");
-        store.patch_sets(later_sets);
+        store.owner_sets(later_sets);
         store.layouts.core[0] ^= 1;
         assert_committed(&commit(&mut store, 2, Box::new([fixtures::header(2)])), 2);
         assert_eq!(format_row(&mut store), first);

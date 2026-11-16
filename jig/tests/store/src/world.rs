@@ -2,8 +2,8 @@
 use crate::{model::Model, root};
 use jig_domain_core as core;
 use jig_protocol_store::{
-    Arrived, Below, Counts, Event, Get, Io, Load, OpenRefusal, Owner, PatchSets, Request, Restore, Root, Row, Secrets,
-    Store, TranscriptRead, Write,
+    Arrived, Below, Event, Get, Io, Load, OpenRefusal, Owner, OwnerSets, Request, Restore, Root, Row, Secrets, Store,
+    TranscriptRead, Write,
 };
 use skein_fake_machine::{Machine, serve};
 use skein_io::{
@@ -34,10 +34,9 @@ impl Restored {
 
 pub struct World {
     observer: Option<fn(Step)>,
-    sets: PatchSets,
+    sets: OwnerSets,
     scratch: Option<Root>,
     scratch_disk: Option<u32>,
-    patched: Vec<(Owner, u32, Counts)>,
     ran: Vec<(Owner, Box<str>, u64, u64)>,
     refusal: Option<OpenRefusal>,
     kernel_cuts: bool,
@@ -212,10 +211,9 @@ impl World {
         }
         World {
             observer,
-            sets: PatchSets::NONE,
+            sets: OwnerSets::NONE,
             scratch: None,
             scratch_disk: None,
-            patched: Vec::new(),
             ran: Vec::new(),
             refusal: None,
             kernel_cuts: false,
@@ -264,14 +262,9 @@ impl World {
         self.store.start_open_failure()
     }
 
-    pub fn patch_sets(&mut self, sets: PatchSets) {
+    pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.sets = sets;
-        self.store.patch_sets(sets);
-    }
-
-    #[must_use]
-    pub fn patched(&self) -> &[(Owner, u32, Counts)] {
-        &self.patched
+        self.store.owner_sets(sets);
     }
 
     #[must_use]
@@ -389,8 +382,7 @@ impl World {
             seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
         );
         self.store = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
-        self.store.patch_sets(self.sets);
-        self.patched.clear();
+        self.store.owner_sets(self.sets);
         self.ran.clear();
         self.refusal = None;
         self.changes.clear();
@@ -642,7 +634,6 @@ impl World {
 
     /// Start an open whose fixture job pages the caller answers itself.
     pub fn begin_open(&mut self) -> Vec<Event> {
-        self.patched.clear();
         self.ran.clear();
         self.refusal = None;
         self.request(Request::Open { owner: OWNER, root: self.root, installation: self.drawn })
@@ -668,7 +659,6 @@ impl World {
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                     }
-                    Event::Patched { of, patch, counts, .. } => self.patched.push((of, patch, counts)),
                     Event::Opened { last, installation, pending, .. } => {
                         self.pending = pending;
                         self.installation = installation;

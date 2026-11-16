@@ -1,7 +1,7 @@
 //! Rehearsal and rollback on the one-process world's disk, service and configuration.
 use super::{CURRENT_SETS, JOB, first_sets, maps::Maps};
 use crate::{fixtures, referee, stories, world};
-use jig_protocol_store::{Owner, PatchSets};
+use jig_protocol_store::{Owner, OwnerSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
@@ -32,9 +32,9 @@ fn configured(document: &[u8]) -> temper_service::Service {
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
 }
 
-fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> (String, u8, Progress) {
+fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> (String, u8, Progress) {
     let mut service = configured(document);
-    service.patch_sets(sets);
+    service.owner_sets(sets);
     let mut sim = Sim::new(fixtures::SEED, skein_sim::Config::calm());
     let pid = sim.spawn_process();
     let source = disk.reopen_root(0);
@@ -59,10 +59,7 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
     for _ in 0..100_000 {
         temper_service::iterate(&mut service, sim.now(), sim.wall());
         while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Engine(
-                note @ (temper_engine_service::Note::Patched { .. } | temper_engine_service::Note::Ran { .. }),
-            ) = note
-            {
+            if let temper_service::Note::Engine(note @ temper_engine_service::Note::Ran { .. }) = note {
                 progress.push(note);
             }
         }
@@ -175,7 +172,7 @@ fn source_rehearsal(format: &[u8], expected: &str) {
     disk.close(root);
     let before = image(&mut disk);
     let (report, code, patches) =
-        drive(&mut disk, &fixtures::document(), temper_engine_service::store::PATCH_SETS, Until::Check);
+        drive(&mut disk, &fixtures::document(), temper_engine_service::store::OWNER_SETS, Until::Check);
     eprintln!("{report}");
     assert_eq!(code, 1, "{report}");
     assert!(report.contains(expected), "{report}");
@@ -219,10 +216,10 @@ fn tree(disk: &mut Machine, root: Opened, prefix: &[u8], result: &mut Image) {
     }
 }
 
-fn stopped_chat(sets: PatchSets) -> Machine {
+fn stopped_chat(sets: OwnerSets) -> Machine {
     let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
     let settings = fixtures::calm(fixtures::SEED);
-    let (first, disk, _) = world::with_patch_sets(sets, || {
+    let (first, disk, _) = world::with_owner_sets(sets, || {
         world::run_phase(
             settings,
             scenario,
@@ -241,7 +238,7 @@ pub fn opened_worker_rehearsal() {
     let mut disk = stopped_chat(CURRENT_SETS);
     let document = fixtures::document();
     let before = image(&mut disk);
-    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::PATCH_SETS, Until::Check);
+    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
@@ -265,7 +262,10 @@ pub fn rehearsal_then_start_and_back() {
     assert!(*commits > 0, "the job's end is committed");
     assert!(counts.iter().all(|count| count.count == 0), "no deleted repository in this story");
     assert!(report.contains(&format!("ran temper {JOB}: {rows} rows in {commits} commits")), "{report}");
-    assert!(report.contains("patches and restores pass; what follows the switch is not rehearsed"), "{report}");
+    assert!(
+        report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),
+        "{report}"
+    );
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), original, "rehearsal leaves every deployment byte unchanged");
     let (_, _, actual) = drive(&mut disk, &document, CURRENT_SETS, Until::Switched);
@@ -311,17 +311,12 @@ pub fn golden(directory: &Path) {
     let (report, code, patches) = drive(
         &mut disk,
         &serde_json::to_vec(&document).expect("configuration"),
-        temper_engine_service::store::PATCH_SETS,
+        temper_engine_service::store::OWNER_SETS,
         Until::Check,
     );
     assert_eq!(code, 1, "{report}");
     assert!(patches.is_empty(), "refusal precedes every patch");
-    assert!(
-        report.contains(
-            "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
-        ),
-        "{report}"
-    );
-    assert!(!report.contains("patches and restores pass"), "{report}");
+    assert!(report.contains("holds a store from before the baseline"), "{report}");
+    assert!(!report.contains("registry commit, jobs and restores pass"), "{report}");
     assert_eq!(image(&mut disk), before);
 }

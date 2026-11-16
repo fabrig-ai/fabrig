@@ -25,8 +25,8 @@ pub(super) fn family(owner: Owner) -> KeptFamily {
         ..FAMILY
     }
 }
-pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
-    PatchSet { owner, name: "fixture-layouts", families: Box::leak(Box::new([family])), jobs, ..SET }
+pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> OwnerSet {
+    OwnerSet { owner, name: "fixture-layouts", families: Box::leak(Box::new([family])), jobs, ..SET }
 }
 pub(super) fn key(owner: Owner, ty: usize, suffix: u8) -> Box<[u8]> {
     let from = family(owner).types[ty].keys[0].from;
@@ -285,9 +285,7 @@ fn settling_admission_requires_an_unparameterized_single_job_with_registered_typ
             } else {
                 assert!(
                     {
-                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of, patch: 0 }, .. }] =
-                            events.as_ref()
-                        {
+                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of }, .. }] = events.as_ref() {
                             *of == owner
                         } else {
                             false

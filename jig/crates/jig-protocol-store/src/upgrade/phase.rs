@@ -1,4 +1,4 @@
-//! The store's patch phase, between the open's checks and cuts (protocol/store/opening.md 2).
+//! The store's upgrade phase, between the open's checks and cuts (protocol/store/opening.md 2).
 use super::check::{self, Checking, Counted};
 use crate::directory::{OWNER, Opening};
 use crate::generations::{Copying, Dropping, Map, Progress};
@@ -8,18 +8,7 @@ use skein_io::{file, kernel::Error};
 use skein_lib::{Env, List, Queue};
 mod jobs;
 mod sealing;
-mod walking;
 pub(crate) use jobs::answer as job;
-pub(crate) use walking::Walking;
-
-/// What open's checks leave for the phase (protocol/store/opening.md 2, step 1).
-#[derive(Debug)]
-pub(crate) struct Pending {
-    pub plan: super::plan::Plan,
-    pub machines: super::machines::Machines,
-    /// The row's levels before the walk, retained for the manifest.
-    pub found: super::plan::Levels,
-}
 
 /// Closing counts two KV close bits (1, 2), then two directory
 /// close bits (4, 8); Recovering two KV open bits (1, 2).
@@ -30,9 +19,8 @@ pub(crate) enum Patching {
     Copying(Copying),
     Mapping { secrets: bool },
     Recovering { opened: u8 },
-    Walking(Box<Walking>),
     Jobs(Box<jobs::Running>),
-    Sealing { number: u64, before: super::plan::Levels, counts: List<Counted> },
+    Sealing { number: u64, before: super::admission::Levels, counts: List<Counted> },
     Checking(Box<Checking>),
 }
 fn root(store: &Store) -> Root {
@@ -85,7 +73,7 @@ fn take(store: &mut Store) -> Box<Patching> {
 pub(crate) fn begin(
     store: &mut Store,
     env: &Env<Limits>,
-    pending: Box<Pending>,
+    pending: Box<super::admission::Levels>,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
@@ -163,14 +151,10 @@ fn open_copy(store: &mut Store, below: &mut Below) {
 fn opened_copy(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     let pending = store.directory.patch.take().expect("begin retained the plan until copy recovery");
     let Some(counts) = check::before(store) else { return refuse(store, above) };
-    match walking::opened(store, pending, counts) {
-        Some(walking) => {
-            state(store, Patching::Walking(Box::new(walking)));
-            walking::resume(store, env, above, below);
-        }
-        None => refuse(store, above),
-    }
+    let Some(sealing) = sealing::opened(store, *pending, counts) else { return refuse(store, above) };
+    jobs::begin(store, env, sealing, above, below);
 }
+
 fn recovering(store: &Store) -> bool {
     match directory::patching(store) {
         Some(Patching::Recovering { .. }) => true,
@@ -180,7 +164,6 @@ fn recovering(store: &Store) -> bool {
             | Patching::Dropping(_)
             | Patching::Copying(_)
             | Patching::Mapping { .. }
-            | Patching::Walking(_)
             | Patching::Jobs(_)
             | Patching::Sealing { .. }
             | Patching::Checking(_),
@@ -206,7 +189,6 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
             | Patching::Copying(_)
             | Patching::Mapping { .. }
             | Patching::Recovering { .. }
-            | Patching::Walking(_)
             | Patching::Sealing { .. }
             | Patching::Checking(_),
         )
@@ -266,7 +248,6 @@ pub(crate) fn event(
                 | Patching::Mapping { .. }
                 | Patching::Recovering { .. }
                 | Patching::Jobs(_)
-                | Patching::Walking(_)
                 | Patching::Sealing { .. }
                 | Patching::Checking(_) => return refuse(store, above),
             };
@@ -288,7 +269,6 @@ pub(crate) fn event(
                 | Patching::Dropping(_)
                 | Patching::Copying(_)
                 | Patching::Jobs(_)
-                | Patching::Walking(_)
                 | Patching::Sealing { .. }
                 | Patching::Checking(_) => refuse(store, above),
             }
@@ -299,13 +279,6 @@ pub(crate) fn event(
             }
             let phase = take(store);
             match *phase {
-                Patching::Walking(mut walking) => {
-                    if !walking.committed(if secret { crate::KeptMap::Secrets } else { crate::KeptMap::Store }, number)
-                    {
-                        return refuse(store, above);
-                    }
-                    state(store, Patching::Walking(walking));
-                }
                 Patching::Jobs(mut running) if !secret => {
                     if !running.committed(number, above, store.directory.owner) {
                         return refuse(store, above);
@@ -350,7 +323,6 @@ pub(crate) fn ready(store: &Store) -> bool {
     }
     match directory::patching(store) {
         Some(phase) => match phase {
-            Patching::Walking(walking) => walking.ready(),
             Patching::Jobs(running) => running.ready(),
             Patching::Recovering { opened: 3 } | Patching::Sealing { number: 0, .. } => true,
             Patching::Recovering { .. }
@@ -371,7 +343,6 @@ pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
     if let Some(phase) = directory::patching(store) {
         match *phase {
             Patching::Recovering { opened: 3 } => opened_copy(store, env, above, below),
-            Patching::Walking(_) => walking::resume(store, env, above, below),
             Patching::Jobs(_) => jobs::resume(store, env, above, below),
             Patching::Sealing { number: 0, .. } => checking(store, above, below),
             Patching::Recovering { .. }
@@ -394,7 +365,6 @@ fn checking(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
         | Patching::Mapping { .. }
         | Patching::Recovering { .. }
         | Patching::Jobs(_)
-        | Patching::Walking(_)
         | Patching::Sealing { .. }
         | Patching::Checking(_) => unreachable!("resume routed the durable seal"),
     };
@@ -425,7 +395,7 @@ fn file_up(
             Progress::Failed => refuse(store, above),
         },
         Patching::Mapping { secrets } => opened_directory(store, env, secrets, arrived, above, below),
-        Patching::Recovering { .. } | Patching::Jobs(_) | Patching::Walking(_) | Patching::Sealing { .. } => {
+        Patching::Recovering { .. } | Patching::Jobs(_) | Patching::Sealing { .. } => {
             refuse(store, above);
         }
         Patching::Checking(mut checking) => match check::up(&mut checking, arrived, below) {
@@ -485,41 +455,5 @@ fn opened_directory(
             path: generations::map(number, Map::Secrets),
         });
         state(store, Patching::Mapping { secrets: true });
-    }
-}
-
-/// A record's halt abandons the copy with its key and the step that refused it.
-pub(crate) fn site(
-    store: &mut Store,
-    env: &Env<Limits>,
-    owner: skein_lib::Token,
-    patcher: Box<skein_codec::patch::Patcher>,
-    result: Result<(), skein_codec::patch::Halt>,
-    above: &mut Queue<Event>,
-    below: &mut Below,
-) {
-    if owner != store.directory.owner {
-        return refuse(store, above);
-    }
-    if directory::patching(store).is_none() {
-        return refuse(store, above);
-    }
-    let phase = take(store);
-    match *phase {
-        Patching::Walking(mut walking) => {
-            if let Err(why) = walking.answer(patcher, result) {
-                return open::refuse(store, store.directory.owner, why, above);
-            }
-            state(store, Patching::Walking(walking));
-            resume(store, env, above, below);
-        }
-        Patching::Closing { .. }
-        | Patching::Dropping(_)
-        | Patching::Copying(_)
-        | Patching::Mapping { .. }
-        | Patching::Recovering { .. }
-        | Patching::Sealing { .. }
-        | Patching::Jobs(_)
-        | Patching::Checking(_) => refuse(store, above),
     }
 }

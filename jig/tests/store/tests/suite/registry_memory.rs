@@ -1,5 +1,5 @@
 //! Real registered sets at open (protocol/store/layouts.md, 7).
-use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, ValueType, Write};
+use jig_protocol_store::{KeptFamily, OwnerSet, OwnerSets, ValueType, Write};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 use skein_heap::Meter;
@@ -13,16 +13,25 @@ const EMPTY_REGISTRY: u64 = 9_900;
 const SEEDED_PEAK: u64 = 7_000_000;
 const SEEDED_REGISTRY: u64 = 2_400_000;
 
-const SETS: PatchSets = PatchSets {
-    sets: &[
-        jig_protocol_store::SKEIN_PATCH_SET,
-        jig_protocol_store::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-    ],
-};
+const SETS: OwnerSets =
+    OwnerSets { sets: &[jig_protocol_store::SKEIN_SET, jig_protocol_store::SMITH_SET, jig_protocol_accounts::JIG_SET] };
+
+// A source binary registers these fixture layouts in its first commit.
+fn kept_text(family: &KeptFamily) -> &'static str {
+    use jig_protocol_store::patches::kept;
+    match family.name {
+        "jig-store-core" => kept::jig_store_core::TEXTS.last().expect("fixture text"),
+        "jig-store-tasks" => kept::jig_store_tasks::TEXTS.last().expect("fixture text"),
+        "jig-store-people" => kept::jig_store_people::TEXTS.last().expect("fixture text"),
+        "jig-store-notes" => kept::jig_store_notes::TEXTS.last().expect("fixture text"),
+        "jig-store-accounts" => kept::jig_store_accounts::TEXTS.last().expect("fixture text"),
+        "jig-store-settings" => kept::jig_store_settings::TEXTS.last().expect("fixture text"),
+        _ => family.current,
+    }
+}
 
 fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
-    let text = family.texts.last().copied().unwrap_or(family.current);
+    let text = kept_text(family);
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
     let mut kept: Vec<ValueType> = Vec::new();
     for ty in family.types {
@@ -40,7 +49,7 @@ fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
     Box::leak(kept.into_boxed_slice())
 }
 
-fn sets(kept: bool, registered: bool) -> PatchSets {
+fn sets(kept: bool, registered: bool) -> OwnerSets {
     let sets = SETS
         .sets
         .iter()
@@ -49,9 +58,8 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .families
                 .iter()
                 .map(|family| KeptFamily {
-                    flights: &[],
                     retired: if registered { family.retired } else { &[] },
-                    current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
+                    current: if kept { kept_text(family) } else { family.current },
                     types: if !registered {
                         &[]
                     } else if kept {
@@ -62,9 +70,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                     ..*family
                 })
                 .collect::<Vec<_>>();
-            PatchSet {
-                patches: &[],
-                fresh: None,
+            OwnerSet {
                 families: Box::leak(families.into_boxed_slice()),
                 jobs: if !registered {
                     &[]
@@ -84,12 +90,12 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
             }
         })
         .collect::<Vec<_>>();
-    PatchSets { sets: Box::leak(sets.into_boxed_slice()) }
+    OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
 
-fn seeded(sets: PatchSets) -> Vec<Item> {
+fn seeded(sets: OwnerSets) -> Vec<Item> {
     let mut world = World::unopened(7);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world
@@ -108,12 +114,12 @@ struct Measured {
     private: u64,
 }
 
-fn measure(items: &[Item], sets: PatchSets) -> Measured {
+fn measure(items: &[Item], sets: OwnerSets) -> Measured {
     let meter = Meter::new();
     meter.start();
     let mut world = World::unopened(7);
     world.lay(items);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert!(world.open_switched().is_some(), "{:?}", world.refusal());
     if items.is_empty() {
         assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));

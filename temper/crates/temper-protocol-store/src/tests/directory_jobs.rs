@@ -7,19 +7,18 @@
     reason = "ordinary Rust disk fixtures"
 )]
 use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
-use jig_protocol_store::{self as store, Event, Get, PatchSet, PatchSets, Request, Row, Store, Write};
+use jig_protocol_store::{self as store, Event, Get, OwnerSet, OwnerSets, Request, Row, Store, Write};
 use skein_lib::Token;
 #[path = "directory_disk.rs"]
 pub(super) mod disk;
 use disk::Disk;
 
-pub(super) const SETS: PatchSets = PatchSets {
-    sets: &[store::SKEIN_PATCH_SET, store::SMITH_PATCH_SET, jig_protocol_accounts::JIG_PATCH_SET, crate::PATCH_SET],
-};
-pub(super) fn component(disk: &Disk, sets: PatchSets) -> Store {
+pub(super) const SETS: OwnerSets =
+    OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, crate::OWNER_SET] };
+pub(super) fn component(disk: &Disk, sets: OwnerSets) -> Store {
     let app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
     let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     store
 }
 pub(super) fn header(number: u64) -> Record {
@@ -37,14 +36,14 @@ pub(super) fn header(number: u64) -> Record {
         commits: number,
     }))
 }
-fn without_deleted_repository_job() -> PatchSets {
-    PatchSets {
+fn without_deleted_repository_job() -> OwnerSets {
+    OwnerSets {
         sets: Box::leak(
             SETS.sets
                 .iter()
                 .map(
                     |set| {
-                        if set.name == "temper" { PatchSet { jobs: &crate::PATCH_SET.jobs[1..], ..*set } } else { *set }
+                        if set.name == "temper" { OwnerSet { jobs: &crate::OWNER_SET.jobs[1..], ..*set } } else { *set }
                     },
                 )
                 .collect::<Vec<_>>()
@@ -144,7 +143,7 @@ fn deleted_repository_job_runs_over_directory_pages_once_and_preserves_present_a
                 assert_eq!(&*job, JOB);
                 ran += 1;
                 let names: Vec<_> = counts.iter().map(|c| &*c.name).collect();
-                assert_eq!(names, crate::PATCH_SET.jobs[0].counts);
+                assert_eq!(names, crate::OWNER_SET.jobs[0].counts);
                 let counts: Vec<_> = counts.iter().map(|c| c.count).collect();
                 assert_eq!(counts, [u64::from(orphans + 2), 0, u64::from(orphans), 0, 0, 0, 0, 0, 0, 1, 1]);
             }

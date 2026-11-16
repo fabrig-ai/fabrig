@@ -13,7 +13,7 @@ pub(super) fn run(store: &mut Store, running: &mut Running) -> Result<Commit, Jo
         }
         running.first = false;
     }
-    let set = *crate::patching::plan::set(&store.patch_sets, owner).expect("admitted owner");
+    let set = *crate::upgrade::admission::set(&store.owner_sets, owner).expect("admitted owner");
     let mut ordered = Map::uncapped();
     for family in set.families {
         for ty in family.types {

@@ -25,7 +25,7 @@ fn a_registered_layout_defaults_an_added_list() {
 
 #[test]
 fn the_current_layout_has_no_whole_change_value_type() {
-    let family = crate::PATCH_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let current = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     assert!(current.root(b"Row", Some(b"change")).is_none());
     assert!(!family.types.iter().any(|ty| ty.number == 12));

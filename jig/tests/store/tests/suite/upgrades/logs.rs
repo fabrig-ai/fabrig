@@ -86,7 +86,7 @@ fn task_logs_link_across_shard_and_log_pages_and_survive_a_cut_after_copy() {
     // More than one page at both levels; no list of the whole tree is needed.
     let logs: Vec<_> = (0..33).chain((1..33).map(|shard| (shard << 12) + 6)).collect();
     let mut world = source_with(SEED, &logs);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     assert!(world.open().is_some(), "logs copied before pending switch: {:?}", world.refusal());
     assert_eq!(world.active(), b"1\n");
     check_logs(&mut world, 1, &logs, 2);
@@ -100,7 +100,7 @@ fn task_logs_link_across_shard_and_log_pages_and_survive_a_cut_after_copy() {
     world.crash(SEED);
     assert_eq!(logs_at(&mut world, 2), copied, "every shard and logs synced after their links");
     check_logs(&mut world, 1, &logs, 2);
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     world.open_switched().expect("old binary removes partial copy");
     assert!(logs_at(&mut world, 2).is_empty());
     check_logs(&mut world, 1, &logs, 1);
@@ -111,7 +111,7 @@ fn refused_task_log_links_copy_bytes_with_one_name() {
     for error in [Error::Permission, Error::TooManyLinks, Error::Other(18)] {
         let mut world = source(SEED);
         world.refuse_links(Some(error));
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         world.open().expect("refused log links copied");
         check_logs(&mut world, 1, LOGS, 1);
         check_logs(&mut world, 2, LOGS, 1);
@@ -127,13 +127,13 @@ fn copy_refuses_directories_outside_logs_and_below_shards() {
         let mut world = source(SEED);
         world.lay(&[Item::directory(unexpected.as_bytes()).mode(0o700)]);
         let before = logs_at(&mut world, 1);
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         assert_eq!(world.open(), None, "{unexpected}");
         assert!(world.refusal().is_some(), "unexpected entry refused");
         assert_eq!(world.active(), b"1\n");
         assert_eq!(logs_at(&mut world, 1), before);
         world.crash(SEED);
-        world.patch_sets(BASE);
+        world.owner_sets(BASE);
         world.open_switched().expect("refused copy cleaned with every handle drained");
         assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
     }
@@ -143,7 +143,7 @@ fn copy_refuses_directories_outside_logs_and_below_shards() {
 fn rehearsal_copies_task_logs_privately_and_empties_the_deep_scratch() {
     for (sets, pending) in [(BASE, false), (SETS, true)] {
         let mut world = source(SEED);
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         // Also exercise a patch inside the scratch on a file system without links.
         if pending {
             world.refuse_links(Some(Error::Other(18)));
@@ -178,14 +178,14 @@ fn rehearsal_copies_task_logs_privately_and_empties_the_deep_scratch() {
 fn back_before_the_first_own_commit_reopens_the_previous_task_logs() {
     let mut world = source(SEED);
     let before = logs_at(&mut world, 1);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("upgraded with logs");
     check_logs(&mut world, 2, LOGS, 2);
     world.crash(SEED);
     let events = world.back();
     assert!(matches!(events.as_slice(), [Event::Back { to: 1, .. }]), "{events:?}");
     world.crash(SEED);
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     assert_eq!(world.open_switched(), Some(2));
     assert_eq!(world.active(), b"1\n");
     assert_eq!(logs_at(&mut world, 1), before);

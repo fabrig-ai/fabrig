@@ -1,6 +1,6 @@
 //! Stopped-deployment tools over fixture sets (protocol/store/opening.md 5).
 use jig_protocol_store::{
-    BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, PatchSets, Request, Undecoded, Wire, Write,
+    BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, OwnerSets, Request, Undecoded, Wire, Write,
 };
 use jig_store_world::{
     World,
@@ -12,12 +12,12 @@ use skein_lib::Token;
 const SEED: u64 = 0x5245_4845;
 const OWNER: Token = Token::new(900);
 const WIRES: &[Wire] = &[Wire { name: "fixture-worker", version: 7 }];
-const MID: PatchSets = SETS;
-const AFTER: PatchSets = patches::NEXT;
+const MID: OwnerSets = SETS;
+const AFTER: OwnerSets = patches::NEXT;
 
 fn previous() -> World {
     let mut world = Records::story().committed(SEED, BASE);
-    world.patch_sets(MID);
+    world.owner_sets(MID);
     let last = world.open_switched().expect("first job upgrade");
     assert!(world.wires(WIRES));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(last + 1)), Write::Wires])), Some(last + 1));
@@ -26,7 +26,7 @@ fn previous() -> World {
 }
 fn without_wires(records: &Records) -> World {
     let mut world = World::unopened_observed(SEED, patches::limits(), None);
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     world.open().expect("source start");
     let writes =
         records.writes().into_vec().into_iter().filter(|write| !matches!(write, Write::Wires)).collect::<Vec<_>>();
@@ -39,22 +39,21 @@ fn close(world: &mut World) {
     assert!(matches!(events.as_slice(), [Event::Closed { owner: OWNER, removed: true }]), "{events:?}");
     assert!(world.scratch_contents().is_empty(), "scratch emptied");
 }
-fn rehearsal_lines(events: &[Event], wires: Option<&[KeptWire]>, fresh: bool) {
-    let Some(Event::Rehearsing { owner: OWNER, wires: found, fresh: actual, openings }) = events.first() else {
+fn rehearsal_lines(events: &[Event], wires: Option<&[KeptWire]>) {
+    let Some(Event::Rehearsing { owner: OWNER, wires: found, openings }) = events.first() else {
         panic!("first line: {events:?}")
     };
     assert!(openings.is_empty());
     assert_eq!(found.as_deref(), wires);
-    assert_eq!(*actual, fresh);
 }
 
 #[test]
 fn rehearsal_reports_kept_wires_and_job_counts_without_writing_source() {
     let mut world = previous();
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     let before = world.contents();
     let events = world.rehearse();
-    rehearsal_lines(&events, Some(&[KeptWire { name: "fixture-worker".into(), version: 7 }]), false);
+    rehearsal_lines(&events, Some(&[KeptWire { name: "fixture-worker".into(), version: 7 }]));
     assert!(events.iter().any(|event| matches!(event, Event::Decoded { owner: OWNER, records: 10 })), "{events:?}");
     assert!(events.iter().any(|event| matches!(event, Event::Ran { of: Owner::Application, job, rows: 3, commits: 2, .. } if job.as_ref() == patches::NEXT.sets[0].jobs[1].name)), "{events:?}");
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
@@ -69,7 +68,7 @@ fn equal_rehearsal_opens_its_own_generation_without_wires_or_pending_job() {
     let mut world = without_wires(&Records::story());
     let before = world.contents();
     let events = world.rehearse();
-    rehearsal_lines(&events, None, false);
+    rehearsal_lines(&events, None);
     assert!(
         matches!(
             events.as_slice(),
@@ -99,7 +98,7 @@ fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() 
         Some(last + 1)
     );
     world.crash(SEED);
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     let before = world.contents();
     let events = world.rehearse();
     let [
@@ -118,7 +117,7 @@ fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() 
     close(&mut world);
     assert_eq!(world.contents(), before, "failed walk and close leave source unchanged");
     world.crash(SEED);
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     assert!(
         world.open_switched().is_some(),
         "start upgrades without decoding the unchanged label: {:?}",
@@ -129,10 +128,10 @@ fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() 
 #[test]
 fn job_rehearsal_reads_shared_transcripts_without_cutting_them() {
     let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
-    world.patch_sets(patches::FRAME_JOBS);
+    world.owner_sets(patches::FRAME_JOBS);
     let before = world.contents();
     let events = world.rehearse();
-    rehearsal_lines(&events, None, false);
+    rehearsal_lines(&events, None);
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
     assert_eq!(
         world.get(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(root::LIVE))),
@@ -148,7 +147,7 @@ fn job_rehearsal_reads_shared_transcripts_without_cutting_them() {
 #[test]
 fn rehearsal_refuses_switch_and_close_is_only_for_rehearsals() {
     let mut world = previous();
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     let _ = world.rehearse();
     let before = world.contents();
     let events = world.request(Request::Switch { owner: OWNER });
@@ -165,12 +164,12 @@ fn rehearsal_refuses_switch_and_close_is_only_for_rehearsals() {
 #[test]
 fn next_rehearsal_empties_crashed_scratch_and_close_drains_an_open() {
     let mut world = previous();
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     let _ = world.rehearse();
     let old = world.scratch_contents();
     assert!(old.keys().any(|path| path.starts_with(b"generations/3")));
     world.crash(SEED);
-    world.patch_sets(MID);
+    world.owner_sets(MID);
     let events = world.rehearse();
     assert!(matches!(events.last(), Some(Event::Opened { pending: false, .. })), "{events:?}");
     assert!(!world.scratch_contents().keys().any(|path| path.starts_with(b"generations/3")));
@@ -183,7 +182,7 @@ fn next_rehearsal_empties_crashed_scratch_and_close_drains_an_open() {
 
 fn switched() -> (World, u64) {
     let mut world = Records::story().committed(SEED, BASE);
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     let last = world.open_switched().expect("upgraded and switched");
     world.crash(SEED);
     (world, last)
@@ -192,7 +191,7 @@ fn switched() -> (World, u64) {
 fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
     let before = world.contents();
-    world.patch_sets(patches::FRAME_JOBS);
+    world.owner_sets(patches::FRAME_JOBS);
     world.open_switched().expect("frame fixture job switched");
     world.crash(SEED);
     let (path, bytes) = before
@@ -207,7 +206,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.patch_sets(patches::FRAME_BASE);
+    world.owner_sets(patches::FRAME_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -298,7 +297,7 @@ fn back_durable_replace_cuts_open_one_whole_generation() {
         world.crash(SEED);
         let active = world.active();
         if active == b"1\n" {
-            world.patch_sets(BASE);
+            world.owner_sets(BASE);
             world.open().expect("old generation whole");
             Records::story().check_public(&mut world, &cut);
         } else {

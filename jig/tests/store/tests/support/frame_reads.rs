@@ -1,6 +1,6 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
-use jig_protocol_store::{self as store, Event, Owner, PatchSets, Request, Root, TranscriptRead, codec, format, keys};
+use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
 use jig_store_world::root;
 use jig_test_patches_jig::frames;
 use jig_test_patches_smith::patches as smith;
@@ -14,7 +14,7 @@ pub(crate) use jig_store_world::patches::FRAME_SETS as SETS;
 fn env(limits: &store::Limits) -> Env<store::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }
-pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
+pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
     let mut maps = store::Stores {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
@@ -60,7 +60,7 @@ pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, 
         &mut below,
     );
     let mut component = store::Store::over(limits, root::APPLICATION, &[], maps);
-    component.patch_sets(sets);
+    component.owner_sets(sets);
     (component, env(limits))
 }
 pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
@@ -85,10 +85,7 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
 pub(crate) use jig_store_world::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
-#[expect(
-    clippy::too_many_lines,
-    reason = "the exhaustive file-request table names token-rooted removal beside descriptor-rooted removal"
-)]
+
 pub(crate) fn decode(
     component: &mut store::Store,
     env: &Env<store::Limits>,
@@ -155,7 +152,6 @@ pub(crate) fn decode(
                 | Event::Back { .. }
                 | Event::BackRefused { .. }
                 | Event::Closed { .. }
-                | Event::Patched { .. }
                 | Event::Job { .. }
                 | Event::Ran { .. }) => panic!("decode event {other:?}"),
             }

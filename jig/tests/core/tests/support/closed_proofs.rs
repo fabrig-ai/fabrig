@@ -3,7 +3,7 @@ use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_link::{Hello, Hosting};
 use jig_domain_tasks as tasks;
-use jig_protocol_store::{KeptFamily, KeptMap, Owner, PatchSet, PatchSets};
+use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
 use jig_test_domain as root;
 use jig_test_patches_smith as fixture;
 use skein_lib::{Duration, Token};
@@ -13,28 +13,23 @@ const TURN: KeptFamily = KeptFamily {
     retired: &[],
     current: fixture::patches::kept::fixture_turn::TEXTS[0],
     types: &[],
-    flights: &[],
     name: "fixture-turn",
-    texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
     map: KeptMap::Store,
     keys: &[],
-    frames: Some(fixture::ROOT),
+    frames: Some(jig_protocol_store::Frames {
+        root: fixture::ROOT,
+        texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
+        patches: &[],
+    }),
 };
-const FIXTURE: PatchSet = PatchSet {
-    jobs: &[],
-    owner: Owner::Smith,
-    name: fixture::NAME,
-    families: &[TURN],
-    level: Some(0),
-    patches: &[],
-    fresh: None,
-};
-pub const SETS: PatchSets = PatchSets { sets: &[FIXTURE] };
+const FIXTURE: OwnerSet =
+    OwnerSet { jobs: &[], owner: Owner::Smith, name: fixture::NAME, families: &[TURN], level: Some(0) };
+pub const SETS: OwnerSets = OwnerSets { sets: &[FIXTURE] };
 // The fixture binary renders the said field of each loaded v1 turn.
 pub const TAIL: &[u8] = b"closed windowwindow continuation";
 
 fn turn_text(bytes: &[u8]) -> Option<Box<[u8]>> {
-    let schema = skein_codec::schema::parse(TURN.texts[0].as_bytes()).ok()?;
+    let schema = skein_codec::schema::parse(TURN.current.as_bytes()).ok()?;
     let root = schema.find(fixture::ROOT.as_bytes())?;
     let mut value = skein_codec::value::Value::with_room(3);
     let turn = value.decode(&schema, root, bytes.into()).ok()?;
@@ -49,7 +44,7 @@ pub fn turn(said: &[u8]) -> Box<[u8]> {
         bytes.extend(u32::try_from(field.len()).expect("fixture field size").to_be_bytes());
         bytes.extend(field);
     }
-    let schema = skein_codec::schema::parse(TURN.texts[0].as_bytes()).expect("kept v1 schema");
+    let schema = skein_codec::schema::parse(TURN.current.as_bytes()).expect("kept v1 schema");
     let root = schema.find(fixture::ROOT.as_bytes()).expect("fixture root");
     // One record and its two fields: validate the independent bytes against
     // the kept text, then take the value's canonical encoding.
@@ -59,7 +54,7 @@ pub fn turn(said: &[u8]) -> Box<[u8]> {
 }
 
 pub fn parked() -> World {
-    let mut world = World::new(Setup { seed: SEED, patch_sets: SETS, ..Setup::default() });
+    let mut world = World::new(Setup { seed: SEED, owner_sets: SETS, ..Setup::default() });
     world.store.transcript_text(turn_text);
     world.turn(1, 1, None, &turn(b"earlier window"));
     world.park_for_message(1);
@@ -70,8 +65,7 @@ pub fn parked() -> World {
     world
 }
 
-// protocol/store/opening.md, 2, step 4: plant the walk's result through
-// numbered store commits before the restart, leaving every other field alone.
+// Commit the fixture's closed proofs before the restart, leaving every other field alone.
 pub fn close(world: &mut World) {
     let rows = world
         .store

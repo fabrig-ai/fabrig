@@ -10,7 +10,7 @@ const FRAMING_BYTES: usize = 12;
 #[test]
 fn serving_shell_answers_sites_for_window_reads() {
     let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
-    world.patch_sets(patches::FRAME_JOBS);
+    world.owner_sets(patches::FRAME_JOBS);
     world.open_switched().expect("job copy opens");
     let frames = world.contents();
     let mut reads = vec![
@@ -35,7 +35,7 @@ fn serving_shell_answers_sites_for_window_reads() {
 #[test]
 fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
     let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
-    world.patch_sets(patches::FRAME_JOBS);
+    world.owner_sets(patches::FRAME_JOBS);
     world.open_switched().expect("job copy opens");
     let patched = patches::fixture_turn(
         2,

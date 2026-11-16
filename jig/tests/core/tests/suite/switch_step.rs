@@ -23,7 +23,7 @@ const RESTORES: &[core::start::Phase] = &[
 ];
 
 fn before() -> World {
-    let mut world = World::new(Setup { seed: f::SEED, patch_sets: f::SETS, ..Setup::default() });
+    let mut world = World::new(Setup { seed: f::SEED, owner_sets: f::SETS, ..Setup::default() });
     // Establish the recovered source bytes before comparing generations: a
     // normal open may trim a log's unused tail during recovery (protocol/store/opening.md, 1).
     world.store.crash(f::SEED).expect("crash readback");

@@ -297,65 +297,9 @@ fn the_callers_two_stores_are_handed_back_without_changes() {
 }
 
 #[test]
-fn a_store_without_recorded_layouts_refuses_before_decoding_its_header() {
-    let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), corrupt_header()]);
-    assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Unrecorded });
-}
-
-fn layouts_put(layouts: &codec::component::Layouts) -> skein_kv::Op {
-    skein_kv::Op::Put {
-        key: keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("layouts key fits"),
-        value: layouts.encode(),
-    }
-}
-
-#[test]
-fn each_different_family_layout_refuses_before_decoding_its_header() {
-    let layouts = crate::format::layouts();
-    let mut component = layouts;
-    component.component[0] ^= 1;
-    let mut core = layouts;
-    core.core[0] ^= 1;
-    let mut tasks = layouts;
-    tasks.tasks[0] ^= 1;
-    let mut people = layouts;
-    people.people[0] ^= 1;
-    let mut notes = layouts;
-    notes.notes[0] ^= 1;
-    let mut accounts = layouts;
-    accounts.accounts[0] ^= 1;
-    let mut settings = layouts;
-    settings.settings[0] ^= 1;
-    let mut secrets = layouts;
-    secrets.secrets[0] ^= 1;
-    let mut skein_oauth = layouts;
-    skein_oauth.skein_oauth[0] ^= 1;
-    let mut smith_transcript = layouts;
-    smith_transcript.smith_transcript[0] ^= 1;
-    for (family, changed) in [
-        (Family::Settings, settings),
-        (Family::Component, component),
-        (Family::Core, core),
-        (Family::Tasks, tasks),
-        (Family::People, people),
-        (Family::Notes, notes),
-        (Family::Accounts, accounts),
-        (Family::Secrets, secrets),
-        (Family::SkeinOauth, skein_oauth),
-        (Family::SmithTranscript, smith_transcript),
-    ] {
-        let mut store = planted(&[fixtures::format_put(fixtures::DEPLOYMENT), layouts_put(&changed), corrupt_header()]);
-        assert_refusal(&open(&mut store), OpenRefusal::OlderBuild { why: Older::Layout(family) });
-    }
-}
-
-#[test]
 fn undecodable_component_rows_refuse_as_an_older_component_layout() {
-    for (key, value) in [
-        (keys::Own::Layouts, Box::from([])),
-        (keys::Own::Layouts, Box::from([0, 3])),
-        (keys::Own::Format, Box::from([0, 3])),
-    ] {
+    {
+        let (key, value) = (keys::Own::Format, Box::from([0, 3]));
         let mut store = replacing(skein_kv::Op::Put {
             key: keys::encode_own(&key, fixtures::KEY_LIMIT).expect("own key fits"),
             value,
@@ -392,18 +336,11 @@ fn rows(store: &mut Store) -> Box<[skein_kv::Op]> {
 
 #[test]
 fn older_build_refusals_leave_every_row_and_commit_unchanged() {
-    let mut changed = crate::format::layouts();
-    changed.core[0] ^= 1;
-    let key = keys::encode_own(&keys::Own::Layouts, fixtures::KEY_LIMIT).expect("own key fits");
-    for replacement in [
-        skein_kv::Op::Erase { key: key.clone() },
-        skein_kv::Op::Put { key, value: Box::from([]) },
-        layouts_put(&changed),
-        skein_kv::Op::Put {
+    {
+        let replacement = skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, fixtures::KEY_LIMIT).expect("own key fits"),
             value: Box::from([0, 3]),
-        },
-    ] {
+        };
         let mut store = replacing(replacement);
         let before = rows(&mut store);
         let last = store.stores.store.last();

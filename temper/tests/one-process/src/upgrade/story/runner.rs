@@ -169,7 +169,7 @@ fn phase(
         config.wall = STATE.with(|s| s.borrow().stopped_wall.expect("wall at stop"));
     }
     let sets = if upgrade { super::CURRENT_SETS } else { super::first_sets() };
-    let mut outcome = world::with_patch_sets(sets, || {
+    let mut outcome = world::with_owner_sets(sets, || {
         programs::with(params, || {
             let mut world = skein_world::World::new_controlled(
                 fixtures::SEED,

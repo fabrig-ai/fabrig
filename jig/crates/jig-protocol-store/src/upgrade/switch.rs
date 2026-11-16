@@ -1,5 +1,5 @@
 //! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/README.md, 5 and protocol/store/loads.md and protocol/store/transcripts.md).
-use super::plan::{self, Levels};
+use super::admission::{self, Levels};
 use crate::codec::component::Count;
 use crate::directory::Opening;
 use crate::generations::{self, Manifesting, Progress, Switching};
@@ -39,7 +39,7 @@ pub(crate) fn open(
 ) {
     store.directory.opening = Opening::Pending(Box::new(Pending {
         before,
-        after: plan::binary(&store.patch_sets),
+        after: admission::binary(&store.owner_sets),
         counts,
         stage: Stage::Opening,
     }));

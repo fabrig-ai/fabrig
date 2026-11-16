@@ -694,7 +694,7 @@ fn first_manifest() -> crate::codec::component::Manifest {
 fn the_first_manifest_records_the_binarys_levels_and_the_write_clock() {
     const WRITTEN: u64 = 73;
     let (mut store, mut below) = at_private();
-    store.patch_sets(super::owners::SETS);
+    store.owner_sets(super::owners::SETS);
     let Some(file::Request::OpenPrivate { owner, .. }) = below.secrets.pop() else { panic!("first secrets") };
     let mut env = fixtures::env();
     env.wall = skein_lib::Wall::from_nanos(WRITTEN);
@@ -726,10 +726,10 @@ fn the_first_manifest_records_the_binarys_levels_and_the_write_clock() {
 fn a_first_start_counts_every_kept_family_zero() {
     for (sets, expected) in [
         (super::owners::SETS, fixtures::manifest_counts(fixtures::FIRST_MANIFEST_COUNTS)),
-        (crate::PatchSets::NONE, fixtures::manifest_counts(&[])),
+        (crate::OwnerSets::NONE, fixtures::manifest_counts(&[])),
     ] {
         let (mut store, mut below) = at_private();
-        store.patch_sets(sets);
+        store.owner_sets(sets);
         scripted(&mut store, &mut below);
         let Some(file::Request::Store { bytes, .. }) = below.transcripts.pop() else { panic!("first manifest") };
         let manifest = crate::codec::component::Manifest::decode(&bytes).expect("first manifest decodes");

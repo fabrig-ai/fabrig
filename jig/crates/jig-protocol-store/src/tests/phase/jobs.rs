@@ -1,7 +1,7 @@
 //! The shell drives job pages and observes commits over a copy (protocol/store/jobs.md, 5).
 #![expect(clippy::arithmetic_side_effects, reason = "small fixed counts in disk step tests")]
 use super::*;
-use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, PatchSet, PatchSets};
+use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, OwnerSet, OwnerSets};
 use alloc::collections::VecDeque;
 
 const UPSTREAM_JOB: Job = Job {
@@ -25,14 +25,14 @@ const FOLLOW: Job = Job {
     keys: &[KeyRange { from: b"l", to: b"m" }],
     converts: None,
 };
-pub(super) const JOBS: PatchSets = PatchSets {
+pub(super) const JOBS: OwnerSets = OwnerSets {
     // Deliberately downstream first: the component chooses Owner's order.
-    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
+    sets: &[OwnerSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, OwnerSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
 };
-pub(super) fn store(disk: &Disk, sets: PatchSets) -> Store {
+pub(super) fn store(disk: &Disk, sets: OwnerSets) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
     store.application.version = 0;
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     store
 }
 pub(super) fn done(store: &mut Store, owner: Owner, name: &str) -> Option<u64> {
@@ -184,8 +184,8 @@ fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -
 }
 #[test]
 fn job_pages_refuse_one_write_or_byte_past_room_for_both_owners() {
-    const JIG_ONLY: PatchSets = PatchSets { sets: &[BASE.sets[0], PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
-    const APP_ONLY: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
+    const JIG_ONLY: OwnerSets = OwnerSets { sets: &[BASE.sets[0], OwnerSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
+    const APP_ONLY: OwnerSets = OwnerSets { sets: &[OwnerSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
     let baseline = fixture_baseline();
     for (of, sets) in [(Owner::Jig, JIG_ONLY), (Owner::Application, APP_ONLY)] {
         for (extra_writes, extra_bytes) in [(1, 0), (0, 1)] {
@@ -232,10 +232,10 @@ fn a_page_rooms_answer_fits_the_exact_commit_edge_for_whole_and_relative_keys() 
     assert_eq!(JobWrite::Put { key: Box::new([1, 2, 3]), value: Box::new([4, 5, 6, 7]) }.bytes(), 16);
     assert_eq!(JobWrite::Erase { key: Box::new([1, 2, 3]) }.bytes(), 8);
     for of in [Owner::Jig, Owner::Application] {
-        let sets = PatchSets {
+        let sets = OwnerSets {
             sets: Box::leak(Box::new([
-                PatchSet { jobs: if of == Owner::Application { &[FOLLOW] } else { &[] }, ..BASE.sets[0] },
-                PatchSet { jobs: if of == Owner::Jig { &[UPSTREAM_JOB] } else { &[] }, ..BASE.sets[1] },
+                OwnerSet { jobs: if of == Owner::Application { &[FOLLOW] } else { &[] }, ..BASE.sets[0] },
+                OwnerSet { jobs: if of == Owner::Jig { &[UPSTREAM_JOB] } else { &[] }, ..BASE.sets[1] },
             ])),
         };
         let mut disk = Disk::new(&fixture_baseline());
@@ -342,7 +342,7 @@ fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_
 fn job_counts_sum_each_answer_in_declared_order_and_reset_between_jobs() {
     const COUNTED: Job = Job { counts: &["dropped", "kept"], keys: &[KeyRange { from: b"l", to: b"m" }], ..APP_JOB };
     const NEXT: Job = Job { name: "count-again", counts: &["after"], ..COUNTED };
-    const SETS: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[COUNTED, NEXT], ..BASE.sets[0] }, BASE.sets[1]] };
+    const SETS: OwnerSets = OwnerSets { sets: &[OwnerSet { jobs: &[COUNTED, NEXT], ..BASE.sets[0] }, BASE.sets[1]] };
     for (answers, expected) in [
         ([[2, 1], [3, 0], [0, 0]], [5, 1]),
         ([[2, 1], [3, 0], [7, 2]], [12, 3]),
@@ -385,10 +385,10 @@ fn job_answers_with_counts_not_one_per_name_refuse_without_changing_the_active_g
         [(&["dropped", "kept"][..], 0), (&["dropped", "kept"][..], 1), (&["dropped", "kept"][..], 3), (&[][..], 1)]
     {
         let declared = Job { counts: names, ..UPSTREAM_JOB };
-        let sets = PatchSets {
+        let sets = OwnerSets {
             sets: Box::leak(Box::new([
                 BASE.sets[0],
-                PatchSet { jobs: Box::leak(Box::new([declared])), ..BASE.sets[1] },
+                OwnerSet { jobs: Box::leak(Box::new([declared])), ..BASE.sets[1] },
             ])),
         };
         let mut disk = Disk::new(&fixture_baseline());
@@ -441,8 +441,8 @@ fn job_admission_checks_count_name_bounds_alphabet_and_uniqueness() {
             (seventeen, false),
         ] {
             let names = Box::leak(names.to_vec().into_boxed_slice());
-            let sets = PatchSets {
-                sets: Box::leak(Box::new([PatchSet {
+            let sets = OwnerSets {
+                sets: Box::leak(Box::new([OwnerSet {
                     jobs: Box::leak(Box::new([Job { counts: names, ..job }])),
                     ..base
                 }])),
@@ -453,7 +453,7 @@ fn job_admission_checks_count_name_bounds_alphabet_and_uniqueness() {
             if accepted {
                 assert_opened(&events, 0);
             } else {
-                let [Event::OpenRefused { why: OpenRefusal::Set { owner, patch: 0 }, .. }] = events.as_ref() else {
+                let [Event::OpenRefused { why: OpenRefusal::Set { owner }, .. }] = events.as_ref() else {
                     panic!("{names:?}: {events:?}")
                 };
                 assert_eq!(*owner, base.owner);
@@ -578,12 +578,12 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
         let ordered: &'static [KeyRange] =
             Box::leak(Box::new([KeyRange { from: first.from, to: half }, KeyRange { from: half, to: first.to }]));
         let secret_family = crate::KeptFamily { map: crate::KeptMap::Secrets, ..base.families[0] };
-        let with_secret = PatchSet { families: Box::leak(vec![secret_family].into_boxed_slice()), ..base };
+        let with_secret = OwnerSet { families: Box::leak(vec![secret_family].into_boxed_slice()), ..base };
         let mut families = base.families.to_vec();
         if base.owner == Owner::Jig {
             families.push(BASE.sets[0].families[2]);
         }
-        let with_written_secret = PatchSet { families: Box::leak(families.into_boxed_slice()), ..base };
+        let with_written_secret = OwnerSet { families: Box::leak(families.into_boxed_slice()), ..base };
         let converts = Some(Converts { family: base.families[0].name, value_type: 1, from: [0; 32] });
         let bound = Box::leak("n".repeat(64).into_boxed_str());
         let past = Box::leak("n".repeat(65).into_boxed_str());
@@ -629,8 +629,8 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
                 false,
             ),
         ] {
-            let sets = PatchSets {
-                sets: Box::leak(vec![PatchSet { jobs: Box::leak(jobs.into_boxed_slice()), ..set }].into_boxed_slice()),
+            let sets = OwnerSets {
+                sets: Box::leak(vec![OwnerSet { jobs: Box::leak(jobs.into_boxed_slice()), ..set }].into_boxed_slice()),
             };
             let mut disk = Disk::new(&[]);
             let mut store = store(&disk, sets);
@@ -640,9 +640,7 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             } else {
                 assert!(
                     match events.as_ref() {
-                        [Event::OpenRefused { why: OpenRefusal::Set { owner, patch: 0 }, .. }]
-                            if *owner == base.owner =>
-                            true,
+                        [Event::OpenRefused { why: OpenRefusal::Set { owner }, .. }] if *owner == base.owner => true,
                         _ => false,
                     },
                     "{label} {:?}: {events:?}",

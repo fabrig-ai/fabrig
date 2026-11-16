@@ -16,7 +16,7 @@ fn name(path: &[u8]) -> Option<&[u8]> {
     Some(&path[..path.len() - suffix.len() - 1])
 }
 
-fn behind(rows: &BTreeMap<Vec<u8>, Vec<u8>>, sets: jig_protocol_store::PatchSets) -> bool {
+fn behind(rows: &BTreeMap<Vec<u8>, Vec<u8>>, sets: jig_protocol_store::OwnerSets) -> bool {
     let binary = jig_protocol_store::levels(&sets);
     let key = keys::encode_own(&keys::Own::Format, 64).expect("format key");
     let Some(bytes) = rows.get(key.as_ref()) else { return false };
@@ -47,8 +47,8 @@ impl Store {
         self.active.as_deref().is_none_or(|active| name(path) == Some(active))
     }
 
-    fn binary(&self) -> jig_protocol_store::PatchSets {
-        self.sets.unwrap_or(temper_engine_service::store::PATCH_SETS)
+    fn binary(&self) -> jig_protocol_store::OwnerSets {
+        self.sets.unwrap_or(temper_engine_service::store::OWNER_SETS)
     }
 
     /// Retain every raw operation before deciding whether its generation can be decoded.

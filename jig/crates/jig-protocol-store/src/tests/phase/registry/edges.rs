@@ -51,7 +51,6 @@ fn new_value_types_register_and_read_back() {
     const KEPT_NEW: &str = "family fixture-layouts 2\nenum Value { stable }\nversioned record Row { value: Value }\n";
     const CURRENT_NEW: &str = "family fixture-layouts 2\nrecord Payload { n: u8 }\nenum Value { stable, added: Payload }\nversioned record Row { value: Value }\nversioned record Added { n: u8 }\n";
     const NEW_FAMILY: KeptFamily = KeptFamily {
-        texts: &[KEPT_NEW],
         current: CURRENT_NEW,
         keys: &[Keys { from: b"a", to: b"c", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
         // Each value type occupies its own prefix.
@@ -62,7 +61,7 @@ fn new_value_types_register_and_read_back() {
         ],
         ..FAMILY
     };
-    const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], level: Some(0), patches: &[], ..SET };
+    const NEW_SET: OwnerSet = OwnerSet { families: &[NEW_FAMILY], level: Some(0), ..SET };
     const OLD_FAMILY: KeptFamily = KeptFamily {
         current: KEPT_NEW,
         keys: &[Keys { from: b"a", to: b"b", root: "Row" }],
@@ -70,7 +69,7 @@ fn new_value_types_register_and_read_back() {
         ..NEW_FAMILY
     };
     let mut disk = Disk::new(&[]);
-    let mut before = fresh(&mut disk, PatchSet { families: &[OLD_FAMILY], ..NEW_SET });
+    let mut before = fresh(&mut disk, OwnerSet { families: &[OLD_FAMILY], ..NEW_SET });
     raw(
         &mut disk,
         &mut before,
@@ -251,7 +250,7 @@ fn a_copy_reads_the_sources_layout_and_stores_the_destinations_id() {
         ..FAMILY
     };
     let (mut disk, mut store) = opened();
-    store.patch_sets(sets(PatchSet { owner: Owner::Jig, families: &[FAMILY_AT_JIG], ..SET }));
+    store.owner_sets(sets(OwnerSet { owner: Owner::Jig, families: &[FAMILY_AT_JIG], ..SET }));
     crate::registry::open(&mut store, false).unwrap();
     for _ in 0_u32..10 {
         let ops = store.registry.batch(&store.limits).unwrap();
@@ -289,7 +288,6 @@ fn ended_joins_restore_the_family_version_before_its_decoder() {
         format!("family fixture-layouts {version}\nversioned record Growing {{ n: u16 }}\n").into_boxed_str(),
     );
     let family = KeptFamily {
-        texts: Box::leak(Box::new([text])),
         current: text,
         keys: &[Keys { from: &[1, 1, 6], to: &[1, 1, 7], root: "Growing" }],
         types: &[ValueType {
@@ -300,8 +298,7 @@ fn ended_joins_restore_the_family_version_before_its_decoder() {
         }],
         ..FAMILY
     };
-    let set =
-        PatchSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET };
+    let set = OwnerSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), level: Some(0), ..SET };
     let mut store = fresh(&mut disk, set);
     let layout = alias(&mut store, 0, version, 99);
     bytes[..2].copy_from_slice(&99_u16.to_be_bytes());

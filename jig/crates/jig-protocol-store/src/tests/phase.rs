@@ -11,9 +11,9 @@ use super::fixtures::{
     self,
     disk::{Disk, Seen, file_limits},
 };
-use super::owners::{REGISTERED as BASE, SETS, label, shelf};
+use super::owners::{REGISTERED as BASE, label, shelf};
 use crate::directory::{OWNER, Opening};
-use crate::patching::phase::Patching;
+use crate::upgrade::phase::Patching;
 use crate::{Arrived, Event, Get, Io, OpenRefusal, Phase, Request, Root, Row, Store, Write};
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
 use skein_io::{
@@ -65,14 +65,14 @@ fn baseline() -> Vec<Item> {
 fn baseline_with_proof(proof: bool) -> Vec<Item> {
     baseline_with_sets(proof, upgrade_sets(0))
 }
-fn baseline_with_sets(proof: bool, sets: crate::PatchSets) -> Vec<Item> {
+fn baseline_with_sets(proof: bool, sets: crate::OwnerSets) -> Vec<Item> {
     let (mut disk, _) = source_with_sets(proof, sets);
     disk.items()
 }
-fn source_with_sets(proof: bool, sets: crate::PatchSets) -> (Disk, Store) {
+fn source_with_sets(proof: bool, sets: crate::OwnerSets) -> (Disk, Store) {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     let events = disk.open(&mut store);
     assert!({ if let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_ref() { true } else { false } });
     let mut writes =
@@ -94,7 +94,7 @@ fn read_row(disk: &mut Disk, store: &mut Store) {
 }
 fn upgrade(disk: &mut Disk, generation: usize) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(upgrade_sets(generation));
+    store.owner_sets(upgrade_sets(generation));
     let events = disk.open(&mut store);
     let events = finish_empty_jobs(disk, &mut store, events);
     assert_opened(&events, store.stores.store.last());
@@ -131,7 +131,7 @@ fn an_upgrade_opens_the_copy_with_the_committed_row_and_keeps_the_previous_whole
     read_row(&mut disk, &mut store);
     disk.crash(17);
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(upgrade_sets(1));
+    store.owner_sets(upgrade_sets(1));
     assert_opened(&disk.open(&mut store), 3);
     assert_eq!(store.directory.active.expect("active read").number, 2);
     assert!(
@@ -190,13 +190,13 @@ fn stage(store: &Store) -> Stage {
             Patching::Dropping(_) => Stage::Dropping,
             Patching::Copying(_) => Stage::Copying,
             Patching::Mapping { .. } | Patching::Recovering { .. } => Stage::Opening,
-            Patching::Walking(_) | Patching::Jobs(_) => Stage::Jobs,
+            Patching::Jobs(_) => Stage::Jobs,
             Patching::Sealing { .. } => Stage::Sealing,
             Patching::Checking(_) => Stage::Checking,
         },
         Opening::Pending(pending) => match pending.stage {
-            crate::patching::switch::Stage::Manifest { .. } => Stage::Manifest,
-            crate::patching::switch::Stage::Switching { .. } => Stage::Switching,
+            crate::upgrade::switch::Stage::Manifest { .. } => Stage::Manifest,
+            crate::upgrade::switch::Stage::Switching { .. } => Stage::Switching,
             _ => Stage::Other,
         },
         _ => Stage::Other,
@@ -321,9 +321,9 @@ impl Harness {
         limits.secrets.value =
             CHUNK.checked_sub(limits.secrets.key).expect("key fits").checked_sub(20).expect("header fits");
         let mut store = Store::on_directory(&limits, fixtures::APPLICATION, &[], self.seeded);
-        store.patch_sets(upgrade_sets(0));
+        store.owner_sets(upgrade_sets(0));
         if patch {
-            store.patch_sets(upgrade_sets(1));
+            store.owner_sets(upgrade_sets(1));
         }
         store
     }
@@ -536,7 +536,7 @@ fn the_phase_opens_pending_then_manifests_and_switches_without_reopening() {
     upgrade(&mut first, 1);
     let mut disk = Harness::new(&first.items());
     let mut store = disk.store(true);
-    store.patch_sets(upgrade_sets(2));
+    store.owner_sets(upgrade_sets(2));
     assert_opened(&disk.open(&mut store), 5);
     assert!(disk.changes.iter().all(|(stage, _)| *stage != Stage::Checking), "the check writes nothing");
     let stages: Vec<_> = disk.trace.iter().map(|(stage, _)| *stage).filter(|s| *s != Stage::Other).fold(
@@ -625,7 +625,7 @@ fn cuts_at_the_manifests_write_syncs_and_rename_and_copy_recovery_keep_a_whole_g
             assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
             let mut recovered = Disk::new(&disk.items());
             let mut store = recovered.store_with_chunk(CHUNK);
-            store.patch_sets(upgrade_sets(0));
+            store.owner_sets(upgrade_sets(0));
             assert_opened(&recovered.open(&mut store), 1);
             read_row(&mut recovered, &mut store);
             assert!(!recovered.tree().iter().any(|(p, ..)| p.starts_with(b"generations/2")), "cut {cut} {target:?}");
@@ -659,7 +659,7 @@ fn a_manifest_write_fault_refuses_failed_and_the_next_start_removes_the_copy() {
     assert_opened(&disk.open(&mut store), 1);
     let mut recovered = Disk::new(&disk.items());
     let mut store = recovered.store_with_chunk(CHUNK);
-    store.patch_sets(upgrade_sets(0));
+    store.owner_sets(upgrade_sets(0));
     assert_opened(&recovered.open(&mut store), 1);
     read_row(&mut recovered, &mut store);
     assert!(!recovered.tree().iter().any(|(p, ..)| p.starts_with(b"generations/2")));
@@ -715,7 +715,7 @@ fn fixture_key(prefix: u8, number: u32) -> Box<[u8]> {
 fn fixture_baseline() -> Vec<Item> {
     let mut disk = Disk::new(&[]);
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(BASE);
+    store.owner_sets(BASE);
     store.application.version = 0;
     assert_opened(&disk.open(&mut store), 0);
     let mut rows = vec![
@@ -766,7 +766,7 @@ fn assert_sealed(store: &mut Store, last: u64) {
     assert_eq!(header, value);
     let key = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key).expect("format key");
     let mut expected = crate::format::current(store.application.version, fixtures::DEPLOYMENT);
-    expected.levels = crate::patching::plan::binary(&store.patch_sets);
+    expected.levels = crate::upgrade::admission::binary(&store.owner_sets);
     assert_eq!(fixtures::get_kv(store, &key).expect("format"), expected.encode().expect("format bytes"));
     let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
     assert_eq!(fixtures::get_kv(store, &key), Some(store.layouts.encode()));
@@ -786,8 +786,8 @@ fn assert_refused(events: &[Event], store: &Store) {
 fn assert_manifest(
     bytes: &[u8],
     generation: u64,
-    before: crate::patching::plan::Levels,
-    after: crate::patching::plan::Levels,
+    before: crate::upgrade::admission::Levels,
+    after: crate::upgrade::admission::Levels,
     last: u64,
 ) {
     assert_eq!(
@@ -819,7 +819,7 @@ fn assert_check(events: &[Event], store: &Store, why: crate::Check) {
 fn fixture_with_record(record: jig_domain_core_vocabulary::Record) -> Vec<Item> {
     let mut disk = Disk::new(&baseline());
     let mut store = disk.store_with_chunk(CHUNK);
-    store.patch_sets(upgrade_sets(0));
+    store.owner_sets(upgrade_sets(0));
     disk.open(&mut store);
     let last = 2;
     let events =
@@ -898,15 +898,13 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
 }
 
-fn jig_store(disk: &Disk, set: crate::PatchSet) -> Store {
+fn jig_store(disk: &Disk, set: crate::OwnerSet) -> Store {
     let mut limits = fixtures::store_limits();
     limits.store.budget = 2_097_152;
     limits.store.ops = 128;
     limits.commits.writes = 7;
     let mut store = disk.store_with_limits(&limits);
-    store.patch_sets(crate::PatchSets {
-        sets: Box::leak(Box::new([crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, set])),
-    });
+    store.owner_sets(crate::OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });
     store
 }
 
@@ -917,14 +915,14 @@ const UPGRADE_JOB: crate::Job = crate::Job {
     settles: false,
     counts: &[],
 };
-fn upgrade_sets(generation: usize) -> crate::PatchSets {
+fn upgrade_sets(generation: usize) -> crate::OwnerSets {
     let jobs: &'static [crate::Job] = match generation {
         0 => &[],
         1 => &[UPGRADE_JOB],
         2 => &[UPGRADE_JOB, crate::Job { name: "next-upgrade", ..UPGRADE_JOB }],
         _ => panic!("fixture generation"),
     };
-    crate::PatchSets { sets: Box::leak(Box::new([crate::PatchSet { jobs, ..BASE.sets[0] }])) }
+    crate::OwnerSets { sets: Box::leak(Box::new([crate::OwnerSet { jobs, ..BASE.sets[0] }])) }
 }
 fn assert_abandoned_at(mut disk: Harness, last: u64) {
     disk.assert_source_unchanged(1);
@@ -983,7 +981,7 @@ fn a_job_upgrade_can_go_back_only_before_its_first_serving_commit() {
             assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
             let mut disk = Disk::new(&disk.items());
             let mut store = disk.store_with_chunk(CHUNK);
-            store.patch_sets(upgrade_sets(0));
+            store.owner_sets(upgrade_sets(0));
             assert_opened(&disk.open(&mut store), 1);
             read_row(&mut disk, &mut store);
             assert!(!disk.tree().iter().any(|(path, ..)| path.starts_with(b"generations/2")));

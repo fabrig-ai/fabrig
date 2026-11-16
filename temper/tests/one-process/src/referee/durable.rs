@@ -39,7 +39,7 @@ pub struct Store {
     layouts: layouts::Layouts,
     active: Option<Vec<u8>>,
     deferred: Option<Vec<u8>>,
-    pub(crate) sets: Option<jig_protocol_store::PatchSets>,
+    pub(crate) sets: Option<jig_protocol_store::OwnerSets>,
     observed_through: u64,
     observed_lengths: BTreeMap<u64, u64>,
     observed_cold: BTreeMap<root::Key, root::Record>,

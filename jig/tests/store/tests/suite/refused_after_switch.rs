@@ -25,7 +25,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
     let records = Records::story();
     let mut world = records.committed(SEED, BASE);
     let original = patches::source(&mut world);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     let last = world.open().expect("pending upgraded open");
     assert!(world.pending);
     assert_eq!(world.active(), b"1\n");
@@ -52,7 +52,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
     }
 
     // The old binary starts against A without any operator rewriting active.
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     assert_eq!(world.open_switched(), Some(1));
     world.accept_recovery(1);
     assert_eq!(world.ran(), []);

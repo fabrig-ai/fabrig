@@ -1,0 +1,292 @@
+//! Owner-set admission and binary levels (protocol/store/opening.md, 3).
+use super::sets::{Owner, OwnerSet, OwnerSets};
+use skein_lib::List;
+
+pub(crate) use crate::codec::component::Levels;
+impl Levels {
+    pub(crate) fn of(&self, owner: Owner) -> Option<u32> {
+        match owner {
+            Owner::Skein => self.skein,
+            Owner::Smith => self.smith,
+            Owner::Jig => self.jig,
+            Owner::Application => self.application,
+        }
+    }
+    pub(crate) fn set(&mut self, owner: Owner, level: Option<u32>) {
+        match owner {
+            Owner::Skein => self.skein = level,
+            Owner::Smith => self.smith = level,
+            Owner::Jig => self.jig = level,
+            Owner::Application => self.application = level,
+        }
+    }
+}
+pub(crate) fn binary(sets: &OwnerSets) -> Levels {
+    let mut levels = Levels { skein: None, smith: None, jig: None, application: None };
+    for set in sets.sets {
+        levels.set(set.owner, set.level);
+    }
+    levels
+}
+#[expect(clippy::manual_find, reason = "step code uses no closures (programming-model.md 10.3)")]
+pub(crate) fn set(sets: &OwnerSets, owner: Owner) -> Option<&OwnerSet> {
+    for set in sets.sets {
+        if set.owner == owner {
+            return Some(set);
+        }
+    }
+    None
+}
+/// One check per open (protocol/store/opening.md, 3).
+pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
+    if let Some(verdict) = store.directory.checked {
+        return verdict;
+    }
+    let verdict = bounds(&store.owner_sets);
+    store.directory.checked = Some(verdict);
+    verdict
+}
+
+/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
+/// set where the families pass its bounds, in number or a name's bytes, is
+/// refused before a first start writes.
+pub(crate) fn bounds(sets: &OwnerSets) -> Result<(), Owner> {
+    #[cfg(test)]
+    counting::ran();
+    let ceilings = &crate::component_v3::CEILINGS;
+    let name = skein_lib::length::usize_of(ceilings.count_family);
+    let mut families = 0_u32;
+    for (index, set) in sets.sets.iter().enumerate() {
+        for previous in sets.sets.get(..index).expect("earlier sets") {
+            if previous.owner == set.owner {
+                return Err(set.owner);
+            }
+        }
+        for family in set.families {
+            families = families.checked_add(1).expect("the ceiling stops the count first");
+            if families > ceilings.manifest_counts || family.name.len() > name {
+                return Err(set.owner);
+            }
+        }
+    }
+    keys(sets)?;
+    super::types::check(sets)?;
+    crate::jobs::admission::check(sets)?;
+    frames(sets)?;
+    holds(sets)?;
+    Ok(())
+}
+/// The two transcript roots are owners' data, checked even at equal levels.
+pub(crate) fn frames(sets: &OwnerSets) -> Result<(), Owner> {
+    let mut smith = None;
+    for set in sets.sets {
+        let refusal = set.owner;
+        let mut seen = false;
+        for family in set.families {
+            if family.frames.is_none() {
+                continue;
+            }
+            if seen || (set.owner != Owner::Jig && set.owner != Owner::Smith) {
+                return Err(refusal);
+            }
+            seen = true;
+            if set.owner == Owner::Smith {
+                smith = Some(family.name.as_bytes());
+            }
+        }
+    }
+    for set in sets.sets {
+        for family in set.families {
+            let Some(frames) = &family.frames else { continue };
+            let name = frames.root;
+            if frames.texts.is_empty() {
+                continue;
+            }
+            let refusal = set.owner;
+            // Metadata alone resolves a root's spelling back over renames.
+            let empty = crate::transcripts::patches::Room { bytes: 0, nodes: 0 };
+            let capacity = crate::transcripts::patches::frame_capacity(frames, empty).ok_or(refusal)?;
+            let machine = crate::transcripts::patches::kept_patcher(frames, capacity).ok_or(refusal)?;
+            let latest = frames.texts.last().expect("nonempty kept texts");
+            let Ok(latest) = skein_codec::schema::parse(latest.as_bytes()) else { return Err(refusal) };
+            let last = latest.version();
+            let Ok(current) = skein_codec::schema::parse(family.current.as_bytes()) else { return Err(refusal) };
+            if last != current.version() {
+                return Err(refusal);
+            }
+            for text in frames.texts {
+                let Ok(schema) = skein_codec::schema::parse(text.as_bytes()) else { return Err(refusal) };
+                if schema.spelled(schema.family()) != family.name.as_bytes() {
+                    return Err(refusal);
+                }
+                let Ok(root) =
+                    crate::transcripts::patches::held_root(&machine, schema.version(), last, name.as_bytes())
+                else {
+                    return Err(refusal);
+                };
+                let (first, count) = match schema.declaration(root).shape {
+                    skein_codec::schema::Shape::Record { versioned: true, first, count } => (first, count),
+                    skein_codec::schema::Shape::Record { versioned: false, .. }
+                    | skein_codec::schema::Shape::Enum { .. } => return Err(refusal),
+                };
+                if set.owner != Owner::Jig {
+                    continue;
+                }
+                let mut held = false;
+                for offset in 0..count {
+                    let field = skein_codec::schema::FieldIx::new(first.index().checked_add(offset).expect("field"));
+                    if let Some(other) = held_family(&schema, schema.field(field).ty) {
+                        if smith != Some(other) || held {
+                            return Err(refusal);
+                        }
+                        held = true;
+                    }
+                }
+                if !held {
+                    return Err(refusal);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn held_family(schema: &skein_codec::schema::Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {
+    use skein_codec::schema::{Held, Type};
+    for _ in 0..schema.text().len() {
+        match schema.ty(ty) {
+            Type::Option(item) | Type::List { item, .. } => ty = item,
+            Type::Bytes { held: Held::Record { family, .. }, .. }
+            | Type::Secret { held: Held::Record { family, .. }, .. } => return Some(schema.spelled(family)),
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. }
+            | Type::Text(_)
+            | Type::Named(_)
+            | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. } => return None,
+        }
+    }
+    None
+}
+
+/// Incremental transitive closure. Adding i -> j closes a cycle exactly when
+/// j already reaches i; each row is a manifest-bounded, 64-family bit set.
+fn holds(sets: &OwnerSets) -> Result<(), Owner> {
+    use skein_codec::schema::{self, DeclIx, FieldIx, Shape};
+    let mut families = List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
+    for set in sets.sets {
+        for family in set.families {
+            families.push(family).expect("bounds checked the manifest count");
+        }
+    }
+    let mut reach = List::with_capacity(families.len());
+    for _ in &families {
+        reach.push(0_u64).expect("one row per family");
+    }
+    let mut index = 0_u32;
+    for set in sets.sets {
+        let refusal = set.owner;
+        for family in set.families {
+            let own = 1_u64.checked_shl(index).expect("at most 64 families");
+            let mut texts = List::uncapped();
+            texts.push(family.current).expect("uncapped admission texts");
+            if let Some(frames) = &family.frames {
+                for text in frames.texts {
+                    texts.push(*text).expect("uncapped admission texts");
+                }
+            }
+            for text in &texts {
+                let Ok(schema) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                for decl in 0..schema.declarations() {
+                    match schema.declaration(DeclIx::new(decl)).shape {
+                        Shape::Enum { .. } => {}
+                        Shape::Record { first, count, .. } => {
+                            for offset in 0..count {
+                                let field = FieldIx::new(first.index().checked_add(offset).expect("schema field"));
+                                let Some(name) = held_family(&schema, schema.field(field).ty) else { continue };
+                                for target in 0..families.len() {
+                                    if families.get(target).expect("family").name.as_bytes() != name {
+                                        continue;
+                                    }
+                                    let to = 1_u64.checked_shl(target).expect("at most 64 families");
+                                    let reached = *reach.get(target).expect("target row");
+                                    if index == target || reached & own != 0 {
+                                        return Err(refusal);
+                                    }
+                                    let added = to | reached;
+                                    for source in 0..families.len() {
+                                        let row = reach.get_mut(source).expect("source row");
+                                        if source == index || *row & own != 0 {
+                                            *row |= added;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            index = index.checked_add(1).expect("manifest-bound families");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) mod counting;
+
+/// Each range belongs to a declaration in the binary's text, and no two
+/// families claim the same key (protocol/store/opening.md, 3).
+fn keys(sets: &OwnerSets) -> Result<(), Owner> {
+    for set in sets.sets {
+        let refusal = set.owner;
+        for family in set.families {
+            let Ok(schema) = skein_codec::schema::parse(family.current.as_bytes()) else { return Err(refusal) };
+            let mut through = None;
+            for keys in family.keys {
+                if keys.from >= keys.to || schema.find(keys.root.as_bytes()).is_none() {
+                    return Err(refusal);
+                }
+                if let Some(previous) = through
+                    && previous > keys.from
+                {
+                    return Err(refusal);
+                }
+                through = Some(keys.to);
+                if set.owner != Owner::Application {
+                    let reserved: &[&[u8]] = match family.map {
+                        crate::KeptMap::Store => &[&[1, 4, 3]],
+                        crate::KeptMap::Secrets => &[],
+                    };
+                    for key in reserved {
+                        if keys.from <= *key && *key < keys.to {
+                            return Err(refusal);
+                        }
+                    }
+                }
+                for other in sets.sets {
+                    // Application ranges are relative to their map's reserved prefix.
+                    if (set.owner == Owner::Application) != (other.owner == Owner::Application) {
+                        continue;
+                    }
+                    for other_family in other.families {
+                        if core::ptr::eq(family, other_family) || family.map != other_family.map {
+                            continue;
+                        }
+                        for other_keys in other_family.keys {
+                            if keys.from < other_keys.to && other_keys.from < keys.to {
+                                return Err(refusal);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}

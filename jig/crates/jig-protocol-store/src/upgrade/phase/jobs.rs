@@ -108,7 +108,7 @@ pub(super) fn begin(
 ) {
     let mut pending = List::uncapped();
     for of in [Owner::Skein, Owner::Smith, Owner::Jig, Owner::Application] {
-        if let Some(set) = crate::patching::plan::set(&store.patch_sets, of) {
+        if let Some(set) = crate::upgrade::admission::set(&store.owner_sets, of) {
             for job in set.jobs {
                 match crate::jobs::kept::done(store, of, job) {
                     Ok(true) => {}
@@ -195,13 +195,9 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
             room: room(store, of, &job)?,
             rows: rows.into_boxed(),
             end,
-            layout: if running.first {
-                match written {
-                    Some((_, layout)) => Some(layout),
-                    None => None,
-                }
-            } else {
-                None
+            layout: match written {
+                Some((_, layout)) => Some(layout),
+                None => None,
             },
         },
     });

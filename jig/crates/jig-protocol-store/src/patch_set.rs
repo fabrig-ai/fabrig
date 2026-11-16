@@ -1,8 +1,8 @@
 //! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
-use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, Retired, ValueType, patches};
+use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, Retired, ValueType};
 
 /// The store's part of jig's owner set; accounts adds its kept family.
-pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
+pub const JIG_STORE_SET: OwnerSet = OwnerSet {
     jobs: &[
         Job {
             settles: false,
@@ -45,8 +45,6 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     owner: Owner::Jig,
     name: "jig",
     level: Some(6),
-    patches: patches::PATCHES,
-    fresh: None,
     families: &STORE_FAMILIES,
 };
 
@@ -58,35 +56,30 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
 pub const STORE_FAMILIES: [KeptFamily; 10] = [
     KeptFamily {
         retired: &[],
-        current: patches::kept::jig_store_component::TEXTS.last().expect("kept text"),
+        current: include_str!("../schema/component-v3.schema"),
         types: &[],
         name: "jig-store-component",
-        texts: patches::kept::jig_store_component::TEXTS,
         map: KeptMap::Store,
         keys: &[
             Keys { from: &[0, 1], to: &[0, 2], root: "Transcript" },
             Keys { from: &[0, 2], to: &[0, 3], root: "Attempt" },
         ],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
-        current: patches::kept::jig_store_openings::TEXTS.last().expect("kept text"),
+        current: include_str!("../schema/openings-v1.schema"),
         types: &[],
         name: "jig-store-openings",
-        texts: patches::kept::jig_store_openings::TEXTS,
         map: KeptMap::Store,
         keys: &[Keys { from: &[0, 5], to: &[0, 6], root: "WorkerOpening" }],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
-        current: patches::kept::jig_store_registry::TEXTS.last().expect("kept text"),
+        current: include_str!("../schema/registry-v1.schema"),
         types: &[],
         name: "jig-store-registry",
-        texts: patches::kept::jig_store_registry::TEXTS,
         map: KeptMap::Store,
         keys: &[
             Keys { from: &[0, 6], to: &[0, 7], root: "Layout" },
@@ -94,7 +87,6 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             Keys { from: &[0, 8], to: &[0, 9], root: "Job" },
         ],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
@@ -150,11 +142,13 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-core",
-        texts: patches::kept::jig_store_core::TEXTS,
         map: KeptMap::Store,
         keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
-        frames: Some("TurnRecord"),
-        flights: &[],
+        frames: Some(crate::Frames {
+            root: "TurnRecord",
+            texts: &[include_str!("../schema/core-v6.schema")],
+            patches: &[],
+        }),
     },
     KeptFamily {
         retired: &[Retired { number: 10, keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }] }],
@@ -290,11 +284,9 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-tasks",
-        texts: patches::kept::jig_store_tasks::TEXTS,
         map: KeptMap::Store,
         keys: &[Keys { from: &[1, 1], to: &[1, 2], root: "Row" }],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
@@ -374,11 +366,9 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-people",
-        texts: patches::kept::jig_store_people::TEXTS,
         map: KeptMap::Store,
         keys: &[Keys { from: &[1, 2], to: &[1, 3], root: "Row" }],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
@@ -398,11 +388,9 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-notes",
-        texts: patches::kept::jig_store_notes::TEXTS,
         map: KeptMap::Store,
         keys: &[Keys { from: &[1, 3], to: &[1, 4], root: "Row" }],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
@@ -440,14 +428,12 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-accounts",
-        texts: patches::kept::jig_store_accounts::TEXTS,
         map: KeptMap::Store,
         keys: &[
             Keys { from: &[1, 4, 0], to: &[1, 4, 3], root: "Row" },
             Keys { from: &[1, 4, 4], to: &[1, 4, 6], root: "Row" },
         ],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
@@ -503,7 +489,6 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             },
         ],
         name: "jig-store-settings",
-        texts: patches::kept::jig_store_settings::TEXTS,
         map: KeptMap::Store,
         keys: &[
             Keys { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1], root: "Default" },
@@ -517,14 +502,12 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             Keys { from: &[1, 0, 9], to: &[1, 0, 10], root: "Revision" },
         ],
         frames: None,
-        flights: &[],
     },
     KeptFamily {
         retired: &[],
-        current: patches::kept::jig_store_secrets::TEXTS.last().expect("kept text"),
+        current: include_str!("../schema/secrets-v1.schema"),
         types: &[],
         name: "jig-store-secrets",
-        texts: patches::kept::jig_store_secrets::TEXTS,
         map: KeptMap::Secrets,
         keys: &[
             Keys { from: &[1, 0], to: &[1, 2], root: "Digest" },
@@ -534,6 +517,5 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             Keys { from: &[4, 0], to: &[4, 1], root: "Source" },
         ],
         frames: None,
-        flights: &[],
     },
 ];

@@ -10,7 +10,7 @@ fn pending_job_upgrades_once_at_equal_levels() {
     let records = Records::story();
     let mut world = records.committed(901, BASE);
     let before = patches::source(&mut world);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     let last = world.open().expect("pending job opens copy");
     assert!(world.pending, "the pending job requires an upgrade even at equal levels");
     assert_eq!(world.active(), b"1\n");
@@ -39,7 +39,7 @@ fn private_check_refuses_the_copy_before_switch() {
     const SEED: u64 = 903;
     let records = Records::story();
     let mut trace = records.committed(SEED, BASE);
-    trace.patch_sets(SETS);
+    trace.owner_sets(SETS);
     trace.trace_writes();
     trace.open_switched().expect("trace the seal before the check");
     let (seal_sync, _, _) = super::check::seal_and_switch(&trace);
@@ -47,7 +47,7 @@ fn private_check_refuses_the_copy_before_switch() {
     for linked in [false, true] {
         let mut world = records.committed(SEED, BASE);
         let before = patches::source(&mut world);
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         world.trace_writes();
         let mut events = world.begin_open();
         loop {

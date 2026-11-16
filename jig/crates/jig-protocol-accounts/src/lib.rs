@@ -7,7 +7,7 @@ extern crate alloc;
 mod patch_set;
 #[path = "../patches/mod.rs"]
 pub mod patches;
-pub use patch_set::JIG_PATCH_SET;
+pub use patch_set::JIG_SET;
 
 pub use jig_protocol_accounts_codec::v1;
 pub mod finishes;

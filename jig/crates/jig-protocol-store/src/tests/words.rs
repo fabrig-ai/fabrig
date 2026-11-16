@@ -104,10 +104,6 @@ fn an_unnamed_refusal_says_to_name_its_generation() {
     says(OpenRefusal::Generations { why: Generations::Unnamed }, "- `Unnamed`: \"", "\"");
 }
 #[test]
-fn an_unrecorded_refusal_says_to_move_the_generations() {
-    says(OpenRefusal::OlderBuild { why: Older::Unrecorded }, "`Unrecorded`'s:\n\n  > ", "\n\n  `Layout`'s");
-}
-#[test]
 fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
     use crate::Family;
     says(
@@ -145,7 +141,6 @@ fn a_job_refusal_says_the_designs_words() {
 #[test]
 fn check_refusals_say_the_designs_words() {
     for (why, start) in [
-        (Check::Large { key: Box::new([]) }, "- `Check { why: Large }`: \""),
         (Check::Load { key: Box::new([]) }, "- `Check { why: Load }`: \""),
         (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
     ] {
@@ -156,8 +151,18 @@ fn check_refusals_say_the_designs_words() {
 fn ahead_and_admission_refusals_say_the_designs_words() {
     for (refusal, start) in [
         (OpenRefusal::Ahead { owner: crate::Owner::Jig, found: Some(2), wanted: Some(1) }, "- `Ahead`: \""),
-        (OpenRefusal::Set { owner: crate::Owner::Application, patch: 0 }, "- `Set`: \""),
+        (OpenRefusal::Set { owner: crate::Owner::Application }, "- `Set`: \""),
     ] {
         says(refusal, start, "\"");
+    }
+}
+
+#[test]
+fn behind_and_unregistered_refusals_name_the_bridge_build() {
+    for (why, start) in [
+        (Older::Behind, "- `OlderBuild { why: Behind }`: \""),
+        (Older::Unregistered, "- `OlderBuild { why: Unregistered }`: \""),
+    ] {
+        says(OpenRefusal::OlderBuild { why }, start, "\"");
     }
 }

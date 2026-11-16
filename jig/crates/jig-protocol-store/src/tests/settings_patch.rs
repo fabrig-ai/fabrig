@@ -83,8 +83,6 @@ fn store(disk: &fixtures::disk::Disk) -> crate::Store {
     limits.store.budget = 2_097_152;
     limits.store.ops = 128;
     let mut store = disk.store_with_limits(&limits);
-    store.patch_sets(crate::PatchSets {
-        sets: &[crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, crate::JIG_STORE_PATCH_SET],
-    });
+    store.owner_sets(crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] });
     store
 }

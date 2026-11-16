@@ -1,6 +1,6 @@
 //! Fixture owners at fixed levels (protocol/store/opening.md, 3).
-use crate::patching::plan::Levels;
-use crate::{KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
+use crate::upgrade::admission::Levels;
+use crate::{KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets};
 use jig_test_patches::{self as fixture, patches as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Writer;
@@ -8,22 +8,18 @@ const LABEL: KeptFamily = KeptFamily {
     retired: &[],
     current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-label",
     map: KeptMap::Store,
-    texts: app::kept::fixture_label::TEXTS,
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
     current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-shelf",
     map: KeptMap::Store,
-    texts: app::kept::fixture_shelf::TEXTS,
     keys: &[Keys {
         from: fixture::keys::SHELVES_FROM,
         to: fixture::keys::SHELVES_TO,
@@ -34,10 +30,8 @@ const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
     current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-token",
-    texts: app::kept::fixture_token::TEXTS,
     map: KeptMap::Secrets,
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
@@ -45,64 +39,35 @@ const NOTE: KeptFamily = KeptFamily {
     retired: &[],
     current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
     types: &[],
-    flights: &[],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
-    texts: jig::kept::fixture_note::TEXTS,
     keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
 };
-const APPLICATION: PatchSet = PatchSet {
+const APPLICATION: OwnerSet = OwnerSet {
     jobs: &[],
-    fresh: None,
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
     level: Some(2),
-    patches: &[],
 };
-const JIG: PatchSet = PatchSet {
-    jobs: &[],
-    fresh: None,
-    owner: Owner::Jig,
-    name: upstream::NAME,
-    families: &[NOTE],
-    level: Some(2),
-    patches: &[],
-};
-pub(super) const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
-pub(super) const BASE: PatchSets = PatchSets {
+const JIG: OwnerSet =
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], level: Some(2) };
+pub(super) const SETS: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };
+pub(super) const BASE: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             families: &[
-                KeptFamily {
-                    current: app::kept::fixture_label::TEXTS[0],
-                    texts: &[app::kept::fixture_label::TEXTS[0]],
-                    ..LABEL
-                },
-                KeptFamily {
-                    current: app::kept::fixture_shelf::TEXTS[0],
-                    texts: &[app::kept::fixture_shelf::TEXTS[0]],
-                    ..SHELF
-                },
-                KeptFamily {
-                    current: app::kept::fixture_token::TEXTS[0],
-                    texts: &[app::kept::fixture_token::TEXTS[0]],
-                    ..TOKEN
-                },
+                KeptFamily { current: app::kept::fixture_label::TEXTS[0], ..LABEL },
+                KeptFamily { current: app::kept::fixture_shelf::TEXTS[0], ..SHELF },
+                KeptFamily { current: app::kept::fixture_token::TEXTS[0], ..TOKEN },
             ],
             level: Some(0),
-            patches: &[],
             ..APPLICATION
         },
-        PatchSet {
-            families: &[KeptFamily {
-                current: jig::kept::fixture_note::TEXTS[0],
-                texts: &[jig::kept::fixture_note::TEXTS[0]],
-                ..NOTE
-            }],
+        OwnerSet {
+            families: &[KeptFamily { current: jig::kept::fixture_note::TEXTS[0], ..NOTE }],
             level: Some(0),
-            patches: &[],
             ..JIG
         },
     ],
@@ -130,9 +95,9 @@ pub(super) fn shelf(books: u32, label: &[u8]) -> Box<[u8]> {
 }
 
 /// The job fixtures register their label layout in their first commit.
-pub(super) const REGISTERED: PatchSets = PatchSets {
+pub(super) const REGISTERED: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             families: &[
                 KeptFamily {
                     types: &[crate::ValueType {

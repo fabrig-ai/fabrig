@@ -34,7 +34,7 @@ pub struct Setup {
     pub initial: Option<people::Ask>,
     pub rows: Option<Box<[root::Record]>>,
     pub startup: Option<fn(&mut root::Domain)>,
-    pub patch_sets: jig_protocol_store::PatchSets,
+    pub owner_sets: jig_protocol_store::OwnerSets,
     /// Exercise the directory-backed store on the simulated crashing disk.
     pub disk_store: bool,
     pub peers: Option<crate::peers::Peers>,
@@ -62,7 +62,7 @@ impl Default for Setup {
             initial: None,
             rows: None,
             startup: None,
-            patch_sets: jig_protocol_store::PatchSets::NONE,
+            owner_sets: jig_protocol_store::OwnerSets::NONE,
             disk_store: false,
             peers: None,
             cut: None,
@@ -230,7 +230,7 @@ pub struct World {
 }
 
 impl World {
-    fn configure_disk(&mut self, selected: bool, sets: jig_protocol_store::PatchSets) {
+    fn configure_disk(&mut self, selected: bool, sets: jig_protocol_store::OwnerSets) {
         if selected {
             assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
             self.store = Store::on_disk(&self.limits, &self.restart_config.0.core.settings.models);

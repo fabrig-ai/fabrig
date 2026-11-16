@@ -1,6 +1,6 @@
 //! Value-type declarations are refused before any open writes (protocol/store/layouts.md, 2).
 use super::*;
-use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, PatchSets, ValueType};
+use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, ValueType};
 
 const TEXT: &str = "family fixture-values 1\nrecord Plain { n: u8 }\nenum Value { left: Plain, right }\nversioned record Row { value: Value }\n";
 const OLDER: &str = "family fixture-values 0\nrecord Plain { n: u8 }\n";
@@ -22,7 +22,6 @@ pub(super) fn family(owner: Owner) -> KeptFamily {
     KeptFamily {
         retired: &[],
         name: "fixture-values",
-        texts: &[TEXT],
         current: TEXT,
         types: types(vec![ValueType {
             number: 0,
@@ -32,22 +31,19 @@ pub(super) fn family(owner: Owner) -> KeptFamily {
         }]),
         keys: Box::leak(Box::new([keys])),
         map: KeptMap::Store,
-        flights: &[],
         frames: None,
     }
 }
-pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
-    PatchSet {
+pub(super) fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> OwnerSet {
+    OwnerSet {
         owner,
         name: if owner == Owner::Application { "fixture" } else { "jig-fixture" },
         families: Box::leak(Box::new([family])),
         level: Some(0),
-        patches: &[],
-        fresh: None,
         jobs,
     }
 }
-fn declared(set: PatchSet) -> PatchSets {
+fn declared(set: OwnerSet) -> OwnerSets {
     const TEXT: &str = "family fixture-anchor 1\nversioned record Anchor { n: u8 }\n";
     let (from, to): (&'static [u8], &'static [u8]) =
         if set.owner == Owner::Application { (b"z", b"{") } else { (b"\x02z", b"\x02{") };
@@ -55,9 +51,7 @@ fn declared(set: PatchSet) -> PatchSets {
     let anchor = KeptFamily {
         name: "fixture-anchor",
         current: TEXT,
-        texts: &[TEXT],
         retired: &[],
-        flights: &[],
         frames: None,
         map: KeptMap::Store,
         keys: Box::leak(Box::new([Keys { from, to, root: "Anchor" }])),
@@ -65,21 +59,21 @@ fn declared(set: PatchSet) -> PatchSets {
     };
     let mut families = set.families.to_vec();
     families.push(anchor);
-    PatchSets { sets: Box::leak(Box::new([PatchSet { families: Box::leak(families.into_boxed_slice()), ..set }])) }
+    OwnerSets { sets: Box::leak(Box::new([OwnerSet { families: Box::leak(families.into_boxed_slice()), ..set }])) }
 }
-fn opened(disk: &mut Disk, set: PatchSet) -> Box<[Event]> {
+fn opened(disk: &mut Disk, set: OwnerSet) -> Box<[Event]> {
     let mut store = disk.store_with_chunk(CHUNK);
     store.application.version = 0;
-    store.patch_sets(declared(set));
+    store.owner_sets(declared(set));
     disk.open(&mut store)
 }
-fn check(label: &str, set: PatchSet, accepted: bool) {
+fn check(label: &str, set: OwnerSet, accepted: bool) {
     let mut empty = Disk::new(&[]);
     // The first commit registers the valid declaration before admission is retried.
     let valid = if accepted { set } else { self::set(set.owner, family(set.owner), &[]) };
     let mut first = empty.store_with_chunk(CHUNK);
     first.application.version = 0;
-    first.patch_sets(declared(valid));
+    first.owner_sets(declared(valid));
     assert_opened(&empty.open(&mut first), 0);
     let events = empty.request(&mut first, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -89,7 +83,7 @@ fn check(label: &str, set: PatchSet, accepted: bool) {
         if accepted {
             assert_opened(&events, last);
         } else {
-            let [Event::OpenRefused { why: OpenRefusal::Set { owner, patch: 0 }, .. }] = events.as_ref() else {
+            let [Event::OpenRefused { why: OpenRefusal::Set { owner }, .. }] = events.as_ref() else {
                 panic!("{label}: {events:?}");
             };
             assert_eq!(*owner, set.owner, "{label}");
@@ -137,7 +131,6 @@ fn value_type_admission_checks_metadata_on_first_and_equal_level_opens() {
             ("newer version", KeptFamily { current: NEWER, ..base }, false),
             ("older version", KeptFamily { current: OLDER, ..base }, false),
             ("same version changed text", KeptFamily { current: CHANGED, ..base }, true),
-            ("no latest text", KeptFamily { texts: &[], ..base }, false),
         ] {
             check(label, set(owner, family, &[]), accepted);
         }

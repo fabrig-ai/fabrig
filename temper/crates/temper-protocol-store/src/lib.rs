@@ -5,7 +5,7 @@
 extern crate alloc;
 
 mod patch_set;
-pub use patch_set::PATCH_SET;
+pub use patch_set::OWNER_SET;
 pub use temper_protocol_store_patches::patches;
 
 use alloc::boxed::Box;

@@ -1,12 +1,11 @@
 //! Value types checked at set admission (protocol/store/layouts.md, 2).
-use super::plan::Unplanned;
-use crate::{KeptFamily, KeptMap, PatchSets};
+use crate::{KeptFamily, KeptMap, Owner, OwnerSets};
 use skein_codec::schema;
 use skein_lib::Map;
 
-pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
+pub(crate) fn check(sets: &OwnerSets) -> Result<(), Owner> {
     for set in sets.sets {
-        let refusal = Unplanned { owner: set.owner, patch: 0 };
+        let refusal = set.owner;
         for family in set.families {
             if family.types.is_empty() && family.retired.is_empty() {
                 continue;
@@ -15,11 +14,6 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
                 return Err(refusal);
             }
             let Ok(current) = schema::parse(family.current.as_bytes()) else { return Err(refusal) };
-            let latest = family.texts.last().ok_or(refusal)?;
-            let Ok(latest) = schema::parse(latest.as_bytes()) else { return Err(refusal) };
-            if current.version() != latest.version() {
-                return Err(refusal);
-            }
             let mut ranges = Map::uncapped();
             let mut first = None;
             for (index, ty) in family.types.iter().enumerate() {
@@ -103,7 +97,7 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
 }
 
 // Types may interleave: settings' Changed and Revision each occupy several
-// ranges. Compare their ordered union to Keys without changing the patch walk.
+// ranges. Compare their ordered union to Keys to match the family's ranges.
 fn covers(family: &KeptFamily, ranges: &Map<&'static [u8], &'static [u8]>) -> bool {
     let mut keys = family.keys.iter();
     let mut key = keys.next();

@@ -8,16 +8,16 @@ const SEED: u64 = 0x5141;
 
 fn pending(records: &Records) -> World {
     let mut world = records.committed(SEED, BASE);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world
 }
 
 pub(crate) fn second_generation() -> World {
     let mut world = super::logs::source(SEED);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("intermediate upgrade opens");
     world.crash(SEED);
-    world.patch_sets(patches::NEXT);
+    world.owner_sets(patches::NEXT);
     world
 }
 

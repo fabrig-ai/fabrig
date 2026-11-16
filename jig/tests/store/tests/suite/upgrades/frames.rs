@@ -2,7 +2,7 @@
 use crate::frame_reads;
 
 use jig_protocol_store::{
-    self as store, Event, KeptFamily, Owner, PatchSet, PatchSets, Request, TranscriptRead, Write, keys,
+    self as store, Event, KeptFamily, Owner, OwnerSet, OwnerSets, Request, TranscriptRead, Write, keys,
 };
 use jig_store_world::{World, patches, root};
 use jig_test_patches_jig::frames;
@@ -15,18 +15,24 @@ const OTHER: Token = Token::new(713);
 const READ_BYTES: u64 = 256; // The world's core resume bound (root::CORE_LIMITS).
 const BODY: KeptFamily = frame_reads::SETS.sets[0].families[0];
 const TURN: KeptFamily = frame_reads::SETS.sets[1].families[0];
-const EMPTY: PatchSets = PatchSets {
+const BODY_FRAMES: store::Frames = BODY.frames.expect("body frames");
+const TURN_FRAMES: store::Frames = TURN.frames.expect("turn frames");
+const EMPTY: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             level: None,
-            patches: &[],
-            families: &[KeptFamily { current: "", texts: &[], ..BODY }],
+            families: &[KeptFamily {
+                frames: Some(jig_protocol_store::Frames { texts: &[], patches: &[], ..BODY_FRAMES }),
+                ..BODY
+            }],
             ..frame_reads::SETS.sets[0]
         },
-        PatchSet {
+        OwnerSet {
             level: None,
-            patches: &[],
-            families: &[KeptFamily { current: "", texts: &[], ..TURN }],
+            families: &[KeptFamily {
+                frames: Some(jig_protocol_store::Frames { texts: &[], patches: &[], ..TURN_FRAMES }),
+                ..TURN
+            }],
             ..frame_reads::SETS.sets[1]
         },
     ],
@@ -52,9 +58,9 @@ pub(crate) fn log_frame_bytes(turn: &jig_domain_core::TurnRecord) -> u64 {
     let kv = skein_kv::Store::memory(&limits.store);
     kv.frame(&store::codec::core::turn(turn, &codec).expect("turn body")).expect("log frame").len()
 }
-fn fixture(sets: PatchSets, transcript: &[u8]) -> World {
+fn fixture(sets: OwnerSets, transcript: &[u8]) -> World {
     let mut world = World::unopened_observed(41, patches::limits(), None);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.commit(root::first()), Some(1));
     let mut writes = root::turn_commit(2, frames::TASK, frames::TURN, transcript).into_vec();
@@ -123,7 +129,7 @@ fn every_read_patches_again_without_writes() {
 
 #[test]
 fn empty_sets_keep_the_opaque_turn_path() {
-    for sets in [PatchSets::NONE, EMPTY] {
+    for sets in [OwnerSets::NONE, EMPTY] {
         let mut world = fixture(sets, b"opaque turn");
         let before = world.contents();
         for read in kinds() {
@@ -220,16 +226,29 @@ fn a_commit_waits_until_the_written_site_finishes() {
     assert!(matches!(events.as_slice(), [Event::Turns { .. }, Event::Committed { number: 3, .. }]), "{events:?}");
 }
 
-fn replaced(owner: Owner, families: &'static [KeptFamily]) -> PatchSets {
+fn replaced(owner: Owner, families: &'static [KeptFamily]) -> OwnerSets {
     let mut sets = frame_reads::SETS.sets.to_vec();
     let slot = sets.iter_mut().find(|set| set.owner == owner).expect("fixture owner");
     slot.families = families;
-    PatchSets { sets: Box::leak(sets.into_boxed_slice()) }
+    OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
-fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
+#[expect(clippy::too_many_lines, reason = "frame admission cases keep each current text beside its frame texts")]
+fn invalid_sets() -> Vec<(&'static str, OwnerSets)> {
     vec![
-        ("missing body root", replaced(Owner::Jig, &[KeptFamily { frames: Some("Absent"), ..BODY }])),
-        ("missing turn root", replaced(Owner::Smith, &[KeptFamily { frames: Some("Absent"), ..TURN }])),
+        (
+            "missing body root",
+            replaced(
+                Owner::Jig,
+                &[KeptFamily { frames: Some(jig_protocol_store::Frames { root: "Absent", ..BODY_FRAMES }), ..BODY }],
+            ),
+        ),
+        (
+            "missing turn root",
+            replaced(
+                Owner::Smith,
+                &[KeptFamily { frames: Some(jig_protocol_store::Frames { root: "Absent", ..TURN_FRAMES }), ..TURN }],
+            ),
+        ),
         ("duplicate body", replaced(Owner::Jig, &[BODY, BODY])),
         ("duplicate turn", replaced(Owner::Smith, &[TURN, TURN])),
         (
@@ -238,9 +257,13 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
-                    texts: &[
-                        "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
-                    ],
+                    frames: Some(store::Frames {
+                        texts: &[
+                            "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
+                        ],
+                        patches: &[],
+                        ..BODY_FRAMES
+                    }),
                     ..BODY
                 }],
             ),
@@ -251,7 +274,11 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Smith,
                 &[KeptFamily {
                     current: "family fixture-turn 2\nenum Turn { blank }\n",
-                    texts: &["family fixture-turn 2\nenum Turn { blank }\n"],
+                    frames: Some(store::Frames {
+                        texts: &["family fixture-turn 2\nenum Turn { blank }\n"],
+                        patches: &[],
+                        ..TURN_FRAMES
+                    }),
                     ..TURN
                 }],
             ),
@@ -262,7 +289,11 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Smith,
                 &[KeptFamily {
                     current: "family fixture-turn 2\nrecord Turn { said: text 64 }\n",
-                    texts: &["family fixture-turn 2\nrecord Turn { said: text 64 }\n"],
+                    frames: Some(store::Frames {
+                        texts: &["family fixture-turn 2\nrecord Turn { said: text 64 }\n"],
+                        patches: &[],
+                        ..TURN_FRAMES
+                    }),
                     ..TURN
                 }],
             ),
@@ -273,9 +304,13 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
-                    texts: &[
-                        "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
-                    ],
+                    frames: Some(store::Frames {
+                        texts: &[
+                            "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
+                        ],
+                        patches: &[],
+                        ..BODY_FRAMES
+                    }),
                     ..BODY
                 }],
             ),
@@ -286,7 +321,11 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n",
-                    texts: &["family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n"],
+                    frames: Some(store::Frames {
+                        texts: &["family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n"],
+                        patches: &[],
+                        ..BODY_FRAMES
+                    }),
                     ..BODY
                 }],
             ),
@@ -297,9 +336,13 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Jig,
                 &[KeptFamily {
                     current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
-                    texts: &[
-                        "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
-                    ],
+                    frames: Some(store::Frames {
+                        texts: &[
+                            "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
+                        ],
+                        patches: &[],
+                        ..BODY_FRAMES
+                    }),
                     ..BODY
                 }],
             ),
@@ -310,9 +353,13 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
                 Owner::Smith,
                 &[KeptFamily {
                     current: "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
-                    texts: &[
-                        "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
-                    ],
+                    frames: Some(store::Frames {
+                        texts: &[
+                            "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
+                        ],
+                        patches: &[],
+                        ..TURN_FRAMES
+                    }),
                     ..TURN
                 }],
             ),
@@ -320,18 +367,14 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
     ]
 }
 fn set_refused(world: &World, label: &str) {
-    assert!(
-        matches!(world.refusal(), Some(store::OpenRefusal::Set { patch: 0, .. })),
-        "{label}: {:?}",
-        world.refusal()
-    );
+    assert!(matches!(world.refusal(), Some(store::OpenRefusal::Set { .. })), "{label}: {:?}", world.refusal());
 }
 
 #[test]
 fn invalid_frame_sets_refuse_before_first_start_writes() {
     for (label, sets) in invalid_sets() {
         let mut world = World::unopened_observed(41, patches::limits(), None);
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         let before = world.contents();
         world.trace_writes();
         assert_eq!(world.open_switched(), None, "{label}");
@@ -345,11 +388,11 @@ fn invalid_frame_sets_refuse_before_first_start_writes() {
 fn invalid_frame_sets_refuse_at_serving_open() {
     for (label, sets) in invalid_sets() {
         let mut world = World::unopened_observed(41, patches::limits(), None);
-        world.patch_sets(frame_reads::SETS);
+        world.owner_sets(frame_reads::SETS);
         assert_eq!(world.open_switched(), Some(0));
         assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
         world.crash(42);
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         let before = world.contents();
         assert_eq!(world.open_switched(), None, "{label}");
         set_refused(&world, label);
@@ -401,9 +444,9 @@ fn stray(owner: Token) -> Request {
     Request::Site { owner, patcher: Box::new(skein_codec::patch::Patcher::new(capacity)), result: Err(Halt::Order) }
 }
 
-fn baseline(sets: PatchSets) -> World {
+fn baseline(sets: OwnerSets) -> World {
     let mut world = World::unopened_observed(41, patches::limits(), None);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world.crash(42);
@@ -411,10 +454,10 @@ fn baseline(sets: PatchSets) -> World {
 }
 
 #[test]
-fn a_stray_site_stops_patching_idle_and_waiting_reads() {
-    // Suspend before the copy's first directory creation, while no walk waits.
+fn a_stray_site_is_unread_during_upgrades_idle_and_waiting_reads() {
+    // Suspend before the copy's first directory creation.
     let mut complete = baseline(patches::FRAME_BASE);
-    complete.patch_sets(patches::FRAME_JOBS);
+    complete.owner_sets(patches::FRAME_JOBS);
     complete.trace_writes();
     assert_eq!(complete.open_switched(), Some(3));
     let copy = complete
@@ -424,13 +467,13 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
         .expect("copy directory")
         .0;
     let mut patching = baseline(patches::FRAME_BASE);
-    patching.patch_sets(patches::FRAME_JOBS);
+    patching.owner_sets(patches::FRAME_JOBS);
     patching.trace_writes();
     patching.cut_at(copy);
     assert_eq!(patching.open_switched(), None);
     let before = patching.contents();
     let reference = patching.request(stray(OTHER));
-    assert!(matches!(reference.as_slice(), [Event::OpenRefused { .. }]), "{reference:?}");
+    assert!(matches!(reference.as_slice(), [Event::Unread { owner: OTHER }]), "{reference:?}");
     assert_eq!(patching.contents(), before);
     let mut idle = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
     assert_eq!(format!("{:?}", idle.request(stray(OTHER))), format!("{reference:?}"));
@@ -441,8 +484,9 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
     world.trace_writes();
     let refused = world.request(stray(OTHER));
     assert_eq!(format!("{refused:?}"), format!("{reference:?}"));
-    assert!(answer(&mut world, events.remove(0), None, 0).is_empty());
-    assert!(world.request(ask(selected(), READ_BYTES)).is_empty());
+    assert!(matches!(answer(&mut world, events.remove(0), None, 0).as_slice(), [Event::Turns { .. }]));
+    let read = settled(&mut world, ask(selected(), READ_BYTES));
+    assert!(matches!(read.as_slice(), [Event::Turns { .. }]));
     assert_eq!(world.contents(), before);
     assert_eq!((world.changes()).len(), 0);
 }
@@ -520,7 +564,10 @@ fn kept_turn_nodes_are_not_limited_by_encoded_byte_count() {
     ];
     const NODE_ITEMS: u32 = 512;
     const CURRENT: &str = TEXTS.last().expect("kept text");
-    let sets = replaced(Owner::Smith, &[KeptFamily { current: CURRENT, texts: TEXTS, ..TURN }]);
+    let sets = replaced(
+        Owner::Smith,
+        &[KeptFamily { current: CURRENT, frames: Some(store::Frames { texts: TEXTS, ..TURN_FRAMES }), ..TURN }],
+    );
     let limits = patches::limits();
     let (mut component, env) = frame_reads::closed(sets, &limits);
     frame_reads::open(&mut component, &env);
@@ -550,31 +597,30 @@ fn a_party_turn_uses_patched_bytes() {
     assert_eq!(turn.transcript, frame_reads::turn(2, b"said", &[], 24));
 }
 
-fn foreign(sets: PatchSets, frames: Option<&'static str>) -> PatchSets {
+fn foreign(sets: OwnerSets, frames: Option<&'static str>) -> OwnerSets {
+    const CURRENT: &str = "family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n";
+    let frames = frames.map(|root| store::Frames { root, texts: &[CURRENT], patches: &[] });
     let mut sets = sets.sets.to_vec();
-    sets.push(PatchSet {
+    sets.push(OwnerSet {
         jobs: &[],
         owner: Owner::Application,
         name: "fixture-foreign",
         level: Some(0),
-        patches: &[],
-        fresh: None,
         families: Box::leak(Box::new([KeptFamily {
             current: "family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n",
             name: "fixture-foreign",
-            texts: &["family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n"],
             frames,
             ..BODY
         }])),
     });
-    PatchSets { sets: Box::leak(sets.into_boxed_slice()) }
+    OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
 
 #[test]
 fn foreign_frames_refuse_when_every_owner_level_compares() {
     let sets = foreign(frame_reads::SETS, Some("Other"));
     let mut first = World::unopened_observed(41, patches::limits(), None);
-    first.patch_sets(sets);
+    first.owner_sets(sets);
     let before = first.contents();
     first.trace_writes();
     assert_eq!(first.open_switched(), None);
@@ -582,7 +628,7 @@ fn foreign_frames_refuse_when_every_owner_level_compares() {
     assert_eq!(first.contents(), before);
     assert_eq!((first.changes()).len(), 0);
     let mut world = baseline(foreign(frame_reads::SETS, None));
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     let before = world.contents();
     assert_eq!(world.open_switched(), None);
     set_refused(&world, "foreign frames with comparable levels");
@@ -590,16 +636,16 @@ fn foreign_frames_refuse_when_every_owner_level_compares() {
 }
 
 #[test]
-fn missing_jig_slot_refuses_levels_before_frame_checks() {
+fn a_frames_family_in_the_application_slot_refuses_admission() {
     let mut sets = frame_reads::SETS.sets.to_vec();
     sets[0].owner = Owner::Application;
-    let sets = PatchSets { sets: Box::leak(sets.into_boxed_slice()) };
+    let sets = OwnerSets { sets: Box::leak(sets.into_boxed_slice()) };
     let mut world = baseline(frame_reads::SETS);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     let before = world.contents();
     assert_eq!(world.open_switched(), None);
     assert!(
-        matches!(world.refusal(), Some(store::OpenRefusal::Ahead { owner: Owner::Jig, wanted: None, .. })),
+        matches!(world.refusal(), Some(store::OpenRefusal::Set { owner: Owner::Application })),
         "{:?}",
         world.refusal()
     );

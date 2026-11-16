@@ -29,7 +29,7 @@ type Proc = programs::Process<Upgrade>;
 impl Harness for Upgrade {
     type Service = Observer;
     type Process = HarnessProcess;
-    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
+    fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         Some(STATE.with(|s| if s.borrow().upgrade { CURRENT_SETS } else { first_sets() }))
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {

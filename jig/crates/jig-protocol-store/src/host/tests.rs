@@ -263,9 +263,7 @@ fn a_registry_upgrade_without_a_logs_directory_opens() {
     const FAMILY: crate::KeptFamily = crate::KeptFamily {
         name: "fixture-layouts",
         current: KEPT,
-        texts: &[KEPT],
         retired: &[],
-        flights: &[],
         frames: None,
         map: crate::KeptMap::Store,
         keys: &[crate::Keys { from: b"a", to: b"b", root: "Growing" }],
@@ -276,17 +274,15 @@ fn a_registry_upgrade_without_a_logs_directory_opens() {
             keys: &[crate::KeyRange { from: b"a", to: b"b" }],
         }],
     };
-    const SET: crate::PatchSet = crate::PatchSet {
+    const SET: crate::OwnerSet = crate::OwnerSet {
         owner: crate::Owner::Application,
         name: "fixture-layouts",
         families: &[FAMILY],
         level: Some(0),
-        patches: &[],
-        fresh: None,
         jobs: &[],
     };
     let mut world = World::new();
-    world.store.patch_sets(crate::PatchSets { sets: &[SET] });
+    world.store.owner_sets(crate::OwnerSets { sets: &[SET] });
     world.open();
     world.host.down(
         &mut world.store,
@@ -302,8 +298,8 @@ fn a_registry_upgrade_without_a_logs_directory_opens() {
     world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
     world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
-    world.store.patch_sets(crate::PatchSets {
-        sets: &[crate::PatchSet { families: &[crate::KeptFamily { current: CURRENT, ..FAMILY }], ..SET }],
+    world.store.owner_sets(crate::OwnerSets {
+        sets: &[crate::OwnerSet { families: &[crate::KeptFamily { current: CURRENT, ..FAMILY }], ..SET }],
     });
     world.adopt();
     world.settle();

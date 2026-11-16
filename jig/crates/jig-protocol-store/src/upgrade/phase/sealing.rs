@@ -1,6 +1,6 @@
 //! The last upgrade commit follows the jobs (protocol/store/opening.md, 2, step 4).
 use super::{Patching, refuse, state};
-use crate::{Below, Event, Limits, Store, codec, commits, format, keys};
+use crate::{Below, Event, Limits, Store, codec, commits, format, keys, open};
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
 use skein_lib::{Env, List, Queue};
 
@@ -8,8 +8,8 @@ use skein_lib::{Env, List, Queue};
 pub(super) struct Sealing {
     pub(super) header: Deployment,
     pub(super) number: u64,
-    pub(super) before: crate::patching::plan::Levels,
-    pub(super) counts: List<crate::patching::check::Counted>,
+    pub(super) before: crate::upgrade::admission::Levels,
+    pub(super) counts: List<crate::upgrade::check::Counted>,
 }
 pub(super) fn begin(
     store: &mut Store,
@@ -27,7 +27,7 @@ pub(super) fn begin(
         return refuse(store, above);
     };
     let mut format = format::current(store.application.version, header.id);
-    format.levels = crate::patching::plan::binary(&store.patch_sets);
+    format.levels = crate::upgrade::admission::binary(&store.owner_sets);
     let Ok(format) = format.encode() else {
         return refuse(store, above);
     };
@@ -42,7 +42,7 @@ pub(super) fn begin(
     let Some(floor_key) = keys::encode_own(&keys::Own::Floor, store.limits.store.key) else {
         return refuse(store, above);
     };
-    let floor = match crate::open::get(store, skein_lib::Token::new(0), floor_key.clone()) {
+    let floor = match open::get(store, skein_lib::Token::new(0), floor_key.clone()) {
         Ok(None) => true,
         Ok(Some(bytes)) => {
             let Ok(row) =
@@ -82,4 +82,37 @@ pub(super) fn begin(
 fn put_size(key: &[u8], value: &[u8], before: u64) -> Option<u64> {
     before
         .checked_add(u64::from(skein_kv::put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)?))
+}
+
+pub(super) fn opened(
+    store: &mut Store,
+    before: crate::upgrade::admission::Levels,
+    counts: List<crate::upgrade::check::Counted>,
+) -> Option<Sealing> {
+    let key = Key::Core(CoreKey::Deployment);
+    let encoded = keys::encode(&key, store.limits.store.key)?;
+    let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
+    let record = codec::decode(&key, &bytes, &store.codec_limits, &store.names)?;
+    let header = match record {
+        Record::Core(CoreRecord::Deployment(header)) => header,
+        Record::Core(
+            CoreRecord::Settings(_)
+            | CoreRecord::Projection(_)
+            | CoreRecord::Call(_)
+            | CoreRecord::RunProof(_)
+            | CoreRecord::Turn(_)
+            | CoreRecord::Terminal(_)
+            | CoreRecord::ProposalDecision(_)
+            | CoreRecord::EscalationDecision(_),
+        )
+        | Record::Tasks(_)
+        | Record::People(_)
+        | Record::Notes(_)
+        | Record::Accounts(_) => return None,
+    };
+    let last = store.stores.store.last();
+    if header.commits != last {
+        return None;
+    }
+    Some(Sealing { header, number: last.checked_add(1)?, before, counts })
 }

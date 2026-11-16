@@ -1,7 +1,7 @@
 //! Route the transcript census while the settling job waits (protocol/store/jobs.md, 5.4).
 use super::{Running, Waiting, refuse, state, take};
-use crate::patching::phase::Patching;
 use crate::transcripts::census::{Census, Next};
+use crate::upgrade::phase::Patching;
 use crate::{Arrived, Below, Event, JobCount, Limits, Store};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
@@ -47,7 +47,7 @@ pub(super) fn resume(
         }
     }
 }
-pub(in crate::patching::phase) fn file(
+pub(in crate::upgrade::phase) fn file(
     store: &mut Store,
     env: &Env<Limits>,
     arrived: Arrived,
@@ -71,12 +71,11 @@ fn take_running(store: &mut Store) -> Option<Box<Running>> {
         | Patching::Copying(_)
         | Patching::Mapping { .. }
         | Patching::Recovering { .. }
-        | Patching::Walking(_)
         | Patching::Sealing { .. }
         | Patching::Checking(_) => None,
     }
 }
-pub(in crate::patching::phase) fn records(
+pub(in crate::upgrade::phase) fn records(
     store: &mut Store,
     records: Option<Box<[skein_kv::LogRecord]>>,
     above: &mut Queue<Event>,

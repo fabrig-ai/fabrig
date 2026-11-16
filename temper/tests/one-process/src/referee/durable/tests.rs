@@ -5,7 +5,7 @@ use skein_fake_machine::{How, Item, Machine};
 
 fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
-    format.levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
+    format.levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     let root::Record::Core(row) = fixture::row() else { unreachable!() };
     let value = if malformed {
         Box::default()
@@ -19,7 +19,7 @@ fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
         },
         skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
     ];
-    for set in temper_engine_service::store::PATCH_SETS.sets {
+    for set in temper_engine_service::store::OWNER_SETS.sets {
         for job in set.jobs {
             if old && set.owner == jig_protocol_store::Owner::Application && job.name == crate::upgrade::JOB {
                 continue;

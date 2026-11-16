@@ -3,21 +3,21 @@ pub mod check;
 mod maps;
 pub mod rehearsal;
 pub mod story;
-use jig_protocol_store::{KeptMap, Owner, PatchSets, codec, keys};
+use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
 use std::{collections::BTreeSet, path::Path};
 
 /// A pending production job upgrades the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
-pub(super) const CURRENT_SETS: PatchSets = temper_engine_service::store::PATCH_SETS;
+pub(super) const CURRENT_SETS: OwnerSets = temper_engine_service::store::OWNER_SETS;
 
-thread_local! { static FIRST_SETS: PatchSets = first_build(); }
+thread_local! { static FIRST_SETS: OwnerSets = first_build(); }
 
-pub(super) fn first_sets() -> PatchSets {
+pub(super) fn first_sets() -> OwnerSets {
     FIRST_SETS.with(|sets| *sets)
 }
 
-fn first_build() -> PatchSets {
-    PatchSets {
+fn first_build() -> OwnerSets {
+    OwnerSets {
         sets: Box::leak(
             CURRENT_SETS
                 .sets
@@ -26,7 +26,7 @@ fn first_build() -> PatchSets {
                     if set.owner != Owner::Application {
                         return *set;
                     }
-                    jig_protocol_store::PatchSet {
+                    jig_protocol_store::OwnerSet {
                         jobs: Box::leak(
                             set.jobs
                                 .iter()
@@ -83,7 +83,7 @@ pub fn golden_ranges(directory: &Path) {
     for (map, rows) in [(KeptMap::Store, &maps.store), (KeptMap::Secrets, &maps.secrets)] {
         for (key, value) in rows {
             let mut families = Vec::new();
-            for set in temper_engine_service::store::PATCH_SETS.sets {
+            for set in temper_engine_service::store::OWNER_SETS.sets {
                 let relative = if set.owner == Owner::Application {
                     key.strip_prefix(match map {
                         KeptMap::Store => &[keys::APPLICATION][..],
@@ -141,7 +141,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     assert_eq!(before.format(), after.format(), "registry and job upgrades move no levels or versions");
-    let family = temper_protocol_store::PATCH_SET
+    let family = temper_protocol_store::OWNER_SET
         .families
         .iter()
         .find(|family| family.name == "temper-store")

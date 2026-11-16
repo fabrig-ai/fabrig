@@ -10,16 +10,12 @@ pub enum Owner {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct PatchSet {
+pub struct OwnerSet {
     pub owner: Owner,
     pub name: &'static str,
     pub families: &'static [KeptFamily],
-    /// Patch texts in number order.
-    pub patches: &'static [&'static str],
-    /// The owner's level, retained when its patch texts are dropped.
+    /// The owner's level (protocol/store/records.md, 3).
     pub level: Option<u32>,
-    /// The owner's mark across which windows start fresh.
-    pub fresh: Option<&'static str>,
     pub jobs: &'static [crate::jobs::Job],
 }
 /// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening.md, 3).
@@ -32,20 +28,23 @@ pub enum KeptMap {
 #[derive(Clone, Copy, Debug)]
 pub struct KeptFamily {
     pub name: &'static str,
-    /// Kept texts in version order.
-    pub texts: &'static [&'static str],
     pub map: KeptMap,
     pub keys: &'static [Keys],
-    /// The declaration used as a transcript frame root.
-    pub frames: Option<&'static str>,
-    /// Ranges whose every record is an effect in flight, its key naming
-    /// it (protocol/store/opening.md 3), in `Keys`' form. Empty: none.
-    pub flights: &'static [Keys],
-    /// The binary's schema text; a patched family's latest kept text.
+    /// The frames' family's texts and patches (protocol/store/transcripts.md, 6).
+    pub frames: Option<Frames>,
+    /// The binary's schema text.
     pub current: &'static str,
-    /// Registered value types; empty for a patched family (protocol/store/layouts.md, 2).
+    /// Registered value types; empty for a family outside the registry (protocol/store/layouts.md, 2).
     pub types: &'static [ValueType],
     pub retired: &'static [Retired],
+}
+
+/// A frames' family's history, read by its machine alone (protocol/store/transcripts.md, 6).
+#[derive(Clone, Copy, Debug)]
+pub struct Frames {
+    pub root: &'static str,
+    pub texts: &'static [&'static str],
+    pub patches: &'static [&'static str],
 }
 
 /// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).
@@ -74,31 +73,28 @@ pub struct Keys {
     pub root: &'static str,
 }
 #[derive(Clone, Copy, Debug)]
-pub struct PatchSets {
+pub struct OwnerSets {
     /// At most one set per owner.
-    pub sets: &'static [PatchSet],
+    pub sets: &'static [OwnerSet],
 }
-impl PatchSets {
-    pub const NONE: PatchSets = PatchSets { sets: &[] };
+impl OwnerSets {
+    pub const NONE: OwnerSets = OwnerSets { sets: &[] };
 }
 
 /// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
-pub const JIG: PatchSet = PatchSet {
+#[expect(clippy::disallowed_macros, reason = "the binary's current secrets schema")]
+pub const JIG: OwnerSet = OwnerSet {
     jobs: &[],
     owner: Owner::Jig,
     name: "jig",
     level: None,
-    patches: &[],
-    fresh: None,
     families: &[KeptFamily {
         retired: &[],
-        current: "",
+        current: include_str!("../../schema/secrets-v1.schema"),
         types: &[],
         name: "jig-store-secrets",
-        texts: &[],
         map: KeptMap::Secrets,
         frames: None,
-        flights: &[],
         keys: &[
             Keys { from: &[1, 0], to: &[1, 2], root: "Digest" },
             Keys { from: &[3, 0], to: &[3, 1], root: "Source" },

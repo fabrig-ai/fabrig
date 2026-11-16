@@ -1,12 +1,12 @@
 //! Floor writes and explicit owner levels (protocol/store/records.md, 3; opening.md, 3).
 use super::*;
-use crate::{Owner, PatchSet, PatchSets, component_v3};
+use crate::{Owner, OwnerSet, OwnerSets, component_v3};
 use skein_lib::{Reader, Writer};
 
-fn store(disk: &Disk, sets: PatchSets) -> Store {
+fn store(disk: &Disk, sets: OwnerSets) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
     store.application.version = 0;
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     store
 }
 fn key() -> Box<[u8]> {
@@ -146,7 +146,7 @@ fn traced_request(
         for event in retained {
             above.push(event);
         }
-        if !crate::patching::phase::ready(store)
+        if !crate::upgrade::phase::ready(store)
             && below.store.is_empty()
             && below.secrets.is_empty()
             && below.transcripts.is_empty()
@@ -188,40 +188,9 @@ fn job_upgrade_writes_floor_only_in_the_seal_and_keeps_equal_or_higher_rows() {
 }
 
 #[test]
-fn level_admission_refuses_family_disagreements_at_patch_zero() {
-    let app = SETS.sets[0];
-    for set in [PatchSet { level: None, ..app }, PatchSet { families: &[], patches: &[], level: Some(0), ..app }] {
-        let mut fixture = Disk::new(&[]);
-        let mut first = store(&fixture, BASE);
-        assert_opened(&fixture.open(&mut first), 0);
-        commit(&mut fixture, &mut first);
-        for items in [Vec::new(), fixture.items()] {
-            let mut disk = Disk::new(&items);
-            let sets = PatchSets { sets: Box::leak(Box::new([set])) };
-            let mut store = store(&disk, sets);
-            let last = u64::from(!items.is_empty());
-            let events = disk.open(&mut store);
-            assert!(
-                {
-                    if let [Event::OpenRefused { why: OpenRefusal::Set { owner: Owner::Application, patch: 0 }, .. }] =
-                        events.as_ref()
-                    {
-                        true
-                    } else {
-                        false
-                    }
-                },
-                "{events:?}"
-            );
-            assert_eq!(store.stores.store.last(), last);
-        }
-    }
-}
-
-#[test]
 fn a_level_survives_an_empty_patch_array_in_first_commit_reopen_and_ahead() {
-    let set = PatchSet { patches: &[], level: Some(7), ..BASE.sets[0] };
-    let sets = PatchSets { sets: Box::leak(Box::new([set])) };
+    let set = OwnerSet { level: Some(7), ..BASE.sets[0] };
+    let sets = OwnerSets { sets: Box::leak(Box::new([set])) };
     let mut disk = Disk::new(&[]);
     let mut first = store(&disk, sets);
     assert_opened(&disk.open(&mut first), 0);
@@ -235,7 +204,7 @@ fn a_level_survives_an_empty_patch_array_in_first_commit_reopen_and_ahead() {
     assert_opened(&disk.open(&mut reopened), 1);
     assert!(reopened.directory.patch.is_none());
     let mut disk = Disk::new(&items);
-    let older = PatchSets { sets: Box::leak(Box::new([PatchSet { level: Some(6), ..set }])) };
+    let older = OwnerSets { sets: Box::leak(Box::new([OwnerSet { level: Some(6), ..set }])) };
     let mut reopened = store(&disk, older);
     assert!({
         if let [
@@ -267,7 +236,7 @@ fn a_job_only_upgrade_adds_the_floor_in_its_last_commit() {
     commit(&mut disk, &mut first);
     registry::raw(&mut disk, &mut first, vec![floor_op(None)]);
     let mut disk = Disk::new(&disk.items());
-    let sets = PatchSets { sets: Box::leak(Box::new([PatchSet { jobs: &[JOB], ..BASE.sets[0] }, BASE.sets[1]])) };
+    let sets = OwnerSets { sets: Box::leak(Box::new([OwnerSet { jobs: &[JOB], ..BASE.sets[0] }, BASE.sets[1]])) };
     let mut upgraded = store(&disk, sets);
     upgraded.build_name("job-build");
     let events = disk.open(&mut upgraded);

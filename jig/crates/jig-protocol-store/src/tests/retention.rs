@@ -120,7 +120,7 @@ fn retention_rows_job_puts_each_summary_and_next_stage_for_the_whole_page() {
     ];
     assert_eq!(answer("retention-rows", &page(&records, false)), expected);
     assert_eq!(answer("retention-rows", &page(&[], true)), []);
-    let job = crate::JIG_STORE_PATCH_SET.jobs.iter().find(|job| job.name == "retention-rows").unwrap();
+    let job = crate::JIG_STORE_SET.jobs.iter().find(|job| job.name == "retention-rows").unwrap();
     assert_eq!(job.keys[0].from, &[1, 1, 6]);
     assert_eq!(job.keys[0].to, &[1, 1, 7]);
     assert!(job.converts.is_none());
@@ -179,7 +179,7 @@ fn retention_proposals_job_puts_each_decisions_time_for_the_whole_page() {
     }
     assert_eq!(answer("retention-proposals", &page(&records, false)), expected);
     assert_eq!(answer("retention-proposals", &page(&[], true)), []);
-    let job = crate::JIG_STORE_PATCH_SET.jobs.iter().find(|job| job.name == "retention-proposals").unwrap();
+    let job = crate::JIG_STORE_SET.jobs.iter().find(|job| job.name == "retention-proposals").unwrap();
     assert_eq!(job.keys[0].from, &[1, 0, 6, 1]);
     assert_eq!(job.keys[0].to, &[1, 0, 6, 2]);
     assert!(job.converts.is_none());

@@ -1,16 +1,11 @@
 //! Openings belong to the last start and are reported only by rehearsal (protocol/store/records.md 3).
-use jig_protocol_store::{Event, OpenedTerm, OpenedWire, PatchSet, PatchSets, Request, WorkerOpening, Write};
+use jig_protocol_store::{Event, OpenedTerm, OpenedWire, OwnerSet, OwnerSets, Request, WorkerOpening, Write};
 use jig_store_world::{World, root};
 use skein_lib::{Token, Wall};
 
 const SEED: u64 = 0x4f50_454e;
-const SETS: PatchSets = PatchSets {
-    sets: &[
-        jig_protocol_store::SKEIN_PATCH_SET,
-        jig_protocol_store::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-    ],
-};
+const SETS: OwnerSets =
+    OwnerSets { sets: &[jig_protocol_store::SKEIN_SET, jig_protocol_store::SMITH_SET, jig_protocol_accounts::JIG_SET] };
 
 fn opening(worker: &str, at: u64) -> WorkerOpening {
     WorkerOpening {
@@ -26,7 +21,7 @@ fn opening(worker: &str, at: u64) -> WorkerOpening {
 }
 fn started() -> World {
     let mut world = World::unopened(SEED);
-    world.patch_sets(jig_store_world::patches::current(SETS));
+    world.owner_sets(jig_store_world::patches::current(SETS));
     assert_eq!(world.open(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1)), Write::Wires])), Some(1));
     world
@@ -133,23 +128,22 @@ fn wires_clears_accepted_openings_even_before_they_are_durable() {
 
 #[test]
 fn a_store_from_before_the_family_opens_and_rehearses_without_openings() {
-    let jig = jig_protocol_accounts::JIG_PATCH_SET;
+    let jig = jig_protocol_accounts::JIG_SET;
     let families =
         jig.families.iter().filter(|family| family.name != "jig-store-openings").copied().collect::<Vec<_>>();
-    let old = PatchSets {
+    let old = OwnerSets {
         sets: Box::leak(Box::new([
             SETS.sets[0],
             SETS.sets[1],
-            PatchSet { families: Box::leak(families.into_boxed_slice()), ..jig },
+            OwnerSet { families: Box::leak(families.into_boxed_slice()), ..jig },
         ])),
     };
     let mut world = World::unopened(SEED);
-    world.patch_sets(jig_store_world::patches::current(old));
+    world.owner_sets(jig_store_world::patches::current(old));
     assert_eq!(world.open(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1)), Write::Wires])), Some(1));
     world.crash(SEED);
-    world.patch_sets(jig_store_world::patches::current(SETS));
+    world.owner_sets(jig_store_world::patches::current(SETS));
     assert_eq!(world.open(), Some(1), "the layouts row has no openings field, and needs none");
-    assert!(world.patched().is_empty(), "introducing the family rewrites no row");
     rehearse(&mut world, &[]);
 }

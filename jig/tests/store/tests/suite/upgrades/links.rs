@@ -1,5 +1,5 @@
 //! Shared generation files, never shared writes (protocol/store/opening.md, 2, 4 and 5).
-use jig_protocol_store::{Event, PatchSets, Write};
+use jig_protocol_store::{Event, OwnerSets, Write};
 use jig_store_world::{
     World,
     patches::{self, BASE, Records, SETS},
@@ -11,8 +11,8 @@ use skein_io::kernel::Error;
 use std::collections::BTreeMap;
 
 const SEED: u64 = 0x4c49_4e4b;
-const MID: PatchSets = SETS;
-const AFTER: PatchSets = patches::NEXT;
+const MID: OwnerSets = SETS;
+const AFTER: OwnerSets = patches::NEXT;
 type Contents = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
 
 /// A snapshot, then commits on two later opens: both sealed and newest segments stand.
@@ -46,7 +46,7 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
     for name in ["snapshot.tmp", "log-1"] {
         world.lay(&[Item::file(format!("generations/1/store/{name}").as_bytes(), name.as_bytes()).mode(0o600)]);
     }
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
     world.open().expect("pending upgraded copy");
     assert!(world.pending);
@@ -98,7 +98,7 @@ fn cross_device_links_fall_back_to_single_link_files_and_all_records() {
     let before = files(&mut world, 1);
     world.refuse_links(Some(Error::Other(18))); // EXDEV
     world.trace_writes();
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("copy fallback upgrades");
     assert!(world.changes().iter().any(|(_, change)| *change == Change::Link), "refusal seam exercised");
     patches::kept(&before, &files(&mut world, 1), &"refused links");
@@ -123,7 +123,7 @@ fn back_after_job_snapshots_keeps_the_shared_previous_files_whole() {
     let mut limits = patches::limits();
     limits.store.snapshot_after = replay + 1;
     world.restart_with_limits(SEED, limits);
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.trace_writes();
     world.open_switched().expect("job snapshots and switch");
     assert!(
@@ -146,7 +146,7 @@ fn back_after_job_snapshots_keeps_the_shared_previous_files_whole() {
     let events = world.back();
     assert!(matches!(events.as_slice(), [Event::Back { to: 1, .. }]), "{events:?}");
     world.restart_with_limits(SEED, patches::limits());
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     assert_eq!(world.open_switched(), Some(3));
     patches::kept(&before, &files(&mut world, 1), &"back after snapshots");
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
@@ -157,10 +157,10 @@ fn back_after_job_snapshots_keeps_the_shared_previous_files_whole() {
 #[test]
 fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
     let mut trace = super::logs::source(SEED);
-    trace.patch_sets(MID);
+    trace.owner_sets(MID);
     trace.open_switched().expect("first upgrade");
     trace.crash(SEED);
-    trace.patch_sets(AFTER);
+    trace.owner_sets(AFTER);
     trace.trace_writes();
     trace.open_switched().expect("second upgrade");
     let drop = patches::first_change(&trace, Change::Rename);
@@ -172,14 +172,14 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
         .0;
 
     let mut world = super::logs::source(SEED);
-    world.patch_sets(MID);
+    world.owner_sets(MID);
     world.open_switched().expect("first upgrade");
     let before = files(&mut world, 2);
     let counts = link_counts(&mut world, &before);
     let shared: Vec<_> = counts.iter().filter(|(_, links)| **links == 2).map(|(path, _)| path.clone()).collect();
     assert!(shared.iter().any(|path| path.starts_with(b"generations/2/store/logs/")), "task logs shared");
     world.crash(SEED);
-    world.patch_sets(AFTER);
+    world.owner_sets(AFTER);
     world.trace_writes();
     world.cut_at(copy);
     assert_eq!(world.open(), None);
@@ -198,7 +198,7 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
 #[test]
 fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
     let mut trace = previous();
-    trace.patch_sets(SETS);
+    trace.owner_sets(SETS);
     trace.trace_writes();
     trace.open_switched().expect("discover link cuts");
     let links: Vec<_> =
@@ -210,7 +210,7 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
         let mut world = previous();
         let before = files(&mut world, 1);
         let counts = link_counts(&mut world, &before);
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         world.trace_writes();
         world.cut_at(cut);
         assert_eq!(world.open(), None);
@@ -238,7 +238,7 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
 #[test]
 fn rehearsal_copies_even_a_sources_shared_files_without_changing_its_links() {
     let mut world = previous();
-    world.patch_sets(SETS);
+    world.owner_sets(SETS);
     world.open_switched().expect("source contains linked generations");
     world.crash(SEED);
     let before = world.contents();

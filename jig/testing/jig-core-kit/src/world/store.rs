@@ -198,16 +198,16 @@ impl World {
     }
 
     /// Restart under the next binary's patch sets.
-    pub fn restart_with_patch_sets(&mut self, seed: u64, requirement: bool, sets: jig_protocol_store::PatchSets) {
-        self.store.patch_sets(sets);
+    pub fn restart_with_owner_sets(&mut self, seed: u64, requirement: bool, sets: jig_protocol_store::OwnerSets) {
+        self.store.owner_sets(sets);
         self.restart(seed, requirement);
     }
 
     /// Run the next binary through Switch and its durable mark, holding the
     /// acknowledgement so no restored claim is adopted before the crash.
-    pub fn switch_patch_sets(&mut self, seed: u64, sets: jig_protocol_store::PatchSets) {
+    pub fn switch_owner_sets(&mut self, seed: u64, sets: jig_protocol_store::OwnerSets) {
         self.hold_switch = true;
-        self.restart_with_patch_sets(seed, false, sets);
+        self.restart_with_owner_sets(seed, false, sets);
         self.store.fault(jig_test_store_files::Fault::Hold { commits: 1 });
         self.finish_switch();
     }

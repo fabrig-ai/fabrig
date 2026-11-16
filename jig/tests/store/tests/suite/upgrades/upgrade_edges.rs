@@ -1,6 +1,6 @@
 //! Independent upgrade contract checks through the public store world.
 //! jig/docs/design/protocol/store/transcripts.md, 3 and 6, and jig/docs/design/protocol/store/opening.md, 2.
-use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead};
+use jig_protocol_store::{Event, OwnerSets, Request, TranscriptRead};
 use jig_store_world::{
     World, patches,
     root::{self, LIVE as TASK},
@@ -29,9 +29,9 @@ fn direct_frame_bytes(transcript: &[u8]) -> u64 {
     FRAME_OVERHEAD + len_u64(transcript.len())
 }
 
-fn committed(sets: PatchSets, bodies: &[&[u8]]) -> World {
+fn committed(sets: OwnerSets, bodies: &[&[u8]]) -> World {
     let mut world = World::unopened(SEED);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     world.open_switched().expect("fixture store opens");
     world.commit(root::first()).expect("live task committed");
     for (index, body) in bodies.iter().enumerate() {
@@ -70,7 +70,7 @@ fn unread(events: &[Event], context: impl std::fmt::Debug) {
 
 #[test]
 fn native_pages_without_room_end_as_unread() {
-    let mut world = committed(PatchSets::NONE, &[NATIVE]);
+    let mut world = committed(OwnerSets::NONE, &[NATIVE]);
     let bytes = direct_frame_bytes(NATIVE);
     let rooms = [("zero rows", 0, bytes), ("zero bytes", ONE_ROW, 0), ("one byte short", ONE_ROW, bytes - 1)];
     for read in starts() {
@@ -93,7 +93,7 @@ fn native_pages_without_room_end_as_unread() {
 
 #[test]
 fn native_pages_accept_exactly_one_whole_turn() {
-    let mut world = committed(PatchSets::NONE, &[NATIVE]);
+    let mut world = committed(OwnerSets::NONE, &[NATIVE]);
     let bytes = direct_frame_bytes(NATIVE);
     for read in starts() {
         let events = page(&mut world, read, ONE_ROW, bytes);
@@ -108,7 +108,7 @@ fn native_pages_accept_exactly_one_whole_turn() {
 
 #[test]
 fn requested_rows_cannot_expand_the_store_page_limit() {
-    let mut world = committed(PatchSets::NONE, &[NATIVE, NATIVE, NATIVE]);
+    let mut world = committed(OwnerSets::NONE, &[NATIVE, NATIVE, NATIVE]);
     let bytes = direct_frame_bytes(NATIVE) * u64::from(THREE_ROWS);
     let read = TranscriptRead::Page { task: TASK, backwards: false, after: None };
     let events = page(&mut world, read, THREE_ROWS, bytes);

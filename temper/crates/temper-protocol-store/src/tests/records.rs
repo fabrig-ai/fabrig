@@ -1837,7 +1837,7 @@ fn a_changes_kept_answers_round_trip_unchanged() {
 #[test]
 fn a_change_row_written_without_kept_answers_decodes_with_none() {
     let mut family = None;
-    for candidate in crate::PATCH_SET.families {
+    for candidate in crate::OWNER_SET.families {
         if candidate.name == "temper-store" {
             family = Some(candidate);
         }
@@ -2242,7 +2242,7 @@ fn status_findings_marks_round_trip_some_and_none() {
 #[test]
 fn status_written_before_findings_marks_defaults_to_none() {
     let mut family = None;
-    for candidate in crate::PATCH_SET.families {
+    for candidate in crate::OWNER_SET.families {
         if candidate.name == "temper-store" {
             family = Some(candidate);
         }
@@ -3056,7 +3056,7 @@ fn receipt_reports_round_trip_their_states_and_owned_bytes() {
 #[test]
 fn receipt_row_report_defaults_without_changing_tier_rows() {
     let mut text = None;
-    for family in crate::PATCH_SET.families {
+    for family in crate::OWNER_SET.families {
         if family.name == "temper-store" {
             text = Some(family.current);
         }
