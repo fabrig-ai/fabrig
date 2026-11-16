@@ -71,6 +71,26 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
 }
 
 #[test]
+fn the_goals_report_headline_says_where_it_stands_for_a_person() {
+    let assembled =
+        temper_charter_set::goal_agent(&crate::stock::charter_set(), |name| Reasons::named(name.as_bytes())).unwrap();
+    let instructions = core::str::from_utf8(&assembled.instructions).unwrap();
+    let report = instructions
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("**Your report note:**"))
+        .expect("goal report note");
+    assert!(report.contains(
+        "a one-line headline for the person: where the goal stands, naming no task, change or pull request by number"
+    ));
+    assert!(report.contains("5 of its 7 changes landed; the other 2 are building."));
+    let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();
+    let last_bullet =
+        designer.lines().find(|line| line.starts_with("- **Never park with design unfinished:**")).unwrap();
+    assert!(last_bullet.contains("Your note's headline says where the goal stands, naming no task, change or pull request by number; its body the tree, the decisions, the critical path and any part dropped with its reason."));
+    assert!(!designer.contains("Your note's headline says the tree"));
+}
+
+#[test]
 fn the_coding_agents_charter_keeps_its_commits_and_writes_for_the_history() {
     let engine = engine(&generated());
     let charter = engine.charters.iter().find(|charter| charter.number == 2).unwrap();

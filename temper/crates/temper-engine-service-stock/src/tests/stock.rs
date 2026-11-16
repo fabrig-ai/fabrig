@@ -714,7 +714,8 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ",
+        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
+        "5 of its 7 changes landed; the other 2 are building.",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -731,7 +732,28 @@ fn chat_and_goal_use_asking() {
     let words = include_str!("../stock/chat.txt");
     for prefix in ["If your brief says you are a goal", "If neither line"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("role paragraph");
-        assert!(paragraph.contains("Use Reports and Asking."));
+        assert!(paragraph.contains("Use Reports, Asking and Titles."));
+    }
+}
+
+#[test]
+fn goals_changes_and_roles_open_with_titles_for_a_person() {
+    chat_and_goal_use_asking();
+    let words = include_str!("../stock/chat.txt");
+    let titles = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
+        .expect("titles paragraph");
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    assert!(titles.contains(sentence));
+    for words in [
+        include_str!("../stock/role.md"),
+        include_str!("../stock/triager.md"),
+        include_str!("../stock/prover.md"),
+        include_str!("../stock/porter.md"),
+    ] {
+        let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+        assert!(shared.contains(sentence));
     }
 }
 
@@ -739,14 +761,30 @@ fn chat_and_goal_use_asking() {
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
     chat_and_goal_use_asking();
+    let decision =
+        "Write the question in one sentence, the situation as a person reads it, and each option in one line.";
+    for words in [
+        include_str!("../stock/role.md"),
+        include_str!("../stock/triager.md"),
+        include_str!("../stock/prover.md"),
+        include_str!("../stock/porter.md"),
+    ] {
+        let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+        let asking = shared.split("\n\n").find(|paragraph| paragraph.starts_with("Before asking your person")).unwrap();
+        assert!(asking.contains(decision));
+    }
     for (words, prefixes) in [(include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..])] {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
-            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says."));
+            assert!(paragraph.contains(decision));
+            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
+    let asking = goal.split("\n\n").find(|paragraph| paragraph.starts_with("**Asking your requester.")).unwrap();
+    assert!(asking.contains(decision));
     assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
@@ -892,7 +930,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     }
     for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
-        assert!(paragraph.contains("Use Reports and Asking."), "{role} must retain reporting rules");
+        assert!(paragraph.contains("Use Reports, Asking and Titles."), "{role} must retain reporting rules");
     }
 }
 
