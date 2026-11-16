@@ -1,4 +1,4 @@
-//! Atomic contents commits, including a repository's first head (skein/docs/design/testing/fakes/forge.md, 2.2 and 2.3).
+//! Atomic contents commits, including a repository's first head (skein/docs/design/testing/fakes/forge.md, 2.2, 2.3 and 4).
 use crate::{
     Config, Domain,
     api::{Error, Permission, What},
@@ -15,11 +15,13 @@ pub struct ContentsChange {
     pub expected: Option<[u8; 20]>,
 }
 /// Validates every change before storing one commit and starting its CI.
+#[expect(clippy::too_many_arguments, reason = "one contents batch names its base and optional new branch")]
 pub fn change_files(
     domain: &mut Domain,
     env: &Env<Config>,
     repository: &[u8],
     branch: &[u8],
+    new_branch: Option<&[u8]>,
     message: &[u8],
     files: &[ContentsChange],
     by: u64,
@@ -31,16 +33,29 @@ pub fn change_files(
     if stored.refusing {
         return Err(Error::Refused);
     }
-    if stored.is_protected(branch) {
+    let target = new_branch.unwrap_or(branch);
+    if stored.is_protected(target) {
         return Err(Error::Protected);
     }
     fits(branch, limits.name_bytes)?;
+    fits(target, limits.name_bytes)?;
     let message_bytes = limits.title_bytes.checked_add(limits.body_bytes).ok_or(Error::TooLarge)?;
     fits(message, message_bytes.checked_add(2).ok_or(Error::TooLarge)?)?;
-    if branch.is_empty() || files.is_empty() {
+    if branch.is_empty() || target.is_empty() || files.is_empty() {
         return Err(Error::Refused);
     }
     let tip = stored.branches.get(branch).copied();
+    if new_branch.is_some() {
+        if stored.branches.contains_key(target) {
+            return Err(Error::Exists);
+        }
+        if tip.is_none() {
+            return Err(Error::Missing(What::Branch));
+        }
+        if stored.branches.len() == stored.branches.capacity() {
+            return Err(Error::Full);
+        }
+    }
     let mut tree = match tip {
         Some(tip) => git::copy_tree(limits, &domain.commits.get(&tip).expect("branch commit").tree),
         None => {
@@ -80,8 +95,8 @@ pub fn change_files(
     )?;
     let stored = domain.repositories.get_mut(id).expect("named repository");
     stored.has.insert(commit).expect("room for every commit");
-    stored.branches.insert(copy_of(branch), commit).expect("branch room checked");
-    git::moved(domain, env, id, branch, tip, commit, by);
+    stored.branches.insert(copy_of(target), commit).expect("branch room checked");
+    git::moved(domain, env, id, target, if new_branch.is_some() { None } else { tip }, commit, by);
     Ok(commit)
 }
 

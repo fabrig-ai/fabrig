@@ -23,7 +23,8 @@ impl Ledger {
                 || self.findings.iter().any(|finding| {
                     finding.session == number || finding.checks.iter().any(|check| check.session == number)
                 })
-                || self.notes.iter().any(|note| note.session == number);
+                || self.notes.iter().any(|note| note.session == number)
+                || self.gaps.iter().any(|gap| gap.session == number);
             if !recorded {
                 for case in self
                     .cases
@@ -126,6 +127,7 @@ impl Ledger {
         let outcome = case.outcomes.iter().rev().find(|outcome| outcome.session == session).cloned();
         let mut line = None;
         let (state, owner) = match outcome {
+            Some(Outcome { result: OutcomeResult::Gap, .. }) => (CaseState::Gap, Some(pass)),
             Some(Outcome { result: OutcomeResult::Passed, .. }) => (CaseState::Passed, Some(pass)),
             Some(Outcome { result: OutcomeResult::Blocked, notes, .. }) => {
                 let blocks = case.blocks.saturating_add(1);

@@ -268,7 +268,13 @@ fn route_tail(
         [contents] if &**contents == b"contents" => (
             Method::Post,
             WriteKind::ChangeFiles,
-            Request::ChangeFiles { at, branch: Box::new([]), message: Box::new([]), files: Box::new([]) },
+            Request::ChangeFiles {
+                at,
+                branch: Box::new([]),
+                new_branch: None,
+                message: Box::new([]),
+                files: Box::new([]),
+            },
         ),
         [contents, parts @ ..] if &**contents == b"contents" && !parts.is_empty() => {
             (Method::Post, WriteKind::NewFile, new_file(at, parts))

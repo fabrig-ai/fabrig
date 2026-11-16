@@ -1,4 +1,6 @@
 # ledger: status
 
-2026-11-12. Where temper's code lags or departs from [ledger.md](ledger.md).
+2026-11-16. Where temper's code lags or departs from [ledger.md](ledger.md).
 
+
+Unlisted sections have no known gap.

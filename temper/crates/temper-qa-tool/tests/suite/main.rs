@@ -4,6 +4,7 @@ mod builds;
 mod configuration;
 mod events;
 mod fuzzy;
+mod gaps;
 mod hold;
 mod home;
 mod installation;

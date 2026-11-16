@@ -259,8 +259,11 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         if self.active.values().any(|active| active.kind == SessionKind::Triage) {
             return Ok(());
         }
+        crate::watch::close_gaps(&mut self.git, ledger, now.wall)?;
         let Some(landing) = ledger.next_landing().cloned() else { return Ok(()) };
-        let inputs = Inputs::read(&mut self.git, &landing)?;
+        let build =
+            ledger.triage_build(landing.number).map_or_else(|| landing.commit.clone(), |build| build.commit.clone());
+        let inputs = Inputs::read(&mut self.git, &landing, &self.home.configuration.surfaces, &build)?;
         let number = ledger.start_session(
             landing.number,
             &self.home.configuration.agent.triage,
@@ -280,7 +283,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             Ok(self.agent_command(number, &self.home.configuration.agent.triage, tree.clone()))
         };
         let result = start().and_then(|command| {
-            self.prepare_tree(&tree, &landing.commit)?;
+            self.prepare_tree(&tree, &build)?;
             self.processes.start(&command)
         });
         match result {
