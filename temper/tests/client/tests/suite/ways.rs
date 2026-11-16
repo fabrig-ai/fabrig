@@ -2,7 +2,7 @@
 //! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2; temper/docs/design/testing/README.md, 2.1).
 use jig_client::contract as c;
 use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
-use skein_ui::{Node, Role, State as UiState};
+use skein_ui::{Node, Role, Style};
 use skein_world::domain::Verdict;
 use temper_client_domain::{
     Action, Address, Event,
@@ -64,14 +64,13 @@ fn current(world: &Clients, person: ClientId, index: u32, name: &[u8]) {
     assert_eq!(current.len(), 1);
     assert_eq!(current[0].index, Some(index));
     assert_eq!(current[0].name.as_ref(), name);
-    let tabs = under(world.tree(person).nodes(), Role::Tabs, b"Ways of working");
-    let (at, _) = tabs
+    let stocks = under(world.tree(person).nodes(), Role::List, b"Stock ways:");
+    let running = stocks
         .iter()
-        .enumerate()
-        .filter(|(_, node)| node.role == Role::Tab)
-        .nth(usize::try_from(index).expect("tab index"))
-        .expect("current tab drawn");
-    assert_eq!(words(subtree(tabs, at)), format!("{}, now", String::from_utf8_lossy(name)));
+        .filter(|node| node.role == Role::Button)
+        .nth(usize::try_from(index).expect("way index"))
+        .expect("running stock way drawn");
+    assert_eq!(running.name.as_deref(), Some(format!("{}, now", String::from_utf8_lossy(name)).as_bytes()));
 }
 
 fn subtree(nodes: &[Node], at: usize) -> &[Node] {
@@ -82,6 +81,10 @@ fn under<'a>(nodes: &'a [Node], role: Role, name: &[u8]) -> &'a [Node] {
         .iter()
         .position(|node| node.role == role && node.name.as_deref() == Some(name))
         .unwrap_or_else(|| panic!("{role:?} {} drawn", String::from_utf8_lossy(name)));
+    subtree(nodes, at)
+}
+fn styled(nodes: &[Node], style: Style) -> &[Node] {
+    let at = nodes.iter().position(|node| node.styles.as_slice().contains(&style)).expect("styled part drawn");
     subtree(nodes, at)
 }
 fn words(nodes: &[Node]) -> String {
@@ -152,7 +155,6 @@ const PATHS: [[&str; 3]; 2] = [
     ],
 ];
 const NAMES: [&[u8]; 3] = [b"You approve", b"Agents review", b"Draft first"];
-const TAB_WORDS: [&str; 3] = ["You approve", "Agents review, now", "Draft first"];
 
 #[test]
 fn the_three_ways_draw_ci_and_tiers_or_neither() {
@@ -183,27 +185,18 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
             let tab = u32::try_from(index).expect("tab index");
             act(&mut world, person, Act::WayTab { project: PROJECT, tab });
             let nodes = world.tree(person).nodes();
-            let shown = under(nodes, Role::Group, name);
+            let shown = under(nodes, Role::Group, if tab == REVIEW { b"How work runs" } else { name });
             let line = panel(&world, person).ways().get(tab).expect("read's way").line();
-            let at = shown
-                .iter()
-                .position(|node| node.role == Role::Paragraph && node.styles.as_slice().contains(&look::WAYS_SAYS))
-                .expect("way's line drawn");
-            assert_eq!(words(subtree(shown, at)).as_bytes(), line, "way's line from the read");
+            assert_eq!(words(styled(nodes, look::WAY_LINE)).as_bytes(), line, "way's line from the read");
             assert_eq!(drawn_path(shown), expected, "{}", String::from_utf8_lossy(name));
             assert_eq!(
                 nodes.iter().filter(|node| node.styles.as_slice().contains(&look::WAYS_PANEL)).count(),
                 1,
                 "only the shown panel"
             );
-            let tabs = under(nodes, Role::Tabs, b"Ways of working");
-            let selected = tabs
-                .iter()
-                .enumerate()
-                .filter(|(_, node)| node.role == Role::Tab && node.states.as_slice().contains(&UiState::Selected))
-                .collect::<Vec<_>>();
-            assert_eq!(selected.len(), 1);
-            assert_eq!(words(subtree(tabs, selected[0].0)), TAB_WORDS[index]);
+            let stocks = under(nodes, Role::List, b"Stock ways:");
+            assert_eq!(stocks.iter().filter(|node| node.role == Role::Button).count(), 3);
+            current(&world, person, REVIEW, b"Agents review");
         }
         act(&mut world, person, Act::Go { address: Address::Settings { project: PROJECT } });
         for (index, (name, expected)) in NAMES.into_iter().zip(paths).enumerate() {
@@ -229,16 +222,11 @@ fn a_custom_rule_draws_yours_without_checks_or_acts() {
     assert_eq!(panel(&world, person).current(), &None);
     assert_eq!(page(&world, person).shown(), Some(3));
     let nodes = world.tree(person).nodes();
-    let tabs = under(nodes, Role::Tabs, b"Ways of working");
-    assert_eq!(tabs.iter().filter(|node| node.role == Role::Tab).count(), 4);
-    let selected = tabs
-        .iter()
-        .enumerate()
-        .filter(|(_, node)| node.role == Role::Tab && node.states.as_slice().contains(&UiState::Selected))
-        .collect::<Vec<_>>();
-    assert_eq!(selected.len(), 1);
-    assert_eq!(words(subtree(tabs, selected[0].0)), "Yours, now");
-    let own = under(nodes, Role::Group, b"Yours");
+    let stocks = under(nodes, Role::List, b"Stock ways:");
+    assert_eq!(stocks.iter().filter(|node| node.role == Role::Button).count(), 3);
+    assert!(stocks.iter().all(|node| !node.name.as_deref().is_some_and(|name| name.ends_with(b", now"))));
+    assert!(!nodes.iter().any(|node| node.role == Role::Tabs));
+    let own = under(nodes, Role::Group, b"How work runs");
     assert!(!drawn_path(own).lines().any(|line| line == "check, code"));
     no_acts(nodes);
 }
@@ -267,7 +255,7 @@ fn keep_the_current_way_completes_to_begin_and_is_not_offered_again() {
     assert!(named(main, Role::Term, b"Asked to"));
     act(&mut world, person, Act::Go { address: Address::Ask { project: PROJECT } });
     assert!(!named(world.tree(person).nodes(), Role::Region, b"Review"));
-    assert!(named(under(world.tree(person).nodes(), Role::Group, b"Agents review"), Role::Button, b"Keep it"));
+    assert!(named(styled(world.tree(person).nodes(), look::WAY_ACTS), Role::Button, b"Keep it"));
     let before = kinds::revision(&world.front().engine.store.rows);
     act(&mut world, person, Act::KeepWay { project: PROJECT });
     assert_eq!(kinds::revision(&world.front().engine.store.rows), before + 1, "Keep commits its settings");
@@ -310,13 +298,13 @@ fn use_draft_first_commits_the_goal_way() {
     let (mut world, person) = world(Reader::Owner);
     assert_eq!(page(&world, person).act(DRAFT), Some(WayAct::Use));
     act(&mut world, person, Act::WayTab { project: PROJECT, tab: DRAFT });
-    assert!(named(under(world.tree(person).nodes(), Role::Group, b"Draft first"), Role::Button, b"Use this"));
+    assert!(named(styled(world.tree(person).nodes(), look::WAY_ACTS), Role::Button, b"Use this"));
     let before = kinds::revision(&world.front().engine.store.rows);
     act(&mut world, person, Act::UseWay { project: PROJECT, way: DRAFT });
     assert_eq!(page(&world, person).refused(), None);
     assert_eq!(kinds::revision(&world.front().engine.store.rows), before + 1);
     current(&world, person, DRAFT, b"Draft first");
-    assert!(!named(under(world.tree(person).nodes(), Role::Group, b"Draft first"), Role::Button, b"Use this"));
+    assert!(!named(styled(world.tree(person).nodes(), look::WAY_ACTS), Role::Button, b"Use this"));
     let saved = world
         .front()
         .engine
@@ -374,7 +362,7 @@ fn use_you_approve_refuses_a_box_owner_unknown_on_the_forge() {
     let foot = shown.iter().position(|node| node.styles.as_slice().contains(&look::WAYS_FOOT)).expect("panel foot");
     assert!(refusal >= foot + usize::try_from(shown[foot].size).expect("foot size"), "refusal under the foot");
     assert!(words(subtree(shown, refusal)).contains("requires 1 distinct known forge people; currently 0 eligible"));
-    assert!(named(shown, Role::Button, b"Use this"));
+    assert!(named(styled(world.tree(person).nodes(), look::WAY_ACTS), Role::Button, b"Use this"));
 }
 
 #[test]
@@ -388,13 +376,10 @@ fn a_member_reads_the_ways_without_an_act() {
         assert_eq!(page(&world, person).act(index), None);
         act(&mut world, person, Act::WayTab { project: PROJECT, tab: index });
         let nodes = world.tree(person).nodes();
-        assert_eq!(
-            under(nodes, Role::Tabs, b"Ways of working").iter().filter(|node| node.role == Role::Tab).count(),
-            3
-        );
+        assert_eq!(under(nodes, Role::List, b"Stock ways:").iter().filter(|node| node.role == Role::Button).count(), 3);
         let at = usize::try_from(index).expect("tab index");
         assert_eq!(
-            drawn_path(under(nodes, Role::Group, NAMES[at])),
+            drawn_path(under(nodes, Role::Group, if index == REVIEW { b"How work runs" } else { NAMES[at] })),
             PATHS[1][at].replace("you approve, a person", "an owner approves, a person")
         );
         no_acts(nodes);

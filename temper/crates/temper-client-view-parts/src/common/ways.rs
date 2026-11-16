@@ -3,7 +3,7 @@
 use crate::{
     bindings::Bindings,
     look, paths,
-    words::{Word, Words},
+    words::{Shell, Word, Words},
 };
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
@@ -41,6 +41,87 @@ pub fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Binding
     for word in [Word::WaysYou, Word::WaysAgents] {
         b.text(Run::Plain, &w.say(word, &[]));
     }
+    b.close();
+}
+
+/// The shown way's line and, in the browser, its acts and stock menu
+/// (temper/docs/design/client/pages/ask-temper.md, 1).
+/// The terminal calls `head_acts` after the path and its foot.
+pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, bindings: &mut Bindings, project: u32) {
+    let tabs = ways.tabs();
+    let Some(index) = ways.shown() else { return };
+    let Some(tab) = tabs.get(index) else { return };
+    let line = if tab.index.is_some() {
+        tab.line.clone()
+    } else if let Some(words) = ways.words()
+        && !words.lede().is_empty()
+    {
+        copy_of(words.lede())
+    } else {
+        w.say(Word::WayOwn, &[Hole::Name(copy_of(project_name))])
+    };
+    b.open(Role::Slot);
+    b.style(look::WAY_HEAD);
+    b.open(Role::Paragraph);
+    b.style(look::WAY_LINE);
+    b.text(Run::Plain, &line);
+    b.close();
+    if w.shell == Shell::Browser {
+        head_acts(b, ways, w, bindings, project);
+    }
+    b.close();
+}
+
+/// The shown way's act, Back to the running way, and the stock ways in read
+/// order. The terminal draws a list, with the running way's tick in words.
+pub fn head_acts(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+    let tabs = ways.tabs();
+    let Some(index) = ways.shown() else { return };
+    let Some(shown) = tabs.get(index) else { return };
+    b.open(Role::Slot);
+    b.style(look::WAY_ACTS);
+    act_button(b, ways, index, w, bindings, project);
+    if !shown.current {
+        for (at, tab) in tabs.iter().enumerate() {
+            if tab.current {
+                b.open(Role::Button);
+                b.name(&w.say(Word::WayBack, &[]));
+                b.bind(bindings.insert(Act::WayTab { project, tab: u32::try_from(at).expect("wire bounds tabs") }));
+                b.close();
+                break;
+            }
+        }
+    }
+    b.open(Role::Slot);
+    b.style(look::WAY_PICK);
+    b.open(if w.shell == Shell::Terminal { Role::List } else { Role::Menu });
+    b.name(&w.say(Word::WayStock, &[]));
+    b.style(look::WAY_MENU);
+    for (at, tab) in tabs.iter().enumerate() {
+        if tab.index.is_none() {
+            continue;
+        }
+        let at = u32::try_from(at).expect("wire bounds tabs");
+        if w.shell == Shell::Terminal {
+            b.open(Role::Item);
+            b.open(Role::Button);
+            let now = if tab.current { w.say(Word::WaysNow, &[]) } else { copy_of(b"") };
+            b.name(&skein_lib::bytes::concat(&[&tab.name, &now]));
+        } else {
+            b.open(Role::MenuItem);
+            b.name(&tab.name);
+        }
+        if tab.current && w.shell == Shell::Browser {
+            b.state(State::Selected);
+        }
+        b.bind(bindings.insert(Act::WayTab { project, tab: at }));
+        b.close();
+        if w.shell == Shell::Terminal {
+            b.close();
+        }
+    }
+    b.close();
+    b.close();
     b.close();
 }
 

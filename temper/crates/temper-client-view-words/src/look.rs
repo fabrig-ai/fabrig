@@ -1511,6 +1511,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-tell-acts",
         b"temper-tell-link",
         b"temper-tell-context",
+        b"temper-way",
+        b"temper-way-head",
+        b"temper-way-line",
+        b"temper-way-acts",
+        b"temper-way-pick",
+        b"temper-way-menu",
+        b"temper-way-ask",
+        b"temper-way-ask-mark",
     ],
     regions: &[b"temper-link"],
 };
@@ -1915,6 +1923,16 @@ pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
 pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
 pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
+
+/// Ask temper's head and last line (temper/docs/design/client/pages/ask-temper.md, 1).
+pub const WAY: Style = Style { owner: owner(), token: 782 };
+pub const WAY_HEAD: Style = Style { owner: owner(), token: 783 };
+pub const WAY_LINE: Style = Style { owner: owner(), token: 784 };
+pub const WAY_ACTS: Style = Style { owner: owner(), token: 785 };
+pub const WAY_PICK: Style = Style { owner: owner(), token: 786 };
+pub const WAY_MENU: Style = Style { owner: owner(), token: 787 };
+pub const WAY_ASK: Style = Style { owner: owner(), token: 788 };
+pub const WAY_ASK_MARK: Style = Style { owner: owner(), token: 789 };
 
 /// How work runs (temper/docs/design/client/web/look.md).
 pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };

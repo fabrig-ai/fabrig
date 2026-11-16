@@ -148,6 +148,7 @@ enum Part {
     Cards { section: &'static str, from: &'static [&'static str] },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
     GroupLines { name: &'static str, lines: &'static [&'static str] },
+    StockWays { current: Option<usize> },
     Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
@@ -173,11 +174,9 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
-const ASK_KEEP: Part =
-    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Keep it"] };
-const ASK_USE: Part =
-    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Use this"] };
-const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?"] };
+const ASK_KEEP: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Keep it"] };
+const ASK_USE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Use this", "Back"] };
+const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &[] };
 const REMEMBERED_THREE: &[&str] = &[
     "Keep answers concise and start with the result.",
     "Ask temper chat 14 · Today · Thursday 22 October",
@@ -1368,7 +1367,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Pressed { name: "Night mode" },
-            Part::Named { role: Role::Region, name: "Ways of working" },
+            Part::Named { role: Role::Region, name: "How work runs" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
@@ -4037,9 +4036,9 @@ static HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Named { role: Role::Region, name: "Ways of working" },
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
-            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Named { role: Role::Region, name: "How work runs" },
+            Part::StockWays { current: Some(1) },
+            Part::Named { role: Role::Group, name: "How work runs" },
             Part::Named { role: Role::Button, name: "Keep it" },
             Part::Configured { value: false },
             Part::Reader { role: jig_client::contract::HeldRole::Owner },
@@ -4061,12 +4060,13 @@ static HOLDS: [Holds; samples::N] = [
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
+    Holds { name: "ask-ways-menu", heading: "Ask temper", parts: &[ASK_KEEP, Part::StockWays { current: Some(1) }] },
     Holds {
         name: "ask-ways-approve",
         heading: "Ask temper",
         parts: &[
             ASK_USE,
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 0 },
+            Part::StockWays { current: Some(1) },
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Text { text: "An agent makes each change; nothing reaches main until you approve it." },
             Part::Path {
@@ -4092,7 +4092,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             ASK_USE,
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 2 },
+            Part::StockWays { current: Some(1) },
             Part::Named { role: Role::Group, name: "Draft first" },
             Part::Text {
                 text: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.",
@@ -4124,7 +4124,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             ASK_KEEP,
-            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Named { role: Role::Group, name: "How work runs" },
             Part::Named { role: Role::Region, name: "Review" },
             Part::Expanded { name: "review, an agent" },
             Part::Drawing { style: temper_client_view::look::WAYS_CARET, count: 1 },
@@ -4162,11 +4162,32 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             ASK_ALONE,
-            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
-            Part::Named { role: Role::Group, name: "Yours" },
+            Part::Text { text: "An agent makes each change, and code lands it once CI passes." },
+            Part::StockWays { current: None },
+            Part::Named { role: Role::Group, name: "How work runs" },
             Part::Path { stops: &["you ask, a person", "produce, an agent", "merge, code", "main, a branch"] },
             Part::Absent { role: Role::Button, name: "Use this" },
             Part::Absent { role: Role::Button, name: "Keep it" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-yours-bare",
+        heading: "Ask temper",
+        parts: &[
+            ASK_ALONE,
+            Part::StockWays { current: None },
+            Part::Text { text: "Hello runs settings of its own." },
+            Part::Named { role: Role::Group, name: "How work runs" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-yours-menu",
+        heading: "Ask temper",
+        parts: &[
+            ASK_ALONE,
+            Part::StockWays { current: None },
+            Part::Text { text: "An agent makes each change, and code lands it once CI passes." },
+            Part::Named { role: Role::Group, name: "How work runs" },
         ],
     },
     Holds {
@@ -4189,8 +4210,8 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             ASK_ALONE,
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
-            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::StockWays { current: Some(1) },
+            Part::Named { role: Role::Group, name: "How work runs" },
             Part::Named { role: Role::List, name: "The way a change goes" },
             Part::Reader { role: jig_client::contract::HeldRole::Member },
             Part::Absent { role: Role::Button, name: "Use this" },
@@ -4203,8 +4224,8 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             ASK_ALONE,
             Part::Text { text: "Agents review is now this project's own, as revision 1." },
-            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
-            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::StockWays { current: Some(1) },
+            Part::Named { role: Role::Group, name: "How work runs" },
             Part::Absent { role: Role::Button, name: "Use this" },
             Part::Absent { role: Role::Button, name: "Keep it" },
             Part::Configured { value: true },
@@ -4219,7 +4240,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Named { role: Role::Region, name: "Ways of working" },
+            Part::Named { role: Role::Region, name: "How work runs" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -4236,7 +4257,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Named { role: Role::Region, name: "Ways of working" },
+            Part::Named { role: Role::Region, name: "How work runs" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -4253,7 +4274,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Named { role: Role::Region, name: "Ways of working" },
+            Part::Named { role: Role::Region, name: "How work runs" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -5606,6 +5627,45 @@ fn each_state_holds_what_its_name_says() {
                         .collect();
                     assert_eq!(actual, *text, "{}: row text", sample.name);
                 }
+                Part::StockWays { current } => {
+                    let menu = descendants(tree, Role::Menu, "Stock ways", sample.name);
+                    let items: Vec<_> = menu.iter().filter(|node| node.role == Role::MenuItem).collect();
+                    assert_eq!(items.len(), 3, "{}: stock ways alone", sample.name);
+                    for (index, (item, name)) in
+                        items.into_iter().zip(["You approve", "Agents review", "Draft first"]).enumerate()
+                    {
+                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}: read order", sample.name);
+                        assert_eq!(
+                            item.states.as_slice().contains(&skein_ui::State::Selected),
+                            *current == Some(index),
+                            "{}: running way ticked",
+                            sample.name
+                        );
+                    }
+                    assert!(!tree.nodes().iter().any(|node| node.role == Role::Tabs), "{}: no tabs", sample.name);
+                    let foot = tree
+                        .nodes()
+                        .iter()
+                        .position(|n| n.styles.as_slice().contains(&temper_client_view::look::WAYS_ACTS))
+                        .unwrap();
+                    let end = foot + usize::try_from(tree.nodes()[foot].size).unwrap();
+                    let buttons: Vec<_> = tree.nodes()[foot..end]
+                        .iter()
+                        .filter(|n| n.role == Role::Button)
+                        .map(|n| n.name.as_deref())
+                        .collect();
+                    assert_eq!(buttons, [Some(b"How does temper work?".as_slice())]);
+                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu") {
+                        assert_eq!(sample.open_menu(), Some(b"Stock ways".as_slice()));
+                        let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+                        assert!(html.contains("aria-expanded=\"true\">Stock ways"), "{}: menu open", sample.name);
+                        assert!(
+                            !html.contains(&format!("id=\"skein-ui-menu-{}\" hidden", menu[0].id.0)),
+                            "{}: menu visible",
+                            sample.name
+                        );
+                    }
+                }
                 Part::Tabs { names, selected } => {
                     let tabs = descendants(tree, Role::Tabs, "Ways of working", sample.name);
                     let actual: Vec<_> = tabs.iter().filter(|node| node.role == Role::Tab).collect();
@@ -6255,7 +6315,7 @@ fn asking_gallery_states_list_the_template_and_send_readiness() {
         let how = find(view.tree(), Role::Button, "How does temper work?", name);
         let how = view.tree().find(how).expect("how button");
         assert_eq!(how.states.as_slice().contains(&skein_ui::State::Disabled), sending, "{name}");
-        assert!(has_text(view.tree(), "Choose how work runs, or describe how you work below."), "{name}");
+        assert!(has_text(view.tree(), "How a change is produced and lands in Hello."), "{name}");
     }
 }
 
@@ -6853,4 +6913,104 @@ fn role_talk_shows_provers_open_talk_sent_words_reply_and_leave() {
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(html.contains("Talk to Prover"));
     assert!(html.contains("temper-agent-page"));
+}
+
+#[test]
+fn asking_ways_head_keeps_the_requested_overlay_rules() {
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let scope = "#app > .temper-session ";
+    let rules = [
+        (".temper-starter > .temper-way", "margin-top:18px;", None),
+        (
+            ".temper-way-head",
+            "width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px16px;",
+            None,
+        ),
+        (
+            ".temper-way-line",
+            "flex:11auto;min-width:0;margin:0;font-size:15px;line-height:1.55;color:var(--gf-ink-2);",
+            None,
+        ),
+        (".temper-way-acts", "display:flex;gap:8px;margin-left:auto;", None),
+        (
+            ".temper-way-acts > button",
+            "min-height:34px;min-width:84px;padding:4px14px;border:1pxsolidvar(--gf-line-2);border-radius:8px;background:var(--gf-surface);color:var(--gf-ink);font:50013.5px/1.6var(--gf-sans);white-space:nowrap;cursor:pointer;box-shadow:none;",
+            None,
+        ),
+        (
+            ".temper-way-acts > .temper-ways-use",
+            "border-color:var(--gf-ink);background:var(--gf-ink);color:var(--gf-paper);",
+            None,
+        ),
+        (".temper-way-pick", "position:relative;", None),
+        (
+            ".temper-way-pick > button[aria-haspopup=menu]",
+            "min-height:34px;padding:4px12px4px14px;border:1pxsolidvar(--gf-line-2);border-radius:8px;background:var(--gf-surface);font:50013.5px/1.6var(--gf-sans);white-space:nowrap;cursor:pointer;box-shadow:none;display:inline-flex;align-items:center;gap:10px;color:var(--gf-ink-2);",
+            None,
+        ),
+        (
+            ".temper-way-pick > button[aria-haspopup=menu]::after",
+            "content:''/'';width:6px;height:6px;margin-top:-3px;border:solidvar(--gf-muted);border-width:01.5px1.5px0;transform:rotate(45deg);",
+            None,
+        ),
+        (".temper-way-pick > button[aria-haspopup=menu][aria-expanded=true]", "background:var(--gf-hover);", None),
+        (
+            ".temper-way-menu",
+            "position:absolute;top:calc(100%+6px);right:0;z-index:10;min-width:100%;width:max-content;margin:0;padding:6px;list-style:none;border:1pxsolidvar(--gf-line);border-radius:12px;background:var(--gf-surface);box-shadow:012px32pxvar(--gf-menu-shadow);",
+            None,
+        ),
+        (
+            ".temper-way-menu [role=menuitem]",
+            "display:flex;align-items:center;gap:16px;width:100%;min-height:0;margin:0;padding:6px10px;border:0;border-radius:8px;background:transparent;color:var(--gf-ink);font:40014px/1.5var(--gf-sans);text-align:left;cursor:pointer;box-shadow:none;",
+            None,
+        ),
+        (".temper-way-menu [role=menuitem]:hover", "background:var(--gf-hover);", None),
+        (".temper-way-menu [role=menuitem][aria-selected=true]", "font-weight:500;", None),
+        (
+            ".temper-way-menu [role=menuitem][aria-selected=true]::after",
+            "content:'✓'/'';margin-left:auto;color:var(--gf-good,var(--gf-control-good));",
+            None,
+        ),
+        (".temper-way > .temper-ways-panel", "margin-top:14px;", None),
+        (
+            ".temper-way-ask",
+            "width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px10px;margin:22px00;padding-top:16px;border-top:1pxsolidvar(--gf-line);font-size:14px;line-height:1.55;color:var(--gf-ink-2);",
+            None,
+        ),
+        (".temper-way-ask-mark", "flex:none;color:var(--gf-ink);", None),
+        (".temper-way-acts", "margin-left:0;", Some("@media (max-width: 760px)")),
+    ];
+    let mut found = vec![false; rules.len()];
+    let mut parents = Vec::new();
+    let mut start = 0;
+    for (at, character) in css.char_indices() {
+        match character {
+            '{' => {
+                let selector = css[start..at].rsplit("*/").next().unwrap().trim();
+                parents.push(selector);
+                start = at + 1;
+            }
+            '}' => {
+                let selector = parents.pop().unwrap();
+                let declarations = css[start..at].split_whitespace().collect::<String>();
+                for (index, (suffix, expected, parent)) in rules.iter().enumerate() {
+                    if selector == format!("{scope}{suffix}") && parents.last().copied() == *parent {
+                        assert!(!found[index], "one rule for {selector} under {parent:?}");
+                        found[index] = true;
+                        assert_eq!(declarations, *expected, "{selector}");
+                    }
+                }
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    for ((suffix, _, parent), found) in rules.iter().zip(found) {
+        assert!(found, "missing {scope}{suffix} under {parent:?}");
+    }
+    assert!(!css.contains("#app > .temper-session .temper-ways-tabs"));
+    assert!(!css.contains("#app > .temper-session .temper-ways-acts > .temper-ways-use"));
+    assert!(css.contains("#app > .temper-settings .temper-ways-tabs"));
+    assert!(css.contains("#app > .temper-settings .temper-ways-acts > .temper-ways-use"));
+    assert!(css.contains("html:root[data-night] #app > .temper-session .temper-way-acts > .temper-ways-use"));
 }
