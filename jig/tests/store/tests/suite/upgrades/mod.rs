@@ -7,7 +7,7 @@ mod generations;
 mod links;
 pub(crate) mod logs;
 pub(crate) mod patching;
-mod rehearsal;
+pub(crate) mod rehearsal;
 mod upgrade_edges;
 
 pub(crate) mod baseline;
