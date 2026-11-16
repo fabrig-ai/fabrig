@@ -46,7 +46,7 @@ fn real_registered_families_derive_from_latest_kept_to_current() {
     assert_ne!(types, 0);
     assert_eq!(dropping, [("jig-store-core", 1), ("jig-store-tasks", 0), ("jig-store-tasks", 6)]);
     let tasks = families.iter().find(|f| f.name == "jig-store-tasks").unwrap();
-    assert_eq!(tasks.retired.iter().map(|t| t.number).collect::<Vec<_>>(), [10]);
+    assert!(tasks.retired.is_empty());
     let current = skein_codec::schema::parse(tasks.current.as_bytes()).unwrap();
     assert!(current.root(b"Row", Some(b"milestone")).is_none());
     assert_eq!(added, 5);

@@ -8,7 +8,7 @@ use skein_heap::Meter;
 // Empty: peak 1,232,458, registry and read workspace retained 8,751 bytes.
 const EMPTY_PEAK: u64 = 1_600_000;
 const EMPTY_REGISTRY: u64 = 9_900;
-// Seeded at the last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
+// Seeded at current core/tasks and the other families' last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
 // Log-held conversion plans retain their fitted workspace and value buffer.
 const SEEDED_PEAK: u64 = 7_000_000;
 const SEEDED_REGISTRY: u64 = 2_400_000;
@@ -21,8 +21,16 @@ const SETS: PatchSets = PatchSets {
     ],
 };
 
+fn seed_text(family: &KeptFamily) -> &'static str {
+    if ["jig-store-core", "jig-store-tasks"].contains(&family.name) {
+        family.current
+    } else {
+        family.texts.last().copied().unwrap_or(family.current)
+    }
+}
+
 fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
-    let text = family.texts.last().copied().unwrap_or(family.current);
+    let text = seed_text(family);
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
     let mut kept: Vec<ValueType> = Vec::new();
     for ty in family.types {
@@ -50,7 +58,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .iter()
                 .map(|family| KeptFamily {
                     retired: if registered { family.retired } else { &[] },
-                    current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
+                    current: if kept { seed_text(family) } else { family.current },
                     types: if !registered {
                         &[]
                     } else if kept {
@@ -63,20 +71,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .collect::<Vec<_>>();
             PatchSet {
                 families: Box::leak(families.into_boxed_slice()),
-                jobs: if !registered {
-                    &[]
-                } else if kept {
-                    Box::leak(
-                        set.jobs
-                            .iter()
-                            .filter(|job| !["settle-layouts", "ended-talk", "task-logs"].contains(&job.name))
-                            .copied()
-                            .collect::<Vec<_>>()
-                            .into_boxed_slice(),
-                    )
-                } else {
-                    set.jobs
-                },
+                jobs: if registered { set.jobs } else { &[] },
                 ..*set
             }
         })

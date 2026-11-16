@@ -323,6 +323,58 @@ impl Store {
         Some(core::Record::Tasks(codec::tasks::decode_live(&value, &cold, &limits.tasks, names).ok()?))
     }
 
+    fn log_writes(
+        &self,
+        log: u64,
+        end: u64,
+        limits: &codec::View,
+        names: &[core::settings::ModelName],
+    ) -> Result<Vec<root::Write>, String> {
+        let mut writes = Vec::new();
+        let name = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
+        let file = self.files.get(&name).ok_or("payload log write precedes map commit")?;
+        let mut at = self.log_lengths.get(&log).copied().unwrap_or(0);
+        let bound = if log % 2 == 1 {
+            u32::try_from(
+                jig_protocol_store::core_v6::TurnRecord::encoded_bound(&limits.core).ok_or("turn body bound")?,
+            )
+            .map_err(|why| why.to_string())?
+        } else {
+            // These are whole frames written by the component, not external input.
+            u32::MAX
+        };
+        while at < end {
+            let (length, body) = logs::record(
+                file.get(
+                    usize::try_from(at).map_err(|why| why.to_string())?
+                        ..usize::try_from(end).map_err(|why| why.to_string())?,
+                )
+                .ok_or("whole log extent")?,
+                bound,
+            )
+            .ok_or("whole payload-log record")?;
+            if log % 2 == 1 {
+                let turn = codec::core::read_turn(&body, limits).map_err(|why| format!("turns-log body: {why:?}"))?;
+                writes.push(root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))));
+            } else {
+                let history = logs::history(&body).ok_or("whole history-log record")?;
+                for op in &history {
+                    let key = keys::decode(op.key()).ok_or("history key")?;
+                    match op {
+                        skein_kv::Op::Put { value, .. } => {
+                            let row = self.decode(&key, value, &history, limits, names).ok_or("history row decodes")?;
+                            writes.push(root::Write::Save(root::Record::Core(row)));
+                        }
+                        skein_kv::Op::Erase { .. } => writes.push(root::Write::Erase(root::Key::Core(key))),
+                        skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => unreachable!("history has rows"),
+                    }
+                }
+            }
+            at += u64::try_from(length).map_err(|why| why.to_string())?;
+        }
+        Ok(writes)
+    }
+
     fn commit(
         &self,
         number: u64,
@@ -340,34 +392,8 @@ impl Store {
                 }
                 skein_kv::Op::Put { key, value } => {
                     if let Some((log, end)) = logs::extent(key, value) {
-                        if log % 2 == 1 {
-                            let name = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
-                            let file = self.files.get(&name).ok_or("turns log write precedes map commit")?;
-                            let mut at = self.log_lengths.get(&log).copied().unwrap_or(0);
-                            let bound = u32::try_from(
-                                jig_protocol_store::core_v6::TurnRecord::encoded_bound(&limits.core)
-                                    .ok_or("turn body bound")?,
-                            )
-                            .map_err(|why| why.to_string())?;
-                            while at < end {
-                                let (length, body) = logs::record(
-                                    file.get(
-                                        usize::try_from(at).map_err(|why| why.to_string())?
-                                            ..usize::try_from(end).map_err(|why| why.to_string())?,
-                                    )
-                                    .ok_or("whole log extent")?,
-                                    bound,
-                                )
-                                .ok_or("whole turns-log record")?;
-                                let turn = codec::core::read_turn(&body, limits)
-                                    .map_err(|why| format!("turns-log body: {why:?}"))?;
-                                writes.push(root::Write::Save(root::Record::Core(core::Record::Core(
-                                    core::CoreRecord::Turn(turn),
-                                ))));
-                                at += u64::try_from(length).map_err(|why| why.to_string())?;
-                            }
-                            log_ends.insert(log, Some(end));
-                        }
+                        writes.extend(self.log_writes(log, end, limits, names)?);
+                        log_ends.insert(log, Some(end));
                     } else if let Some(key) = keys::decode(key) {
                         let row = self
                             .decode(&key, value, ops, limits, names)
@@ -405,10 +431,14 @@ impl Store {
                 skein_kv::Op::Erase { key } => {
                     if key.starts_with(&jig_protocol_store::logs::EXTENTS) && key.len() == 10 {
                         let log = Reader::new(&key[2..]).u64().ok_or("log name")?;
+                        log_ends.insert(log, None);
                         if log % 2 == 1 {
-                            log_ends.insert(log, None);
                             writes.push(root::Write::DropTranscript { task: log / 2 });
+                        } else {
+                            writes.push(root::Write::DropHistory { task: log / 2 });
                         }
+                    } else if keys::logged(key).is_some() {
+                        // Map-copy erases are not logical erases: the history record says which keys go.
                     } else if let Some(key) = keys::decode(key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
                     } else if let Some(keys::Own::History { task }) = keys::decode_own(key) {

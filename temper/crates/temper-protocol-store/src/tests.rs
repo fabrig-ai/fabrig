@@ -23,5 +23,3 @@ mod unseeded_upgrade;
 mod value_types;
 
 mod jobs;
-
-mod store_floor;

@@ -509,7 +509,7 @@ impl World {
         self.settle()
     }
 
-    /// Serve the synchronous production restore door without driving file work.
+    /// Read a restart page through the serving view, driving its history fetches.
     ///
     /// # Errors
     /// Returns the production reader's typed phase, range, read or decode failure.
@@ -520,10 +520,15 @@ impl World {
         rows: u32,
         bytes: u64,
     ) -> Result<jig_protocol_store::restore::Loaded, jig_protocol_store::restore::Failure> {
-        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
-        let page = jig_protocol_store::restore::page(&mut self.store, range, after, rows, bytes);
-        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-        page
+        let events = self.request(Request::Restore { owner: Token::new(0), range, after: after.cloned(), rows, bytes });
+        let mut events = events.into_iter();
+        let event = events.next().expect("one restore terminal");
+        assert!(events.next().is_none(), "one restore terminal");
+        match event {
+            Event::Page { items, next, .. } => Ok(jig_protocol_store::restore::Loaded { items, next }),
+            Event::PageRefused { failure, .. } => Err(failure),
+            event => panic!("restore terminal: {event:?}"),
+        }
     }
 
     /// Serve the raw main-map reader, independently of the world's model.

@@ -6,34 +6,9 @@ use jig_store_world::{
 use skein_lib::Rng;
 
 fn history_world() -> World {
-    // This crash sweep holds log atomicity, not registry planning. Keep the
-    // binary's job and key ranges, without registering unrelated layouts.
-    const SETS: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
-        sets: &[jig_protocol_store::PatchSet {
-            level: None,
-            patches: &[],
-            jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
-            families: &[
-                jig_protocol_store::KeptFamily {
-                    retired: &[],
-                    types: &[],
-                    texts: &[],
-                    ..jig_protocol_store::STORE_FAMILIES[3]
-                },
-                jig_protocol_store::KeptFamily {
-                    retired: &[],
-                    types: &[],
-                    texts: &[],
-                    ..jig_protocol_store::STORE_FAMILIES[4]
-                },
-            ],
-            ..jig_protocol_store::JIG_STORE_PATCH_SET
-        }],
-    };
     let mut limits = root::limits();
     limits.store.record = limits.store.page.bytes;
     let mut world = World::unopened_observed(0, limits, None);
-    world.patch_sets(SETS);
     assert_eq!(world.open(), Some(0));
     assert_eq!(world.commit(root::first()), Some(1));
     world

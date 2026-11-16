@@ -99,7 +99,6 @@ fn derive(
     new: &Schema,
     ty: &crate::ValueType,
     new_held: &[&Schema],
-    dropping: bool,
 ) -> Result<Plan, Unplanned> {
     let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
@@ -122,12 +121,6 @@ fn derive(
     }
     match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
         Ok(plan) => Ok(plan),
-        Err(why) if dropping && why.why == Why::VariantDropped => {
-            match Plan::derive_dropping(old, old_root, old_held.as_slice(), new, new_root, new_held) {
-                Ok(plan) => Ok(plan),
-                Err(why) => Err(Unplanned::Underived(why)),
-            }
-        }
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
@@ -159,7 +152,7 @@ pub(super) fn history_type(family: &str, number: u16) -> bool {
                 return true;
             }
             for range in ty.keys {
-                for logged in crate::jobs::task_logs::JOB.keys {
+                for logged in crate::keys::LOGGED {
                     if range.from < logged.to && logged.from < range.to {
                         return true;
                     }
@@ -195,7 +188,6 @@ pub(super) fn plans(
         keys.push(key.clone()).expect("uncapped row keys");
     }
     for key in &keys {
-        let dropping = settling(store, &key.0, key.1)?;
         let row = layouts.rows.get(key).expect("held row");
         if row.retire {
             continue;
@@ -244,7 +236,7 @@ pub(super) fn plans(
             let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(binary, layouts, row, new, declaration, held.as_slice(), dropping)
+                derive(binary, layouts, row, new, declaration, held.as_slice())
             } else {
                 Err(Unplanned::Text)
             };
@@ -285,31 +277,6 @@ pub(super) fn plans(
     Ok(())
 }
 
-/// A log-held type can settle only before the store has task logs (jobs.md, 5.2).
-pub(super) fn settling(store: &mut Store, family: &str, number: u16) -> Result<bool, OpenRefusal> {
-    if history_type(family, number) && !logs_pending(store)? {
-        return Ok(false);
-    }
-    for set in store.patch_sets.sets {
-        for held in set.families {
-            if held.name != family {
-                continue;
-            }
-            for job in set.jobs {
-                if job.settles && !crate::jobs::kept::done(store, set.owner, job)? {
-                    return Ok(true);
-                }
-            }
-        }
-    }
-    Ok(false)
-}
-fn logs_pending(store: &mut Store) -> Result<bool, OpenRefusal> {
-    match crate::jobs::kept::done(store, crate::Owner::Jig, &crate::jobs::task_logs::JOB) {
-        Ok(done) => Ok(!done),
-        Err(why) => Err(why),
-    }
-}
 pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
     for set in store.patch_sets.sets {
         for family in set.families {

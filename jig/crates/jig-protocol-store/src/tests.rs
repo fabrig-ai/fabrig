@@ -28,8 +28,6 @@ mod turns_logs;
 
 mod settings;
 
-pub(crate) mod charter_versions;
-mod ended_talk;
 mod operations;
 mod phase;
 mod registered_layouts;

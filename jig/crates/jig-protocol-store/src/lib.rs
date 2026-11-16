@@ -122,7 +122,6 @@ pub struct Store {
     patch_sets: PatchSets,
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
-    history_routing: bool,
     wires: &'static [Wire],
     /// Accepted opening keys, including commits not yet durable.
     opening_keys: skein_lib::Map<Box<[u8]>, ()>,
@@ -259,7 +258,6 @@ impl Store {
             installation: [0; 16],
             patch_sets: PatchSets::NONE,
             build_name: "",
-            history_routing: false,
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,

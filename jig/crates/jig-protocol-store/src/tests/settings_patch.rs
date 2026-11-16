@@ -44,8 +44,8 @@ fn store(value: &[u8], level: u32) -> crate::Store {
     store
 }
 
-// Format, layouts, header, installation and one changed model.
-const ROWS: usize = 5;
+// Format, floor, layouts, header, installation and one changed model.
+const ROWS: usize = 6;
 
 fn rows(value: &[u8], level: u32) -> [skein_kv::Op; ROWS] {
     let mut row = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
@@ -58,6 +58,7 @@ fn rows(value: &[u8], level: u32) -> [skein_kv::Op; ROWS] {
             key: keys::encode_own(&keys::Own::Format, fixtures::KEY_LIMIT).expect("format key"),
             value: row.encode().expect("format row"),
         },
+        fixtures::floor_put(),
         fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
         fixtures::installation_put(fixtures::INSTALLATION),

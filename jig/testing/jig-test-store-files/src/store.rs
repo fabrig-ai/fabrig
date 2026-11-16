@@ -152,7 +152,7 @@ impl Store {
             };
             protocol::Store::over(&component_limits, application, models, stores)
         };
-        component.patch_sets(component_sets(sets));
+        component.patch_sets(sets);
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
         routes.configure_restore(&component_limits).expect("restart page bounds fit");
@@ -347,7 +347,7 @@ impl Store {
             self.files.crash(seed);
             protocol::Store::over(&self.component_limits, application, &self.models, stores)
         });
-        self.component.as_mut().expect("rebuilt component").patch_sets(component_sets(self.sets));
+        self.component.as_mut().expect("rebuilt component").patch_sets(self.sets);
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
         self.routes = route::Routes::new(self.limits.routes);
         self.routes.configure(&self.limits);
@@ -705,25 +705,6 @@ impl Store {
         self.drive(requests, Queue::uncapped());
     }
 }
-// The default memory worlds run the binary's jobs too; explicit sets describe upgrade fixtures.
-const HISTORY_SETS: protocol::PatchSets = protocol::PatchSets {
-    sets: &[protocol::PatchSet {
-        level: None,
-        patches: &[],
-        jobs: &[*protocol::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
-        families: &[
-            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[3] },
-            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[4] },
-        ],
-        ..protocol::JIG_STORE_PATCH_SET
-    }],
-};
-fn component_sets(sets: protocol::PatchSets) -> protocol::PatchSets {
-    // Domain worlds exercise log storage without pricing layout planning;
-    // explicit upgrade fixtures supply registered families themselves.
-    if sets.sets.is_empty() { HISTORY_SETS } else { sets }
-}
-
 /// Derive admission from the caller's actual budgets, never from fixture counts.
 #[must_use]
 pub fn component_limits(root: &root::Limits) -> Limits {
