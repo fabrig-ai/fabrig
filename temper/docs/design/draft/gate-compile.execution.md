@@ -12,7 +12,7 @@
 | C4, `temper-client-domain` split, its pages reaching the root `Domain` through an interface first | 5 | temper/dev | C3's figure | its row | landed: the client root in three crates, the forge's side with the client's vocabulary below the pages, and `temper-client-domain` above them keeping every public path but three, the pages reaching it through `pages::Root` and `pages::Routing`, and the agents' tools and the engine's service crates' tests on the forge's side (`temper/docs/design/client/domain-crates.md`); its size exception goes; its figure is read on the builders by whoever runs them |
 | C5, `jig-protocol-store` split, its preparatory changes first | 5 | temper/dev | C3's figure | its row | not started |
 | C6, `temper-client-tools` split | 5 | temper/dev | C3's figure | its row | landed: the agents' tools in two crates, jig's part (`temper-client-tools-jig`) below temper's, and `temper-client-tools` above it keeping every public path, with every test but the boundary test and four inline modules of jig's part (`temper/docs/design/client/ctl/tools-crates.md`); its size exception goes; its figure is read on the builders by whoever runs them |
-| C7, `jig-client-view` split | 5 | temper/dev | C3's figure | its row | not started |
+| C7, `jig-client-view` split, its preparatory change first | 5 | temper/dev | C3's figure | its row | landed: the reference UI's view in two crates, its words (`jig-client-view-words`) below the view, and `jig-client-view` above them keeping every public path, with every test but the owner's, the regions' and the phrasebook's, and jig's browser parts on the words (`jig/docs/design/client/domain/view-crates.md`); its size exception goes; its figure is read on the builders by whoever runs them |
 
 ## 2. Order
 

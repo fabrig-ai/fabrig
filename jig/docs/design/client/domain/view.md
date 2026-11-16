@@ -109,18 +109,22 @@ listed in `view.md`, section 14, and what it adds later in `view.md`, section 16
 jig-client-view/src/
 ├── state/          the reference UI's state: ui (its events and requests, step, fire; section 18), address (its places and their codec; pages.md, 2), page (sections, handles, windows, folds and filters; 18.2), objects (the working set; 18.3), intents (18.4), drafts and confirm (fields, drafts and the confirmation's state; 18.5), records (its own records; 18.8), handles (who holds each watch), activity (thread routing)
 ├── tree/           what builds nodes: frame (the frame's parts and jig's banner; 4.1), cards (each card and their shared parts), sections (each section of jig's pages; 4.1), pages (jig's default arrangement, `after_page`, the owed cards), turns (a conversation's thread; section 9), notices (18.7), confirmation (the confirmation), fragments (each document's parts, including runtime's lifecycle facts)
-├── words/          the reference UI's phrases and their holes (phrases/jig.rs), English (phrases/english.rs), and each part's vocabulary (section 7)
 ├── sizes/          jig's constructors of skein-ui's limits, and the pages' companions (sections 10 and 18.9)
-├── owner.rs        jig's owner, and its mapping onto skein-ui's (section 3; root.md, section 15)
-├── regions.rs      jig's region names, each with its name (pages.md, 12.4)
-├── styles.rs       jig's style tokens, each with its name (section 13)
 ├── binding.rs      jig's bindings: its meanings, their table, the binding constructors, decoding (section 5)
 └── tests/
+
+jig-client-view-words/src/
+├── words/          the reference UI's phrases and their holes (phrases/jig.rs), English (phrases/english.rs), each part's vocabulary, and the fragments a `Words` method draws (section 7)
+├── owner.rs        jig's owner, and its mapping onto skein-ui's (section 3; root.md, section 15)
+├── regions.rs      jig's region names, each with its name (pages.md, 12.4)
+└── styles.rs       jig's style tokens, each with its name (section 13)
 ```
 
-It depends on `skein-ui` and `jig-client`, and on nothing else of
-jig's: the client's surface, its documents and its helpers are all it
-uses. What every application's view shares is skein-ui's (skein's
+The words are a crate of their own below the view, which re-exports
+them under its paths, `jig_client_view::words`, `regions`, `styles` and
+`Owner` (`view-crates.md`). The two depend on `skein-ui` and
+`jig-client`, and on nothing else of jig's: the client's surface, its
+documents and its helpers are all they use. What every application's view shares is skein-ui's (skein's
 `ui/README.md`, section 2), and the reference UI uses it without repeating it.
 
 The application's view root (`<application>-client-view`:
