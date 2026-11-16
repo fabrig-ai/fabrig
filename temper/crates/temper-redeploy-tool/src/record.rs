@@ -32,6 +32,11 @@ pub struct Grace {
     pub grace_ms: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Told {
+    pub worker: String,
+    pub wait_ms: Option<u64>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Line {
     pub at: u64,
     pub line: String,
@@ -67,6 +72,8 @@ pub struct Record {
     pub began: u64,
     pub previous: Vec<Previous>,
     pub graces: Vec<Grace>,
+    #[serde(default)]
+    pub told: Option<Vec<Told>>,
     pub before: Before,
     pub lines: Vec<Line>,
     pub check: Option<Check>,
@@ -79,6 +86,11 @@ pub struct Record {
 }
 impl Record {
     #[must_use]
+    pub fn told_wait_ms(&self, worker: &str) -> Option<u64> {
+        self.told.as_ref()?.iter().find(|told| told.worker == worker)?.wait_ms
+    }
+
+    #[must_use]
     pub fn new(commit: &str, mode: Mode) -> Self {
         Self {
             commit: commit.into(),
@@ -86,6 +98,7 @@ impl Record {
             began: 0,
             previous: Vec::new(),
             graces: Vec::new(),
+            told: None,
             before: Before::default(),
             lines: Vec::new(),
             check: None,
@@ -97,6 +110,11 @@ impl Record {
             ended: None,
         }
     }
+}
+
+pub(crate) fn seconds(nanos: u128) -> String {
+    let tenths = (nanos + 50_000_000) / 100_000_000;
+    format!("{}.{:01}", tenths / 10, tenths % 10)
 }
 
 pub struct Journal {

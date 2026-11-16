@@ -1,7 +1,7 @@
 //! Pure findings from the record and the ctl reads (redeploy.md, 6.2–6.3).
 use crate::{
     description::Description,
-    record::{Before, Record, TaskBefore},
+    record::{Before, Record, TaskBefore, seconds},
 };
 use std::collections::BTreeMap;
 
@@ -45,7 +45,7 @@ pub(super) fn tasks<'a>(before: &'a Before, after: &'a Before) -> BTreeMap<u64, 
 pub fn evaluate(description: &Description, record: &Record, read: &Readings) -> Judgement {
     let mut result = Judgement::default();
     openings(description, record, &mut result);
-    window(record, &mut result);
+    window(description, record, &mut result);
     for outage in &record.outages {
         result.line(
             format!("{} was out {} s", outage.what, seconds(u128::from(outage.to.saturating_sub(outage.from)))),
@@ -108,23 +108,29 @@ fn openings(description: &Description, record: &Record, result: &mut Judgement) 
         }
     }
 }
-fn window(record: &Record, result: &mut Judgement) {
-    if let Some(window) = &record.window
-        && let Some(grace) = record.graces.iter().min_by_key(|grace| grace.grace_ms)
-    {
-        let duration = u128::from(window.to.saturating_sub(window.from));
-        let grace_ns = u128::from(grace.grace_ms) * 1_000_000;
-        let failed = duration >= grace_ns;
+fn window(description: &Description, record: &Record, result: &mut Judgement) {
+    let Some(window) = &record.window else { return };
+    result.line(format!("window {} s", seconds(u128::from(window.to.saturating_sub(window.from)))), false);
+    for worker in &description.workers {
+        let Some(opening) = record
+            .openings
+            .iter()
+            .find(|opening| opening.worker == worker.name && !opening.refused && opening.at >= window.to)
+        else {
+            continue;
+        };
+        let Some(grace) = record.graces.iter().find(|grace| grace.worker == worker.name) else { continue };
+        let told = record.told_wait_ms(&worker.name);
+        let wait_ns = u128::from(told.unwrap_or(0).max(grace.grace_ms)) * 1_000_000;
+        let duration = u128::from(opening.at.saturating_sub(window.from));
+        let failed = duration >= wait_ns;
         let word = if failed { "past" } else { "within" };
+        let kind = if told.is_some() { "restart wait" } else { "grace" };
         result.line(
-            format!("window {} s {word} {}'s grace {} s", seconds(duration), grace.worker, seconds(grace_ns)),
+            format!("worker {} back in {} s {word} its {kind} {} s", worker.name, seconds(duration), seconds(wait_ns)),
             failed,
         );
     }
-}
-fn seconds(nanos: u128) -> String {
-    let tenths = (nanos + 50_000_000) / 100_000_000;
-    format!("{}.{:01}", tenths / 10, tenths % 10)
 }
 fn utc(nanos: u64) -> String {
     let seconds = nanos / 1_000_000_000;

@@ -1,7 +1,7 @@
 //! The pure referee's findings, generated with an independent failure ledger (redeploy.md, 6).
 use temper_redeploy_tool::{
     fake::{WIRES, description},
-    record::{Grace, Opening, Record, TaskBefore, Window},
+    record::{Grace, Opening, Record, TaskBefore, Told, Window},
     redeploy::Mode,
     referee::judgement::{FailedEnd, Readings, evaluate},
 };
@@ -38,8 +38,23 @@ fn generated_findings_fail_exactly_the_span_openings_window_holds_and_reads() {
         let mut read = Readings::default();
         let mut failures = 0;
         let mut expected = Vec::new();
+        let ridden = random.below(4) != 0;
+        if ridden {
+            record.window = Some(Window { from: BEGAN, to: BEGAN, worker: "w1".into() });
+        }
+        if random.below(2) == 0 {
+            record.told = Some(Vec::new());
+        }
         for worker in &d.workers {
-            record.graces.push(Grace { worker: worker.name.clone(), grace_ms: 300_000 + random.below(1000) });
+            let grace = 300_000 + random.below(1000);
+            record.graces.push(Grace { worker: worker.name.clone(), grace_ms: grace });
+            let told = if random.below(2) == 0 { Some(random.below(1_200_000)) } else { None };
+            let wait = if let Some(notes) = &mut record.told {
+                notes.push(Told { worker: worker.name.clone(), wait_ms: told });
+                told.unwrap_or(0).max(grace)
+            } else {
+                grace
+            } * 1_000_000;
             match random.below(4) {
                 0 => {
                     failures += 1;
@@ -51,9 +66,18 @@ fn generated_findings_fail_exactly_the_span_openings_window_holds_and_reads() {
                         failures += 1;
                         expected.push(format!("worker {} refused: wires: no bridge", worker.name));
                     }
+                    let side = random.below(3);
+                    let duration = match side {
+                        0 => wait - 1,
+                        1 => wait,
+                        _ => wait + 1,
+                    };
+                    if ridden && !refused && side != 0 {
+                        failures += 1;
+                    }
                     record.openings.push(Opening {
                         worker: worker.name.clone(),
-                        at: BEGAN,
+                        at: BEGAN + duration,
                         line: if refused {
                             format!(
                                 "temper-engine serve: worker {} refused at its opening: wires: no bridge",
@@ -64,21 +88,6 @@ fn generated_findings_fail_exactly_the_span_openings_window_holds_and_reads() {
                         },
                         refused,
                     });
-                }
-            }
-        }
-        let grace = record.graces.iter().map(|grace| grace.grace_ms).min().unwrap() * 1_000_000;
-        match random.below(4) {
-            0 => (),
-            side => {
-                let duration = match side {
-                    1 => grace - 1,
-                    2 => grace,
-                    _ => grace + 1,
-                };
-                record.window = Some(Window { from: BEGAN, to: BEGAN + duration, worker: "not-the-smallest".into() });
-                if side != 1 {
-                    failures += 1;
                 }
             }
         }
