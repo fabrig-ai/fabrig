@@ -27,7 +27,7 @@ impl State {
 }
 
 pub(crate) fn reserved(d: &Domain) -> u32 {
-    d.room.asked.len()
+    d.room.asked.len().saturating_add(d.call_room.len()).saturating_add(d.projection_room.len())
 }
 
 pub(crate) fn free(d: &Domain, limits: &Limits) -> u32 {

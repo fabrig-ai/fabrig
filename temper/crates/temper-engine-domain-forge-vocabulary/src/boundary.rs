@@ -2248,10 +2248,19 @@ pub enum Event {
     Enqueue {
         entry: skein_forge_client::Entry,
     },
+    /// Keep an admitted call's entry into its flight's reserved room.
+    EnqueueCall {
+        owner: Token,
+        entry: skein_forge_client::Entry,
+    },
     /// Keep a projection candidate after core admission.
     KeepProjection {
         row: IssueRow,
         entry: skein_forge_client::Entry,
+    },
+    /// Return a projection flight's room when it ends without an entry.
+    DropProjection {
+        entry: u64,
     },
     /// Describe the next write for a goal projection.
     Project {

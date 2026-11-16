@@ -185,13 +185,22 @@ pub(super) fn entry(number: u64) -> skein_forge_client::Entry {
 }
 
 #[test]
-fn a_full_outbox_names_the_next_entry_but_a_duplicate_stays_bare() {
+fn an_unreserved_enqueue_meeting_a_full_outbox_fails_busy_without_a_hold() {
     let mut d = adopted_domain();
     let mut env = env();
     env.limits.entries = 1;
     send(&mut d, &env, Event::Enqueue { entry: entry(1) });
-    let out = send(&mut d, &env, Event::Enqueue { entry: entry(2) });
-    limit(&out, TASK, "forge.entries", 1, 2);
+    let mut out = send(&mut d, &env, Event::Enqueue { entry: entry(2) });
+    assert_eq!(
+        out.pop(),
+        Some(Request::Outcome {
+            entry: 2,
+            task: TASK,
+            outcome: skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy),
+            account: None,
+        })
+    );
+    assert!(out.is_empty());
     let duplicate = send(&mut d, &env, Event::Enqueue { entry: entry(1) });
     assert!(contains(&duplicate, &Request::Refused { task: TASK }), "{duplicate:?}");
 }

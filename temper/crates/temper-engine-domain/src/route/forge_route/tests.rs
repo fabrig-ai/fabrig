@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod call_room;
 mod reds;
 mod room;
 mod settling;

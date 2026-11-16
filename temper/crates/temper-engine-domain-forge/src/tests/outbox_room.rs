@@ -117,6 +117,64 @@ pub(super) fn free_one(d: &mut Domain) -> Box<[Request]> {
 }
 
 #[test]
+fn a_projections_room_is_reserved_until_kept_or_dropped() {
+    for keep in [true, false] {
+        let mut d = full();
+        free_one(&mut d);
+        let projected =
+            outputs(&mut d, Event::Project { entry: FRESH, repository: REPO, view: projection::goal_view() });
+        let mut staged = None;
+        for request in projected {
+            if let Request::ProjectionEffect { row, entry, .. } = request {
+                staged = Some((row, entry));
+            }
+        }
+        let (projection, entry) = staged.expect("projection stages its entry");
+        assert!(!d.reserve_call(&env().limits, Token::new(501)), "projection owns the last room");
+        outputs(&mut d, Event::Change { row: row(FIRST) });
+        assert_wait(&open(&mut d, FIRST, 22), FIRST);
+        assert_eq!(room::reserved(&d), 1);
+        if keep {
+            let kept = outputs(&mut d, Event::KeepProjection { row: projection, entry });
+            assert_eq!(entries(&kept).first().unwrap().number, FRESH);
+            assert_eq!(d.entries.len(), env().limits.entries);
+            assert_eq!(room::reserved(&d), 0);
+            assert!(asks(&kept).is_empty());
+            assert_eq!(asks(&outputs(&mut d, Event::Withdraw { entry: FRESH })).as_ref(), &[FIRST]);
+        } else {
+            let returned = outputs(&mut d, Event::DropProjection { entry: FRESH });
+            assert_eq!(asks(&returned).as_ref(), &[FIRST]);
+            assert!(!d.entries.contains_key(&FRESH));
+            assert_eq!(room::reserved(&d), 1, "the ask owns the returned room");
+        }
+    }
+}
+
+#[test]
+fn a_projection_stays_behind_an_unasked_or_asked_change() {
+    for asked in [false, true] {
+        let mut d = waiters();
+        if asked {
+            free_one(&mut d);
+        }
+        let projected =
+            outputs(&mut d, Event::Project { entry: FRESH, repository: REPO, view: projection::goal_view() });
+        assert!(projected.contains(&Request::ProjectAfter {
+            goal: 7,
+            when: Some(Wall::from_nanos(env().wall.as_nanos() + env().limits.issue_policy.interval.as_nanos())),
+        }));
+        assert!(entries(&projected).is_empty());
+        assert!(d.full_outbox_met());
+        for request in projected {
+            assert!(!matches!(
+                request,
+                Request::ProjectionEffect { .. } | Request::ProjectionFailed { .. } | Request::ProjectionSettled { .. }
+            ));
+        }
+    }
+}
+
+#[test]
 fn two_change_effects_wait_in_encounter_order_and_keep_one_fresh_entry() {
     let mut d = waiters();
     assert_eq!(asks(&free_one(&mut d)).as_ref(), &[FIRST]);
@@ -414,7 +472,7 @@ fn changes_and_goal_branch_makings_share_one_line_by_place() {
 }
 
 #[test]
-fn newcomers_cannot_overtake_an_asked_change_that_meets_full_again() {
+fn an_unreserved_enqueue_cannot_take_an_asked_changes_room() {
     let mut d = full();
     for task in [FIRST, SECOND] {
         outputs(&mut d, Event::Change { row: row(task) });
@@ -425,14 +483,22 @@ fn newcomers_cannot_overtake_an_asked_change_that_meets_full_again() {
     let (reading, _) = fixtures::next_call(&mut d);
     assert_wait(&open(&mut d, SECOND, 22), SECOND);
     making(&mut d);
-    // A writer outside this change takes the promised room during the gather.
-    outputs(&mut d, Event::Enqueue { entry: refusals::entry(102) });
+    let refused = outputs(&mut d, Event::Enqueue { entry: refusals::entry(102) });
+    assert_eq!(
+        refused.as_ref(),
+        &[Request::Outcome {
+            entry: 102,
+            task: 7,
+            outcome: skein_forge_client::Outcome::Failed(Error::Busy),
+            account: None,
+        }]
+    );
     fixtures::answer(&mut d, reading, Ok(Answer::Commit(fixtures::HEAD)));
-    assert_wait(&finish(&mut d), FIRST);
-    assert_eq!(d.change(FIRST).unwrap().room, Some(1));
+    assert_eq!(entries(&finish(&mut d)).first().unwrap().number, FRESH);
+    assert_eq!(d.change(FIRST).unwrap().room, None);
     assert_eq!(d.change(SECOND).unwrap().room, Some(2));
     assert_eq!(room::reserved(&d), 0);
-    let freed = outputs(&mut d, Event::Withdraw { entry: 102 });
-    assert_eq!(asks(&freed).as_ref(), &[FIRST]);
+    let freed = outputs(&mut d, Event::Withdraw { entry: FRESH });
+    assert_eq!(asks(&freed).as_ref(), &[SECOND]);
     assert!(!freed.contains(&Request::ContinueGoalBranch { task: 7 }));
 }

@@ -133,6 +133,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
             | forge::Event::Enqueue { .. }
+            | forge::Event::EnqueueCall { .. }
+            | forge::Event::DropProjection { .. }
             | forge::Event::KeepProjection { .. }
             | forge::Event::Project { .. }
             | forge::Event::FailProjection { .. }

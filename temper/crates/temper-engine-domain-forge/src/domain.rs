@@ -334,6 +334,8 @@ pub struct Domain {
     merge_kind: Option<(u32, u32)>,
     close_kind: Option<(u32, u32)>,
     projection_due: Map<u64, skein_lib::Wall>,
+    pub(crate) call_room: Set<Token>,
+    pub(crate) projection_room: Set<u64>,
     /// Volatile: a projection met the full outbox since the root's step began
     /// (temper/docs/design/domain/forge/issues.md). Never saved; false after a restore.
     full_outbox_met: bool,
@@ -805,10 +807,26 @@ impl Domain {
         self.full_outbox_met = false;
     }
 
-    /// Available outbox room including the root's staged descriptions.
+    /// Free outbox room behind the line (domain/forge/room.md, 2).
     #[must_use]
-    pub fn effect_room(&self, limits: &Limits, staged: u32) -> bool {
-        self.entries.len().saturating_add(staged) < limits.entries
+    pub fn effect_room(&self, limits: &Limits) -> bool {
+        crate::room::check(self, limits, None)
+    }
+
+    /// Promise a described call's room until its entry or terminal ask (domain/forge/room.md, 5).
+    pub fn reserve_call(&mut self, limits: &Limits, owner: Token) -> bool {
+        if !crate::room::check(self, limits, None) {
+            return false;
+        }
+        assert!(!self.call_room.contains(&owner), "fresh call flight");
+        self.call_room.insert(owner).expect("call reservations fit the outbox");
+        true
+    }
+
+    /// A call ended without an entry; offer its room to the line's first waiter.
+    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+        self.call_room.remove(&owner);
+        crate::room::ask(self, env, out);
     }
 
     /// A connector's durable payload, read again before a holder accepts it.
@@ -1008,6 +1026,8 @@ impl Domain {
             merge_kind: None,
             close_kind: None,
             projection_due: Map::with_capacity(l.issues),
+            call_room: Set::with_capacity(l.entries),
+            projection_room: Set::with_capacity(l.entries),
             full_outbox_met: false,
             change_due: Map::with_capacity(
                 l.changes
@@ -1962,11 +1982,16 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 emit(out, Request::Erase { key: Key::ProposedEffect(number) });
             }
         }
-        Event::Enqueue { entry } => enqueue(d, env, entry, out),
+        Event::Enqueue { entry } => enqueue(d, env, None, entry, out),
+        Event::EnqueueCall { owner, entry } => enqueue(d, env, Some(owner), entry, out),
         Event::KeepProjection { row, entry } => {
+            d.projection_room.remove(&entry.number);
             d.issues.insert(row.goal, row.clone()).expect("projection capacity admitted");
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(row) });
             keep_entry(d, entry, None, out);
+        }
+        Event::DropProjection { entry } => {
+            d.projection_room.remove(&entry);
         }
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
         Event::FailProjection { goal, repository, closing } => {
@@ -3506,7 +3531,17 @@ fn lost_release(d: &Domain, name: &Name, failed: bool, out: &mut Queue<Request>)
     }
 }
 
-fn enqueue(d: &mut Domain, env: &Env<Limits>, entry: skein_forge_client::Entry, out: &mut Queue<Request>) {
+fn enqueue(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Option<Token>,
+    entry: skein_forge_client::Entry,
+    out: &mut Queue<Request>,
+) {
+    let reserved = match owner {
+        Some(owner) => d.call_room.remove(&owner),
+        None => false,
+    };
     let task = entry.task;
     let Some(repository) = d.repositories.get(&entry.repository) else {
         emit(out, Request::Refused { task });
@@ -3520,16 +3555,10 @@ fn enqueue(d: &mut Domain, env: &Env<Limits>, entry: skein_forge_client::Entry, 
         emit(out, Request::Refused { task });
         return;
     }
-    if d.entries.len() == env.limits.entries {
-        crate::refusal::resource_limit(
-            out,
-            task,
-            b"enqueue effect",
-            None,
-            "forge.entries",
-            env.limits.entries,
-            u64::from(d.entries.len()).saturating_add(1),
-        );
+    if !reserved && !crate::room::check(d, &env.limits, None) {
+        let outcome = skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy);
+        d.named_outcome(entry.number, outcome);
+        emit(out, Request::Outcome { entry: entry.number, task, outcome, account: None });
         return;
     }
     let release = Some(entry.number);
@@ -7636,7 +7665,7 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
-            if d.entries.len() == env.limits.entries {
+            if !crate::room::check(d, &env.limits, None) {
                 wait_for_room(d, env, goal, out);
                 return;
             }
@@ -7672,6 +7701,7 @@ fn project(
                 fail_projection(d, env, goal, Some(repository), closing, out);
                 return;
             };
+            d.projection_room.insert(number).expect("projection reservations fit the outbox");
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }
