@@ -215,6 +215,7 @@ mod tests {
     }
     fn panel_parts(step: w::Step) -> w::ChangePanelParts {
         w::ChangePanelParts {
+            source: None,
             way: w::Way::Queue,
             in_landing: None,
             task: TASK,

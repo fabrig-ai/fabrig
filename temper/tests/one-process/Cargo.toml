@@ -15,6 +15,7 @@ temper-service-shell.workspace = true
 temper-shell.workspace = true
 smith-protocol-channel.workspace = true
 smith-fake-claude.workspace = true
+smith-protocol-program.workspace = true
 jig-domain-accounts.workspace = true
 temper-engine-domain-forge-change.workspace = true
 aho-corasick.workspace = true

@@ -617,7 +617,8 @@ pub(crate) fn asked(row: &ChangeRow) -> Option<api::Commit> {
                 None
             }
         }
-        c::State::Producing { .. }
+        c::State::Taking { .. }
+        | c::State::Producing { .. }
         | c::State::Opening { .. }
         | c::State::Recreating { .. }
         | c::State::Reopening { .. }

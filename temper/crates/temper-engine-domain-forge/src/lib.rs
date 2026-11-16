@@ -178,7 +178,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{

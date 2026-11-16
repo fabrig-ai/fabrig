@@ -620,7 +620,8 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         | change::State::Red { .. }
         | change::State::Cleared { .. }
         | change::State::Uncleared { .. } => false,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -1250,7 +1251,8 @@ fn advance(
                                 | change::State::Red { merge, .. }
                                 | change::State::Cleared { merge }
                                 | change::State::Uncleared { merge } => Some(merge),
-                                change::State::Producing { .. }
+                                change::State::Taking { .. }
+                                | change::State::Producing { .. }
                                 | change::State::Opening { .. }
                                 | change::State::Recreating { .. }
                                 | change::State::Reopening { .. }
@@ -3868,6 +3870,7 @@ pub(crate) fn change_advanced(
         | change::Decision::Ready
         | change::Decision::RepairEnded { .. }
         | change::Decision::QueueRepair
+        | change::Decision::Failed
         | change::Decision::NoChange
         | change::Decision::Finish { .. }
         | change::Decision::Cancel

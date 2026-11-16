@@ -55,6 +55,7 @@ fn change(state: State) -> Change {
 }
 fn facts() -> Facts {
     Facts {
+        taken: None,
         fault: crate::Fault::Change,
         rerun: false,
         pending: Box::new([]),

@@ -100,7 +100,8 @@ fn order(step: &w::Step) -> u8 {
         w::Step::First => 5,
         w::Step::Landing => 6,
         w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) => 7,
-        w::Step::Ended
+        w::Step::Taking
+        | w::Step::Ended
         | w::Step::Ready(_)
         | w::Step::Preparing(_)
         | w::Step::Recreating
