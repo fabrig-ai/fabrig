@@ -44,4 +44,3 @@ mod fuzzy {
 }
 
 mod adoption_hold;
-mod plan_chat;
