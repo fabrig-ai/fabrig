@@ -1497,6 +1497,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
    and the landing's line. */
 #app > .temper-home .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-home .temper-home-head > h2.temper-home-signal { color: var(--gf-signal); }
+#app > .temper-home .temper-home-needs .temper-home-head > .temper-home-sevs { margin-left: auto; display: flex; gap: 14px; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-needs .temper-home-sevs > span { display: inline-flex; align-items: center; gap: 6px; }
 #app > .temper-home .temper-home-head > a { font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-home .temper-home-head > a:hover { text-decoration-color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a > .temper-nav-count, #app > .temper-tabbar > a > .temper-nav-count { color: var(--gf-signal); font-weight: 600; }
@@ -3449,6 +3451,8 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
   #app > .temper-home:has(.temper-home-phone) h1 { font-size: 24px; }
   #app > .temper-home .temper-home-wide { display: none; }
   #app > .temper-home .temper-home-needs .temper-home-head > a { display: none; }
+  #app > .temper-home .temper-home-needs .temper-home-head { flex-wrap: wrap; }
+  #app > .temper-home .temper-home-needs .temper-home-head > .temper-home-sevs { flex-basis: 100%; margin-left: 0; flex-wrap: wrap; }
   #app > .temper-home .temper-home-phone { display: block; }
   #app > .temper-home .temper-home-phone.temper-home-byline { font-size: 12px; color: var(--gf-faint); }
   #app > .temper-home > .temper-home-phone > a { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); text-decoration: none; }

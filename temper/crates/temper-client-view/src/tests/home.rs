@@ -2820,16 +2820,244 @@ fn no_decided_region_with_no_row_or_to_begin() {
 }
 #[test]
 fn the_section_comes_first_after_the_intro() {
-    let root = default_away(away_fixture(1));
-    for browser in [false, true] {
-        let view = status_view(&root, browser);
-        let sections = children(main_nodes(view.tree()));
-        assert!(sections[0].styles.as_slice().contains(&crate::look::HOME_INTRO));
-        assert_eq!(sections[1].role, Role::Region);
-        assert_eq!(sections[1].name.as_deref(), Some("Decided for you · 1".as_bytes()));
-        main_find(view.tree(), Role::Heading { level: 2 }, "Decided for you · 1".as_bytes());
+    for objects in [&QUESTIONS[..0], &QUESTIONS[..1]] {
+        let root = away_home(away_fixture(1), false, objects, status_parts());
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            let sections = children(main_nodes(view.tree()));
+            assert!(sections[0].styles.as_slice().contains(&crate::look::HOME_INTRO));
+            let decided = if objects.is_empty() { 1 } else { 2 };
+            if !objects.is_empty() {
+                assert_eq!(sections[1].name.as_deref(), Some(b"Needs you".as_slice()));
+                let text = printed(&view);
+                assert!(
+                    skein_lib::bytes::find(&text, b"Still needs you").unwrap()
+                        < skein_lib::bytes::find(&text, b"Decided for you").unwrap()
+                );
+            }
+            assert_eq!(sections[decided].role, Role::Region);
+            assert_eq!(sections[decided].name.as_deref(), Some("Decided for you · 1".as_bytes()));
+        }
     }
 }
+#[expect(clippy::too_many_lines, reason = "the fixture joins Home entry, inbox and findings watch deliveries")]
+fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, away: bool) -> d::Domain {
+    use jig_client::{Down, Up, Watchable};
+    use temper_client_protocol_wire as wire;
+    let objects = if question { &QUESTIONS[..1] } else { &QUESTIONS[..0] };
+    let mut spell = away_fixture(0);
+    if !away {
+        spell.spell = None;
+    }
+    let (mut root, standing) = if let Address::Home { .. } = address {
+        let mut root = away_home(spell, false, objects, status_parts());
+        let mut leaving =
+            drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+        settle_home(&mut root, &mut leaving, None, None, None);
+        (root, None)
+    } else {
+        let (root, _, _, standing) = f::root_at_with_needs(Address::Settings { project: f::PROJECT }, &home_limits());
+        (root, Some(standing))
+    };
+    let mut opening = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
+    if let Some(watch) = standing {
+        let mut entries = List::with_capacity(u32::from(question));
+        for object in objects {
+            entries.push(super::documents::entry(*object, f::PROJECT, 1, f::NOW, None)).unwrap();
+        }
+        let mut reads = drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                            entries,
+                            u32::from(question),
+                            c::Count { value: 0, limited: false },
+                            0,
+                            false,
+                        )))),
+                    },
+                },
+            },
+        );
+        while let Some(request) = reads.pop() {
+            opening.push(request);
+        }
+    }
+    let mut delivered = false;
+    for request in &opening {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
+        } = request
+            && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
+            && let w::Watch::Findings(subject) = watching.watch()
+        {
+            let holder =
+                w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+            let mut capacity = 0_u32;
+            for count in counts {
+                capacity = capacity.checked_add(count).unwrap();
+            }
+            let mut rows = List::with_capacity(capacity);
+            if subject.project() == f::PROJECT {
+                delivered = true;
+                for (severity, count) in
+                    [w::Severity::High, w::Severity::Medium, w::Severity::Low].into_iter().zip(counts)
+                {
+                    for _ in 0..count {
+                        rows.push(
+                            w::FindingRow::new(
+                                &w::CEILINGS,
+                                w::FindingRowParts {
+                                    number: rows.len().checked_add(1).unwrap(),
+                                    at: 0,
+                                    kind: w::FindingKind::Review,
+                                    severity: severity.clone(),
+                                    area: None,
+                                    state: w::FindingState::New,
+                                    title: b"A finding".as_slice().into(),
+                                    holder: holder.clone(),
+                                    why: None,
+                                    hander: None,
+                                },
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+            let document = w::Findings::new(
+                &w::CEILINGS,
+                w::FindingsParts {
+                    project: subject.project(),
+                    rows,
+                    areas: List::with_capacity(0),
+                    triager: None,
+                    holder,
+                    cut,
+                },
+            )
+            .unwrap();
+            drive(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::FamilyDelivered {
+                            watch: *watch,
+                            record: jig_client::Family {
+                                family: wire::FORGE,
+                                version: wire::CLIENT_VERSION,
+                                bytes: wire::findings(&document),
+                            },
+                        },
+                    },
+                },
+            );
+        }
+    }
+    assert!(delivered, "findings watch for {address:?}: {opening:?}");
+    settle_home(
+        &mut root,
+        &mut opening,
+        Some(&NeedsFixture { objects, cut: false, read: true, decided: true }),
+        None,
+        None,
+    );
+    root
+}
+
+#[test]
+fn finding_sentences_follow_the_open_cards_on_home_all_home_and_needs() {
+    for (counts, cut, question, sentence) in [
+        ([0, 0, 0], false, false, "Nothing needs you."),
+        ([1, 0, 0], false, false, "One finding needs you."),
+        ([1, 1, 0], false, false, "Two findings need you."),
+        ([2, 4, 5], false, false, "11 findings need you."),
+        ([1, 0, 0], false, true, "Two things need you."),
+        ([2, 4, 5], true, false, "11+ things need you."),
+    ] {
+        for address in [
+            Address::Home { project: f::PROJECT },
+            Address::AllHome,
+            Address::Inbox { filter: d::address::Filter::ALL },
+        ] {
+            let root = finding_home(address.clone(), counts, cut, question, false);
+            for browser in [false, true] {
+                if !browser && address == (Address::Inbox { filter: d::address::Filter::ALL }) {
+                    continue; // The terminal's inbox keeps its own heading, not Needs you's intro.
+                }
+                let view = status_view(&root, browser);
+                // Needs you's empty state has its own heading.
+                if counts == [0, 0, 0] && address == (Address::Inbox { filter: d::address::Filter::ALL }) {
+                    continue;
+                }
+                main_find(view.tree(), Role::Heading { level: 1 }, sentence.as_bytes());
+            }
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "semantic tests locate head children by their roles and styles")]
+fn needs_heads_count_findings_by_severity_in_both_shells_and_away() {
+    assert_eq!(crate::look::NAMES.style(crate::look::HOME_SEVS), Some(b"temper-home-sevs".as_slice()));
+    for (counts, labels, line) in [
+        ([2, 4, 5], &["2 high", "4 medium", "5 low"][..], "2 high · 4 medium · 5 low"),
+        ([0, 1, 0], &["1 medium"][..], "1 medium"),
+        ([0, 0, 0], &[][..], ""),
+    ] {
+        for (address, away) in [
+            (Address::Home { project: f::PROJECT }, false),
+            (Address::AllHome, false),
+            (Address::Home { project: f::PROJECT }, true),
+        ] {
+            let root = finding_home(address.clone(), counts, false, true, away);
+            for browser in [false, true] {
+                let view = status_view(&root, browser);
+                assert!(
+                    main_nodes(view.tree())
+                        .iter()
+                        .any(|node| node.styles.as_slice().contains(&crate::look::HOME_NEEDS)),
+                    "needs region: {address:?} {counts:?} {away} {:?}",
+                    d::pages::parts::needs_facts(&root, skein_lib::Wall::from_nanos(STATUS_NOW))
+                );
+                let region = styled(view.tree(), crate::look::HOME_NEEDS);
+                let nodes = subtree(view.tree(), region.id);
+                let sevs = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::HOME_SEVS));
+                assert_eq!(sevs.is_some(), !labels.is_empty());
+                let Some(at) = sevs else { continue };
+                let head = nodes.iter().position(|node| node.role == Role::Heading { level: 2 }).unwrap();
+                let all = nodes.iter().position(|node| node.name.as_deref() == Some(b"All needs")).unwrap();
+                assert!(head < at && at < all);
+                assert_eq!(nodes[head].name.as_deref().unwrap().starts_with(b"Still needs you"), away);
+                let sevs = subtree(view.tree(), nodes[at].id);
+                if browser {
+                    let counts = children(sevs);
+                    assert_eq!(counts.len(), labels.len());
+                    for (node, label) in counts.iter().zip(labels) {
+                        let pair = children(subtree(view.tree(), node.id));
+                        assert!(pair[0].styles.as_slice().contains(&crate::look::SEVERITY));
+                        assert_eq!(
+                            pair[0].name.as_deref().unwrap(),
+                            skein_lib::bytes::concat(&[label.split_once(' ').unwrap().1.as_bytes(), b" severity"])
+                                .as_ref()
+                        );
+                        assert_eq!(f::nodes_text(subtree(view.tree(), pair[1].id)).as_ref(), label.as_bytes());
+                    }
+                } else {
+                    let text = f::nodes_text(sevs);
+                    assert_eq!(text.as_ref(), line.as_bytes());
+                    contains(&printed(&view), line);
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn its_count_is_every_row_showing() {
     let root = default_away(away_fixture(10));

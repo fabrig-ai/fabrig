@@ -298,6 +298,8 @@ pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
 pub const HOME_NEEDS: Style = Style { owner: owner(), token: 214 };
 /// A Home section's heading and link (client/pages/README.md).
 pub const HOME_HEAD: Style = Style { owner: owner(), token: 215 };
+/// Findings counted by severity in Home's head (client/pages/home.md, 1).
+pub const HOME_SEVS: Style = Style { owner: owner(), token: 484 };
 /// The Needs you heading while something needs the person (client/pages/README.md).
 pub const HOME_SIGNAL: Style = Style { owner: owner(), token: 216 };
 /// Home's wide-page Answer in a row link (client/pages/README.md).
@@ -1214,7 +1216,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-chip-low",
         b"temper-chip-medium",
         b"temper-chip-high",
-        b"temper-reserved-484",
+        b"temper-home-sevs",
         b"temper-reserved-485",
         b"temper-reserved-486",
         b"temper-finding-rows",

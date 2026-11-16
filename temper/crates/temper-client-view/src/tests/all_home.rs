@@ -6,6 +6,7 @@
     reason = "view tables inspect semantic trees with ordinary Rust"
 )]
 use super::fixtures as f;
+use temper_client_domain::pages::findings::Counted;
 
 use crate::{
     frame::Bindings,
@@ -73,7 +74,7 @@ fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {
 fn facts(projects: Vec<Project>) -> Facts {
     Facts {
         projects: projects.into_boxed_slice(),
-        needs: Needs::Count { count: 0, cut: false },
+        needs: Needs::Count { count: 0, cut: false, findings: Counted::default() },
         decided: Box::default(),
         showing: 0,
         away: None,

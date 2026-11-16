@@ -391,6 +391,72 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
 }
 
 #[test]
+fn open_cards_rank_severity_before_age_and_keep_later_last() {
+    use pages::findings::{Counted, counted};
+    const HOUR: u64 = 3_600_000_000_000;
+    const NOW: u64 = 3 * 24 * HOUR;
+    let (mut root, inbox, watches) = setup(1);
+    let later = c::ObjectKey::Question { task: f::acts::TASK, message: 99 };
+    f::inbox_entries(
+        &mut root,
+        inbox,
+        List::from_boxed(Box::new([
+            f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, ID.project, 1),
+            f::inbox_entry(later, c::InboxGroup::Questions, ID.project, 2),
+        ])),
+    );
+    for card in root.pages.inbox.as_mut().unwrap().cards.iter_mut() {
+        let c::ReadValue::Question(mut question) = f::acts::question() else { panic!("question fixture") };
+        question.since = Wall::from_nanos(if card.object == later { 0 } else { NOW - HOUR });
+        card.page = Some(c::ReadValue::Question(question));
+    }
+    let rows = [
+        (1, NOW - 48 * HOUR, w::Severity::Low),
+        (2, NOW - 24 * HOUR, w::Severity::High),
+        (3, NOW - 3 * HOUR, w::Severity::Medium),
+    ]
+    .map(|(number, at, severity)| {
+        let mut parts = row(number, at).into_parts();
+        parts.severity = severity;
+        w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+    });
+    deliver(&mut root, watches[0].1, document(ID.project, Box::new(rows), false));
+    event(
+        &mut root,
+        Event::Act { action: Action::Pages(pages::Act::Needs(pages::needs::Act::Later { object: later })) },
+    );
+    let all = root.pages().needs().all(root.pages().inbox().unwrap(), root.forge().approvals());
+    let [
+        Need::Finding(high),
+        Need::Existing(pages::needs::Need::Card(question)),
+        Need::Finding(medium),
+        Need::Finding(low),
+        Need::Existing(pages::needs::Need::Card(last)),
+    ] = all.as_ref()
+    else {
+        panic!("ranked cards: {all:?}")
+    };
+    assert_eq!(
+        (high.id.number, question.object, medium.id.number, low.id.number, last.object),
+        (2, f::acts::QUESTION, 3, 1, later)
+    );
+    for (need, severity) in
+        all.iter().zip([Some(w::Severity::High), None, Some(w::Severity::Medium), Some(w::Severity::Low), None])
+    {
+        assert_eq!(need.severity(), severity);
+    }
+    assert_eq!(counted(&all), Counted { high: 1, medium: 1, low: 1, only: false });
+    assert_eq!(
+        counted(&[Need::Finding(high), Need::Finding(medium), Need::Finding(low)]),
+        Counted { high: 1, medium: 1, low: 1, only: true }
+    );
+    assert_eq!(counted(&[]), Counted { high: 0, medium: 0, low: 0, only: false });
+    let mut proposal = (*question).clone();
+    proposal.object = c::ObjectKey::Proposal(f::acts::PROPOSAL);
+    assert_eq!(Need::Existing(pages::needs::Need::Card(&proposal)).severity(), None);
+}
+
+#[test]
 fn findings_join_questions_by_wait_and_obey_the_inbox_filters() {
     let (mut root, inbox, watches) = setup(1);
     deliver(&mut root, watches[0].1, document(ID.project, Box::new([row(7, 20), row(8, 10)]), false));

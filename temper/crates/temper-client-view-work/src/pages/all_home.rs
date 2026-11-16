@@ -46,7 +46,7 @@ fn page(
         b.open(Role::Slot);
         b.style(look::HOME_HEAD);
         let (count, cut) = match facts.needs {
-            temper_client_domain::pages::home::Needs::Count { count, cut } => (count, cut),
+            temper_client_domain::pages::home::Needs::Count { count, cut, .. } => (count, cut),
             temper_client_domain::pages::home::Needs::Unknown => (0, false),
         };
         ask::text(
@@ -55,6 +55,7 @@ fn page(
             &w.say(if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount }, &[Hole::Number(u64::from(count))]),
             look::HOME_SIGNAL,
         );
+        home::severities(b, w, facts.needs);
         ask::link(b, bindings, &w.say(Word::AllHomeAllNeeds, &[]), Address::Inbox { filter: Filter::ALL });
         b.close();
         if let Some(root) = root

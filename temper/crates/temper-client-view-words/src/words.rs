@@ -906,6 +906,9 @@ pub enum Word {
     HomeNeedsOne,
     HomeNeedsMany,
     HomeNeedsCut,
+    HomeNeedsFindingOne,
+    HomeNeedsFindingMany,
+    HomeSeverityCount,
     HomeNeedsCount,
     HomeStillNeedsCount,
     HomeStillNeedsCountMore,
@@ -2147,7 +2150,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2691;
+const PHRASES: u32 = 2694;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2174,10 +2177,10 @@ const PHRASES: u32 = 2691;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4925;
+const SEGMENTS: u32 = 4934;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64261;
-const ALL: [Word; 1976] = [
+const ENGLISH_BYTES: u32 = 64303;
+const ALL: [Word; 1979] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -3024,6 +3027,9 @@ const ALL: [Word; 1976] = [
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
     Word::HomeNeedsCut,
+    Word::HomeNeedsFindingOne,
+    Word::HomeNeedsFindingMany,
+    Word::HomeSeverityCount,
     Word::HomeNeedsCount,
     Word::HomeStillNeedsCount,
     Word::HomeStillNeedsCountMore,
@@ -5040,6 +5046,9 @@ impl Word {
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
+            Self::HomeNeedsFindingOne => 8050,
+            Self::HomeNeedsFindingMany => 8051,
+            Self::HomeSeverityCount => 8052,
             Self::HomeNeedsCut => 3148,
             Self::HomeNeedsCount => 3149,
             Self::HomeStillNeedsCount => 5660,
@@ -7286,6 +7295,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeBranchRed => (&[b"", b" red"], &[Name]),
         Word::NeedsHeadCut => (&[b"Needs you \xc2\xb7 ", b"+"], &[Number]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
+        Word::HomeNeedsFindingOne => (&[b"One finding needs you."], &[]),
+        Word::HomeNeedsFindingMany => (&[b"", b" findings need you."], &[Name]),
+        Word::HomeSeverityCount => (&[b"", b" ", b""], &[Number, Name]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),

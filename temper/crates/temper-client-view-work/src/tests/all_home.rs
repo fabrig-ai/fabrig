@@ -6,6 +6,7 @@
     reason = "view tables inspect semantic trees with ordinary Rust"
 )]
 use super::fixtures as f;
+use temper_client_domain::pages::findings::Counted;
 
 use crate::{
     bindings::Bindings,
@@ -76,7 +77,7 @@ fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {
 fn facts(projects: Vec<Project>) -> Facts {
     Facts {
         projects: projects.into_boxed_slice(),
-        needs: Needs::Count { count: 0, cut: false },
+        needs: Needs::Count { count: 0, cut: false, findings: Counted::default() },
         decided: Box::default(),
         showing: 0,
         away: None,
@@ -118,29 +119,34 @@ fn landed_and_needs_sentences_compose_from_the_facts() {
                 project(3, "sql", 10, 0),
                 project(4, "fabrig", 1, 0),
             ],
-            Needs::Count { count: 2, cut: false },
+            Needs::Count { count: 2, cut: false, findings: Counted::default() },
             "31 changes landed across four projects. Two things need you.",
             "31 changes landed. Two things need you.",
         ),
         (
             vec![project(1, "vsr", 3, 0)],
-            Needs::Count { count: 1, cut: false },
+            Needs::Count { count: 1, cut: false, findings: Counted::default() },
             "3 changes landed in vsr. One thing needs you.",
             "3 changes landed. One thing needs you.",
         ),
         (
             vec![project(1, "vsr", 1, 0)],
-            Needs::Count { count: 0, cut: false },
+            Needs::Count { count: 0, cut: false, findings: Counted::default() },
             "One change landed in vsr. Nothing needs you.",
             "One change landed. Nothing needs you.",
         ),
         (
             vec![project(1, "vsr", 3, 3)],
-            Needs::Count { count: 12, cut: true },
+            Needs::Count { count: 12, cut: true, findings: Counted::default() },
             "The last change landed 2 hours ago. 12+ things need you.",
             "The last change landed 2 hours ago. 12+ things need you.",
         ),
-        (vec![], Needs::Count { count: 10, cut: false }, "10 things need you.", "10 things need you."),
+        (
+            vec![],
+            Needs::Count { count: 10, cut: false, findings: Counted::default() },
+            "10 things need you.",
+            "10 things need you.",
+        ),
         (vec![], Needs::Unknown, "", ""),
     ] {
         let mut facts = facts(projects);
@@ -278,7 +284,7 @@ fn each_region_obeys_its_own_parts_rule() {
         [(0, 0, 0, [false, false, false]), (1, 1, 0, [true, false, false]), (2, 0, 1, [false, true, true])]
     {
         let mut facts = facts((0..projects).map(|i| project(i, "vsr", 0, 0)).collect());
-        facts.needs = Needs::Count { count: open, cut: false };
+        facts.needs = Needs::Count { count: open, cut: false, findings: Counted::default() };
         facts.showing = showing;
         for words in [f::words(), f::browser_words()] {
             let (tree, _) = drawn(&facts, &words);

@@ -162,7 +162,7 @@ fn flow(
     }
     ask::text(b, Role::Text, &head, look::NEEDS_BAR_AT);
     b.close();
-    intro(b, root, w, open.len(), times.now);
+    intro(b, root, w, &open, times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
     let cut = *inbox.cut.first().expect("needs cut")
@@ -412,7 +412,13 @@ fn approval(
     b.close();
 }
 
-fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib::Wall) {
+fn intro(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    open: &[temper_client_domain::pages::findings::Need<'_>],
+    now: skein_lib::Wall,
+) {
     let inbox = root.pages().inbox().expect("intro inbox");
     let kicker = match inbox.filter.project {
         Some(project) => {
@@ -429,7 +435,11 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib
         || root.pages().needs().findings().cut_for(inbox.filter);
     let sentence = super::home::needs_sentence(
         w,
-        temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },
+        temper_client_domain::pages::home::Needs::Count {
+            count: u32::try_from(open.len()).expect("bounded inbox"),
+            cut,
+            findings: temper_client_domain::pages::findings::counted(open),
+        },
         b"",
     );
     let showing = parts::needs_facts(root, now).showing;

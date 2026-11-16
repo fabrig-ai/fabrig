@@ -866,6 +866,14 @@ fn needs_take_the_approvals_after_the_inbox_by_its_filter() {
             objects.push(need.object()).unwrap();
         }
         assert_eq!(objects.as_slice(), *expected, "{name}");
+        let all = session.all(inbox, root.forge().approvals());
+        let mut shared = List::uncapped();
+        for need in &all {
+            assert_eq!(need.severity(), None, "{name}");
+            let pages::findings::Need::Existing(need) = need else { panic!("no findings") };
+            shared.push(need.object()).unwrap();
+        }
+        assert_eq!(shared.as_slice(), *expected, "shared order without findings: {name}");
         let selected = match session.shown(inbox, root.forge().approvals()) {
             Some(need) => Some(need.object()),
             None => None,
