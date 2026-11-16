@@ -429,12 +429,9 @@
   keeps the request's declarations.
   The drawing's rules (the path's and the legend's) and the card's hold
   under How work runs' frame as under Ask temper's page
-  (`../pages/settings.md`, 2), each selector naming both; the tabs', their
-  axis line's and the foot's act rules are How work runs' alone, Ask
-  temper's page drawing no tabs. With a fourth tab,
-  "Yours", at 760 px and under the tabs stand two by two, as the whole
-  story's `whole-story.css` has them, so that "Agents review" keeps its
-  words whole on a phone.
+  (`../pages/settings.md`, 2), each selector naming both. Neither page
+  draws tabs, their axis line or an act in the path's foot, and their
+  rules go with them.
   Ask temper's page takes `ways-current`'s rules (2026-11-16), scoped
   under the session, `#app > .temper-session`, on tokens of their own,
   `temper-way-*`: the region `.temper-way`, 18 px under the lede; its
@@ -497,9 +494,10 @@
   - *the path,* Ask temper's drawing and legend under their own rules
     (*Ask temper's ways,* above), who acts by the path's marks alone: no
     lanes, no pills, no colour of its own;
-  - *the ways' tabs, line, card and act* take Ask temper's ways' rules
-    (above), the same declarations under the frame's scope: the card under
-    the drawing, its caret across;
+  - *the ways' head, card and act* take Ask temper's head's and card's
+    rules (above), the same declarations under the frame's scope, on the
+    same `temper-way-*` tokens: the head over the drawing, the card under
+    it, its caret across; Ask temper's last line is not drawn here;
   - *Roles,* `whole-story.css`' `.rows` and `.role` rules taken exactly:
     a role's row `.role > summary`'s grid, 200 px for the name, its line
     small and muted, the model at its right with a "›" turning down while

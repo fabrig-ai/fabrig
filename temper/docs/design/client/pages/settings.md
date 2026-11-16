@@ -304,22 +304,24 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     (`ask-temper.md`, 1, *Ask temper's page*); then the frame's tabs.
   - *The path of a change,* a section: its title, and at its head's right,
     small and muted, "the way: NAME", NAME the current way's, or "its own"
-    where it runs none. Under it the ways' tabs, How work runs' own since
-    Ask temper's page shows one way at a time (`ask-temper.md`, 1, *Ask
-    temper's page*): one control of tabs named "Ways of working", the full
-    width in a lined frame, a tab a way of the read, in its order, then
-    "Yours" where the project runs no stock way, the current one's "now",
-    small, in mono, in the signal's colour, the shown one selected and
-    filled; under it, small, faint and in mono, "more of you" at its left
-    and "more of your agents" at its right, a line named "From more of
-    you to more of your agents"; the
-    shown way's `line`; its path, the drawing Ask temper's page draws
+    where it runs none. Under it, with no tabs, the head Ask temper's page
+    draws (`ask-temper.md`, 1, *the head*; the look request
+    `ways-current`'s default, which the person chose for this page on
+    2026-11-16): the shown way's line at its left, a stock way's `line`,
+    the project words' `lede` or "PROJECT runs settings of its own."; at
+    its right the shown way's act, "Use this" or "Keep it" (*A way's
+    acts,* below), "Back" while a way the project doesn't run is shown,
+    and the "Stock ways" menu, the way the project runs ticked where it is
+    a stock one; then its path, the drawing Ask temper's page draws
     (`chat/conversation.md`, 3), its stops pressed, laid out by the box's width, the legend
-    under it as Ask temper's page has it; while a stop is open, its card,
-    as Ask temper's page draws a stop's card, its caret across; then
-    the shown way's act at the section's right, "Use this" or "Keep it"
-    (*A way's acts,* below), and a refusal under it. The shown tab and the
-    open stop are the page's state, as on Ask temper's page. Until the read
+    under it as Ask temper's page has it, with no button beside it; while
+    a stop is open, its card, as Ask temper's page draws a stop's card,
+    its caret across; and a refusal under the legend. The page's own
+    heading, lede and "Ask temper to change this" stay as they are, and
+    Ask temper's last line is not drawn here. The terminal prints the
+    head's line, the path, the card, the legend, the act and "Back", then
+    "Stock ways:" and the three names, as Ask temper's page does. The
+    shown way and the open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
   - *What reaches you,* the project's classes, kind 8, in words
@@ -810,13 +812,13 @@ the document gives them; the client hides nothing of its own.
 
 ## 3. Open questions
 
-- **How work runs' tabs** (2, *The path of a change*): Ask temper's page
-  shows the way the project runs under a head, with the stock ways in a
-  drop-down and no tabs (the look request `ways-current`, 2026-11-16),
-  which does not decide this page's tabs under its own heading and lede.
-  The request's default is the same head and drop-down here; the person
-  is asked whether to build it (2026-11-16). Default until they answer:
-  the tabs as they are.
+- **How work runs' head after landing** (2, *The path of a change*): the
+  look request `ways-current` drew Ask temper's head, not this page's; the
+  person chose its default here (2026-11-16), so no request page shows
+  How work runs' head. temper/ui looks at it at 1440, 1000 and 420 px,
+  the menu open, a stock way chosen and a way of the project's own, and
+  may draw a request of its own. Owner: temper/ui. Default: Ask temper's
+  head's declarations under the frame's scope.
 
 - **Settings, Models after landing** (`README.md`): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
