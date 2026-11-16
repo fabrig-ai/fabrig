@@ -683,6 +683,9 @@ impl Worker {
         }
     }
     pub(super) fn step(&mut self, event: root::Event) {
+        if let Some(note) = diagnostics::cancelling(&event) {
+            self.notes.push(note);
+        }
         root::step(&mut self.root, &self.env, event, &mut self.out);
         self.drain_root();
     }
