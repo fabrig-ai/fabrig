@@ -396,8 +396,9 @@ the place's bundle; its engine's document, so rendered, passes every
 check the engine's start makes, so that a figure the start ties across
 its documents is held here and not first at a walk: its
 `application.limits` carry `forge.judge_projects` 8, jig's
-`authority.projects` in `standard`, as init's document does
-(`../../protocol/setup/init.md`, 1); its
+`authority.projects` in `standard`, and `forge.client.op_bytes` the
+engine's `tasks.result_bytes`, 4,096, the bound the root holds it to,
+as init's document does (`../../protocol/setup/init.md`, 1); its
 forge document declares the gate and the manual merges; its patch file
 sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
 fake model's `--scripts` form and equals its real-loop fixture's. In
