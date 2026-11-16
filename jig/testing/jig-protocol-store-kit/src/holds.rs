@@ -2,6 +2,8 @@
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
+#[expect(clippy::assigning_clones, reason = "the fixture's staged body stays unchanged across the crate move")]
+#[must_use]
 pub fn member() -> people::Member {
     let mut member = super::people_member();
     let spec = super::people_amendment().spec.expect("full amendment");
@@ -20,10 +22,12 @@ pub fn member() -> people::Member {
     member
 }
 
+#[must_use]
 pub fn result_fields() -> Box<[tasks::ResultField]> {
     Box::new([tasks::ResultField { name: b"field".as_slice().into(), value: b"value".as_slice().into() }])
 }
 
+#[must_use]
 pub fn task() -> tasks::TaskRecord {
     let mut task = super::task_record();
     task.contract = super::task_contract();
@@ -36,6 +40,7 @@ pub fn task() -> tasks::TaskRecord {
     task
 }
 
+#[must_use]
 pub fn edit_note() -> people::Ask {
     people::Ask::EditNote {
         project: 1,
@@ -50,6 +55,7 @@ pub fn edit_note() -> people::Ask {
     }
 }
 
+#[must_use]
 pub fn adopt() -> people::Ask {
     people::Ask::Adopt {
         project: 1,

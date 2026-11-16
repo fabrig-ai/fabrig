@@ -223,6 +223,7 @@ pub fn notes_key(rng: &mut Rng) -> jig_domain_notes::Key {
         },
     }
 }
+#[must_use]
 pub fn pattern_key(segments: Box<[Box<[u8]>]>) -> jig_domain_notes::Key {
     use jig_domain_notes::{Key, Last, Pattern, Scope};
     Key::Line {
@@ -235,6 +236,7 @@ pub fn pattern_key(segments: Box<[Box<[u8]>]>) -> jig_domain_notes::Key {
     }
 }
 
+#[must_use]
 pub fn within(intervals: &[skein_kv::Range], key: &[u8]) -> bool {
     for interval in intervals {
         let before_end = match &interval.end {

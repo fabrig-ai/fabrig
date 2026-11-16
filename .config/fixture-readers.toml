@@ -51,15 +51,32 @@ pair = "default"
 package = "jig-protocol-engine-clients"
 filter = "kind(lib)"
 
-# Store and records test stages and their shared kit; all unit callers.
+# Component fixtures; all unit callers.
 [[fixture]]
-paths = [
-    "jig/crates/jig-protocol-store/src/tests/fixtures/*.rs",
-    "jig/crates/jig-protocol-store/src/store_kit/*.rs",
-]
+paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.rs"]
 [[fixture.reader]]
 pair = "default"
 package = "jig-protocol-store"
+filter = "kind(lib)"
+
+# Translation fixtures; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-protocol-store-records/src/tests/fixtures.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
+filter = "kind(lib)"
+
+# Shared domain fixtures; both pieces' unit callers.
+[[fixture]]
+paths = ["jig/testing/jig-protocol-store-kit/src/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
 filter = "kind(lib)"
 
 # src/tests/{format,frame_memory}.rs; jig/tests/store-codecs/tests/suite/drift.rs: layouts().

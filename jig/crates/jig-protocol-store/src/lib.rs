@@ -8,7 +8,7 @@ mod back;
 pub mod boundary;
 mod catalogue;
 mod census;
-pub mod codec;
+pub use jig_protocol_store_records::codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
 
@@ -561,10 +561,6 @@ pub use boundary::{
     Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, WorkerOpening, Write,
 };
 
-#[cfg(test)]
-mod records_tests;
-#[cfg(test)]
-mod store_kit;
 #[cfg(test)]
 mod tests;
 

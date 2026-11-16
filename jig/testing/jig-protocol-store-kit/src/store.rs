@@ -10,6 +10,7 @@ pub const LIVE: u64 = 21;
 pub const ENDED: u64 = 22;
 pub const PROJECT: u32 = 3;
 
+#[must_use]
 pub fn kv_limits() -> skein_kv::Limits {
     skein_kv::Limits {
         key: KEY_LIMIT,
@@ -30,6 +31,7 @@ pub fn kv_limits() -> skein_kv::Limits {
     }
 }
 
+#[must_use]
 pub fn deployment_record(deployment: [u8; 16], commits: u64) -> Record {
     let mut header = core_rows::deployment();
     header.id = deployment;
@@ -37,20 +39,24 @@ pub fn deployment_record(deployment: [u8; 16], commits: u64) -> Record {
     Record::Core(CoreRecord::Deployment(header))
 }
 
+#[must_use]
 pub fn header_record(commits: u64) -> Record {
     deployment_record(DEPLOYMENT, commits)
 }
 
+#[must_use]
 pub fn person(number: u64) -> Record {
     Record::People(jig_domain_people::Stored::Person { number, identity: identity() })
 }
 
+#[must_use]
 pub fn live_task(number: u64) -> Record {
     let mut row = task_record();
     row.number = number;
     Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row)))
 }
 
+#[must_use]
 pub fn cold_task(row: &jig_domain_tasks::TaskRecord) -> Record {
     Record::Tasks(jig_domain_tasks::Stored::LiveCold {
         number: row.number,
@@ -61,6 +67,7 @@ pub fn cold_task(row: &jig_domain_tasks::TaskRecord) -> Record {
     })
 }
 
+#[must_use]
 pub fn ended_task(number: u64) -> Record {
     let mut row = task_record();
     row.number = number;
@@ -71,6 +78,7 @@ pub fn ended_task(number: u64) -> Record {
     Record::Tasks(jig_domain_tasks::Stored::Ended(Box::new(row)))
 }
 
+#[must_use]
 pub fn history(task: u64, revision: u64) -> Record {
     let mut row = task_history();
     row.task = task;
@@ -78,12 +86,14 @@ pub fn history(task: u64, revision: u64) -> Record {
     Record::Tasks(jig_domain_tasks::Stored::History(row))
 }
 
+#[must_use]
 pub fn run_proof(task: u64) -> Record {
     let mut row = core_rows::run();
     row.task = task;
     Record::Core(CoreRecord::RunProof(row))
 }
 
+#[must_use]
 pub fn call(task: u64, completion: u32) -> Record {
     let CoreRecord::Call(mut row) = calls::call(jig_domain_core_vocabulary::CallPart::Controlled) else {
         panic!("call fixture");
@@ -93,16 +103,19 @@ pub fn call(task: u64, completion: u32) -> Record {
     Record::Core(CoreRecord::Call(row))
 }
 
+#[must_use]
 pub fn notes_entry(name: u64) -> Record {
     let mut row = note_entry();
     row.name = name;
     Record::Notes(jig_domain_notes::Record::Entry(row))
 }
 
+#[must_use]
 pub fn result_index(party: u64, position: u64, task: u64) -> Record {
     Record::Tasks(jig_domain_tasks::Stored::Result(jig_domain_tasks::ResultRow { party, position, task }))
 }
 
+#[must_use]
 pub fn notes_line(scope: &jig_domain_notes::Scope, name: u64) -> Record {
     let mut row = note_line();
     row.scope = scope.clone();
@@ -110,6 +123,7 @@ pub fn notes_line(scope: &jig_domain_notes::Scope, name: u64) -> Record {
     Record::Notes(jig_domain_notes::Record::Line(row))
 }
 
+#[must_use]
 pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
     let mut row = core_rows::turn();
     row.task = task;
@@ -120,6 +134,7 @@ pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_co
     row
 }
 
+#[must_use]
 pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
     let mut row = turn(task, attempt, number, bytes);
     row.opens_window = true;

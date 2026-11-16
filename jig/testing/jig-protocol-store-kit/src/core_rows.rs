@@ -5,6 +5,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
+#[must_use]
 pub fn deployment() -> core::Deployment {
     core::Deployment {
         id: [7; 16],
@@ -20,6 +21,7 @@ pub fn deployment() -> core::Deployment {
         commits: 19,
     }
 }
+#[must_use]
 pub fn terminal() -> core::TerminalRecord {
     core::TerminalRecord {
         task: 11,
@@ -31,6 +33,7 @@ pub fn terminal() -> core::TerminalRecord {
         },
     }
 }
+#[must_use]
 pub fn run() -> core::RunProof {
     core::RunProof {
         accounts: Box::new([
@@ -53,6 +56,7 @@ pub fn run() -> core::RunProof {
         terminal: Some(terminal()),
     }
 }
+#[must_use]
 pub fn turn() -> core::TurnRecord {
     core::TurnRecord {
         opens_window: true,
@@ -65,6 +69,7 @@ pub fn turn() -> core::TurnRecord {
         transcript: Box::new([0, 1, 254, 255]),
     }
 }
+#[must_use]
 pub fn goal() -> core::ProjectionRecord {
     core::ProjectionRecord::GoalHot {
         goal: core::ProjectionGoalHot { number: 11, project: 2, priority: 7, phase: super::task_phase() },
@@ -73,12 +78,14 @@ pub fn goal() -> core::ProjectionRecord {
         fed_at: Some(19),
     }
 }
+#[must_use]
 pub fn projection_task(requester: tasks::Party) -> core::ProjectionRecord {
     core::ProjectionRecord::TaskHot {
         goal: 11,
         task: core::ProjectionTaskHot { number: 12, requester, phase: super::task_phase() },
     }
 }
+#[must_use]
 pub fn milestone(identity: core::MilestoneId) -> core::ProjectionRecord {
     core::ProjectionRecord::Milestone {
         goal: 11,
@@ -90,6 +97,7 @@ pub fn milestone(identity: core::MilestoneId) -> core::ProjectionRecord {
         },
     }
 }
+#[must_use]
 pub fn proposal() -> core::ProposalDecisionRecord {
     core::ProposalDecisionRecord {
         project: 2,
@@ -102,6 +110,7 @@ pub fn proposal() -> core::ProposalDecisionRecord {
         created: Some((15, 17)),
     }
 }
+#[must_use]
 pub fn escalation() -> core::EscalationDecisionRecord {
     core::EscalationDecisionRecord {
         project: 2,

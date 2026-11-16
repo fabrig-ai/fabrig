@@ -1,4 +1,7 @@
 //! Domain fixtures shared by the store and records tests (protocol/store/crates.md, 4.2).
+#![forbid(unsafe_code)]
+extern crate alloc;
+
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
@@ -18,6 +21,7 @@ pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {
     lines: 2,
     recalled: 2,
 };
+#[must_use]
 pub fn note_entry() -> jig_domain_notes::Entry {
     let mut references = skein_lib::List::with_capacity(NOTES_LIMITS.references);
     references.push(21).expect("two references fit");
@@ -33,6 +37,7 @@ pub fn note_entry() -> jig_domain_notes::Entry {
         changed: skein_lib::Wall::from_nanos(u64::MAX),
     }
 }
+#[must_use]
 pub fn note_line() -> jig_domain_notes::Line {
     use jig_domain_notes::{Last, Pattern, Scope};
     jig_domain_notes::Line {
@@ -114,6 +119,7 @@ const TASK_RETRY: jig_domain_tasks::Retry = jig_domain_tasks::Retry {
     base: skein_lib::Duration::from_nanos(1),
     max: skein_lib::Duration::from_nanos(2),
 };
+#[must_use]
 pub fn task_funding() -> jig_domain_tasks::FundingRecord {
     use jig_domain_tasks::{Funder, FundingRecord, Numbers, PeriodTimes};
     FundingRecord {
@@ -128,9 +134,11 @@ pub fn task_funding() -> jig_domain_tasks::FundingRecord {
         closed: false,
     }
 }
+#[must_use]
 pub fn task_name() -> jig_domain_tasks::Name {
     jig_domain_tasks::Name { connector: 2, path: Box::new([Box::from(b"a\0".as_slice()), Box::from(b"b".as_slice())]) }
 }
+#[must_use]
 pub fn task_writer() -> jig_domain_tasks::WriterSlot {
     jig_domain_tasks::WriterSlot {
         number: 9,
@@ -139,6 +147,7 @@ pub fn task_writer() -> jig_domain_tasks::WriterSlot {
         lost: true,
     }
 }
+#[must_use]
 pub fn task_authority() -> jig_domain_tasks::Authority {
     use jig_domain_tasks::{
         Authority, AuthorityExecutor, Budget, Delegation, Grant, Last, Models, Pattern, Scopes, Tools,
@@ -175,6 +184,7 @@ pub fn task_authority() -> jig_domain_tasks::Authority {
         note_resources: Box::new([]),
     }
 }
+#[must_use]
 pub fn task_spec() -> jig_domain_tasks::Spec {
     use jig_domain_tasks::{Parameter, Spec};
     Spec {
@@ -189,6 +199,7 @@ pub fn task_spec() -> jig_domain_tasks::Spec {
         inputs: Box::new([0, u64::MAX]),
     }
 }
+#[must_use]
 pub fn task_contract() -> jig_domain_tasks::Contract {
     use jig_domain_tasks::{Contract, FieldRule, Verdict};
     Contract::Verdict {
@@ -201,12 +212,14 @@ pub fn task_contract() -> jig_domain_tasks::Contract {
     }
 }
 
+#[must_use]
 pub fn creation_spec() -> jig_domain_tasks::Spec {
     let mut spec = task_spec();
     spec.inputs = Box::new([]);
     spec
 }
 /// A full LLM choice: a main model with an effort, and sub-agents with and without one.
+#[must_use]
 pub fn task_llm() -> jig_domain_tasks::LlmChoice {
     use jig_domain_tasks::ModelEffort;
     jig_domain_tasks::LlmChoice {
@@ -216,6 +229,7 @@ pub fn task_llm() -> jig_domain_tasks::LlmChoice {
         subagents: Box::new([ModelEffort { model: 0, effort: None }, ModelEffort { model: 7, effort: Some(1) }]),
     }
 }
+#[must_use]
 pub fn task_creation(number: u64) -> jig_domain_tasks::New {
     use jig_domain_tasks::{Executor, Funder, Holding, New, Numbers};
     New {
@@ -241,6 +255,7 @@ pub fn task_creation(number: u64) -> jig_domain_tasks::New {
         tracked: Some(1),
     }
 }
+#[must_use]
 pub fn task_template() -> jig_domain_tasks::RecurringTemplate {
     let mut first = task_creation(1);
     first.dependencies = Box::new([]);
@@ -250,6 +265,7 @@ pub fn task_template() -> jig_domain_tasks::RecurringTemplate {
         overlap: jig_domain_tasks::RecurringOverlap::Wait,
     }
 }
+#[must_use]
 pub fn task_phase() -> jig_domain_tasks::Phase {
     use jig_domain_tasks::{Active, Hold, HoldSource, Phase, Was};
     Phase::Held {
@@ -258,6 +274,7 @@ pub fn task_phase() -> jig_domain_tasks::Phase {
         source: Some(Box::new(HoldSource::Resource(task_name()))),
     }
 }
+#[must_use]
 pub fn task_settings() -> jig_domain_tasks::Settings {
     jig_domain_tasks::Settings {
         tracked: Some(7),
@@ -271,6 +288,7 @@ pub fn task_settings() -> jig_domain_tasks::Settings {
         llm: Some(task_llm()),
     }
 }
+#[must_use]
 pub fn task_amendment() -> jig_domain_tasks::Amendment {
     jig_domain_tasks::Amendment {
         tracked: Some(jig_domain_tasks::Tracking::Tracked { priority: 7 }),
@@ -288,6 +306,7 @@ pub fn task_amendment() -> jig_domain_tasks::Amendment {
         reason: Box::from(b"amend".as_slice()),
     }
 }
+#[must_use]
 pub fn task_proposal() -> jig_domain_tasks::Proposal {
     use jig_domain_tasks::{Proposal, ProposalAction, ProposalHolder, ProposalKind, ProposalState};
     Proposal {
@@ -303,6 +322,7 @@ pub fn task_proposal() -> jig_domain_tasks::Proposal {
         },
     }
 }
+#[must_use]
 pub fn task_history() -> jig_domain_tasks::History {
     use jig_domain_tasks::{AmendmentHistory, Change, History, Party};
     let before = task_settings();
@@ -321,6 +341,7 @@ pub fn task_history() -> jig_domain_tasks::History {
         amendment: Some(Box::new(AmendmentHistory { before, after })),
     }
 }
+#[must_use]
 pub fn task_person_proposal() -> jig_domain_tasks::PersonProposal {
     let mut goal = task_creation(23);
     goal.funder = jig_domain_tasks::Funder::Pool { project: 3, person: 31, period: 5 };
@@ -335,6 +356,7 @@ pub fn task_person_proposal() -> jig_domain_tasks::PersonProposal {
     }
 }
 
+#[must_use]
 pub fn task_wake() -> jig_domain_tasks::WakePolicy {
     use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
     WakePolicy {
@@ -375,6 +397,7 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
     facts: 2,
 };
 
+#[must_use]
 pub fn identity() -> people::Identity {
     people::Identity {
         key: people::IdentityKey { provider: 3, subject: Box::from(b"subject".as_slice()) },
@@ -383,10 +406,12 @@ pub fn identity() -> people::Identity {
     }
 }
 
+#[must_use]
 pub fn people_pattern() -> people::Pattern {
     people::Pattern { segments: Box::new([Box::from(b"a".as_slice())]), last: people::Last::Open(Box::new([0, 255])) }
 }
 
+#[must_use]
 pub fn people_authority() -> people::Authority {
     people::Authority {
         tools: 9,
@@ -405,6 +430,7 @@ pub fn people_authority() -> people::Authority {
 }
 
 /// Configured models' names, in the configuration's order.
+#[must_use]
 pub fn model_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     let mut result = skein_lib::List::with_capacity(u64::BITS);
     for name in names {
@@ -413,6 +439,7 @@ pub fn model_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     result.into_boxed()
 }
 
+#[must_use]
 pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core_vocabulary::settings::ModelName]> {
     let mut result = skein_lib::List::with_capacity(u64::BITS);
     for name in names {
@@ -423,6 +450,7 @@ pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core_vocabular
     result.into_boxed()
 }
 
+#[must_use]
 pub fn people_policy() -> people::PolicyValue {
     people::PolicyValue {
         ceiling: people_authority(),
@@ -471,6 +499,7 @@ pub fn people_policy() -> people::PolicyValue {
     }
 }
 
+#[must_use]
 pub fn people_amendment() -> people::Amendment {
     people::Amendment {
         tracked: Some(people::Tracking::Tracked { priority: 7 }),
@@ -501,6 +530,7 @@ pub fn people_amendment() -> people::Amendment {
     }
 }
 
+#[must_use]
 pub fn people_member() -> people::Member {
     people::Member {
         symbols: Box::new([]),
@@ -545,6 +575,8 @@ fn people_amend_proposal() -> people::Ask {
     }
 }
 
+#[expect(clippy::assigning_clones, reason = "the fixture's staged body stays unchanged across the crate move")]
+#[must_use]
 pub fn people_asks() -> Box<[people::Ask]> {
     use people::{Ask, Proposer};
     let [cancel_move, amend_release, message_stop] = people_compounds();
@@ -818,6 +850,7 @@ pub const FIRST_MANIFEST_COUNTS: &[(&str, u64, u64)] =
     &[("fixture-label", 0, 0), ("fixture-shelf", 0, 0), ("fixture-token", 0, 0), ("fixture-note", 0, 0)];
 
 /// The kept turn schemas' said, replay and token fields.
+#[must_use]
 pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Box<[u8]> {
     let replay_bytes = if version == 1 { replay.len() } else { 0 };
     let length = said

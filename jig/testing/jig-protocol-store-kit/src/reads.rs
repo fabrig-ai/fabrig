@@ -8,10 +8,12 @@ pub const GOAL: u64 = 31;
 pub const CHILD: u64 = 32;
 pub const GRANDCHILD: u64 = 33;
 
+#[must_use]
 pub fn read(party: u64, scope: core::reads::Scope) -> core::reads::Range {
     core::reads::Range { party, scope, after: None, backwards: false, rows: 8, bytes: 65_536 }
 }
 
+#[must_use]
 pub fn ended_of(task: u64, requester: tasks::Party) -> Record {
     let Record::Tasks(tasks::Stored::Ended(mut row)) = ended_task(task) else { panic!("ended fixture") };
     row.requester = requester;
@@ -24,6 +26,7 @@ pub fn ended_of(task: u64, requester: tasks::Party) -> Record {
     Record::Tasks(tasks::Stored::Ended(row))
 }
 
+#[must_use]
 pub fn terminal(task: u64, attempt: u64) -> Record {
     let mut row = core_rows::terminal();
     row.task = task;
@@ -31,6 +34,7 @@ pub fn terminal(task: u64, attempt: u64) -> Record {
     Record::Core(core::CoreRecord::Terminal(row))
 }
 
+#[must_use]
 pub fn with_links(record: Record, dependencies: &[u64]) -> Record {
     let Record::Tasks(tasks::Stored::Ended(mut row)) = record else { panic!("ended fixture") };
     row.dependencies = Box::from(dependencies);
@@ -41,6 +45,7 @@ pub fn with_links(record: Record, dependencies: &[u64]) -> Record {
     Record::Tasks(tasks::Stored::Ended(row))
 }
 
+#[must_use]
 pub fn person_proposal(number: u64, decided: bool) -> Record {
     let mut row = super::task_person_proposal();
     row.number = number;
@@ -53,6 +58,7 @@ pub fn person_proposal(number: u64, decided: bool) -> Record {
     }
 }
 
+#[must_use]
 pub fn proposal_decision(party: u64, number: u64) -> Record {
     let mut row = core_rows::proposal();
     row.proposer = jig_domain_people::Proposer::Party(party);
@@ -61,6 +67,7 @@ pub fn proposal_decision(party: u64, number: u64) -> Record {
     Record::Core(core::CoreRecord::ProposalDecision(row))
 }
 
+#[must_use]
 pub fn history_with_proposal(task: u64, revision: u64, proposal: u64) -> Record {
     let mut row = super::task_history();
     row.task = task;
@@ -72,6 +79,7 @@ pub fn history_with_proposal(task: u64, revision: u64, proposal: u64) -> Record 
     Record::Tasks(tasks::Stored::History(row))
 }
 
+#[must_use]
 pub fn escalation_decision(task: u64, revision: u64) -> Record {
     let mut row = core_rows::escalation();
     row.task = task;
@@ -79,6 +87,7 @@ pub fn escalation_decision(task: u64, revision: u64) -> Record {
     Record::Core(core::CoreRecord::EscalationDecision(row))
 }
 
+#[must_use]
 pub fn hold_row(task: u64, position: u64) -> Record {
     Record::Tasks(tasks::Stored::Hold(tasks::HoldRow {
         task,
@@ -87,6 +96,7 @@ pub fn hold_row(task: u64, position: u64) -> Record {
         at: skein_lib::Wall::from_nanos(19),
     }))
 }
+#[must_use]
 pub fn attempt_row(task: u64, attempt: u64) -> Record {
     Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
         task,
@@ -113,14 +123,17 @@ fn words_line(task: u64, position: u64, message: u64, kind: tasks::MessageKind) 
     }))
 }
 
+#[must_use]
 pub fn question_line(task: u64, position: u64, message: u64) -> Record {
     words_line(task, position, message, tasks::MessageKind::Question)
 }
 
+#[must_use]
 pub fn answer_line(task: u64, position: u64, question: u64) -> Record {
     words_line(task, position, 7, tasks::MessageKind::Answer { question })
 }
 
+#[must_use]
 pub fn notified_line(task: u64, position: u64, person: u64) -> Record {
     Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
         task,
@@ -135,12 +148,14 @@ fn retained_task(record: Record) -> Box<tasks::TaskRecord> {
     row
 }
 
+#[must_use]
 pub fn with_question_lines(record: Record, lines: &[tasks::QuestionLine]) -> Record {
     let mut row = retained_task(record);
     row.question_lines = Box::from(lines);
     Record::Tasks(tasks::Stored::Ended(row))
 }
 
+#[must_use]
 pub fn with_hold(record: Record, position: u64, revision: u64) -> Record {
     let mut row = retained_task(record);
     row.hold = position;
@@ -148,16 +163,19 @@ pub fn with_hold(record: Record, position: u64, revision: u64) -> Record {
     Record::Tasks(tasks::Stored::Ended(row))
 }
 
+#[must_use]
 pub fn with_proposal_rows(record: Record, rows: &[tasks::ProposalRow]) -> Record {
     let mut row = retained_task(record);
     row.proposal_rows = Box::from(rows);
     Record::Tasks(tasks::Stored::Ended(row))
 }
 
+#[must_use]
 pub fn activity_line(task: u64, position: u64) -> Record {
     words_line(task, position, position, tasks::MessageKind::Words)
 }
 
+#[must_use]
 pub fn ledger_period(project: u32, period: u64, closed: bool) -> Record {
     let row = tasks::FundingRecord {
         period: None,
@@ -170,6 +188,7 @@ pub fn ledger_period(project: u32, period: u64, closed: bool) -> Record {
     if closed { Record::Tasks(tasks::Stored::ClosedLedger(row)) } else { Record::Tasks(tasks::Stored::Ledger(row)) }
 }
 
+#[must_use]
 pub fn notes_entry_in(scope: &jig_domain_notes::Scope, name: u64, description: &[u8]) -> (Record, Record) {
     let mut entry = super::note_entry();
     entry.scope = scope.clone();
@@ -182,14 +201,17 @@ pub fn notes_entry_in(scope: &jig_domain_notes::Scope, name: u64, description: &
     (Record::Notes(jig_domain_notes::Record::Entry(entry)), Record::Notes(jig_domain_notes::Record::Line(line)))
 }
 
+#[must_use]
 pub fn update(party: u64, at: u64, task: u64, object: tasks::UpdateObject) -> Record {
     Record::Tasks(tasks::Stored::Update(tasks::Update { party, at: skein_lib::Wall::from_nanos(at), task, object }))
 }
 
+#[must_use]
 pub fn ended_delegate(requester: u64, task: u64) -> Record {
     Record::Tasks(tasks::Stored::EndedDelegate(tasks::Edge { requester, task }))
 }
 
+#[must_use]
 pub fn delegate(requester: u64, task: u64) -> Record {
     Record::Tasks(tasks::Stored::Delegate(tasks::Edge { requester, task }))
 }

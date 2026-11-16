@@ -4,6 +4,7 @@ use jig_domain_core_vocabulary as core;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
+#[must_use]
 pub fn call(part: core::CallPart) -> core::CoreRecord {
     core::CoreRecord::Call(core::CallRecord {
         key: core::CallKey { task: 1, attempt: 2, completion: 3, position: 4 },
@@ -11,6 +12,7 @@ pub fn call(part: core::CallPart) -> core::CoreRecord {
         settled: None,
     })
 }
+#[must_use]
 pub fn problem() -> tasks::Problem {
     tasks::Problem {
         task: Some(1),
@@ -24,6 +26,7 @@ pub fn problem() -> tasks::Problem {
         }),
     }
 }
+#[must_use]
 pub fn call_parts() -> Box<[core::CallPart]> {
     use core::CallPart as C;
     use jig_domain_authority::{Answer, Finding, Lacks, Source};

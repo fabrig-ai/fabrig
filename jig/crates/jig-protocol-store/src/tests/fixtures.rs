@@ -26,7 +26,7 @@ pub fn manifest_counts(rows: &[(&str, u64, u64)]) -> skein_lib::List<crate::code
     counts
 }
 
-pub(crate) use crate::store_kit::{
+pub(crate) use jig_protocol_store_kit::{
     ALICE, CHILD, CORE_LIMITS, DEPLOYMENT, ENDED, FIRST_MANIFEST_COUNTS, GOAL, GRANDCHILD, INSTALLATION, KEY_LIMIT,
     LIVE, NOTES_LIMITS, OTHER_DEPLOYMENT, PROJECT, TASKS_LIMITS, accounts_key, activity_line, answer_line, attempt_row,
     call, cold_task, configured_model_names, core_key, core_rows, delegate, deployment_record, ended_delegate,
