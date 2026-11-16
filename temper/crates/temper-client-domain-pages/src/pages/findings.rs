@@ -299,6 +299,33 @@ pub enum Need<'a> {
     Existing(needs::Need<'a>),
     Finding(&'a Card),
 }
+/// A finding's holder reason, or another card's reach (client/pages/needs-you.md, 1).
+#[must_use]
+pub fn why(root: &dyn Root, need: Need<'_>) -> Option<needs::Why> {
+    let card = match need {
+        Need::Existing(need) => return needs::why(root, need),
+        Need::Finding(card) => card,
+    };
+    let document = root.pages().needs().findings().document(card.id.project)?;
+    let holds = if let Some(name) = card.row.area() {
+        needs::Holds::Area { name: name.clone() }
+    } else {
+        match super::tell::route(document, None) {
+            super::tell::Goes::Triager { holder: super::team::Holder::Party(party), .. }
+                if match root.pages().me(root.client()) {
+                    Some(me) => me.party.number == party,
+                    None => false,
+                } =>
+            {
+                needs::Holds::Triager
+            }
+            super::tell::Goes::Triager { .. } | super::tell::Goes::Area { .. } | super::tell::Goes::Owners { .. } => {
+                needs::Holds::Owner
+            }
+        }
+    };
+    Some(needs::Why::Finding { project: card.id.project, holds })
+}
 impl Need<'_> {
     #[must_use]
     pub fn same(self, other: Self) -> bool {

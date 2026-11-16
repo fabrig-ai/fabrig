@@ -950,7 +950,7 @@ fn unread_need_waits_in_both_shells_and_keeps_unknown_headline() {
 #[test]
 #[expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "the table inspects card counts and actions")]
 fn additional_needs_stop_at_three_and_link_to_the_project() {
-    for (count, more) in [(1, None), (3, None), (4, Some("One more")), (5, Some("2 more")), (7, Some("4 more"))] {
+    for (count, more) in [(1, None), (3, None), (4, Some("One more")), (5, Some("Two more")), (7, Some("Four more"))] {
         let root = everyday(false, &QUESTIONS[..count], false, true);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let region = styled(view.tree(), crate::look::HOME_NEEDS);

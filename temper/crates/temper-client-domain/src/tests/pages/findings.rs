@@ -142,6 +142,44 @@ fn ids(root: &Domain) -> Box<[Id]> {
     ids.into_boxed()
 }
 #[test]
+fn finding_why_uses_the_area_or_the_standing_person_triager_after_the_document() {
+    use pages::{
+        findings::why,
+        needs::{Holds, Why},
+    };
+    let (mut root, _, watches) = setup(1);
+    let (unread, _, _) = setup(1);
+    let mine = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: f::PARTY }).unwrap());
+    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
+    for (area, triager, expected) in [
+        (Some(b"store".as_slice()), None, Holds::Area { name: b"store".as_slice().into() }),
+        (None, Some(mine), Holds::Triager),
+        (None, Some(other), Holds::Owner),
+        (None, None, Holds::Owner),
+    ] {
+        let mut row = row(7, 20).into_parts();
+        row.area = match area {
+            Some(name) => Some(name.into()),
+            None => None,
+        };
+        let mut parts = document(1, Box::new([w::FindingRow::new(&w::CEILINGS, row).unwrap()]), false).into_parts();
+        parts.triager = triager;
+        deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+        let cards = root.pages().needs().findings().cards();
+        let need = Need::Finding(cards[0]);
+        assert_eq!(why(&unread, need), None);
+        assert_eq!(why(&root, need), Some(Why::Finding { project: 1, holds: expected }));
+    }
+    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
+    let mut parts = document(1, Box::new([row(7, 20)]), false).into_parts();
+    parts.triager = Some(other);
+    parts.holder = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 99 }).unwrap());
+    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+    let cards = root.pages().needs().findings().cards();
+    assert_eq!(why(&root, Need::Finding(cards[0])), Some(Why::Finding { project: 1, holds: Holds::Owner }));
+}
+
+#[test]
 fn team_areas_read_the_findings_document_and_its_triager() {
     use pages::team::{self, HeldArea, HeldAreas, Holder};
     let (mut root, _, watches) = setup(1);

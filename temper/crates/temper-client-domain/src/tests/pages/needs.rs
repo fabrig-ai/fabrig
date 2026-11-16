@@ -1357,7 +1357,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (42, 10, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1366,7 +1366,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1375,7 +1375,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(42, 20, reach), (43, 20, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1384,7 +1384,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::Questions,
             "delivered",
             Box::from([(f::TASK, 20, reach)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1393,7 +1393,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::PersonTasks,
             "delivered",
             Box::from([(42, 50, reach), (42, 20, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (
@@ -1402,7 +1402,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
             c::InboxGroup::PersonTasks,
             "delivered",
             Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
-            expected,
+            expected.clone(),
             true,
         ),
         (

@@ -6723,7 +6723,54 @@ fn a_settings_cards_later_reply_follows_it() {
     }
 }
 
+fn finding_home(root: &mut temper_client_domain::Domain) {
+    use jig_client::{Down, Readable, Watchable, contract as c};
+    use skein_lib::List;
+    let mut out = Queue::uncapped();
+    crate::driver::step(
+        root,
+        temper_client_domain::Event::Went {
+            place: temper_client_domain::Place::Address(temper_client_domain::Address::AllHome),
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        match crate::driver::down(request) {
+            Some(Down::Open { watch, subject: Watchable::Jig(c::Subject::Inbox { .. }) }) => {
+                crate::driver::deliver(
+                    root,
+                    watch,
+                    c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    ))),
+                    &mut out,
+                );
+            }
+            Some(Down::Read { read, what: Readable::Jig(c::Read::Inbox { .. }) }) => {
+                crate::driver::answer(
+                    root,
+                    read,
+                    c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        selection: None,
+                        before: None,
+                        rows: List::with_capacity(0),
+                        after: None,
+                        cut: false,
+                    })),
+                    &mut out,
+                );
+            }
+            Some(_) | None => {}
+        }
+    }
+}
+
 #[test]
+#[expect(clippy::too_many_lines, reason = "Home and Needs you share the finding's facts and opened forms")]
 fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
     use temper_client_domain::{
         Action,
@@ -6735,12 +6782,13 @@ fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
     use temper_client_view::look;
     const ID: Id = Id { project: 1, number: 7 };
     for sample in samples::samples().into_iter().filter(|sample| sample.name.starts_with("needs-finding")) {
-        let root = samples::domain(&sample);
+        let mut root = samples::domain(&sample);
         assert_eq!(temper_client_domain::pages::parts::needs_facts(&root, worlds::now(samples::World::Solo)).open, 1);
         let (mut view, _, _) = built_root(&sample, ViewInputs::new(), &root);
         for (role, name) in [
             (Role::Text, "Finding"),
             (Role::Paragraph, "feedback · high · no area"),
+            (Role::Paragraph, "Reached you as fabrig’s owner: findings that no area owns come to you."),
             (Role::Paragraph, "Handed on by task 55: “Your area owns the view”"),
             (Role::Button, "Backlog"),
         ] {
@@ -6795,6 +6843,38 @@ fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
         }
         if sample.name == "needs-finding-refused" {
             find(view.tree(), Role::Paragraph, "not a live goal of the project", sample.name);
+        }
+        finding_home(&mut root);
+        let (mut home, _, _) = built_root(&sample, ViewInputs::new(), &root);
+        for style in [
+            look::NEED_CARD,
+            look::NEED_FROM,
+            look::FINDING_ROWS,
+            look::FINDING_WHEN,
+            look::NEED_ACTS,
+            look::NEED_MORE,
+            look::WHY,
+        ] {
+            assert!(
+                home.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&style)),
+                "{}: Home hook {style:?}",
+                sample.name
+            );
+        }
+        let more = find(home.tree(), Role::Button, "More", sample.name);
+        assert_eq!(
+            temper_client_view::act(&mut home, more, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Finding(F::Open { id: ID })))
+        );
+        find(home.tree(), Role::Link, "The phone card is clipped", sample.name);
+        if sample.name == "needs-finding-hand" {
+            find(home.tree(), Role::TextField, "Why hand it on", sample.name);
+        }
+        if sample.name == "needs-finding-drop" {
+            find(home.tree(), Role::TextField, "Reason to drop", sample.name);
+        }
+        if sample.name == "needs-finding-route" {
+            find(home.tree(), Role::Disclosure, "Goal", sample.name);
         }
     }
 }

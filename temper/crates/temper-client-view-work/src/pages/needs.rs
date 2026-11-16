@@ -516,7 +516,6 @@ pub enum WhyForm {
     Short,
 }
 
-#[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
 pub fn why_line(
     b: &mut Builder,
     root: &Domain,
@@ -526,6 +525,19 @@ pub fn why_line(
     form: WhyForm,
 ) {
     let Some(why) = crate::shared::why(root, w, need) else { return };
+    reason_line(b, root, w, bindings, need, form, &why);
+}
+
+#[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
+pub(crate) fn reason_line(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    need: needs::Need<'_>,
+    form: WhyForm,
+    why: &[u8],
+) {
     let offers = stop_asking::offered(root, need, bindings.model_times.now);
     let open = match root.pages().stop_asking() {
         Some(open) if open.object() == need.object() => Some(open),
@@ -535,10 +547,10 @@ pub fn why_line(
     b.open(if numbered { Role::Slot } else { Role::Paragraph });
     b.style(look::WHY);
     if numbered {
-        ask::text(b, Role::Paragraph, &why, look::WHY);
+        ask::text(b, Role::Paragraph, why, look::WHY);
     } else {
-        b.name(&why);
-        b.text(Run::Plain, &why);
+        b.name(why);
+        b.text(Run::Plain, why);
     }
     if let Some(offers) = &offers
         && let Some(first) = offers.first()
@@ -578,7 +590,14 @@ pub fn why_line(
     let (Some(open), Some(offers)) = (open, offers) else { return };
     let (project, reach) = match needs::why(root, need) {
         Some(needs::Why::Reach { project, reach }) => (project, reach),
-        Some(needs::Why::Direct | needs::Why::Proposal | needs::Why::Held | needs::Why::Funds) | None => return,
+        Some(
+            needs::Why::Direct
+            | needs::Why::Proposal
+            | needs::Why::Held
+            | needs::Why::Funds
+            | needs::Why::Finding { .. },
+        )
+        | None => return,
     };
     if let Some(classes) = root.forge().classes(project) {
         b.open(Role::Slot);

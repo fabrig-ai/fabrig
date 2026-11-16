@@ -1427,6 +1427,14 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-home .temper-need-acts .temper-recommended { background: var(--gf-ink); border-color: var(--gf-ink); color: var(--gf-surface); order: -1; }
 #app > .temper-home .temper-need-acts .temper-ask-quiet { border-color: transparent; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); }
 #app > .temper-home .temper-need-card > .temper-need-more { display: none; }
+#app > .temper-home .temper-finding-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--gf-line); }
+#app > .temper-home .temper-finding-rows > li { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--gf-line); font-size: 14.5px; }
+#app > .temper-home .temper-finding-rows > li > a { flex: 1; min-width: 0; color: var(--gf-ink); text-decoration: none; }
+#app > .temper-home .temper-finding-rows > li > a:hover { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-finding-when { flex: none; font: 12px/1.6 var(--gf-mono); color: var(--gf-faint); }
+#app > .temper-home .temper-home-more { margin: 0; font-size: 13.5px; color: var(--gf-muted); display: flex; align-items: center; gap: 8px; }
+#app > .temper-home .temper-home-more > a { color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home section > .temper-why { margin-top: 2px; }
 #app > .temper-home .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
 #app > .temper-home .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--gf-line); border-radius: 999px; font: 400 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); background: var(--gf-surface); white-space: nowrap; }
 .temper-needs .temper-chips, #app > .temper-home .temper-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -3447,6 +3455,7 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
   #app > .temper-home:has(.temper-home-phone) > .temper-home-intro { gap: 10px; }
   #app > .temper-home .temper-need-card { padding: 14px; gap: 10px; }
   #app > .temper-home .temper-need-card .temper-ask-question { font-size: 15.5px; }
+  #app > .temper-home .temper-need-card:has(.temper-finding-rows) > :is(.temper-ask-context, .temper-why, .temper-need-acts) { display: none; }
   #app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: contents; }
   #app > .temper-home .temper-need-acts :is(a, button, details, textarea) { display: none; }
   #app > .temper-home .temper-need-acts .temper-recommended { display: flex; width: 100%; min-height: 44px; }

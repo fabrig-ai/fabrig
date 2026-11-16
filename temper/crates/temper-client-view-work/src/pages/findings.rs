@@ -96,12 +96,12 @@ pub(crate) fn main(
     from(b, root, card, words, times);
     ask::text(b, Role::Heading { level: 1 }, card.row.title(), look::FLOW_Q);
     facts(b, card, words);
-    if let Some(refusal) = &card.refusal {
-        ask::text(b, Role::Paragraph, &refused(card, refusal, words), look::ASK_CONTEXT);
-    }
-    if card.pending.is_some() || card.unconfirmed {
-        ask::text(b, Role::Paragraph, &words.say(Word::FindingWaiting, &[]), look::ASK_CONTEXT);
-    }
+    context(b, card, words);
+    reason(b, root, card, words);
+    acts(b, root, card, words, bindings);
+    b.close();
+}
+fn acts(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
     b.open(Role::Slot);
     b.style(look::ASK_CHOICES);
     button(b, bindings, words, Word::FindingHand, Act::Show { id: card.id, mode: Mode::Hand }, card.pending.is_some());
@@ -135,27 +135,10 @@ pub(crate) fn main(
         button(b, bindings, words, Word::FindingDrop, Act::Drop { id: card.id }, !card.can_drop());
     }
     b.close();
-    b.close();
 }
 fn facts(b: &mut Builder, card: &Card, words: &Words) {
-    let kind = words.say(
-        match card.row.kind() {
-            w::FindingKind::Qa => Word::FindingQa,
-            w::FindingKind::Flake => Word::FindingFlake,
-            w::FindingKind::Red => Word::FindingRed,
-            w::FindingKind::Review => Word::FindingReview,
-            w::FindingKind::Feedback => Word::FindingFeedback,
-        },
-        &[],
-    );
-    let severity = words.say(
-        match card.row.severity() {
-            w::Severity::Low => Word::FindingLow,
-            w::Severity::Medium => Word::FindingMedium,
-            w::Severity::High => Word::FindingHigh,
-        },
-        &[],
-    );
+    let kind = words.say(kind_word(card), &[]);
+    let severity = words.say(severity_word(card), &[]);
     let area = match card.row.area() {
         Some(area) => area.clone(),
         None => words.say(Word::FindingNoArea, &[]),
@@ -166,6 +149,17 @@ fn facts(b: &mut Builder, card: &Card, words: &Words) {
         &words.say(Word::FindingFacts, &[Hole::Name(kind), Hole::Name(severity), Hole::Name(area)]),
         look::ASK_CONTEXT,
     );
+}
+fn context(b: &mut Builder, card: &Card, words: &Words) {
+    handed(b, card, words);
+    if let Some(refusal) = &card.refusal {
+        ask::text(b, Role::Paragraph, &refused(card, refusal, words), look::ASK_CONTEXT);
+    }
+    if card.pending.is_some() || card.unconfirmed {
+        ask::text(b, Role::Paragraph, &words.say(Word::FindingWaiting, &[]), look::ASK_CONTEXT);
+    }
+}
+fn handed(b: &mut Builder, card: &Card, words: &Words) {
     if let (Some(why), Some(hander)) = (card.row.why(), card.row.hander()) {
         let (prefix, number) = match hander {
             w::Filer::Task(task) => (Word::FindingTask, task.number()),
@@ -301,6 +295,72 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
         | w::FindingRefusal::Words(_) => crate::shared::finding_refusal(words, refusal),
     }
 }
+fn kind_word(card: &Card) -> Word {
+    match card.row.kind() {
+        w::FindingKind::Qa => Word::FindingQa,
+        w::FindingKind::Flake => Word::FindingFlake,
+        w::FindingKind::Red => Word::FindingRed,
+        w::FindingKind::Review => Word::FindingReview,
+        w::FindingKind::Feedback => Word::FindingFeedback,
+    }
+}
+fn severity_word(card: &Card) -> Word {
+    match card.row.severity() {
+        w::Severity::Low => Word::FindingLow,
+        w::Severity::Medium => Word::FindingMedium,
+        w::Severity::High => Word::FindingHigh,
+    }
+}
+/// A finding's short line shares the row's words, including severity in the terminal.
+pub(crate) fn short(card: &Card, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
+    let separator = words.say(Word::ToolSeparator, &[]);
+    let mut text: Box<[u8]> = card.row.title().into();
+    if words.shell == Shell::Terminal {
+        text = bytes::concat(&[&text, &separator, &words.say(severity_word(card), &[])]);
+    }
+    bytes::concat(&[&text, &separator, &when(card, words, times, kind)])
+}
+fn when(card: &Card, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
+    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(card.row.at()));
+    if kind {
+        bytes::concat(&[&words.say(kind_word(card), &[]), &words.say(Word::ToolSeparator, &[]), &age])
+    } else {
+        age
+    }
+}
+/// One item in the caller's finding list (client/pages/home.md, 1, A finding's row).
+pub fn row(
+    b: &mut Builder,
+    _root: &Domain,
+    card: &Card,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    kind: bool,
+) {
+    b.open(Role::Item);
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, &short(card, words, times, kind));
+    } else {
+        severity(b, words, card.row.severity().clone());
+        b.open(Role::Link);
+        b.name(card.row.title());
+        b.bind(bindings.insert(PageAct::Finding(Act::Open { id: card.id })));
+        b.text(Run::Plain, card.row.title());
+        b.close();
+        ask::text(b, Role::Text, &when(card, words, times, kind), look::FINDING_WHEN);
+    }
+    b.close();
+}
+fn reason(b: &mut Builder, root: &Domain, card: &Card, words: &Words) {
+    if let Some(why) =
+        temper_client_domain::pages::findings::why(root, temper_client_domain::pages::findings::Need::Finding(card))
+        && let Some(line) = crate::shared::why_words(root, words, &why, false)
+    {
+        ask::text(b, Role::Paragraph, &line, look::WHY);
+    }
+}
+#[expect(clippy::too_many_arguments, reason = "Home's finding card keeps its scope and reason placement")]
 pub(crate) fn preview(
     b: &mut Builder,
     root: &Domain,
@@ -308,17 +368,45 @@ pub(crate) fn preview(
     words: &Words,
     bindings: &mut Bindings,
     times: &mut Times,
+    across: bool,
+    own_reason: bool,
 ) {
     b.open(Role::Slot);
     b.style(look::NEED_CARD);
-    from(b, root, card, words, times);
-    ask::text(b, Role::Paragraph, card.row.title(), look::ASK_QUESTION);
-    ask::button(
-        b,
-        bindings,
-        &words.say(Word::HomeOpen, &[]),
-        PageAct::Finding(Act::Open { id: card.id }),
-        look::ASK_QUIET,
-    );
+    b.open(Role::Paragraph);
+    b.style(look::NEED_FROM);
+    if across && let Some(name) = super::project_name(root.pages().me(root.client()), card.id.project) {
+        ask::text(b, Role::Text, &name, look::CHIP);
+        b.text(Run::Plain, b" ");
+    }
+    chip(b, words, card.row.severity().clone(), &words.say(kind_word(card), &[]));
+    b.text(Run::Plain, b" ");
+    let area = match card.row.area() {
+        Some(area) => words.say(Word::FindingInArea, &[Hole::Name(area.clone())]),
+        None => words.say(Word::FindingNoArea, &[]),
+    };
+    b.text(Run::Plain, &area);
+    b.close();
+    b.open(Role::List);
+    b.style(look::FINDING_ROWS);
+    row(b, root, card, words, bindings, times, false);
+    b.close();
+    context(b, card, words);
+    if own_reason {
+        reason(b, root, card, words);
+    }
+    b.open(Role::Slot);
+    b.style(look::NEED_ACTS);
+    acts(b, root, card, words, bindings);
+    b.close();
+    if words.shell == Shell::Browser {
+        ask::button(
+            b,
+            bindings,
+            &words.say(Word::HomeCardMore, &[]),
+            PageAct::Finding(Act::Open { id: card.id }),
+            look::NEED_MORE,
+        );
+    }
     b.close();
 }

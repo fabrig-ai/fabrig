@@ -1217,9 +1217,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-484",
         b"temper-reserved-485",
         b"temper-reserved-486",
-        b"temper-reserved-487",
-        b"temper-reserved-488",
-        b"temper-reserved-489",
+        b"temper-finding-rows",
+        b"temper-finding-when",
+        b"temper-home-more",
         b"temper-reserved-490",
         b"temper-reserved-491",
         b"temper-reserved-492",
@@ -2061,6 +2061,13 @@ pub const TELL_META: Style = Style { owner: owner(), token: 778 };
 pub const TELL_ACTS: Style = Style { owner: owner(), token: 779 };
 pub const TELL_LINK: Style = Style { owner: owner(), token: 780 };
 pub const TELL_CONTEXT: Style = Style { owner: owner(), token: 781 };
+
+/// A finding list on Home.
+pub const FINDING_ROWS: Style = Style { owner: owner(), token: 487 };
+/// A finding row’s kind and age.
+pub const FINDING_WHEN: Style = Style { owner: owner(), token: 488 };
+/// Home’s remaining cards.
+pub const HOME_MORE: Style = Style { owner: owner(), token: 489 };
 
 #[cfg(test)]
 mod tests {
