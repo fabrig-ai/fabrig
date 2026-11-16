@@ -1523,6 +1523,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-way-menu",
         b"temper-way-ask",
         b"temper-way-ask-mark",
+        b"temper-group-context",
+        b"temper-group-card",
+        b"temper-finding-title",
     ],
     regions: &[b"temper-link"],
 };
@@ -2085,6 +2088,10 @@ pub const FINDING_ROWS: Style = Style { owner: owner(), token: 487 };
 pub const FINDING_WHEN: Style = Style { owner: owner(), token: 488 };
 /// Home’s remaining cards.
 pub const HOME_MORE: Style = Style { owner: owner(), token: 489 };
+/// A group's question, rows and context (client/pages/home.md, 1).
+pub const GROUP_CONTEXT: Style = Style { owner: owner(), token: 790 };
+pub const GROUP_CARD: Style = Style { owner: owner(), token: 791 };
+pub const FINDING_TITLE: Style = Style { owner: owner(), token: 792 };
 
 #[cfg(test)]
 mod tests {

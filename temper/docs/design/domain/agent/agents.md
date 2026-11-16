@@ -331,9 +331,9 @@ of `../../draft/v0.1.0.md`, 2.1.
 
   - The first line is the **question**, and never a trailing line.
   - The **trailing lines** are found walking up from the last line,
-    blank lines passed over: each line beginning `Saw: ` or `Choice: `
-    is one, and the first other line ends them. Such a line above that
-    point is context, words like any other.
+    blank lines passed over: each line beginning `Saw: `, `Choice: `,
+    `Findings: ` or `Group: ` is one, and the first other line ends
+    them. Such a line above that point is context, words like any other.
   - The lines between the question and the trailing lines are the
     **context**, without its first and last blank lines.
   - A trailing `Saw: ` line is **what the agent saw**, several joined by
@@ -344,10 +344,32 @@ of `../../draft/v0.1.0.md`, 2.1.
     One ending ` (recommended)` is recommended, that ending no part of
     its words; past the first so marked, the ending is removed and
     recommends nothing.
+  - A trailing `Findings: ` line names the **findings** the question
+    concerns (`../areas.md`, section 6, *Its groups*): its words, trimmed,
+    are tokens `P/N` separated by spaces, P a project's number and N a
+    finding's, each in decimal digits alone, as `Findings: 2/2 2/8
+    2/10`. Several such lines join in their order; a finding named twice
+    counts once, at its first place. The question names no finding where
+    any token doesn't read as `P/N`, where the lines name none, or where
+    they name more than 16 (`question::FINDINGS`): its other lines read as
+    they would, and the client draws it as a plain question.
+  - A trailing `Group: ` line names the **group**: its words, trimmed,
+    are a plural noun, then ` · ` and a phrase, as `Group: bugs · in
+    temper`; with no ` · ` they are the noun alone, and the phrase is
+    empty. The first such line counts and the others are passed over; one
+    with no noun, or past 256 bytes (`CUE_BYTES`), names no group.
+  - **What it gives:** `temper-client-domain-forge`'s `question::parse`
+    gives `Parsed` with two more fields, `findings: Box<[findings::Id]>`,
+    empty where it names none, and `group: Option<question::Group>`,
+    `Group { noun: Box<[u8]>, phrase: Box<[u8]> }`, the phrase empty where
+    there is none. `findings::Id { project: u32, number: u32 }` is the one
+    the client's pages name (`pages::findings::Id`), moved to that crate's
+    `forge::findings` and named from `pages::findings` as before.
   - **The fallback:** words with no choice, or words the read cut
     (`question.words.cut`), have no trailing lines: the first paragraph
-    is the question, the rest the context, with nothing the agent saw
-    and no choices, and they are answered by a reply alone. Any question
+    is the question, the rest the context, with nothing the agent saw,
+    no choices, no findings and no group, and they are answered by a
+    reply alone. Any question
     a person or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
   QUESTION TEXT` (`../../client/ctl/tools.md`, 3), Home's card or the inbox's

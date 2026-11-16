@@ -869,7 +869,7 @@ fn needs_take_the_approvals_after_the_inbox_by_its_filter() {
         let all = session.all(inbox, root.forge().approvals());
         let mut shared = List::uncapped();
         for need in &all {
-            assert_eq!(need.severity(), None, "{name}");
+            assert_eq!(need.severity(session.findings()), None, "{name}");
             let pages::findings::Need::Existing(need) = need else { panic!("no findings") };
             shared.push(need.object()).unwrap();
         }
