@@ -5,6 +5,6 @@
 {"observation":"merged","repository":"playground/widget","number":1,"base":"main","head":2,"commit":3,"by":2}
 {"observation":"moved","repository":"playground/widget","branch":"main","from":1,"to":3,"by":2,"forward":null}
 {"observation":"reported","repository":"playground/widget","commit":3,"context":"check","state":"pending","by":0}
-{"observation":"deleted","repository":"playground/widget","branch":"temper/1/c2","at":2,"by":2}
 {"observation":"reported","repository":"playground/widget","commit":3,"context":"check","state":"passed","by":0}
+{"observation":"deleted","repository":"playground/widget","branch":"temper/1/c2","at":2,"by":2}
 {"observation":"opened","repository":"playground/widget","number":2,"kind":"issue","title":"VXBncmFkZSBvbmNl","body":"PCEtLSB0ZW1wZXI6a2V5IDAxMDAxMDA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDEwMDAwMDAwMDAwMDAwMDA2MDAwMDAwMDAwMDAwMDAwNjAwMDAwMDAyMDAwMDAwMDEgLS0+CmtlcHQgYWNyb3NzIHN0YXJ0cw==","labels":[],"branches":null,"by":2}
