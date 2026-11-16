@@ -41,7 +41,7 @@ fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
 }
 
 #[test]
-fn deployment_options_require_ports_refuse_ctl_and_make_bundle_optional() {
+fn deployment_options_require_ports_accept_ctl_and_make_bundle_optional() {
     let base = ["--bin", "B", "--scratch", "S"];
     let parse =
         |tail: &[&str]| Options::parse(&base.iter().chain(tail).map(|word| word.as_bytes().into()).collect::<Vec<_>>());
@@ -49,9 +49,14 @@ fn deployment_options_require_ports_refuse_ctl_and_make_bundle_optional() {
         .expect("deployment without bundle");
     assert_eq!(options.deployment.as_deref(), Some(Path::new("D")));
     assert!(options.bundle.is_none());
+    assert!(!options.ctl);
+    let ctl = parse(&["--ctl", "--deployment", "D", "--ports", "4101,4102,4103,4104,4105,4106,4107,4108,4109"])
+        .expect("ctl deployment without bundle");
+    assert!(ctl.ctl);
+    assert_eq!(ctl.deployment, options.deployment);
     for (tail, expected) in [
         (vec!["--deployment", "D"], "--ports"),
-        (vec!["--ctl", "--deployment", "D"], "--ctl and --deployment"),
+        (vec!["--ctl", "--deployment", "D"], "--ports"),
         (vec![], "--bundle"),
         (vec!["--ctl"], "--bundle"),
         (vec!["--deployment"], "--deployment DIR"),
@@ -98,7 +103,16 @@ fn deployment_preflight_requires_each_extra_executable_without_starting_it() {
         fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
         assert_eq!(fs::read(root.join("session/lines")).expect("unmodified session"), b"previous");
     }
-    let plan = super::options::prepare(options, &[]).expect("deployment needs neither bundle nor Chromium");
+    let why = super::options::prepare(options.clone(), &[]).expect_err("full deployment needs Chromium");
+    assert!(why.contains("SKEIN_TEST_CHROMIUM"), "{why}");
+    assert_eq!(fs::read(root.join("session/lines")).expect("unmodified session"), b"previous");
+    let chromium = root.join("bin/temper");
+    let environment = vec![(b"SKEIN_TEST_CHROMIUM".as_slice().into(), chromium.as_os_str().as_bytes().into())];
+    let full = super::options::prepare(options.clone(), &environment).expect("full deployment with Chromium");
+    assert_eq!(full.chromium, chromium.canonicalize().expect("absolute Chromium"));
+    assert!(full.options.bundle.is_none());
+    options.ctl = true;
+    let plan = super::options::prepare(options, &[]).expect("ctl deployment needs neither bundle nor Chromium");
     assert_eq!(plan.options.deployment, Some(root.join("deployment").canonicalize().expect("absolute deployment")));
     assert!(plan.options.bundle.is_none());
     assert!(plan.chromium.as_os_str().is_empty());

@@ -399,12 +399,12 @@ impl Machine {
             self.answer(Some("a box takes no deployment line".into()), out);
             return;
         }
-        if (self.plan.options.ctl || self.deployment.is_some()) && matches!(record, Record::Web(_) | Record::Tui(_)) {
+        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
             self.current = None;
             self.answer(
                 Some(
                     if self.deployment.is_some() {
-                        "a deployment takes ctl, forge and deployment lines"
+                        "this session takes ctl, forge and deployment lines alone"
                     } else {
                         "this session takes ctl and forge lines alone"
                     }
@@ -507,6 +507,9 @@ impl Machine {
             out.push(Action::Keep(line.print().into()));
         }
         out.push(Action::Answer(Answer { shown: std::mem::take(&mut self.shown), failed }));
+        if let Some(state) = &mut self.deployment {
+            state.patch_until = None;
+        }
         self.phase = Phase::Ready;
         self.until = None;
         self.poll = None;
@@ -549,7 +552,7 @@ impl Machine {
                 self.wait(Phase::SignIn, now, STEP);
                 out.push(Action::SignInFile { link: line, program: self.plan.deployment_sign_in() });
             }
-            Phase::Spent => self.fresh = Some(line),
+            Phase::Spent if self.deployment.is_none() || self.fresh.is_none() => self.fresh = Some(line),
             Phase::FreshLink => {
                 self.wait(Phase::Fresh, now, STEP);
                 out.push(Action::Open(line));
@@ -623,6 +626,8 @@ impl Machine {
             return;
         }
         match self.phase {
+            Phase::Main if self.deployment.is_some() => self.deployment_ready(out),
+            Phase::MainLine if self.deployment_patch_line() => self.deployment_patched(out),
             Phase::Main => {
                 self.phase = Phase::Ready;
                 self.until = None;
@@ -643,6 +648,9 @@ impl Machine {
         }
     }
     fn page_trouble(&mut self, trouble: Trouble, text: &[u8], url: &[u8], now: Time, out: &mut Vec<Action>) {
+        if self.deployment_patch_line() {
+            return;
+        }
         if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
             && trouble == Trouble::Log
             && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
@@ -733,8 +741,12 @@ impl Machine {
                 out.push(Action::KillBox);
                 self.classifying("box did not stop within 60 s".into(), out);
             } else if self.phase == Phase::ClosingBrowser {
-                self.box_failed.get_or_insert("browser did not close within 60 s".into());
-                out.push(Action::KillBox);
+                if let Some(state) = &mut self.deployment {
+                    state.failed.get_or_insert("browser did not close within 60 s".into());
+                } else {
+                    self.box_failed.get_or_insert("browser did not close within 60 s".into());
+                    out.push(Action::KillBox);
+                }
                 self.stop_box(now, out);
             } else if !matches!(self.phase, Phase::Finished | Phase::Classifying) {
                 self.fail_box(format!("{:?}: deadline passed", self.phase), now, out);
@@ -777,6 +789,9 @@ impl Machine {
         if self.forge.take().is_some() {
             out.push(Action::CancelForge);
         }
+        self.close_clients(now, out);
+    }
+    fn close_clients(&mut self, now: Time, out: &mut Vec<Action>) {
         self.save_until = None;
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
@@ -790,10 +805,18 @@ impl Machine {
         }
     }
     fn fail_box(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
-        self.box_failed.get_or_insert(why);
-        self.end(now, out);
+        if self.deployment.is_some() {
+            self.deployment_failed(why, now, out);
+        } else {
+            self.box_failed.get_or_insert(why);
+            self.end(now, out);
+        }
     }
     fn stop_box(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.deployment.is_some() {
+            self.deployment_stop(false, now, out);
+            return;
+        }
         if self.box_exited {
             self.classifying(self.box_failed.clone().unwrap_or_else(|| "the box exited".into()), out);
         } else {

@@ -8,6 +8,10 @@ enum Stage {
     Preparing,
     Starting(Process),
     Signing,
+    Browsing,
+    PatchTui,
+    Reloading,
+    Closing,
     Ready,
     Reading,
     Stopping(bool),
@@ -82,7 +86,14 @@ impl Machine {
                 if self.until.is_some_and(|at| now >= at) {
                     self.deployment_failed("ctl sign-in deadline passed".into(), now, out);
                 } else if *code == 0 {
-                    self.deployment_ready(out);
+                    if self.plan.options.ctl {
+                        self.first = None;
+                        self.deployment_ready(out);
+                    } else {
+                        self.deployed().stage = Stage::Browsing;
+                        self.wait(Phase::Spent, now, Duration::from_secs(30));
+                        out.push(Action::Open(self.first.take().expect("engine first link")));
+                    }
                 } else {
                     self.deployment_failed(format!("ctl sign-in exited {code}"), now, out);
                 }
@@ -90,7 +101,13 @@ impl Machine {
             Event::DeploymentPatch(result) if stage == Stage::Reading => match result {
                 Ok(file) => {
                     self.deployed().patch = Some(file.clone());
-                    self.deployment_stop(true, now, out);
+                    if self.tui_running {
+                        self.deployed().stage = Stage::PatchTui;
+                        self.wait(Phase::TuiStopping, now, super::LOOK);
+                        out.push(Action::StopTui);
+                    } else {
+                        self.deployment_stop(true, now, out);
+                    }
                 }
                 Err(why) => {
                     self.deployed().patch_until = None;
@@ -98,6 +115,15 @@ impl Machine {
                     self.deployed().stage = Stage::Ready;
                 }
             },
+            Event::TuiStopped | Event::TuiFailure(_) if stage == Stage::PatchTui => {
+                self.tui_running = false;
+                self.deployment_stop(true, now, out);
+            }
+            Event::Deadline if stage == Stage::PatchTui && self.until.is_some_and(|at| now >= at) => {
+                out.push(Action::StopTui);
+                self.tui_running = false;
+                self.deployment_stop(true, now, out);
+            }
             Event::DeploymentWritten(result) if stage == Stage::Writing => match result {
                 Ok(()) => self.deployment_start(Process::Engine, now, out),
                 Err(why) => self.deployment_failed(why.clone(), now, out),
@@ -158,6 +184,12 @@ impl Machine {
         if !self.deployed().live.contains(&process) {
             return;
         }
+        if process == Process::Engine
+            && output == Output::Stdout
+            && matches!(self.phase, Phase::Spent | Phase::FreshLink)
+        {
+            self.box_line(output, line, now, out);
+        }
         if self.deployed().stage != Stage::Starting(process) {
             return;
         }
@@ -193,16 +225,24 @@ impl Machine {
             Process::Engine => self.deployment_start(Process::Worker, now, out),
             Process::Worker => {
                 if self.deployed().patch_until.is_some() {
-                    if let Some(crate::line::Record::Deployment(Deployment::Patch { document, .. })) =
-                        self.current.as_ref().map(super::Line::record)
-                    {
-                        self.shown.push(format!("patched {}", document.name()));
+                    if self.plan.options.ctl {
+                        self.deployment_patched(out);
+                    } else {
+                        self.deployed().stage = Stage::Reloading;
+                        self.wait(Phase::Reloading, now, STEP);
+                        self.until = self.until.into_iter().chain(self.deployed().patch_until).min();
+                        out.push(Action::Open([self.origin.as_ref(), b"/"].concat().into()));
                     }
-                    self.deployed().patch_until = None;
-                    self.answer(None, out);
-                    self.deployed().stage = Stage::Ready;
                 } else {
                     let first = self.deployed().first.take().expect("engine's first link");
+                    if !self.plan.options.ctl {
+                        let Some(origin) = super::origin(&first) else {
+                            self.deployment_failed("invalid first link".into(), now, out);
+                            return;
+                        };
+                        self.origin = origin;
+                        self.first = Some(first.strip_suffix(b"\n").unwrap_or(&first).into());
+                    }
                     self.deployed().stage = Stage::Signing;
                     self.wait(Phase::Deployment, now, STEP);
                     out.push(Action::SignInFile { link: first, program: self.plan.deployment_sign_in() });
@@ -211,11 +251,25 @@ impl Machine {
             _ => {}
         }
     }
-    fn deployment_ready(&mut self, out: &mut Vec<Action>) {
+    pub(super) fn deployment_ready(&mut self, out: &mut Vec<Action>) {
         self.deployed().stage = Stage::Ready;
         self.phase = Phase::Ready;
         self.until = None;
+        self.poll = None;
         out.push(Action::Ready);
+    }
+    pub(super) fn deployment_patched(&mut self, out: &mut Vec<Action>) {
+        if let Some(crate::line::Record::Deployment(Deployment::Patch { document, .. })) =
+            self.current.as_ref().map(super::Line::record)
+        {
+            self.shown.push(format!("patched {}", document.name()));
+        }
+        self.deployed().patch_until = None;
+        self.answer(None, out);
+        self.deployed().stage = Stage::Ready;
+    }
+    pub(super) fn deployment_patch_line(&self) -> bool {
+        self.deployment.as_ref().is_some_and(|state| state.patch_until.is_some())
     }
     pub(super) fn deployment_patch(&mut self, patch: &Deployment, now: Time, out: &mut Vec<Action>) {
         let Deployment::Patch { document, path } = patch;
@@ -246,7 +300,7 @@ impl Machine {
             self.deployment_failed(format!("{process:?} exited {code}"), now, out);
         }
     }
-    fn deployment_failed(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
+    pub(super) fn deployment_failed(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
         self.deployed().failed.get_or_insert(why.clone());
         self.deployed().first = None;
         self.deployed().patch_until = None;
@@ -260,11 +314,12 @@ impl Machine {
         } else if self.phase == Phase::Ready {
             self.deployed().stage = Stage::Ready;
         } else {
-            self.deployment_stop(false, now, out);
+            self.deployment_end(now, out);
         }
     }
     pub(super) fn deployment_end(&mut self, now: Time, out: &mut Vec<Action>) {
-        if matches!(self.deployed().stage, Stage::Stopping(false) | Stage::Classifying) || self.phase == Phase::Finished
+        if matches!(self.deployed().stage, Stage::Stopping(false) | Stage::Classifying)
+            || matches!(self.phase, Phase::Finished | Phase::ClosingTui | Phase::ClosingBrowser)
         {
             return;
         }
@@ -274,9 +329,10 @@ impl Machine {
             out.push(Action::CancelForge);
         }
         out.extend([Action::StopCtl, Action::RemoveLink]);
-        self.deployment_stop(false, now, out);
+        self.deployed().stage = Stage::Closing;
+        self.close_clients(now, out);
     }
-    fn deployment_stop(&mut self, patch: bool, now: Time, out: &mut Vec<Action>) {
+    pub(super) fn deployment_stop(&mut self, patch: bool, now: Time, out: &mut Vec<Action>) {
         if patch && self.deployed().live.last() == Some(&Process::Model) {
             self.deployed().stage = Stage::Writing;
             out.push(Action::WriteDeploymentPatch(self.deployed().patch.take().expect("validated patch")));

@@ -66,8 +66,8 @@ this order:
   Ctl comes first where configured:
   a landing's ctl cases written before its web and TUI ones, the
   person's acts and temper's account as `temper ctl` gives them, each
-  case on a setup of a kind that takes its surface (a deployment's setup
-  takes ctl cases alone, in Q6); the green path only, as
+  case on a setup of either kind, a box's or a deployment's, which take
+  every surface alike; the green path only, as
   `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
   draft's promises, written before anything is tried; no QA, with a line
   why, when the landing changes nothing a person meets there; the fakes

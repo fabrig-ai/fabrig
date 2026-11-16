@@ -9,8 +9,13 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups/turn-landing")
 }
 fn place() -> Place {
-    Place::new([7101, 7102, 7103, 7104, 7105, 7106, 7107, 7108, 7109], "/turn".into(), "/programs".into())
-        .expect("test place")
+    Place::new(
+        [7101, 7102, 7103, 7104, 7105, 7106, 7107, 7108, 7109],
+        "/turn".into(),
+        "/programs".into(),
+        Some("/turn/bundle".into()),
+    )
+    .expect("test place")
 }
 fn rendered(name: &str) -> Box<[u8]> {
     let bytes = std::fs::read(root().join("config").join(name)).expect("setup document");
@@ -29,6 +34,8 @@ fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
 fn the_turn_landing_documents_check_as_their_shapes() {
     let directories = jig_protocol_config::Directories::working();
     let bytes = rendered("engine.json");
+    let bundle = place().value("bundle").expect("test place bundle");
+    assert_eq!(json(&bytes)["application"]["clients"]["bundle"], std::str::from_utf8(&bundle).expect("bundle path"));
     assert_eq!(startup::shape(&bytes, &directories).expect("engine shape"), Shape::EngineAlone);
     let named = startup::named(&bytes, &directories)
         .unwrap_or_else(|why| panic!("engine: {}", String::from_utf8_lossy(&startup::lines(&why))));

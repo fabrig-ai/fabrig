@@ -177,18 +177,18 @@ const SESSION: Settings = Settings {
         Setting {
             name: "deployment",
             value: "DIR",
-            about: "Deployment documents, in place of a box; takes ctl, forge and deployment patch lines.",
+            about: "Deployment documents, in place of a box; browser and TUI use the engine’s origin.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
-            notes: "Needs --ports, no bundle or Chromium. Refuses --ctl together with --deployment.",
+            notes: "Needs --ports. --ctl selects a ctl session without Chromium; otherwise a full session. --bundle is optional unless a document names {place.bundle}.",
         },
     ],
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
     forms: &[
-        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl | --deployment DIR]",
+        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]",
     ],
     line: "Drive a signed-in box or deployment from a given build, one stdin line at a time.",
     settings: &[&SESSION],
@@ -263,7 +263,7 @@ pub(crate) const RECIPE_WALK: Command = Command {
     settings: &[&RECIPES, &RECIPE_SESSION],
     switches: &[DRIVE.switches[0]],
     variables: DRIVE.variables,
-    notes: "A box needs --bundle; a deployment needs --ports and takes no --bundle, using its root's config/. Chain scripts go to the session root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
+    notes: "A box needs --bundle. A deployment uses its root’s config/ and needs --ports; with web or tui lines it also needs --bundle and runs a full session with resets. With none it runs --ctl --deployment without resets, passing --bundle where given. Chain scripts go to the session root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
     ..REPRINT
 };
 

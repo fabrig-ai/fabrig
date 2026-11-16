@@ -534,9 +534,7 @@ impl DriveFace for RealDrive {
             command.args(["--ports", ports]);
         }
         command.arg("--bin").arg(&place.bin);
-        if place.kind == crate::Kind::Box {
-            command.arg("--bundle").arg(&place.bundle);
-        }
+        command.arg("--bundle").arg(&place.bundle);
         command.arg("--scratch").arg(&place.scratch).arg("--setups").arg(request.setups).arg("--strict");
         if place.kind == crate::Kind::Deployment
             && let Some(ports) = &place.ports

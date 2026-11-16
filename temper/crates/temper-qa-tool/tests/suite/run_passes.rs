@@ -865,8 +865,8 @@ fn a_deployment_pass_installs_its_scratch_and_briefs_only_its_kind() {
         let setups =
             brief.split("## Setups").nth(1).expect("setups").split("Commit files directory:").next().expect("section");
         if kind == Kind::Deployment {
-            assert!(brief.contains("every case is a ctl case and every session a ctl session"));
-            assert!(brief.contains("`deployment patch DOCUMENT PATH`"));
+            assert!(brief.contains("At this deployment's place run ctl cases first in a ctl session, `temper-qa pass open --ctl`, then web and tui cases in a full session, `temper-qa pass open`, the browser and the TUI on the deployment's engine."));
+            assert!(brief.contains("The owner's changes are `deployment patch DOCUMENT PATH` lines; write their PATHs in the pass's files directory first. These lines end the TUI and load the page again."));
             assert!(setups.contains("- turn-landing: The turn-landing state."));
             assert!(!setups.contains("- fresh:"));
             assert!(!setups.contains("- welcome:"));

@@ -100,7 +100,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Set:** internal
 - **Forms:** ``
 - End the drive session and print its kept lines.
-- **Notes:** Waits for the holder's exit; prints the session's end and kept lines: followed by box/session/lines. Exit 0: clean stop; 4: box failed; 1: no holder.
+- **Notes:** Waits for the holder's exit; prints the session's end and kept lines: followed by the place's box/session/lines or deployment/session/lines, by kind. Exit 0: clean stop; 4: box failed; 1: no holder.
 
 ### `temper-qa pass hold`
 

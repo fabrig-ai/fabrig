@@ -146,7 +146,14 @@ the process tier's story of a deployment at its place, follow landing; QA gaps a
 with no goal, then reopened for judgement by a closing landing. By goal
 5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
 model as the person's account and scripts its reviews' approving
-verdicts, so that a ctl case's change lands by the stock rule
+verdicts, so that a ctl case's change lands by the stock rule. By goal
+5641 the web client and the TUI reach a deployment's place too: a
+deployment's session, unless it is a ctl session, signs its browser in
+from the engine's fresh link and drives the web client and the TUI on
+the engine's own origin and the kept build's bundle, triage and passes
+take web and tui cases on a deployment's setups after its ctl cases,
+and `turn-landing-clients` sees landing by turn's state through both;
+one framework for the two kinds of place is Q8's
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
 `testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 
