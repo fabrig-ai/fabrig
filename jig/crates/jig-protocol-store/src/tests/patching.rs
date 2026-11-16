@@ -12,6 +12,7 @@ use skein_codec::value::{Node, Value};
 use skein_lib::{Writer, bytes};
 
 const LABEL: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -22,6 +23,7 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -36,6 +38,7 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    retired: &[],
     current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -46,6 +49,7 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    retired: &[],
     current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
     types: &[],
     flights: &[],
@@ -61,6 +65,7 @@ const APPLICATION: PatchSet = PatchSet {
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
+    level: Some(2),
     patches: app::PATCHES,
 };
 const JIG: PatchSet = PatchSet {
@@ -69,6 +74,7 @@ const JIG: PatchSet = PatchSet {
     owner: Owner::Jig,
     name: upstream::NAME,
     families: &[NOTE],
+    level: Some(2),
     patches: jig::PATCHES,
 };
 pub(super) const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
@@ -92,6 +98,7 @@ pub(super) const BASE: PatchSets = PatchSets {
                     ..TOKEN
                 },
             ],
+            level: Some(0),
             patches: &[],
             ..APPLICATION
         },
@@ -101,6 +108,7 @@ pub(super) const BASE: PatchSets = PatchSets {
                 texts: &[jig::kept::fixture_note::TEXTS[0]],
                 ..NOTE
             }],
+            level: Some(0),
             patches: &[],
             ..JIG
         },
@@ -115,26 +123,6 @@ const FRAME_STEP: Planned = Planned { owner: Owner::Jig, patch: 2 };
 
 pub(super) fn levels(application: u32, jig: u32) -> Levels {
     Levels { skein: None, smith: None, jig: Some(jig), application: Some(application) }
-}
-#[test]
-fn the_binary_is_before_baseline_only_without_any_kept_text() {
-    for (sets, expected) in [
-        (PatchSets::NONE, Levels { skein: None, smith: None, jig: None, application: None }),
-        (
-            PatchSets { sets: &[PatchSet { families: &[], ..APPLICATION }] },
-            Levels { skein: None, smith: None, jig: None, application: None },
-        ),
-        (
-            PatchSets {
-                sets: &[PatchSet { families: &[KeptFamily { current: "", texts: &[], ..LABEL }], ..APPLICATION }],
-            },
-            Levels { skein: None, smith: None, jig: None, application: None },
-        ),
-        (BASE, levels(0, 0)),
-        (SETS, levels(2, 2)),
-    ] {
-        assert_eq!(crate::levels(&sets), expected);
-    }
 }
 #[test]
 fn patches_wait_for_exact_upstream_levels() {
@@ -156,12 +144,16 @@ const LEVEL_TWO: &str = "patch 1\nowner fixture 2\n";
 const UPSTREAM_ONE: &str = "patch 1\nowner fixture 1 after fixture-jig 1\n";
 const UPSTREAM_ZERO: &str = "patch 1\nowner fixture 1 after fixture-jig 0\n";
 const UPSTREAM_THREE: &str = "patch 1\nowner fixture 1 after fixture-jig 3\n";
-const SET_OWNER_OK: PatchSets = PatchSets { sets: &[PatchSet { patches: &[OWNER_OK], ..APPLICATION }, JIG] };
-const SET_LEVEL_TWO: PatchSets = PatchSets { sets: &[PatchSet { patches: &[LEVEL_TWO], ..APPLICATION }, JIG] };
-const SET_UPSTREAM_ZERO: PatchSets = PatchSets { sets: &[PatchSet { patches: &[UPSTREAM_ZERO], ..APPLICATION }, JIG] };
-const SET_UPSTREAM_ONE: PatchSets = PatchSets { sets: &[PatchSet { patches: &[UPSTREAM_ONE], ..APPLICATION }, JIG] };
+const SET_OWNER_OK: PatchSets =
+    PatchSets { sets: &[PatchSet { level: Some(1), patches: &[OWNER_OK], ..APPLICATION }, JIG] };
+const SET_LEVEL_TWO: PatchSets =
+    PatchSets { sets: &[PatchSet { level: Some(1), patches: &[LEVEL_TWO], ..APPLICATION }, JIG] };
+const SET_UPSTREAM_ZERO: PatchSets =
+    PatchSets { sets: &[PatchSet { level: Some(1), patches: &[UPSTREAM_ZERO], ..APPLICATION }, JIG] };
+const SET_UPSTREAM_ONE: PatchSets =
+    PatchSets { sets: &[PatchSet { level: Some(1), patches: &[UPSTREAM_ONE], ..APPLICATION }, JIG] };
 const SET_UPSTREAM_THREE: PatchSets =
-    PatchSets { sets: &[PatchSet { patches: &[UPSTREAM_THREE], ..APPLICATION }, JIG] };
+    PatchSets { sets: &[PatchSet { level: Some(1), patches: &[UPSTREAM_THREE], ..APPLICATION }, JIG] };
 #[test]
 fn duplicate_owners_are_refused_beside_a_single_owner() {
     let sets = PatchSets { sets: &[APPLICATION, APPLICATION, JIG] };
@@ -177,8 +169,18 @@ fn duplicate_owners_are_refused_beside_a_single_owner() {
 #[test]
 fn a_header_must_read_and_name_its_owner_and_place() {
     for (sets, refusal) in [
-        (PatchSets { sets: &[PatchSet { patches: &["patch ?\nowner fixture 1\n"], ..APPLICATION }, JIG] }, true),
-        (PatchSets { sets: &[PatchSet { patches: &["patch 1\nowner other 1\n"], ..APPLICATION }, JIG] }, true),
+        (
+            PatchSets {
+                sets: &[PatchSet { level: Some(1), patches: &["patch ?\nowner fixture 1\n"], ..APPLICATION }, JIG],
+            },
+            true,
+        ),
+        (
+            PatchSets {
+                sets: &[PatchSet { level: Some(1), patches: &["patch 1\nowner other 1\n"], ..APPLICATION }, JIG],
+            },
+            true,
+        ),
         (SET_LEVEL_TWO, true),
         (SET_OWNER_OK, false),
     ] {
@@ -260,10 +262,15 @@ fn a_patch_must_plan_its_family_changes() {
     const BAD: &str = "patch 1\nowner fixture 1\nfamily fixture-label 1 to 2\nadd Label.color option u8 ?\n";
     for (sets, expected) in [
         (
-            PatchSets { sets: &[PatchSet { families: &[LABEL], patches: &[BAD], ..APPLICATION }, JIG] },
+            PatchSets { sets: &[PatchSet { families: &[LABEL], level: Some(1), patches: &[BAD], ..APPLICATION }, JIG] },
             Err(Unplanned { owner: Owner::Application, patch: 1 }),
         ),
-        (PatchSets { sets: &[PatchSet { families: &[LABEL], patches: &[GOOD], ..APPLICATION }, JIG] }, Ok(())),
+        (
+            PatchSets {
+                sets: &[PatchSet { families: &[LABEL], level: Some(1), patches: &[GOOD], ..APPLICATION }, JIG],
+            },
+            Ok(()),
+        ),
     ] {
         let found = levels(0, 0);
         let result = match plan::bounds(&sets) {
@@ -469,6 +476,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         owner: Owner::Skein,
         name: "first",
         families: &[NOTE],
+        level: Some(2),
         patches: &["patch 1\nowner first 1\n", "patch 1\nowner first 2\n"],
     };
     pub(super) const SMITH: PatchSet = PatchSet {
@@ -477,6 +485,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         owner: Owner::Smith,
         name: "second",
         families: &[NOTE],
+        level: Some(1),
         patches: &["patch 1\nowner second 1 after first 1\n"],
     };
     const THIRD: PatchSet = PatchSet {
@@ -485,6 +494,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         owner: Owner::Jig,
         name: "third",
         families: &[NOTE],
+        level: Some(1),
         patches: &["patch 1\nowner third 1 after second 1\n"],
     };
     const LAST: PatchSet = PatchSet {
@@ -493,6 +503,7 @@ fn the_plan_honours_dependencies_through_all_four_owners() {
         owner: Owner::Application,
         name: "last",
         families: &[NOTE],
+        level: Some(1),
         patches: &["patch 1\nowner last 1 after third 1\n"],
     };
     let sets = PatchSets { sets: &[SKEIN, LAST, SMITH, THIRD] };
@@ -530,7 +541,7 @@ fn an_identity_step_reaches_held_fields_without_moving_the_holder() {
 fn a_written_held_site_names_its_own_machine_then_resumes_the_holder() {
     const WRITTEN: &str = "patch 1\nowner fixture 1 after fixture-jig 0\nfamily fixture-label 1 to 2\nadd Label.color option u8 written\nwritten Label.color\n";
     const TEST_SETS: PatchSets =
-        PatchSets { sets: &[PatchSet { patches: &[WRITTEN, app::PATCHES[1]], ..APPLICATION }, JIG] };
+        PatchSets { sets: &[PatchSet { level: Some(2), patches: &[WRITTEN, app::PATCHES[1]], ..APPLICATION }, JIG] };
     let found = levels(0, 0);
     let plan =
         plan::plan(&TEST_SETS, plan::bounds(&TEST_SETS).expect("checked sets"), &found, &plan::binary(&TEST_SETS))
@@ -594,6 +605,7 @@ fn a_held_record_two_versions_behind_runs_each_pass() {
                     },
                     SHELF,
                 ],
+                level: Some(3),
                 patches: &[ZERO_TO_ONE, ONE_TO_TWO, SHELF_THREE],
                 ..APPLICATION
             },
@@ -640,8 +652,10 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
         fresh: None,
         owner: Owner::Application,
         name: "holder",
+        level: Some(0),
         patches: &[],
         families: &[KeptFamily {
+            retired: &[],
             current: HOLDER,
             types: &[],
             flights: &[],
@@ -688,9 +702,11 @@ fn two_families_holding_each_other_refuse_the_plan() {
             fresh: None,
             owner: Owner::Application,
             name: "cycle",
+            level: Some(1),
             patches: &[PATCH],
             families: &[
                 KeptFamily {
+                    retired: &[],
                     current: A,
                     types: &[],
                     flights: &[],
@@ -701,6 +717,7 @@ fn two_families_holding_each_other_refuse_the_plan() {
                     keys: &[],
                 },
                 KeptFamily {
+                    retired: &[],
                     current: B2,
                     types: &[],
                     flights: &[],
@@ -721,8 +738,10 @@ pub(super) const SMITH: PatchSet = PatchSet {
     owner: Owner::Smith,
     name: jig_test_patches_smith::NAME,
     fresh: Some(jig_test_patches_smith::FRESH),
+    level: Some(1),
     patches: jig_test_patches_smith::patches::PATCHES,
     families: &[KeptFamily {
+        retired: &[],
         current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
         types: &[],
         flights: &[],
@@ -760,6 +779,7 @@ fn absent_or_other_fresh_words_leave_windows_open() {
 fn an_applied_fresh_mark_does_not_close_for_later_patches() {
     const LATER: PatchSets = PatchSets {
         sets: &[PatchSet {
+            level: Some(2),
             patches: &[jig_test_patches_smith::patches::PATCHES[0], "patch 1\nowner fixture-smith 2\n"],
             ..SMITH
         }],

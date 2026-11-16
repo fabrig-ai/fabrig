@@ -67,7 +67,7 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>) {
             }
             assert!(probes <= bound, "logarithmic search seed {seed}");
         }
-        if let Some(search) = landing.round.search {
+        if let Some(search) = &landing.round.search {
             for (index, (old, new)) in landing.members.iter().zip(&next.landing.members).enumerate() {
                 if old.landed.is_none() && new.landed.is_some() {
                     assert!(index < usize::from(search.red), "red suffix seed {seed}");
@@ -206,8 +206,147 @@ fn prefix_search(seed: u64) {
     assert_eq!(
         landing.round.search,
         Some(crate::Search {
+            tests: crate::SearchTests::Whole,
             green: u16::try_from(k.checked_sub(1).unwrap()).unwrap(),
             red: u16::try_from(k).unwrap()
         })
     );
+}
+
+#[test]
+fn seeded_searches_by_test_narrow_end_unlanded_and_bound_both_searches() {
+    for seed in 0..256 {
+        prefix_search_tests(seed);
+    }
+}
+
+fn keep_probe(landing: &mut Landing, member: u16, passed: bool) {
+    let crate::SearchTests::ByTest { probed, .. } = &mut landing.round.search.as_mut().unwrap().tests else {
+        panic!("selected run")
+    };
+    let mut outcomes = List::with_capacity(u32::try_from(probed.len()).unwrap().checked_add(1).unwrap());
+    for outcome in probed.iter() {
+        outcomes.push(*outcome).unwrap();
+    }
+    outcomes.push(crate::Probed { member: member.checked_add(1).unwrap(), gate: 0, run: 84, passed }).unwrap();
+    *probed = outcomes.into_boxed();
+}
+
+#[expect(clippy::too_many_lines, reason = "seeded selected and fallback probes share one bounded replay loop")]
+fn prefix_search_tests(seed: u64) {
+    use crate::tests::search_tests::{decide, ids, top_failed};
+    let mut rng = Rng::new(seed);
+    let count = usize::try_from(rng.below(4).checked_add(2).unwrap()).unwrap();
+    let (landing, mut facts) = top_failed(count);
+    let mut landing = decide(&landing, &facts).landing;
+    let bound =
+        usize::try_from(usize::BITS.checked_sub(count.checked_sub(1).unwrap().leading_zeros()).unwrap()).unwrap();
+    let mut selected_probes = List::with_capacity(5);
+    let mut whole_probes = List::with_capacity(5);
+    for _tick in 0_u32..100 {
+        let by_test = match &landing.round.search.as_ref().unwrap().tests {
+            crate::SearchTests::ByTest { .. } => true,
+            crate::SearchTests::Whole | crate::SearchTests::WholeAgain => false,
+        };
+        if let Some(probe) = crate::probe(&landing) {
+            let probes = if by_test { &mut selected_probes } else { &mut whole_probes };
+            if !probes.as_slice().contains(&probe) {
+                probes.push(probe).unwrap();
+                if by_test {
+                    match rng.below(5) {
+                        0 => facts.members[usize::from(probe)].gates[0].receipt = Status::Passed,
+                        1 => {
+                            facts.members[usize::from(probe)].gates[0].receipt = Status::Failed;
+                            facts.members[usize::from(probe)].failed[0] = Some(ids(&[b"b", b"c"]));
+                        }
+                        2 => keep_probe(&mut landing, probe, true),
+                        3 => keep_probe(&mut landing, probe, false),
+                        4 => {}
+                        _ => unreachable!("five outcomes"),
+                    }
+                }
+            }
+            assert!(selected_probes.len() <= u32::try_from(bound).unwrap(), "selected probe budget seed {seed}");
+            assert!(whole_probes.len() <= u32::try_from(bound).unwrap(), "whole probe budget seed {seed}");
+        }
+        let next = decide(&landing, &facts);
+        if by_test {
+            assert_ne!(next.decision, Decision::Proved, "selected prefix seed {seed}");
+            assert!(!crate::domain::matches_turn(&next.landing.phase), "selected turn seed {seed}");
+            for member in &next.landing.members {
+                assert!(member.landed.is_none(), "selected prefix landed seed {seed}");
+            }
+            let crate::SearchTests::ByTest { gates: before, .. } = &landing.round.search.as_ref().unwrap().tests else {
+                panic!("by test")
+            };
+            match &next.landing.round.search.as_ref().unwrap().tests {
+                crate::SearchTests::ByTest { gates: after, .. } => {
+                    for (before, after) in before.iter().zip(after) {
+                        match (before, after) {
+                            (Some(before), Some(after)) => {
+                                for id in after {
+                                    assert!(before.contains(id), "selection widened seed {seed}");
+                                }
+                            }
+                            (None, None) => {}
+                            (None, Some(_)) | (Some(_), None) => panic!("selection changed gates seed {seed}"),
+                        }
+                    }
+                }
+                crate::SearchTests::WholeAgain => {
+                    let search = next.landing.round.search.as_ref().unwrap();
+                    assert_eq!((search.green, usize::from(search.red)), (0, count));
+                }
+                crate::SearchTests::Whole => panic!("fallback has its own identity seed {seed}"),
+            }
+        }
+        match next.decision {
+            Decision::Dispatch { member, gate, .. } => {
+                let fresh = &mut facts.members[usize::from(member)];
+                if by_test {
+                    if rng.below(3) == 0 {
+                        fresh.gates[usize::from(gate)].receipt = Status::Failed;
+                        fresh.failed[usize::from(gate)] = Some(ids(&[b"b", b"c"]));
+                    } else {
+                        landing = next.landing;
+                        keep_probe(&mut landing, member, rng.below(2) == 0);
+                        continue;
+                    }
+                } else {
+                    fresh.gates[usize::from(gate)].receipt =
+                        if rng.below(2) == 0 { Status::Passed } else { Status::Failed };
+                }
+            }
+            Decision::Leave { .. } => {
+                assert_eq!(next.landing.round.ending, Some(crate::RoundEnd::Cut));
+                if by_test {
+                    assert!(next.landing.searched.is_some());
+                }
+                return;
+            }
+            Decision::Post { member, gate, .. } => {
+                facts.members[usize::from(member)].gates[usize::from(gate)].posting = Status::Passed;
+            }
+            Decision::None | Decision::Wait { .. } => {}
+            Decision::Prepare { .. }
+            | Decision::Key { .. }
+            | Decision::Retry { .. }
+            | Decision::Repair { .. }
+            | Decision::Proved
+            | Decision::Merge { .. }
+            | Decision::Stale
+            | Decision::Finish
+            | Decision::Cancel
+            | Decision::Hold(_)
+            | Decision::Open
+            | Decision::Record { .. }
+            | Decision::Landed { .. }
+            | Decision::Close
+            | Decision::Delete { .. }
+            | Decision::Resolve { .. }
+            | Decision::Judge { .. } => panic!("unexpected {:?} seed {seed}", next.decision),
+        }
+        landing = next.landing;
+    }
+    panic!("search did not settle seed {seed}");
 }

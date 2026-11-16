@@ -9,6 +9,7 @@ use crate::{
 use jig_client::{Up, contract as c};
 use skein_lib::{List, Queue, Wall};
 use skein_ui::Role;
+use temper_client_domain::pages::findings::Counted;
 use temper_client_domain::{self as d, Address, Domain, Event, Request};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_view_parts::shared::NeedMark;
@@ -997,7 +998,7 @@ fn the_launchpads_are_their_goldens() {
         let count = u32::try_from(part.needs.len()).unwrap();
         if !empty && !name.starts_with("launchpad-team-") {
             let mut facts = d::pages::all_home::facts(&root, NOW);
-            facts.needs = d::pages::home::Needs::Count { count, cut: false };
+            facts.needs = d::pages::home::Needs::Count { count, cut: false, findings: Counted::default() };
             part.lines.get_mut(0).unwrap().words =
                 temper_client_view_parts::shared::all_home_headline(f::words().view(), &facts, NOW).0;
         }

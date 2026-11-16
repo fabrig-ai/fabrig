@@ -157,6 +157,7 @@ fn text() -> contract::Text {
 }
 fn document(number: u64) -> contract::Task {
     contract::Task {
+        concluded: None,
         talk: None,
         session: None,
         dependency_facts: List::with_capacity(0),

@@ -91,6 +91,7 @@ fn fixed(refusal: &Refusal) -> bool {
         | Refusal::LiveTasks { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
+        | Refusal::Concluded { .. }
         | Refusal::Kept { .. } => false,
     }
 }

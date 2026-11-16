@@ -111,7 +111,6 @@ fn referenced(row: &d::Stored) -> u64 {
         | d::Stored::EndedDelegate(_)
         | d::Stored::Delegate(_)
         | d::Stored::Activity(_)
-        | d::Stored::Milestone(_)
         | d::Stored::Attempt(_)
         | d::Stored::Hold(_)
         | d::Stored::ClosedLedger(_)

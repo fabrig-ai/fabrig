@@ -37,7 +37,7 @@ client's protocol's (`../../protocol/client/README.md`,
    conversations, shells, and jig's settings for skein's text shell;
    and the reference UI's state (`view-state.md`): its place and page, the
    working set, its requests, drafts and the confirmation, notices and
-   its records.
+   its records; and its crates (`view-crates.md`): its words below it.
 7. **testing.md:** testing the client through its surface, the reference
    UI with skein's fake person, the joint world with the engine's
    domain, and their referee.
@@ -57,6 +57,7 @@ an application's client
 │       ├── jig-client-protocol-wire jig's wire records, for both ends (../../protocol/client/wire.md, section 1)
 │       └── jig-protocol-transcript  turns decoded with smith's transcript crate (client/conversations.md)
 ├── jig-client-view                  the reference UI, if it presents with it: pages, places, cards, the confirmation, drafts, notices (pages.md, view.md)
+│   └── jig-client-view-words        its words: the phrasebook, each part's vocabulary, jig's owner, region names and style tokens (view-crates.md)
 └── <owner>…                         each owner's client side: a connector's parts, its families and their presentation
 <application>-client-protocol-wire   its families' records, as its owners' bytes (root.md, section 7)
 <application>-client-view            its view root, if it presents with skein's UI kit (view.md, section 4)
@@ -84,7 +85,8 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 - **The crate graph is the role graph,** as in the engine.
   `jig-client-domain` depends on skein-lib alone; `jig-client` on it,
   its link, and `skein-ui` for its `words` alone (client/README.md, section 3);
-  `jig-client-view` on `jig-client` and `skein-ui`. None of
+  `jig-client-view` on `jig-client`, `skein-ui` and its words,
+  `jig-client-view-words`, which name `jig-client` and `skein-ui` too. None of
   them links smith: only `jig-protocol-transcript`, below the client's
   surface, does, and it is the client's only use of smith
   (`../../README.md`, section 10).

@@ -550,6 +550,17 @@ pub(crate) fn delegate_result(
     task.record.last_message = prepared.word.number;
     task.record.inbox = prepared.inbox;
     crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
+    if crate::gathering::executor(task.record.executor) {
+        let mut kept = List::with_capacity(env.limits.inbox_messages);
+        for word in &task.record.inbox {
+            if word.number != prepared.word.number {
+                kept.push(word.clone()).expect("inbox subset fits");
+            }
+        }
+        task.record.inbox = kept.into_boxed();
+        publish(domain, env, number, out);
+        return;
+    }
     publish(domain, env, number, out);
     crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
 }

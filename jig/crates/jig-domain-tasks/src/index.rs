@@ -84,11 +84,6 @@ pub enum Key {
         task: u64,
         revision: u64,
     },
-    /// One immutable lifecycle milestone in a task's history.
-    Milestone {
-        task: u64,
-        position: u64,
-    },
     /// One immutable line in the ordered task activity range.
     Activity {
         task: u64,
@@ -166,7 +161,6 @@ impl Key {
             | Self::ClosedLedger(_)
             | Self::DecidedProposal(_)
             | Self::History { .. }
-            | Self::Milestone { .. }
             | Self::Attempt { .. }
             | Self::Hold { .. }
             | Self::Activity { .. }

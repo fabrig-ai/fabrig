@@ -76,8 +76,7 @@ pub(super) fn indexes(world: &World, task: u64) -> usize {
 }
 pub(super) fn own(world: &World, task: u64) -> Vec<root::Key> {
     world.store.rows.keys().filter(|key| matches!(key,
-        root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: n, .. } | tasks::Key::History { task: n, .. }
-            | tasks::Key::Milestone { task: n, .. })
+        root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: n, .. } | tasks::Key::History { task: n, .. })
         | core::Key::Core(core::CoreKey::Terminal { task: n, .. }
             | core::CoreKey::ProposalDecision { proposer: people::Proposer::Task(n), .. }
             | core::CoreKey::EscalationDecision { task: n, .. })

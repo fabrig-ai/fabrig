@@ -77,7 +77,7 @@ pub(super) fn form(b: &mut Builder, client: &Borrowed<'_>, project: u32, words: 
         b.name(&words.say(JigPhrase::ActSetGoal, &[]));
         b.state(State::Busy);
         if let Some(intent) = client.intents().get(skein_lib::Id::from_token(submission.request)) {
-            words.progress(b, intent.progress);
+            cards::common::progress(b, words, intent.progress);
         }
         b.close();
     }

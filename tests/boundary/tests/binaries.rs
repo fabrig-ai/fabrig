@@ -59,6 +59,7 @@ const ROWS: &[Row] = &[
                     "jig-client-protocol-wire",
                     "jig-client-shell-native",
                     "jig-client-view",
+                    "jig-client-view-words",
                     "jig-client-view-codec",
                 ]),
             ),

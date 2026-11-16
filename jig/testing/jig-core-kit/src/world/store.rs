@@ -1,6 +1,16 @@
 //! Store transport, fixture writes and cold restart.
 use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
 impl World {
+    pub(super) fn ended_load(&mut self, load: core::Now) {
+        if matches!(&load, core::Now::EndedTask { .. })
+            && let Some(pending) = &mut self.pending_ended_loads
+        {
+            pending.push(load);
+        } else {
+            self.store.ask(StoreOut::Now(load));
+        }
+    }
+
     /// Serve the phase selected by the core (jig/docs/design/domain/engine/restart.md).
     pub(super) fn start_step(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
         use core::start::Phase;

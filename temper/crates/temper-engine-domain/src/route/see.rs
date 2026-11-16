@@ -116,7 +116,7 @@ pub struct SeeName {
     pub name: Box<[u8]>,
 }
 
-/// What `HostDelivery::Settings` carries beside its reply and offset.
+/// What `SeeAnswer::Settings` carries (temper/docs/design/domain/agent/ask-temper.md, 1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct SeeSettings {
     pub answer: jig_domain_core::SettingsAnswer,
@@ -126,6 +126,11 @@ pub struct SeeSettings {
     pub offer: Box<[OfferedModel]>,
     pub application: Option<temper_engine_domain_forge::settings::SizedValue>,
     pub requested: Option<u64>,
+    /// Section 1, *A deployment landing rule the project holds*: `Some(N)` only
+    /// for a `see` asking `Setting::Application { kind: 1, scope: 0, number: N }`
+    /// answered `SettingsAnswer::Unknown`, whose chat's project holds N;
+    /// `None` for every other answer.
+    pub project_landing_rule: Option<u32>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]

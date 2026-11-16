@@ -49,6 +49,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .families
                 .iter()
                 .map(|family| KeptFamily {
+                    retired: if registered { family.retired } else { &[] },
                     current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
                     types: if !registered {
                         &[]
@@ -62,7 +63,20 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .collect::<Vec<_>>();
             PatchSet {
                 families: Box::leak(families.into_boxed_slice()),
-                jobs: if registered { set.jobs } else { &[] },
+                jobs: if !registered {
+                    &[]
+                } else if kept {
+                    Box::leak(
+                        set.jobs
+                            .iter()
+                            .filter(|job| !["settle-layouts", "ended-talk", "task-logs"].contains(&job.name))
+                            .copied()
+                            .collect::<Vec<_>>()
+                            .into_boxed_slice(),
+                    )
+                } else {
+                    set.jobs
+                },
                 ..*set
             }
         })

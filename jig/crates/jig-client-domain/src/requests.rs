@@ -258,6 +258,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::MoveToNewest(_)
             | contract::Ask::Restore { .. }
             | contract::Ask::Create { .. }
+            | contract::Ask::Delegate { .. }
             | contract::Ask::Propose { .. }
             | contract::Ask::Withdraw { .. }
             | contract::Ask::Talk { .. }
@@ -272,6 +273,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::Release { .. }
             | contract::Ask::Amend { .. }
             | contract::Ask::Stop { .. }
+            | contract::Ask::Conclude { .. }
             | contract::Ask::Cancel { .. }
             | contract::Ask::Move { .. }
             | contract::Ask::EditNote { .. }

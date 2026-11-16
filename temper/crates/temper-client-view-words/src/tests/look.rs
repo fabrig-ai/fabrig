@@ -114,9 +114,6 @@ fn asking_opening_and_needs_have_their_css_names() {
         (STARTER_WAYS, b"temper-starter-ways"),
         (WAYS_LEDE, b"temper-ways-lede"),
         (WAYS, b"temper-ways"),
-        (WAYS_TABS, b"temper-ways-tabs"),
-        (WAYS_NOW, b"temper-ways-now"),
-        (WAYS_AXIS, b"temper-ways-axis"),
         (WAYS_PANEL, b"temper-ways-panel"),
         (WAYS_SAYS, b"temper-ways-says"),
         (WAYS_ZOOM, b"temper-ways-zoom"),
@@ -213,18 +210,13 @@ fn welcome_and_repository_styles_keep_their_css_names() {
 }
 
 #[test]
-fn decision_tokens_name_the_away_rows() {
-    for (token, name) in [
-        (DECIDED, b"temper-decided".as_slice()),
-        (DECISION, b"temper-decision"),
-        (DECISION_ALLOWED, b"temper-decision-allowed".as_slice()),
-        (DECISION_TOOK, b"temper-decision-took"),
-        (DECISION_WHY, b"temper-decision-why"),
-        (DECISION_LATE, b"temper-decision-late"),
-        (DECISION_OVERTURNED, b"temper-decision-overturned"),
-    ] {
-        assert_eq!(NAMES.style(token), Some(name));
-    }
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn decision_landed_is_named_and_draws_its_tick() {
+    assert_eq!(NAMES.style(DECISION_LANDED), Some(b"temper-decision-landed".as_slice()));
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains(
+        "#app > :is(.temper-home, .temper-needs) .temper-decision-landed::before { content: '✓'; margin-right: 5px; color: var(--gf-good); }"
+    ));
 }
 
 #[test]
@@ -294,7 +286,12 @@ fn each_phone_target_stands_44_pixels() {
         "#app > .temper-session .temper-model-menu button::before",
         "#app > .temper-session .temper-model-menu a::before",
         "#app > .temper-session .temper-model-find",
-        "#app > .temper-session .temper-ways-tabs > [role=tab]::after",
+        "#app > .temper-session .temper-way-acts > button::before",
+        "#app > .temper-session .temper-way-pick > button[aria-haspopup=menu]::before",
+        "#app > .temper-session .temper-way-menu [role=menuitem]::before",
+        "#app > .temper-settings .temper-way-acts > button::before",
+        "#app > .temper-settings .temper-way-pick > button[aria-haspopup=menu]::before",
+        "#app > .temper-settings .temper-way-menu [role=menuitem]::before",
         "#app > .temper-session .temper-ways-acts > button::after",
         "#app > .temper-session .temper-ways-zoom-head > a::after",
         "#app > .temper-session .temper-crumbs > .temper-back::after",

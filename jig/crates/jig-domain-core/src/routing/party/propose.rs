@@ -28,6 +28,7 @@ pub(crate) fn propose_request(
             env,
             routed,
             party_inputs::Inputs {
+                beneath: None,
                 person: creation.person,
                 project: creation.project,
                 role: creation.role,

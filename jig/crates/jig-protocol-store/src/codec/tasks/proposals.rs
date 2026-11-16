@@ -339,6 +339,8 @@ pub fn read_proposal(source: wire::Proposal, limits: &wire::Limits) -> Result<do
 /// Translate `Change` to its store value.
 pub fn change(source: &domain::Change) -> Result<wire::Change, wire::Problem> {
     Ok(match source {
+        domain::Change::Made => wire::Change::Made,
+        domain::Change::Concluded => wire::Change::Concluded,
         domain::Change::Cancelled => wire::Change::Cancelled,
         domain::Change::Released => wire::Change::Released,
         domain::Change::Amended => wire::Change::Amended,
@@ -353,6 +355,8 @@ pub fn change(source: &domain::Change) -> Result<wire::Change, wire::Problem> {
 /// Read `Change` from its store value.
 pub fn read_change(source: wire::Change) -> Result<domain::Change, wire::Problem> {
     Ok(match source {
+        wire::Change::Made => domain::Change::Made,
+        wire::Change::Concluded => domain::Change::Concluded,
         wire::Change::Cancelled => domain::Change::Cancelled,
         wire::Change::Released => domain::Change::Released,
         wire::Change::Amended => domain::Change::Amended,
@@ -591,25 +595,6 @@ pub fn read_person_proposal(
         }
     };
     Ok(domain::PersonProposal { number, proposer, project, action, reason, state: read_person_state(state)? })
-}
-
-/// Translate `Milestone` to its store record.
-pub fn milestone(source: &domain::Milestone, limits: &wire::Limits) -> Result<wire::Milestone, wire::Problem> {
-    let domain::Milestone { task, position, phase, at } = source;
-    wire::Milestone::new(
-        limits,
-        wire::MilestoneParts {
-            task: *task,
-            position: *position,
-            phase: phase::phase(phase, limits)?,
-            at: at.as_nanos(),
-        },
-    )
-}
-/// Read `Milestone` from its store record.
-pub fn read_milestone(source: wire::Milestone, limits: &wire::Limits) -> Result<domain::Milestone, wire::Problem> {
-    let wire::MilestoneParts { task, position, phase, at } = source.into_parts();
-    Ok(domain::Milestone { task, position, phase: phase::read_phase(phase, limits)?, at: Wall::from_nanos(at) })
 }
 
 fn batch(source: &[domain::New], limits: &wire::Limits, moved: Option<&[u64; 64]>) -> Result<Box<[u8]>, wire::Problem> {

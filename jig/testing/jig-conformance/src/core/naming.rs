@@ -41,7 +41,6 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             | tasks::Key::Ended(task)
             | tasks::Key::Stub(task)
             | tasks::Key::History { task, .. }
-            | tasks::Key::Milestone { task, .. }
             | tasks::Key::Attempt { task, .. }
             | tasks::Key::Hold { task, .. }
             | tasks::Key::Activity { task, .. }
@@ -124,7 +123,6 @@ fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "every durable row's observable names share one exhaustive match")]
 fn record_names(record: &core::Record, name: &mut r::Naming) {
     match record {
         core::Record::Core(record) => match record {
@@ -158,7 +156,6 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
             | tasks::Stored::EndedDelegate(_)
             | tasks::Stored::Delegate(_)
             | tasks::Stored::Activity(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::ClosedLedger(_)
@@ -254,9 +251,11 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::HandBackPerson { project, .. }
         | people::Ask::AnswerPerson { project, .. }
         | people::Ask::Stop { project, .. }
+        | people::Ask::Conclude { project, .. }
         | people::Ask::Cancel { project, .. }
         | people::Ask::Release { project, .. }
         | people::Ask::Create { project, .. }
+        | people::Ask::Delegate { project, .. }
         | people::Ask::Propose { project, .. }
         | people::Ask::Withdraw { project, .. } => Some(*project),
         people::Ask::Restore { .. }

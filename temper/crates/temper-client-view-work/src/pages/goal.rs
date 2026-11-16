@@ -420,8 +420,7 @@ fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
         Fallback::Landed { first_line: Some(line) } => line,
         Fallback::Landed { first_line: None } => words.say(Word::GoalLandedLine, &[]),
         Fallback::Failed { reason } => words.say(Word::GoalFailedReason, &[Hole::Name(reason)]),
-        Fallback::Tasks(counts) => words
-            .say(Word::GoalTasksDone, &[Hole::Number(u64::from(counts.done)), Hole::Number(u64::from(counts.total))]),
+        Fallback::Tasks(counts) => super::goals::tasks_done(words, counts.done, counts.total),
     }
 }
 fn text(b: &mut Builder, role: Role, value: &[u8]) {
@@ -657,7 +656,7 @@ fn landing_words(words: &Words, times: &mut Times, landing: goal::Landing) -> Bo
         goal::Landing::Each => words.say(Word::GoalEachChecked, &[]),
     }
 }
-fn count_words(words: &Words, total: u32) -> Box<[u8]> {
+pub(crate) fn count_words(words: &Words, total: u32) -> Box<[u8]> {
     let small = [
         Word::GoalOne,
         Word::GoalTwo,

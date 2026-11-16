@@ -2,6 +2,7 @@ use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
+use temper_client_domain::pages::findings::Counted;
 use temper_client_domain::{
     Action, Address, Event,
     pages::{Act, all_home, home, needs, parts},
@@ -52,7 +53,7 @@ fn all_home_answers_one_projects_card_and_keeps_the_other_open() {
     assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
     assert_eq!(
         all_home::facts(world.root(person).person(), fixtures::NOW).needs,
-        home::Needs::Count { count: 2, cut: false }
+        home::Needs::Count { count: 2, cut: false, findings: Counted::default() }
     );
     world.event(
         person,

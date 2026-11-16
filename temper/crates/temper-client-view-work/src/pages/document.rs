@@ -91,7 +91,7 @@ pub fn pane(
     bindings: &mut Bindings,
 ) {
     let Some(draft) = &chat.draft else {
-        empty_chat(b, root, chat, task, words, bindings);
+        empty_chat(b, root, chat, task, words, times, bindings);
         return;
     };
     if chat.mode == Mode::Chat {
@@ -109,12 +109,11 @@ pub fn pane(
     } else {
         b.text(Run::Plain, &words.say(Word::DraftPath, &[Hole::Name(document::slug(&draft.title))]));
     }
-    if let Some(changed) = draft.changed {
+    if let Some(doing) = doing(chat, words, times) {
+        path_right(b, words, &doing);
+    } else if let Some(changed) = draft.changed {
         let ago = times.say(words, TimeForm::Ago, changed);
-        if words.shell == Shell::Terminal {
-            b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
-        }
-        b.text(Run::Plain, &words.say(Word::DraftEdited, &[Hole::Name(ago)]));
+        path_right(b, words, &words.say(Word::DraftEdited, &[Hole::Name(ago)]));
     }
     b.close();
     let write = chat.newest_write();
@@ -184,7 +183,15 @@ pub fn pane(
     b.close();
 }
 
-fn empty_chat(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+fn empty_chat(
+    b: &mut Builder,
+    root: &Domain,
+    chat: &Chat,
+    task: &c::Task,
+    words: &Words,
+    times: &mut Times,
+    bindings: &mut Bindings,
+) {
     if chat.mode != Mode::Chat {
         let path = if super::chat::asking(root) {
             words.say(Word::DraftNotYet, &[Hole::Number(chat.task)])
@@ -200,10 +207,28 @@ fn empty_chat(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words
             words,
             &words.say(Word::DraftDraft, &[]),
             &path,
-            chat.writing,
+            &doing(chat, words, times).unwrap_or_default(),
             if can_write { Some(bindings) } else { None },
         );
     }
+}
+
+fn doing(chat: &Chat, words: &Words, times: &mut Times) -> Option<Box<[u8]>> {
+    use temper_client_domain::pages::chat::doing::What;
+    let doing = chat.doing()?;
+    let what = match doing.what {
+        What::Thinking => words.say(Word::DraftThinking, &[]),
+        What::Writing => words.say(Word::DraftWriting, &[]),
+        What::Call(call) => super::chat_line::present(call, words),
+    };
+    Some(times.doing(words, what, doing.since))
+}
+
+fn path_right(b: &mut Builder, words: &Words, right: &[u8]) {
+    if !right.is_empty() && words.shell == Shell::Terminal {
+        b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+    }
+    b.text(Run::Plain, right);
 }
 
 fn heading_hash(heading: &[u8]) -> u64 {
@@ -337,7 +362,7 @@ pub(crate) fn empty(
     words: &Words,
     name: &[u8],
     path: &[u8],
-    writing: bool,
+    right: &[u8],
     bindings: Option<&mut Bindings>,
 ) {
     b.open(Role::Region);
@@ -348,14 +373,7 @@ pub(crate) fn empty(
     b.open(Role::Paragraph);
     b.style(look::DOC_PATH);
     b.text(Run::Plain, path);
-    if writing {
-        if words.shell == Shell::Terminal {
-            b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
-        }
-        b.text(Run::Plain, &words.say(Word::DraftWriting, &[]));
-    } else {
-        b.text(Run::Plain, b"");
-    }
+    path_right(b, words, right);
     b.close();
     b.open(Role::Paragraph);
     b.style(look::DOC_EMPTY);

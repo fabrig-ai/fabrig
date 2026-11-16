@@ -635,7 +635,7 @@ on. What no run records yet has its own bullet, near the end.
     dialect's own row checks stay, so where one is ignored the answer is
     the same and only its cost grows.
 - **Actions, trees and the turn, recorded** (Forgejo 17.0.1 and runner
-  13.2.1, the conformance's `landings` facts: 24 hold, 7 recorded as
+  13.2.1, the conformance's turn facts: 33 hold, 7 recorded as
   failing and followed by the dialect and the fake): a dispatch answers
   `204` with no run, `404` for an absent workflow and `400` for an
   absent branch, and runs at the branch's head as it is read; a
@@ -650,11 +650,27 @@ on. What no run records yet has its own bullet, near the end.
   conflict, and an up-to-date one answers `200` unchanged; a status's
   `description` and `target_url` read back as written; a tree comes in
   git's order, its `truncated` true on its short last page and its
-  `tree` `null` past it.
-- **Still to record before a plan relies on them:** a dispatch's inputs
-  reaching the run; a job's rerun answering `204`, and `400` while its
-  run has not completed; a run's artifact listed by name and downloaded
-  as a zip; a comparison's commits oldest first with their messages; an
+  `tree` `null` past it. A completed job's rerun answers `204`
+  (`actions-rerun-completed-is-204`), and one whose run has not completed
+  answers `400` (`actions-rerun-running-is-400`).
+- **Dispatch inputs and artifacts, recorded** (Forgejo 17.0.1 and runner
+  13.2.1): a declared input of several lines, each ended by LF, reaches
+  the job whole beside its other declared inputs
+  (`actions-dispatch-multiline-input-reaches-job-log`); an undeclared
+  input is ignored without refusing the dispatch or changing its
+  declared inputs (`actions-dispatch-undeclared-input-is-ignored`). An
+  inline host-shell job uploads artifacts with nothing downloaded
+  (`actions-artifact-upload-completes`); its run keeps the dispatch head
+  (`actions-artifact-run-read-keeps-dispatch-head`); listing by name
+  selects only that artifact
+  (`actions-artifacts-name-selects-only-that-artifact`), an absent name
+  gives an empty array (`actions-artifacts-absent-name-is-empty`), and an
+  unknown run gives `404` (`actions-artifacts-unknown-run-is-404`). A
+  download is a direct `200` ZIP (`actions-artifact-zip-is-direct`),
+  containing the uploaded file whole
+  (`actions-artifact-zip-keeps-one-failed-id-file`).
+- **Still to record before a plan relies on them:** a comparison's
+  commits oldest first with their messages; an
   update with `style=merge` of a head already holding its base (the fake
   answers `Done`, unchanged, as `style=rebase` is recorded to); what a
   rebase's push does to a push made while it works (client.md, 7.3

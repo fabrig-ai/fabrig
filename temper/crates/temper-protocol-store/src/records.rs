@@ -8,7 +8,6 @@ mod api;
 mod application;
 mod away;
 mod change;
-pub(crate) use change::decode_change_row as decode_legacy_change;
 mod client;
 mod closer;
 mod drafts;
@@ -67,7 +66,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
             w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
         }
         d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(row)),
-        d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
+        d::Stored::Landing(row) => w::Value::Landing(Box::new(landing::encode(row))),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
             w::Value::Application(application::encode(*token, *until, outcome))
@@ -120,7 +119,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
         d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
         d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
-        d::Stored::Change(value) => w::Value::Change(Box::new(change::encode_change_row(value))),
+        d::Stored::Change(_) => unreachable!("whole changes are saved as two parts"),
         d::Stored::Issue(value) => w::Value::Issue(Box::new(issues::encode(value))),
     };
     let row = w::Row::new(&w::CEILINGS, w::RowParts { value }).expect("admitted row fits the schema");
@@ -162,13 +161,12 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)?),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
         w::Value::ChangeCold(value) => d::Stored::ChangeCold(Box::new(change::decode_change_cold(*value))),
         w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
-        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value)?)),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
@@ -280,10 +278,6 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         change_cold_base: forge.name_bytes,
         change_hot_verdicts: forge.change_policy.gates,
         change_hot_gate_remarks: forge.change_policy.gates,
-        change_row_branch: forge.name_bytes,
-        change_row_base: forge.name_bytes,
-        change_row_verdicts: forge.change_policy.gates,
-        change_row_gate_remarks: forge.change_policy.gates,
         gate_remark_words: forge.client.answer_bytes,
         live_branch_branch: forge.name_bytes,
         live_record_comments: forge.client.inbox,
@@ -342,6 +336,10 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_state_members: forge.landing_members,
         landing_state_branch: forge.name_bytes,
         landing_member_gates: forge.gates,
+        landing_by_test_gates: forge.gates,
+        landing_by_test_probed: forge.gates.checked_mul(forge.landing_members)?,
+        landing_selection_tests: forge.tiers.failing_tests,
+        landing_searched_changes: forge.landing_members,
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,

@@ -173,11 +173,13 @@ fn behind_keeps_versions_deployment_and_numbers_checks() {
 }
 #[test]
 fn unplannable_headers_and_unchained_blocks_refuse_set_before_file_operations() {
-    const BAD_HEADER: PatchSets =
-        PatchSets { sets: &[PatchSet { patches: &["patch 1\nowner other 1\n"], ..SETS.sets[0] }, SETS.sets[1]] };
+    const BAD_HEADER: PatchSets = PatchSets {
+        sets: &[PatchSet { level: Some(1), patches: &["patch 1\nowner other 1\n"], ..SETS.sets[0] }, SETS.sets[1]],
+    };
     const UNCHAINED: PatchSets = PatchSets {
         sets: &[
             PatchSet {
+                level: Some(2),
                 patches: &[
                     "patch 1\nowner fixture 1\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
                     "patch 1\nowner fixture 2\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
@@ -243,12 +245,14 @@ const MOVED_JIG: PatchSets = PatchSets {
         jobs: &[],
         owner: Owner::Jig,
         name: "jig",
+        level: Some(1),
         patches: &[
             "patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\nfamily jig-store-people 14 to 15\n",
         ],
         fresh: None,
         families: &[
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-people 15\nversioned record Data { value: u8 }\n",
                 types: &[],
                 name: "jig-store-people",
@@ -262,6 +266,7 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
                 types: &[],
                 name: "jig-store-tasks",
@@ -275,6 +280,7 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                retired: &[],
                 current: "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
                 types: &[],
                 name: "jig-store-settings",

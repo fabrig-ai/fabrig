@@ -15,6 +15,8 @@ use alloc::vec::Vec;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Queue, Time, Wall, base64};
 
+mod held_sockets;
+
 const DOCUMENT: &[u8] = br#"{"listen":{"socket":"127.0.0.1:8123"}}"#;
 const SEED: u64 = 23;
 const VERIFIER: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";

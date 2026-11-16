@@ -11,7 +11,12 @@ it by `Talk` and `Leave`, its session warm while they are there (`domain/tasks/s
 jig makes as the task's own delegate where it would have numbered the
 `NothingAwaited` notice, whose success ends the task with no run, whose
 failure escalates to it, and which waits for work the task makes while
-it lives (`domain/tasks/lifecycle.status.md`, 11). Browser-approved sign-in is built through the wire,
+it lives (`domain/tasks/lifecycle.status.md`, 11). A gathering, the
+core's second procedure, is a task a person makes that parties fill
+with `Delegate`, a batch beneath a task funded and bounded by it, and
+that ends done on its requester's `Conclude` once its delegates have
+ended, its report counting their endings; a party's batch may name an
+ended dependency, one done adding no wait (`domain/tasks/gatherings.status.md`). Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
 sign-in; bearers cannot read or decide approvals. The approval-expiry reservation remains `protocol/client/sign-in.status.md` (Departs, the whole document).
@@ -199,6 +204,7 @@ Design documents:
 - [`client/domain/pages.md`](client/domain/pages.status.md)
 - [`client/domain/objects.md`](client/domain/objects.status.md)
 - [`client/domain/view.md`](client/domain/view.status.md)
+- [`client/domain/view-crates.md`](client/domain/view-crates.status.md)
 - [`client/domain/testing.md`](client/domain/testing.status.md)
 - [`examples.md`](examples.status.md)
 - [`protocol/README.md`](protocol/README.status.md)

@@ -169,15 +169,6 @@ fn settings(task: &crate::TaskRecord) -> Settings {
     }
 }
 
-/// One immutable lifecycle milestone, identified independently of semantic revisions.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Milestone {
-    pub task: u64,
-    pub position: u64,
-    pub phase: Phase,
-    pub at: skein_lib::Wall,
-}
-
 /// Attempt and hold history (domain/tasks/lifecycle.md, 12.1 and 12.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AttemptRow {
@@ -217,6 +208,8 @@ pub struct HoldRow {
 /// One kind of durable task-tree change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
+    Made,
+    Concluded,
     Cancelled,
     Released,
     Amended,
@@ -257,8 +250,8 @@ fn save_history(domain: &mut Domain, mut row: History, out: &mut Queue<Request>)
     out.push(Request::Save { record: Stored::History(row) });
 }
 
-/// An ended task's stored place, used only while admitting an amendment
-/// (`domain/tasks/changes.md`). A stub supplies none of this evidence.
+/// An ended task's stored place, used while admitting an amendment or a party's batch
+/// (`jig/docs/design/domain/tasks/README.md`, 4). A stub supplies none of this evidence.
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct DependencyPlace {
     pub number: u64,
@@ -404,7 +397,7 @@ pub(crate) fn check_amend(
 }
 
 #[expect(clippy::manual_find, reason = "step code uses explicit bounded scans without closures")]
-fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
+pub(crate) fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
     for row in places {
         if row.number == number {
             return Some(row);
@@ -553,6 +546,9 @@ fn check_amend_fields(
         return Err(Refusal::Spec);
     }
     if let Some(dependencies) = &amendment.dependencies {
+        if crate::gathering::executor(old.executor) && !dependencies.is_empty() {
+            return Err(Refusal::Contract);
+        }
         if dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies) {
             return Err(Refusal::Dependencies);
         }
@@ -1091,6 +1087,7 @@ pub(crate) fn apply_release(
     history(domain, number, env.wall, by, Change::Released, &[], out);
     publish(domain, env, number, out);
     return_to_waits(domain, env, number, out);
+    crate::gathering::settle(domain, env, number, out);
     if let Some(held) = held {
         crate::placed::prune(domain, held, out);
     }

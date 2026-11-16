@@ -17,7 +17,6 @@ fn registered_value_type_numbers_are_pinned() {
         (9, "Row", Some("landed"), &[9]),
         (10, "Row", Some("entry"), &[10]),
         (11, "Row", Some("client"), &[11]),
-        (12, "Row", Some("change"), &[12]),
         (13, "Row", Some("issue"), &[13]),
         (14, "Row", Some("release"), &[14]),
         (15, "Row", Some("application"), &[15]),
@@ -63,6 +62,10 @@ fn registered_value_type_numbers_are_pinned() {
         assert!(!registered);
         registered = true;
         assert_eq!(family.name, "temper-store");
+        let [retired] = family.retired else { panic!("one retired value type") };
+        assert_eq!(retired.number, 12);
+        let [range] = retired.keys else { panic!("one retired range") };
+        assert_eq!((range.from, range.to), (&[12][..], &[13][..]));
         assert_eq!(family.types.len(), expected.len());
         for row in expected {
             let mut found = false;

@@ -159,6 +159,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Propose { reply_to, .. }
         | tasks::Event::DecideProposal { reply_to, .. }
         | tasks::Event::WithdrawProposal { reply_to, .. }
+        | tasks::Event::Conclude { reply_to, .. }
         | tasks::Event::Cancel { reply_to, .. }
         | tasks::Event::Release { reply_to, .. }
         | tasks::Event::Amend { reply_to, .. }

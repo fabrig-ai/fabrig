@@ -13,6 +13,7 @@ pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
                     lede: brief.lede.clone(),
                     at: brief.at.as_nanos(),
                     landed: brief.landed,
+                    findings: brief.findings,
                 },
             )
             .expect(FITS),
@@ -23,7 +24,12 @@ pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
         Some(running) => Some(
             w::StatusRunning::new(
                 &w::CEILINGS,
-                w::StatusRunningParts { task: running.task, landed: running.landed, since: running.since.as_nanos() },
+                w::StatusRunningParts {
+                    task: running.task,
+                    landed: running.landed,
+                    since: running.since.as_nanos(),
+                    findings: running.findings,
+                },
             )
             .expect(FITS),
         ),
@@ -46,15 +52,15 @@ pub(super) fn decode_facts(row: w::ProjectFacts) -> d::ProjectFacts {
     let w::ProjectFactsParts { project, landed, last_landed, brief, running } = row.into_parts();
     let brief = match brief {
         Some(brief) => {
-            let w::StatusBriefParts { sentence, lede, at, landed } = brief.into_parts();
-            Some(d::Brief { sentence, lede, at: Wall::from_nanos(at), landed })
+            let w::StatusBriefParts { sentence, lede, at, landed, findings } = brief.into_parts();
+            Some(d::Brief { sentence, lede, at: Wall::from_nanos(at), landed, findings })
         }
         None => None,
     };
     let running = match running {
         Some(running) => {
-            let w::StatusRunningParts { task, landed, since } = running.into_parts();
-            Some(d::StatusRunning { task, landed, since: Wall::from_nanos(since) })
+            let w::StatusRunningParts { task, landed, since, findings } = running.into_parts();
+            Some(d::StatusRunning { task, landed, since: Wall::from_nanos(since), findings })
         }
         None => None,
     };

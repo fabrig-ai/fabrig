@@ -1,4 +1,4 @@
-== How work runs in demo. == Live
+== Agents review every change, and code lands it == Live
 demo:
   [1] temper
   [2] demo · playground/widget (pressed)
@@ -22,11 +22,24 @@ demo:
   [16] Deployment
   * Pat
 demo · how work runs
-Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
+demo runs the stock way Agents review. An agent makes each change, another reviews it, and code lands it. Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
 How work runs:
   [17] How work runs (current)
   [18] Repositories
 ## The path of a change
+the way: Agents review
+An agent makes each change, another reviews it, and code lands it.
+The way a change goes:
+  - [19] you ask, a person
+  - [20] produce, an agent
+  - [21] review, an agent
+  - main, a branch
+agent, when needed, person, code; no merge tool above
+[22] Keep it
+Stock ways:
+  - [23] You approve
+  - [24] Agents review, now
+  - [25] Draft first
 ## What reaches you
 on demo
 Agents decide, then tell you
@@ -47,29 +60,29 @@ Always waits for you
 Away or not.
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [19] ( ) Asked of me too
-  [20] (*) Not asked: each agent decides alone
+  [26] ( ) Asked of me too
+  [27] (*) Not asked: each agent decides alone
 Away until
 When it isn’t turned off by hand.
 Away until:
-  [21] (*) 08:00, the end of quiet hours
-  [22] ( ) I turn it off
+  [28] (*) 08:00, the end of quiet hours
+  [29] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[23] [x] Chats can write drafts
+[30] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[24] [ ] Goals
+[31] [ ] Goals
 Changes
 The landing queue, as Work's filter.
 Hidden
-[25] [ ] Changes
-[26] Delete project
+[32] [ ] Changes
+[33] Delete project
 Delete demo?
   ## Delete demo?
   demo leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone.
-  [27] Keep it
-  [28] Delete project
+  [34] Keep it
+  [35] Delete project

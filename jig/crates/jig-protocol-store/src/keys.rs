@@ -32,6 +32,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[0, 10], "component.histories"),
     (&[0, 11], "component.turn-logs"),
     (&[0, 12], "component.log-attempts"),
+    (&[0, 13], "component.floor"),
     (&[1, 0, 0], "core.deployment"),
     (&[1, 0, 1], "core.projections"),
     (&[1, 0, 2], "core.run-proofs"),

@@ -1,7 +1,11 @@
-//! Shared card facts, acts and part slots (client/domain/objects.md, sections 2–9).
+//! Shared card facts, acts and part slots (client/domain/objects.md, sections 2–9),
+//! and the saying of a request's progress
+//! (jig/docs/design/client/domain/view-crates.md, 3.2).
+use crate::state::intents::Progress;
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
 use crate::{JigBindings, JigMeaning, Owner};
+use jig_client::{contract::Phase, words::Word};
 
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, SlotRef};
@@ -209,4 +213,17 @@ fn admitted(rows: &List<Offered>, act: ActKind) -> bool {
         Some(Admission::Allowed | Admission::Proposed { .. } | Admission::Bounded { .. }) => true,
         Some(Admission::Refused(_)) | None => false,
     }
+}
+
+/// Say the request table's progress without owning its retry policy.
+pub fn progress(b: &mut Builder, words: &Words, progress: Progress) {
+    let phrase = match progress {
+        Progress::Confirming => JigPhrase::Confirming,
+        Progress::InFlight => JigPhrase::InFlight,
+        Progress::Retrying => JigPhrase::Word(Word::Phase(Phase::BackingOff)),
+        Progress::Full { held, room_at } => return words.answers_full(b, held, room_at),
+        Progress::Parked => JigPhrase::Parked,
+        Progress::Unknown => JigPhrase::Unknown,
+    };
+    words.status(b, phrase, &[]);
 }

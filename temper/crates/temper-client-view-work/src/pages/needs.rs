@@ -162,7 +162,7 @@ fn flow(
     }
     ask::text(b, Role::Text, &head, look::NEEDS_BAR_AT);
     b.close();
-    intro(b, root, w, open.len(), times.now);
+    intro(b, root, w, &open, times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
     let cut = *inbox.cut.first().expect("needs cut")
@@ -234,7 +234,10 @@ fn card_main(
     rows: u32,
 ) {
     let session = root.pages().needs();
-    let asked = ask::read(card, w);
+    let mut asked = ask::read(card, w);
+    ask::primary_first(&mut asked);
+    let group =
+        session.findings().group(temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)));
     b.open(Role::Slot);
     b.style(look::ASK);
     from(b, root, needs::Need::Card(card), w, bindings, times, true);
@@ -247,6 +250,9 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    if let Some(group) = &group {
+        super::findings::group_rows(b, group, w, bindings, times);
+    }
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     why_line(b, root, w, bindings, needs::Need::Card(card), WhyForm::Rule);
@@ -328,6 +334,35 @@ fn from(
     times: &mut Times,
     linked: bool,
 ) {
+    if linked
+        && let Some(group) =
+            root.pages().needs().findings().group(temper_client_domain::pages::findings::Need::Existing(need))
+    {
+        b.open(Role::Paragraph);
+        b.style(look::NEED_FROM);
+        super::findings::group_from(
+            b,
+            root,
+            &group,
+            w,
+            times,
+            root.pages().inbox().expect("from inbox").filter.project.is_none(),
+        );
+        if let needs::Need::Card(card) = need {
+            let asked = ask::read(card, w);
+            b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+            if let Some(task) = asked.source {
+                ask::link(b, bindings, &asked.title, Address::Task { task });
+            } else {
+                b.text(Run::Plain, &asked.title);
+            }
+        }
+        if root.pages().needs().later(need.object()) {
+            b.text(Run::Plain, &w.say(Word::NeedsLaterMeta, &[]));
+        }
+        b.close();
+        return;
+    }
     let (title, source, project, when) = match need {
         needs::Need::Card(card) => {
             let asked = ask::read(card, w);
@@ -412,7 +447,13 @@ fn approval(
     b.close();
 }
 
-fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib::Wall) {
+fn intro(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    open: &[temper_client_domain::pages::findings::Need<'_>],
+    now: skein_lib::Wall,
+) {
     let inbox = root.pages().inbox().expect("intro inbox");
     let kicker = match inbox.filter.project {
         Some(project) => {
@@ -429,7 +470,11 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib
         || root.pages().needs().findings().cut_for(inbox.filter);
     let sentence = super::home::needs_sentence(
         w,
-        temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },
+        temper_client_domain::pages::home::Needs::Count {
+            count: u32::try_from(open.len()).expect("bounded inbox"),
+            cut,
+            findings: temper_client_domain::pages::findings::counted(root.pages().needs().findings(), open),
+        },
         b"",
     );
     let showing = parts::needs_facts(root, now).showing;
@@ -467,9 +512,7 @@ pub(crate) fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindin
             b.bind(
                 bindings.insert(Act::Needs(needs::Act::Choose { object: card.object, words: choice.words.clone() })),
             );
-            if parsed.primary() == Some(i) {
-                b.style(look::RECOMMENDED);
-            }
+            b.style(if parsed.primary() == Some(i) { look::RECOMMENDED } else { look::ASK_QUIET });
             if choice.recommended {
                 if w.shell == crate::words::Shell::Terminal {
                     b.text(Run::Plain, &choice.words);
@@ -516,7 +559,6 @@ pub enum WhyForm {
     Short,
 }
 
-#[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
 pub fn why_line(
     b: &mut Builder,
     root: &Domain,
@@ -526,6 +568,19 @@ pub fn why_line(
     form: WhyForm,
 ) {
     let Some(why) = crate::shared::why(root, w, need) else { return };
+    reason_line(b, root, w, bindings, need, form, &why);
+}
+
+#[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
+pub(crate) fn reason_line(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    need: needs::Need<'_>,
+    form: WhyForm,
+    why: &[u8],
+) {
     let offers = stop_asking::offered(root, need, bindings.model_times.now);
     let open = match root.pages().stop_asking() {
         Some(open) if open.object() == need.object() => Some(open),
@@ -535,10 +590,10 @@ pub fn why_line(
     b.open(if numbered { Role::Slot } else { Role::Paragraph });
     b.style(look::WHY);
     if numbered {
-        ask::text(b, Role::Paragraph, &why, look::WHY);
+        ask::text(b, Role::Paragraph, why, look::WHY);
     } else {
-        b.name(&why);
-        b.text(Run::Plain, &why);
+        b.name(why);
+        b.text(Run::Plain, why);
     }
     if let Some(offers) = &offers
         && let Some(first) = offers.first()
@@ -578,7 +633,14 @@ pub fn why_line(
     let (Some(open), Some(offers)) = (open, offers) else { return };
     let (project, reach) = match needs::why(root, need) {
         Some(needs::Why::Reach { project, reach }) => (project, reach),
-        Some(needs::Why::Direct | needs::Why::Proposal | needs::Why::Held | needs::Why::Funds) | None => return,
+        Some(
+            needs::Why::Direct
+            | needs::Why::Proposal
+            | needs::Why::Held
+            | needs::Why::Funds
+            | needs::Why::Finding { .. },
+        )
+        | None => return,
     };
     if let Some(classes) = root.forge().classes(project) {
         b.open(Role::Slot);

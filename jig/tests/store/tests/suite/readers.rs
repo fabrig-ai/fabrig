@@ -1,6 +1,8 @@
 //! Read-only restore and inventory on the simulated disk (protocol/store/loads.md and protocol/store/README.md, 9).
 use jig_domain_core as core;
-use jig_protocol_store::{Restore, Row, SecretOwner, SecretValue, Secrets, Write, codec, keys, restore::Item, sizes};
+use jig_protocol_store::{
+    self as store, Restore, Row, SecretOwner, SecretValue, Secrets, Write, codec, keys, restore::Item, sizes,
+};
 use jig_store_world::{World, root};
 use skein_lib::length::len_u64;
 use std::collections::BTreeMap;
@@ -75,6 +77,16 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
             keys::encode_own(&keys::Own::Format, root::limits().store.key).expect("format key"),
             jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
         ),
+        (keys::encode_own(&keys::Own::Floor, root::limits().store.key).expect("floor key"), {
+            let floor = store::component_v3::Floor::new(
+                &store::component_v3::CEILINGS,
+                store::component_v3::FloorParts { number: store::FLOOR, build: Box::new([]) },
+            )
+            .expect("empty build");
+            let mut writer = skein_lib::Writer::new(usize::try_from(floor.measure()).unwrap());
+            floor.encode(&mut writer).unwrap();
+            writer.finish()
+        }),
         (
             keys::encode_own(&keys::Own::Layouts, root::limits().store.key).expect("layout key"),
             jig_protocol_store::format::layouts().encode(),

@@ -115,7 +115,7 @@ fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
         if number == 5 {
             let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
             eprintln!("red charter 5 with workspace: room={room}");
-            assert!(room >= 335_619 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
+            assert!(room >= 334_999 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
         }
         assert_eq!(
             charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
@@ -199,7 +199,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 82_966);
+            assert_eq!(original.owned_bytes().unwrap(), 82_870);
 
             assert_eq!(receiving, 65_463);
             assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
@@ -214,7 +214,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 135, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 231, "the goal's brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -259,9 +259,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 337_204, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 337_300, "charter 5's maximal non-brief host part leaves this room");
 
-    assert_eq!(brief.brief_bytes, 335_619);
+    assert_eq!(brief.brief_bytes, 334_999);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));
@@ -520,8 +520,9 @@ fn measure_turn(number: u32) {
     let meter = Meter::new();
     meter.start();
     let mut domain = smith_domain::Domain::new(&limits, config.service.domain, 7);
-    let charter = temper_engine_smith::charter(&assignment);
+    let mut charter = temper_engine_smith::charter(&assignment);
     let workspace = workspace(number != 4);
+    temper_protocol_brief::fit_brief(&mut charter, Some(&workspace), &limits.run);
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {

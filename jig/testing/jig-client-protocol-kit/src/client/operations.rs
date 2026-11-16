@@ -186,3 +186,33 @@ impl Story {
         story
     }
 }
+
+impl Story {
+    /// A party may create the reserved gathering procedure as ordinary procedure delegation.
+    #[must_use]
+    pub fn live_gathering(seed: u64) -> Self {
+        use jig_domain_authority as a;
+        let mut config = crate::fixtures::batch_config(seed);
+        let kinds: Box<[a::Executor]> =
+            Box::new([a::Executor::Charter(1), a::Executor::Procedure(jig_domain_core::GATHERING)]);
+        config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+        let policy = &mut config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.kinds.clone_from(&kinds);
+        for role in &mut policy.roles {
+            role.authority.delegation.kinds.clone_from(&kinds);
+        }
+        let mut authority =
+            a::Domain::new(config.core.defaults.rules.clone(), crate::fixtures::owner_limits().core.authority)
+                .expect("gathering rules");
+        let mut out = skein_lib::Queue::uncapped();
+        a::step(&mut authority, a::Event::Policy { project: 1, policy: policy.clone() }, &mut out);
+        assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: 1 }));
+        config.core.seed_projects[0].policy.policy = authority.policy(1).expect("checked policy").clone();
+        config.core.defaults.rules =
+            a::Domain::new(authority.rules().clone(), *authority.limits()).expect("checked rules").rules().clone();
+        let mut story = Self::configured(seed, &crate::fixtures::query_limits(), config);
+        story.sign_in();
+        assert!(story.run_until(|s| s.client.link().state == jig_client::Link::Live, RUNNING_WAIT));
+        story
+    }
+}

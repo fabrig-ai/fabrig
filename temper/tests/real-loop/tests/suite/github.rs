@@ -16,33 +16,6 @@ const UMBRA: usize = 6;
 const CHAT: usize = 8;
 const PROCEDURE: u64 = 2;
 const DELIVERED: usize = 11;
-// The seeded-App story signs in before reading the restored connection.
-const SEEDED_FORGES: usize = 1;
-
-#[test]
-fn a_seeded_app_reopens_with_its_deployments_settings_and_owner() {
-    let ran = run_github(
-        github::fixture(),
-        |_| llm::cued(Box::new([])),
-        || {
-            vec![
-                sign_in(D1),
-                call(D1, argv!["forge", "list", "--until", "settled", "--json"]),
-                call(D1, argv!["me", "--json"]),
-            ]
-        },
-    );
-    for (index, result) in ran.calls().iter().enumerate() {
-        assert_eq!(result.exit, Some(Exit::Code(0)), "call {index}: {result:?}");
-    }
-    let settled: Value = serde_json::from_slice(&ran.calls()[SEEDED_FORGES].stdout).expect("settled forges JSON");
-    let [forge] = settled["forges"]["forges"].as_array().expect("forges rows").as_slice() else {
-        panic!("one forge: {settled}")
-    };
-    assert_eq!(forge["state"], "connected");
-    assert_eq!(forge["login"], "temper-test[bot]");
-}
-
 fn installed(body: &[u8]) {
     let said = b"temper has the installation; you may close this tab.";
     assert!(skein_lib::bytes::find(body, said).is_some(), "the setup page says so");
@@ -94,8 +67,9 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     assert_eq!(delivered["task"]["chip"]["task"], CODER);
     assert_eq!(change["kind"], 2, "the coder's produced change");
     assert_eq!(change["part"]["key"]["number"], github::REPOSITORY);
-    let files = files_outside_the_secrets_store(&ran);
-    no_installation_token_pattern_or_app_key_outside_the_secrets_store(&ran, &files);
+    // This flow's first conversion uses the fake's first public test key.
+    let pem = skein_fake_forge_github::keys::pem(skein_fake_forge_github::keys::KEYS[0]).expect("fake PEM");
+    let files = github::check_secrets(&ran, &pem, None);
     assert_eq!(
         coders_new_commits(&files),
         [branch.head],
@@ -191,66 +165,6 @@ fn scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]
     scripts.truncate(2); // Chat delegates and waits; coder reads, edits and finishes. No review.
     scripts[0].turns = std::mem::take(&mut scripts[0].turns).into_vec().into_iter().take(2).collect();
     scripts.into_boxed_slice()
-}
-
-fn no_installation_token_pattern_or_app_key_outside_the_secrets_store(ran: &Ran, files: &[std::path::PathBuf]) {
-    use skein_lib::{
-        Writer,
-        base64::{self, Alphabet},
-    };
-    // This flow's first conversion uses the fake's first public test key.
-    let pem = skein_fake_forge_github::keys::pem(skein_fake_forge_github::keys::KEYS[0]).expect("fake PEM");
-    let pem = pem.as_ref();
-    let text = std::str::from_utf8(pem).expect("PEM text");
-    let compact: String = text.lines().filter(|line| !line.starts_with("-----")).collect();
-    let key = base64::decode(Alphabet::Standard, compact.as_bytes(), 4096).expect("converted key DER");
-    let size = base64::encoded_len(Alphabet::Standard, u32::try_from(key.len()).expect("test key length"))
-        .expect("base64 length");
-    let mut encoded = Writer::new(usize::try_from(size).expect("base64 size"));
-    base64::encode(Alphabet::Standard, &key, &mut encoded).expect("base64 key");
-    let encoded = encoded.finish();
-    let clean = |bytes: &[u8]| {
-        assert!(
-            !bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)),
-            "minted-token pattern outside jig's secrets store"
-        );
-        assert!(skein_lib::bytes::find(bytes, pem).is_none(), "App PEM outside jig's secrets store");
-        assert!(skein_lib::bytes::find(bytes, &key).is_none(), "App DER outside jig's secrets store");
-        assert!(skein_lib::bytes::find(bytes, &encoded).is_none(), "App base64 outside jig's secrets store");
-    };
-    for path in files {
-        clean(&std::fs::read(path).expect("scratch file"));
-    }
-    for visit in ran.browsed() {
-        clean(&visit.body);
-    }
-    for call in ran.calls() {
-        clean(&call.stdout);
-        clean(&call.stderr);
-    }
-}
-
-// Walk once for both checks, never following a symlink into the secrets store.
-fn files_outside_the_secrets_store(ran: &Ran) -> Vec<std::path::PathBuf> {
-    let secrets = ran.path().join("state/generations/1/secrets");
-    assert!(secrets.is_dir(), "the excluded directory is jig's secrets store");
-    assert!(!ran.path().join("github-app.pem").exists(), "manifest flow has no downloaded paste input");
-    let mut files = Vec::new();
-    let mut pending = vec![ran.path().to_path_buf()];
-    while let Some(path) = pending.pop() {
-        if path == secrets {
-            continue;
-        }
-        let metadata = std::fs::symlink_metadata(&path).expect("scratch metadata");
-        if metadata.is_dir() {
-            pending.extend(
-                std::fs::read_dir(path).expect("scratch directory").map(|entry| entry.expect("scratch entry").path()),
-            );
-        } else if metadata.is_file() {
-            files.push(path);
-        }
-    }
-    files
 }
 
 // Fetched objects live in the store. Numeric objects in a checkout are the

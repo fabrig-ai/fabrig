@@ -18,11 +18,13 @@ const TURN: KeptFamily = frame_reads::SETS.sets[1].families[0];
 const BASE: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            level: Some(0),
             patches: &[],
             families: &[KeptFamily { current: BODY.texts[0], texts: &[BODY.texts[0]], ..BODY }],
             ..frame_reads::SETS.sets[0]
         },
         PatchSet {
+            level: Some(0),
             patches: &[],
             families: &[KeptFamily { current: TURN.texts[0], texts: &[TURN.texts[0]], ..TURN }],
             ..frame_reads::SETS.sets[1]
@@ -32,11 +34,13 @@ const BASE: PatchSets = PatchSets {
 const EMPTY: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            level: None,
             patches: &[],
             families: &[KeptFamily { current: "", texts: &[], ..BODY }],
             ..frame_reads::SETS.sets[0]
         },
         PatchSet {
+            level: None,
             patches: &[],
             families: &[KeptFamily { current: "", texts: &[], ..TURN }],
             ..frame_reads::SETS.sets[1]
@@ -570,6 +574,7 @@ fn foreign(sets: PatchSets, frames: Option<&'static str>) -> PatchSets {
         jobs: &[],
         owner: Owner::Application,
         name: "fixture-foreign",
+        level: Some(0),
         patches: &[],
         fresh: None,
         families: Box::leak(Box::new([KeptFamily {

@@ -250,7 +250,6 @@ impl Referee {
                                 | tasks::Stored::LiveCold { .. }
                                 | tasks::Stored::Stub(_)
                                 | tasks::Stored::Ledger(_)
-                                | tasks::Stored::Milestone(_)
                                 | tasks::Stored::Attempt(_)
                                 | tasks::Stored::Hold(_)
                                 | tasks::Stored::History(_)

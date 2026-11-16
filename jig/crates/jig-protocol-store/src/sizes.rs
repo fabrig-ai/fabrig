@@ -188,7 +188,7 @@ fn largest(
     )
     .ok()?;
     // Each journal write can produce a log append and two turn places; the first commit also
-    // inserts Format, Layouts and the installation's identifier. Each put
+    // inserts Format, Floor, Layouts and the installation's identifier. Each put
     // uses skein-kv’s exported operation and frame sizes.
     let ops = crate::commits::most_ops(commits.writes, orphan_erases)?;
     let commit = u32::try_from(

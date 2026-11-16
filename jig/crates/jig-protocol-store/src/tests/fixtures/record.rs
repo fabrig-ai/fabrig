@@ -18,6 +18,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
     use skein_lib::{Duration, Wall};
     let new = task_creation(17);
     task::TaskRecord {
+        concluded: None,
         session: None,
         talk: None,
         activation_open: false,

@@ -3,6 +3,13 @@ use super::{Limits, wire_limits};
 use jig_client::{Ask, Family, Watchable, contract as c};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+/// A finding named across the client's forge and pages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Id {
+    pub project: u32,
+    pub number: u32,
+}
+
 #[must_use]
 pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
     watching(project, Some(w::FindingState::New), true, limits)

@@ -399,10 +399,10 @@ fn sentence_stops_trims_and_cuts_at_a_word_end() {
 
 #[test]
 fn role_who_keeps_when_and_cuts_what_it_does_to_the_room() {
-    let when = "When you look at Home after landings";
-    let exact = "x".repeat(90);
-    let over = "x".repeat(91);
-    let multibyte = "x".repeat(86) + "é" + &"x".repeat(32);
+    let when = "When you look at Home after landings or findings";
+    let exact = "x".repeat(78);
+    let over = "x".repeat(79);
+    let multibyte = "x".repeat(74) + "é" + &"x".repeat(44);
     let words = "word ".repeat(17) + "é" + &"x".repeat(33);
     assert_eq!(multibyte.len(), 120);
     assert_eq!(words.len(), 120);
@@ -414,16 +414,16 @@ fn role_who_keeps_when_and_cuts_what_it_does_to_the_room() {
         ),
         ("For each change", "", b"For each change".as_slice().into()),
         (when, exact.as_str(), skein_lib::bytes::concat(&[when.as_bytes(), b": ", exact.as_bytes()])),
-        (when, over.as_str(), skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("x".repeat(87) + "…").as_bytes()])),
+        (when, over.as_str(), skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("x".repeat(75) + "…").as_bytes()])),
         (
             when,
             multibyte.as_str(),
-            skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("x".repeat(86) + "…").as_bytes()]),
+            skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("x".repeat(74) + "…").as_bytes()]),
         ),
         (
             when,
             words.as_str(),
-            skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("word ".repeat(16) + "word…").as_bytes()]),
+            skein_lib::bytes::concat(&[when.as_bytes(), b": ", ("word ".repeat(14) + "word…").as_bytes()]),
         ),
     ] {
         let who = role_who(when.as_bytes(), does.as_bytes());

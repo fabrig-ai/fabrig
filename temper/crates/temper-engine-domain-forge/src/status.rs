@@ -104,7 +104,7 @@ impl Domain {
         };
         if let Some(row) = self.project_facts.get(&project) {
             view.landed = row.landed;
-            view.last_landed = Some(row.last_landed);
+            view.last_landed = if row.landed == 0 { None } else { Some(row.last_landed) };
             view.brief.clone_from(&row.brief);
         }
         view.seen = view.landed;
@@ -141,12 +141,28 @@ fn save(row: &ProjectFacts, out: &mut Queue<Request>) {
     out.push(Request::Save { record: Stored::ProjectFacts(row.clone()), release: None, read_afresh: None });
 }
 fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
-    let Some(row) = d.project_facts.get(&project) else { return };
+    let (findings, mark) = words::findings(d, project);
+    if !d.project_facts.contains_key(&project) {
+        if mark.is_none() || d.project_facts.len() == d.project_facts.capacity() {
+            return;
+        }
+        let row = ProjectFacts { project, landed: 0, last_landed: env.wall, brief: None, running: None };
+        save(&row, out);
+        out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
+        d.project_facts.insert(project, row).expect("project facts room checked");
+    }
+    let row = d.project_facts.get(&project).expect("held facts");
     let covered = match &row.brief {
         Some(brief) => brief.landed,
         None => 0,
     };
-    if row.landed <= covered {
+    let previous = match &row.brief {
+        Some(brief) => brief.findings,
+        None => None,
+    };
+    let fresh = row.landed > covered;
+    let changed = mark != previous;
+    if !fresh && !changed {
         return;
     }
     if let Some(brief) = &row.brief
@@ -161,9 +177,9 @@ fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Requ
     }
     let (words, signers) = words::specification(d, row, env.wall);
     let row = d.project_facts.get_mut(&project).expect("held facts");
-    row.running = Some(StatusRunning { task: None, landed: row.landed, since: env.wall });
+    row.running = Some(StatusRunning { task: None, landed: row.landed, since: env.wall, findings: mark });
     save(row, out);
-    out.push(Request::StatusRun { project, words, signers });
+    out.push(Request::StatusRun { project, words, findings, signers });
 }
 
 pub(crate) fn task(d: &mut Domain, project: u32, task: Option<u64>, out: &mut Queue<Request>) {
@@ -188,6 +204,7 @@ pub(crate) fn heard(d: &mut Domain, now: Wall, task: u64, report: Option<Box<[u8
                     lede: crate::text::fit(lede, BRIEF_LEDE_BYTES, b"..."),
                     at: now,
                     landed: running.landed,
+                    findings: running.findings,
                 });
                 out.push(Request::Marked { tasks: Box::new([status_subject(row.project)]) });
             }

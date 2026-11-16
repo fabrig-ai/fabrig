@@ -167,6 +167,50 @@ pub(crate) fn stop_request(core: &mut Core, env: &Env<Limits>, routed: &mut Rout
     }
 }
 
+/// Concluding uses a cancel's tree reach, without cancelling any work (gatherings.md, 3).
+pub(crate) fn conclude_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, task: u64) {
+    if core.tasks.task(task).is_none() {
+        crate::routing::run::results::conclude(core, &mut routed.work, &mut routed.out, party, task);
+        return;
+    }
+    let admitted = core.control_admit(
+        party.task(task),
+        Control::Cancel { reason_len: 0, grace: None },
+        &env.limits.tasks,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    );
+    if let Err(why) = admitted {
+        pool_refused(&mut routed.work, party.request, why);
+        return;
+    }
+    let row = core.tasks.task(task).expect("admitted task");
+    match &row.phase {
+        tasks::Phase::Closing(closing) if row.concluded.is_none() => {
+            pool_refused(&mut routed.work, party.request, crate::routing::refusals::ended(&closing.ending));
+            return;
+        }
+        tasks::Phase::Ended(ending) => {
+            pool_refused(&mut routed.work, party.request, crate::routing::refusals::ended(ending));
+            return;
+        }
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {}
+    }
+    if row.executor != (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING }) {
+        pool_refused(
+            &mut routed.work,
+            party.request,
+            people::Refusal::NotWellFormed { at: 0, why: people::Malformed::EndedBy },
+        );
+        return;
+    }
+    let request = core.fly_person_task(party.request, PersonTaskRoute::Conclude(task));
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::Conclude {
+        reply_to: ReplyTo::new(request),
+        by: party.person,
+        task,
+    })));
+}
+
 pub(crate) fn cancel_request(
     core: &mut Core,
     env: &Env<Limits>,

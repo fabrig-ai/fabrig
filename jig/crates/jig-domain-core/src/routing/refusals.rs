@@ -38,6 +38,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         None => Box::new([]),
     };
     let refusal = match why {
+        tasks::Refusal::Concluded { at } => people::Refusal::Concluded { at },
         tasks::Refusal::NotStanding => people::Refusal::NotOffered,
         tasks::Refusal::TalkOpen { party } => people::Refusal::Taken { by: party },
         tasks::Refusal::NoTalk => people::Refusal::NotWaiting,

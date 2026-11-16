@@ -113,7 +113,7 @@ fn the_stream_s_pieces_are_cut_to_the_client_s_piece() {
 }
 #[test]
 fn the_look_names_the_view_s_styles_and_regions() {
-    use jig_client_view::{regions::JigRegion, styles::JigStyle};
+    use jig_client_view_words::{regions::JigRegion, styles::JigStyle};
     assert_eq!(skein_ui::look::check(&[look::NAMES]), None);
     assert_eq!(look::NAMES.style(JigStyle::Card.token()), Some(b"jig-card".as_slice()));
     for number in 0..48 {

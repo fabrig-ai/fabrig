@@ -122,9 +122,4 @@ pub fn envelope(
 
 pub(crate) mod ui;
 
-/// Room for a path's preceding words, omitted-segment mark and one escaped segment.
-#[must_use]
-pub fn node_text(text: u32, phrase: u32) -> Option<u32> {
-    let segment = crate::words::literal_segment::max_bytes(text)?;
-    Some(phrase.checked_mul(2)?.checked_add(segment)?.max(segment.checked_mul(2)?))
-}
+pub use crate::words::literal_segment::node_text;

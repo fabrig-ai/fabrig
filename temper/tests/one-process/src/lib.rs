@@ -3,6 +3,7 @@ pub mod across_versions;
 mod box_listener;
 pub mod fixtures;
 pub mod golden;
+pub mod held_program;
 pub mod upgrade;
 
 mod oracle;

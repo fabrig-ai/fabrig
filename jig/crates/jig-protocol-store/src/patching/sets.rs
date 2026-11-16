@@ -16,6 +16,8 @@ pub struct PatchSet {
     pub families: &'static [KeptFamily],
     /// Patch texts in number order.
     pub patches: &'static [&'static str],
+    /// The owner's level, retained when its patch texts are dropped.
+    pub level: Option<u32>,
     /// The owner's mark across which windows start fresh.
     pub fresh: Option<&'static str>,
     pub jobs: &'static [crate::jobs::Job],
@@ -43,6 +45,14 @@ pub struct KeptFamily {
     pub current: &'static str,
     /// Registered value types; empty for a patched family (protocol/store/layouts.md, 2).
     pub types: &'static [ValueType],
+    pub retired: &'static [Retired],
+}
+
+/// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).
+#[derive(Clone, Copy, Debug)]
+pub struct Retired {
+    pub number: u16,
+    pub keys: &'static [crate::KeyRange],
 }
 
 /// A stable kind of value, distinguished by its keys (protocol/store/layouts.md, 2).
@@ -77,9 +87,11 @@ pub const JIG: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Jig,
     name: "jig",
+    level: None,
     patches: &[],
     fresh: None,
     families: &[KeptFamily {
+        retired: &[],
         current: "",
         types: &[],
         name: "jig-store-secrets",

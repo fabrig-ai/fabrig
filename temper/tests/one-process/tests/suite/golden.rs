@@ -1,6 +1,6 @@
 //! The baseline's making story and its permanent upgrade reader.
 #[test]
-fn baseline_golden_store_survives_upgrade() {
+fn baseline_golden_store_refuses_retired_milestones() {
     temper_one_process_world::golden::read(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"));
 }
 

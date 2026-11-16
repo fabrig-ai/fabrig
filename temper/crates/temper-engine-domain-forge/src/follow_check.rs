@@ -147,6 +147,22 @@ fn following(d: &Domain, row: &ChangeRow) -> runs::Follow {
     follow.page = check.page;
     follow
 }
+pub(crate) fn in_flight(d: &Domain, row: &ChangeRow) -> Option<runs::Follow> {
+    let check = row.follow_check.as_ref()?;
+    if check.flight.as_ref()?.entry == 0 {
+        return None;
+    }
+    for verdict in &row.verdicts {
+        if verdict.number == c::FOLLOW_CHECK_GATE
+            && verdict.head == check.head
+            && (verdict.status == c::Status::Passed || verdict.status == c::Status::Failed)
+        {
+            return None;
+        }
+    }
+    configured(d, row)?;
+    Some(following(d, row))
+}
 fn remember(row: &mut ChangeRow, follow: &runs::Follow) {
     let check = row.follow_check.as_mut().expect("active check");
     check.flight = Some(follow.progress(None));
@@ -218,7 +234,11 @@ pub(crate) fn advance(
     }
     let check = row.follow_check.as_ref().expect("active check");
     if !follow.waiting && !follow.writes.is_empty() {
-        return Action::Write;
+        return if runs::busy(d, follow.repository, &follow.workflow, follow.commit, &follow.inputs) {
+            Action::Wait
+        } else {
+            Action::Write
+        };
     }
     if let Some(flight) = &check.flight
         && let Some(run) = &flight.report

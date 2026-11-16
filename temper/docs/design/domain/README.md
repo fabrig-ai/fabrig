@@ -38,6 +38,10 @@ all. Then temper's:
    - `landing-search.md`: a red round of several units narrowed by
      prefixes: probes at unit boundaries, the blamed unit repaired, the
      green prefix landed and the units above it in the next round.
+   - `landing-search-by-test.md`: a search whose probes run only the
+     cases the top's gates report failed, one run per workflow and
+     commit, and nothing landed on such a probe: the next round proves
+     the green prefix whole.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.

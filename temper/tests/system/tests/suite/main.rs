@@ -1,5 +1,7 @@
+mod absence;
 mod accounts;
 mod brief;
+mod chat_words;
 mod composed;
 mod parked;
 mod simulation;
@@ -16,3 +18,5 @@ mod supplied_instructions;
 mod merge_job;
 
 mod close_job;
+
+mod notes;

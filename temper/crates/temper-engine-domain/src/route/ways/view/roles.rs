@@ -25,7 +25,7 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64) -> ways::View {
         (coordinator, b"For each goal", b"Coordinator"),
         (Some(inputs.producer), b"For each change", b"Coding agent"),
         (if review { Some(inputs.reviewer) } else { None }, b"For each change", b"Reviewer"),
-        (Some(STATUS_CHARTER), b"When you look at Home after landings", b"Status agent"),
+        (Some(STATUS_CHARTER), b"When you look at Home after landings or findings", b"Status agent"),
     ] {
         let Some(number) = number else { continue };
         push(domain, project, party, &mut roles, number, when, name);

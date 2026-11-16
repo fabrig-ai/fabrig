@@ -243,7 +243,7 @@ fn a_failed_goals_heading_says_why() {
 
 #[test]
 fn otherwise_it_counts_what_landed() {
-    assert_heading(document(), DONE, TOTAL, b"6 of 9 tasks done.");
+    assert_heading(document(), DONE, TOTAL, b"Six of nine tasks done.");
 }
 
 #[test]

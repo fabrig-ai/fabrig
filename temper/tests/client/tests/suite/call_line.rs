@@ -158,6 +158,32 @@ fn description(world: &CallsWorld, person: ClientId, name: &[u8], expected: &[u8
 }
 
 #[test]
+fn a_person_at_the_terminal_reads_a_run_of_calls() {
+    let mut world = fixtures::terminal::world(fixtures::SEED);
+    let task = fixtures::chat(world.front(), b"Hello");
+    let person = fixtures::terminal::client(&mut world, task);
+    follow(&mut world, person, vec![see(Find::exactly_named(Role::TextArea, b"Message"))]);
+    commit(
+        &mut world,
+        task,
+        &[(b"read_docs", br#"{"topic":"hold"}"#, b"hold: Hold\n# Hold\nThe held task's body")],
+        None,
+    );
+    commit(&mut world, task, &[(b"read_docs", br#"{"topic":"chat"}"#, b"chat: Chats\n# Chats\nThe chat's body")], None);
+    commit(&mut world, task, &[], Some(b"World answer"));
+    follow(&mut world, person, vec![see(Find::text(b"World answer"))]);
+    let page = super::terminal::printed(&world, person, &fixtures::terminal::limits());
+    let (_, conversation) = page.split_once("Conversation:\n").expect("printed conversation");
+    let (_, after_name) = conversation.split_once("Read 2 docs").unwrap_or_else(|| panic!("{page}"));
+    let (_, after_first) = after_name.split_once("`read_docs` hold: hold: Hold").unwrap_or_else(|| panic!("{page}"));
+    let (_, after_second) = after_first.split_once("`read_docs` chat: chat: Chats").unwrap_or_else(|| panic!("{page}"));
+    assert!(after_second.contains("World answer"), "{page}");
+    assert!(!page.contains("read_docs ×"), "{page}");
+    assert!(!page.contains("# Hold"), "{page}");
+    assert!(!page.contains("▍"), "a committed reply has no provisional marker: {page}");
+}
+
+#[test]
 fn calls_across_turns_read_as_one_line() {
     let (mut world, task, person) = chat();
     commit(&mut world, task, &[HOLD], None);

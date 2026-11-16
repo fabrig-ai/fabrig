@@ -108,54 +108,111 @@ pub fn why(
     w: &Words,
     need: temper_client_domain::pages::needs::Need<'_>,
 ) -> Option<Box<[u8]>> {
-    use temper_client_domain::pages::needs::Why;
-    let why = temper_client_domain::pages::needs::why(root, need)?;
+    why_words(root, w, &temper_client_domain::pages::needs::why(root, need)?, false)
+}
+/// The same reason, said of one card or several (client/pages/needs-you.md, 1, In the plural).
+#[must_use]
+pub fn why_words(
+    root: &temper_client_domain::Domain,
+    w: &Words,
+    why: &temper_client_domain::pages::needs::Why,
+    plural: bool,
+) -> Option<Box<[u8]>> {
+    use temper_client_domain::pages::needs::{Holds, Why};
     let word = match why {
-        Why::Direct => Word::WhyDirect,
-        Why::Proposal => Word::WhyProposal,
-        Why::Held => Word::WhyHeld,
-        Why::Funds => Word::WhyFunds,
-        Why::Reach { project, reach } => {
-            let classes = root.forge().classes(project);
-            let clause = match reach.reason {
-                Reason::Kind => w.say(
-                    match reach.kind {
-                        Kind::Wording => Word::WhyWording,
-                        Kind::Retry => Word::WhyRetry,
-                        Kind::Implementation => Word::WhyImplementation,
-                        Kind::Tests => Word::WhyTests,
-                        Kind::Dependency => Word::WhyDependency,
-                        Kind::Departure => Word::WhyDeparture,
-                        Kind::Money => Word::WhyMoney,
-                        Kind::Irreversible => Word::WhyIrreversible,
-                        Kind::Rules => Word::WhyRules,
-                        Kind::Other => Word::WhyOther,
-                    },
-                    &[],
-                ),
-                Reason::Set(number) => {
-                    let name = match classes {
-                        Some(classes) => match classes.set(number) {
-                            Some(set) => set.name.clone(),
-                            None => path_set(root, w, project),
-                        },
-                        None => path_set(root, w, project),
-                    };
-                    w.say(Word::WhySet, &[Hole::Name(name)])
-                }
-                Reason::Always => return Some(w.say(Word::WhyAlways, &[])),
-            };
-            let clause = under_words(w, clause, reach.under, classes);
-            let class = match reach.class {
-                Class::Ask => Word::WhyAsk,
-                Class::AskAway => Word::WhyAskAway,
-                Class::Wait => Word::WhyWait,
-                Class::Decide => return None,
-            };
-            return Some(w.say(Word::WhyReach, &[Hole::Name(clause), Hole::Name(w.say(class, &[]))]));
+        Why::Direct => {
+            if plural {
+                Word::WhyPluralDirect
+            } else {
+                Word::WhyDirect
+            }
         }
+        Why::Proposal => {
+            if plural {
+                Word::WhyPluralProposal
+            } else {
+                Word::WhyProposal
+            }
+        }
+        Why::Held => {
+            if plural {
+                Word::WhyPluralHeld
+            } else {
+                Word::WhyHeld
+            }
+        }
+        Why::Funds => {
+            if plural {
+                Word::WhyPluralFunds
+            } else {
+                Word::WhyFunds
+            }
+        }
+        Why::Finding { project, holds } => {
+            let name = match holds {
+                Holds::Area { name } => name.clone(),
+                Holds::Triager | Holds::Owner => crate::common::project_name(root.pages().me(root.client()), *project)
+                    .unwrap_or(w.say(Word::Project, &[Hole::Number(u64::from(*project))])),
+            };
+            let (one, many) = match holds {
+                Holds::Area { .. } => (Word::WhyFindingArea, Word::WhyPluralFindingArea),
+                Holds::Triager => (Word::WhyFindingTriager, Word::WhyPluralFindingTriager),
+                Holds::Owner => (Word::WhyFindingOwner, Word::WhyPluralFindingOwner),
+            };
+            return Some(w.say(if plural { many } else { one }, &[Hole::Name(name)]));
+        }
+        Why::Reach { project, reach } => return why_reach(root, w, *project, *reach, plural),
     };
     Some(w.say(word, &[]))
+}
+fn why_reach(
+    root: &temper_client_domain::Domain,
+    w: &Words,
+    project: u32,
+    reach: Reach,
+    plural: bool,
+) -> Option<Box<[u8]>> {
+    let classes = root.forge().classes(project);
+    let clause = match reach.reason {
+        Reason::Kind => w.say(why_kind(reach.kind, plural), &[]),
+        Reason::Set(number) => {
+            let name = match classes {
+                Some(classes) => match classes.set(number) {
+                    Some(set) => set.name.clone(),
+                    None => path_set(root, w, project),
+                },
+                None => path_set(root, w, project),
+            };
+            w.say(if plural { Word::WhyPluralSet } else { Word::WhySet }, &[Hole::Name(name)])
+        }
+        Reason::Always => return Some(w.say(if plural { Word::WhyPluralAlways } else { Word::WhyAlways }, &[])),
+    };
+    let clause = under_words(w, clause, reach.under, classes);
+    let class = match reach.class {
+        Class::Ask => Word::WhyAsk,
+        Class::AskAway => Word::WhyAskAway,
+        Class::Wait => Word::WhyWait,
+        Class::Decide => return None,
+    };
+    Some(w.say(
+        if plural { Word::WhyPluralReach } else { Word::WhyReach },
+        &[Hole::Name(clause), Hole::Name(w.say(class, &[]))],
+    ))
+}
+fn why_kind(kind: Kind, plural: bool) -> Word {
+    let (one, many) = match kind {
+        Kind::Wording => (Word::WhyWording, Word::WhyPluralWording),
+        Kind::Retry => (Word::WhyRetry, Word::WhyPluralRetry),
+        Kind::Implementation => (Word::WhyImplementation, Word::WhyPluralImplementation),
+        Kind::Tests => (Word::WhyTests, Word::WhyPluralTests),
+        Kind::Dependency => (Word::WhyDependency, Word::WhyPluralDependency),
+        Kind::Departure => (Word::WhyDeparture, Word::WhyPluralDeparture),
+        Kind::Money => (Word::WhyMoney, Word::WhyPluralMoney),
+        Kind::Irreversible => (Word::WhyIrreversible, Word::WhyPluralIrreversible),
+        Kind::Rules => (Word::WhyRules, Word::WhyPluralRules),
+        Kind::Other => (Word::WhyOther, Word::WhyPluralOther),
+    };
+    if plural { many } else { one }
 }
 fn path_set(root: &temper_client_domain::Domain, w: &Words, project: u32) -> Box<[u8]> {
     let name = crate::common::project_name(root.pages().me(root.client()), project)

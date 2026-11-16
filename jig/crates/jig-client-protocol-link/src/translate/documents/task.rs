@@ -175,6 +175,10 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         None => None,
     };
     Ok(c::Task {
+        concluded: match value.concluded() {
+            Some(value) => Some(c::Concluded { by: value.by(), at: Wall::from_nanos(value.at()) }),
+            None => None,
+        },
         talk: match value.talk() {
             Some(talk) => Some(c::Talk {
                 party: talk.party(),

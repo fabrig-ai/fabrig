@@ -56,11 +56,16 @@ fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Resul
             Ok(0)
         }
         Reached::Unknown(why) => Err((2, why)),
-        Reached::Command(command, arguments) => dispatch(command, arguments, captured),
+        Reached::Command(command, arguments) => dispatch(command, arguments, captured, commit),
     }
 }
 
-fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
+fn dispatch(
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    captured: &Capture,
+    commit: &'static str,
+) -> Result<u8, (u8, String)> {
     let refused = |why: &str| (2, table::refused(&ENGINE, command, why));
     match command.reach {
         Reach::Words(["help"]) => {
@@ -84,7 +89,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             )
             .map_err(|why| refused(&why))?;
             refuse_document(command, &directories).map_err(|why| (1, why))?;
-            crate::upgrade::run(ENGINE.binary, &directories, &request).map_err(|why| (1, why))
+            crate::upgrade::run(ENGINE.binary, &directories, &request, commit).map_err(|why| (1, why))
         }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
@@ -100,6 +105,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                     working.as_os_str().as_bytes(),
                     &directories,
                     record,
+                    commit,
                 )
                 .map_err(|why| (1, why))?
                 {

@@ -223,6 +223,7 @@ pub(crate) fn met(
     after_message(domain, env, number, prepared.previous, prepared.word, out);
 }
 
+#[expect(clippy::too_many_lines, reason = "one message applies its wake policy and live phase together")]
 pub(crate) fn after_message(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -231,6 +232,9 @@ pub(crate) fn after_message(
     word: Word,
     out: &mut Queue<Request>,
 ) {
+    if crate::gathering::executor(record(domain, number).expect("message task live").executor) {
+        return;
+    }
     let decision = match record(domain, number).expect("message task live").executor {
         crate::Executor::Procedure { .. } => match word.kind {
             MessageKind::News { .. } | MessageKind::PersonStalled { .. } => rule(domain, number, &word),

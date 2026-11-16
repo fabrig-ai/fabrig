@@ -3,6 +3,97 @@ use super::{Box, Domain, ProjectFacts, Wall};
 use core::cmp::Reverse;
 use skein_lib::{Decimal, List, Map};
 use temper_engine_domain_forge_tiers::Failures;
+use temper_engine_domain_forge_vocabulary::findings::{FindingKind, Severity};
+
+fn kind_word(kind: FindingKind) -> &'static [u8] {
+    match kind {
+        FindingKind::Qa => b"qa",
+        FindingKind::Flake => b"flake",
+        FindingKind::Red => b"red",
+        FindingKind::Review => b"review",
+        FindingKind::Feedback => b"feedback",
+    }
+}
+
+pub(super) fn findings(d: &Domain, project: u32) -> (Box<[u8]>, Option<[u8; 32]>) {
+    let mut counts = [
+        (FindingKind::Qa, (0_u64, 0_u64, 0_u64)),
+        (FindingKind::Flake, (0, 0, 0)),
+        (FindingKind::Red, (0, 0, 0)),
+        (FindingKind::Review, (0, 0, 0)),
+        (FindingKind::Feedback, (0, 0, 0)),
+    ];
+    let mut total = 0_u64;
+    let mut high = 0_u64;
+    let mut titles = List::uncapped();
+    for (_, finding) in d.findings(project).rev() {
+        if finding.state.ended() {
+            continue;
+        }
+        total = total.checked_add(1).expect("bounded findings");
+        for (kind, counts) in &mut counts {
+            if *kind != finding.kind {
+                continue;
+            }
+            let count = match finding.severity {
+                Severity::High => &mut counts.0,
+                Severity::Medium => &mut counts.1,
+                Severity::Low => &mut counts.2,
+            };
+            *count = count.checked_add(1).expect("bounded findings");
+        }
+        if finding.severity == Severity::High {
+            high = high.checked_add(1).expect("bounded findings");
+            if titles.len() < 20 {
+                titles.push(finding).expect("internal high findings");
+            }
+        }
+    }
+    let mut words = List::uncapped();
+    if total == 0 {
+        append(&mut words, b"Open findings: none\n");
+        return (words.into_boxed(), None);
+    }
+    append(&mut words, b"Open findings: ");
+    append(&mut words, Decimal::of(total).as_bytes());
+    append(&mut words, b"\n");
+    for (kind, (high, medium, low)) in counts {
+        if high == 0 && medium == 0 && low == 0 {
+            continue;
+        }
+        append(&mut words, b"- ");
+        append(&mut words, kind_word(kind));
+        append(&mut words, b": ");
+        let mut separator = b"".as_slice();
+        for (count, word) in [(high, b"high".as_slice()), (medium, b"medium".as_slice()), (low, b"low".as_slice())] {
+            if count != 0 {
+                append(&mut words, separator);
+                append(&mut words, Decimal::of(count).as_bytes());
+                append(&mut words, b" ");
+                append(&mut words, word);
+                separator = b", ";
+            }
+        }
+        append(&mut words, b"\n");
+    }
+    if high != 0 {
+        append(&mut words, b"High ones, newest first:\n");
+        for finding in titles.into_boxed() {
+            append(&mut words, b"- ");
+            append(&mut words, &finding.title);
+            append(&mut words, b" (");
+            append(&mut words, kind_word(finding.kind));
+            append(&mut words, b")\n");
+        }
+        if high > 20 {
+            append(&mut words, b"- and ");
+            append(&mut words, Decimal::of(high.saturating_sub(20)).as_bytes());
+            append(&mut words, b" more\n");
+        }
+    }
+    let mark = skein_lib::sha256::digest(words.as_slice());
+    (words.into_boxed(), Some(mark))
+}
 
 fn append(words: &mut List<u8>, part: &[u8]) {
     for byte in part {

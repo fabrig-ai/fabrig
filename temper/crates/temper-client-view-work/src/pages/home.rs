@@ -1,6 +1,6 @@
 //! A project's first page (temper/docs/design/client/pages/README.md).
 //! A stopped try (temper/docs/design/domain/trial.md, 6.3).
-pub(crate) use crate::common::home::{intro_words, kicker, need_words, needs_sentence, number_word};
+pub(crate) use crate::common::home::{intro_words, kicker, need_words, needs_count, needs_sentence, number_word};
 use crate::{
     bindings::Bindings,
     look,
@@ -56,15 +56,15 @@ pub fn main(
     if facts.to_begin() {
         to_begin(b, root, w, bindings, project, name, &facts);
     }
+    if parts.needs {
+        needs(b, root, w, bindings, project, &facts, times);
+    }
     if parts.decided
         && let Some(shown) = &facts.decided
     {
         super::decided::main(b, root, w, bindings, Some(project), shown, times);
     }
     if !facts.to_begin() {
-        if parts.needs {
-            needs(b, root, w, bindings, project, &facts, times);
-        }
         if root.has_goals(project) {
             goals(b, root, w, bindings, project, times);
         } else {
@@ -197,10 +197,7 @@ fn needs(
     let Some(inbox) = root.pages().inbox() else { return };
     let session = root.pages().needs();
     let open = session.all(inbox, root.forge().approvals());
-    let (count, cut) = match facts.needs {
-        Needs::Count { count, cut } => (count, cut),
-        Needs::Unknown => (0, false),
-    };
+    let (count, cut) = needs_count(facts.needs);
     b.open(Role::Region);
     b.style(look::HOME_NEEDS);
     b.name(&w.say(Word::NeedsYou, &[]));
@@ -213,6 +210,7 @@ fn needs(
         (false, true) => Word::NeedsHeadCut,
     };
     text(b, Role::Heading { level: 2 }, &w.say(heading, &[Hole::Number(u64::from(count))]), Some(look::HOME_SIGNAL));
+    severities(b, w, facts.needs);
     go(b, bindings, &w.say(Word::AllHomeAllNeeds, &[]), inbox_address(project), None);
     b.close();
     let lines = session.answered(times.now, ANSWERED_ON_HOME, Some(project));
@@ -227,6 +225,42 @@ fn needs(
     }
     super::ask::answered_lines(b, root, &lines, w, bindings);
     super::home_cards::all(b, root, &open, false, w, bindings, times);
+    b.close();
+}
+/// The head's counts follow its heading (client/pages/home.md, 1, Findings, drawn).
+pub(crate) fn severities(b: &mut Builder, words: &Words, needs: Needs) {
+    let counts = match needs {
+        Needs::Count { findings, .. } => findings,
+        Needs::Unknown => return,
+    };
+    if counts.high == 0 && counts.medium == 0 && counts.low == 0 {
+        return;
+    }
+    b.open(Role::Text);
+    b.style(look::HOME_SEVS);
+    let mut first = true;
+    for (severity, count, word) in [
+        (temper_client_protocol_wire::v1::Severity::High, counts.high, Word::FindingHigh),
+        (temper_client_protocol_wire::v1::Severity::Medium, counts.medium, Word::FindingMedium),
+        (temper_client_protocol_wire::v1::Severity::Low, counts.low, Word::FindingLow),
+    ] {
+        if count == 0 {
+            continue;
+        }
+        if !first && words.shell == Shell::Terminal {
+            b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+        }
+        first = false;
+        b.open(Role::Text);
+        super::findings::severity(b, words, severity);
+        text(
+            b,
+            Role::Text,
+            &words.say(Word::HomeSeverityCount, &[Hole::Number(u64::from(count)), Hole::Name(words.say(word, &[]))]),
+            None,
+        );
+        b.close();
+    }
     b.close();
 }
 fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {

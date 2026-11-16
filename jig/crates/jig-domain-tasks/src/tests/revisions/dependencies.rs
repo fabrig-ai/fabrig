@@ -28,11 +28,23 @@ fn family() -> Harness {
     test.make(vec![wealthy(ROOT)]);
     let mut parent = wealthy(AMENDER);
     parent.funder = Funder::Task(ROOT);
-    test.send(Event::Make { reply_to: to(), creator: Party::Task(ROOT), batch: Box::new([parent]) });
+    test.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(ROOT),
+        batch: Box::new([parent]),
+    });
     for (requester, number) in [(AMENDER, TARGET), (AMENDER, ANCESTOR)] {
         let mut child = task(number, &[]);
         child.funder = Funder::Task(requester);
-        test.send(Event::Make { reply_to: to(), creator: Party::Task(requester), batch: Box::new([child]) });
+        test.send(Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Task(requester),
+            batch: Box::new([child]),
+        });
     }
     test
 }
