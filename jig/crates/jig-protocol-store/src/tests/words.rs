@@ -104,10 +104,6 @@ fn an_unnamed_refusal_says_to_name_its_generation() {
     says(OpenRefusal::Generations { why: Generations::Unnamed }, "- `Unnamed`: \"", "\"");
 }
 #[test]
-fn an_unrecorded_refusal_says_to_move_the_generations() {
-    says(OpenRefusal::OlderBuild { why: Older::Unrecorded }, "`Unrecorded`'s:\n\n  > ", "\n\n  `Layout`'s");
-}
-#[test]
 fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
     use crate::Family;
     says(
@@ -143,36 +139,30 @@ fn a_job_refusal_says_the_designs_words() {
 }
 
 #[test]
-fn level_and_patch_refusals_say_the_designs_words() {
+fn check_refusals_say_the_designs_words() {
+    for (why, start) in [
+        (Check::Load { key: Box::new([]) }, "- `Check { why: Load }`: \""),
+        (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
+    ] {
+        says(OpenRefusal::Check { why }, start, "\"");
+    }
+}
+#[test]
+fn ahead_and_admission_refusals_say_the_designs_words() {
     for (refusal, start) in [
-        (OpenRefusal::OlderBuild { why: Older::Unleveled }, "- `OlderBuild { why: Unleveled }`: \""),
         (OpenRefusal::Ahead { owner: crate::Owner::Jig, found: Some(2), wanted: Some(1) }, "- `Ahead`: \""),
-        (
-            OpenRefusal::Patch {
-                owner: crate::Owner::Application,
-                patch: 2,
-                key: Box::new([]),
-                halt: skein_codec::patch::Halt::Order,
-            },
-            "- `Patch`: \"",
-        ),
-        (OpenRefusal::Set { owner: crate::Owner::Application, patch: 2 }, "- `Set`: \""),
-        (
-            OpenRefusal::InFlight { owner: crate::Owner::Application, family: "fixture", count: 0, keys: Box::new([]) },
-            "- `InFlight`: \"",
-        ),
+        (OpenRefusal::Set { owner: crate::Owner::Application }, "- `Set`: \""),
     ] {
         says(refusal, start, "\"");
     }
 }
 
 #[test]
-fn check_refusals_say_the_designs_words() {
+fn behind_and_unregistered_refusals_name_the_bridge_build() {
     for (why, start) in [
-        (Check::Large { key: Box::new([]) }, "- `Check { why: Large }`: \""),
-        (Check::Load { key: Box::new([]) }, "- `Check { why: Load }`: \""),
-        (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
+        (Older::Behind, "- `OlderBuild { why: Behind }`: \""),
+        (Older::Unregistered, "- `OlderBuild { why: Unregistered }`: \""),
     ] {
-        says(OpenRefusal::Check { why }, start, "\"");
+        says(OpenRefusal::OlderBuild { why }, start, "\"");
     }
 }

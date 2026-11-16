@@ -1,29 +1,29 @@
 //! Levels decide before the version and layout checks, with no file operation.
 use super::{assert_opened, assert_refusal, fixture_format, replacing, rows};
-use crate::patching::plan::{Levels, Planned};
 use crate::tests::{
     fixtures,
-    patching::{BASE, ROOM, SETS, levels},
+    owners::{BASE, SETS, levels},
 };
-use crate::{Event, Family, KeptFamily, Older, OpenRefusal, Owner, PatchSet, PatchSets, Store, format};
+use crate::upgrade::admission::Levels;
+use crate::{Event, Family, KeptFamily, OpenRefusal, Owner, OwnerSet, OwnerSets, Store, format};
 use skein_lib::{Queue, Token};
 
-const FOUR: PatchSets = PatchSets {
+const FOUR: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet { owner: Owner::Skein, ..BASE.sets[1] },
-        PatchSet { owner: Owner::Smith, ..BASE.sets[1] },
-        BASE.sets[1],
-        BASE.sets[0],
+        OwnerSet { owner: Owner::Skein, families: &[], level: Some(0), ..BASE.sets[1] },
+        OwnerSet { owner: Owner::Smith, families: &[], level: Some(0), ..BASE.sets[1] },
+        OwnerSet { level: Some(0), ..BASE.sets[1] },
+        OwnerSet { level: Some(0), ..BASE.sets[0] },
     ],
 };
 const ZERO: Levels = Levels { skein: Some(0), smith: Some(0), jig: Some(0), application: Some(0) };
 
-fn store(found: Levels, sets: PatchSets) -> Store {
+fn store(found: Levels, sets: OwnerSets) -> Store {
     let (key, mut row) = fixture_format();
     row.levels = found;
     let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format fits") });
-    store.patch_sets(sets);
-    store.limits.store.value = ROOM.bytes;
+    store.owner_sets(sets);
+    store.limits.store.value = 128;
     store
 }
 fn open(store: &mut Store) -> Box<[Event]> {
@@ -52,7 +52,7 @@ fn each_owner_past_the_binary_refuses_before_any_file_operation() {
         refused(&mut store(found, FOUR), OpenRefusal::Ahead { owner, found: Some(1), wanted: Some(0) });
         let mut found = format::NONE;
         found.set(owner, Some(0));
-        refused(&mut store(found, PatchSets::NONE), OpenRefusal::Ahead { owner, found: Some(0), wanted: None });
+        refused(&mut store(found, OwnerSets::NONE), OpenRefusal::Ahead { owner, found: Some(0), wanted: None });
     }
 }
 #[test]
@@ -65,170 +65,85 @@ fn ahead_wins_over_unleveled_and_behind_in_upstream_order() {
         refused(&mut store(found, sets), OpenRefusal::Ahead { owner, found: found.of(owner), wanted });
     }
 }
-#[test]
-fn any_unleveled_owner_refuses_even_when_jig_is_leveled() {
-    for owner in [Owner::Skein, Owner::Smith, Owner::Jig, Owner::Application] {
-        let mut found = ZERO;
-        found.set(owner, None);
-        refused(&mut store(found, FOUR), OpenRefusal::OlderBuild { why: Older::Unleveled });
-    }
-    for found in [Levels { jig: Some(0), ..format::NONE }, Levels { application: Some(0), ..format::NONE }] {
-        refused(&mut store(found, SETS), OpenRefusal::OlderBuild { why: Older::Unleveled });
-    }
-}
+
 #[test]
 fn levels_refuse_before_versions_and_layouts_are_considered() {
     let (key, mut row) = fixture_format();
     row.levels = Levels { jig: Some(3), ..format::NONE };
     row.tasks = 1;
     let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
-    store.patch_sets(SETS);
-    store.limits.store.value = ROOM.bytes;
+    store.owner_sets(SETS);
+    store.limits.store.value = 128;
     refused(&mut store, OpenRefusal::Ahead { owner: Owner::Jig, found: Some(3), wanted: Some(2) });
 }
 #[test]
 fn a_later_component_version_refuses_ahead_without_reading_its_levels() {
-    for sets in [PatchSets::NONE, SETS] {
+    for sets in [OwnerSets::NONE, SETS] {
         let (key, _) = fixture_format();
         // Only the version prefix is readable; none of the later row is needed.
         let mut store = replacing(skein_kv::Op::Put { key, value: Box::new([0, 4]) });
-        store.patch_sets(sets);
-        store.limits.store.value = ROOM.bytes;
+        store.owner_sets(sets);
+        store.limits.store.value = 128;
         refused(
             &mut store,
-            OpenRefusal::Ahead { owner: Owner::Jig, found: None, wanted: crate::patching::plan::binary(&sets).jig },
+            OpenRefusal::Ahead { owner: Owner::Jig, found: None, wanted: crate::upgrade::admission::binary(&sets).jig },
         );
     }
 }
+
 #[test]
-fn a_row_from_ls_build_refuses_as_the_older_component_layout() {
-    // L's complete version-3 row, before Levels was added in place: the
-    // family's prefix, its seven versions, application 1 and deployment 7.
-    const L_ROW: &[u8] =
-        &[0, 3, 0, 3, 0, 6, 0, 9, 0, 13, 0, 1, 0, 2, 0, 1, 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7];
-    let (key, _) = fixture_format();
-    refused(
-        &mut replacing(skein_kv::Op::Put { key, value: Box::from(L_ROW) }),
-        OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) },
-    );
-}
-#[test]
-fn equal_levels_check_versions_and_only_unleveled_layouts() {
+fn equal_levels_check_current_versions_and_unregistered_layouts() {
     for found in [format::NONE, levels(0, 0)] {
-        let sets = if found == format::NONE { PatchSets::NONE } else { BASE };
+        let sets = if found == format::NONE { OwnerSets::NONE } else { BASE };
         assert_opened(&open(&mut store(found, sets)), 1);
         let (key, mut row) = fixture_format();
         row.levels = found;
         row.application = 2;
         let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
-        changed.patch_sets(sets);
+        changed.owner_sets(sets);
         refused(&mut changed, OpenRefusal::Format { family: Family::Application, found: 2, wanted: 1 });
         let mut changed = store(found, sets);
         changed.layouts.core[0] ^= 1;
-        if found.jig.is_none() {
-            refused(&mut changed, OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) });
-        } else {
-            assert_opened(&open(&mut changed), 1);
-        }
+        assert_opened(&open(&mut changed), 1);
     }
 }
-#[test]
-fn behind_plans_before_ready_and_ignores_only_the_application_version() {
-    let (key, mut row) = fixture_format();
-    row.levels = levels(0, 0);
-    row.application = 0;
-    let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
-    store.patch_sets(SETS);
-    store.limits.store.value = ROOM.bytes;
-    assert_opened(&open(&mut store), 1);
-    let pending = store.directory.patch.as_ref().expect("open made the plan");
-    assert_eq!(pending.found, levels(0, 0));
-    assert_eq!(
-        pending.plan.steps(),
-        &[
-            Planned { owner: Owner::Application, patch: 1 },
-            Planned { owner: Owner::Jig, patch: 1 },
-            Planned { owner: Owner::Application, patch: 2 },
-            Planned { owner: Owner::Jig, patch: 2 },
-        ]
-    );
-    assert_eq!(pending.machines.len(), 4);
-}
-#[test]
-fn behind_keeps_versions_deployment_and_numbers_checks() {
-    let (key, mut row) = fixture_format();
-    row.levels = levels(0, 0);
-    row.core = 5;
-    let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
-    changed.patch_sets(SETS);
-    refused(&mut changed, OpenRefusal::Format { family: Family::Core, found: 5, wanted: 6 });
-    for (op, why) in [
-        (fixtures::header_put(fixtures::OTHER_DEPLOYMENT, 2), OpenRefusal::Deployment),
-        (fixtures::header_put(fixtures::DEPLOYMENT, 0), OpenRefusal::Numbers { store: 2, header: 0 }),
-    ] {
-        let mut changed = store(levels(0, 0), SETS);
-        fixtures::plant(&mut changed.stores, &[op]);
-        refused(&mut changed, why);
-    }
-}
-#[test]
-fn unplannable_headers_and_unchained_blocks_refuse_set_before_file_operations() {
-    const BAD_HEADER: PatchSets = PatchSets {
-        sets: &[PatchSet { level: Some(1), patches: &["patch 1\nowner other 1\n"], ..SETS.sets[0] }, SETS.sets[1]],
-    };
-    const UNCHAINED: PatchSets = PatchSets {
-        sets: &[
-            PatchSet {
-                level: Some(2),
-                patches: &[
-                    "patch 1\nowner fixture 1\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
-                    "patch 1\nowner fixture 2\nfamily fixture-label 1 to 2\nadd Label.color option u8 none\n",
-                ],
-                ..SETS.sets[0]
-            },
-            SETS.sets[1],
-        ],
-    };
-    for (sets, patch) in [(BAD_HEADER, 1), (UNCHAINED, 2)] {
-        refused(&mut store(levels(0, 0), sets), OpenRefusal::Set { owner: Owner::Application, patch });
-    }
-}
+
 #[test]
 fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
     // The manifest counts each kept family by name: at most 64, each at most 64 bytes.
     const BOUND: &str = "fixture-label-at-the-manifests-sixty-four-byte-family-name-bound";
     const PAST: &str = "fixture-label-at-the-manifests-sixty-four-byte-family-name-bounds";
-    const AT_BOUND: PatchSets = PatchSets {
+    const AT_BOUND: OwnerSets = OwnerSets {
         sets: &[
-            PatchSet { families: &[KeptFamily { name: BOUND, ..SETS.sets[0].families[0] }], ..SETS.sets[0] },
+            OwnerSet { families: &[KeptFamily { name: BOUND, ..SETS.sets[0].families[0] }], ..SETS.sets[0] },
             SETS.sets[1],
         ],
     };
-    const LONG: PatchSets = PatchSets {
+    const LONG: OwnerSets = OwnerSets {
         sets: &[
-            PatchSet { families: &[KeptFamily { name: PAST, ..SETS.sets[0].families[0] }], ..SETS.sets[0] },
+            OwnerSet { families: &[KeptFamily { name: PAST, ..SETS.sets[0].families[0] }], ..SETS.sets[0] },
             SETS.sets[1],
         ],
     };
     // Sixty-four of the application's, so jig's one family is the 65th.
-    const MANY: PatchSets =
-        PatchSets { sets: &[PatchSet { families: &[SETS.sets[0].families[0]; 64], ..SETS.sets[0] }, SETS.sets[1]] };
+    const MANY: OwnerSets =
+        OwnerSets { sets: &[OwnerSet { families: &[SETS.sets[0].families[0]; 64], ..SETS.sets[0] }, SETS.sets[1]] };
     assert_eq!((BOUND.len(), PAST.len()), (64, 65));
     for (sets, owner) in [(LONG, Owner::Application), (MANY, Owner::Jig)] {
-        let why = OpenRefusal::Set { owner, patch: 0 };
-        // Behind: the plan refuses before any file operation.
-        refused(&mut store(levels(0, 0), sets), why.clone());
+        let why = OpenRefusal::Set { owner };
+        // Equal levels: admission refuses before any file operation.
+        refused(&mut store(levels(2, 2), sets), why.clone());
         // A first start: nothing is made in the empty deployment.
         let mut disk = fixtures::disk::Disk::new(&[]);
         let before = disk.contents();
         let mut first = disk.store();
-        first.patch_sets(sets);
+        first.owner_sets(sets);
         assert_refusal(&disk.open(&mut first), why);
         assert_eq!(disk.contents(), before);
     }
     let mut disk = fixtures::disk::Disk::new(&[]);
     let mut first = disk.store();
-    first.patch_sets(AT_BOUND);
+    first.owner_sets(AT_BOUND);
     let events = disk.open(&mut first);
     let [Event::Opened { .. }, Event::Census { .. }] = &*events else {
         panic!("a first start at the bound opens: {events:?}")
@@ -238,242 +153,4 @@ fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
         manifest.expect("first manifest").counts,
         fixtures::manifest_counts(&[(BOUND, 0, 0), ("fixture-note", 0, 0)])
     );
-}
-
-const MOVED_JIG: PatchSets = PatchSets {
-    sets: &[PatchSet {
-        jobs: &[],
-        owner: Owner::Jig,
-        name: "jig",
-        level: Some(1),
-        patches: &[
-            "patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\nfamily jig-store-people 14 to 15\n",
-        ],
-        fresh: None,
-        families: &[
-            KeptFamily {
-                retired: &[],
-                current: "family jig-store-people 15\nversioned record Data { value: u8 }\n",
-                types: &[],
-                name: "jig-store-people",
-                texts: &[
-                    "family jig-store-people 14\nversioned record Data { value: u8 }\n",
-                    "family jig-store-people 15\nversioned record Data { value: u8 }\n",
-                ],
-                map: crate::KeptMap::Store,
-                keys: &[],
-                frames: None,
-                flights: &[],
-            },
-            KeptFamily {
-                retired: &[],
-                current: "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
-                types: &[],
-                name: "jig-store-tasks",
-                texts: &[
-                    "family jig-store-tasks 9\nversioned record Data { value: u8 }\n",
-                    "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
-                ],
-                map: crate::KeptMap::Store,
-                keys: &[],
-                frames: None,
-                flights: &[],
-            },
-            KeptFamily {
-                retired: &[],
-                current: "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
-                types: &[],
-                name: "jig-store-settings",
-                texts: &[
-                    "family jig-store-settings 1\nrecord Model { value: u8 }\n",
-                    "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
-                ],
-                map: crate::KeptMap::Store,
-                keys: &[],
-                frames: None,
-                flights: &[],
-            },
-        ],
-    }],
-};
-
-fn at_jig_level(level: u32, tasks: u16) -> Store {
-    let (key, _) = fixture_format();
-    let row = crate::codec::component::Format {
-        tasks,
-        application: fixtures::APPLICATION.version,
-        deployment: fixtures::DEPLOYMENT,
-        levels: Levels { jig: Some(level), ..format::NONE },
-        ..crate::baseline::BASELINE.format
-    };
-    let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("level format") });
-    store.patch_sets(MOVED_JIG);
-    store.limits.store.value = ROOM.bytes;
-    store
-}
-
-#[test]
-fn jig_behind_opens_at_its_baseline_versions_and_patches_to_current() {
-    let mut store = at_jig_level(0, 9);
-    assert_opened(&open(&mut store), 1);
-    let pending = store.directory.patch.as_mut().expect("jig patch planned");
-    let family = pending.machines.named(b"jig-store-tasks").expect("tasks machine");
-    let machine = pending.machines.get(family);
-    assert_eq!(machine.reached, 9);
-    let plan = machine.at(1).expect("tasks patch");
-    let patcher = pending.machines.patcher(family);
-    patcher.start(plan, skein_codec::schema::DeclIx::new(0), Box::new([0, 9, 42])).unwrap();
-    assert_eq!(patcher.next(), Ok(skein_codec::patch::Step::Done));
-    assert_eq!(patcher.finish().unwrap(), [0, 10, 42, 0]);
-}
-
-#[test]
-fn a_fixture_set_without_tasks_uses_the_binarys_tasks_version_at_zero() {
-    assert_opened(&open(&mut store(levels(0, 0), SETS)), 1);
-    let (key, mut row) = fixture_format();
-    row.levels = levels(0, 0);
-    row.tasks = crate::baseline::BASELINE.format.tasks;
-    let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("fixture format") });
-    changed.patch_sets(SETS);
-    changed.limits.store.value = ROOM.bytes;
-    refused(
-        &mut changed,
-        OpenRefusal::Format {
-            family: Family::Tasks,
-            found: u32::from(row.tasks),
-            wanted: u32::from(format::current(row.application, row.deployment).tasks),
-        },
-    );
-}
-
-#[test]
-fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
-    let current = u32::from(format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT).tasks);
-    for (level, tasks, wanted) in [(0, 10, 9), (1, 9, current)] {
-        refused(
-            &mut at_jig_level(level, tasks),
-            OpenRefusal::Format { family: Family::Tasks, found: u32::from(tasks), wanted },
-        );
-    }
-}
-
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "baseline recognition and equal/unleveled layout cases share one format fixture"
-)]
-fn baseline_and_unleveled_rows_compare_by_owner() {
-    use crate::baseline::BASELINE;
-    use crate::codec::component::{Format, Layouts};
-    use crate::keys::{self, Own};
-    const UNLEVELED: OpenRefusal = OpenRefusal::OlderBuild { why: Older::Unleveled };
-    let baseline =
-        Format { application: fixtures::APPLICATION.version, deployment: fixtures::DEPLOYMENT, ..BASELINE.format };
-    let changed_layout = Layouts { core: [0; 32], ..BASELINE.layouts };
-    let changed_skein = Layouts { skein_oauth: [0; 32], ..BASELINE.layouts };
-    let changed_version = Format { core: 5, ..baseline };
-    let current = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
-    let old_tasks: Result<(), OpenRefusal> = Err(OpenRefusal::Format {
-        family: Family::Tasks,
-        found: u32::from(baseline.tasks),
-        wanted: u32::from(current.tasks),
-    });
-    // Recognition precedes the version check; fixture sets that omit a family
-    // still require the binary's version for it.
-    for (name, row, layouts, binary_layouts, sets, expected, pending) in [
-        ("baseline to zero", baseline, Some(BASELINE.layouts), BASELINE.layouts, FOUR, old_tasks.clone(), None),
-        (
-            "recorded zero",
-            Format { levels: ZERO, ..baseline },
-            Some(BASELINE.layouts),
-            BASELINE.layouts,
-            FOUR,
-            old_tasks.clone(),
-            None,
-        ),
-        (
-            "baseline behind",
-            baseline,
-            Some(BASELINE.layouts),
-            BASELINE.layouts,
-            SETS,
-            old_tasks.clone(),
-            Some(levels(0, 0)),
-        ),
-        ("no sets", baseline, Some(BASELINE.layouts), BASELINE.layouts, PatchSets::NONE, old_tasks.clone(), None),
-        ("wrong layout", baseline, Some(changed_layout), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
-        ("wrong version", changed_version, Some(BASELINE.layouts), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
-        ("missing layouts", baseline, None, BASELINE.layouts, FOUR, Err(UNLEVELED), None),
-        (
-            "mixed levels",
-            Format { levels: Levels { jig: Some(0), ..format::NONE }, ..baseline },
-            Some(BASELINE.layouts),
-            BASELINE.layouts,
-            FOUR,
-            Err(UNLEVELED),
-            None,
-        ),
-        (
-            "equal set layout differs",
-            Format { levels: ZERO, ..current },
-            Some(changed_layout),
-            BASELINE.layouts,
-            FOUR,
-            Ok(()),
-            None,
-        ),
-        (
-            "both none layout differs",
-            current,
-            Some(changed_layout),
-            BASELINE.layouts,
-            PatchSets::NONE,
-            Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) }),
-            None,
-        ),
-        (
-            "binary moved beyond baseline layout",
-            baseline,
-            Some(BASELINE.layouts),
-            changed_layout,
-            FOUR,
-            old_tasks,
-            None,
-        ),
-        (
-            "unleveled upstream still checked",
-            Format { levels: levels(0, 0), ..current },
-            Some(changed_skein),
-            BASELINE.layouts,
-            BASE,
-            Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::SkeinOauth) }),
-            None,
-        ),
-    ] {
-        let own = |key| keys::encode_own(&key, fixtures::KEY_LIMIT).expect("own key");
-        let ops = [
-            skein_kv::Op::Put { key: own(Own::Format), value: row.encode().expect("baseline format") },
-            fixtures::header_put(fixtures::DEPLOYMENT, 1),
-            fixtures::installation_put(fixtures::INSTALLATION),
-            match layouts {
-                Some(layouts) => skein_kv::Op::Put { key: own(Own::Layouts), value: layouts.encode() },
-                None => skein_kv::Op::Erase { key: own(Own::Layouts) },
-            },
-        ];
-        let mut store = super::planted(&ops);
-        store.layouts = binary_layouts;
-        store.patch_sets(sets);
-        store.limits.store.value = ROOM.bytes;
-        match expected {
-            Ok(()) => {
-                assert_opened(&open(&mut store), 1);
-                let planned = match store.directory.patch.as_ref() {
-                    Some(patch) => Some(patch.found),
-                    None => None,
-                };
-                assert_eq!(planned, pending, "{name}");
-            }
-            Err(why) => refused(&mut store, why),
-        }
-    }
 }

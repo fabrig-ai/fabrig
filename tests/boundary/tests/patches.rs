@@ -1,4 +1,4 @@
-//! Stored changes bring their patches (temper/docs/design/protocol/baseline.md, 7).
+//! Wires and formats outside the registry keep their patches (skein/docs/design/data/codec/command.md, 2).
 //! Landed files come from git, as in skein/docs/design/data/codec/command.md, 8;
 //! the owner inventory also covers every crate with `schema/kept/`.
 
@@ -16,9 +16,7 @@ const OWNERS: &[&str] = &[
     "smith/crates/smith-charter",
     "smith/crates/smith-channel",
     "jig/crates/jig-protocol-worker-wire",
-    "jig/crates/jig-protocol-store",
     "jig/crates/jig-protocol-accounts",
-    "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-records",
     "temper/crates/temper-protocol-worker-wire",
 ];

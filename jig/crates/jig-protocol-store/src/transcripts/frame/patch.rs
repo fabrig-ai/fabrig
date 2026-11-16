@@ -1,6 +1,6 @@
 //! One decode step for every transcript read, including asynchronous sites (protocol/store/transcripts.md 6).
 use super::{Unread, WRAPPER_BYTES, body};
-use crate::patching::walk::held_root;
+use crate::transcripts::patches::held_root;
 use crate::transcripts::patches::{Machine, Machines};
 use crate::{Owner, codec};
 use alloc::boxed::Box;

@@ -562,7 +562,7 @@ impl Store {
                 unreachable!("an engine store never rehearses or goes back")
             }
             // This world does not consume the census (jig protocol/store/README.md, 6.3).
-            Event::Census { .. } | Event::Patched { .. } => {}
+            Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");
                 for write in &writes {

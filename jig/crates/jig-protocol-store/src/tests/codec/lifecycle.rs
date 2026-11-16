@@ -46,7 +46,7 @@ fn attempts_holds_and_open_attempts_round_trip() {
 #[test]
 fn task_runs_written_without_open_attempt_read_with_none() {
     let mut text = None;
-    for family in crate::JIG_STORE_PATCH_SET.families {
+    for family in crate::JIG_STORE_SET.families {
         if family.name == "jig-store-tasks" {
             text = Some(family.current);
         }

@@ -1,6 +1,6 @@
 //! Declared environment names (skein/docs/foundation/cli.md, 5 and 9, check 5).
 //! Tracked UTF-8 files outside docs name only variables declared by their tree,
-//! in the set their names say. Tokens ending `_PATCH_SET` are Rust patch-set
+//! in the set their names say. Owner-set constants are Rust
 //! constants, not variables. Generated `patches/mod.rs` modules are not read;
 //! authored patch functions and context are. Every declaration is read or set outside docs.
 //! Each file is split into maximal ASCII words in one pass, looking each word up
@@ -30,13 +30,10 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "HEARTH_BLESS", until: "hearth's round" },
     Exception { what: "HEARTH_RECORD", until: "hearth's round" },
     Exception { what: "HEARTH_TASKS", until: "hearth's round" },
-    Exception { what: "JIG_APPLIED", until: "jig's round" },
     Exception { what: "JIG_CORE_SETTINGS_SEEDS", until: "jig's round" },
-    Exception { what: "JIG_LEVEL", until: "jig's round" },
     Exception { what: "JIG_ONLY", until: "jig's round" },
     Exception { what: "JIG_SETTINGS_PROPOSALS_SEED", until: "jig's round" },
     Exception { what: "JIG_SOURCE_CHECK", until: "jig's round" },
-    Exception { what: "JIG_STEP", until: "jig's round" },
     Exception { what: "JIG_TEST_BUNDLE", until: "jig's round" },
     Exception { what: "JIG_WORLD_TRACE", until: "jig's round" },
     Exception { what: "JIG_WRAPPER", until: "jig's round" },
@@ -130,6 +127,10 @@ fn named_tree<'a>(name: &str, trees: &[(&'a str, &str)]) -> Option<&'a str> {
     })
 }
 
+fn owner_set(word: &str) -> bool {
+    ["SKEIN_SET", "SMITH_SET", "JIG_STORE_SET", "JIG_SET"].contains(&word)
+}
+
 fn named_set(name: &str) -> &str {
     let suffix = name.split_once('_').map_or("", |(_, suffix)| suffix);
     if suffix.starts_with("INTERNAL_") {
@@ -176,7 +177,7 @@ impl Names {
                 continue;
             }
             let word = std::str::from_utf8(word).expect("word bytes are ASCII");
-            let token = named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET");
+            let token = named_tree(word, trees).is_some() && !owner_set(word);
             if token && !self.tokens.contains(word) {
                 self.tokens.insert(word.to_owned());
             }
@@ -310,14 +311,14 @@ fn only_generated_patch_modules_are_skipped() {
 }
 
 #[test]
-fn patch_set_constants_are_not_environment_names_but_patch_settings_are() {
+fn owner_set_constants_are_not_environment_names_but_patch_names_are() {
     let mut names = Names::default();
     names.file(
-        "JIG_PATCH_SET SKEIN_PATCH_SET SMITH_PATCH_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_PATCH_SETTING",
+        "JIG_SET SKEIN_SET SMITH_SET JIG_STORE_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_SETTING",
         TREES,
         &BTreeSet::new(),
     );
-    assert_eq!(names.findings(TREES), ["JIG_PATCH_SETTING"]);
+    assert_eq!(names.findings(TREES), ["HEARTH_PATCH_SET", "JIG_SETTING", "TEMPER_PATCH_SET"]);
 }
 
 #[test]
@@ -406,7 +407,7 @@ fn one_pass_matches_per_name_search() {
 
         for (_, prefix) in trees {
             for word in words_with(text, prefix) {
-                if named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET") {
+                if named_tree(word, trees).is_some() && !owner_set(word) {
                     names.tokens.insert(word.to_owned());
                     names.used.insert(word.to_owned());
                 }
