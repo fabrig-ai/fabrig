@@ -252,21 +252,47 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         }
         b.close();
         let names = Names::of(root);
-        let mut any = false;
+        let mut shown = List::uncapped();
         for line in live.rows.iter().chain(page.ended()) {
             let report = page.report(line.chip.task);
             let state =
                 goals::state(&line.chip, page.needs_person(line.chip.task), report.is_some(), line.delegates_total);
             if goals::shown(page.filter, state) {
-                if !any {
-                    b.open(Role::Slot);
-                    b.style(look::GOALS_ROWS);
-                    any = true;
-                }
-                row(b, words, bindings, times, line, state, report, &names);
+                shown.push(line.clone()).expect("held goals fit");
             }
         }
-        if any {
+        if !shown.is_empty() {
+            b.open(Role::Slot);
+            b.style(look::GOALS_ROWS);
+            let milestones = root.pages().milestones();
+            for group in &goals::groups(shown.as_slice(), milestones) {
+                match *group {
+                    goals::GroupRow::Goal(task) => {
+                        if let Some(line) = goals::goal(shown.as_slice(), &[], task) {
+                            held_row(b, words, bindings, times, page, line, &names);
+                        }
+                    }
+                    goals::GroupRow::Milestone(task) => {
+                        if let Some(milestones) = milestones
+                            && let Some(line) = goals::goal(milestones.lines(), &[], task)
+                            && let Some(milestone) = milestones.milestone(task)
+                        {
+                            b.open(Role::Slot);
+                            b.style(look::GOALS_GROUP);
+                            super::milestones::row(b, words, bindings, line, milestone, page, &names);
+                            b.open(Role::Slot);
+                            b.style(look::GOALS_GROUP_ROWS);
+                            for goal in &shown {
+                                if milestones.of(goal) == Some(task) {
+                                    held_row(b, words, bindings, times, page, goal, &names);
+                                }
+                            }
+                            b.close();
+                            b.close();
+                        }
+                    }
+                }
+            }
             b.close();
         } else if page.known(root.client()) {
             text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
@@ -287,6 +313,21 @@ fn text(b: &mut Builder, role: Role, style: skein_ui::Style, value: &[u8]) {
     b.style(style);
     b.text(Run::Plain, value);
     b.close();
+}
+
+/// A held goal uses the shared read's report and needs.
+pub(crate) fn held_row(
+    b: &mut Builder,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    page: &Goals,
+    line: &c::TaskLine,
+    names: &Names<'_>,
+) {
+    let report = page.report(line.chip.task);
+    let state = goals::state(&line.chip, page.needs_person(line.chip.task), report.is_some(), line.delegates_total);
+    row(b, words, bindings, times, line, state, report, names);
 }
 
 /// A goal's state word and token (client/pages/README.md, client/pages/goal.md, 2).

@@ -207,6 +207,97 @@ fn totals_read(down: &[Down]) -> Token {
 }
 
 #[test]
+fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position() {
+    use crate::pages::goals::{
+        GroupRow::{Goal, Milestone},
+        groups, home_rows,
+    };
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    h.live(listed, &[line(M, Wall::from_nanos(9))]);
+    let children = watch(&h.down(), None, Some(M), WINDOW);
+    let mut g3 = line(3, Wall::from_nanos(11));
+    g3.requester = c::Requester::Task(M);
+    let mut g4 = done(4);
+    g4.last_activity = Wall::from_nanos(8);
+    g4.requester = c::Requester::Task(M);
+    h.live(children, core::slice::from_ref(&g3));
+    // The shared read can know a goal before the milestone's ended read answers.
+    let g1 = line(1, Wall::from_nanos(10));
+    let g2 = done(2);
+    let live = [g1.clone(), g3.clone()];
+    let ended = [g2.clone(), g4.clone()];
+    assert_eq!(home_rows(&live, &ended, Some(h.reads()), WALL).as_slice(), [Milestone(M), Goal(1), Goal(2)]);
+    assert_eq!(groups(&[g1.clone(), g4, g2.clone(), g3], Some(h.reads())).as_slice(), [Goal(1), Milestone(M), Goal(2)]);
+    // Equal activity takes the lower task, even when its kind differs.
+    let tie = line(1, Wall::from_nanos(11));
+    assert_eq!(home_rows(&[tie], &[], Some(h.reads()), WALL).as_slice(), [Goal(1), Milestone(M)]);
+    let live: Vec<_> = (1..=6).map(|task| line(task, Wall::from_nanos(task))).collect();
+    let mut older = done(8);
+    older.ended_at = Some(Wall::from_nanos(1));
+    assert_eq!(home_rows(&live, core::slice::from_ref(&g2), None, WALL).len(), 6);
+    assert_eq!(home_rows(&live[..2], &[older, done(7)], None, WALL).as_slice(), [Goal(2), Goal(1), Goal(7), Goal(8)]);
+    assert_eq!(
+        home_rows(&live[..2], core::slice::from_ref(&g1), None, WALL).as_slice(),
+        [Goal(2), Goal(1)],
+        "a goal appears once"
+    );
+    let children: Vec<_> = (10..18)
+        .map(|task| {
+            let mut goal = line(task, Wall::from_nanos(task));
+            goal.requester = c::Requester::Task(M);
+            goal
+        })
+        .collect();
+    let mut live = children;
+    live.push(g1);
+    let ended: Vec<_> = (20..26).map(done).collect();
+    assert_eq!(
+        home_rows(&live, &ended, Some(h.reads()), WALL).as_slice(),
+        [Milestone(M), Goal(1), Goal(20), Goal(21), Goal(22)],
+        "five rows after grouping, not ten live goals"
+    );
+}
+
+#[test]
+fn home_rows_hide_old_milestones_and_keep_unknown_and_undrawn_goals() {
+    use crate::pages::goals::{
+        GroupRow::{Goal, Milestone},
+        home_rows,
+    };
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    let ended_read = ended_read(&opened, Some(LABEL), None);
+    let mut recent = done(100);
+    recent.ended_at = Some(Wall::from_nanos(7 * DAY));
+    let mut old = done(101);
+    old.ended_at = Some(Wall::from_nanos(2 * DAY));
+    h.answer(ended_read, page(&[old, recent], false));
+    let mut unknown = line(1, WALL);
+    unknown.requester = c::Requester::Task(999);
+    let mut recent_goal = done(2);
+    recent_goal.requester = c::Requester::Task(100);
+    let mut old_goal = done(3);
+    old_goal.requester = c::Requester::Task(101);
+    assert_eq!(
+        home_rows(&[unknown], &[recent_goal, old_goal], Some(h.reads()), WALL).as_slice(),
+        [Goal(1), Milestone(100)]
+    );
+    let many: Vec<_> = (200..217).map(|task| line(task, WALL)).collect();
+    h.live(listed, &many);
+    let mut undrawn = line(4, WALL);
+    undrawn.requester = c::Requester::Task(216);
+    assert!(h.reads().milestone(216).is_none());
+    let rows = home_rows(&[undrawn], &[], Some(h.reads()), WALL);
+    assert!(rows.as_slice().contains(&Goal(4)));
+    assert_eq!(rows.len(), 17, "live rows are counted after grouping");
+}
+
+#[test]
 fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
     let root = crate::unlinked(&limits(), f::SEED);
     let mut next = 31;

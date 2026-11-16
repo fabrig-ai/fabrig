@@ -274,6 +274,7 @@ fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
     b.close();
 }
 fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
+    use temper_client_domain::pages::goals::{GroupRow, goal, home_rows};
     let Some(goals) = root.pages().goals() else { return };
     b.open(Role::Region);
     b.style(look::GOALS_SECTION);
@@ -281,7 +282,8 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     b.open(Role::Slot);
     b.style(look::HOME_HEAD);
     text(b, Role::Heading { level: 2 }, &w.say(Word::Goals, &[]), None);
-    let label = w.say(Word::HomeAllChats, &[Hole::Number(u64::from(goals.count(root.client())))]);
+    let word = if goals.unread(root.client()) { Word::HomeAllGoalsCut } else { Word::HomeAllGoals };
+    let label = w.say(word, &[Hole::Number(u64::from(goals.count(root.client())))]);
     go(b, bindings, &label, Address::Goals { project, filter: GoalsFilter::All }, None);
     b.close();
     let live = match goals.live(root.client()) {
@@ -291,15 +293,23 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     b.open(Role::Slot);
     b.style(look::GOALS_ROWS);
     let names = super::goals::Names::of(root);
-    for line in live.iter().chain(goals.ended()).take(ROWS.max(live.len())) {
-        let report = goals.report(line.chip.task);
-        let state = temper_client_domain::pages::goals::state(
-            &line.chip,
-            goals.needs_person(line.chip.task),
-            report.is_some(),
-            line.delegates_total,
-        );
-        super::goals::row(b, w, bindings, times, line, state, report, &names);
+    let milestones = root.pages().milestones();
+    for row in &home_rows(live, goals.ended(), milestones, times.now) {
+        match *row {
+            GroupRow::Goal(task) => {
+                if let Some(line) = goal(live, goals.ended(), task) {
+                    super::goals::held_row(b, w, bindings, times, goals, line, &names);
+                }
+            }
+            GroupRow::Milestone(task) => {
+                if let Some(milestones) = milestones
+                    && let Some(line) = goal(milestones.lines(), &[], task)
+                    && let Some(milestone) = milestones.milestone(task)
+                {
+                    super::milestones::row(b, w, bindings, line, milestone, goals, &names);
+                }
+            }
+        }
     }
     b.close();
     b.close();

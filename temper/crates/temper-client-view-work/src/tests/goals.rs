@@ -916,6 +916,76 @@ fn the_filters_press_and_move() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects grouped semantic subtrees")]
+fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
+    let mut page = Page::populated();
+    let m = fixtures::milestones::TASK;
+    let mut planning = page_line(PLANNING_TASK, State::Planning);
+    planning.requester = c::Requester::Task(m);
+    let mut needs = page_line(NEEDS_TASK, State::Needs { funds: false });
+    needs.requester = c::Requester::Task(m);
+    let mut landed = page_line(LANDED_TASK, State::Landed);
+    landed.requester = c::Requester::Task(m);
+    let mut unknown = page_line(PAUSED_TASK, State::Paused);
+    unknown.requester = c::Requester::Task(9999);
+    page.live(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false);
+    page.ended(&[landed.clone(), page_line(FAILED_TASK, State::Failed)], false);
+    let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
+    let listed = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);
+    let mut milestone = line();
+    milestone.chip.task = m;
+    milestone.chip.title = fixtures::goal::text(b"Store shape");
+    let mut empty = milestone.clone();
+    empty.chip.task = m + 1;
+    let out = fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
+    let children = fixtures::milestones::watch(&out, None, Some(m), PAGE_ROWS);
+    fixtures::milestones::live(&mut page.root, &page.limits, children, &[planning, needs, landed], false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        for (filter, expected, children) in [
+            (
+                GoalsFilter::All,
+                &[RUNNING_TASK, m, PLANNING_TASK, NEEDS_TASK, LANDED_TASK, PAUSED_TASK, FAILED_TASK][..],
+                &[PLANNING_TASK, NEEDS_TASK, LANDED_TASK][..],
+            ),
+            (GoalsFilter::Live, &[RUNNING_TASK, m, PLANNING_TASK, PAUSED_TASK][..], &[PLANNING_TASK][..]),
+            (GoalsFilter::Needs, &[m, NEEDS_TASK][..], &[NEEDS_TASK][..]),
+            (GoalsFilter::Ended, &[m, LANDED_TASK, FAILED_TASK][..], &[LANDED_TASK][..]),
+        ] {
+            page.filter(filter);
+            let (tree, bindings) = page.tree(&words);
+            assert_eq!(row_tasks(&tree, &bindings).as_ref(), expected);
+            assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), b"6 goals, 4 under way.");
+            let group = styled_node(&tree, look::GOALS_GROUP).unwrap();
+            let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::GOALS_GROUP)).unwrap();
+            let end = index + usize::try_from(group.size).unwrap();
+            let subtree = &tree.nodes()[index..end];
+            assert_eq!(
+                subtree.iter().filter(|n| n.styles.as_slice().contains(&look::GOALS_ROW)).count(),
+                children.len() + 1,
+                "{filter:?} {:?} group {group:?}",
+                words.shell
+            );
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::GOALS_GROUP)).count(),
+                1,
+                "no group without a shown goal"
+            );
+            assert!(styled_node(&tree, look::GOALS_GROUP_ROWS).is_some());
+            if words.shell == crate::words::Shell::Terminal {
+                let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), "milestone · Store shape".as_bytes()).is_some());
+            }
+        }
+    }
+    page.live(&[page_line(RUNNING_TASK, State::Running)], false);
+    page.filter(GoalsFilter::Needs);
+    let (tree, bindings) = page.tree(&fixtures::browser_words());
+    assert!(row_tasks(&tree, &bindings).is_empty());
+    assert!(styled_node(&tree, look::GOALS_GROUP).is_none());
+}
+
+#[test]
 fn each_filter_shows_its_states() {
     let mut page = Page::populated();
     for (filter, expected) in [

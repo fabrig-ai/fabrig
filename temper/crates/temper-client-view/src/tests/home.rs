@@ -2165,11 +2165,104 @@ fn goals_rows_are_live_first_and_at_least_five() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "the test inspects grouped semantic subtrees")]
+fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
+    let mut limits = home_limits();
+    limits.client.domain.handles = 96;
+    limits.client.domain.watches = 96;
+    limits.client.domain.reads = 64;
+    let (mut root, me_watch, ..) = f::home_root(&limits, forge_rows(true), Some(&[f::PROJECT]), true);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let member = me.projects.get_mut(0).unwrap();
+    let mut templates = List::uncapped();
+    for template in &member.templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(f::goals::template(jig_client::shapes::GOAL, b"goal", true)).unwrap();
+    member.templates = templates;
+    f::deliver_me(&mut root, me_watch, me);
+    let out = f::milestones::offer(&mut root, me_watch, &limits);
+    let fact = f::milestones::watch(&out, Some(f::milestones::LABEL), None, 1);
+    let mut milestone = f::goals::line();
+    milestone.chip.task = f::milestones::TASK;
+    milestone.chip.title = f::goal::text(b"Store shape");
+    f::milestones::live(&mut root, &limits, fact, core::slice::from_ref(&milestone), false);
+    let out = f::milestones::event(
+        &mut root,
+        &limits,
+        d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) },
+    );
+    let listed = f::milestones::watch(&out, Some(f::milestones::LABEL), None, limits.client.domain.rows);
+    let goal_label = root
+        .pages()
+        .me(root.client())
+        .unwrap()
+        .projects
+        .get(0)
+        .unwrap()
+        .templates
+        .iter()
+        .find(|t| t.number == jig_client::shapes::GOAL)
+        .unwrap()
+        .label;
+    let goals = f::milestones::watch(&out, Some(goal_label), None, limits.client.domain.rows);
+    let out = f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
+    let children = f::milestones::watch(&out, None, Some(f::milestones::TASK), limits.client.domain.rows);
+    assert!(root.has_goals(f::PROJECT), "a milestone alone replaces Chats");
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Region, b"Goals");
+        assert!(main_nodes(view.tree()).iter().all(|n| n.role != Role::Region || n.name.as_deref() != Some(b"Chats")));
+    }
+    let mut child = f::goals::line();
+    child.chip.task = 3;
+    child.chip.title = f::goal::text(b"S3 logs");
+    child.requester = c::Requester::Task(f::milestones::TASK);
+    child.last_activity = skein_lib::Wall::from_nanos(11);
+    let mut waiting = f::goals::line();
+    waiting.chip.task = 1;
+    waiting.chip.title = f::goal::text(b"A plain goal");
+    waiting.chip.phase = c::Phase::Waiting;
+    waiting.chip.details.phase =
+        c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([3])), more: false, holds: false };
+    f::milestones::live(&mut root, &limits, children, core::slice::from_ref(&child), false);
+    // The dependency is held only by the milestone, not the shared goals list.
+    for more in [true, false] {
+        f::milestones::live(&mut root, &limits, goals, core::slice::from_ref(&waiting), more);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let name = if more { b"All 1+ goals".as_slice() } else { b"All 1 goals".as_slice() };
+            let head = main_find(view.tree(), Role::Link, name);
+            assert_eq!(crate::href(&mut view, head).as_deref(), Some(b"/projects/1/goals".as_slice()));
+            let region = main_find(view.tree(), Role::Region, b"Goals");
+            let rows: Vec<_> = subtree(view.tree(), region)
+                .iter()
+                .filter(|n| n.styles.as_slice().contains(&crate::look::GOALS_ROW))
+                .collect();
+            assert_eq!(rows.len(), 2);
+            assert!(rows[0].styles.as_slice().contains(&crate::look::MS_ROW));
+            assert!(rows[1].name.as_deref().unwrap().starts_with(b"A plain goal"));
+            contains(&f::nodes_text(subtree(view.tree(), region)), "waits on S3");
+        }
+    }
+    f::milestones::live(&mut root, &limits, goals, &[waiting, child], false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Link, b"All 2 goals");
+        let region = main_find(view.tree(), Role::Region, b"Goals");
+        assert_eq!(
+            subtree(view.tree(), region)
+                .iter()
+                .filter(|n| n.styles.as_slice().contains(&crate::look::GOALS_ROW))
+                .count(),
+            2
+        );
+    }
+}
+
+#[test]
 fn all_n_links_to_goals() {
     let root = home_goals(2, 5, false);
     assert_eq!(root.pages().goals().unwrap().count(root.client()), 7);
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let link = main_find(view.tree(), Role::Link, b"All 7");
+        let link = main_find(view.tree(), Role::Link, b"All 7 goals");
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/goals".as_slice()));
         assert_eq!(
             crate::act(&mut view, link, Act::Press),

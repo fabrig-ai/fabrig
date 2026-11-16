@@ -2536,6 +2536,12 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app .temper-ms-strip > .temper-ms-failed { text-decoration: line-through; color: var(--gf-ink-2); }
 #app .temper-ms-strip > :is(.temper-ms-live, .temper-ms-needs) > span { color: var(--gf-ink); }
 #app .temper-ms-strip > .temper-ms-needs > span { color: var(--gf-signal); }
+#app .temper-ms-row .temper-ms-strip { margin: 6px 0 4px; }
+#app .temper-ms-row .temper-goals-top > span:first-child { color: var(--gf-ink-2); }
+#app .temper-goals-group-rows { padding-left: 16px; border-left: 1px solid var(--gf-line); }
+@media (max-width: 760px) {
+  #app .temper-ms-row .temper-goals-line { display: none; }
+}
 #app .temper-ms-tag { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 4px; background: var(--gf-ink); color: var(--gf-paper); font: 500 11px/1.7 var(--gf-sans); letter-spacing: .02em; }
 #app:has(> .temper-rail) .temper-goal-bar { display: flex; gap: 3px; margin: 0 0 10px; }
 #app:has(> .temper-rail) .temper-goal-bar > * { flex: 1; height: 6px; border-radius: 3px; background: var(--gf-line); }

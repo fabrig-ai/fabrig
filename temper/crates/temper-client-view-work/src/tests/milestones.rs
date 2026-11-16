@@ -179,6 +179,63 @@ fn the_milestone_headline_words_the_held_case_in_both_shells() {
 }
 
 #[test]
+fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
+    use crate::bindings::Bindings;
+    use temper_client_domain::{
+        Action, Address,
+        pages::{Act, goals::Goals},
+    };
+    let mut next = 50;
+    let mut milestone = pure::Milestone::new(f::PROJECT, 99, &mut next);
+    for task in 1..=8 {
+        milestone.goals.push(if task == 7 { line(task, b"S7 logs") } else { done(task, b"S1 done") }).unwrap();
+    }
+    milestone.totals = Some(totals(7, 0, 1));
+    for ended in [false, true] {
+        let listed = if ended { done(99, b"Store shape") } else { line(99, b"Store shape") };
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = Bindings::new(f::tree_limits().bindings);
+            milestones::row(&mut b, &words, &mut bindings, &listed, &milestone, &Goals::new(1), &Names::new());
+            let tree = b.finish();
+            let links: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Link).collect();
+            assert_eq!(links.len(), 1);
+            let link = links[0];
+            let expected = if ended {
+                "milestone · Store shape · 7 / 8 done · complete"
+            } else {
+                "milestone · Store shape · 7 / 8 done · running"
+            };
+            assert_eq!(link.name.as_deref(), Some(expected.as_bytes()));
+            assert!(link.styles.as_slice().contains(&look::GOALS_ROW));
+            assert!(link.styles.as_slice().contains(&look::MS_ROW));
+            assert_eq!(link.styles.as_slice().contains(&look::GOALS_ROW_ENDED), ended);
+            assert_eq!(
+                bindings.decode(link.binding.unwrap().token, skein_ui::Act::Press),
+                Some(Action::Pages(Act::Go { address: Address::Task { task: 99 } }))
+            );
+            let text = f::text(&tree);
+            let headline = if ended { "All 8 goals done." } else { "7 of 8 goals done. S7: Six of nine tasks done." };
+            assert!(skein_lib::bytes::find(&text, headline.as_bytes()).is_some());
+            if words.shell == crate::words::Shell::Browser {
+                assert!(
+                    tree.nodes().iter().any(|n| n.role == Role::Figure && n.name.as_deref() == Some(b"7 done of 8"))
+                );
+                let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::GOALS_TOP)).unwrap();
+                assert!(f::node_text(&tree, index).starts_with(b"milestoneStore shape"));
+            } else {
+                let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                let text = core::str::from_utf8(print.text.as_slice()).unwrap();
+                assert!(text.contains(expected));
+                assert!(text.contains("■■■■■■▒■ 7 done of 8\n"));
+                assert!(text.contains(headline));
+            }
+        }
+    }
+}
+
+#[test]
 fn milestone_tag_count_and_state_words_keep_their_styles() {
     for words in [f::browser_words(), f::words()] {
         assert_eq!(milestones::count(&words, Count { done: 7, total: 8 }).as_ref(), b"7 / 8 done");

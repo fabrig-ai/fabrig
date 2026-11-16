@@ -20,6 +20,12 @@ pub const MS_WAITS: Style = Style { owner: owner(), token: 798 };
 pub const MS_FAILED: Style = Style { owner: owner(), token: 799 };
 /// Milestone parts (client/pages/milestone.md, 2).
 pub const MS_TAG: Style = Style { owner: owner(), token: 800 };
+/// Home's shared milestone row (client/pages/home.md, 1).
+pub const MS_ROW: Style = Style { owner: owner(), token: 801 };
+/// A milestone and the goals the filter shows (client/pages/work.md, 1).
+pub const GOALS_GROUP: Style = Style { owner: owner(), token: 802 };
+/// Goals inset beneath their milestone (client/pages/work.md, 1).
+pub const GOALS_GROUP_ROWS: Style = Style { owner: owner(), token: 803 };
 
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
@@ -1551,6 +1557,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ms-waits",
         b"temper-ms-failed",
         b"temper-ms-tag",
+        b"temper-ms-row",
+        b"temper-goals-group",
+        b"temper-goals-group-rows",
     ],
     regions: &[b"temper-link"],
 };

@@ -1,6 +1,7 @@
 //! Shared milestone parts (temper/docs/design/client/pages/milestone.md, 2).
 use super::goals::{self, Names};
 use crate::{
+    bindings::Bindings,
     look,
     words::{Shell, Word, Words},
 };
@@ -8,10 +9,91 @@ use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::{List, bytes};
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
-use temper_client_domain::pages::{
-    milestones::{self, Count, Headline, Mark, State},
-    report::Report,
+use temper_client_domain::{
+    Address,
+    pages::{
+        Act,
+        goals::Goals,
+        milestones::{self, Count, Headline, Mark, Milestone, State},
+        report::Report,
+    },
 };
+
+/// One milestone links its top line, strip and headline to its task (home.md, 1, Goals).
+pub(crate) fn row(
+    b: &mut Builder,
+    words: &Words,
+    bindings: &mut Bindings,
+    line: &c::TaskLine,
+    milestone: &Milestone,
+    goals: &Goals,
+    names: &Names<'_>,
+) {
+    let mut needing = List::uncapped();
+    for goal in &milestone.goals {
+        if goals.needs_person(goal.chip.task) {
+            needing.push(goal.chip.task).expect("held goals fit");
+        }
+    }
+    let lines = milestone.goals.as_slice();
+    let totals = milestone.totals.as_ref();
+    let state = milestones::state(line, lines, totals, goals.needs_person(line.chip.task));
+    let count_value = milestones::count(lines, totals);
+    let (status, token) = state_word(words, state);
+    let separator = words.say(Word::ToolSeparator, &[]);
+    let progress = bytes::concat(&[&count(words, count_value), &separator]);
+    let name =
+        bytes::concat(&[&words.say(Word::MsTagTerminal, &[]), line.chip.title.bytes(), &separator, &progress, &status]);
+    if words.shell == Shell::Terminal {
+        b.open(Role::Slot);
+    }
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
+    b.style(look::GOALS_ROW);
+    b.style(look::MS_ROW);
+    if line.chip.phase == c::Phase::Ended {
+        b.style(look::GOALS_ROW_ENDED);
+    }
+    match words.shell {
+        Shell::Browser => {
+            b.open(Role::Text);
+            b.style(look::GOALS_TOP);
+            b.open(Role::Text);
+            tag(b, words);
+            b.text(Run::Plain, line.chip.title.bytes());
+            b.close();
+            b.open(Role::Text);
+            b.style(look::GOALS_PROGRESS);
+            b.open(Role::Text);
+            b.run(Run::Plain, &progress);
+            b.open(Role::Text);
+            b.style(token);
+            b.run(Run::Plain, &status);
+            b.close();
+            b.close();
+            b.close();
+            b.close();
+        }
+        Shell::Terminal => {
+            b.text(Run::Plain, &name);
+            b.close();
+        }
+    }
+    strip(b, words, lines, needing.as_slice(), count_value);
+    let value = milestones::headline(line, lines, totals, goals.needs_person(line.chip.task));
+    let report = match value {
+        Headline::Running { goal, .. } => goals.report(goal),
+        Headline::Count(_)
+        | Headline::Complete(_)
+        | Headline::Open(_)
+        | Headline::Closed(_)
+        | Headline::Ended { .. } => None,
+    };
+    b.open(if words.shell == Shell::Browser { Role::Text } else { Role::Paragraph });
+    b.style(look::GOALS_LINE);
+    b.text(Run::Plain, &headline(words, value, lines, report, names));
+    b.close();
+    b.close();
+}
 
 pub(crate) fn state_word(words: &Words, state: State) -> (Box<[u8]>, Style) {
     let (word, style) = match state {

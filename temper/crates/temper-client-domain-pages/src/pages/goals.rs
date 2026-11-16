@@ -1,4 +1,7 @@
 //! Goals and their reports (temper/docs/design/client/pages/README.md, Goals).
+mod rows;
+pub use rows::{GroupRow, goal, groups, home_rows};
+
 use super::{Request, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};

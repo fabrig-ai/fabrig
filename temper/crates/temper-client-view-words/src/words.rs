@@ -954,6 +954,8 @@ pub enum Word {
     HomeProposal,
     HomeHeld,
     HomePersonTask,
+    HomeAllGoals,
+    HomeAllGoalsCut,
     HomeAllChats,
     HomeAllChatsCut,
     HomeAllChatsName,
@@ -2192,7 +2194,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2741;
+const PHRASES: u32 = 2743;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2219,10 +2221,10 @@ const PHRASES: u32 = 2741;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5061;
+const SEGMENTS: u32 = 5067;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64878;
-const ALL: [Word; 2020] = [
+const ENGLISH_BYTES: u32 = 64899;
+const ALL: [Word; 2022] = [
     Word::MsTag,
     Word::MsTagTerminal,
     Word::MsComplete,
@@ -3116,6 +3118,8 @@ const ALL: [Word; 2020] = [
     Word::HomeProposal,
     Word::HomeHeld,
     Word::HomePersonTask,
+    Word::HomeAllGoals,
+    Word::HomeAllGoalsCut,
     Word::HomeAllChats,
     Word::HomeAllChatsCut,
     Word::HomeAllChatsName,
@@ -5175,6 +5179,8 @@ impl Word {
             Self::HomeProposal => 3153,
             Self::HomeHeld => 3154,
             Self::HomePersonTask => 3155,
+            Self::HomeAllGoals => 9752,
+            Self::HomeAllGoalsCut => 9753,
             Self::HomeAllChats => 3156,
             Self::HomeAllChatsCut => 3157,
             Self::HomeAllChatsName => 3158,
@@ -7461,6 +7467,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeProposal => (&[b"a proposal"], &[]),
         Word::HomeHeld => (&[b"held"], &[]),
         Word::HomePersonTask => (&[b"a person task"], &[]),
+        Word::HomeAllGoals => (&[b"All ", b" goals"], &[Number]),
+        Word::HomeAllGoalsCut => (&[b"All ", b"+ goals"], &[Number]),
         Word::HomeAllChats => (&[b"All ", b""], &[Number]),
         Word::HomeAllChatsCut => (&[b"All ", b"+"], &[Number]),
         Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
