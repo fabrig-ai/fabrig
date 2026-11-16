@@ -69,6 +69,28 @@ pub enum Path {
     JobTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::LayoutRoot => "Layout.root",
+            Self::LayoutVariant => "Layout.variant",
+            Self::LayoutLayout => "Layout.layout",
+            Self::LayoutText => "Layout.text",
+            Self::LayoutHeld => "Layout.held",
+            Self::LayoutVersion => "Layout (version)",
+            Self::LayoutTail => "Layout (tail)",
+            Self::TextText => "Text.text",
+            Self::TextVersion => "Text (version)",
+            Self::TextTail => "Text (tail)",
+            Self::JobEnded => "Job.ended",
+            Self::JobVersion => "Job (version)",
+            Self::JobTail => "Job (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

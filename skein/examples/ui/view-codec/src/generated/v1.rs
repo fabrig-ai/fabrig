@@ -86,6 +86,32 @@ pub enum Path {
     NotesTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::LabelTag => "Label (tag)",
+            Self::NoteNumber => "Note.number",
+            Self::NoteTitle => "Note.title",
+            Self::NoteBody => "Note.body",
+            Self::NoteDue => "Note.due",
+            Self::NoteMinutes => "Note.minutes",
+            Self::NoteLabel => "Note.label",
+            Self::NoteTail => "Note (tail)",
+            Self::AddKey => "Add.key",
+            Self::AddTitle => "Add.title",
+            Self::AddBody => "Add.body",
+            Self::AddDue => "Add.due",
+            Self::AddMinutes => "Add.minutes",
+            Self::AddLabel => "Add.label",
+            Self::AddTail => "Add (tail)",
+            Self::NotesNotes => "Notes.notes",
+            Self::NotesTail => "Notes (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

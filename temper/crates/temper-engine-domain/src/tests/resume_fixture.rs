@@ -306,7 +306,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        host_part: None,
+        host_part: crate::room::HostPart { allowance: u64::MAX, ..crate::room::HostPart::EMPTY },
         kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),

@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::translate;
+use crate::{Unencoded, translate};
 use jig_domain_link::{CountKind, Hosting, Phase, SourceName};
 use skein_lib::{Duration, Token};
 fn translated(record: translate::Up) -> (jig_domain_host::LinkUp, translate::Parts) {
@@ -236,7 +236,10 @@ fn an_assignments_items_come_from_their_part() {
 }
 #[test]
 fn a_missing_workspace_part_drops_the_assignment() {
-    assert!(translate::down(assignment_output(), &[], fixtures::values(), &codec(),).is_none());
+    assert_eq!(
+        translate::down(assignment_output(), &[], fixtures::values(), &codec()).expect_err("missing part"),
+        Unencoded::field("workspace.items")
+    );
 }
 #[test]
 fn an_assignments_window_is_one_piece_with_each_turns_length() {
@@ -246,7 +249,86 @@ fn an_assignments_window_is_one_piece_with_each_turns_length() {
 fn a_transcript_past_its_bound_including_lengths_drops_the_assignment() {
     let mut limits = codec();
     limits.assignment_transcript = 12;
-    assert!(translate::down(assignment_output(), &fixtures::parts(), fixtures::values(), &limits,).is_none());
+    assert_eq!(
+        translate::down(assignment_output(), &fixtures::parts(), fixtures::values(), &limits)
+            .expect_err("transcript bound"),
+        Unencoded {
+            field: "Assignment.transcript",
+            reason: None,
+            figure: Some(13),
+            bound: Some(12),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_transcript)),
+        }
+    );
+}
+#[test]
+fn a_charter_past_its_bound_names_its_bytes_limit_and_ceiling() {
+    let mut limits = codec();
+    limits.assignment_charter = 6;
+    assert_eq!(
+        translate::down(assignment_output(), &fixtures::parts(), fixtures::values(), &limits)
+            .expect_err("charter bound"),
+        Unencoded {
+            field: "Assignment.charter",
+            reason: None,
+            figure: Some(7),
+            bound: Some(6),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_charter))
+        }
+    );
+    limits.assignment_charter = 7;
+    translate::down(assignment_output(), &fixtures::parts(), fixtures::values(), &limits).expect("charter at bound");
+}
+#[test]
+fn a_constructor_refusal_keeps_its_codec_path_and_reason() {
+    let mut assignment = fixtures::assignment();
+    assignment.messages[0].words = Box::from([0xff]);
+    assert_eq!(
+        translate::down(
+            jig_domain_host::LinkDown::Assign { assignment },
+            &fixtures::parts(),
+            fixtures::values(),
+            &codec()
+        )
+        .expect_err("not UTF-8"),
+        Unencoded {
+            field: jig_protocol_worker_wire::v15::Path::MessageWords.name(),
+            reason: Some(skein_codec::Reason::Utf8),
+            figure: None,
+            bound: None,
+            ceiling: None
+        }
+    );
+}
+#[test]
+fn a_full_list_names_its_count_limit_and_ceiling() {
+    let mut limits = codec();
+    limits.assignment_messages = 0;
+    assert_eq!(
+        translate::down(assignment_output(), &fixtures::parts(), fixtures::values(), &limits)
+            .expect_err("message count"),
+        Unencoded {
+            field: "Assignment.messages",
+            reason: None,
+            figure: Some(1),
+            bound: Some(0),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v15::CEILINGS.assignment_messages))
+        }
+    );
+}
+#[test]
+fn repeated_source_names_name_the_encoders_field() {
+    let name = program_name();
+    assert_eq!(
+        translate::down(
+            jig_domain_host::LinkDown::Sources { sources: Box::new([name, name]) },
+            &[],
+            Box::new([]),
+            &codec()
+        )
+        .expect_err("repeated name"),
+        Unencoded::field("sources.names")
+    );
 }
 #[test]
 fn a_fresh_assignment_has_an_empty_transcript_piece() {
@@ -272,7 +354,7 @@ fn a_grant_without_a_value_is_left_out() {
     };
     assert_eq!(value.secret().expose(), fixtures::TOKEN_TWO);
 }
-fn granted(form: jig_domain_link::Form, value: crate::GrantValue) -> Option<translate::Down> {
+fn granted(form: jig_domain_link::Form, value: crate::GrantValue) -> Result<translate::Down, Unencoded> {
     translate::down(
         jig_domain_host::LinkDown::Grant { run: Token::new(7), attempt: Token::new(2), grant: fixtures::grant(form) },
         &[],
@@ -280,8 +362,8 @@ fn granted(form: jig_domain_link::Form, value: crate::GrantValue) -> Option<tran
         &codec(),
     )
 }
-fn granted_value(down: Option<translate::Down>) -> jig_protocol_worker_wire::Grant {
-    let Some(translate::Down::Grant(record)) = down else { panic!("granted") };
+fn granted_value(down: Result<translate::Down, Unencoded>) -> jig_protocol_worker_wire::Grant {
+    let Ok(translate::Down::Grant(record)) = down else { panic!("granted") };
     assert_eq!((record.task(), record.attempt()), (7, 2));
     assert_eq!((record.grant().number(), record.grant().generation()), (1, 4));
     record.grant().clone()
@@ -346,12 +428,16 @@ fn a_value_unlike_its_grants_form_is_not_sent() {
         (Form::Application, fixtures::credential_value(crate::Scheme::Bearer)),
         (Form::Application, fixtures::credential_value(crate::Scheme::Key)),
     ] {
-        assert!(granted(form, value).is_none(), "value unlike {form:?}");
+        assert_eq!(
+            granted(form, value).expect_err("value unlike form"),
+            Unencoded::field("grant.value"),
+            "value unlike {form:?}"
+        );
     }
 }
 #[test]
 fn a_standalone_grant_without_a_value_is_not_sent() {
-    assert!(
+    assert_eq!(
         translate::down(
             jig_domain_host::LinkDown::Grant {
                 run: Token::new(7),
@@ -362,7 +448,8 @@ fn a_standalone_grant_without_a_value_is_not_sent() {
             Box::new([None]),
             &codec(),
         )
-        .is_none()
+        .expect_err("missing standalone value"),
+        Unencoded::field("grant.value")
     );
 }
 #[test]
@@ -550,19 +637,29 @@ fn another_value_under_a_program_form_is_not_sent() {
         fixtures::credential_value(crate::Scheme::Key),
         fixtures::values()[1].take().expect("application"),
     ] {
-        assert!(granted(jig_domain_link::Form::Program(program_name()), value).is_none());
+        assert_eq!(
+            granted(jig_domain_link::Form::Program(program_name()), value).expect_err("program value"),
+            Unencoded::field("grant.value")
+        );
     }
 }
 #[test]
 fn a_program_name_unlike_its_form_s_is_not_sent() {
     let name = SourceName::new(b"other").expect("source name");
-    assert!(granted(jig_domain_link::Form::Program(program_name()), crate::GrantValue::Program { name }).is_none());
+    assert_eq!(
+        granted(jig_domain_link::Form::Program(program_name()), crate::GrantValue::Program { name })
+            .expect_err("program name"),
+        Unencoded::field("grant.value")
+    );
 }
 #[test]
 fn a_program_value_under_another_form_is_not_sent() {
     use jig_domain_link::{Form, Scheme};
     for form in [Form::Credential(Scheme::Bearer), Form::Credential(Scheme::Key), Form::Application] {
-        assert!(granted(form, crate::GrantValue::Program { name: program_name() }).is_none());
+        assert_eq!(
+            granted(form, crate::GrantValue::Program { name: program_name() }).expect_err("program under another form"),
+            Unencoded::field("grant.value")
+        );
     }
 }
 
