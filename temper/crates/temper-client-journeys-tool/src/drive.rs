@@ -469,7 +469,7 @@ impl Machine {
                         self.answer(Some("the box exited".into()), out);
                         self.box_failed = Some(format!("box exited {code}"));
                     } else {
-                        self.fail_box(format!("box exited {code} before ready"), now, out);
+                        self.fail_box(before_ready(code, stderr), now, out);
                     }
                 }
             }
@@ -772,6 +772,17 @@ fn duration(bytes: &[u8]) -> Option<u64> {
         (text, 1)
     };
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
+}
+/// A box's exit before its ready line, with the last of what it said that no
+/// log line took: a start that failed says why there (client/drive.md, 2.5).
+fn before_ready(code: i32, stderr: &[u8]) -> String {
+    let words = String::from_utf8_lossy(stderr);
+    let words = words.trim();
+    if words.is_empty() {
+        return format!("box exited {code} before ready");
+    }
+    let cut = words.char_indices().rev().nth(511).map_or(0, |(at, _)| at);
+    format!("box exited {code} before ready: {}", &words[cut..])
 }
 #[cfg(test)]
 pub(crate) mod tests;

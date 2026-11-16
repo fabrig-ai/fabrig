@@ -44,7 +44,7 @@ impl Child {
                 .map(|(key, value)| [key.as_bytes(), b"=", value.as_bytes()].concat().into())
                 .collect(),
             root: pump.root(),
-            dir: program.directory.as_os_str().as_bytes().into(),
+            dir: Pump::beneath(&program.directory),
             pipes: pipes.into(),
         };
         pump.request(io::Request::Spawn { owner, spawn });

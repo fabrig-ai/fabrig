@@ -298,6 +298,22 @@ fn kept_steps_replay_on_a_fresh_face() {
     assert!(matches!(line(&mut m, "end").as_slice(), [Action::CancelFace, Action::StopCtl, Action::CloseBrowser]));
 }
 #[test]
+fn a_box_that_cannot_start_says_why() {
+    let (mut m, _) = Machine::start(plan(), Time::ZERO);
+    let stderr = b"could not start Box: Os(18)".as_slice().into();
+    step(&mut m, Event::Exited { process: Process::Box, code: 127, stdout: Box::new([]), stderr });
+    step(&mut m, Event::FaceDone(Ok(())));
+    let actions = step(&mut m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] });
+    let exit = finish(&actions);
+    assert_eq!(exit.status, 4);
+    assert_eq!(exit.shown[0], "box failed: box exited 127 before ready: could not start Box: Os(18)");
+    let (mut m, _) = Machine::start(plan(), Time::ZERO);
+    step(&mut m, exited(Process::Box, 1));
+    step(&mut m, Event::FaceDone(Ok(())));
+    let actions = step(&mut m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] });
+    assert_eq!(finish(&actions).shown[0], "box failed: box exited 1 before ready");
+}
+#[test]
 fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     for (serve, expected) in [
         (vec![b"temper serve: The store in /scratch/data holds an unreadable row".as_slice().into()], 3),

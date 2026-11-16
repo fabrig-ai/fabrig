@@ -118,6 +118,15 @@ impl Pump {
     pub fn root(&self) -> Fd {
         self.root.expect("session root is open")
     }
+    /// A spawn's `dir` beneath the session's root, `/`: the path's leading
+    /// slashes dropped, since a spawn opens `dir` beneath its root and refuses
+    /// an absolute one (runtime/io/processes.md, 3).
+    #[must_use]
+    pub fn beneath(path: &Path) -> Box<[u8]> {
+        let bytes = path.as_os_str().as_bytes();
+        let start = bytes.iter().position(|byte| *byte != b'/').unwrap_or(bytes.len());
+        bytes[start..].into()
+    }
     #[must_use]
     pub fn now(&self) -> Time {
         self.clock.now().now
@@ -142,7 +151,7 @@ impl Pump {
                 args: command.args.into_boxed(),
                 env: env.iter().map(|(key, value)| [key.as_bytes(), b"=", value.as_bytes()].concat().into()).collect(),
                 root: self.root(),
-                dir: self.profile.as_os_str().as_bytes().into(),
+                dir: Self::beneath(&self.profile),
                 pipes: command
                     .pipes
                     .into_iter()
