@@ -11,8 +11,6 @@
 
 - **Not yet:** `mail`: designed and not built, as `../../domain/forge/attention.md`, 7.4 is.
 
-- **Not yet:** `by` and `gates`: a gate's `artifact` and `format`
-  [in flight: change 4079].
 
 - **Not yet:** the project's landing settings, *The delivery checks' bound*: the project's landing settings have no `check_timeout_ms` (`temper-service/src/startup/application/landing.rs`), so every run's checks have the agent's `check_timeout`.
 

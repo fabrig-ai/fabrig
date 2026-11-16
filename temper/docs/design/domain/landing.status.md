@@ -14,10 +14,6 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 6.2, 13.1: a gate's report and a failed receipt's ids
-  [in flight: change 4079].
-- **Not yet:** 7.1: one dispatch of a workflow at a commit in flight at
-  a time [in flight: change 4081].
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
