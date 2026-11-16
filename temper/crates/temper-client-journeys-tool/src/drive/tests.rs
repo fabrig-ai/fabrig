@@ -2,11 +2,12 @@ use super::*;
 pub(crate) mod forge;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
-fn plan() -> Plan {
+pub(super) fn plan() -> Plan {
     Plan::new(
         Options {
             bin: "/build/bin".into(),
-            bundle: "/build/bundle".into(),
+            bundle: Some("/build/bundle".into()),
+            deployment: None,
             scratch: "/scratch".into(),
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
@@ -35,6 +36,103 @@ fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
         let why = parse(bad).expect_err("invalid list");
         assert!(why.contains("--ports") && why.contains(bad), "{why}");
     }
+}
+
+#[test]
+fn deployment_options_require_ports_refuse_ctl_and_make_bundle_optional() {
+    let base = ["--bin", "B", "--scratch", "S"];
+    let parse =
+        |tail: &[&str]| Options::parse(&base.iter().chain(tail).map(|word| word.as_bytes().into()).collect::<Vec<_>>());
+    let options = parse(&["--deployment", "D", "--ports", "4101,4102,4103,4104,4105,4106,4107,4108,4109"])
+        .expect("deployment without bundle");
+    assert_eq!(options.deployment.as_deref(), Some(Path::new("D")));
+    assert!(options.bundle.is_none());
+    for (tail, expected) in [
+        (vec!["--deployment", "D"], "--ports"),
+        (vec!["--ctl", "--deployment", "D"], "--ctl and --deployment"),
+        (vec![], "--bundle"),
+        (vec!["--ctl"], "--bundle"),
+        (vec!["--deployment"], "--deployment DIR"),
+        (vec!["--deployment", "D", "--deployment", "D"], "repeated --deployment"),
+    ] {
+        let why = parse(&tail).expect_err("invalid options");
+        assert!(why.contains(expected), "{why}");
+    }
+}
+
+#[test]
+fn deployment_preflight_requires_each_extra_executable_without_starting_it() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = skein_scratch::Scratch::new("drive-deployment-preflight");
+    let root = scratch.path();
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
+    for directory in ["bin", "deployment", "session"] {
+        fs::create_dir(root.join(directory)).expect("directory");
+    }
+    fs::write(root.join("session/lines"), b"previous").expect("previous session");
+    for name in ["temper-box", "fake-claude", "temper"] {
+        let file = root.join("bin").join(name);
+        fs::write(&file, b"not executed").expect("binary fixture");
+        fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
+    }
+    let root_path = root;
+    let mut options = plan().options;
+    options.bin = root_path.join("bin");
+    options.bundle = None;
+    options.deployment = Some(root_path.join("deployment"));
+    options.scratch = root_path.into();
+    options.scripts.clear();
+    options.ports = Some("4101,4102,4103,4104,4105,4106,4107,4108,4109".into());
+    for name in ["temper-engine", "temper-worker", "temper-agent"] {
+        let file = root.join("bin").join(name);
+        let why = super::options::prepare(options.clone(), &[]).expect_err("missing executable");
+        assert!(why.contains(name), "{why}");
+        fs::create_dir(&file).expect("not a regular file");
+        assert!(super::options::prepare(options.clone(), &[]).expect_err("directory").contains(name));
+        fs::remove_dir(&file).expect("remove directory");
+        fs::write(&file, b"not executed").expect("binary fixture");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).expect("not executable");
+        assert!(super::options::prepare(options.clone(), &[]).expect_err("not executable").contains(name));
+        fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
+        assert_eq!(fs::read(root.join("session/lines")).expect("unmodified session"), b"previous");
+    }
+    let plan = super::options::prepare(options, &[]).expect("deployment needs neither bundle nor Chromium");
+    assert_eq!(plan.options.deployment, Some(root.join("deployment").canonicalize().expect("absolute deployment")));
+    assert!(plan.options.bundle.is_none());
+    assert!(plan.chromium.as_os_str().is_empty());
+}
+
+#[test]
+fn box_refuses_deployment_lines_unkept() {
+    for mut machine in [ready(), ctl_ready()] {
+        let actions = line(&mut machine, "deployment patch engine landing.json");
+        assert_eq!(answer(&actions).print(), "failed: line 1: a box takes no deployment line\n");
+        assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{actions:?}");
+        assert!(machine.ready());
+    }
+}
+
+#[test]
+fn model_key_ctl_value_uses_newest_box_line_and_names_a_missing_line() {
+    let mut machine = ctl_ready();
+    let source = "ctl account add-key Model {model.key}";
+    assert!(matches!(line(&mut machine, source).as_slice(), [Action::ReadBoxLog { .. }]));
+    let actions = step(&mut machine, Event::BoxLog(Ok(b"box: effective data /scratch/data\n".as_slice().into())));
+    assert_eq!(answer(&actions).print(), "failed: line 1: session/box.log: lacks box: model key line\n");
+    assert!(matches!(line(&mut machine, source).as_slice(), [Action::ReadBoxLog { .. }]));
+    let actions = step(
+        &mut machine,
+        Event::BoxLog(Ok(b"box: model key /old/key\n1970-01-01T00:00:00Z box: model key /scratch/data/key\n"
+            .as_slice()
+            .into())),
+    );
+    let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else { panic!("{actions:?}") };
+    assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "account", "add-key", "Model", "/scratch/data/key"]);
+    assert_eq!(program.input, Input::Null);
+    let actions = step(&mut machine, exited(Process::Ctl, 0));
+    assert!(
+        matches!(actions.as_slice(), [Action::Keep(bytes), Action::Answer(_)] if bytes.as_ref() == source.as_bytes())
+    );
 }
 
 #[test]
@@ -447,7 +545,8 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     }
     let options = Options {
         bin: root.join("bin"),
-        bundle: root.join("bundle"),
+        bundle: Some(root.join("bundle")),
+        deployment: None,
         scratch: root.into(),
         scripts: vec![],
         strict: false,
@@ -582,7 +681,7 @@ fn ctl_preflight_needs_no_chromium_but_keeps_the_box_bundle_requirement() {
         .collect::<Vec<Box<[u8]>>>();
     let mut options = Options::parse(&args).expect("ctl option");
     options.bin = root.join("bin");
-    options.bundle = root.join("bundle");
+    options.bundle = Some(root.join("bundle"));
     options.scratch = root.into();
     let why = super::options::prepare(options.clone(), &[]).expect_err("box needs bundle");
     assert!(why.contains("index.html"), "{why}");

@@ -7,6 +7,7 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
+pub mod deployment;
 mod forge;
 mod io;
 mod options;
@@ -317,6 +318,11 @@ impl Machine {
             }
         };
         let record = self.current.as_ref().expect("current line").record();
+        if matches!(record, Record::Deployment(_)) {
+            self.current = None;
+            self.answer(Some("a box takes no deployment line".into()), out);
+            return;
+        }
         if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
             self.current = None;
             self.answer(Some("this session takes ctl and forge lines alone".into()), out);
@@ -333,6 +339,7 @@ impl Machine {
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
+            Record::Deployment(_) => unreachable!("deployment refused on a box"),
             Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {

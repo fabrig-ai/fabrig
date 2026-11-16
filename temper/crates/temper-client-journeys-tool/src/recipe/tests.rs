@@ -54,7 +54,7 @@ fn explicit_check_refuses_repetition_fields_empty_checks_and_acts() {
         ("check extra\nctl project list\n", 3, "check takes no fields"),
         ("check\n", 3, "at least one line"),
         ("check\nforge checks forgejo work/hello\n", 4, "may follow check"),
-        ("check\ndeployment restart engine\n", 4, "unknown client \"deployment\""),
+        ("check\ndeployment patch engine landing.json\n", 4, "a box recipe takes no deployment line"),
         ("check\nweb press button \"Start\"\n", 4, "may follow check"),
         ("check\nweb reload \"/\"\n", 4, "may follow check"),
         ("check\ntui key enter\n", 4, "may follow check"),

@@ -178,6 +178,7 @@ impl Recipe {
             line: line.line.print().into(),
         }
     }
+    #[expect(clippy::too_many_lines, reason = "Recipe admission keeps refusals in input order.")]
     fn read(reader: &Reader<'_>, name: &str) -> Result<Self, Refusal> {
         let files = reader.files(name).map_err(|why| Refusal::file(name, "recipe", why))?;
         for file in &files {
@@ -225,6 +226,9 @@ impl Recipe {
                 return Err(refuse("check takes no fields".into()));
             }
             let line = Line::parse(source).map_err(refuse)?;
+            if matches!(line.record(), Record::Deployment(_)) {
+                return Err(refuse("a box recipe takes no deployment line".into()));
+            }
             if !line.kept() || matches!(line.record(), Record::Tui(Tui::Stop)) {
                 return Err(refuse("empty lines, looks, end and tui stop are not recipe acts".into()));
             }
