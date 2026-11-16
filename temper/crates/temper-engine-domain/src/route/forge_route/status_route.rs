@@ -70,16 +70,10 @@ fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8], si
 }
 
 fn signer_name(domain: &Domain, project: u32, person: u64) -> &[u8] {
-    if let Some(members) = domain.core.people.project_members(project) {
-        for member in members {
-            if member.person == person
-                && let Some(identity) = domain.core.people.identity(person)
-            {
-                return if identity.name.is_empty() { &identity.login } else { &identity.name };
-            }
-        }
+    match domain.core.people.member_name(project, person) {
+        Some(name) => name,
+        None => b"no longer a member",
     }
-    b"no longer a member"
 }
 
 pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {

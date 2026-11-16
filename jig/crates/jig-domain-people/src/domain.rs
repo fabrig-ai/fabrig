@@ -380,6 +380,19 @@ impl Domain {
         Some(self.roles.get(&project)?)
     }
 
+    /// The member's identity name, or login when empty; none without a role or identity
+    /// or while people cannot be read (domain/people/README.md, 4).
+    #[must_use]
+    pub fn member_name(&self, project: u32, party: u64) -> Option<&[u8]> {
+        for holding in self.project_members(project)? {
+            if holding.person == party {
+                let identity = self.identity(party)?;
+                return Some(if identity.name.is_empty() { &identity.login } else { &identity.name });
+            }
+        }
+        None
+    }
+
     /// The party holding `owner` on the deployment's roster when no other party
     /// holds it; `None` with no owner, with several, or when the roster can't be
     /// read (domain/people/README.md, 4). Allocates and changes nothing.

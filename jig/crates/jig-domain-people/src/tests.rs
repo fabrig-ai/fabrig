@@ -395,6 +395,55 @@ fn identity(provider: u16, subject: u64) -> Identity {
 }
 
 #[test]
+fn a_members_name_is_its_name_or_login_only_in_its_project() {
+    for (login, name, expected) in [
+        (b"owner".as_slice(), b"A Person".as_slice(), b"A Person".as_slice()),
+        (b"owner".as_slice(), b"".as_slice(), b"owner".as_slice()),
+        (b"".as_slice(), b"".as_slice(), b"".as_slice()),
+        (b"owner".as_slice(), b"A\n\0\x7f".as_slice(), b"A\n\0\x7f".as_slice()),
+    ] {
+        let mut test = Test::new(LIMITS);
+        test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+        assert_eq!(test.d.member_name(1, 1), None);
+        test.d.start_restore(test.env.wall);
+        test.send(Event::Restore {
+            record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) },
+        });
+        assert_eq!(test.d.member_name(1, 1), None, "a holding without an identity has no name");
+        let person = Stored::Person {
+            number: 1,
+            identity: Identity {
+                key: IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: login.into(),
+                name: name.into(),
+            },
+        };
+        test.send(Event::Restore { record: person });
+        test.send(Event::Restore { record: Stored::Person { number: 2, identity: identity(0, 2) } });
+        assert_eq!(test.d.member_name(1, 1), Some(expected), "readable during restoration");
+        assert!(test.complete());
+        assert_eq!(test.d.member_name(1, 1), Some(expected));
+        assert_eq!(test.d.member_name(2, 1), None, "a project without roles has no member name");
+        assert_eq!(test.d.member_name(1, 2), None, "an identity without a holding has no member name");
+    }
+
+    let mut test = Test::new(LIMITS);
+    test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
+    let person = Stored::Person { number: 1, identity: identity(0, 1) };
+    test.send(Event::Restore { record: person });
+    test.send(Event::Restore {
+        record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) },
+    });
+    assert_eq!(test.d.member_name(1, 1), Some(b"n".as_slice()));
+    let mut oversized = identity(0, 3);
+    oversized.name = Box::new([0; 17]);
+    test.send(Event::Restore { record: Stored::Person { number: 3, identity: oversized } });
+    assert!(test.d.restore_failure().is_some());
+    assert_eq!(test.d.member_name(1, 1), None, "failed restoration makes people unreadable");
+}
+
+#[test]
 fn an_owner_routes_a_connector_resource_adoption_once_by_its_key() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));
