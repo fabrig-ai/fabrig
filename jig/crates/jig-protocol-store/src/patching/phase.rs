@@ -338,6 +338,8 @@ pub(crate) fn event(
         | skein_kv::Event::LogUnread { .. }
         | skein_kv::Event::Got { .. }
         | skein_kv::Event::Loaded { .. }
+        | skein_kv::Event::Held { .. }
+        | skein_kv::Event::Released { .. }
         | skein_kv::Event::OpenFailed { .. }
         | skein_kv::Event::Recovered { .. }
         | skein_kv::Event::RecoveryFailed { .. } => refuse(store, above),

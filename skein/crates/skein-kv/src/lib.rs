@@ -24,7 +24,8 @@ mod store;
 mod tests;
 
 pub use boundary::{
-    Direction, Event, Exhausted, Failure, Large, LogRecord, LogRule, Op, Page, Range, Refusal, Request, Row,
+    Direction, Event, Exhausted, Failure, HELD_REMOVALS, HeldSegment, Large, LogRecord, LogRule, Op, Page, Range,
+    Refusal, Request, Row,
 };
 pub use census::{CENSUS_HEADS, CENSUS_KEYSPACES, CENSUS_PREFIX, Census, CensusRule, Head, Keyspace};
 pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};

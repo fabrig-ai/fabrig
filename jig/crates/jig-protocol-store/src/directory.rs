@@ -1010,7 +1010,11 @@ pub(crate) fn events_up(
                     crate::view::unread(store, above);
                 }
             }
-            skein_kv::Event::Got { .. } | skein_kv::Event::Loaded { .. } | skein_kv::Event::Closed { .. } => {
+            skein_kv::Event::Got { .. }
+            | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
+            | skein_kv::Event::Closed { .. } => {
                 stopped(store);
             }
         }

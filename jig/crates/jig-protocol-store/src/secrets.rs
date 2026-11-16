@@ -147,6 +147,8 @@ fn load(store: &mut Store, env: &Env<Limits>, range: skein_kv::Range, max: skein
         | skein_kv::Event::LogRead { .. }
         | skein_kv::Event::LogUnread { .. }
         | skein_kv::Event::Got { .. }
+        | skein_kv::Event::Held { .. }
+        | skein_kv::Event::Released { .. }
         | skein_kv::Event::Closed { .. }
         | skein_kv::Event::OpenFailed { .. }
         | skein_kv::Event::Recovered { .. }
@@ -216,6 +218,8 @@ fn durable(store: &mut Store, env: &Env<Limits>, key: Box<[u8]>, below: &mut Bel
         | skein_kv::Event::LogRead { .. }
         | skein_kv::Event::LogUnread { .. }
         | skein_kv::Event::Loaded { .. }
+        | skein_kv::Event::Held { .. }
+        | skein_kv::Event::Released { .. }
         | skein_kv::Event::Closed { .. }
         | skein_kv::Event::OpenFailed { .. }
         | skein_kv::Event::Recovered { .. }

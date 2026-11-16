@@ -203,6 +203,8 @@ fn recovered(store: &mut Store, events: &mut Queue<skein_kv::Event>, above: &mut
             | skein_kv::Event::Got { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Committed { .. }
+            | skein_kv::Event::Held { .. }
+            | skein_kv::Event::Released { .. }
             | skein_kv::Event::Closed { .. }
             | skein_kv::Event::Recovered { .. }
             | skein_kv::Event::RecoveryFailed { .. } => refuse(store, BackRefusal::Unreadable, above),
