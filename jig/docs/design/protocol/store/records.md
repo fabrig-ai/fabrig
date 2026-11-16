@@ -314,10 +314,9 @@ settings (decided 2026-11-03).
       whose component and jig families' versions are `BASELINE`'s, and
       whose layouts' row equals `BASELINE`'s, reads as level 0 for each
       owner whose level the binary sets; an owner the binary leaves none
-      stays none. The comparison below goes on with those levels. So a
-      store the baseline's build wrote opens under every later build,
-      patched where its owners are behind, and a build that hands no
-      set still opens it as before;
+      stays none. The comparison below goes on with those levels, and
+      the floor's check after it refuses such a store, which has no
+      floor row (the floor, below);
     - both none: the versions and the layouts decide, as before the
       baseline;
     - first, any owner's store level past the binary's: `Ahead { owner,
@@ -327,6 +326,12 @@ settings (decided 2026-11-03).
       `OlderBuild` with `Older::Unleveled`, including another owner's
       none in a row whose jig level is set: a store from before the
       baseline, or not at it (temper's `draft/upgrades.md`, 4.1);
+    - then the floor (below): a store with no floor row, or one whose
+      number is below the binary's `FLOOR`, refuses `OlderBuild` with
+      `Older::Floor`, before any plan is made, any job is found
+      pending, any record is decoded for a rehearsal (`opening.md`, 5)
+      or the registry is read (`layouts.md`, 5.1). A number past the
+      binary's is not refused by it: the levels and layouts decide;
     - then any owner's store level behind: the patch path (`opening.md`, 2).
       Each of jig's families' versions must be its version at the
       store's jig level: `BASELINE`'s, moved by each block of jig's
@@ -391,16 +396,24 @@ versioned record Floor { number: u32 build: text 64 }
     name the shell hands the store beside its sets (`opening.md`, 3),
     at most 64 bytes: temper's its build's commit, as its version line
     names it; a shell that hands none has an empty one written.
-  - **Written** by the first commit, with the format row, and by an
-    upgrade's last commit (`opening.md`, 2) where the store has no
-    floor row or one below the binary's: so dev.fabrig.ai's store gets
-    its row in the open that runs F0's jobs, and every store made since
-    has one. By no other commit; a reopen at the same floor leaves the
-    row, and its build, as they are.
-  - **Read** by the census and the rehearsal's decoding as the
-    component's other rows are. The open refuses no store by it
-    (temper's `draft/store-floor.md`, section 3, whose status records
-    the lag).
+  - **Its bridge** is the store's constant `FLOOR_BRIDGE` beside it,
+    a `&'static str`: the build that wrote floor `FLOOR` on the stores
+    it settled, as temper's version line names a build (its commit's
+    first 12 hexadecimal digits), `3d1c717d379e` for floor 1, the
+    build dev.fabrig.ai was redeployed onto with S7 and F0 (11-16).
+    The two move together. The older stores' refusals name it
+    (`opening.md`, 1.8; `README.md`, section 2), where `<bridge>`
+    stands.
+  - **Written** by the first commit, with the format row, and by no
+    other: F0's build also wrote it in its upgrade's last commit, so
+    dev.fabrig.ai's store has it, and every store made since has one.
+    A reopen leaves the row, and its build, as they are; a landing
+    that moves the floor designs how its upgrade writes the new number
+    (temper's `draft/store-floor.md`, section 6).
+  - **Checked at open,** after the levels (above), and read by the
+    census and the rehearsal's decoding as the component's other rows
+    are. An empty store is not checked: its first commit writes the
+    row.
 - **The wires,** in a row of their own beside it (`Wires`, the
   component's): the versions the engine that last started on the store
   speaks to its workers, so that the next binary can say before it
@@ -475,8 +488,9 @@ versioned record Floor { number: u32 build: text 64 }
 
   > `<deployment>` holds a store from an older build, made before its
   > families' layouts were recorded, and this start has changed nothing
-  > in it. A store from before the baseline is not translated, so every
-  > start refuses this one until it is moved. To start afresh, stop the
+  > in it. No build translates a store from before the baseline, build
+  > `<bridge>` included, so every start refuses this one until it is
+  > moved. To start afresh, stop the
   > service, move `active`, `generations/` and `transcripts/` out of
   > `<deployment>` together, and start again: nothing is deleted, and
   > the next start makes a new, empty store. The new store has no
@@ -486,8 +500,9 @@ versioned record Floor { number: u32 build: text 64 }
 
   > `<deployment>` holds a store from an older build, whose settings
   > family's layout differs from this build's, and this start has
-  > changed nothing in it. A store from before the baseline is not
-  > translated, so every start refuses this one until it is moved. To
+  > changed nothing in it. No build translates a store from before the
+  > baseline, build `<bridge>` included, so every start refuses this one
+  > until it is moved. To
   > start afresh, stop the service, move `active`, `generations/` and
   > `transcripts/` out of `<deployment>` together, and start again:
   > nothing is deleted, and the next start makes a new, empty store.

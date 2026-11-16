@@ -4,8 +4,8 @@
    finds the active generation (1) and opens both its stores;
    skein-kv recovers each: the snapshot, then the log's longest valid
    prefix (skein's `data/kv.md`, section 3). A store the open must write
-   before serving (`layouts.md`, 5.5: a patch pending, its registry to
-   seed or a binary layout to register, a job pending) is upgraded in a
+   before serving (`layouts.md`, 5.5: a patch pending, a binary layout
+   to register, a job pending) is upgraded in a
    new generation, and the open goes on over it, pending, which becomes
    the active generation once the root has restored from it (2).
 2. **The component reads its own rows,** and the core's that it checks:
@@ -66,9 +66,9 @@ Its `store/` and `secrets/` must stand, or the start refuses,
 
 ### 1.4 The stores open
 
-The stores open (step 1), and the format row, the layouts and the
+The stores open (step 1), and the format row, the floor, the layouts and the
 deployment's header are read and checked (step 2, `records.md`, 3). Every refusal of
-the levels, versions, layouts and deployment comes here, and nothing has
+the levels, the floor, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
 (its next segment, a leftover snapshot's removal, and the snapshot a torn
 tail or a replay past its bound starts; skein's `data/kv.md`, sections 3 and
@@ -126,12 +126,24 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
   the baseline, the first build whose stores later builds upgrade, and this
-  start has changed nothing in it. A store from before the baseline is not
-  translated, so every start refuses this one until it is moved. To start
+  start has changed nothing in it. No build translates a store from before
+  the baseline, build `<bridge>` included, so every start refuses this one
+  until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
   the next start makes a new, empty store. The new store has no tasks,
   sign-ins, accounts or keys, and every client signs in again."
+- `OlderBuild { why: Floor }` (`records.md`, 3): "`<deployment>` holds a
+  store older than this build opens: it has no floor, or one below this
+  build's, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+- `OlderBuild { why: Unregistered }` (`layouts.md`, 5.1): "`<deployment>`
+  holds a store older than this build opens: it has no registry of its
+  layouts, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+
+`<bridge>` is `FLOOR_BRIDGE` (`records.md`, 3) in every refusal of a store
+older than the build, and only there.
 - `Ahead`: "`<deployment>` holds a store from a later build, at patch levels
   past this build's, and this start has changed nothing in it. No patch runs
   backwards: start the later build again, or restore `<deployment>` from a
@@ -199,12 +211,13 @@ pub enum OpenRefusal {
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
 pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2)
-pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
+pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled, Floor, Unregistered } // Floor: no floor row, or one below FLOOR; Unregistered: no registry (layouts.md, 5.1)
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
 pub enum Check { Large { key }, Load { key }, Private { name } }
 ```
 
-`Older`'s first two compare the layouts' row (`records.md`, 3); `Check` names what
+`Older`'s first two compare the layouts' row (`records.md`, 3), and its last two
+are the floor's and the registry's (`records.md`, 3; `layouts.md`, 5.1); `Check` names what
 failed: a record too large for a commit alone, or a row that does not
 load, by its key; a secrets' file
 that is not private, by its name.
@@ -213,15 +226,15 @@ that is not private, by its name.
 
 The component's own phase, before the root starts, when the open must
 write before serving (`layouts.md`, 5.5): the format row names an
-owner's level behind the binary's (`records.md`, 3), the registry is
-not seeded, a binary layout is not registered, or a job is pending
+owner's level behind the binary's (`records.md`, 3), a binary layout
+is not registered, or a job is pending
 (`jobs.md`, 2). The steps below name the patches; with none pending,
 their walks have nothing to do, and the copy is upgraded by the
 registry's commit and the jobs alone. From the active generation `A` to
 `A + 1`:
 
 1. **Plan,** over `A` as 1 opened it: the layouts planned, each held
-   layout's or each the seed will make, refused before anything is
+   layout's, refused before anything is
    written where one has no plan (`layouts.md`, 5.3); the levels, the patches
    between them and their order across owners (3), a set that does
    not plan refused; the header decoded by the kept text of its own
@@ -316,7 +329,7 @@ registry's commit and the jobs alone. From the active generation `A` to
    core's to act on (`../../domain/engine/executors.md`, 2). The walk answers no
    `Patched`, since it is no patch, and adds or removes no record.
    **The registry and the jobs:** after the last patch's walk, the
-   registry's commit (`layouts.md`, 5.5: the seed, the binary's new
+   registry's commit (`layouts.md`, 5.5: the binary's new
    layouts, the retirements), from which the edges map heads
    (`layouts.md`, 4); then each pending job, in order, its pages
    committed through the same path (`jobs.md`, 3). A store with no
@@ -324,8 +337,7 @@ registry's commit and the jobs alone. From the active generation `A` to
    `A`'s levels left it.
    The store's
    last commit, one of its own after the last page's and the last job's, writes the format
-   row's levels and versions and the layouts, the binary's (`records.md`, 3), the
-   floor row where the store has none or one below the binary's floor (`records.md`, 3), and
+   row's levels and versions and the layouts, the binary's (`records.md`, 3), and
    the deployment's header as patched, naming that commit's number
    (`README.md`, section 5). The commits before it leave the header naming `A`'s
    last, which nothing reads: a cut removes `A + 1` (4), and the
@@ -784,7 +796,10 @@ deployment's lock as a start does (1, step 1).
   and place, and the plan does not run; all decoding, `Event::Decoded`
   with the count, and the plan runs. An owner whose level the binary
   does not know (ahead, unleveled) is not walked: the plan's refusal
-  says why.
+  says why. Nor is a store the floor refuses (`records.md`, 3): the
+  rehearsal shares the start's check, so it refuses as the start
+  would, its announcement planning nothing for it, and writes only
+  its scratch.
 - **Going back** (`Store::back`, over the deployment's directory): once
   a patched generation is active, its previous one, `A`, stays on disk
   (`README.md`, section 2), and `active` may name it again until `A + 1`'s first
