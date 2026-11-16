@@ -565,6 +565,7 @@ impl Person {
             );
         }
     }
+    #[expect(clippy::too_many_lines, reason = "Sign-in, project selection and the script share one native client turn")]
     fn drive(&mut self, now: Time, wall: Wall) {
         let Some(client) = &mut self.client else {
             return;
@@ -614,7 +615,8 @@ impl Person {
                 self.wake = Some(self.wake.map_or(retry, |at| at.min(retry)));
             }
         }
-        if client.started() && self.project == ProjectSelection::Pending && select_project(client) {
+        let selecting = client.started() && self.project == ProjectSelection::Pending && select_project(client);
+        if selecting {
             self.project = ProjectSelection::Selected;
             self.wake = Some(now);
         }
@@ -630,6 +632,8 @@ impl Person {
         };
         if client.started()
             && self.project == ProjectSelection::Selected
+            // The project choice's Show reaches Went before the script navigates.
+            && !selecting
             && !self.finished
             && self.failed.is_none()
             // Finish opening exchanges before a scripted one-shot account paste.
