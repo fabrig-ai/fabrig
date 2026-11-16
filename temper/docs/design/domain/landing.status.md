@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-15. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-16. Where temper's code lags or departs from [landing.md](landing.md).
 
 
 Section 13.1 has no known gap in what a branch's path reads: the
@@ -13,6 +13,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   going on through the turn once proving, idle and held while preparing.
   It waits on jig’s drain and project-scoped placed holds
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
+- **Not yet:** 7.1 and 4.2: a gate's expiry counts from its dispatch or re-run write (`attempt.sent`), a run waiting for a runner and one running alike, and no hold says a gate waits for a runner (`temper-engine-domain-forge/src/landing.rs`, `decide`; `runs.rs`, `Follow`) [in flight: change 4876]
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 
