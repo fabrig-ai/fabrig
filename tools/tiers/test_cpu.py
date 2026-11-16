@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 
 HERE = Path(__file__).resolve().parent
@@ -80,13 +81,13 @@ class OneProcessTests(unittest.TestCase):
         self.run = dict(profile='default', mode='one-process', finished=True, starved=False,
                         wall_s=3.0, returncode=0, cancel_code=None, lanes=2)
         self.results = dict(profile='default', selected=2, no_tests='fail', cancelled=None,
-                            processes=[self.process(['z', 'a'])],
+                            layers=['step', 'io', 'simulated'], processes=[self.process(['z', 'a'])],
                             tests=[self.entry('z'), self.entry('a')], unobserved=[])
 
     def process(self, names, **fields):
         return dict(dict(binary_id='pkg::suite', kind='tests', tests=names, user_s=1.0,
                          system_s=0.5, wall_s=2.0, start_s=100.0, exit_code=0,
-                         signal=None, leaked=False), **fields)
+                         signal=None, leaked=False, tree='temper', layer='simulated'), **fields)
 
     def entry(self, name, **fields):
         return dict(dict(binary_id='pkg::suite', test_name=name, outcome='passed',
@@ -98,9 +99,9 @@ class OneProcessTests(unittest.TestCase):
         CPU['save'](self.directory / 'run.json', self.run)
         CPU['save'](self.directory / 'results.json', self.results)
 
-    def summary(self, limits=None):
+    def summary(self, limits=None, gate=False):
         self.write()
-        return CPU['summary'](self.directory, limits)
+        return CPU['summary'](self.directory, limits, gate=gate)
 
     def cli(self, *arguments):
         return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'),
@@ -231,6 +232,136 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual(result['suite']['starved_run'], starved)
                 self.assertEqual(result['verdict'], 'starved' if starved else 'within budget')
 
+    def layer_case(self):
+        self.limits = {'gate': {'default': {
+            'references': {'step': 0.04, 'simulated': 1, 'io': 0.2},
+            'temper': {'ideal_s': 100, 'simulated': {'cpu_s': 470, 'ideal_s': 15, 'reference_s': 2},
+                       'step': {'cpu_s': 253, 'ideal_s': 25}, 'io': {'cpu_s': 2}}}}}
+        self.results['processes'] = [
+            self.process(['z', 'a'], user_s=299, system_s=1),
+            self.process(['z'], kind='alone', user_s=199, system_s=1),
+            self.process([], kind='fresh', layer='step', user_s=9, system_s=1)]
+        self.over_line = 'layer over budget: temper default simulated: 500.00 CPU s, budget 470 s'
+
+    def test_layer_totals_and_gate_verdict(self):
+        self.layer_case()
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                result = self.summary(self.limits, gate=gate)
+                self.assertEqual(result['layers'], [
+                    dict(tree='temper', layer='step', cpu_s=10, budget_s=253,
+                         ideal_s=25, reference_s=0.04, over=False),
+                    dict(tree='temper', layer='simulated', cpu_s=500, budget_s=470,
+                         ideal_s=15, reference_s=2, over=True)])
+                self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, budget_s=725, ideal_s=100)])
+                self.assertEqual(result['over_budget'], [self.over_line] if gate else [])
+                self.assertEqual(result['warnings'], [] if gate else [self.over_line])
+                self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    CPU['print_summary'](result)
+                text = output.getvalue()
+                self.assertIn('layer temper step: cpu 10.0 s, budget 253 s, ideal 25 s, reference 0.04 s', text)
+                self.assertIn('tree temper: cpu 510.0 s, budget 725 s, ideal 100 s', text)
+                self.assertLess(text.index('default: 2 tests'), text.index('layer temper step:'))
+                self.assertLess(text.index('layer temper simulated:'), text.index('tree temper:'))
+                self.assertLess(text.index('tree temper:'), text.index(self.over_line))
+
+    def test_layer_gate_exit_statuses(self):
+        self.layer_case()
+        budget = self.root / 'budget.toml'
+        budget.write_text(CPU['toml_config'](self.limits))
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                code, _ = self.execute(self.limits, gate=gate)
+                self.assertEqual(code, int(gate))
+                cli = self.cli('--budgets', str(budget), '--json', *(['--gate'] if gate else []))
+                self.assertEqual(cli.returncode, int(gate), cli.stderr)
+                self.assertEqual(json.loads(cli.stdout), self.summary(self.limits, gate=gate))
+
+    def test_missing_layer_budget_unplaced_warning_and_order(self):
+        self.layer_case()
+        del self.limits['gate']['default']['temper']['io']
+        self.results['processes'] = [
+            self.process([], tree='repository', layer='checks'),
+            self.process([], layer=None), self.process([], layer=None, kind='alone'),
+            self.process([], layer='simulated', user_s=0, system_s=0),
+            self.process([], layer='io', user_s=0.25, system_s=0.25),
+            self.process([], layer='step', user_s=252.5),
+            self.process([], tree='jig', layer='step'),
+            self.process([], tree='smith', layer='step')]
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                result = self.summary(self.limits, gate=gate)
+                self.assertEqual([(r['tree'], r['layer']) for r in result['layers']], [
+                    ('smith', 'step'), ('jig', 'step'), ('temper', 'step'), ('temper', 'io'),
+                    ('temper', 'simulated'), ('temper', None), ('repository', 'checks')])
+                self.assertEqual([r['tree'] for r in result['trees']], ['smith', 'jig', 'temper', 'repository'])
+                self.assertEqual([r['over'] for r in result['layers']], [False, False, False, True, False, False, False])
+                line = 'layer over budget: temper default io: 0.50 CPU s, no budget'
+                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)',
+                                                     *([] if gate else [line])])
+                self.assertIsNone(result['layers'][5]['budget_s'])
+                self.assertIsNone(result['layers'][5]['reference_s'])
+                self.assertEqual(result['layers'][5]['cpu_s'], 3)
+
+    def test_absent_placement_keys_read_as_null(self):
+        process = self.results['processes'][0]
+        del process['tree'], process['layer'], self.results['layers']
+        result = self.summary(gate=True)
+        self.assertEqual((result['processes'][0]['tree'], result['processes'][0]['layer']), (None, None))
+        self.assertEqual(result['layers'], [dict(tree=None, layer=None, cpu_s=1.5, budget_s=None,
+                                               ideal_s=None, reference_s=None, over=False)])
+        self.assertEqual(result['trees'], [dict(tree=None, cpu_s=1.5, budget_s=None, ideal_s=None)])
+        self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)'])
+        self.assertEqual(result['over_budget'], [])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertIn('budget none s, ideal none s, reference none s', output.getvalue())
+
+    def test_gate_profile_and_verdict_precedence(self):
+        self.layer_case()
+        for profile, gate, starved, pair_budget, expected in (
+                ('default', True, False, None, 'over budget'),
+                ('default', True, True, None, 'over budget'),
+                ('default', False, True, None, 'starved'),
+                ('fuzzy', True, False, None, 'no budget set'),
+                ('fuzzy', False, False, None, 'no budget set'),
+                ('default', False, False, 600, 'within budget'),
+                ('default', False, False, 1, 'over budget')):
+            with self.subTest(profile=profile, gate=gate, starved=starved, pair_budget=pair_budget):
+                self.run.update(profile=profile, starved=starved)
+                self.results['profile'] = profile
+                limits = copy.deepcopy(self.limits)
+                if pair_budget is not None:
+                    limits[profile] = {'cpu_suite_s': pair_budget}
+                result = self.summary(limits, gate=gate)
+                self.assertEqual(result['verdict'], expected)
+                if profile == 'fuzzy':
+                    self.assertTrue(all(r['budget_s'] is None and r['ideal_s'] is None
+                                        and r['reference_s'] is None and not r['over']
+                                        for r in result['layers']))
+                    self.assertIsNone(result['trees'][0]['budget_s'])
+        self.run.update(profile='fuzzy', starved=False)
+        self.results['profile'] = 'fuzzy'
+        fuzzy = {'gate': {'fuzzy': {'references': {'step': 10, 'simulated': 10},
+                                  'temper': {'ideal_s': 180, 'step': {'cpu_s': 13},
+                                             'simulated': {'cpu_s': 196}}}}}
+        result = self.summary(fuzzy, gate=True)
+        self.assertEqual([r['reference_s'] for r in result['layers']], [10, 10])
+        self.assertEqual([r['budget_s'] for r in result['layers']], [13, 196])
+        self.assertEqual(result['over_budget'], [
+            'layer over budget: temper fuzzy simulated: 500.00 CPU s, budget 196 s'])
+        self.run.update(profile='default', starved=False)
+        self.results['profile'] = 'default'
+        self.results['processes'][0].update(user_s=0, system_s=0)
+        self.results['processes'][1].update(user_s=0, system_s=0)
+        self.assertEqual(self.summary(self.limits, gate=True)['verdict'], 'within budget')
+        self.run['starved'] = True
+        self.assertEqual(self.summary(self.limits, gate=True)['verdict'], 'starved')
+
     def test_invalid_results_raise_and_cli_exits_two(self):
         cases = [
             ('unfinished', ('run', 'finished'), False),
@@ -296,11 +427,13 @@ class OneProcessTests(unittest.TestCase):
                        CPU['summary'](tools, pair='tools', expected=['pkg::suite'])):
             self.assertEqual(result['suite']['cpu_by'], 'test')
             self.assertEqual(result['processes'], [])
+            self.assertEqual(result['layers'], [])
+            self.assertEqual(result['trees'], [])
             self.assertEqual(result['suite']['cpu_s'], 1.5)
 
     def stand_in(self, path, body=None):
         path.write_text('import json, os\nfrom pathlib import Path\n'
-                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):\n"
+                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):\n"
                        + (body if body is not None else
                        f'    run = {self.run!r}\n    results = {self.results!r}\n'
                        '    directory = Path(directory)\n    directory.mkdir(parents=True, exist_ok=True)\n'
@@ -311,7 +444,7 @@ class OneProcessTests(unittest.TestCase):
                        '    (directory / "results.json").write_text(json.dumps(results))\n'
                        '    (directory / "command-output.txt").write_text("runner output\\n")\n'))
 
-    def execute(self, limits=None, body=None):
+    def execute(self, limits=None, body=None, gate=False):
         stand_in = self.root / 'stand_in.py'
         self.stand_in(stand_in, body)
         execute = CPU['execute_one_process']
@@ -321,7 +454,7 @@ class OneProcessTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 code = execute(['prefix', 'cargo', 'nextest', 'run'], {'fixture': 'yes'},
-                               self.directory, 'default', limits or {}, self.root / 'config.toml')
+                               self.directory, 'default', limits or {}, self.root / 'config.toml', gate=gate)
             return code, output.getvalue()
         finally:
             execute.__globals__['ONE_PROCESS'] = previous
@@ -378,11 +511,12 @@ class OneProcessTests(unittest.TestCase):
         env = clean_env(PATH=str(fake_bin) + os.pathsep + os.environ['PATH'],
                         FIXTURE_TARGET=str(self.root / 'target with spaces'),
                         TIERS_WRAPPER='wrap --flag one')
+        env.pop('TIERS_HOLD', None)
         return scripts, env
 
     def command(self, scripts, env, *args):
         return subprocess.run([str(scripts / 'one-process'), *args], env=env,
-                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10, cwd=self.root)
 
     def test_command_selection_output_directory_budgets_and_status(self):
         scripts, env = self.command_setup()
@@ -430,6 +564,26 @@ class OneProcessTests(unittest.TestCase):
             self.assertEqual(json.loads((directory / 'called.json').read_text())[3], {})
             directories.append(directory)
         self.assertNotEqual(*directories)
+
+    def test_command_default_budgets_and_gate(self):
+        scripts, env = self.command_setup()
+        self.layer_case()
+        self.stand_in(scripts / 'one_process.py')
+        budgets = self.root / 'tools/tiers/budgets.toml'
+        budgets.parent.mkdir(parents=True)
+        (budgets.parent / 'layers.toml').write_text('layers=["step", "io", "simulated"]')
+        for present, gate in ((False, False), (True, False), (True, True)):
+            with self.subTest(present=present, gate=gate):
+                if present:
+                    budgets.write_text(CPU['toml_config'](self.limits))
+                directory = self.root / f'out-{present}-{gate}'
+                result = self.command(scripts, env, '--out', str(directory),
+                                      *(['--gate'] if gate else []), 'default')
+                self.assertEqual(result.returncode, int(gate), result.stdout + result.stderr)
+                called = json.loads((directory / 'called.json').read_text())
+                self.assertEqual(called[3], self.limits if present else {})
+                self.assertEqual(self.over_line in result.stdout, present)
+                self.assertEqual(('warning: ' + self.over_line) in result.stdout, present and not gate)
 
 
 class CollectorTests(unittest.TestCase):
@@ -588,23 +742,71 @@ class CollectorTests(unittest.TestCase):
 
     def test_gate_budget_validation(self):
         path = self.root / 'budgets.toml'
+        layers = self.root / 'layers.toml'
+        layers.write_text('layers = ["step", "domain", "system", "machine", "protocol", '
+                          '"io", "simulated", "real-loop", "end-to-end"]')
+        example = (
+            '[gate.default]\nreferences = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, '
+            'protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }\n'
+            '[gate.default.temper]\nideal_s = 100\n'
+            '[gate.default.temper.step]\ncpu_s = 253\nideal_s = 25\n'
+            '[gate.default.temper.protocol]\ncpu_s = 9\nideal_s = 1\nreference_s = 1\n'
+            '[gate.default.repository]\nideal_s = 30\n'
+            '[gate.default.repository.checks]\ncpu_s = 72\n')
         for pairs in (None, {'qa-jig'}):
-            for tree, profile in (('hearth', 'default'), ('new-tree', 'new-profile')):
-                with self.subTest(pairs=pairs, tree=tree, profile=profile):
-                    path.write_text(f'[gate.{tree}.{profile}]\ncpu_suite_s=30')
-                    self.assertEqual(CPU['budgets'](path, pairs),
-                                     {'gate': {tree: {profile: {'cpu_suite_s': 30}}}})
-            for content in ('gate=1', '[gate]\ncpu_suite_s=1',
-                            '[gate.hearth]\ncpu_suite_s=1',
-                            '[gate.hearth.default]\nunknown=1',
-                            '[gate.hearth.default]\ncpu_suite_s=nan',
-                            '[gate.hearth.default]\nauto_reap=[]',
-                            '[gate."".default]\ncpu_suite_s=30',
-                            '[gate.hearth.""]\ncpu_suite_s=30'):
-                with self.subTest(pairs=pairs, content=content):
-                    path.write_text(content)
-                    with self.assertRaises(ValueError):
-                        CPU['budgets'](path, pairs)
+            path.write_text(example)
+            self.assertEqual(CPU['budgets'](path, pairs, layers=layers), tomllib.loads(example))
+        # A layer can supply its own reference without a profile entry.
+        own_reference = example.replace('protocol = 0.2, ', '')
+        path.write_text(own_reference)
+        self.assertEqual(CPU['budgets'](path, layers=layers), tomllib.loads(own_reference))
+        cases = [
+            ('unknown profile', example.replace('gate.default', 'gate.other')),
+            ('unknown group', example.replace('.temper', '.other')),
+            ('unknown profile key', example + '[gate.fuzzy]\nunknown=1'),
+            ('unknown reference', example.replace('step = 0.04', 'step = 0.04, other = 0.04')),
+            ('unknown group key', example.replace('ideal_s = 100', 'ideal_s = 100\nunknown=1')),
+            ('unknown layer key', example.replace('cpu_s = 253', 'cpu_s = 253\nunknown=1')),
+            ('unknown layer', example.replace('.step]', '.other]').replace('cpu_s = 253',
+                                                                         'cpu_s = 253\nreference_s = 1')),
+            ('checks under tree', example.replace('.step]', '.checks]')),
+            ('tree layer under repository', example.replace('.repository.checks]', '.repository.step]')),
+            ('missing ideal', example.replace('ideal_s = 100\n', '')),
+            ('missing cpu', example.replace('cpu_s = 253\n', '')),
+            ('missing reference', example.replace('step = 0.04, ', '')),
+            ('boolean reference', example.replace('step = 0.04', 'step = true')),
+            ('nonfinite reference', example.replace('step = 0.04', 'step = nan')),
+            ('boolean ideal', example.replace('ideal_s = 100', 'ideal_s = true')),
+            ('nonfinite ideal', example.replace('ideal_s = 100', 'ideal_s = inf')),
+            ('boolean cpu', example.replace('cpu_s = 253', 'cpu_s = true')),
+            ('nonfinite cpu', example.replace('cpu_s = 253', 'cpu_s = nan')),
+            ('zero seconds', example.replace('cpu_s = 253', 'cpu_s = 0')),
+            ('negative seconds', example.replace('ideal_s = 25', 'ideal_s = -1')),
+            ('boolean own reference', example.replace('reference_s = 1', 'reference_s = true')),
+            ('nonfinite own reference', example.replace('reference_s = 1', 'reference_s = inf')),
+            ('old tree/profile form', '[gate.hearth.default]\ncpu_suite_s=30'),
+            ('old cpu_suite_s key', example.replace('cpu_s = 253', 'cpu_suite_s = 253')),
+            ('gate scalar', 'gate=1'),
+            ('profile scalar', '[gate]\ndefault=1'),
+            ('group scalar', '[gate.default]\nreferences={}\ntemper=1'),
+            ('layer scalar', '[gate.default]\nreferences={step=0.04}\n'
+                             '[gate.default.temper]\nideal_s=100\nstep=1'),
+        ]
+        for rule, content in cases:
+            with self.subTest(rule=rule):
+                path.write_text(content)
+                with self.assertRaises(ValueError):
+                    CPU['budgets'](path, layers=layers)
+
+    def test_real_gate_budgets_validate(self):
+        result = CPU['budgets'](HERE / 'budgets.toml', layers=HERE / 'layers.toml')
+        self.assertEqual(set(result['gate']), {'default', 'fuzzy'})
+
+    def test_pair_only_budgets_do_not_read_layers(self):
+        path = self.root / 'budgets.toml'
+        path.write_text('[qa-jig]\ncpu_suite_s=30')
+        self.assertEqual(CPU['budgets'](path, {'qa-jig'}, layers=self.root / 'absent.toml'),
+                         {'qa-jig': {'cpu_suite_s': 30}})
 
     def test_auto_reap_budget_declaration_warns_without_refusal(self):
         path = self.root / 'budgets.toml'

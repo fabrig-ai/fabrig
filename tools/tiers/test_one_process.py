@@ -454,7 +454,8 @@ class AgainTests(RunnerFixture):
                 ('no names', 'fixture::suite', [], None, None, (), 'requires test names'),
                 ('not fresh', 'fixture::suite', ['a_passes'], None, self.directory, (), 'fresh'),
                 ('budgets', 'fixture::suite', ['a_passes'], None, None,
-                 ('--budgets', 'unused'), '--budgets')):
+                 ('--budgets', 'unused'), '--budgets'),
+                ('gate', 'fixture::suite', ['a_passes'], None, None, ('--gate',), '--gate')):
             with self.subTest(label=label):
                 result = self.invoke_again(names, binary_id=binary_id, run_directory=source,
                                            directory=out, extra=extra, hold=str(self.root / 'hold'))

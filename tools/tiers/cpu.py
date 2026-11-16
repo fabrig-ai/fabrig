@@ -17,6 +17,7 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 
+GROUPS = ("skein", "smith", "jig", "temper", "hearth", "repository")
 KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 # nextest's abort message for the signals of cancellation (tools/tiers/design.md, 7.3).
 CANCELLED = re.compile(r'\baborted with signal (?:9|15)\b')
@@ -78,9 +79,14 @@ def stop(process, deadline):
     process.wait()
 
 
-def budgets(path, pairs=None):
+def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
     with Path(path).open("rb") as source:
         data = tomllib.load(source)
+
+    def seconds(name, value):
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be finite positive seconds")
+
     def validate(name, values, *, pair=False):
         keys = KEYS | {"auto_reap"} if pair else KEYS
         if not isinstance(values, dict) or values.keys() - keys:
@@ -90,8 +96,7 @@ def budgets(path, pairs=None):
                 if not isinstance(value, list) or any(not isinstance(test, str) or not test for test in value):
                     raise ValueError(f"{name}.auto_reap must be a list of nonempty test names")
                 continue
-            if (type(value) not in (int, float) or not math.isfinite(value) or value <= 0):
-                raise ValueError(f"{name}.{key} must be finite positive seconds")
+            seconds(f"{name}.{key}", value)
     for pair, values in data.items():
         if pair == "tools":
             if not isinstance(values, dict):
@@ -101,17 +106,37 @@ def budgets(path, pairs=None):
                     raise ValueError("empty tools suite ID")
                 validate(f"tools.{suite}", limits)
         elif pair == "gate":
-            if not isinstance(values, dict):
-                raise ValueError("gate budgets must be a table keyed by tree")
-            for tree, profiles in values.items():
-                if not tree:
-                    raise ValueError("empty gate tree name")
-                if not isinstance(profiles, dict):
-                    raise ValueError(f"gate.{tree} must be a table keyed by profile")
-                for profile, limits in profiles.items():
-                    if not profile:
-                        raise ValueError(f"empty gate.{tree} profile name")
-                    validate(f"gate.{tree}.{profile}", limits)
+            with Path(layers).open('rb') as source:
+                layer_names = set(tomllib.load(source)['layers'])
+            if not isinstance(values, dict) or values.keys() - {'default', 'fuzzy'}:
+                raise ValueError("gate budgets must be a table keyed by default or fuzzy")
+            for profile, groups in values.items():
+                name = f'gate.{profile}'
+                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references'}:
+                    raise ValueError(f'invalid budget groups for {name}')
+                references = groups.get('references')
+                if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
+                    raise ValueError(f'invalid references for {name}')
+                for layer, value in references.items():
+                    seconds(f'{name}.references.{layer}', value)
+                for group, table in groups.items():
+                    if group == 'references':
+                        continue
+                    allowed = {'checks'} if group == 'repository' else layer_names
+                    if (not isinstance(table, dict) or 'ideal_s' not in table
+                            or table.keys() - (allowed | {'ideal_s'})):
+                        raise ValueError(f'invalid budget keys for {name}.{group}')
+                    seconds(f'{name}.{group}.ideal_s', table['ideal_s'])
+                    for layer, row in table.items():
+                        if layer == 'ideal_s':
+                            continue
+                        if (not isinstance(row, dict) or 'cpu_s' not in row
+                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s'}):
+                            raise ValueError(f'invalid budget keys for {name}.{group}.{layer}')
+                        for key, value in row.items():
+                            seconds(f'{name}.{group}.{layer}.{key}', value)
+                        if 'reference_s' not in row and layer not in references:
+                            raise ValueError(f'no reference for {name}.{group}.{layer}')
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
@@ -269,7 +294,7 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def summary(directory, limits=None, pair=None, expected=None):
+def summary(directory, limits=None, pair=None, expected=None, gate=False):
     directory = Path(directory)
     if pair == "tools":
         return tools_summary(directory, limits, expected)
@@ -286,7 +311,7 @@ def summary(directory, limits=None, pair=None, expected=None):
     if pair != profile:
         raise ValueError(f"pair {pair} does not match run profile {profile}")
     if run.get('mode') == 'one-process':
-        return one_process_summary(directory, limits, pair, run)
+        return one_process_summary(directory, limits, pair, run, gate)
     if 'mode' in run:
         raise ValueError(f"invalid run mode: {run['mode']}")
     if timed_out(directory):
@@ -355,8 +380,9 @@ def summary(directory, limits=None, pair=None, expected=None):
     return result
 
 
-def one_process_summary(directory, limits, pair, run):
+def one_process_summary(directory, limits, pair, run, gate=False):
     """Read process CPU and test outcomes (tools/tiers/design.md, 10.2 and 11.8)."""
+    gate_limits = (limits or {}).get('gate', {}).get(run['profile'], {})
     limits = (limits or {}).get(pair, {})
     if 'cpu_test_s' in limits:
         raise ValueError('one-process runs cannot measure cpu_test_s')
@@ -399,6 +425,7 @@ def one_process_summary(directory, limits, pair, run):
             raise ValueError('invalid process exit status')
         process = {key: item[key] for key in ('binary_id', 'tests', 'user_s', 'system_s',
                    'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
+        process.update(tree=item.get('tree'), layer=item.get('layer'))
         process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
@@ -465,9 +492,51 @@ def one_process_summary(directory, limits, pair, run):
     over = []
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
+    # The layer comparison and ordering are tools/tiers/budgets.md, 4.
+    grouped = {}
+    for process in processes:
+        key = process['tree'], process['layer']
+        grouped[key] = grouped.get(key, 0.0) + process['cpu_s']
+    layer_order = {name: index for index, name in enumerate(data.get('layers', []))}
+
+    def row_order(key):
+        tree, layer = key
+        tree_index = GROUPS.index(tree) if tree in GROUPS else len(GROUPS)
+        if layer is None:
+            order = len(layer_order) + 2
+        elif layer == 'checks':
+            order = len(layer_order) + 1
+        else:
+            order = layer_order.get(layer, len(layer_order))
+        return tree_index, tree or '', order, layer or ''
+
+    layers, trees, layer_over = [], {}, []
+    for tree, layer in sorted(grouped, key=row_order):
+        table = gate_limits.get(tree)
+        budget = (table or {}).get(layer, {})
+        ceiling = budget.get('cpu_s')
+        cpu = grouped[tree, layer]
+        is_over = layer is not None and (cpu > ceiling if ceiling is not None else table is not None)
+        layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, budget_s=ceiling,
+                           ideal_s=budget.get('ideal_s'),
+                           reference_s=budget.get('reference_s', gate_limits.get('references', {}).get(layer)),
+                           over=is_over))
+        if tree not in trees:
+            trees[tree] = dict(tree=tree, cpu_s=0.0,
+                               budget_s=None if table is None else sum(
+                                   row['cpu_s'] for name, row in table.items() if name != 'ideal_s'),
+                               ideal_s=(table or {}).get('ideal_s'))
+        trees[tree]['cpu_s'] += cpu
+        if is_over:
+            limit = 'no budget' if ceiling is None else f'budget {ceiling} s'
+            layer_over.append(f'layer over budget: {tree} {pair} {layer}: {cpu:.2f} CPU s, {limit}')
+    warnings.extend(f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
+                    for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
+    (over if gate else warnings).extend(layer_over)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
-               else 'within budget' if limits else 'no budget set')
+               else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
+                layers=layers, trees=list(trees.values()),
                 unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
 
 
@@ -536,7 +605,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
     warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
-                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], failures=failures, unobserved=[], over_budget=over,
+                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], layers=[], trees=[], failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
 
@@ -560,18 +629,24 @@ def print_summary(result, as_json=False):
           f"wall {suite['wall_s']:.6f}s; starved {suite['starved']} "
           f"starved_run {suite['starved_run']} unobserved {suite['unobserved']} "
           f"leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
+    for kind, rows in (('layer', result['layers']), ('tree', result['trees'])):
+        for row in rows:
+            label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
+            figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                                for key in ('cpu_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else [])))
+            print(f'{kind} {label}: {figures}')
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
     runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls)
-    result = summary(directory, limits, profile)
+    result = summary(directory, limits, profile, gate=gate)
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         print_summary(result)

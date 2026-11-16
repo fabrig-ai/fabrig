@@ -18,6 +18,7 @@ def main():
     parser.add_argument('--out', type=Path)
     parser.add_argument('--budgets', type=Path)
     parser.add_argument('--walls', type=Path)
+    parser.add_argument('--gate', action='store_true')
     parser.add_argument('--again', type=Path, metavar='RUN_DIR')
     parser.add_argument('profile', help='profile, or BINARY_ID with --again')
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
@@ -33,6 +34,8 @@ def main():
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
         if args.again is not None:
+            if args.gate:
+                raise ValueError('--gate is not supported with --again')
             if args.budgets is not None:
                 raise ValueError('--budgets is not supported with --again')
             if args.walls is not None:
@@ -52,7 +55,10 @@ def main():
             one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
             one['profile_wall'](args.walls, args.profile)
         with runner['hold'](prefix, 'one-process', Path.cwd(), env):
-            limits = cpu['budgets'](args.budgets) if args.budgets else {}
+            budget_path = args.budgets
+            if budget_path is None and Path('tools/tiers/budgets.toml').exists():
+                budget_path = Path('tools/tiers/budgets.toml')
+            limits = cpu['budgets'](budget_path) if budget_path else {}
             directory = args.out
             if directory is None:
                 with contextlib.redirect_stdout(io.StringIO()):
@@ -66,7 +72,7 @@ def main():
             command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run',
                        '--profile', args.profile, '--no-fail-fast',
                        *([] if packages else ['--workspace']), *extra]
-            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls)
+            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls, gate=args.gate)
             sys.stdout.flush()
             return code
     except (OSError, ValueError, KeyError, TypeError, runner['FailedStep']) as error:
