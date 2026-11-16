@@ -349,6 +349,42 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     input's length, and the assertion that fails names the input in its
     message, which the runner prints. A sweep runs thousands of cases,
     and their inputs written whole would outweigh the cases themselves.
+- **It names each kill in the real loop.** A hosted child the real
+  world kills, at a `Kill` some host's `Op::Signal` sent it, is
+  recorded once its operations and descriptors settle, in the order
+  they settle, with who it was, who killed it, when and why:
+
+  ```rust
+  pub struct Killed {
+      /// Its admission index.
+      pub host: usize,
+      pub exit: Exit,
+      /// When the kill was submitted: the iteration's `now`, on the clock
+      /// `Outcome::start` and `end` read.
+      pub at: Time,
+      /// Its program and its arguments' first word, as admitted (lossy UTF-8).
+      pub program: String,
+      pub argument: Option<String>,
+      /// The host whose signal killed it, and that host's program as
+      /// admitted; `None` for a root.
+      pub requester: usize,
+      pub requester_program: Option<String>,
+      /// The signal's reason (../runtime/io/processes.md, 5).
+      pub reason: Reason,
+      peak: Option<u64>,
+  }
+  ```
+
+  Its `Display` is one line, with the reason in words:
+  `host 158 (/s/agent/temper-agent run) killed at 7134000000 ns by host
+  1 (a root): forced after its grace; exit Signal(9)`. The argument is
+  left out when there is none, and a hosted requester shows its program
+  where a root shows `a root`. The reasons' words are `no reason given`
+  (`Unknown`), `asked for` (`Asked`), `closed while running`
+  (`Closed`), `forced after its grace` (`Grace`), `at its deadline`
+  (`Deadline`) and `cancelled` (`Cancelled`). A test that fails on a
+  kill it didn't ask for prints its records with it. The simulated
+  world's `Killed` stays as it is.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,

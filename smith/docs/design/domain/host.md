@@ -210,7 +210,11 @@ policy.
   run winds down on its own (run.md, section 9); past a grace the
   process tree is terminated, then killed. Wall time ends the same polite
   way; a broken rule, no progress, or a channel hung up while the run is
-  live terminate the tree at once.
+  live terminate the tree at once. The host's `Signal::Kill` is only ever
+  that last step, a terminate's grace passed, so whoever carries it down
+  to io names it `Grace` (skein's `runtime/io/processes.md`, section 5): the host
+  process adapter's `signal` takes the reason beside the signal, and a
+  terminate goes down named `Unknown`.
 - **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's
