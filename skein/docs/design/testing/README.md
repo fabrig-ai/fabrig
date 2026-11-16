@@ -654,8 +654,9 @@ Every tier follows ../../foundation/testing-strategy.md, 8.1: CPU budget, wall h
 starved warning and the three-question repair rule.
 
 The two gate suites use the root `.config/nextest.toml`'s `default` and
-`fuzzy` profiles, with CPU budgets of 40 s and 120 s in
-`tools/tiers/budgets.toml`, enforced at the merge gate under
+`fuzzy` profiles, with a CPU budget for each of skein's layers in
+`tools/tiers/budgets.toml` (`tools/tiers/budgets.md`, 2 and 6) and ideals of
+40 s and 120 s, enforced at the merge gate under
 ../../foundation/testing-strategy.md, 8.1. The browser kit against real
 Chromium and the UI example's browser tier use `browser-skein`
 (`tools/tiers/run skein browser`; browser.md, section 9; ../ui/web/testing.md,
