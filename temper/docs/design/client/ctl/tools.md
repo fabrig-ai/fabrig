@@ -24,7 +24,7 @@
   `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
   `repository`, `playground`, `hold`, `landing`, `finding`, `qa`,
   `role`, `need`, and
-  area 3's `project`, `party` and `deployment`; `../../protocol/documentation.md`,
+  area 3's `project`, `party`, `deployment` and `worker` (`workers.md`); `../../protocol/documentation.md`,
   2.4), then a verb of the closed vocabulary, `task show`; or
   one of the six names of the client and the party, `me`, `inbox`,
   `sign-in`, `sign-out`, `pending` and `help`. A read of a part of the
@@ -47,7 +47,7 @@
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
   `REASON`, `KEY`, `AREA` (an area's name, `../../domain/areas.md`, section
-  2) and `PARTY` (a party's number). FINDING is written `P/N`, its
+  2), `PARTY` (a party's number), and `WORKER`, `PLACES` and `SHA256` (`workers.md`, 1). FINDING is written `P/N`, its
   project's number or name, then its number in the project. A step test refuses any other `shown` name.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one

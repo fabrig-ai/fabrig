@@ -135,7 +135,7 @@ with the part that makes it true of `main`.
 | Noun | Concept | ctl groups | Covers |
 |---|---|---|---|
 | ctl | `ctl` | the client's: `sign-in`, `sign-out`, `pending`, `help` | a call's loop (read, act, wait), the wait conditions, keys and kept requests, acts and the revisions they name, the exit classes, JSON; the forge read with tools of the agent's choosing, and what temper owns there changed only through temper |
-| deployment | `deployment` | `deployment` | the engine, the worker, a box, a server, the three directories, the configuration document |
+| deployment | `deployment` | `deployment`, `worker` | the engine, the workers as settings, a box, a server, the three directories, the configuration document |
 | party | `party` | `me`, `party` | people and services, roles, pools, signing in to temper, credentials as files |
 | project | `project` | `project` | projects, their home, their members |
 | forge | `forge` | `forge` | kinds, modes (connected, managed, owned), GitHub's App and installations, the repositories a forge reaches |
