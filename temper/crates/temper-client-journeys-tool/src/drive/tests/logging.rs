@@ -58,13 +58,19 @@ fn log_and_failure_tail(ctl: bool) {
         assert!(box_output(&mut machine, &mut file, Output::Stdout, LATER).is_empty());
         let actions = box_output(&mut machine, &mut file, Output::Stderr, failure);
         if ctl {
-            assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::StopCtl, Action::TerminateBox]));
+            assert!(matches!(
+                actions.as_slice(),
+                [Action::Log { .. }, Action::StopCtl, Action::Stop { process: Process::Box, force: false }]
+            ));
         } else {
             assert!(matches!(
                 actions.as_slice(),
                 [Action::Log { .. }, Action::CancelFace, Action::StopCtl, Action::CloseBrowser]
             ));
-            assert!(matches!(step(&mut machine, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+            assert!(matches!(
+                step(&mut machine, Event::FaceDone(Ok(()))).as_slice(),
+                [Action::Stop { process: Process::Box, force: false }]
+            ));
         }
         assert!(matches!(step(&mut machine, exited(Process::Box, 1)).as_slice(), [Action::Classify]));
 

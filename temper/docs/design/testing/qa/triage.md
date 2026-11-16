@@ -136,7 +136,11 @@ this order:
   these walk in a ctl session without a browser
   (`../../client/recipe.md`, 5.1). A missing recipe or parent, a cycle,
   or more than eight parents leaves that setup out. With `web` or
-  `tui` configured, the catalogue offers every setup.
+  `tui` configured, the catalogue offers every setup. Either way it
+  offers the setups of the kinds `qa.json`'s places run alone
+  (`README.md`, 3.2; `kinds.md`, 6): `fresh` and the box's setups only
+  where a box's place is configured, a deployment's only where a
+  deployment's place is.
   These names are the session's `setups`, those of
   a deployment's kind its `deployments` (`ledger.md`, 2.5); with no
   recipe yet, `fresh` alone, and a case says in `adds` what it needs.

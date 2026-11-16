@@ -152,10 +152,17 @@ deployment's session, unless it is a ctl session, signs its browser in
 from the engine's fresh link and drives the web client and the TUI on
 the engine's own origin and the kept build's bundle, triage and passes
 take web and tui cases on a deployment's setups after its ctl cases,
-and `turn-landing-clients` sees landing by turn's state through both;
-one framework for the two kinds of place is Q8's
+and `turn-landing-clients` sees landing by turn's state through both.
+By goal 5747 the two kinds of place are one framework: the box and the
+deployment behind one interface in the drive session and the QA tool,
+differing only by their kind's values, the deployment's pinned agent
+left out of its copies as the box's is, each box setup weighed and
+kept the box's, `stock-landing` reaching `ctl-hello`'s state at a
+deployment's place, and triage offering the setups of the kinds the
+places run
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
-`testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
+`testing/qa/kinds.md`; `testing/qa/setups.md`; `testing/qa/gaps.md`;
+`draft/landed-qa.status.md`).
 
 The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
@@ -551,6 +558,7 @@ Design documents:
 - [`testing/qa/deployment.md`](testing/qa/deployment.status.md)
 - [`testing/qa/findings.md`](testing/qa/findings.status.md)
 - [`testing/qa/gaps.md`](testing/qa/gaps.status.md)
+- [`testing/qa/kinds.md`](testing/qa/kinds.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)

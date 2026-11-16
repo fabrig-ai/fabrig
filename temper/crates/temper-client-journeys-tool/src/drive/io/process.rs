@@ -69,7 +69,7 @@ impl Child {
     pub fn stop(&mut self, pump: &mut Pump, force: bool) {
         self.stopping = true;
         if let Some(child) = self.identity {
-            if force && self.process.deployment_log().is_some() {
+            if force && (self.process == Process::Box || self.process.deployment_log().is_some()) {
                 pump.request(io::Request::Signal {
                     child,
                     signal: Signal::Kill,

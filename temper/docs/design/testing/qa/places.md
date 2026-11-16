@@ -63,7 +63,9 @@ drive session are Q2's (`../../client/recipe.md`,
   its `ports`, and holds `deployment/` where a box's holds `box/`. Its
   scratch directory below is the one its kind holds. A place runs
   setups of its kind alone: a recipe's kind is its chain's root's
-  (`../../client/recipe.md`, 2), and `fresh` is a box's.
+  (`../../client/recipe.md`, 2), and `fresh` is a box's. What differs
+  between the kinds, here and in the drive session, is `kinds.md`, 3's
+  table, each value read from the kind (`kinds.md`, 6).
 - **Private, whatever the umask** the tool runs under
   (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
   place, `PLACE/` itself, its scratch directory, `copies/` and each
@@ -381,7 +383,9 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
 ## 8. Its code and tests
 
 - **In `temper-qa-tool`,** a `place` module for sections 2 to 4 and 6
-  and a `hold` module for section 5, beside the ledger's.
+  and a `hold` module for section 5, beside the ledger's; a place's kind
+  answers its values, and one function reads a setup's chain for both
+  (`kinds.md`, 6).
 - **Its world behind faces:** the drive tool, run as a process from the
   place's `bin/`; the archive, `tar --create` and `tar --extract` run as
   processes with the captured environment; the holder's socket and its

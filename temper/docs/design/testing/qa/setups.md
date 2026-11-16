@@ -1,7 +1,7 @@
 # The setups' catalogue
 
-Provisional, 2026-11-12, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 5
-and 6, milestones Q3 to Q7 of `../../draft/landed-qa.execution.md`.
+Provisional, 2026-11-12, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 5,
+6 and 13, milestones Q3 to Q8 of `../../draft/landed-qa.execution.md`.
 The recipes kept in `temper/docs/development/qa/setups/`, what each
 reaches, on which forge, and where its scripts come from. Their format
 and walk are `../../client/recipe.md`; how a pass restores, makes again
@@ -34,10 +34,15 @@ and adds to them is `places.md`.
   at a deployment's place, with scripts that carry two goals' changes
   to ready together; its engine serves the place's bundle, and
   `turn-landing-clients` sees its state through the web client and the
-  TUI on the deployment's engine (5.1).
+  TUI on the deployment's engine (5.1); `stock-landing` is `ctl-hello`'s
+  state at a deployment, landing by the stock rule (5.2).
 - **Grown by passes** (`places.md`, 6): a recipe a pass adds lands with
   its request; this document names the catalogue's roots, not every
   recipe.
+- **One catalogue of either kind** (section 7): every setup in one
+  directory, its kind its chain's root's, each box setup weighed by what
+  of a box it needs (`kinds.md`, 7), and triage offering the setups of
+  the kinds the places run (`kinds.md`, 6).
 
 ## 2. The first recipes
 
@@ -332,6 +337,41 @@ tui lines (`../../draft/landed-qa.execution.md`, Q7).
   the web client's home and Hello's project home, and the TUI's
   launchpad, for landing by turn's web and tui cases.
 
+### 5.2 `stock-landing`
+
+`ctl-hello`'s state (section 2) at a deployment's place: Hello on the
+place's fake Forgejo with `work/hello` its home, the fake model the
+person's own key account, and any change's review answered approving,
+so that a change the person opens lands by Hello's stock rule. A root,
+so that a place of the deployment's kind serves ctl cases on a change
+that lands by the stock rule, which `turn-landing` does not
+(section 7; the user, 2026-11-16). It and `ctl-hello` are one setup at
+the two kinds of place, not two concepts: the same lines, the same
+scripts and the same state, each at a place of its kind.
+
+- **Its `config/`:** `turn-landing`'s five documents, file for file
+  (section 5): the fake Forgejo's gate workflow and manual merges are
+  declared there but never dispatched, since no `deployment patch`
+  gives Hello a landing by turn, and the engine's
+  `application.clients.bundle` is the place's bundle.
+- **Its `recipe`:** `ctl-hello`'s, byte for byte: `ctl account add-key
+  1 {model.key} --key qa-model` names provider 1, which is the fake
+  model's provider in `turn-landing`'s engine document as OpenAI's is at
+  a box, and every other line names values a deployment serves
+  (`deployment.md`, 6.1). Without `--deployment`, the account is the
+  person's alone, as at a box: work no person funds finds no account
+  and waits rather than failing under strict.
+- **Its `scripts.json`:** `ctl-hello`'s, byte for byte: B0's twin's
+  review, approving.
+- **No `files/`** and no `deployment patch` line: Hello lands by the
+  stock rule.
+- **Its README** says the state, that it is `ctl-hello`'s at a
+  deployment, and the ctl groups it serves: `change`, `landing`,
+  `repository` and `project`.
+- **Ctl alone,** so its walk is a deployment's ctl session
+  (`../../client/recipe.md`, 5.1) and triage with ctl alone configured
+  offers it where a deployment's place is configured (`kinds.md`, 6).
+
 ## 6. Their tests
 
 Focused, with no box: every recipe of the catalogue reads, its chain
@@ -364,10 +404,45 @@ the gate dispatched on the fake Forgejo and green, and a member holding
 hashes as a deployment's chain after `turn-landing`, holding web and tui
 lines; its walk is planned as a deployment's full session given
 `turn-landing`'s `config/`, `--ports` and `--bundle`, with the walk's
-`web reload "/"` and `tui stop` before its check. The walks are the walk's after
-landing (`../../draft/landed-qa.execution.md`, 1).
+`web reload "/"` and `tui stop` before its check. `stock-landing` reads
+and hashes as a deployment's root whose chain holds no `web` and no
+`tui` line, its walk planned as a deployment's ctl session given its
+`config/` and `--ports`; its `recipe` and `scripts.json` equal
+`ctl-hello`'s and its `config/` equals `turn-landing`'s, file for file.
+The walks are the walk's after landing (`../../draft/landed-qa.execution.md`, 1).
 
-## 7. Open questions
+## 7. Each box setup weighed
+
+`../../draft/landed-qa.md`, 13 keeps a box's setup that needs nothing of
+a box as the box's until the one framework weighs each (`kinds.md`, 7).
+A box's setup needs a box where its state, or a step of its chain,
+reaches what only a box gives: the box's welcome, the fake ChatGPT plan
+signed in through it, the scripts the box generates for its fake model,
+or a B0 or B1 rung walked on a box (`../../../development/acceptance.md`,
+6 and 7).
+
+| Setup | What of a box it needs | Weighed |
+|---|---|---|
+| `welcome` | the box's welcome, its check | the box's |
+| `project-landing` | the fake ChatGPT plan signed in at the box's welcome, after `welcome` | the box's |
+| `chat-draft` | the box's generated scripts, which answer its chat and write its draft, after `project-landing` | the box's |
+| `tui-chat` | the box's generated scripts, which answer its chat, after `project-landing` | the box's |
+| `widget` | `project-landing`'s chain | the box's |
+| `b0-plan`, `b0-landed` | B0's rung on a box, after `widget` | the box's |
+| `b1-plan`, `b1-landed` | B1's rung on a box, after `widget` | the box's |
+| `ctl-hello` | nothing: ctl lines alone, each value it names served at a deployment too (`deployment.md`, 6.1), its scripts its own | the box's, and its state at a deployment's place is `stock-landing` (5.2) |
+
+So every box setup stays the box's, for QA of the box itself (the user,
+2026-11-16: moving `ctl-hello` would take the box's only setup of ctl
+lines alone, which its ctl passes start from). The one that needs
+nothing of a box is reached at a deployment's place too, by
+`stock-landing`, so that ctl cases on a change landing by the stock
+rule have a setup at either kind: `ctl-hello` and `stock-landing` are
+one setup in two places, read as one, the same lines and scripts at a
+place of each kind. A deployment's setups start from a root of their
+own, `config/` and all (section 5).
+
+## 8. Open questions
 
 - **A twin's later states:** B0's plan and landing are its setups. A
   state between, CI running or a review under way, is a stopped box mid-run.

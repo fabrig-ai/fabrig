@@ -73,8 +73,20 @@ and tui cases on a deployment's setups, run after its ctl cases), and
 `../testing/qa/setups.md`, 5 and 5.1 (`turn-landing`'s engine serving
 the place's bundle, and `turn-landing-clients`).
 
+Milestone Q8, one framework, is designed in `../testing/qa/kinds.md`
+(a place's operations, install, start, stop, save, restore and the
+lines' values, each written once for both kinds; the kinds' table, the
+only place they differ; the nine ports named by use; the drive session's
+one place behind one interface; the QA tool's kind answering its
+values, each kind's pinned agent left out of a copy, and triage
+offering the setups of the kinds the places run), with
+`../client/drive.md`, 5, `../testing/qa/places.md`, 2 and 8,
+`../testing/qa/triage.md`, 3, and `../testing/qa/setups.md`, 5.2 and 7
+(each box setup weighed and kept the box's, and `ctl-hello`'s state,
+which needs nothing of a box, reached at a deployment's place too by
+`stock-landing`, one setup in two places; the user, 2026-11-16).
+
 - **Design lags:**
-  - 2, 5, 10: a place's kinds are two paths through the drive session and the place, a deployment's session repeating the box's browser start and end around its own processes (`../testing/qa/deployment.md`, 10), where the draft has one framework for a place's kinds, install, start, save, restore and the lines' values, behind one interface, and one catalogue with each box setup weighed; Q8 carries it.
 
 - **Design departs:**
   - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.

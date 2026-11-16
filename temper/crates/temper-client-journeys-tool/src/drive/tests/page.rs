@@ -26,7 +26,10 @@ fn opening() -> Machine {
     m
 }
 fn classified(m: &mut Machine) -> Vec<Action> {
-    assert!(matches!(step(m, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+    assert!(matches!(
+        step(m, Event::FaceDone(Ok(()))).as_slice(),
+        [Action::Stop { process: Process::Box, force: false }]
+    ));
     assert!(matches!(step(m, exited(Process::Box, 0)).as_slice(), [Action::Classify]));
     step(m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] })
 }

@@ -182,7 +182,8 @@ forge, temper adds:
     watcher on main (`testing/qa/landings.md`), kept builds
     (`testing/qa/builds.md`), triage (`testing/qa/triage.md`), places
     and copies (`testing/qa/places.md`), a deployment at its place
-    (`testing/qa/deployment.md`), passes (`testing/qa/passes.md`),
+    (`testing/qa/deployment.md`), a place's two kinds behind one
+    interface (`testing/qa/kinds.md`), passes (`testing/qa/passes.md`),
     findings (`testing/qa/findings.md`) and the setups' catalogue with
     its twins (`testing/qa/setups.md`).
 - **`protocol/`:** temper's protocol layer on jig's: the processes and

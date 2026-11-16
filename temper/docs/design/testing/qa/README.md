@@ -1,7 +1,7 @@
 # Landed QA
 
 Provisional, 2026-11-12, revised 2026-11-16, from
-`../../draft/landed-qa.md`, milestones Q1, Q3, Q4, Q6 and Q7 of
+`../../draft/landed-qa.md`, milestones Q1, Q3, Q4, Q6, Q7 and Q8 of
 `../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
@@ -16,7 +16,7 @@ the figures bounds are tuned from are Q4's; the `ctl` surface, run
 first, and places of a deployment's kind (`deployment.md`), with the
 first deployment setup, are Q6's; the web client and the TUI at a
 deployment's place, with a deployment setup of web and tui lines, are
-Q7's.
+Q7's; the two kinds of place as one framework (`kinds.md`) are Q8's.
 
 ## 1. In one page
 
@@ -47,7 +47,8 @@ Q7's.
   case for a page or ctl group a queued case covers joins it.
 - **Places and copies** (`places.md`): a place is a fixed directory with
   its own `bin/`, where one box runs, or one deployment's processes
-  (`deployment.md`); a pass installs its build there,
+  (`deployment.md`), the two kinds behind one interface, differing only
+  by their values (`kinds.md`); a pass installs its build there,
   restores each case's setup from its copy, made again from its recipe
   when the build refuses it, and drives the box a line at a time through
   a holder the agent's one-shot commands speak to.
@@ -348,7 +349,8 @@ its binary's table test (`../tools.md`, 6), each failing first:
   a place of one kind taking cases of that kind alone; a web or tui case
   on a deployment's setup recorded as on a box's, and a deployment's
   pass briefed to run its ctl cases first in a ctl session and then its
-  web and tui cases in a full one (`passes.md`, 4).
+  web and tui cases in a full one (`passes.md`, 4); triage's catalogue
+  of the kinds the places run alone (`kinds.md`, 6).
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
@@ -375,8 +377,6 @@ The deployment's, on the machine that holds the places:
 
 - **Edge cases, the help as a surface, and real backends**
   (`../../draft/landed-qa.md`, 12).
-- **One framework for both kinds** of place
-  (`../../draft/landed-qa.execution.md`, Q8).
 
 ## 9. Open questions
 

@@ -467,6 +467,12 @@ deployment line`, and is not kept.
   `Line`'s parse and print, which `recipe.md`'s reader shares. A line
   prints as it parses, field for field, so a kept line is the line
   given.
+- **One place, of either kind,** behind one interface
+  (`../testing/qa/kinds.md`, 5): the box or the deployment's processes
+  started, given their lines, asked for their values and stopped, and
+  their logs classified, by the place's kind; the session's own steps,
+  ctl's sign-in, the browser's start, the TUI, the lines and the
+  clients' end, written once for both.
 - **Its logic without io,** as `again`'s walk has it
   (`web/journeys.md`, 8.1): a state machine that takes each event, a
   line read, a face's answer, a save's bytes, a process's line or exit,

@@ -998,6 +998,76 @@ fn deployment_world() -> World {
     world
 }
 
+const DEPLOYMENT_PINNED_AGENT: &str = "data/worker/workspaces/agent";
+const DEPLOYMENT_WORKSPACE: &str = "data/worker/workspaces/w1/file";
+const DEPLOYMENT_OTHER_AGENT: &str = "data/other/data/worker/workspaces/agent/kept";
+
+fn deployment_copy_state(scratch: &Path, pinned: bool) {
+    for path in [DEPLOYMENT_WORKSPACE, DEPLOYMENT_OTHER_AGENT] {
+        let file = scratch.join(path);
+        fs::create_dir_all(file.parent().expect("state directory")).expect("state directory");
+        fs::write(file, "kept state").expect("state");
+    }
+    if pinned {
+        let agent = scratch.join(DEPLOYMENT_PINNED_AGENT);
+        fs::create_dir_all(&agent).expect("agent directory");
+        fs::write(agent.join("temper-agent"), "pinned binary").expect("pinned binary");
+    }
+}
+fn assert_deployment_copy_state(scratch: &Path) {
+    assert!(!scratch.join(DEPLOYMENT_PINNED_AGENT).exists(), "the deployment's pinned agent is left out");
+    for path in [DEPLOYMENT_WORKSPACE, DEPLOYMENT_OTHER_AGENT] {
+        assert_eq!(fs::read_to_string(scratch.join(path)).expect("kept state"), "kept state");
+    }
+}
+
+#[test]
+fn deployment_setup_saves_real_copies_without_its_pinned_agent_and_allows_its_absence() {
+    for pinned in [true, false] {
+        let world = deployment_world();
+        let paths = world.place.paths.clone();
+        deployment_copy_state(&paths.directory.join("seed"), pinned);
+        let tool = paths.bin.join("temper-client-journeys");
+        let text = fs::read_to_string(&tool)
+            .expect("fake")
+            .replace("printf 'walked %s\\n'", "cp -R seed/data deployment/\n    printf 'walked %s\\n'");
+        fs::write(tool, text).expect("state-writing fake");
+        let mut place =
+            PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+        assert_eq!(place.setup("welcome", &mut Vec::new()).expect("save setup"), 0);
+        assert_eq!(paths.scratch.join(DEPLOYMENT_PINNED_AGENT).exists(), pinned, "the walk's state");
+        let restored = paths.directory.join("inspect");
+        fs::create_dir(&restored).expect("inspection directory");
+        // Inspect the saved tar without extract's exclusion masking a faulty save.
+        real_archive()
+            .extract(&paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar")), &restored, &[])
+            .expect("inspect copy");
+        assert_deployment_copy_state(&restored);
+        assert_eq!(fs::read_to_string(restored.join("config/receipt")).expect("configuration"), "saved config");
+    }
+}
+
+#[test]
+fn deployment_setup_restores_an_older_real_copy_without_its_pinned_agent() {
+    let world = deployment_world();
+    let paths = world.place.paths.clone();
+    let source = paths.directory.join("older");
+    deployment_copy_state(&source, true);
+    fs::create_dir_all(source.join("config")).expect("older config");
+    fs::write(source.join("config/receipt"), "saved config").expect("older config");
+    let directory = paths.copies.join("welcome");
+    fs::create_dir_all(&directory).expect("copy directory");
+    let archive = directory.join(format!("{WELCOME}-{OLD}.tar"));
+    real_archive().create(&source, &archive, &[]).expect("older copy including pinned agent");
+    let mut place =
+        PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+    let mut output = Vec::new();
+    assert_eq!(place.setup("welcome", &mut output).expect("restore older copy"), 0);
+    assert!(String::from_utf8(output).expect("output").contains("restored from its copy made at aaaaaaaaaaaa"));
+    assert_deployment_copy_state(&paths.scratch);
+    assert!(archive.exists(), "checking a copy keeps it");
+}
+
 #[test]
 fn deployment_walks_save_and_restore_their_private_scratch_with_bundle() {
     if under_umasks("place::deployment_walks_save_and_restore_their_private_scratch_with_bundle", &["022", "000"]) {

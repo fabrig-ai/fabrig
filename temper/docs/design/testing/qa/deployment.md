@@ -9,7 +9,9 @@ at the place's ports, stopped in order, copied, and restored with a
 newer build of each, as a redeploy does. The drive session starts and
 stops it (`../../client/drive.md`, 2), the recipe walk reaches its
 states (`../../client/recipe.md`, 5), and the place installs, saves and
-restores it as it does a box (`places.md`). It takes ctl, forge and
+restores it as it does a box (`places.md`), one kind of place behind the
+one interface a box is behind too, where this document gives its values
+(`kinds.md`). It takes ctl, forge and
 deployment lines, Q6's, and, but in a ctl session, web and tui lines on
 the engine's own origin, Q7's: the session's browser and TUI reach the
 deployment's engine rather than a box of their own.
@@ -110,6 +112,8 @@ writes it, with the fakes in place of real backends
   Positions 3, 4, 6 and 7 bind nothing at a deployment. So a place's
   `ports` in `qa.json` serve either kind, and a copy's documents and
   forge records name the place's ports, which no other place takes.
+  Each position's name, by what binds it at each kind, is `kinds.md`,
+  4's.
   A deployment takes no kernel's port: a session without `--ports`
   refuses.
 
@@ -385,10 +389,6 @@ instead.
 
 ## 10. Later
 
-- **A place's kinds behind one interface** (Q8;
-  `../../draft/landed-qa.md`, 10): Q7's deployment session repeats the
-  box's browser start and end around its own processes; Q8 makes them
-  one.
 - **A fake GitHub, several workers, and program accounts** at a
   deployment: its worker's `temper-worker program-login` with the fake
   coding agent's command line beside it, once a setup needs them. Q6's
@@ -397,6 +397,5 @@ instead.
 
 ## 11. Open questions
 
-- **A deployment's ports by use:** positions shared with a box's nine
-  (section 2). Default: shared, until Q8's one framework names a place's
-  ports by what binds them.
+None of its own: a place's ports named in `qa.json` rather than listed
+is `kinds.md`, 11's.

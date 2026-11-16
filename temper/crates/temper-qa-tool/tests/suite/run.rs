@@ -1123,10 +1123,62 @@ fn a_failed_triage_tree_move_removes_and_makes_it_again() {
 }
 
 #[test]
+fn triage_offers_only_the_configured_places_kinds() {
+    use temper_qa_tool::Kind;
+    for kinds in [vec![Kind::Box], vec![Kind::Deployment], vec![Kind::Box, Kind::Deployment]] {
+        let mut world = World::new();
+        world.home.configuration.places.clear();
+        world.home.configuration.kinds.clear();
+        for (index, kind) in kinds.iter().enumerate() {
+            let place = format!("places/{index}");
+            world.home.configuration.places.push(place.clone());
+            world.home.configuration.kinds.insert(place, *kind);
+        }
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        let setups = "temper/docs/development/qa/setups";
+        for name in ["ctl-hello", "turn-landing"] {
+            run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
+        }
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.tick();
+        let mut ledger = world.ledger();
+        let session = &ledger.sessions[0];
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        for (name, kind) in [("fresh", Kind::Box), ("ctl-hello", Kind::Box), ("turn-landing", Kind::Deployment)] {
+            let offered = kinds.contains(&kind);
+            assert_eq!(session.setups.contains(&name.into()), offered, "{name}: {kinds:?}");
+            assert_eq!(brief.contains(&format!("- {name} ({}):", kind.name())), offered, "{brief}");
+        }
+        assert_eq!(session.deployments, if kinds.contains(&Kind::Deployment) { vec!["turn-landing"] } else { vec![] });
+        let number = session.number;
+        let mut input = super::case();
+        input.setup = if kinds == [Kind::Deployment] { "ctl-hello" } else { "turn-landing" }.into();
+        if kinds.len() == 1 {
+            let why = ledger.add_case(number, &input, 1).expect_err("setup not offered").to_string();
+            assert_eq!(
+                why,
+                format!(
+                    "case refused: setup {} is not in the catalogue; setups: {}",
+                    input.setup,
+                    ledger.sessions[0].setups.join(", ")
+                )
+            );
+        } else {
+            ledger.add_case(number, &input, 1).expect("both kinds offered");
+            assert_eq!(ledger.cases[0].kind, Kind::Deployment);
+        }
+    }
+}
+
+#[test]
 fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_configuration() {
     for surfaces in [vec!["ctl"], vec!["ctl", "web", "tui"], vec!["web"]] {
         let mut world = World::new();
         world.home.configuration.surfaces = surfaces.iter().map(|surface| (*surface).into()).collect();
+        world.home.configuration.places.push("places/2".into());
+        world.home.configuration.kinds.insert("places/2".into(), temper_qa_tool::Kind::Deployment);
         let mut run = world.start(baseline(), &[Agent::Never]);
         run.tick();
         land(&mut run, 2, 7);
