@@ -214,7 +214,10 @@ is designed in the pages' documents as milestone M3 of
 What the forge keeps of a milestone, since jig keeps no landing:
 
 - **Keyed by its task,** in a stored family of temper's store, one row
-  a milestone: `last_landing`, an option of
+  a milestone: its `project`; its `name`, its spec's first line, at
+  most 256 bytes, cut at a UTF-8 boundary, written with the row, so
+  that an ended milestone is named without jig's record;
+  `last_landing`, an option of
   `MilestoneLanding { at: Wall, goal: u64, change: u64 }`, and `ended`,
   an option of its end: when, its outcome (section 6), its counts done,
   failed and closed, and its `spent`, as section 7 sums them at the end.
