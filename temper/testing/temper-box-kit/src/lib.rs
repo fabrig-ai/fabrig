@@ -785,15 +785,22 @@ const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_n
 // The hinted job's 5 s sleep outlasts settle (protocol/setup/README.md, 6, protocol/setup/testing.md, 4).
 const HINTED_SETTLE_MS: u64 = 3000;
 
-/// Raises the three keep paces, lowers the change's stall to 600 s, and shortens the hinted story's settle.
+/// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
+/// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    for name in
-        ["forge.client.poll_ms", "forge.client.poll_max_ms", "forge.client.slow_ms", "forge.change_policy.stall_ms"]
-    {
+    for name in [
+        "forge.client.poll_ms",
+        "forge.client.poll_max_ms",
+        "forge.client.slow_ms",
+        "forge.change_policy.stall_ms",
+        "forge.change_policy.unknown_grace_ms",
+    ] {
         value["application"]["limits"]["overrides"][name] = RAISED_MS.into();
     }
+    value["application"]["limits"]["overrides"]["forge.change_policy.runner_wait_ms"] =
+        RAISED_MS.saturating_mul(8).into();
     value["application"]["limits"]["overrides"]["forge.client.settle_ms"] = HINTED_SETTLE_MS.into();
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }

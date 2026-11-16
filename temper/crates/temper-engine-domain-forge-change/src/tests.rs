@@ -1,9 +1,10 @@
 //! Procedure cells, queue order and landing-rule agreement.
+mod clock;
 mod drift;
 use crate::{
-    Change, Ci, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind,
-    GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route,
-    StartedFrom, State, Status, first, released, step,
+    Change, Ci, Clock, Decision, Delegate, Early, Effect, EffectResult, Execution, Facts, Freshness, Gate, GateFailure,
+    GateKind, GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Reading, Ready,
+    Repair, Route, StartedFrom, State, Status, first, released, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -20,6 +21,8 @@ const LIMITS: Limits = Limits {
     questions: 4,
     tasks: 6,
     stall: Duration::from_secs(30),
+    unknown_grace: Duration::from_secs(30),
+    runner_wait: Duration::from_secs(240),
     gates: 4,
     clean_heads: 4,
 };
@@ -47,6 +50,7 @@ fn change(state: State) -> Change {
         owns_turn: false,
         last_head: Some(HEAD),
         last_checked: None,
+        clock: None,
     }
 }
 fn facts() -> Facts {
@@ -60,6 +64,7 @@ fn facts() -> Facts {
         expected_base: BASE,
         pull: Pull::Open { head: HEAD, base: BASE },
         ci: Ci { head: HEAD, status: Status::Passed },
+        execution: None,
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
@@ -103,6 +108,137 @@ fn heard() -> Heard {
 }
 fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
     step(change, facts, heard, at(1), &LIMITS)
+}
+
+fn reading(execution: Execution) -> Reading {
+    Reading { execution, run: 7, attempt: 1 }
+}
+
+#[test]
+fn checking_counts_running_not_the_queue_and_polls_keep_its_clock() {
+    let mut c = change(State::Checking { head: HEAD });
+    c.owns_turn = true;
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    f.execution = Some(reading(Execution::Waiting));
+    for seconds in (0..=120).step_by(10) {
+        let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(240)) });
+        assert!(next.change.owns_turn);
+        c = next.change;
+    }
+    f.execution = Some(reading(Execution::Running));
+    for seconds in [130, 140, 150, 159] {
+        let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(160)) });
+        assert!(next.change.owns_turn);
+        assert_eq!(next.change.since, at(0));
+        c = next.change;
+    }
+    let passed = Facts { ci: Ci { head: HEAD, status: Status::Passed }, ..f.clone() };
+    let done = step(&c, &passed, &heard(), at(160), &LIMITS);
+    assert_eq!(done.decision, Decision::None);
+    assert_eq!(done.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
+    let stalled = step(&c, &f, &heard(), at(160), &LIMITS);
+    assert_eq!(stalled.decision, Decision::Hold(Hold::Stalled));
+    assert!(!stalled.change.owns_turn);
+}
+
+#[test]
+fn checking_reruns_releases_and_heads_start_fresh_clocks() {
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    f.execution = Some(reading(Execution::Running));
+    let c = step(&change(State::Checking { head: HEAD }), &f, &heard(), at(0), &LIMITS).change;
+    let c = step(&c, &f, &heard(), at(20), &LIMITS).change;
+    for (since, head, run, attempt) in
+        [(at(0), HEAD, 8, 1), (at(0), HEAD, 7, 2), (at(25), HEAD, 7, 1), (at(0), NEW, 7, 1)]
+    {
+        let mut c = c.clone();
+        c.since = since;
+        c.state = State::Checking { head };
+        f.branch = Some(head);
+        f.pull = Pull::Open { head, base: BASE };
+        f.ci.head = head;
+        f.execution = Some(Reading { execution: Execution::Running, run, attempt });
+        for seconds in [25, 54] {
+            let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+            assert_eq!(next.decision, Decision::Wait { until: Some(at(55)) });
+            c = next.change;
+        }
+        assert_eq!(step(&c, &f, &heard(), at(55), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+    }
+}
+
+#[test]
+fn checking_mixed_jobs_charge_intervals_to_the_earlier_reading() {
+    let mut c = change(State::Checking { head: HEAD });
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    for (seconds, execution, due) in [
+        (0, Execution::Running, 30),
+        (10, Execution::Waiting, 250),
+        (50, Execution::Running, 70),
+        (60, Execution::Unknown, 100),
+        (99, Execution::Unknown, 100),
+    ] {
+        f.execution = Some(reading(execution));
+        let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(due)) });
+        c = next.change;
+    }
+    assert_eq!(step(&c, &f, &heard(), at(100), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+}
+
+#[test]
+fn checking_unknown_execution_uses_the_grace_then_the_stall() {
+    let mut c = change(State::Checking { head: HEAD });
+    let mut f = facts();
+    f.ci.status = Status::Unknown;
+    f.execution = Some(reading(Execution::Unknown));
+    for seconds in [0, 30, 50, 59] {
+        let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(60)) });
+        c = next.change;
+    }
+    assert_eq!(step(&c, &f, &heard(), at(60), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+}
+
+#[test]
+fn checking_waiting_for_a_runner_has_its_own_bound() {
+    let mut c = change(State::Checking { head: HEAD });
+    c.owns_turn = true;
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    f.execution = Some(reading(Execution::Waiting));
+    for seconds in [0, 30, 120, 239] {
+        let next = step(&c, &f, &heard(), at(seconds), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(240)) });
+        assert!(next.change.owns_turn);
+        c = next.change;
+    }
+    let stalled = step(&c, &f, &heard(), at(240), &LIMITS);
+    assert_eq!(stalled.decision, Decision::Hold(Hold::Stalled));
+    assert!(!stalled.change.owns_turn);
+}
+
+#[test]
+fn checking_settles_until_the_earlier_window_or_clock_bound() {
+    let mut c = change(State::Checking { head: HEAD });
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    f.execution = Some(reading(Execution::Running));
+    f.settling = Some(at(20));
+    let next = step(&c, &f, &heard(), at(0), &LIMITS);
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(20)) });
+    c = next.change;
+    let next = step(&c, &f, &heard(), at(20), &LIMITS);
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+    c = next.change;
+    f.settling = Some(at(100));
+    let next = step(&c, &f, &heard(), at(29), &LIMITS);
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(step(&next.change, &f, &heard(), at(30), &LIMITS).decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]

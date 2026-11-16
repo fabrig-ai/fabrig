@@ -982,10 +982,47 @@ fn checking(
             if has_eager_gate(&change) {
                 change.state = State::Gating { head, asked: Box::new([]) };
                 Stepped { change, decision: Decision::None }
+            } else if let Some(reading) = facts.execution {
+                let clock = crate::Clock::observe(change.clock, change.since, head, reading, now);
+                change.clock = Some(clock);
+                checking_clock(change, clock, facts, now, limits)
             } else {
                 settling(change, facts, now, limits)
             }
         }
+    }
+}
+
+/// Bound execution and runner wait without charging queued time to running
+/// (temper/docs/design/domain/forge/change/stalls.md, 2.3).
+fn checking_clock(change: Change, clock: crate::Clock, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    let unknown = clock.unknown(now).as_nanos();
+    let counted = clock.ran(now).as_nanos().saturating_add(unknown.saturating_sub(limits.unknown_grace.as_nanos()));
+    let waited = clock.waited(now).as_nanos();
+    let stalled = counted >= limits.stall.as_nanos() || waited >= limits.runner_wait.as_nanos();
+    let remaining = if stalled {
+        0
+    } else {
+        match clock.seen {
+            crate::Execution::Running => limits.stall.as_nanos().saturating_sub(counted),
+            crate::Execution::Unknown => limits
+                .unknown_grace
+                .as_nanos()
+                .saturating_sub(unknown)
+                .saturating_add(limits.stall.as_nanos().saturating_sub(counted)),
+            crate::Execution::Waiting => limits.runner_wait.as_nanos().saturating_sub(waited),
+        }
+    };
+    let due = Wall::from_nanos(now.as_nanos().saturating_add(remaining));
+    if let Some(end) = facts.settling
+        && now < end.min(due)
+    {
+        return Stepped { change, decision: Decision::Wait { until: Some(end.min(due)) } };
+    }
+    if stalled {
+        hold(change, Hold::Stalled)
+    } else {
+        Stepped { change, decision: Decision::Wait { until: Some(due) } }
     }
 }
 

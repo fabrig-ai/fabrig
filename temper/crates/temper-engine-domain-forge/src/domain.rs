@@ -6016,6 +6016,7 @@ fn change_facts(
             head: pending.branch.unwrap_or([0; 32]),
             status: if has_ci && requires.ci { pending.ci } else { change::Status::Passed },
         },
+        execution: None,
         base_ci: change::Ci {
             head: base_tip,
             status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },

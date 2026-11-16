@@ -38,6 +38,7 @@ pub fn change_row() -> top::ChangeRow {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: None,
