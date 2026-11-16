@@ -2132,3 +2132,17 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).is_empty(), "nothing offered");
     }
 }
+
+#[test]
+fn findings_stop_proposal_names_the_work_not_the_triager() {
+    use pages::stop_asking::Act as Stop;
+    use temper_protocol_reaches::{Kind, Offer, Reach, Subject};
+    let reach = Reach { kind: Kind::Findings, ..stop_reach() };
+    let mut fixture = stop_fixture(false, reach, true, true, None);
+    stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+    let sent =
+        stop_sent(&stop_act(&mut fixture.root, Stop::Propose { offer: Offer::Decide(Subject::Kind(Kind::Findings)) }));
+    let [(_, jig_client::Ask::Jig(ask))] = sent.as_ref() else { panic!("one proposal") };
+    let c::Ask::Propose { reason, .. } = ask.as_ref() else { panic!("settings proposal") };
+    assert_eq!(reason.bytes(), b"Stop asking in Project 1: let agents decide starting work on findings, then tell whoever they would have asked.");
+}

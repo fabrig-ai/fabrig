@@ -239,7 +239,12 @@ const HOW_REACHES_DECIDE: Part = Part::GroupLines {
 };
 const HOW_REACHES_ASK: Part = Part::GroupLines {
     name: "Asks you",
-    lines: &["a change to vsr’s protocol core", "a new dependency", "a departure from a landed design"],
+    lines: &[
+        "a change to vsr’s protocol core",
+        "a new dependency",
+        "a departure from a landed design",
+        "starting work on findings: a goal for them, the backlog or a hand-off",
+    ],
 };
 const HOW_REACHES_NOTE: Part = Part::Named {
     role: Role::Paragraph,
@@ -956,6 +961,7 @@ static HOLDS: [Holds; samples::N] = [
                     "implementation choices a spec leaves open",
                     "a new dependency",
                     "a departure from a landed design",
+                    "starting work on findings: a goal for them, the backlog or a hand-off",
                 ],
             },
             HOW_WAIT,
@@ -1005,6 +1011,7 @@ static HOLDS: [Holds; samples::N] = [
                     "test-only changes",
                     "a new dependency",
                     "a departure from a landed design",
+                    "starting work on findings: a goal for them, the backlog or a hand-off",
                 ],
             },
             HOW_WAIT,

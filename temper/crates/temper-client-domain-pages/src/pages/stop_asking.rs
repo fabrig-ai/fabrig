@@ -277,6 +277,7 @@ fn proposal_reason(root: &dyn Root, open: &Open, classes: &Classes, bound: u32) 
             Kind::Irreversible => b"irreversible changes",
             Kind::Rules => b"changes to what reaches you",
             Kind::Other => b"other decisions",
+            Kind::Findings => b"starting work on findings",
         }),
         Subject::Set(number) => bytes::concat(&[b"changes to ", &classes.set(number)?.name]),
     };

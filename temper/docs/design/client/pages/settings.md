@@ -350,7 +350,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     spec", `retry` "retrying or splitting a task", `implementation`
     "implementation choices a spec leaves open", `tests` "test-only
     changes", `dependency` "a new dependency", `departure` "a departure
-    from a landed design", a set "a change to NAME", its `name`; `money`
+    from a landed design", `findings` "starting work on findings: a goal
+    for them, the backlog or a hand-off"
+    (`../../draft/home-for-a-person.md`, 5), a set "a change to NAME", its `name`; `money`
     "money past a budget", `irreversible` "what can’t be undone: rewriting
     history, a force-push, deleting unlanded work", `rules` "changes to
     this page", `other` "anything an agent can’t place"; an item with

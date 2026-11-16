@@ -31,7 +31,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; no number 3, the foreman being retired (`settings.md`, 2) |
 | kind 6 | none for every project: a change asks no one unless its maker names `up`, the one other route (`../../domain/forge/change/questions.md`, 1) |
 | kind 7 | for every project: `drafts` true; `goals` and `changes` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
-| kind 8 | for every project: Agents review's table (`../../domain/forge/attention.md`, 6): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency` and `departure` asking, which Away may decide; no path set |
+| kind 8 | for every project: Agents review's table (`../../domain/forge/attention.md`, 6): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency`, `departure` and `findings` asking, which Away may decide; no path set |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../../domain/routing.md`, 7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until `settings.md`, 5's second step, which makes it a setting of temper's, the deployment's |
 
 - **Kind 9, each stock charter's words,** given to the forge at each start

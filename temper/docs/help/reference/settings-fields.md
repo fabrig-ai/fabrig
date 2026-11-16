@@ -607,7 +607,7 @@ Classes by kind and path set; absent: Agents review's table.
 
 Kind/set, optional words, class; one wordless item per subject. Money, irreversible, rules and other always wait, with no item.
 
-- `kind`: `"wording"`, `"retry"`, `"implementation"`, `"tests"`, `"dependency"` or `"departure"`. Exactly one of kind or set is required.
+- `kind`: `"wording"`, `"retry"`, `"implementation"`, `"tests"`, `"dependency"`, `"departure"` or `"findings"`. Exactly one of kind or set.
 - `set`: integer, 0 to 255. A set in this table, from 1 to 6; exactly one of kind or set.
 - `words`: text, at most 120 bytes. Optional wording for this item, empty when absent.
 - `class`: `"decide"`, `"ask"` or `"ask-away"`. Wait is never a table class. `"decide"`: Agents decide and list it. `"ask"`: Ask the person; Away may decide. `"ask-away"`: Ask the person even when away.
