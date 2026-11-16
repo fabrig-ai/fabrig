@@ -26,5 +26,3 @@
   forge setting reads, including historical revision values. 3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
-- **Not yet:** 2: the template-bounds paging story is still the one-process
-  world's (`suite::paging`), not `tests/client`'s. [in flight: change 5562]
