@@ -1,5 +1,6 @@
 //! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
 mod history;
+pub(crate) mod open;
 use crate::{
     jig::{
         self,

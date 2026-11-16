@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Changes: read a change's way to landing.
+Changes: open one or read its way to landing.
 
 ## change show
 
@@ -30,4 +30,27 @@ Gone record: last 8 history events and the all-events read (0), up to 16 pages,
 naming more. Empty history: record and history gone (2). JSON: events/read
 or history: gone. A wait without a panel: `no change panel for task N` (2).
 Read the forge for its diff, reviews and logs.
+```
+
+## change open
+
+```
+change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at COMMIT] [--into BRANCH] --title TEXT [--body TEXT] (--budget AMOUNT | --as-allowed) --key KEY
+  --project PROJECT: a project's name or number; required. The project
+  --repository OWNER/NAME: text, at most 1048576 bytes; optional. Its repository; the project's only repository when absent
+  --branch BRANCH: text, at most 1048576 bytes; optional. Required: the source branch, 1 to 1024 bytes
+  --at COMMIT: text, at most 1048576 bytes; optional. 40 or 64 hexadecimal digits; its head when taking the change when absent
+  --into BRANCH: text, at most 1048576 bytes; optional. The landing branch, 1 to 1024 bytes; the repository's default when absent
+  --title TEXT: text, at most 1048576 bytes, or - to read stdin; optional. Required: the pull request's title, 1 to 256 bytes
+  --body TEXT: text, at most 1048576 bytes, or - to read stdin; optional. The pull request's body after the opening line, 1 to 16384 bytes
+  --budget AMOUNT: a number from 0 to 18446744073709551615; optional. What reviews, resolutions and repairs may spend; or --as-allowed
+  --as-allowed: a switch. Take what your role allows instead of a named budget
+Open a change from a branch you pushed
+Prints: `task N`, the change task made; a refusal names why nothing was made
+--json: the record change_open.
+Key: --key KEY, required.
+Give --branch, --title, and either --budget or --as-allowed.
+--repository is OWNER/NAME. --at is sent lowercase.
+A replay under the same key answers the first. A change that fails later
+was opened: read it with change show TASK.
 ```
