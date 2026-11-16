@@ -56,6 +56,9 @@ all. Then temper's:
    triaged and closed when their fix clears; QA after landing.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
+10. **milestones.md:** a milestone, a set of goals on jig's gathering:
+    its template and identity, its goals asking its maker, its totals
+    and the forge's row of it, and the status agent's milestones.
 
 ## 2. Structure
 

@@ -1,0 +1,8 @@
+milestone new --project PROJECT NAME [--words TEXT] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] --key KEY
+  Make a milestone from project template 8
+milestone whole TASK --key KEY
+  Say every goal is in the milestone
+milestone list --project PROJECT [--ended] [--after CURSOR]
+  Read one group of the project's milestones
+milestone show TASK
+  Read a milestone's facts, totals and goals

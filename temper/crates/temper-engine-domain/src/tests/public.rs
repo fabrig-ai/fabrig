@@ -131,18 +131,32 @@ fn a_public_goal_is_the_outermost_tracked_task() {
     let (domain, env, goal) = projection_settled::live_goal(Some(1));
     let mut parent = domain.core.tasks.task(goal).expect("goal").clone();
     parent.number = goal.checked_add(1).expect("fixture number");
-    parent.depth = 0;
+    let mut milestone = parent.clone();
+    milestone.number = parent.number.checked_add(1).unwrap();
+    milestone.executor = tasks::Executor::Procedure { connector: u16::MAX, code: 2 };
+    milestone.flags.ended_by = tasks::EndedBy::Requester;
+    milestone.depth = 0;
+    parent.requester = tasks::Party::Task(milestone.number);
+    parent.depth = 1;
     let mut child = domain.core.tasks.task(goal).expect("goal").clone();
     child.requester = tasks::Party::Task(parent.number);
-    child.depth = 1;
+    child.depth = 2;
+    child.tracked = None;
     let funding = *domain.core.tasks.funding(parent.funder).expect("funding");
     let records = [
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(funding))),
+        crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(milestone)))),
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(parent.clone())))),
         crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(child)))),
     ];
-    let (domain, _) = resume_fixture::root_with_records(resume_fixture::config(7), &env.limits, &records);
-    assert_eq!(domain.core.goal_of(domain.core.tasks.task(goal).expect("child")), Some(goal));
+    let mut limits = env.limits;
+    limits.tasks.tasks = 3;
+    limits.tasks.project_tasks = 3;
+    limits.tasks.tree_tasks = 3;
+    limits.tasks.depth = 2;
+    limits.people.inbox_tasks = 6;
+    let (domain, _) = resume_fixture::root_with_records(resume_fixture::config(7), &limits, &records);
+    assert_eq!(domain.core.goal_of(domain.core.tasks.task(goal).expect("child")), Some(parent.number));
     assert_eq!(public::public_goal(&domain, goal), Some(parent.number));
     assert_eq!(public::public_goal(&domain, u64::MAX), None);
 }

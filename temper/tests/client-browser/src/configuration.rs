@@ -61,7 +61,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
         ("tasks.charters", 16),
-        ("core.templates", 6),
+        ("core.templates", 7),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
