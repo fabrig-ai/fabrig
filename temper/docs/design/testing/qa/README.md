@@ -1,7 +1,7 @@
 # Landed QA
 
 Provisional, 2026-11-12, revised 2026-11-16, from
-`../../draft/landed-qa.md`, milestones Q1, Q3, Q4 and Q6 of
+`../../draft/landed-qa.md`, milestones Q1, Q3, Q4, Q6 and Q7 of
 `../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
@@ -14,7 +14,9 @@ copies (`places.md`), passes (`passes.md`) and findings with their goal
 setups' catalogue with its twins (`setups.md`), places' own ports and
 the figures bounds are tuned from are Q4's; the `ctl` surface, run
 first, and places of a deployment's kind (`deployment.md`), with the
-first deployment setup, are Q6's.
+first deployment setup, are Q6's; the web client and the TUI at a
+deployment's place, with a deployment setup of web and tui lines, are
+Q7's.
 
 ## 1. In one page
 
@@ -343,7 +345,10 @@ its binary's table test (`../tools.md`, 6), each failing first:
   against ctl's groups and listed first in triage's and a pass's
   briefs; a pass whose ctl cases run first opening its session with
   `--ctl`, no browser started; a case's kind its setup's, and a pass at
-  a place of one kind taking cases of that kind alone.
+  a place of one kind taking cases of that kind alone; a web or tui case
+  on a deployment's setup recorded as on a box's, and a deployment's
+  pass briefed to run its ctl cases first in a ctl session and then its
+  web and tui cases in a full one (`passes.md`, 4).
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
@@ -358,8 +363,8 @@ The deployment's, on the machine that holds the places:
   request's commands for `request` (`findings.md`, 5 and 6);
 - `temper-qa run` as a service, with `TEMPER_INTERNAL_QA_HOME`, and
   `SKEIN_TEST_CHROMIUM` naming the Chromium the drive session takes
-  (`../../client/drive.md`, 2.1), which a deployment's place and a ctl
-  session never start;
+  (`../../client/drive.md`, 2.1) for a full session at a place of
+  either kind, which a ctl session never starts;
 - a deployment's place, where its cases are wanted, with its own nine
   ports in `qa.json` (3.2);
 - its after-landing work calling `temper-qa wake` after moving main's
@@ -370,9 +375,8 @@ The deployment's, on the machine that holds the places:
 
 - **Edge cases, the help as a surface, and real backends**
   (`../../draft/landed-qa.md`, 12).
-- **The web client and the TUI at a deployment's place,** then one
-  framework for both kinds (`../../draft/landed-qa.execution.md`, Q7
-  and Q8).
+- **One framework for both kinds** of place
+  (`../../draft/landed-qa.execution.md`, Q8).
 
 ## 9. Open questions
 
