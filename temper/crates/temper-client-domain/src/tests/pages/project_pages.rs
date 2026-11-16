@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{
     Address, ChatsFilter, GoalsFilter, WorkFilter,
+    address::{Filter, Kind},
     pages::{self, Act, Event, Pages, Request, switcher},
 };
 use jig_client::{Handle, Readable, Told, Watchable, contract as c};
@@ -184,6 +185,25 @@ fn switching_projects_keeps_home_settings_ask_or_chats() {
             Some(Address::Work { project: OTHER, filter: WorkFilter::Drafts }),
         ),
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
+        (Address::AllHome, Some(Address::Home { project: OTHER })),
+        (
+            Address::Inbox { filter: Filter::ALL },
+            Some(Address::Inbox { filter: Filter { project: Some(OTHER), kind: None, goal: None } }),
+        ),
+        (
+            Address::Inbox {
+                filter: Filter { project: Some(fixtures::PROJECT), kind: Some(Kind::Question), goal: Some(7) },
+            },
+            Some(Address::Inbox { filter: Filter { project: Some(OTHER), kind: Some(Kind::Question), goal: None } }),
+        ),
+        (
+            Address::Inbox { filter: Filter { project: None, kind: Some(Kind::Question), goal: None } },
+            Some(Address::Inbox { filter: Filter { project: Some(OTHER), kind: Some(Kind::Question), goal: None } }),
+        ),
+        (
+            Address::Inbox { filter: Filter { project: Some(OTHER), kind: None, goal: Some(7) } },
+            Some(Address::Inbox { filter: Filter { project: Some(OTHER), kind: None, goal: Some(7) } }),
+        ),
         (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
         (Address::Ask { project: fixtures::PROJECT }, Some(Address::Ask { project: OTHER })),

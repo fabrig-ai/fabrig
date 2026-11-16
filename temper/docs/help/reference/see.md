@@ -86,7 +86,7 @@ Next: settings rules · settings landing · settings project-ways · settings pr
 
 Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.
 
-Next: settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
+Next: settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
 
 ## settings charter N
 
@@ -142,9 +142,15 @@ The rules whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 
-## settings landing-rule N [project]
+## settings landing-rule N
 
-A landing rule whole: the deployment's, or, with project, this project's.
+The deployment's landing rule N whole, at the newest revision.
+
+Next: settings landing · settings · help landing-rule
+
+## settings landing-rule N project
+
+This project's landing rule N whole, at the newest revision; project is that word, not a number.
 
 Next: settings landing · settings · help landing-rule
 
@@ -152,7 +158,7 @@ Next: settings landing · settings · help landing-rule
 
 Project landing: queue or turn, merge job, after-landing retries and bound, repository gate and tier counts; set in configuration, never by proposal.
 
-Next: settings gates OWNER/NAME · settings landing-rule N [project] · help landing
+Next: settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing
 
 ## settings gates OWNER/NAME
 

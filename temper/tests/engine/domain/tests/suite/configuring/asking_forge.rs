@@ -59,7 +59,7 @@ fn an_asking_chat_reads_the_forge() {
             "landing: by queue",
             "org/repo: 1 gate",
             false,
-            "settings gates OWNER/NAME · settings landing-rule N [project] · help landing",
+            "settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing",
         ),
         (
             "settings gates org/repo",

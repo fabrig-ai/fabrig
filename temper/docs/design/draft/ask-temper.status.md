@@ -79,4 +79,15 @@ of it follows landing with the walk.
   its own view until it is decided. Decided by the user, 2026-11-16, after
   a write-up of a chat that had drawn a proposal gave the path as a
   numbered list and the proposal in prose.
+- **Design departs:** 5.1 and 8: `../domain/agent/ask-temper.md`, 1
+  writes a landing rule's two reads as two forms, `settings landing-rule
+  N` and `settings landing-rule N project`, in `see`'s table, its `see:`
+  lines and the line of addresses `ask.txt`'s *Finding out* carries
+  (`landing-rule N | landing-rule N project`), where 5.1's table and 8's
+  line write one form, `landing-rule N [project]`; and refuses a deployment
+  landing rule the deployment lacks and the chat's project has by naming
+  the project's address. In journey 27 (2026-11-15) a run read
+  `[project]` as a place for the project's number, and `settings
+  landing-rule 1` read the deployment's rule with no word of the project's.
+  Decided on the user's request of 2026-11-16.
 - **Open:** 12.
