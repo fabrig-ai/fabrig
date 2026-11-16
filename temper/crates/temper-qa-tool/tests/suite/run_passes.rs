@@ -100,7 +100,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     );
     let command = &run.processes.commands[1];
     assert_eq!(command.arguments, ["agent", "--effort=high"]);
-    assert_eq!(command.directory, world.home.session_directory(2).join("tree"));
+    assert_eq!(command.directory, world.home.pass_tree("places/1"));
     assert_eq!(command.output, world.home.session_directory(2).join("output"));
     for (name, value) in [
         (temper_qa_tool::HOME.name, world.home.directory.display().to_string()),
@@ -217,6 +217,7 @@ fn third_step_opens_a_wait_behind_a_holder_and_closes_after_cases_are_taken() {
     run.clock.time = 20;
     run.tick();
     assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: None }]);
+    assert_eq!(run.wait_timeout().expect("place retry"), Some(60));
     run.clock.time = 30;
     run.tick();
     assert_eq!(world.ledger().place_waits.len(), 1, "an open wait is not duplicated");
@@ -252,52 +253,38 @@ fn a_busy_drive_lock_keeps_the_place_free_of_new_installs_or_records() {
 
 #[test]
 fn a_bad_manifest_names_the_path_records_nothing_and_retries_next_tick() {
-    for missing in [false, true] {
-        let world = World::new();
-        let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
-        run.tick();
-        land(&mut run, 2, 7);
-        let build = world.installable_build(2);
-        let manifest = fs::read_to_string(build.join("manifest")).expect("manifest");
-        let why = if missing {
-            let shortened = manifest
-                .lines()
-                .filter(|line| !line.ends_with("  bundle/assets/app.js"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            fs::write(build.join("manifest"), shortened).expect("missing manifest entry");
-            "file is absent from manifest"
-        } else {
-            fs::write(build.join("bundle/assets/app.js"), b"changed").expect("corrupted build");
-            "checksum differs from manifest"
-        };
-        run.tick();
-        run.tick();
-        assert_eq!(world.ledger().passes.len(), 0);
-        assert_eq!(world.ledger().sessions.len(), 1);
-        assert_eq!(world.ledger().cases[0].state, CaseState::Queued);
-        run.clock.time = 3600;
-        run.tick();
-        let ledger = world.ledger();
-        assert_eq!(ledger.passes.len(), 0);
-        assert!(
-            ledger.lines.iter().any(|line| line
-                .words
-                .contains(&format!("passes has failed for an hour: bundle/assets/app.js: {why}")))
-        );
-        fs::write(build.join("manifest"), manifest).expect("repaired manifest");
-        fs::write(build.join("bundle/assets/app.js"), b"javascript").expect("repaired build");
-        run.tick();
-        assert_eq!(world.ledger().passes.len(), 1);
-        assert_eq!(
-            run.processes
-                .commands
-                .iter()
-                .filter(|command| command.arguments.first().is_some_and(|program| program == "agent"))
-                .count(),
-            2
-        );
-    }
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    let build = world.installable_build(2);
+    let manifest = fs::read_to_string(build.join("manifest")).expect("manifest");
+    let shortened =
+        manifest.lines().filter(|line| !line.ends_with("  bundle/assets/app.js")).collect::<Vec<_>>().join("\n");
+    fs::write(build.join("manifest"), shortened).expect("missing manifest entry");
+    run.tick();
+    run.tick();
+    assert_eq!(world.ledger().passes.len(), 0);
+    assert_eq!(world.ledger().sessions.len(), 1);
+    assert_eq!(world.ledger().cases[0].state, CaseState::Queued);
+    run.clock.time = 3600;
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes.len(), 0);
+    assert!(ledger.lines.iter().any(|line| {
+        line.words.contains("passes has failed for an hour: bundle/assets/app.js: file is absent from manifest")
+    }));
+    fs::write(build.join("manifest"), manifest).expect("repaired manifest");
+    run.tick();
+    assert_eq!(world.ledger().passes.len(), 1);
+    assert_eq!(
+        run.processes
+            .commands
+            .iter()
+            .filter(|command| command.arguments.first().is_some_and(|program| program == "agent"))
+            .count(),
+        2
+    );
 }
 
 #[test]
@@ -364,8 +351,8 @@ fn triage_and_pass_sessions_run_together_and_keep_their_own_bounds() {
     run.tick();
     assert_eq!(run.processes.signals.last(), Some(&(3, Signal::Kill)));
     assert_eq!(world.ledger().sessions[2].exit, Some(Exit::Bound));
-    assert!(!world.home.session_directory(2).join("tree").exists());
-    assert!(!world.home.session_directory(3).join("tree").exists());
+    assert!(world.home.pass_tree("places/1").is_dir());
+    assert!(world.home.triage_tree().is_dir());
 }
 
 #[test]
@@ -387,7 +374,7 @@ fn agent_exits_apply_recorded_outcomes_or_nothing_and_write_the_report() {
         assert_eq!(ledger.passes[0].state, pass_state);
         assert_eq!(ledger.sessions[1].exit, Some(Exit::Code(0)));
         assert_eq!(ledger.sessions[1].tokens, Some(1234));
-        assert!(!world.home.session_directory(2).join("tree").exists());
+        assert!(world.home.pass_tree("places/1").is_dir());
         assert!(world.home.session_directory(2).join("brief").is_file());
         let report: serde_json::Value =
             serde_json::from_slice(&fs::read(world.home.directory.join("passes/1/report.json")).expect("report file"))
@@ -429,7 +416,7 @@ fn a_failed_report_write_keeps_the_end_recorded_and_retries_the_report() {
     let report: serde_json::Value =
         serde_json::from_slice(&fs::read(directory.join("report.json")).expect("retried report")).expect("JSON");
     assert_eq!(report, world.ledger().report(1).expect("report value"));
-    assert!(!world.home.session_directory(2).join("tree").exists());
+    assert!(world.home.pass_tree("places/1").is_dir());
 }
 
 #[test]
@@ -458,7 +445,7 @@ fn changed_recipes_on_the_request_compare_the_three_files_to_the_build_commit() 
 }
 
 #[test]
-fn an_unstarted_agent_undoes_the_pass_start_and_removes_its_tree() {
+fn an_unstarted_agent_undoes_the_pass_start_and_keeps_its_tree() {
     let world = World::new();
     let mut run = ready(&world, Agent::Unstarted);
     let ledger = world.ledger();
@@ -469,7 +456,7 @@ fn an_unstarted_agent_undoes_the_pass_start_and_removes_its_tree() {
     assert_eq!(ledger.cases[0].outcomes.len(), 0);
     assert_eq!(ledger.passes[0].state, PassState::Ended);
     assert_eq!(ledger.builds[0].held, None);
-    assert!(!world.home.session_directory(2).join("tree").exists());
+    assert!(world.home.pass_tree("places/1").is_dir());
     run.tick();
     assert_eq!(world.ledger().passes[1].state, PassState::Running);
     assert_eq!(world.ledger().sessions[2].exit, None);
@@ -530,7 +517,7 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
     assert!(brief.contains("Resumed after goal 99: landed"));
     assert!(brief.contains("Finding 1: Start does nothing\nSetup: fresh\nLines:\n- web press button Start\nExpected: a goal starts\nSeen: no goal"));
     assert!(brief.contains("## Failed cases\n\nRun these after the open findings.\nCase 1: web / work"));
-    assert!(run.git.calls.contains(&format!("add {}", id(5))));
+    assert!(run.git.calls.contains(&format!("checkout {}", id(5))));
     run.processes.finish(4, Agent::Gone);
     let _holder = hold(&world.home.directory.join("places/1"));
     run.tick();
@@ -563,7 +550,7 @@ fn an_unstarted_resume_restores_the_waiting_build_and_retries_without_a_landing(
     assert_eq!(ledger.cases[0].blocks, 0);
     assert_eq!(ledger.builds[0].held, Some(1));
     assert_eq!(ledger.builds[1].held, None);
-    assert!(!world.home.session_directory(3).join("tree").exists());
+    assert!(world.home.pass_tree("places/1").is_dir());
     run.tick();
     let ledger = world.ledger();
     assert_eq!(ledger.passes.len(), 1);
@@ -598,6 +585,12 @@ fn places_start_in_configuration_order_and_each_keeps_its_running_session() {
     assert_eq!(ledger.running_sessions().len(), 2);
     assert_eq!(ledger.passes[0].build, id(2));
     assert_eq!(ledger.passes[1].build, id(4));
+    let first = run.home.pass_tree("places/z");
+    let second = run.home.pass_tree("places/a");
+    assert_ne!(first, second);
+    assert_eq!(run.processes.commands[1].directory, first);
+    assert_eq!(run.processes.commands[3].directory, second);
+    assert!(first.is_dir() && second.is_dir());
     run.processes.finish(2, Agent::Pass);
     run.processes.finish(4, Agent::Pass);
     run.tick();
@@ -630,10 +623,9 @@ fn restart_ends_running_pass_and_triage_lost_with_changed_setups_and_a_report() 
         serde_json::from_slice(&fs::read(world.home.directory.join("passes/1/report.json")).expect("lost report"))
             .expect("JSON");
     assert_eq!(report, ledger.report(1).expect("report value"));
-    for number in [2, 3] {
-        assert!(!world.home.session_directory(number).join("tree").exists());
-    }
-    assert!(restarted.git.prunes > 0);
+    assert!(world.home.pass_tree("places/1").is_dir());
+    assert!(world.home.triage_tree().is_dir());
+    assert_eq!(restarted.git.prunes, 0);
 }
 
 #[test]
@@ -667,4 +659,113 @@ fn pass_brief_lists_ctl_cases_first_and_opens_a_ctl_session() {
     assert!(cases.find("ctl / task").expect("ctl") < cases.find("web / work").expect("web"));
     assert!(cases.find("ctl / task").expect("ctl") < cases.find("tui / chat").expect("tui"));
     assert!(brief.contains("Run ctl cases first in a ctl session, `temper-qa pass open --ctl`"));
+}
+
+#[test]
+fn a_second_pass_session_moves_its_places_tree_or_makes_it_again_after_a_failed_move() {
+    for fails in [false, true] {
+        let world = World::new();
+        let mut run = ready(&world, Agent::Empty);
+        let tree = world.home.pass_tree("places/1");
+        let triage = world.home.triage_tree();
+        fs::write(tree.join("leftover"), "old pass").expect("leftover");
+        fs::write(triage.join("triage-file"), "separate tree").expect("triage");
+        run.git.move_error = fails.then(|| "checkout refused".into());
+        let before = run.git.calls.len();
+        run.tick();
+        let calls = &run.git.calls[before..];
+        assert_eq!(run.processes.commands[2].directory, tree);
+        assert!(calls.contains(&format!("checkout {}", id(2))));
+        assert_eq!(calls.iter().filter(|call| call.starts_with("add ")).count(), usize::from(fails));
+        assert_eq!(calls.iter().filter(|call| call.starts_with("remove ")).count(), usize::from(fails));
+        assert!(!tree.join("leftover").exists());
+        assert!(triage.join("triage-file").is_file());
+        let brief = fs::read_to_string(&run.processes.commands[2].stdin).expect("brief");
+        assert!(brief.contains(&format!("Tree: {}", tree.display())));
+    }
+}
+
+#[test]
+fn ending_a_pass_tells_the_holder_and_releases_its_place_without_the_ledger_watch() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixStream,
+        time::Duration,
+    };
+    use temper_qa_tool::hold::{Drive, Holder, WATCH};
+    let world = World::new();
+    let mut run = ready(&world, Agent::Pass);
+    let place = world.home.directory.join("places/1");
+    fs::write(place.join("setup"), "fresh\n").expect("setup");
+    let fake = place.join("bin/temper-client-journeys");
+    // Replace the installed link rather than writing through it into the kept build.
+    fs::remove_file(&fake).expect("unlink fake");
+    fs::write(
+        &fake,
+        r#"#!/bin/sh
+printf 'ready\n'
+IFS= read -r line
+[ "$line" = end ] || exit 4
+printf 'ended\n'
+"#,
+    )
+    .expect("fake drive");
+    fs::set_permissions(&fake, fs::Permissions::from_mode(0o700)).expect("executable");
+    assert_eq!(WATCH, Duration::from_secs(60));
+    let session = world.ledger().passes[0].sessions[0];
+    let holder =
+        Holder::start(Drive::for_session(&world.home, session).expect("drive"), vec![], Duration::from_hours(1))
+            .expect("holder");
+    let (done, ended) = std::sync::mpsc::channel();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the focused socket peer must serve while the loop sends the end (qa/README.md, 6)"
+    )]
+    let serving = std::thread::spawn(move || {
+        done.send(holder.serve()).expect("test waits for holder");
+    });
+    // Complete the start handshake before ending the agent.
+    let mut stream = UnixStream::connect(place.join("drive.sock")).expect("holder socket");
+    writeln!(stream, "start {}", std::process::id()).expect("start request");
+    let mut response = String::new();
+    BufReader::new(stream).read_line(&mut response).expect("start response");
+    run.tick();
+    assert!(
+        world.ledger().sessions.iter().find(|record| record.number == session).expect("pass session").exit.is_some()
+    );
+    ended
+        .recv_timeout(Duration::from_secs(2))
+        .expect("socket end arrives before the hour-long fallback")
+        .expect("holder ends from socket request");
+    serving.join().expect("holder thread");
+    File::open(place.join("drive.lock")).expect("lock").try_lock().expect("place freed");
+    assert!(!place.join("drive.sock").exists());
+}
+
+#[test]
+fn ending_a_pass_captures_its_holder_before_the_socket_can_be_reused() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        time::Duration,
+    };
+    let world = World::new();
+    let mut run = ready(&world, Agent::Pass);
+    let place = world.home.directory.join("places/1");
+    let lock = hold(&place);
+    let socket = place.join("drive.sock");
+    let old = UnixListener::bind(&socket).expect("old holder");
+    old.set_nonblocking(true).expect("probe captured connection");
+    run.tick();
+    fs::remove_file(&socket).expect("old path removed");
+    let later = UnixListener::bind(&socket).expect("later holder");
+    later.set_nonblocking(true).expect("probe later socket");
+    let (mut stream, _) = old.accept().expect("loop captured the old holder before permitting reuse");
+    stream.set_read_timeout(Some(Duration::from_secs(2))).expect("request deadline");
+    let mut request = String::new();
+    BufReader::new(&mut stream).read_line(&mut request).expect("old holder gets request");
+    assert_eq!(request, "end\n");
+    assert_eq!(later.accept().expect_err("later holder gets no end").kind(), std::io::ErrorKind::WouldBlock);
+    drop(lock);
+    stream.write_all(b"0\nended\n").expect("end reply");
 }

@@ -1,6 +1,6 @@
 # Places and copies
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4 and
 Q6 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
@@ -46,6 +46,7 @@ drive session are Q2's (`../../client/recipe.md`,
     box/          a box's place: the drive session's scratch directory (../../client/drive.md, 2.2): config/, data/, cache/, session/
     deployment/   a deployment's place, in box/'s stead: its scratch directory (deployment.md, 3): config/, data/, cache/, session/
     copies/NAME/  the copy of recipe NAME, one file, HASH-COMMIT.tar (section 4)
+    manifest      the completed install's kept manifest (section 3)
     setup         the setup last restored: its name and hash, one line (section 4)
     walk.log      the last walk's output (section 4)
     drive.lock    held by the holder for its life (section 5)
@@ -65,7 +66,7 @@ drive session are Q2's (`../../client/recipe.md`,
   (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
   place, `PLACE/` itself, its scratch directory, `copies/` and each
   `copies/NAME/`, and `bin/` and `bundle/` with what they hold, is
-  0o700, and every file it writes there, `setup`, `walk.log`,
+  0o700, and every file it writes there, `manifest`, `setup`, `walk.log`,
   `drive.log`, `drive.lock`, a copy and the temporary files before
   their renames, 0o600, but the build's files installed in `bin/` and
   `bundle/`, which keep their build's modes (section 3) under their
@@ -108,21 +109,40 @@ drive session are Q2's (`../../client/recipe.md`,
 At a pass's start and at its resume (`passes.md`, 3 and 7), once the
 place is free and before any box starts there:
 
-- **`bin/`** emptied, then each file of the build's `bin/` copied in,
-  its mode kept; **`bundle/`** removed, then the build's `bundle/`
-  copied in. Each file is copied to a temporary name in its directory
-  and renamed into place.
-- **Checked against the manifest** (`builds.md`, 4): each copied file's
-  SHA-256 is the manifest's for its path; a file the manifest lacks, or
-  a checksum that differs, fails the install, naming the path.
-- **`setup` removed,** so no case runs on a box restored for an earlier
-  build until a setup is restored again.
+- **Already installed:** if the place's `manifest` equals the kept build's
+  manifest byte for byte, including its commit, nothing is installed and
+  `setup` stays. Only a completed install writes this private receipt;
+  a home without one installs normally.
+- **`bin/` and `bundle/`** removed, then each directory made private
+  (section 2); each regular file of `bin/` hard-linked from the kept
+  build's, with its build's mode, and each of `bundle/` copied, since the
+  box serves a bundle's files as public documents and takes them with one
+  link alone. The builds directory and place normally share a
+  filesystem. Every installed file must be named by the manifest, and
+  every manifest path in those directories must be installed. The
+  manifest was checked at keep (`builds.md`, 3 and 4), so the linked
+  binaries are not hashed again; the copies are checked as below.
+- **Copies, and across filesystems:** a bundle's file, and a binary
+  whose link is refused with a cross-device error, is copied to a private
+  temporary file in its directory, its build's mode set and then renamed
+  into place. Once the files are in place, one `sha256sum --check`
+  process checks the installed `bin/` and `bundle/` lines of the manifest
+  from the place's directory. No other
+  link error falls back to copying. A failed check names the file, fails
+  the install and leaves no completed receipt, so the next tick installs again.
+- **Completed:** `setup` removed, so no case runs on a box restored for
+  an earlier build until a setup is restored again; then the manifest
+  copied to a private temporary file and renamed to the place's
+  `manifest`. An earlier receipt is removed before changing any files.
 - **A failure** fails the loop's step (`README.md`, 4), retried at the
   next tick, with nothing recorded for the pass (`passes.md`, 3).
 
 So every program a box at the place runs is the pass's build's, from
 the place's `bin/`, never a kept build's directory
-(`../../draft/landed-qa.md`, 5).
+(`../../draft/landed-qa.md`, 5). Its files stay private under the place's
+0o700 directories. Removing a released kept build (`builds.md`, 5)
+unlinks its directory's files; installed links remain until the place
+installs another build.
 
 ## 4. A setup restored
 
@@ -232,13 +252,17 @@ holder keeps the session between them.
     answer line (`ok`, or one starting `failed: `), or to the session's
     end, writes it back with its status, and closes the connection. Its
     wire is its own and the commands' alone.
-  - **Its end:** at the end's request, or once its pass session is no
-    longer running in the ledger, which it reads every 5 seconds: `end`
+  - **Its end:** at the end's request, which the loop sends through
+    `drive.sock` as soon as its pass session's end is saved
+    (`README.md`, 4), or once its pass session is no longer running in
+    the ledger, which it reads every 60 seconds as a fallback: `end`
     given to the session, which then stops its box
     (`../../client/drive.md`, 2.4); the session's tree killed past 70
-    seconds; the socket removed; the lock released by its exit. So a
-    session ended by the loop leaves no box running past the next
-    minute and a half, and the place stays busy until then (section 2).
+    seconds; the socket removed; the lock released by its exit. The
+    loop waits for that release off its own thread and wakes at once
+    to reuse the place (section 2). A normal stop adds no ledger-watch
+    delay; if the socket request fails, the fallback still stops the
+    session, with its 70-second bound, after the next ledger read.
 - **`temper-qa pass line LINE`:** LINE one argument, a drive line
   (`../../client/drive.md`, 3). It prints the session's answer as the
   session gave it, `| ` lines and the last line, and exits 0 for `ok`, 5

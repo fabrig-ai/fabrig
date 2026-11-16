@@ -183,3 +183,27 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         assert_eq!(std::fs::read(&home.ledger).expect("unchanged"), before);
     }
 }
+
+#[test]
+fn wake_pokes_without_a_session_or_ledger_write_and_saves_poke_too() {
+    use std::{fs, io::Read};
+    let (_scratch, home) = home();
+    let before = fs::read(&home.ledger).expect("ledger");
+    success(&run(&home, &["wake"], None, None), b"");
+    let listener = temper_qa_tool::events::bind(&home.directory).expect("fake loop socket");
+    success(&run(&home, &["wake"], None, None), b"");
+    let (mut stream, _) = listener.accept().expect("wake connection");
+    assert_eq!(stream.read(&mut [0]).expect("closed"), 0);
+    assert_eq!(fs::read(&home.ledger).expect("unchanged ledger"), before);
+    success(&run(&home, &["triage", "none", "internal change"], Some("1"), None), b"landing 1: no QA\n");
+    let (mut stream, _) = listener.accept().expect("saved command connection");
+    assert_eq!(stream.read(&mut [0]).expect("closed"), 0);
+    drop(listener);
+    success(&run(&home, &["wake"], None, None), b"");
+    fs::remove_file(home.directory.join("run.sock")).expect("remove stale socket");
+    success(&run(&home, &["wake"], None, None), b"");
+    fs::write(home.directory.join("qa.json"), "unread configuration").expect("wake reads no configuration");
+    success(&run(&home, &["wake"], None, None), b"");
+    let output = run(&home, &["wake", "extra"], None, None);
+    assert_eq!(output.status.code(), Some(2));
+}

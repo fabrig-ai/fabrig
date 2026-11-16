@@ -1,6 +1,6 @@
 # Triage
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
 `../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
@@ -34,15 +34,23 @@ there is a next landing:
 2. **Recorded:** a session in the ledger, `triage`, its landing, its
    effort (`agent.triage`), its start, and the pages and setups its
    commands check against (`ledger.md`, 2.5).
-3. **Its directory,** `sessions/N/` in the home: `brief` (section 3),
-   `diff.patch`, `git diff MERGE^1 MERGE`, and `tree/`, `git -C
-   DIRECTORY worktree add --detach sessions/N/tree MERGE`, for the agent
-   to read the whole tree at the merge.
+3. **Its directory,** `sessions/N/` in the home: `brief` (section 3)
+   and `diff.patch`, `git diff MERGE^1 MERGE`. Its tree is the kept
+   `trees/triage`, under the home's private `trees/` directory, for the
+   agent to read the whole tree at the merge. If absent, made with
+   `git worktree add --detach trees/triage MERGE`; if present, moved
+   with `git checkout --force --detach MERGE` then `git clean -ffdxq`
+   in that tree. Thus each session starts with exactly the merge's
+   files, whatever its predecessor left. If either move command fails,
+   the tree is removed with `git worktree remove --force`, the worktree
+   registrations pruned and the tree made again. A failed add is cleaned
+   up too. The brief names this kept tree.
 4. **The agent started** (section 5).
 
 A start that fails before the agent runs (git refusing, the command not
 found) ends the session `unstarted`: it counts for no landing's
-`sessions`, its tree is removed, and the failure is the loop's step's
+`sessions`, its kept tree stays for the next start, and the failure is
+the loop's step's
 (`README.md`, 4), tried again at the next tick.
 
 ## 3. Its brief
@@ -181,8 +189,8 @@ this order:
 
 - **At the loop's second step,** a session whose process has exited, or
   whose bound has passed, is ended in the ledger with its exit, tokens
-  and time (`ledger.md`, 4.4), and its tree removed (`git worktree
-  remove --force`); `brief`, `diff.patch` and `output` stay.
+  and time (`ledger.md`, 4.4); the kept tree, `brief`, `diff.patch` and
+  `output` stay.
 - **Lost:** a session still running when the loop starts is ended `lost`
   (`README.md`, 4) and counts as any end does.
 - **Then** the next session may start in the same step.

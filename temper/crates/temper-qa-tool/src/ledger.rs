@@ -432,10 +432,30 @@ impl Ledger {
         Ok(())
     }
 
+    fn cases_waiting_for_build(&self) -> Vec<&Case> {
+        self.cases
+            .iter()
+            .filter(|case| {
+                case.state == crate::CaseState::Queued
+                    && !case.line
+                    && !self.builds.iter().any(|build| {
+                        self.reached(build)
+                            && case
+                                .landings()
+                                .iter()
+                                .all(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))
+                    })
+            })
+            .collect()
+    }
+
+    pub(crate) fn build_wait_deadline(&self, bound: u64) -> Option<u64> {
+        self.cases_waiting_for_build().iter().map(|case| case.queued.saturating_add(bound)).min()
+    }
+
     /// Record each waiting case's line once; returns the new line numbers.
     pub fn waiting_lines(&mut self, bound: u64, now: u64, area: &str) -> Vec<u64> {
-        let waiting: Vec<_> = self.cases.iter().filter(|case| case.state == crate::CaseState::Queued && !case.line && now.saturating_sub(case.queued) >= bound &&
-            !self.builds.iter().any(|build| self.reached(build) && case.landings().iter().all(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))))
+        let waiting: Vec<_> = self.cases_waiting_for_build().into_iter().filter(|case| now.saturating_sub(case.queued) >= bound)
             .map(|case| (case.number, format!("case {} ({} on {}; landings {}) has waited past {bound} seconds for a kept build holding its landings", case.number, case.page, case.surface, numbers(&case.landings())))).collect();
         let mut lines = Vec::new();
         for (number, words) in waiting {
