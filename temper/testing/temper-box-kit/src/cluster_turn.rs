@@ -31,7 +31,7 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     }
     cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
     cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
-    for name in ["forge", "llm", "engine", "w1"] {
+    for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
     let engine_path = cluster.dir("engine").join("config/temper.json");
@@ -64,6 +64,14 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     write(&engine_path, &engine);
     write(&worker_path, &worker);
     write(&agent_path, &agent);
+    // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
+    // Two runs fund production and leave room for its scripted turns after the reserve.
+    let configured = temper_real_loop_world::settings::configuration(&engine);
+    let stock = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
+    cluster.bind("story.change_spend", &(2 * stock.rules.maximum_run_spend).to_string());
+    for name in ["forge", "llm"] {
+        cluster.prepare(name);
+    }
     // The person uses the fake's fixed fixture identity, through a private
     // header file rather than a credential in curl's argument vector.
     let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
@@ -108,6 +116,7 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
 
 /// The first push is save's. Every later push waits while delivery.hold exists.
 /// Only this worker invokes the wrapper; setup and the fake forge use fake git directly.
+/// Strip shell-added exports so fake git receives git.md section 5's whole environment.
 #[must_use]
 pub fn wrapper(root: &Path, git: &Path) -> String {
     format!(
@@ -123,7 +132,7 @@ for arg do
     fi
   fi
 done
-exec '{git}' "$@"
+exec /usr/bin/env -u PWD -u SHLVL -u _ '{git}' "$@"
 "#,
         root = root.display(),
         git = git.display()
@@ -134,7 +143,7 @@ exec '{git}' "$@"
 /// is a finding, never a successful restart outside the intended cut.
 pub fn proof_cut(panel: &Value) -> Result<Option<u64>, String> {
     match panel["phase"].as_str().ok_or("landing phase")? {
-        "forming" | "preparing" => Ok(None),
+        "waiting" | "preparing" => Ok(None),
         "proving" => {
             let proof = &panel["members"][0]["gates"][0]["proof"];
             if proof.get("passed").is_some() || proof.get("failed").is_some() {

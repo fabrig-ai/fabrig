@@ -116,6 +116,29 @@ fn repository_urls_include_the_peers_bound_port() {
 }
 
 #[test]
+fn forgejo_dates_and_document_times_share_the_forges_clock() {
+    use skein_fake_forge_domain::Skew;
+    use skein_lib::{Duration, bytes};
+    let mut world = World::new();
+    world.forge.borrow_mut().config.skew = Skew::Ahead(Duration::from_secs(3));
+    world.sim.advance_to(Time::from_nanos(100_000_000_000));
+    let response = world.exchange(
+        "POST",
+        "/api/v1/repos/org/repo/issues",
+        fixtures::TOKEN,
+        br#"{"title":"Clock","body":"Same clock"}"#,
+    );
+    assert!(response.starts_with(b"HTTP/1.1 201 "));
+    assert!(bytes::find(&response, b"\"updated_at\":\"1970-01-01T00:01:43Z\"").is_some());
+    assert!(
+        bytes::find(&response, b"Date: Thu, 01 Jan 1970 00:01:43 GMT\r\n").is_some(),
+        "Date must use the same skewed, rounded forge clock as its documents: {}",
+        String::from_utf8_lossy(&response)
+    );
+    world.settle();
+}
+
+#[test]
 fn a_second_fake_shares_names_replies_and_time() {
     let mut world = World::new();
     world.bind();
