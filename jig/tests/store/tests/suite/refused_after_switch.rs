@@ -2,7 +2,7 @@
 //! The store checks encodings and counts; the modelled child's stricter rule
 //! runs over the copy. Ending that start leaves the old generation active.
 use jig_store_world::patches::{self, BASE, Records, SETS};
-use jig_test_patches::patches::kept::fixture_shelf;
+use jig_test_layouts::records::SHELF;
 
 /// A referee rule standing in for a child's restore rule (domain/engine/restart.md);
 /// the store world has no children, and jig's store has no such rule.
@@ -11,11 +11,11 @@ fn a_child_refuses(key: &[u8], bytes: &[u8]) -> bool {
     if !key.starts_with(b"s/") {
         return false;
     }
-    let schema = skein_codec::schema::parse(fixture_shelf::TEXTS[0].as_bytes()).expect("kept shelf schema");
+    let schema = skein_codec::schema::parse(SHELF.as_bytes()).expect("kept shelf schema");
     let root = schema.find(b"Shelf").expect("shelf root");
     let mut value = skein_codec::value::Value::with_room(16);
     let shelf = value.decode(&schema, root, bytes.into()).expect("patched shelf decodes");
-    let books = value.field(shelf, fixture_shelf::v1::shelf::BOOKS).expect("shelf books field");
+    let books = value.field(shelf, skein_codec::schema::FieldIx::new(1)).expect("shelf books field");
     value.uint(books).expect("weight is a u32") > 2
 }
 

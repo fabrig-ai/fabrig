@@ -1,2 +1,0 @@
-family fixture-label 2
-versioned record Label { caption: text 32, color: option u8 }

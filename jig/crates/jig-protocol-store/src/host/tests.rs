@@ -259,7 +259,7 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
 
 #[test]
 fn a_registry_upgrade_without_a_logs_directory_opens() {
-    use jig_test_patches::layouts::{CURRENT, KEPT};
+    use jig_test_layouts::layouts::{CURRENT, KEPT};
     const FAMILY: crate::KeptFamily = crate::KeptFamily {
         name: "fixture-layouts",
         current: KEPT,

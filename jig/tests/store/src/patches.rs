@@ -1,13 +1,13 @@
 //! Equal-level fixture binaries and their independent record model (protocol/store/README.md 9).
 use crate::{World, root, world::Change};
 use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets, Write};
-use jig_test_patches::{self as fixture, patches as app};
+use jig_test_layouts::{self as fixture, records as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Secret;
 use std::collections::BTreeMap;
 const LABEL: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_label::TEXTS[0],
+    current: app::LABEL,
     types: &[jig_protocol_store::ValueType {
         number: 0,
         root: "Label",
@@ -21,7 +21,7 @@ const LABEL: KeptFamily = KeptFamily {
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_shelf::TEXTS[0],
+    current: app::SHELF,
     types: &[jig_protocol_store::ValueType {
         number: 0,
         root: "Shelf",
@@ -39,7 +39,7 @@ const SHELF: KeptFamily = KeptFamily {
 };
 const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_token::TEXTS[0],
+    current: app::TOKEN,
     types: &[],
     frames: None,
     name: "fixture-token",
@@ -251,8 +251,7 @@ impl Records {
                 panic!("token {number}: {events:?}, {context:?}");
             };
             assert_eq!(value.expose(), token(bytes, *number), "token {number}, {context:?}");
-            let schema =
-                skein_codec::schema::parse(app::kept::fixture_token::TEXTS[0].as_bytes()).expect("token schema");
+            let schema = skein_codec::schema::parse(app::TOKEN.as_bytes()).expect("token schema");
             let root = schema.find(b"Token").expect("token root");
             let mut decoded = skein_codec::value::Value::with_room(16);
             decoded.decode(&schema, root, Box::from(value.expose())).expect("token decodes at its level");
@@ -265,13 +264,13 @@ impl Records {
         let rows = world.application(false);
         assert_eq!(rows, self.rows(), "all fixture records are preserved: {context:?}");
         for (key, bytes) in rows {
-            let (texts, root) = match key[0] {
-                b'l' => (app::kept::fixture_label::TEXTS, "Label"),
-                b's' => (app::kept::fixture_shelf::TEXTS, "Shelf"),
-                b'n' => (jig::kept::fixture_note::TEXTS, "Note"),
+            let (text, root) = match key[0] {
+                b'l' => (app::LABEL, "Label"),
+                b's' => (app::SHELF, "Shelf"),
+                b'n' => (jig::kept::fixture_note::TEXTS[0], "Note"),
                 _ => panic!("fixture key"),
             };
-            let schema = skein_codec::schema::parse(texts[0].as_bytes()).expect("kept schema");
+            let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept schema");
             let root = schema.find(root.as_bytes()).expect("record root");
             let mut value = skein_codec::value::Value::with_room(16);
             value.decode(&schema, root, bytes).expect("record decodes at its level");

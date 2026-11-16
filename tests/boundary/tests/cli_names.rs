@@ -1,6 +1,6 @@
 //! Declared environment names (skein/docs/foundation/cli.md, 5 and 9, check 5).
 //! Tracked UTF-8 files outside docs name only variables declared by their tree,
-//! in the set their names say. Owner-set constants and tokens ending `_PATCH_SET` are Rust
+//! in the set their names say. Owner-set constants are Rust
 //! constants, not variables. Generated `patches/mod.rs` modules are not read;
 //! authored patch functions and context are. Every declaration is read or set outside docs.
 //! Each file is split into maximal ASCII words in one pass, looking each word up
@@ -128,7 +128,7 @@ fn named_tree<'a>(name: &str, trees: &[(&'a str, &str)]) -> Option<&'a str> {
 }
 
 fn owner_set(word: &str) -> bool {
-    word.ends_with("_PATCH_SET") || ["SKEIN_SET", "SMITH_SET", "JIG_STORE_SET", "JIG_SET"].contains(&word)
+    ["SKEIN_SET", "SMITH_SET", "JIG_STORE_SET", "JIG_SET"].contains(&word)
 }
 
 fn named_set(name: &str) -> &str {
@@ -311,10 +311,14 @@ fn only_generated_patch_modules_are_skipped() {
 }
 
 #[test]
-fn patch_set_constants_are_not_environment_names_but_patch_settings_are() {
+fn owner_set_constants_are_not_environment_names_but_patch_names_are() {
     let mut names = Names::default();
-    names.file("JIG_SET SKEIN_SET SMITH_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_SETTING", TREES, &BTreeSet::new());
-    assert_eq!(names.findings(TREES), ["JIG_SETTING"]);
+    names.file(
+        "JIG_SET SKEIN_SET SMITH_SET JIG_STORE_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_SETTING",
+        TREES,
+        &BTreeSet::new(),
+    );
+    assert_eq!(names.findings(TREES), ["HEARTH_PATCH_SET", "JIG_SETTING", "TEMPER_PATCH_SET"]);
 }
 
 #[test]

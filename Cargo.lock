@@ -2067,7 +2067,7 @@ dependencies = [
  "jig-protocol-store-people",
  "jig-protocol-store-settings",
  "jig-protocol-store-tasks",
- "jig-test-patches",
+ "jig-test-layouts",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
  "skein-codec",
@@ -2229,7 +2229,7 @@ dependencies = [
  "jig-protocol-accounts",
  "jig-protocol-config",
  "jig-protocol-store",
- "jig-test-patches",
+ "jig-test-layouts",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
  "jig-test-profile",
@@ -2386,13 +2386,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "jig-test-patches"
+name = "jig-test-layouts"
 version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
-]
 
 [[package]]
 name = "jig-test-patches-jig"
@@ -7291,7 +7286,6 @@ dependencies = [
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
- "temper-protocol-store-patches",
 ]
 
 [[package]]
@@ -7300,17 +7294,6 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
-]
-
-[[package]]
-name = "temper-protocol-store-patches"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-forge",
- "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]

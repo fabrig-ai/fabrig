@@ -18,14 +18,13 @@ const SETS: OwnerSets =
 
 // A source binary registers these fixture layouts in its first commit.
 fn kept_text(family: &KeptFamily) -> &'static str {
-    use jig_protocol_store::patches::kept;
     match family.name {
-        "jig-store-core" => kept::jig_store_core::TEXTS.last().expect("fixture text"),
-        "jig-store-tasks" => kept::jig_store_tasks::TEXTS.last().expect("fixture text"),
-        "jig-store-people" => kept::jig_store_people::TEXTS.last().expect("fixture text"),
-        "jig-store-notes" => kept::jig_store_notes::TEXTS.last().expect("fixture text"),
-        "jig-store-accounts" => kept::jig_store_accounts::TEXTS.last().expect("fixture text"),
-        "jig-store-settings" => kept::jig_store_settings::TEXTS.last().expect("fixture text"),
+        "jig-store-core" => include_str!("fixtures/jig-store-core-v6.schema"),
+        "jig-store-tasks" => include_str!("fixtures/jig-store-tasks-v13.schema"),
+        "jig-store-people" => include_str!("fixtures/jig-store-people-v17.schema"),
+        "jig-store-notes" => include_str!("fixtures/jig-store-notes-v1.schema"),
+        "jig-store-accounts" => include_str!("fixtures/jig-store-accounts-v2.schema"),
+        "jig-store-settings" => include_str!("fixtures/jig-store-settings-v3.schema"),
         _ => family.current,
     }
 }

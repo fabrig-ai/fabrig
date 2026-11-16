@@ -15,7 +15,7 @@ use skein_lib::{List, Reader, Token, Wall, Writer};
 use temper_engine_domain_forge_vocabulary::{self as d, Stored, history as h};
 
 const DEV: &str = include_str!("cb429613c6-store-v25.schema");
-const KEPT: &str = include_str!("../../schema/kept/temper-store-v25.schema");
+const KEPT: &str = include_str!("fixtures/store-floor-store-v25.schema");
 fn old_sets() -> store::OwnerSets {
     store::OwnerSets {
         sets: Box::leak(
@@ -171,7 +171,7 @@ fn baseline(retired: bool) -> Disk {
         });
     }
     if retired {
-        let value = super::catch_up::kept_golden(25, "enum_value_change_smallest.bin");
+        let value = kept_golden("enum_value_change_smallest.bin");
         ops.push(skein_kv::Op::Put {
             key: store::keys::application(&crate::keys::encode(&d::Key::Change(0), 1024).unwrap(), 1024).unwrap(),
             value: [&25_u16.to_be_bytes()[..], &value].concat().into(),
@@ -291,4 +291,15 @@ fn a_retired_change_refuses_layout_before_any_write() {
     };
     assert_eq!(family.as_ref(), "temper-store");
     assert_eq!(disk.contents(), before);
+}
+
+fn kept_golden(name: &str) -> Box<[u8]> {
+    let schema = skein_codegen::parse(KEPT).expect("floor fixture schema");
+    skein_codegen::generate(&schema)
+        .goldens
+        .into_iter()
+        .find(|golden| golden.name == name)
+        .expect("floor fixture golden")
+        .bytes
+        .into_boxed_slice()
 }

@@ -1,12 +1,12 @@
 //! Fixture owners at fixed levels (protocol/store/opening.md, 3).
 use crate::upgrade::admission::Levels;
 use crate::{KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets};
-use jig_test_patches::{self as fixture, patches as app};
+use jig_test_layouts::{self as fixture, records as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Writer;
 const LABEL: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
+    current: app::LABEL_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-label",
@@ -15,7 +15,7 @@ const LABEL: KeptFamily = KeptFamily {
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
+    current: app::SHELF_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-shelf",
@@ -28,7 +28,7 @@ const SHELF: KeptFamily = KeptFamily {
 };
 const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
+    current: app::TOKEN_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-token",
@@ -58,9 +58,9 @@ pub(super) const BASE: OwnerSets = OwnerSets {
     sets: &[
         OwnerSet {
             families: &[
-                KeptFamily { current: app::kept::fixture_label::TEXTS[0], ..LABEL },
-                KeptFamily { current: app::kept::fixture_shelf::TEXTS[0], ..SHELF },
-                KeptFamily { current: app::kept::fixture_token::TEXTS[0], ..TOKEN },
+                KeptFamily { current: app::LABEL, ..LABEL },
+                KeptFamily { current: app::SHELF, ..SHELF },
+                KeptFamily { current: app::TOKEN, ..TOKEN },
             ],
             level: Some(0),
             ..APPLICATION

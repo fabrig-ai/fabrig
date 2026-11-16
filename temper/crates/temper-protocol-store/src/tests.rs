@@ -21,7 +21,6 @@ mod registered_layouts;
 
 // Import paths of the frozen F0 and F1 fixtures.
 use directory_jobs as unseeded_upgrade;
-use fixtures as catch_up;
 mod value_types;
 
 mod jobs;

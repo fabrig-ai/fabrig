@@ -4,7 +4,7 @@ use super::{Layouts, Text, counting, texts};
 use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
-use jig_test_patches::layouts::{CURRENT, FIRST, KEPT};
+use jig_test_layouts::layouts::{CURRENT, FIRST, KEPT};
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
@@ -172,7 +172,7 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
 
 #[test]
 fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
-    use jig_test_patches::layouts::{CHILD_CURRENT, HOLDER};
+    use jig_test_layouts::layouts::{CHILD_CURRENT, HOLDER};
     const OTHER: &str =
         "family fixture-other 1\nversioned record Other { child: bytes 32 holds fixture-child Child }\n";
     const HOLDER_FAMILY: KeptFamily = KeptFamily {

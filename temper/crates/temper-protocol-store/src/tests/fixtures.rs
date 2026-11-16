@@ -1297,19 +1297,3 @@ pub fn finding() -> top::Finding {
         seen: Some(u32::MAX),
     }
 }
-
-// Only the floor fixture reads a retired value from the kept schema.
-pub(super) fn kept_golden(version: u16, name: &str) -> Box<[u8]> {
-    for text in crate::patches::kept::temper_store::TEXTS {
-        let schema = skein_codegen::parse(text).expect("kept schema");
-        if schema.version != version {
-            continue;
-        }
-        for golden in skein_codegen::generate(&schema).goldens {
-            if golden.name == name {
-                return golden.bytes.into_boxed_slice();
-            }
-        }
-    }
-    unreachable!("kept golden")
-}

@@ -14,7 +14,7 @@ use skein_lib::{List, Reader, Writer};
 
 const TASKS: &str = include_str!("../fixtures/cb429613c6-tasks-v13.schema");
 const CORE: &str = include_str!("../fixtures/cb429613c6-core-v6.schema");
-const KEPT: &str = include_str!("../../../schema/kept/jig-store-tasks-v13.schema");
+const KEPT: &str = include_str!("../fixtures/store-floor-tasks-v13.schema");
 fn old_set() -> OwnerSet {
     let families = SET
         .families

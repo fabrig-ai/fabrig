@@ -1,7 +1,7 @@
 //! Store-owned settling over both fixture owners (protocol/store/jobs.md, 6).
 use super::*;
 use crate::Job;
-use jig_test_patches::layouts::{SETTLED, SETTLING_CONVERTING, SETTLING_DROPPING, SETTLING_KEEPING};
+use jig_test_layouts::layouts::{SETTLED, SETTLING_CONVERTING, SETTLING_DROPPING, SETTLING_KEEPING};
 
 pub(super) const JOB: Job = Job { name: "settle-fixtures", keys: &[], converts: None, settles: true, counts: &[] };
 pub(super) fn family(owner: Owner) -> KeptFamily {

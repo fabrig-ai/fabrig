@@ -2,7 +2,7 @@
 #![expect(clippy::arithmetic_side_effects, reason = "ordinary Rust disk step tests")]
 use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Unplanned, ValueType};
-use jig_test_patches::layouts::{CURRENT, KEPT, WRITTEN};
+use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod edges;
 mod retired;
@@ -172,7 +172,7 @@ fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version()
 }
 #[test]
 fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_texts() {
-    use jig_test_patches::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, HOLDER};
+    use jig_test_layouts::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, HOLDER};
     let holder = KeptFamily {
         retired: &[],
         name: "fixture-holder",
