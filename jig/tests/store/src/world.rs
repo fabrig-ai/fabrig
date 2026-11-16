@@ -632,11 +632,17 @@ impl World {
         self.store.wires(wires)
     }
 
+    /// A start request for stories that inspect its events without answering patch sites.
+    #[must_use]
+    pub fn open_request(&self) -> Request {
+        Request::Open { owner: OWNER, root: self.root, installation: self.drawn }
+    }
+
     pub fn open(&mut self) -> Option<u64> {
         self.patched.clear();
         self.refusal = None;
         let mut contexts = Contexts::default();
-        let mut events = self.request(Request::Open { owner: OWNER, root: self.root, installation: self.drawn });
+        let mut events = self.request(self.open_request());
         for _ in 0..10_000 {
             let mut answer = None;
             for event in events {

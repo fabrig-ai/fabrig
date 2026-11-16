@@ -4,7 +4,7 @@ use std::{fmt::Write as _, os::unix::fs::PermissionsExt, path::Path};
 
 const ROOTS: [&str; 4] = ["state", "worker", "client", "setup"];
 
-pub(super) fn export(disk: &mut Machine, directory: &Path, configuration: &[u8]) {
+pub(crate) fn export(disk: &mut Machine, directory: &Path, configuration: &[u8]) {
     std::fs::create_dir_all(directory).expect("temporary golden export");
     let mut modes = String::new();
     for (index, name) in ROOTS.iter().enumerate() {
@@ -68,7 +68,7 @@ fn host_path(directory: &Path, path: &str) -> std::path::PathBuf {
     host
 }
 
-pub(super) fn transcripts(directory: &Path, store: &mut crate::referee::Store) {
+pub(crate) fn transcripts(directory: &Path, store: &mut crate::referee::Store) {
     let modes = std::fs::read_to_string(directory.join("modes.txt")).expect("kept modes");
     for line in modes.lines() {
         let path = line.split(' ').nth(3).expect("manifest path");

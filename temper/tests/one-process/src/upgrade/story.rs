@@ -12,7 +12,7 @@ use crate::{
 };
 use history::history;
 use jig_domain_core::{CoreRecord, Record};
-pub use runner::{drawn_power_loss, power_loss, settled, unsettled};
+pub use runner::{drawn_power_loss, power_loss, settled, settled_image, unsettled};
 use scenario::{continued, forge_peer, mutations, provider};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::{Time, Wall};
@@ -85,6 +85,8 @@ struct State {
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
+    capture_image: bool,
+    forge_image: Option<Box<[u8]>>,
     kill_told: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
