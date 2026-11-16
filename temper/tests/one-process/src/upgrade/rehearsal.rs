@@ -298,24 +298,39 @@ fn break_record(disk: &mut Machine, maps: &super::maps::Maps, key: &[u8]) {
         .expect("golden log commits");
     let header_key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
     let encoded_key = jig_protocol_store::keys::encode(&header_key, 64).expect("header key");
-    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(mut header)) =
-        jig_protocol_store::codec::decode(
-            &header_key,
-            maps.store.get(encoded_key.as_ref()).expect("header"),
-            &fixtures::codec(),
-            fixtures::store_names(),
+    // The golden's deployment header uses the captured pre-restart layout, not today's codec.
+    let text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../jig/crates/jig-protocol-store/src/tests/fixtures/cb429613c6-core-v6.schema"
+    ));
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept core schema");
+    let mut value = skein_codec::value::Value::with_room(32);
+    let row = value
+        .decode(
+            &schema,
+            schema.find(b"Row").expect("header row"),
+            Box::from(maps.store.get(encoded_key.as_ref()).expect("header").as_slice()),
         )
-        .expect("header decodes")
+        .expect("kept header decodes");
+    let skein_codec::schema::Shape::Record { first: row_value, count: 1, .. } =
+        schema.declaration(schema.find(b"Row").expect("row declaration")).shape
     else {
-        panic!("deployment header")
+        panic!("Row holds its value")
     };
-    header.commits = last + 1;
-    let header = jig_protocol_store::codec::encode(
-        &jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)),
-        &fixtures::codec(),
-        fixtures::store_names(),
-    )
-    .expect("header encodes");
+    let enumeration = value.field(row, row_value).expect("row value");
+    let header = value.payload(enumeration).expect("row payload").expect("deployment payload");
+    let declaration = schema.find(b"Deployment").expect("deployment declaration");
+    let skein_codec::schema::Shape::Record { first, count, .. } = schema.declaration(declaration).shape else {
+        panic!("deployment is a record")
+    };
+    let commit = (first.index()..first.index() + count)
+        .map(skein_codec::schema::FieldIx::new)
+        .find(|&field| schema.spelled(schema.field(field).name) == b"commits")
+        .expect("commit field");
+    let span = value.span(value.field(header, commit).expect("header commit")).expect("commit span");
+    let mut header = value.bytes().to_vec();
+    header[usize::try_from(span.start).expect("span start")..usize::try_from(span.end).expect("span end")]
+        .copy_from_slice(&(last + 1).to_be_bytes());
     let mut body = Vec::new();
     for (key, value) in [(key, b"".as_slice()), (encoded_key.as_ref(), header.as_ref())] {
         body.push(1);

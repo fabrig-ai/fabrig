@@ -183,6 +183,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FollowAct { .. }
             | forge::Event::TierAct { .. }
             | forge::Event::JobHistory { .. }
+            | forge::Event::Milestone { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

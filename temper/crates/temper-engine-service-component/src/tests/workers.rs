@@ -1258,3 +1258,17 @@ fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
     assert!(engine.workers.notes.is_empty());
     assert!(engine.notes.is_empty());
 }
+
+#[test]
+fn each_workers_restart_outcome_reaches_a_shell_note() {
+    use jig_protocol_engine_workers::host::Output;
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let mut events = skein_lib::Queue::uncapped();
+    for (version, wait) in [(15, Some(skein_lib::Duration::from_millis(1_200_000))), (14, None)] {
+        workers.route(Output::Told { worker: worker.clone(), version, wait }, &mut events);
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerTold { worker: worker.clone(), version, wait }));
+        assert!(events.is_empty(), "the outcome is a log note, not a domain input");
+    }
+}

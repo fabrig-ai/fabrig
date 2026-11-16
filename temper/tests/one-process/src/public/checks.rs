@@ -91,6 +91,10 @@ impl Judge {
                 self.age(now, proxy, visitor, upstream)?;
             }
             "the_proxy_keeps_only_public_200_and_404" => self.policy(proxy, visitor, upstream)?,
+            "the_proxy_drops_credentials_and_forwarding_claims_from_public_reads" => {
+                self.credentials(proxy, visitor, upstream)?;
+            }
+            "the_proxy_adds_no_access_control_header_to_its_own_answers" => self.cors(proxy, visitor, upstream)?,
             "two_deployments_behind_one_proxy_keep_their_own_copies" => self.keys(proxy, visitor)?,
             "a_refused_host_is_never_answered_from_the_cache" => self.host(proxy, visitor)?,
             other => return Err(format!("unknown proxy walk {other}")),
@@ -263,6 +267,7 @@ impl Judge {
             (404, b"public, max-age=2, must-revalidate", 1),
             (503, b"public, max-age=2, must-revalidate", 2),
             (200, b"no-store", 2),
+            (404, b"no-store", 2),
             (200, b"public, max-age=2", 2),
             (200, b"private, max-age=2, must-revalidate", 2),
             (200, b"public, max-age=0, must-revalidate", 2),
@@ -308,7 +313,12 @@ impl Judge {
         let path = format!("/jig/v1/public/0/1/{row}");
         match self.stage % 3 {
             0 => {
-                upstream.answer = document(status, control, None, b"policy");
+                upstream.answer = document(
+                    status,
+                    control,
+                    None,
+                    if status == 404 && control == b"no-store" { b"" } else { b"policy" },
+                );
                 self.send(visitor, b"one.example", path.as_bytes());
             }
             1 => {
@@ -329,6 +339,9 @@ impl Judge {
                     }
                     _ => {}
                 }
+                if control == b"no-store" && self.last(visitor)? != &upstream.answer {
+                    return Err(format!("no-store row {row}: forwarded byte for byte"));
+                }
                 let expected: u32 = ROWS[..=row].iter().map(|r| r.2).sum();
                 match (&(proxy.counts.upstream_public), &(expected)) {
                     (left, right) if left != right => {
@@ -342,6 +355,105 @@ impl Judge {
         }
         self.stage += 1;
 
+        Ok(())
+    }
+    fn credentials(&mut self, proxy: &Proxy, visitor: &mut Visitor, upstream: &Upstream) -> Result<(), String> {
+        if self.stage == usize::MAX {
+            return Ok(());
+        }
+        let row = self.stage / 3;
+        if row == 3 {
+            self.stage = usize::MAX;
+            return Ok(());
+        }
+        let path = format!("/jig/v1/public/0/1/{row}");
+        match self.stage % 3 {
+            0 => {
+                let mut headers: Vec<(&[u8], &[u8])> = vec![
+                    (b"Host", b"one.example"),
+                    (b"Forwarded", b"for=untrusted"),
+                    (b"X-Forwarded-For", b"untrusted"),
+                    (b"X-Forwarded-Host", b"untrusted"),
+                ];
+                if row != 1 {
+                    headers.push((b"Cookie", b"jig-sign-in=visitor"));
+                }
+                if row != 0 {
+                    headers.push((b"Authorization", b"Bearer visitor"));
+                }
+                self.calls.push(visitor.send(PROXY, Method::Get, path.as_bytes(), &headers));
+            }
+            1 => {
+                let bytes = upstream.requests.last().ok_or_else(|| String::from("upstream public read"))?;
+                let (call, _) = super::http::request(bytes).ok_or_else(|| String::from("upstream request"))?;
+                for name in
+                    [b"cookie".as_slice(), b"authorization", b"forwarded", b"x-forwarded-for", b"x-forwarded-host"]
+                {
+                    if call.header(name).is_some() {
+                        return Err(format!("proxy forwarded forbidden header {name:?}, row {row}"));
+                    }
+                }
+                if call.method != Method::Get || call.target.as_ref() != path.as_bytes() {
+                    return Err(String::from("public request keeps its method and path"));
+                }
+                if self.last(visitor)? != &upstream.answer {
+                    return Err(format!("credentials change no answer byte, row {row}"));
+                }
+                self.send(visitor, b"one.example", path.as_bytes());
+            }
+            2 => {
+                let expected = u32::try_from(row + 1).map_err(|why| format!("public calls: {why:?}"))?;
+                if proxy.counts.upstream_public != expected || proxy.counts.served_from_cache != expected {
+                    return Err(format!("credentials are no part of the cache key, row {row}: {:?}", proxy.counts));
+                }
+            }
+            other => return Err(format!("credentials stage {other}")),
+        }
+        self.stage += 1;
+        Ok(())
+    }
+    fn cors(&mut self, proxy: &mut Proxy, visitor: &mut Visitor, upstream: &mut Upstream) -> Result<(), String> {
+        // Each refusal point, then the upstream failure, including a preflight.
+        const CASES: &[u16] = &[421, 503, 503, 503, 503, 503, 503, 502, 502];
+        if self.stage == usize::MAX {
+            return Ok(());
+        }
+        let row = self.stage / 2;
+        if row == CASES.len() {
+            self.stage = usize::MAX;
+            return Ok(());
+        }
+        if self.stage.is_multiple_of(2) {
+            proxy.config = config(UPSTREAM);
+            match row {
+                0 => {}
+                1 => proxy.config.per_address.reads_per_second = 0,
+                2 => proxy.config.per_address.reads_in_flight = 0,
+                3 => proxy.config.public_in_flight = 0,
+                4 => proxy.config.public_pool = 0,
+                5 => proxy.config.per_address.anonymous_per_second = 0,
+                6 => proxy.config.other_pool = 0,
+                7 | 8 => upstream.stop(),
+                other => return Err(format!("CORS row {other}")),
+            }
+            self.calls.push(visitor.send(
+                PROXY,
+                if row >= 5 && row != 7 { Method::Options } else { Method::Get },
+                PATH,
+                &[
+                    (b"Host", if row == 0 { b"refused.example" } else { b"one.example" }),
+                    (b"Origin", b"https://another.example"),
+                    (b"Access-Control-Request-Method", b"GET"),
+                ],
+            ));
+        } else {
+            let answer = self.last(visitor)?;
+            if answer.status != CASES[row] {
+                return Err(format!("proxy's own answer, row {row}: {answer:?}"));
+            }
+            no_cors(answer)?;
+        }
+        self.stage += 1;
         Ok(())
     }
     fn keys(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) -> Result<(), String> {
@@ -524,6 +636,9 @@ impl skein_world::Referee<Program> for Judge {
         else {
             return Err(String::from("proxy composition"));
         };
+        for answer in visitor.answers.values().flatten() {
+            no_cors(answer)?;
+        }
         self.act_ready = !self.stopped
             && proxy.ready()
             && upstream.ready()

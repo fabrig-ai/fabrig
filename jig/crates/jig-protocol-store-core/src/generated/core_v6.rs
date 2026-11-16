@@ -545,6 +545,8 @@ pub enum Path {
     DeploymentCommits,
     /// The `projects` field of `Deployment`.
     DeploymentProjects,
+    /// The `restart_wait_ms` field of `Deployment`.
+    DeploymentRestartWaitMs,
     /// Bytes after `Deployment`.
     DeploymentTail,
     /// The `value` field of `PhaseBytes`.
@@ -4137,6 +4139,8 @@ pub struct DeploymentParts {
     pub commits: u64,
     /// The `projects` field.
     pub projects: u64,
+    /// The `restart_wait_ms` field.
+    pub restart_wait_ms: Option<u64>,
 }
 
 /// `Deployment` in this codec family.
@@ -4153,13 +4157,14 @@ pub struct Deployment {
     applications: u64,
     commits: u64,
     projects: u64,
+    restart_wait_ms: Option<u64>,
 }
 
 impl Deployment {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: DeploymentParts) -> Result<Self, Problem> {
-        let DeploymentParts { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects } = parts;
-        let value = Self { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects };
+        let DeploymentParts { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects, restart_wait_ms } = parts;
+        let value = Self { id, tasks, people, sign_ins, messages, runs, calls, connector_rows, applications, commits, projects, restart_wait_ms };
         Ok(value)
     }
 
@@ -4207,9 +4212,13 @@ impl Deployment {
     #[must_use]
     pub fn projects(&self) -> u64 { self.projects }
 
+    /// Reads the `restart_wait_ms` field.
+    #[must_use]
+    pub fn restart_wait_ms(&self) -> &Option<u64> { &self.restart_wait_ms }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> DeploymentParts { DeploymentParts { id: self.id, tasks: self.tasks, people: self.people, sign_ins: self.sign_ins, messages: self.messages, runs: self.runs, calls: self.calls, connector_rows: self.connector_rows, applications: self.applications, commits: self.commits, projects: self.projects } }
+    pub fn into_parts(self) -> DeploymentParts { DeploymentParts { id: self.id, tasks: self.tasks, people: self.people, sign_ins: self.sign_ins, messages: self.messages, runs: self.runs, calls: self.calls, connector_rows: self.connector_rows, applications: self.applications, commits: self.commits, projects: self.projects, restart_wait_ms: self.restart_wait_ms } }
 
 }
 
@@ -9093,6 +9102,11 @@ impl Deployment {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_restart_wait_ms = &self.restart_wait_ms;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_restart_wait_ms.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -9120,6 +9134,14 @@ impl Deployment {
         writer.put(&field_commits.to_be_bytes())?;
         let field_projects = &self.projects;
         writer.put(&field_projects.to_be_bytes())?;
+        let field_restart_wait_ms = &self.restart_wait_ms;
+        match field_restart_wait_ms {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -9142,7 +9164,8 @@ impl Deployment {
         let decoded_applications = reader.u64().ok_or(Problem { path: Path::DeploymentApplications, reason: skein_codec::Reason::Short })?;
         let decoded_commits = reader.u64().ok_or(Problem { path: Path::DeploymentCommits, reason: skein_codec::Reason::Short })?;
         let decoded_projects = reader.u64().ok_or(Problem { path: Path::DeploymentProjects, reason: skein_codec::Reason::Short })?;
-        Ok(Self { id: decoded_id, tasks: decoded_tasks, people: decoded_people, sign_ins: decoded_sign_ins, messages: decoded_messages, runs: decoded_runs, calls: decoded_calls, connector_rows: decoded_connector_rows, applications: decoded_applications, commits: decoded_commits, projects: decoded_projects })
+        let decoded_restart_wait_ms = match reader.u8().ok_or(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::DeploymentRestartWaitMs, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { id: decoded_id, tasks: decoded_tasks, people: decoded_people, sign_ins: decoded_sign_ins, messages: decoded_messages, runs: decoded_runs, calls: decoded_calls, connector_rows: decoded_connector_rows, applications: decoded_applications, commits: decoded_commits, projects: decoded_projects, restart_wait_ms: decoded_restart_wait_ms })
     }
 }
 
@@ -13174,7 +13197,7 @@ impl Deployment {
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -13192,7 +13215,7 @@ impl Deployment {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

@@ -1060,6 +1060,7 @@ fn world_in_layout(
                         }
                         v1::Read::Finding(_)
                         | v1::Read::History(_)
+                        | v1::Read::Milestone(_)
                         | v1::Read::RevisionSetting(_)
                         | v1::Read::ProposalItems(_) => {}
                     }

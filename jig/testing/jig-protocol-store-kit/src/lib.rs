@@ -767,6 +767,7 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
         progress_bytes: 64,
         turns: 2,
         grace: skein_lib::Duration::from_nanos(5_000_000_000),
+        restart_wait: skein_lib::Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     }

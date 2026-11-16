@@ -351,7 +351,29 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     let number = store.stores.store.last() + 1;
     let Write::Save(record) = fixtures::header(number) else { panic!() };
     let key = crate::keys::encode(&record.key(), store.limits.store.key).unwrap();
-    let value = crate::codec::encode(&record, &store.codec_limits, &store.names).unwrap();
+    let mut value = crate::codec::encode(&record, &store.codec_limits, &store.names).unwrap();
+    // Raw fixture commits use the simulated binary's core text and layout id.
+    if let Some(family) =
+        store.owner_sets.sets.iter().flat_map(|set| set.families).find(|family| family.name == "jig-store-core")
+    {
+        let from = skein_codec::schema::parse(include_str!("../../../schema/core-v6.schema").as_bytes()).unwrap();
+        let to = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+        let plan = skein_codec::layout::Plan::derive(
+            &from,
+            from.root(b"Row", Some(b"deployment")).unwrap(),
+            &[],
+            &to,
+            to.root(b"Row", Some(b"deployment")).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = Buffer::with_capacity(1024);
+        plan.convert(&value, &mut out, &mut work).unwrap();
+        value = out.as_slice().into();
+    }
+    store.registry.write(&key, &mut value).unwrap();
     ops.push(skein_kv::Op::Put { key, value });
     let mut above = Queue::uncapped();
     let mut below =

@@ -125,6 +125,7 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     // max(5 + 15 + 300, 180) + max(5, 1) + 1 = 326 s. The engine-away grace
     // dominates the bound; keep a margin (jig/docs/design/domain/engine/fleet.md).
     grace: Duration::from_secs(360),
+    restart_wait: Duration::from_millis(1_200_000),
     facts: 32,
     history: 8,
 };

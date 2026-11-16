@@ -46,6 +46,7 @@ pub enum RecordKind {
     RedNumber,
     RedPass,
     HistoryProject,
+    Milestone,
 }
 impl RecordKind {
     /// History survives removal without retaining its repository's row
@@ -79,6 +80,7 @@ impl RecordKind {
             | RecordKind::Writer
             | RecordKind::Making
             | RecordKind::Binding
+            | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device

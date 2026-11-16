@@ -1405,3 +1405,25 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
         "temper serve: task 3 run 7 attempt 2 refused: version mismatch: smith-charter 5, the worker reads 4..4\n"
     );
 }
+
+#[test]
+fn restart_lines_name_the_wait_or_the_workers_older_wire() {
+    use temper_engine_service::Note;
+    for (wait, version, expected) in [
+        (
+            Some(skein_lib::Duration::from_millis(1_200_000)),
+            15,
+            "custom serve: worker worker-a told the engine restarts: wait 1200000 ms\n",
+        ),
+        (
+            None,
+            14,
+            "custom serve: worker worker-a not told the engine restarts: jig-worker-wire 14; it keeps its grace\n",
+        ),
+    ] {
+        assert_eq!(
+            note_line("custom", Note::WorkerTold { worker: b"worker-a".as_slice().into(), version, wait }),
+            expected
+        );
+    }
+}

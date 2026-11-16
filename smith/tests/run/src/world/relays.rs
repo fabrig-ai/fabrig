@@ -25,7 +25,7 @@ impl Relays {
                 stats.relay_answered += 1;
                 self.stages.remove(&run);
             }
-            run::HostReply::Busy => {
+            run::HostReply::Busy | run::HostReply::Unsent => {
                 stats.relay_busy += 1;
                 self.stages.insert(run, "relay backoff");
             }

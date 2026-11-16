@@ -15,6 +15,8 @@ pub(super) struct Controls {
     pub link_joined: bool,
     lost: Option<Time>,
     grace: Duration,
+    pub told: Option<Duration>,
+    pub drained: bool,
     pub hellos: Vec<Vec<jig_domain_link::Hosting>>,
     admissions: usize,
     pub hello_pending: bool,
@@ -36,6 +38,8 @@ impl Default for Controls {
             link_joined: true,
             lost: None,
             grace: Duration::from_secs(1),
+            told: None,
+            drained: false,
             hellos: Vec::new(),
             admissions: 0,
             hello_pending: false,
@@ -61,6 +65,20 @@ impl World {
         world
     }
 
+    /// The deployment's long engine-away bound, with a model response held across it.
+    #[must_use]
+    pub fn absence_chat_with_grace(seed: u64, script: Script, words: &[u8], query: usize, grace: Duration) -> Self {
+        let mut world = Self::absence_chat(seed, script, words, query);
+        world.absence.grace = grace;
+        world.worker_env.limits.stop_bound = grace.saturating_add(Duration::from_secs(26));
+        world.worker_env.limits.agent.no_progress = world.env.limits.fleet.restart_wait;
+        world.env.limits.fleet.grace = world.worker_env.limits.stop_bound.saturating_add(Duration::from_secs(1));
+        world.env.limits.people.sign_in_lifetime = Duration::from_secs(3600);
+        world.worker = worker::Domain::new(&world.worker_env.limits, Box::new([]));
+        world.root = engine::Domain::new(open_config(seed), &world.env.limits).expect("absence configuration");
+        world
+    }
+
     /// Await the selected query and all preceding durable turn acknowledgements.
     pub fn until_model_held(&mut self) {
         for _ in 0..10000 {
@@ -69,7 +87,7 @@ impl World {
                 !self.process.prepared()
                     && self.agent().prompts().len() == query
                     && self.agent().turns().len() + 1 == query
-                    && self.observed.turns == self.observed.turn_acks
+                    && self.worker.retained_turns() == 0
             }) && self.store.idle()
                 && self.root_events.is_empty()
                 && self.worker_events.is_empty()
@@ -97,6 +115,12 @@ impl World {
                 offset: 0,
             }));
         }
+    }
+
+    /// Continue to a later model query, holding its response.
+    pub fn continue_until_model(&mut self, query: usize) {
+        assert!(self.process.held_query.is_some(), "a held model response");
+        self.process.held_query = Some(query);
     }
 
     pub fn release_model(&mut self) {
@@ -140,6 +164,30 @@ impl World {
         );
     }
 
+    /// Settle the engine and hear its word before the scripted link is cut.
+    pub fn settle_engine(&mut self) {
+        self.root_step(engine::Event::Stop);
+        for _ in 0..10000 {
+            self.tick();
+            if self.absence.drained {
+                return;
+            }
+        }
+        panic!("engine did not drain");
+    }
+
+    /// Move the scripted clock during an absence; the next tick observes expired clocks.
+    pub fn elapse_absence(&mut self, duration: Duration) {
+        assert!(!self.absence.engine_running && !self.absence.link_joined);
+        self.env.now = self.env.now.saturating_add(duration);
+        self.tick();
+    }
+
+    #[must_use]
+    pub fn restart_word(&self) -> Option<Duration> {
+        self.absence.told
+    }
+
     /// Drop the engine's queues and crash its store, retaining the worker and disk.
     pub fn stop_engine(&mut self) {
         assert!(!self.absence.link_joined, "cut the link before stopping the engine");
@@ -157,6 +205,7 @@ impl World {
         self.root = engine::Domain::new(open_config(self.seed), &self.env.limits).expect("restart configuration");
         self.root_events = VecDeque::from([engine::Event::Restart { pending: false }]);
         self.absence.engine_running = true;
+        self.absence.drained = false;
     }
 
     /// A root started and dropped before it can admit a hello is still one absence.
@@ -282,7 +331,10 @@ impl World {
             }
         }
         if self.absence.worker_running
-            && self.absence.lost.is_some_and(|lost| self.env.now.saturating_since(lost) >= self.absence.grace)
+            && self.absence.lost.is_some_and(|lost| {
+                self.env.now.saturating_since(lost)
+                    >= self.absence.told.unwrap_or(Duration::ZERO).max(self.absence.grace)
+            })
         {
             self.absence.lost = None;
             self.worker_events.push_back(worker::Event::GracePassed);
@@ -294,6 +346,7 @@ impl World {
             self.absence.hello_pending = false;
             self.absence.admissions += 1;
             self.absence.lost = None;
+            self.absence.told = None;
             while let Some(link) = self.absence.outbound.pop_front() {
                 self.up(link);
             }

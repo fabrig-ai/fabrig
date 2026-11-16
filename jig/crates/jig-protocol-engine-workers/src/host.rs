@@ -8,7 +8,7 @@ use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_worker_wire::{Agreed, Part};
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
-use skein_lib::{List, Map, Queue, Time, Token, stream};
+use skein_lib::{Duration, List, Map, Queue, Time, Token, stream};
 
 /// The owner's namespaces for this part's io (skein/docs/design/runtime/lib.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -26,6 +26,7 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
+    Told { worker: Box<[u8]>, version: u16, wait: Option<Duration> },
     Opened { worker: Box<[u8]>, wires: List<Agreed>, statement: crate::Statement },
     Refused { worker: Option<Box<[u8]>>, reason: u16, text: Box<[u8]> },
     Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
@@ -59,6 +60,7 @@ pub struct Workers {
     sockets: Map<Token, Token>,
     tokens: Tokens,
     next: u64,
+    now: Time,
     opened: bool,
     ending: Option<Closing>,
     component_closed: bool,
@@ -126,6 +128,7 @@ impl Workers {
             listeners,
             sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
             next: 1,
+            now: Time::ZERO,
             opened: false,
             ending: None,
             component_closed: false,
@@ -158,7 +161,12 @@ impl Workers {
         }
         None
     }
+    /// Tell each admitted worker the restart wait (protocol/channel/restart.md, 3).
+    pub fn restarting(&mut self, wait: Duration) {
+        self.component.down(self.now, Event::Restarting { wait }, &mut self.out);
+    }
     pub fn down(&mut self, now: Time, event: Event) {
+        self.now = now;
         self.component.down(now, event, &mut self.out);
     }
     pub fn up(&mut self, now: Time, event: io::Event) -> Seen {
@@ -221,6 +229,7 @@ impl Workers {
     /// Takes one request, doing itself what needs no owner.
     pub fn output(&mut self) -> Option<Output> {
         match self.out.pop()? {
+            Request::Told { worker, version, wait } => return Some(Output::Told { worker, version, wait }),
             Request::Take { connection } => self.io.push(io::Request::Bind {
                 socket: *self.sockets.get(&connection).expect("accepted socket"),
                 owner: connection,
@@ -303,6 +312,7 @@ impl Workers {
         None
     }
     pub fn iterate(&mut self, now: Time) {
+        self.now = now;
         self.component.fire(now, &mut self.out);
     }
     pub fn abort(&mut self, now: Time) {

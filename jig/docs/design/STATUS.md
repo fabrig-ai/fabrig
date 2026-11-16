@@ -36,7 +36,14 @@ keeping their committed work and spending no try; crash recovery still
 settles claims as lost or not started (`domain/engine/restart.md`
 ; `domain/tasks/lifecycle.md`, 2). A worker stopped in another process
 still spends an agent try on its Shutdown cancel; changing that remains
-deferred (`protocol/service.md`, section 9). A worker's link says why
+deferred (`protocol/service.md`, section 9). A settled stop keeps that
+the engine restarts and tells each worker whose channel's version has
+the word, which keeps its runs through the restart wait; the next start
+holds their claims as long, until each worker hears it again, and a
+worker's hub answers a relay its link never carried as unsent and holds
+its runs' grant renewals while the link is lost
+(`domain/engine/restart.md`, 1; `domain/engine/fleet.md`;
+`domain/hosts/hub.md`, 6; `protocol/channel/restart.md`). A worker's link says why
 it was lost, on each side, its silence counts bytes, and a closing
 connection is aborted at the stall deadline, so a worker lost fifty
 times each way is taken back each time; the remaining fifty-loss cases are `protocol/channel/README.status.md`, 11. Each side's link takes its
@@ -212,6 +219,7 @@ Design documents:
 - [`protocol/channel/README.md`](protocol/channel/README.status.md)
 - [`protocol/channel/wires.md`](protocol/channel/wires.status.md)
 - [`protocol/channel/bridges.md`](protocol/channel/bridges.status.md)
+- [`protocol/channel/restart.md`](protocol/channel/restart.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)

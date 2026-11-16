@@ -52,6 +52,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (43, "temper.devices"),
         (CHANGE_COLD, "temper.changes-cold"),
         (CHANGE_HOT, "temper.changes-hot"),
+        (MILESTONE, "temper.milestones"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
@@ -110,6 +111,8 @@ pub const HISTORY_PROJECT: u8 = 127;
 /// A change's two parts (temper/docs/design/protocol/store.md, 2).
 pub const CHANGE_COLD: u8 = 47;
 pub const CHANGE_HOT: u8 = 48;
+/// The forge's milestone row (domain/milestones.md, 8).
+pub const MILESTONE: u8 = 49;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -233,6 +236,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(TIER);
             write_repository(&mut writer, *repository);
             writer.bytes(tier);
+        }
+        forge::Key::Milestone(task) => {
+            writer.tag(MILESTONE).u64(*task);
         }
         forge::Key::LandingLog { repository } => {
             writer.tag(LANDING_LOG);
@@ -467,6 +473,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             }
             forge::Key::Tier { repository, tier }
         }
+        MILESTONE => forge::Key::Milestone(reader.u64()?),
         LANDING_LOG => forge::Key::LandingLog { repository: read_repository(&mut reader)? },
         VERIFICATION => {
             forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }

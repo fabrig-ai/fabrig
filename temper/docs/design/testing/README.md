@@ -250,6 +250,9 @@ terminal client, the captures and the faults.
 - **Stories:**
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
+  - a provider's list read by the worker's hosted list program (jig's
+    `domain/engine/settings.md`, 12): asked once, no run, its new name
+    drawn in `me`, nothing spent;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
     expiry, and the deployment's sign-ins unchanged
@@ -266,7 +269,8 @@ terminal client, the captures and the faults.
     authenticated by the renewed token, as the layer's record of its git
     calls shows (../protocol/credentials.md, section 4);
   - a signal mid-run drains the engine, the worker ends, and the next
-    start settles the worker's claims at once;
+    start settles the worker's claims at once, on a chat's run and on a
+    coding run;
   - a stop while a chat's run holds a turn of smith's fake `claude` on a
     program's source: the turn interrupted, the engine drained, and no
     program left running (`../protocol/setup/box.md`, 2); a program's
@@ -274,6 +278,8 @@ terminal client, the captures and the faults.
   - the service is killed, or the machine's power lost, at a drawn
     moment, then started again on the same disk, an adoption pending
     among what it finds;
+  - those `../protocol/channel.md`, 9, `../client/testing.md` and
+    `../protocol/sign-in.md`, 2.5 place here;
   - **through an upgrade** (`../draft/upgrades.md`, section 13): a
     project, a person and an account; a goal's change landed; a chat
     paused and a task mid-run on the in-process worker; a forge write
@@ -345,6 +351,9 @@ terminal client, the captures and the faults.
 - **Budget:** a story aims at 2 s (`checks.md`, 1); sweeps of drawn kills are fuzzy
   tests. The upgrade module's tests are placed as `../protocol/baseline.md`, 8
   lists.
+  Each story, each run above among them, is a test of its own;
+  Anthropic's keys through `ctl` are `tests/client`'s
+  (`../client/ctl/testing.md`, 2).
 
 ### 2.8 macOS
 

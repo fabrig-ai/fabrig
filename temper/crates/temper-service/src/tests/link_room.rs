@@ -91,6 +91,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::SignedOut
                 | Kind::JobAnswer
                 | Kind::Ask
+                | Kind::Restarting
                 | Kind::Asked
                 | Kind::Wires => false,
             };
@@ -235,6 +236,7 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Told { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }

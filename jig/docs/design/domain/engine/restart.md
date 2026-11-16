@@ -37,8 +37,9 @@ next only once the root says this one is done (../root.md, section 8).
    settled its agent claims of both kinds as interrupted already (1),
    so those left are a crash's, or a job's. Claims on other workers reach the
    fleet, which adopts each attempt a worker reports as it dials in,
-   keeps waiting for one within its grace, and cancels any it does not
-   name (`fleet.md`). A claim an upgrade across a fresh mark crossed (its
+   keeps waiting for one within its grace, or its hold after a stop
+   that said it restarts (1, *Held across starts*), and cancels any it
+   does not name (`fleet.md`). A claim an upgrade across a fresh mark crossed (its
    run proof's `crossed`) is never adopted, so that no attempt goes on
    across that mark (`executors.md`, 2): one in the engine or on in-process workers
    is settled at once, as above; one on another worker ends lost as a
@@ -283,6 +284,58 @@ the core makes no new work and takes every commit:
 `Stopping` after it goes on as above, and `Stopping` alone, for a root
 that does not settle, is as before. A crash while settling leaves the
 store as any crash does.
+
+**Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
+stop tells the workers that the engine restarts, so that each keeps its
+runs through the restart wait rather than its grace
+(`../../protocol/channel/restart.md`):
+
+- **Kept first.** At `Stopping` after `Settling`, the core keeps the
+  word in the decision its stop makes, with the claims it settles as
+  interrupted or alone: the longer of the configured restart wait
+  (`fleet.restart_wait`, `fleet.md`, *A restart said holds its runs*)
+  and a word still kept from an earlier stop (*Held across starts*,
+  below), so that a later word never shortens a hold outstanding.
+- **Then said.** Once that decision is durable, the core asks its root
+  to tell the workers, `Held::Restarting { wait }`, `wait` the
+  configured restart wait, a `Duration`. The root has its workers'
+  component send it on each channel whose version has it, and closes
+  the workers' part only at `Held::Drained`, which the journal releases
+  after it (temper's `domain/root.md`, 8.2).
+- **Kept as** the deployment's numbers record's `restart_wait_ms`, the
+  wait in milliseconds, `option u64 = none` in `jig-store-core`: a
+  registered family's field with its default, so no version moves and
+  no patch comes (`../../protocol/store/layouts.md`). It is saved with
+  the decision's header, as the numbers are.
+- **Only a settled stop says it,** and only to workers that may outlive
+  the engine: `Stopping` alone keeps and says nothing, as a crash says
+  nothing; nor does a stop whose configuration says its workers are in
+  its process (step 3), or whose restart wait is zero.
+
+**Held across starts** (temper's `draft/redeploys.md`, 5.3):
+
+- **Read with the core's records** (step 1): a word kept is the start's
+  hold.
+- **Each claim on a worker the start adopts or crosses** (step 3) is
+  held for the word's wait and the fleet's grace after it, counted from
+  its adoption, rather than for the grace alone, and keeps that hold
+  through its worker's hello and any loss after it, until its worker
+  has heard the engine again (`fleet.md`, *A restart said holds its
+  runs*). So no next attempt is placed while a worker that heard the
+  word may still host the last.
+- **Discharged** once no claim the start held is held any more: each has
+  ended, been lost at its hold's end and so placed again, or had its
+  worker hear the engine. The fleet says so once, and the core clears
+  the kept word in a decision. A start that holds none clears it once
+  the runs are adopted. A discharge heard after this stop's word is kept
+  clears nothing.
+- **A crash or a stop before then** leaves the word kept, so the next
+  start holds every claim it restores on a worker again, for the
+  longest wait said, from its own start: two restarts in a row, a crash
+  between them or a shorter wait on the second, shorten no hold.
+- **A build that doesn't know the word** holds for its grace alone, so
+  going back past the build that brings it is every part together, each
+  worker drained first (temper's `draft/redeploys.md`, 7.3).
 
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,

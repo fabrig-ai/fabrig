@@ -7,6 +7,11 @@ the status files below. Containment remains `domain/README.status.md`, 2, `domai
 `protocol/transcript.md` have no gap. The agent's standalone `--list`
 request and its host half's bounded stdin/stdout exchange are built,
 without a run slot (`protocol/agent.md`, 6.1; `protocol/host.md`, section 2).
+A host call withdrawn unsent is asked again with no uncertain effect, and
+a completion whose renewable grant lapses while its host's renewals are
+held waits for the next grant, spending no retry, as a long operation
+its host's watchdog knows of (`domain/run.md`, 5.2; `domain/session.md`,
+4; `domain/host.md`, 4 and 7).
 Sub-agent answers have the outcome's room, with UTF-8 boundary cuts and
 guidance to ask a new child, narrower; retaining the rest for a
 continuation remains deferred (`domain/run.md`, 5.3 and 13;

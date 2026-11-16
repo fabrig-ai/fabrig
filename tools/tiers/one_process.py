@@ -153,6 +153,26 @@ def duration(value):
                for number, unit in parts)
 
 
+def profile_wall(path, profile):
+    """Read only profile global timeouts (design.md, 11.7)."""
+    try:
+        data = tomllib.loads(Path(path).read_text())
+        if set(data) != {'profile'} or not isinstance(data['profile'], dict):
+            raise ValueError('expected only profile tables')
+        for name, table in data['profile'].items():
+            if not isinstance(table, dict) or set(table) != {'global-timeout'}:
+                raise ValueError(f'profile {name!r} must hold global-timeout alone')
+            value = table['global-timeout']
+            if not isinstance(value, str):
+                raise ValueError(f'profile {name!r} global-timeout must be a string')
+            duration(value)
+        if profile not in data['profile']:
+            raise ValueError(f'has no wall for profile {profile!r}')
+        return data['profile'][profile]['global-timeout']
+    except ValueError as error:
+        raise ValueError(f'walls file {path}: {error}') from error
+
+
 def configuration(config, profile, env, limits, caller_filter):
     data = tomllib.loads(Path(config).read_text())
     profiles = data.get('profile', {})
@@ -708,13 +728,15 @@ def write_junit(directory, results):
     ET.ElementTree(root).write(directory / 'junit.xml', encoding='utf-8', xml_declaration=True)
 
 
-def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):
+def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):
     """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
     directory = Path(directory).resolve()
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
         raise ValueError('run directory must be empty')
     prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
     settings, overrides, default_filter, groups = configuration(config, profile, env, limits, caller_filter)
+    if walls is not None:
+        settings['global-timeout'] = profile_wall(walls, profile)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
     output = bytearray()

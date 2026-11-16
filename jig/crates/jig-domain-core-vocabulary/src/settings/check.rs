@@ -680,17 +680,7 @@ fn template_fault(
     {
         return Some(Fault::Reference);
     }
-    if !tasks::shaped(
-        template.flags,
-        match executor {
-            people::TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
-            // A standing template leaves the agent's charter to its creator.
-            people::TemplateExecutor::Chosen if template.flags.ended_by == tasks::EndedBy::Standing => {
-                tasks::Executor::Agent { charter: 1 }
-            }
-            people::TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
-        },
-    ) {
+    if !tasks::shaped(template.flags, super::templates::shape_executor(template.flags, executor)) {
         return Some(Fault::Shape);
     }
     match executor {
