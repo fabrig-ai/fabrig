@@ -84,5 +84,5 @@ Cheap, focused and fuzzy suites only; walk = false.
 ## 5. Formats
 
 If the hold's words or a failure's record need a field no store keeps
-today, the store's version moves and its patch comes with it: upgrades
-are supported (`redeploys.md`).
+today, the registered family gains a field with a default, with no
+version move or patch (jig's `protocol/store/layouts.md`).

@@ -166,20 +166,22 @@ never renames or reuses one on its own. An account has:
   refresh token and the metadata, each `option` where it may be absent,
   and the fields version 3 added. A record of another form is
   unreadable, and its account signs in again, as after any change of a
-  record's form (below). Its ceilings are generous and fixed, since from the baseline
-  raising one is a new version: each token and the metadata 65,536
-  bytes, the issued client id, the scopes and the subject 4,096, the
+  record's form (below). Its ceilings are generous and fixed: each token
+  and the metadata 65,536 bytes, the issued client id, the scopes and
+  the subject 4,096, the
   times nanoseconds of wall time. The owner's `Limits` stay its runtime
   limits, under those ceilings, refused past one where the owner makes
   them, and `record_bytes` still bounds the whole: every bound is the
-  runtime limits', never the schema's ceilings. From the first release skein keeps each
-  version's text and its patches (../data/codec/command.md), so an owner
-  whose store keeps records patches them with the store's own records,
-  by skein's patch set, and hands the component records of the current
-  version only; where it holds one inside a record of its own, its field
-  is a `secret N holds skein-oauth SavedToken` (../data/codec/README.md, section 3),
-  and the owner still decodes and checks it with `decode_record`. A
-  record kept in private files is read by the current version alone
+  runtime limits', never the schema's ceilings. The saved token is a
+  format outside the store's registry, fixed at version 3: a change
+  designs and brings how the deployed store gets there (temper's
+  `draft/store-floor.md`, section 5). An owner hands the component
+  records of the current version only; where it holds one inside a
+  registered record, its field is a `secret N holds skein-oauth
+  SavedToken` (../data/codec/README.md, section 3), so layout conversion
+  includes the held record. The owner still decodes and checks it with
+  `decode_record`. A record kept in private files is read by the current
+  version alone
   (`README.md`, section 6).
 
 **Loading a private record.** At the start, an account kept in private

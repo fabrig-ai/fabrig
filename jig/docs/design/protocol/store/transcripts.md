@@ -34,10 +34,10 @@ converted; retention drops them as it drops a turns log.
 - **Windows.** A frame whose turn opens a window moves the task's
   current window to it, in the same commit. A run that starts fresh opens
   a new conversation, whose first turn opens a window (smith's
-  `protocol/transcript.md`, section 3). A patch marked fresh closes
-  every live task's window, in the patched copy (`opening.md`, 2, step 4): the run
-  proof's window says so (core-v6's `record Window { attempt: u64 turn:
-  u32 closed: bool }`).
+  `protocol/transcript.md`, section 3). The run proof's window records
+  whether it is closed (core-v6's `record Window { attempt: u64 turn:
+  u32 closed: bool }`). No upgrade closes windows by a map patch
+  (`opening.md`, 2).
 
 ## 2. Written before its commit
 
@@ -143,7 +143,7 @@ Removing a missing file is not a failure.
 
 ## 6. Patched as read
 
-Patching never writes a transcript (`opening.md`, 2): the transcripts are most of
+An upgrade never writes a transcript (`opening.md`, 2): the transcripts are most of
 what a deployment holds, and a frame is only ever read. So a frame
 behind the binary's versions is patched each time it is read, and
 nothing is written.
@@ -152,11 +152,9 @@ nothing is written.
   `KeptFamily::frames`): one `Patcher` each, the body's family in jig's
   set and the turn's in smith's, made at every open that serves (`opening.md`, 1)
   from the sets it was handed, after the frames' checks of `opening.md`, 3, each
-  kept text kept and each of its owner's patches planned, and held by
-  the transcripts' part for the whole run. They are not patching's
-  (`opening.md`, 3), which go with the copy's open. A family with no kept text has
-  none: every real set is empty until the baseline, so no machine is
-  made.
+  frames' text kept and each of its frames' patches planned, and held
+  by the transcripts' part for the whole run. No map patch machine is
+  made. A family with no frames' text has no machine.
 - **A frame's versions** are read with its head, past the frame's
   length: the body's first two bytes, and the turn's first two, past the
   `transcript` field's length, after the fields the head reads already.
@@ -164,7 +162,7 @@ nothing is written.
 - **A body behind** (its version kept by jig's machine, before the
   binary's) runs jig's plans from its version to the binary's, from the
   frames' root (found in the frame's version by the kept texts' renames,
-  as a held root is, `patching/walk.rs`), `next_pass` after the first.
+  by `transcripts/patches.rs`'s `held_root`), `next_pass` after the first.
   At its held turn the machine stops (`Step::Held`): at the first pass,
   smith's machine patches the turn from its version to smith's last
   kept, and its bytes go back with `put_content`; the passes after carry
@@ -178,9 +176,9 @@ nothing is written.
   none, its bytes go on as they are: a body its codec cannot
   read is unread (3), and a turn's reader refuses a version not its
   own (smith's `protocol/transcript.md`, section 4).
-- **Owners' order.** The copy runs owners' patches in their pins' order
-  (`opening.md`, 3); a frame runs jig's first and smith's at the held turn. The two
-  agree because neither reads the other's bytes: jig's written functions
+- **Owners' order.** A frame runs jig's plans first and smith's at
+  the held turn (`opening.md`, 3). Neither reads the other's bytes:
+  jig's written functions
   on a frame's body never read its `transcript`, and smith's read their
   turn alone (smith's `protocol/transcript.md`, section 12).
 - **Nothing is written.** The read hands on the patched bytes and the
@@ -210,7 +208,7 @@ nothing is written.
 - **A halt is an unread frame.** A frame the machines refuse (any
   `Halt` of skein's `data/codec/patches.md`, 4, a site's `NoSite` among them) is
   read as one that fails its checksum (3), in every read kind.
-- **A written site goes up,** as patching's do (`opening.md`, 3): at
+- **A written site goes up** (`opening.md`, 3): at
   `Step::Written` the component answers `Site` to the read's own token,
   `of` the site's owner, its `key` the frame's name (the task's key in
   the component's places, `README.md`, 4.4, then the frame's offset in its file,
@@ -219,11 +217,9 @@ nothing is written.
   site at once, by its owner's generated `written`, with a `Default`
   `Context`, its key set: reads come in any order and a frame is patched
   at each, so a frame's patch reads that frame alone (skein's
-  `data/codec/patches.md`, 5). The component's routing of `Request::Site` follows
-  its phase: a walk's while patching, and the read waiting at a site
-  while serving, its token the read's; any other is refused, as a site
-  no walk waits for is. A shell that hands sets answers `Site` while
-  serving as while patching, and one that hands none never sees it.
+  `data/codec/patches.md`, 5). The component routes `Request::Site`
+  to the read waiting at that token; any other is refused. There is no
+  map walk's site to route. A shell that hands no sets never sees `Site`.
 - **One read at a time** (`transcripts/read.rs`): a read
   waiting at a site holds the component's read, commits wait behind it
   as behind any read (`transcripts/write.rs`), and a machine serves one
@@ -240,16 +236,12 @@ nothing is written.
   texts allow is read and none is refused for its nodes. A turn's bytes
   do not bound its nodes (a list of empty records takes none), so
   smith's real turn, 4 messages of 128 blocks, takes 1,054,764 nodes,
-  and its machine is priced at that capacity from the baseline on, about
+  and its machine is priced at that capacity, about
   249 MB with what its tables hold while they grow (skein's `data/codec/patches.md`,
   7); a machine holds only what the largest record it has met needed
   (`README.md`, section 11).
-- **Windows across a mark.** A patched turn is the same conversation in
-  current bytes, as smith's patch makes it; one of smith's patches may
-  say instead that a window across it starts fresh (`mark
-  fresh-windows`). Its plan closes the live tasks' windows in the copy
-  (`opening.md`, 2, step 4), so no run resumes from turns patched across it; a tail,
-  a party's read and a page read them patched as any others. No attempt
-  is live across such a patch: its upgrade is a full one, the workers
-  stopped first (temper's `draft/upgrades.md`, 7.2), which temper's
-  section 9 is to say of a pending patch marked fresh (`README.md`, section 11).
+- **The formats are fixed** at the core's version 6 and smith's 7
+  (temper's `draft/store-floor.md`, section 5). Their frame patcher and
+  fixtures, `jig-test-patches-jig` and `jig-test-patches-smith`, stay.
+  A change to a frame format designs how the deployment's store reaches
+  it in that landing; no mark schedules a window-closing walk at open.

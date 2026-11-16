@@ -249,8 +249,9 @@
   story needs no Chromium. ctl reads the project,
   its forge, its repository and its landing by `turn` as they were; the
   fake Forgejo's API reads `work/hello` and its gate workflow as they
-  were; the engine's store opened by the newer build, patched forward
-  where it has a patch, refused by name where it has none; every
+  were; the engine's store opened by the newer build, converted at
+  read by its registry and upgraded by pending registrations and jobs,
+  or refused by name when below the floor (`../protocol/floor.md`, 4); every
   process of the deployment, read once ctl has signed in, runs a file of
   the new `bin/`, by device and inode, none an old or deleted file, and
   none a Forgejo or a runner; no stdout or log of the story holds the
@@ -258,16 +259,17 @@
   stops, so it is this profile's, written and compiled in Q6 and run
   after landing.
 
-- **The upgrade's commands,** through the real binary, whose patch sets
-  are empty until the first release: `temper-box versions`' lines; `temper-box
-  upgrade --check` over a stopped deployment's copy, saying the restores
-  pass, nothing patched, the workers may stay, the copy left as it was;
-  `temper-box upgrade --back` refused, with no previous generation, in its
-  words; and a start's exit and words when the store refuses. The drill
-  with a binary that patches, stop, start the new one, go back, with an
-  owned Forgejo's migration, waits for a release to pair with
-  (`../draft/upgrades.md`, section 13); the one-process world runs its
-  steps on fixture sets until then (`README.md`, 2.5).
+- **The upgrade's commands,** through the real binary and its production
+  owner sets: `temper-box versions`' levels and version lines;
+  `temper-box upgrade --check` over a stopped deployment's copy,
+  reporting the registry commit, jobs and restores and whether workers
+  may stay, with the source unchanged; `temper-box upgrade --back`
+  refused with no previous generation, in its words; and a start's
+  exit and words when the store refuses. The one-process world's
+  registry-and-job fixture checks a pending upgrade, a failed start
+  before the wires' commit and going back (`README.md`, 2.5). A drill
+  with two released builds and an owned Forgejo's migration needs
+  that pair of builds (`../draft/upgrades.md`, section 13).
 
 - **What runs:**
   - the real `temper-box` binary: `temper-box forge prepare`, `temper-box forge run`

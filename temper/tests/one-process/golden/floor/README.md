@@ -47,4 +47,4 @@ registered version 0 at store key `010000`. The floorless copy refuses before
 decoding. Each rehearsal leaves its source unchanged and empties its scratch.
 The floorless start preserves every existing file, adding only recovery's two
 empty log segments: store `log-00000000000000000102` and secrets
-`log-00000000000000000014` (baseline.md, 6).
+`log-00000000000000000014` (floor.md, 5).

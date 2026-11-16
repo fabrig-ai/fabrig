@@ -64,20 +64,20 @@ The gate builds every test target of the workspace (`cargo nextest run --no-run`
 
 ### 4.1 What the code holds
 
-- **The design keeps one version's code.** A family's generated code reads its current version only. An older version's record is read as a generic value and patched to the current version before the generated code reads it (skein's `data/codec/README.md`, section 5; `temper/docs/design/protocol/store.md`, section 4). A kept version is its text, in `schema/kept/` (`data/codec/command.md`, section 1).
+- **The design keeps one version's code.** A family's generated code reads its current version only. An older wire or frame record is read as a generic value and patched to the current version before the generated code reads it (skein's `data/codec/README.md`, section 5; `temper/docs/design/protocol/store.md`, section 4). A kept wire or frame version is its text, in `schema/kept/` (`data/codec/command.md`, section 1).
 - **The code holds more:** `temper-protocol-store-codec` holds `v16`, `v17` and `v18`, about 3.5 MB each, and `temper-protocol-store/schema/` holds texts from `v14` to `v18`. `jig-protocol-store-people` holds `people_v16` beside `people_v17`, and `smith-transcript` holds `v6` beside `v7`.
 - **Their readers:**
-  - `temper-protocol-store`'s own tests: `catch_up.rs`'s `v16` closer can read the current version, and its `v16` landing rows and `batches.rs`' `v17` rows can be built as generic values of their kept texts.
+  - `temper-protocol-store`'s own tests use registry changes and jobs, not older stores' patch fixtures.
   - `temper-fake`'s check reads one limit of `v17`, which the current version has too.
-  - temper's refusals (`records/application.rs` and its neighbours) read `people_v16`. The patch to `people_v17` appends refusal tags and leaves the existing layouts alone, so they can read the current version.
-  - jig's patch `p0001.rs` decodes archived executor pieces by `people_v16` while it upgrades a store, and `jig/tests/codec-families.rs` keeps the file for it. It reads them as generic values of the kept text instead.
+  - temper's refusals (`records/application.rs` and its neighbours) read `people_v16`. The current layout keeps the existing refusal tags, so they can read the current version.
+  - jig keeps no `p0001.rs` or archived executor pieces' decoder; a store behind the build is refused by name, naming bridge build `3d1c717d379e` (jig's `protocol/store/opening.md`, 1.8).
   - `smith-transcript`'s `v6` has no reader of its generated code: archived turns are rewritten and decoded by `v7`.
 - **And the store's version moves often:** from `v13` at 13:02Z on 2026-11-12 to `v18` at 08:41Z the next day. Each move recompiles every version the crate holds, and every crate above.
 
 ### 4.2 The rule
 
-- **A product family's generated code is its current version's alone,** in its codec crate or its owner, and `schema/` holds the current text alone. The older versions stay as kept texts.
-- **A reader of an older record,** a patch or a test, reads it as a generic value of its kept text (skein's `data/codec/README.md`, section 8), or takes it from a patch's goldens (`data/codec/command.md`, section 1).
+- **A product family's generated code is its current version's alone,** in its codec crate or its owner, and `schema/` holds the current text alone. Older wire and frame versions stay as kept texts; a registered store family's layouts and texts are held in its store's registry.
+- **A reader of an older wire or frame record,** a patch or a test, reads it as a generic value of its kept text (skein's `data/codec/README.md`, section 8), or takes it from a patch's goldens (`data/codec/command.md`, section 1).
 - **skein's codec fixtures keep two versions' code on purpose:** their tests compare the old and new generated decoders (`skein/tests/codec/`), and fixtures follow their stories (`data/codec/command.md`, section 1).
 - **No wire keeps an older version's code for a bridge:** a bridge goes up over generic values and down by reversing patches (`redeploys.md`, section 4).
 

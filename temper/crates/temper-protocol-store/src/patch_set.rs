@@ -1,4 +1,4 @@
-//! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
+//! Temper's map rows (temper/docs/design/protocol/floor.md, 3;
 //! temper/docs/design/protocol/store.md, 3).
 use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 

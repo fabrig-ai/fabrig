@@ -2,8 +2,9 @@
 
 - **One command keeps a crate's patches,** `skein-codegen patch
   <crate>`, ordinary Rust in skein-codegen's `patch` module, which each
-  repository may alias (`cargo xtask patch`, when needed). It
-  diffs each family's current text against its latest landed kept text
+  repository may alias (`cargo xtask patch`, when needed). It passes
+  registered families over (2); for each other family it diffs the
+  current text against its latest landed kept text
   (`diff.md`), and per family refreshes the kept text, keeps renames
   waiting, or writes the branch's patch: its lines, the values it asks,
   a skeleton for its written sites, the next kept text, `patches/mod.rs`
@@ -33,10 +34,10 @@
 | Path | What | Whose |
 |---|---|---|
 | `schema/<family>-v<N>.schema` | the current text of each family, its one version there; a fixture's may hold several, its greatest the current (below) | the author's |
-| `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (11) | the command's |
+| `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (1) | the command's |
 | `schema/kept/<family>.renames` | the renames waiting for the family's next patch (4), `rename` lines | the command's |
 | `schema/wires` | the crate's families that cross a wire, one a line with its floor or `build`, each held to the wire rule (2) and its floor's rules (`bridges.md`, 4) | the author's |
-| `schema/registered` | the crate's stored families a store keeps by layout (`README.md`, section 5), one a line: no patch, kept text or rename is written for them again (2) | the author's |
+| `schema/registered` | the crate's stored families a store keeps by layout (`README.md`, section 5), one a line: the command passes them over (2) | the author's |
 | `patches/NNNN.patch` | the patch's text (`patches.md`, 1) | the command's lines, the author's values, sites and refusals |
 | `patches/pNNNN.rs` | its written functions, for a patch with sites (`patches.md`, 5) | the command's skeleton, then the author's |
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
@@ -76,23 +77,28 @@
   `every` texts and `tests/codec-patches`' families belong to no build
   that stores, sends or embeds them, and move their versions as their
   stories need, their `schema/` holding several texts where a story
-  compares them, as jig's patch fixtures' do. `README.md`, section 5's
-  rule binds the families a build stores, sends or embeds.
+  compares them. `README.md`, section 5's rule binds the families a build stores, sends or embeds.
 
 ## 2. A run
 
-**A registered family** (`schema/registered`, 1) is passed over: it
-has no kept text, `.renames` or patch, since a store keeps none of its
-history (temper's `draft/store-floor.md`, 4.1), its current
-text changes as its author writes it, its version stays `k`, and no
-block of the branch's patch names it. Its layouts are a store's to
-convert (`layouts.md`; jig's `protocol/store/layouts.md`): a change
-derived from the layouts a store may hold needs nothing, and a written
-one is its owner's written job (jig's `protocol/store/jobs.md`, 4). The
-run reports it `Registered`; the check finds a version moved, a kept
-text, `.renames` or patch block of the branch's for it, as
-`Registered { family }` (7). A name the file lists that is no family of
-the crate is the run's error, `Error::Registered`.
+**A registered family** (`schema/registered`, 1) is passed over. The
+run reports it `Outcome::Registered`: no diff, rename proposal, kept
+text or patch block is derived for it. A name the file lists that is
+no family of the crate is the run's error, `Error::Registered`.
+
+Registered store crates keep current schemas, not text or patch
+history (temper's `draft/store-floor.md`, 4.1). Their versions stay,
+and their layouts are the registry's to convert at read (`layouts.md`;
+jig's `protocol/store/layouts.md`); a written change is its owner's
+written job (jig's `protocol/store/jobs.md`, 4).
+
+The boundary test in `tests/boundary/tests/patches.rs` checks wires
+and formats outside the registry, not registered store crates. The
+generic check's `Finding::Registered` (7) is separate from the run's
+outcome: if called with a registered family, it requires a latest
+landed kept version equal to the current one and finds branch-owned
+kept texts, renames or a patch block. A family with no landed kept
+text is therefore a finding there, not a request to seed store history.
 
 For each other family, in name order, with `K` its latest landed kept
 text at version `k` (none for a family new to the base) and `C` its
@@ -306,7 +312,11 @@ read, such as a text that does not parse, is its error, as the run's:
 | `PatchGap { missing }` | a patch number missing between 1 and the last |
 | `Misnumbered { patch, level }` | a patch whose header's level is not its number |
 | `Unplanned { patch, family, error }` | a block that does not plan against its kept texts (`patches.md`, 3): a `?` left, a site missing, a line wrong |
-| `Registered { family }` | a registered family (2) whose current version is not its latest landed kept text's, or for which the branch holds a kept text, a `.renames` or a patch block |
+| `Registered { family }` | for a registered family passed to this generic check (2), no landed kept text or a latest landed kept version unequal to the current one; or a kept text or `.renames` new or changed from landed, or a branch patch block naming it |
+
+The boundary suite's owner inventory covers every crate with
+`schema/kept/`: wires and formats outside the registry. Registered
+store crates, which keep none, are outside that inventory (2).
 
 A frozen kept text's differences from the current that need no patch,
 renames waiting or not, declarations dropped, comments and order, are
@@ -322,7 +332,7 @@ pub struct Options {
     pub owner: Option<String>,             // --owner, for a crate's first patch
     pub after: Vec<(String, u32)>,         // --after <upstream> <level>
     pub renames: Vec<(String, Rename)>,    // --rename <family> <old> <new>
-    pub baseline: bool,                    // --baseline, the crate's first run (12.1)
+    pub baseline: bool,                    // --baseline, the crate's first run (1)
 }
 pub struct Landed { /* the base's files under patches/ and schema/kept/, by path */ }
 impl Landed {
@@ -343,7 +353,7 @@ pub struct Report {
     pub moved: Option<u32>,                // the number it was moved from
     pub proposed: Vec<(String, Rename)>,   // proposals not confirmed
     pub asked: Vec<String>,                // what its author must give: `?` lines, sites
-    pub restored: Vec<PathBuf>,            // landed files written back (12.2, 6)
+    pub restored: Vec<PathBuf>,            // landed files written back (2, 6)
     pub findings: Vec<Finding>,            // the check's, after the run
 }
 pub enum Outcome {
@@ -355,7 +365,7 @@ pub enum Outcome {
     Refused { family: String, verdict: Version },
     Registered { family: String },                // passed over (2)
 }
-pub enum Finding { /* 12.7's table */ }
+pub enum Finding { /* 7's table */ }
 pub enum Error {
     Io { path: PathBuf, error: String },
     Schema { path: PathBuf, error: String },  // a text that does not parse
@@ -363,7 +373,7 @@ pub enum Error {
     Baseline,                                 // before the baseline, without --baseline
     Owner,                                    // a first patch without --owner
     Unlanded { patches: Vec<u32> },           // two patches of the branch's own
-    Conflict { path: PathBuf },               // conflict markers (12.6)
+    Conflict { path: PathBuf },               // conflict markers (6)
     Spelled { first: String, second: String },// two names, one constant or function
     Wire { family: String },                  // schema/wires names no family of the crate (2)
     Registered { family: String },            // schema/registered names no family of the crate (2)
@@ -403,10 +413,11 @@ world, no cargo inside a test.
   the version kept and patched with it moved, the reorder's block with
   no line; a rename refreshed nowhere and waiting; the same changes in
   a family `schema/wires` does not list as before; and a name the file
-  lists that is no family refused. A registered family (2): a field
-  added with a default, a variant inserted and a declaration renamed
-  with `was`, each passed over with no file written and no finding; its
-  version moved, or a block of the branch's patch naming it, found
+  lists that is no family refused. A registered family (2), in a
+  fixture with landed kept texts: an option field added, a variant
+  inserted and a declaration renamed, each passed over with no file
+  written and no finding; its version moved, a branch kept text or
+  renames, or a block of the branch's patch naming it, found
   `Registered`; a name `schema/registered` lists that is no family
   refused.
 - **The story,** `tests/codec-patches`, an owner crate whose history the

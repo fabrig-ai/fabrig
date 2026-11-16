@@ -187,7 +187,8 @@ forge, temper adds:
     its twins (`testing/qa/setups.md`).
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
   the binary, the configuration, the credentials, temper's parts on the
-  workers' channel, its families in the store, the host tools and LLM
+  workers' channel, its families in the store, the floor
+  (`protocol/floor.md`), the host tools and LLM
   accounts, the forge's protocol on skein's forge kit (skein's
   `forge/README.md`), git, and the forge's setup. Its `README.md` gives the
   reading order and the names.
