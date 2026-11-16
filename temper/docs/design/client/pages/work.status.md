@@ -10,10 +10,3 @@
   kicker and the lede alone, with no heading and no filters, where the section
   says "No goals yet."; a project with no tracked template has a lede that
   stops at "landed work.", which the section has no words for.
-- **Not yet:** 1, *Goals*: no goal waits or waits for room, no wait is worded
-  and no goal's id is read [in flight: change 5528].
-- **Not yet:** 1, *Goals*, *Its milestones*: the Goals filter draws no
-  milestone's group [in flight: change 5545].
-- **Not yet:** 1, *Work*: no milestone's card in In flight, no goal placed on
-  one, no landed row named by its milestone, and no lede for milestones
-  [in flight: change 5546].
