@@ -33,6 +33,7 @@ use temper_worker_checkout_world::{forge::Forge, translate as git};
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
+mod absence;
 mod agreement;
 #[cfg(test)]
 mod chat;
@@ -77,6 +78,7 @@ pub struct Observed {
     pub cancels: usize,
     pub answers: usize,
     pub gone: usize,
+    pub killed: usize,
 }
 
 /// The party's acknowledged provisional reply, played without a client
@@ -101,6 +103,7 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
+    absence: absence::Controls,
     notes: notes::Party,
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
@@ -461,6 +464,7 @@ impl World {
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             seed,
+            absence: absence::Controls::default(),
             notes: notes::Party::default(),
             merge_job: None,
             close_job: None,
@@ -521,38 +525,42 @@ impl World {
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.worker_env.now = self.env.now;
         self.worker_env.wall = self.env.wall;
-        if !self.funded && self.root.ready() {
-            self.funded = true;
-            self.fund();
-        }
-        if let Some(event) = self.root_events.pop_front() {
-            self.root_step(event);
-        }
-        if let Some(number) = self.store.tick(false).expect("calm store") {
-            self.root_step(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
-        }
-        engine::fire(&mut self.root, &self.env);
-        for pass in 0..32 {
-            if pass == 0 {
-                engine::release(&mut self.root, &self.env, &mut self.root_out);
-            } else {
-                temper_engine_domain_world::poll(&mut self.root, &self.env, &mut self.root_out);
+        self.absence_clock();
+        if self.absence.engine_running {
+            if !self.funded && self.root.ready() {
+                self.funded = true;
+                self.fund();
             }
-            if self.root_out.is_empty() && pass > 0 {
-                break;
+            if let Some(event) = self.root_events.pop_front() {
+                self.root_step(event);
             }
-            while let Some(request) = self.root_out.pop() {
-                self.root_request(request);
+            if let Some(number) = self.store.tick(false).expect("calm store") {
+                self.root_step(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
+            engine::fire(&mut self.root, &self.env);
+            for pass in 0..32 {
+                if pass == 0 {
+                    engine::release(&mut self.root, &self.env, &mut self.root_out);
+                } else {
+                    temper_engine_domain_world::poll(&mut self.root, &self.env, &mut self.root_out);
+                }
+                if self.root_out.is_empty() && pass > 0 {
+                    break;
+                }
+                while let Some(request) = self.root_out.pop() {
+                    self.root_request(request);
+                }
+            }
+            self.opened |= self.root.quiescent();
         }
-        self.opened |= self.root.quiescent();
-        if self.opened
+        if self.absence.engine_running
+            && self.opened
             && (self.adoption != Adoption::Pending || self.party.sign_in.is_none())
             && let Some(up) = self.party.tick(self.env.now)
         {
             self.party_request(up);
         }
-        if self.opened {
+        if self.opened && self.absence.worker_running {
             self.worker_tick();
         }
         let mut around = Around {
@@ -739,6 +747,9 @@ impl World {
                         say(project, task, words, release)
                     }
                     parties::Ask::Stop { task: parties::Task::Number(task) } => people::Ask::Stop { project, task },
+                    parties::Ask::Cancel { task: parties::Task::Number(task), grace } => {
+                        people::Ask::Cancel { project, task, grace, reason: b"Close the chat.".as_slice().into() }
+                    }
                     parties::Ask::Decision { proposer: parties::Proposer::Task(task), proposal, accept } => {
                         people::Ask::DecideProposal {
                             project: people::DEPLOYMENT,
@@ -1033,6 +1044,7 @@ impl World {
     }
 
     fn assigned(&mut self, channel: Token, assignment: engine::Assignment) {
+        self.absence_admitted();
         if self.merge_job.is_some() {
             self.prepare_clean_goal(assignment.task);
         }
@@ -1070,12 +1082,13 @@ impl World {
         let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
         self.bind_review_script();
+        self.absence_assignment(&assignment);
         self.select_process(assignment.task);
         self.observed.assignments += 1;
         let repositories = usize::from(self.adoption != Adoption::Without);
         assert_eq!(assignment.workspace.repositories.len(), repositories);
         let (hub, items) = link::assignment(&assignment);
-        if self.run_watch.is_some() {
+        if self.run_watch.is_some() && self.absence_watch_needed() {
             self.root_events.push_back(engine::Event::Party(engine::PartyInput::WatchRun {
                 watcher: RUN_WATCH,
                 sign_in: self.party.sign_in.expect("authenticated party"),
@@ -1114,6 +1127,9 @@ impl World {
             Delivery::Assigned { channel, assignment } => self.assigned(channel, assignment),
             Delivery::Link { channel, down } => {
                 assert_eq!(channel, CHANNEL);
+                if !self.absence.link_joined {
+                    return;
+                }
                 if let host::LinkDown::TurnKept { .. } = down {
                     self.observed.turn_acks += 1;
                 }
@@ -1127,6 +1143,9 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
+            Delivery::WatchEnded { watcher, .. } if self.absence.enabled => {
+                assert_eq!(watcher, RUN_WATCH);
+            }
             Delivery::AssignedJob { channel, job, workspace } => {
                 self.assign_story_job(channel, job, workspace.as_ref());
             }
@@ -1188,7 +1207,9 @@ impl World {
                 parties::Reply::Started { task }
             }
             people::Reply::Outcome(people::Outcome::Said { task, message }) => parties::Reply::Said { task, message },
-            people::Reply::Outcome(people::Outcome::Stopped { task }) => parties::Reply::Changed { task },
+            people::Reply::Outcome(people::Outcome::Stopped { task } | people::Outcome::Cancelled { task }) => {
+                parties::Reply::Changed { task }
+            }
             people::Reply::Outcome(people::Outcome::ProposalDecided {
                 proposer: people::Proposer::Task(task),
                 proposal,
@@ -1240,6 +1261,9 @@ impl World {
         work: &worker::wire::Work,
         preparation: Option<worker::wire::Preparation>,
     ) {
+        if self.absence.enabled {
+            self.absence.answers.push((run.raw(), attempt.raw(), answer.ending.clone()));
+        }
         self.observed.answers += 1;
         // An older terminal may cross the next assignment on the worker link.
         let process = if self.assignment().task == run.raw() {
@@ -1320,6 +1344,7 @@ impl World {
                 return;
             }
         }
+        self.absence_admitted();
         self.worker_events.push_back(worker::Event::Link(down));
     }
 
@@ -1346,6 +1371,10 @@ impl World {
             }
             worker::Request::Job { owner, op } => self.story_job_operation(owner, op),
             worker::Request::Hello(hello) => {
+                if self.absence.enabled {
+                    self.absence.hello_pending = true;
+                    self.absence.hellos.push(hello.hosting.to_vec());
+                }
                 self.close_hello(&hello);
                 if let Some(story) = &mut self.merge_job {
                     story.hello = hello.jobs.to_vec();
@@ -1383,7 +1412,11 @@ impl World {
             worker::Request::CancelRelay { run, attempt, call } => {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });
             }
-            worker::Request::Stop | worker::Request::Abandon => panic!("the worker stops only once shut down"),
+            worker::Request::Stop => {
+                assert!(self.absence.enabled, "the worker stops only once shut down");
+                self.absence.worker_running = false;
+            }
+            worker::Request::Abandon => panic!("the worker must settle without abandoning its runs"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
@@ -1428,7 +1461,13 @@ impl World {
     }
 
     fn up(&mut self, link: engine::Link) {
-        self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link }));
+        if self.absence.link_joined && self.absence.engine_running {
+            if self.absence.enabled && self.absence.hello_pending && matches!(link, engine::Link::Up { .. }) {
+                self.absence.outbound.push_back(link);
+                return;
+            }
+            self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link }));
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+mod absence;
 mod accounts;
 mod brief;
 mod composed;

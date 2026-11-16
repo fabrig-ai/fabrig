@@ -61,6 +61,8 @@ pub(crate) struct Process {
     sent_deliveries: usize,
     owner: Option<Token>,
     producer: Option<Producer>,
+    /// Pause Smith after the selected query, before consuming its response.
+    pub(super) held_query: Option<usize>,
 }
 
 /// The process service's live producer, played here because smith's domain
@@ -143,6 +145,7 @@ impl Process {
             sent_deliveries: 0,
             owner: None,
             producer: None,
+            held_query: None,
         }
     }
 
@@ -248,7 +251,10 @@ impl Process {
                 self.reaping = Some(owner);
                 return;
             }
-            agent::process::Request::Signal { owner, .. } => agent::process::Event::Signalled { owner },
+            agent::process::Request::Signal { owner, .. } => {
+                around.observed.killed += 1;
+                agent::process::Event::Signalled { owner }
+            }
         };
         around.events.push_back(worker::Event::Process(Box::new(event)));
     }
@@ -302,6 +308,7 @@ impl Process {
             }
             agent::Down::Cancel => {
                 around.observed.cancels += 1;
+                self.held_query = None;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
             agent::Down::Drain => {
@@ -438,7 +445,10 @@ impl Process {
 
     fn drive(&mut self, now: Time, around: &mut Around<'_>) {
         let Some(agent) = self.agent.as_mut() else { return };
-        if self.settled || self.producer.as_ref().is_some_and(|producer| producer.holding) {
+        if self.settled
+            || self.held_query.is_some_and(|query| agent.prompts().len() >= query)
+            || self.producer.as_ref().is_some_and(|producer| producer.holding)
+        {
             return;
         }
         // A composed clock waits for the outer world before firing a lower deadline.
