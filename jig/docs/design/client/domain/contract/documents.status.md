@@ -2,6 +2,8 @@
 
 2026-11-16. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: the deployment document has no `worker_settings` [in flight: change 5789].
+
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
