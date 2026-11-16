@@ -7,14 +7,6 @@ Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check us
 the key's public half and verifies without signing; its exact-token/key
 cache and the claims checked on every request are present.
 
-- **Not yet:** 2.3: a declaration's `wait` and `run` phases, a commit-CI
-  job's running steps and a run's wait (`Run.wait`): every commit-CI
-  run runs at once and a phased line is unreadable
-  (`skein-fake-forge-domain/src/ci.rs`, `src/actions.rs`)
-  [in flight: change 5297].
-- **Not yet:** 4: Actions' states: a run reads `running` whatever its
-  jobs wait for (`skein-fake-forge-forgejo/src/answers.rs`,
-  `action_run`) [in flight: change 5297].
 - **Not yet:** 2.3: a merge recorded at a commit, and manual merges
   (`allow_manual_merge`, `autodetect_manual_merge`): the fake refuses
   `Do: manually-merged` (`skein-fake-forge-domain/src/pulls.rs`)
