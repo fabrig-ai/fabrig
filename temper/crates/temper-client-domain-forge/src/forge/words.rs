@@ -744,6 +744,7 @@ pub enum ChangeWord {
     QueuedNd,
     QueuedRd,
     QueuedTh,
+    Taking,
     ProduceLine,
     OpenLine,
     RecreateLine,
@@ -865,7 +866,7 @@ pub enum ChangeWord {
     RepairLanding,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 136] = [
+pub const CHANGES: [ChangeRow; 137] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -884,6 +885,7 @@ pub const CHANGES: [ChangeRow; 136] = [
     (ChangeWord::QueuedNd, &[b"Queued \xc2\xb7 ", b"nd"], &[Number]),
     (ChangeWord::QueuedRd, &[b"Queued \xc2\xb7 ", b"rd"], &[Number]),
     (ChangeWord::QueuedTh, &[b"Queued \xc2\xb7 ", b"th"], &[Number]),
+    (ChangeWord::Taking, &[b"taking"], &[]),
     (ChangeWord::ProduceLine, &[b"Producing its branch."], &[]),
     (ChangeWord::OpenLine, &[b"Opening its pull request."], &[]),
     (ChangeWord::RecreateLine, &[b"Making its branch again at the head temper last knew."], &[]),
@@ -1175,6 +1177,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Repairs
         | ChangeWord::Resolutions
         | ChangeWord::Updates
+        | ChangeWord::Taking
         | ChangeWord::Separator => 0,
     }
 }
@@ -1663,6 +1666,8 @@ pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<
         | Outcome::Drafted(_)
         | Outcome::DraftRefused(_)
         | Outcome::Follow(_)
+        | Outcome::Opened(_)
+        | Outcome::OpenRefused(_)
         | Outcome::Tier(_)
         | Outcome::NotTheirs => b"The forge did not answer the request.",
     })

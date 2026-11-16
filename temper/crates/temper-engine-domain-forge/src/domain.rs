@@ -576,7 +576,9 @@ impl Domain {
                 Some(crate::Answered::Make(crate::MakeAnswer::Refused(*why)))
             }
             Some(
-                outcome @ (crate::ApplicationOutcome::Adopted(_)
+                outcome @ (crate::ApplicationOutcome::Opened { .. }
+                | crate::ApplicationOutcome::OpenRefused(_)
+                | crate::ApplicationOutcome::Adopted(_)
                 | crate::ApplicationOutcome::CoreRefused(_)
                 | crate::ApplicationOutcome::ForgeRefused(_)),
             ) => Some(crate::Answered::Adopt(outcome.clone())),
@@ -1348,6 +1350,23 @@ impl Domain {
                 && let Some(row) = repository.for_project(project)
             {
                 repositories.push(row).expect("bounded adopted repositories");
+            }
+        }
+        repositories.into_boxed()
+    }
+
+    /// Repositories a person's change may land into
+    /// (temper/docs/design/domain/forge/change/opened.md, 2).
+    #[must_use]
+    pub fn opening_repositories(&self, project: u32) -> Box<[&Repository]> {
+        let mut repositories = List::with_capacity(self.repositories.capacity());
+        for (_, repository) in &self.repositories {
+            if repository.role_for(project).is_some()
+                && repository.role_for(project) != Some(Role::Context)
+                && repository.kinds.open
+                && !self.forge_ended(repository.provider.forge)
+            {
+                repositories.push(repository.as_ref()).expect("bounded adopted repositories");
             }
         }
         repositories.into_boxed()
@@ -9652,6 +9671,8 @@ impl Domain {
                         | crate::ApplicationOutcome::ForgeRefused(_)
                         | crate::ApplicationOutcome::MakeKept
                         | crate::ApplicationOutcome::Follow(_)
+                        | crate::ApplicationOutcome::Opened { .. }
+                        | crate::ApplicationOutcome::OpenRefused(_)
                         | crate::ApplicationOutcome::MakeRefused(_) => false,
                     } {
                         return Key::Application(key.raw());

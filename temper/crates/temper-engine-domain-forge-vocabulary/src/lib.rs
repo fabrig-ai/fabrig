@@ -678,7 +678,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words),
                 None => 0,
             }),
-            ApplicationOutcome::CoreRefused(_)
+            ApplicationOutcome::OpenRefused(reason) => match reason {
+                OpenRefusal::NoRepository | OpenRefusal::NotARepository | OpenRefusal::NamePast { .. } => Some(0),
+                OpenRefusal::UnderPrefix { owner, name, prefix } => {
+                    bytes(owner).checked_add(bytes(name))?.checked_add(bytes(prefix))
+                }
+                OpenRefusal::Several(names) => {
+                    let mut held = skein_lib::len_u64(names.len())
+                        .checked_mul(u64::try_from(size_of::<DraftRepository>()).ok()?)?;
+                    for name in names {
+                        held = held.checked_add(bytes(&name.owner))?.checked_add(bytes(&name.name))?;
+                    }
+                    Some(held)
+                }
+            },
+            ApplicationOutcome::Opened { .. }
+            | ApplicationOutcome::CoreRefused(_)
             | ApplicationOutcome::ForgeRefused(_)
             | ApplicationOutcome::MakeKept
             | ApplicationOutcome::MakeRefused(_) => Some(0),

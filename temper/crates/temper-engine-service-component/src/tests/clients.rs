@@ -5,6 +5,53 @@ use jig_protocol_engine_clients as kit;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as root;
 
+#[test]
+fn a_newer_temper_keyed_request_is_not_served_and_admits_nothing() {
+    use jig_client_protocol_wire::v24 as w;
+    use skein_lib::{Reader, Writer};
+    let mut service = super::fixtures::ready();
+    let link = service.links().pop().expect("sign-in link");
+    let engine = service.engine.as_mut().expect("engine");
+    let w::SignInAnswer::SignedIn(signed) = sign_in_with_link(engine, &link) else { panic!("signed in") };
+    let bearer = peer::bearer(signed.token().as_ref().expect("credential").expose());
+    let before = engine.domain.deployment().tasks;
+    let owner = w::Owner::Family(
+        w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
+    );
+    let keyed = w::Keyed::new(
+        &w::CEILINGS,
+        w::KeyedParts {
+            key: [71; 16],
+            owner: owner.clone(),
+            version: temper_client_protocol_wire::CLIENT_VERSION + 1,
+            request: Box::new([255]),
+            value: None,
+        },
+    )
+    .unwrap();
+    let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
+    keyed.encode(&mut bytes).unwrap();
+    let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
+    call.pump(engine, true);
+    assert!(call.received().starts_with(b"HTTP/1.1 200"));
+    let at = skein_lib::bytes::find(call.received(), b"\r\n\r\n").unwrap() + 4;
+    let w::KeyedAnswer::NotServed(answer) =
+        w::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&call.received()[at..])).unwrap()
+    else {
+        panic!("version not served")
+    };
+    assert_eq!(answer.owner(), &owner);
+    let mut range = None;
+    for served in answer.served() {
+        if served.owner() == &owner {
+            range = Some((served.first(), served.last()));
+        }
+    }
+    assert_eq!(range, Some((25, 25)));
+    assert_eq!(engine.domain.deployment().tasks, before);
+    assert!(engine.events.is_empty());
+}
+
 const LISTENER: Token = Token::new(77);
 const STARTING_LISTENER: Token = Token::new(99);
 const REPLY: ReplyTo = ReplyTo::new(Token::new(9));

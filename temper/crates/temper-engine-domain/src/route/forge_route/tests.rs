@@ -3853,7 +3853,11 @@ fn a_requesters_branch_and_role_choices_reach_start_together() {
     let delegate = super::chat_change(
         &domain,
         &env,
-        &delegation,
+        &super::ChangeOrigin {
+            authority: delegation.authority.clone(),
+            tasks_left: delegation.tasks_left,
+            source: None,
+        },
         &change,
         &adopted(1),
         b"main".as_slice().into(),
@@ -4343,7 +4347,7 @@ fn a_held_branch_change_refuses_each_parameter_past_capacity() {
         let result = super::chat_change(
             &domain,
             &env,
-            &context,
+            &super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None },
             &change,
             &adopted(1),
             b"main".as_slice().into(),

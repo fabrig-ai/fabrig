@@ -884,6 +884,7 @@ fn landed(step: &w::Step) -> Option<&[u8; 32]> {
         w::Step::Cleared(value) => Some(value.merge()),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -906,6 +907,7 @@ fn step(step: &w::Step) -> &'static [u8] {
         w::Step::Ended => b"ended",
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -966,6 +968,7 @@ fn repair(step: &w::Step) -> Option<&'static [u8]> {
         }),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -1581,6 +1584,7 @@ fn tier_lines(step: &w::Step) -> &[Box<[u8]>] {
         w::Step::Cleared(value) => value.tiers().as_slice(),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -1612,6 +1616,7 @@ fn progress(step: &w::Step) -> Progress {
         w::Step::Landed(_) | w::Step::Ended => Progress::Ended,
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating

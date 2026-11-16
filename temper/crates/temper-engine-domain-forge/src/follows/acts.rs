@@ -142,7 +142,7 @@ pub(crate) fn asked(
         d,
         env,
         request,
-        crate::adoption::Pending { token, retention, observed: None },
+        crate::adoption::Pending { token, retention, observed: None, opening: false },
         outcome,
         out,
     );

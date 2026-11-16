@@ -445,6 +445,8 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
             | forge::ApplicationOutcome::CoreRefused(_)
             | forge::ApplicationOutcome::ForgeRefused(_)
             | forge::ApplicationOutcome::MakeKept
+            | forge::ApplicationOutcome::Opened { .. }
+            | forge::ApplicationOutcome::OpenRefused(_)
             | forge::ApplicationOutcome::MakeRefused(_) => false,
         },
         forge::Stored::Landing(row) => row.landing.members.iter().any(|member| {

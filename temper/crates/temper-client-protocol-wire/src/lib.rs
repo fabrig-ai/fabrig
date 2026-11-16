@@ -84,7 +84,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 24;
+pub const CLIENT_VERSION: u32 = 25;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
@@ -348,6 +348,11 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         return None;
     }
     match record.request() {
+        v1::Request::OpenChange(value) => {
+            if !valid_open_change(value) {
+                return None;
+            }
+        }
         v1::Request::Connect(connect) => {
             if !valid_making(connect.forge()) {
                 return None;
@@ -401,6 +406,31 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::EndPlayground => {}
     }
     Some(record)
+}
+
+// temper/docs/design/domain/forge/change/opened.md, 2: the client's act keeps these bounds.
+fn valid_open_change(value: &v1::OpenChange) -> bool {
+    if value.branch().is_empty() || value.title().is_empty() {
+        return false;
+    }
+    for field in [value.into(), value.body()] {
+        if let Some(value) = field
+            && value.is_empty()
+        {
+            return false;
+        }
+    }
+    if let Some(at) = value.at() {
+        if at.len() != 40 && at.len() != 64 {
+            return false;
+        }
+        for byte in at {
+            if !byte.is_ascii_digit() && !(b'a'..=b'f').contains(byte) {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 // temper/docs/design/client/forge/records.md: managed addresses enter whole.

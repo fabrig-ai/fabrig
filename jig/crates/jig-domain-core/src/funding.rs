@@ -130,6 +130,32 @@ impl Core {
             None => 0,
         }
     }
+    /// A person's creating offer before a root takes its slot and level
+    /// (jig/docs/design/domain/authority.md, 6). Admission still judges the batch.
+    pub fn creating_offer(
+        &self,
+        project: u32,
+        person: u64,
+        tree_tasks: u32,
+    ) -> Result<authority::Authority, people::Refusal> {
+        let held = self.people.role(person, project);
+        let role = held.ok_or(people::Refusal::Role { held })?;
+        let policy = self.authority.role(project, role.number()).ok_or(people::Refusal::Role { held })?;
+        let mut given = policy.authority.clone();
+        given.models = self.authority.models(project, role.number()).expect("configured role policy");
+        given.delegation.tasks = given.delegation.tasks.min(tree_tasks);
+        let (_, pool) = self.person_pool(project, person);
+        let ask = authority::PersonAsk {
+            project,
+            role: role.number(),
+            pool: crate::translate::authority_numbers(pool),
+            tasks_left: tree_tasks,
+            request: authority::PersonRequest::Watch,
+        };
+        given.budget.spend = authority::as_allowed(&self.authority, &ask, 0, None);
+        Ok(given)
+    }
+
     /// The most a person's next task can take from its role and remaining pool.
     pub(crate) fn creating_authority(
         &self,

@@ -19,7 +19,7 @@ pub struct Slots {
 #[must_use]
 pub fn slot(step: &w::Step) -> Slots {
     let current = match step {
-        w::Step::Producing => 0,
+        w::Step::Taking | w::Step::Producing => 0,
         w::Step::Opening | w::Step::Recreating | w::Step::Reopening => 1,
         w::Step::Checking => 2,
         w::Step::Gating => 3,
@@ -78,6 +78,7 @@ pub fn queue(step: &w::Step) -> Option<Queue<'_>> {
         w::Step::First => Some(Queue { place: 1, ahead: &[], unnamed: 0 }),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -117,6 +118,7 @@ pub fn line(panel: &w::ChangePanel) -> Said {
             None => W::ReadyAloneLine,
         },
         w::Step::Preparing(_) => return landing_line(W::PrepareLine, panel),
+        w::Step::Taking => W::Taking,
         w::Step::Producing => W::ProduceLine,
         w::Step::Opening => W::OpenLine,
         w::Step::Recreating => W::RecreateLine,
@@ -157,6 +159,7 @@ pub fn held_step(step: &w::Step) -> W {
     match step {
         w::Step::Ready(_) => W::HeldReady,
         w::Step::Preparing(_) => W::HeldPreparing,
+        w::Step::Taking => W::Taking,
         w::Step::Producing => W::HeldProducing,
         w::Step::Opening => W::HeldOpening,
         w::Step::Recreating => W::HeldRecreating,
@@ -274,6 +277,7 @@ impl<'a> Change<'a> {
             w::Step::Cleared(value) => value.tiers().as_slice(),
             w::Step::Ready(_)
             | w::Step::Preparing(_)
+            | w::Step::Taking
             | w::Step::Producing
             | w::Step::Opening
             | w::Step::Recreating
@@ -356,6 +360,7 @@ impl<'a> Change<'a> {
                 }
                 w::Step::Ready(_)
                 | w::Step::Preparing(_)
+                | w::Step::Taking
                 | w::Step::Producing
                 | w::Step::Opening
                 | w::Step::Recreating

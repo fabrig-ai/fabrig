@@ -273,6 +273,11 @@ deployment's rules       the most any project may have; requirements on effects
   creates a task (a chat, a goal), or accepts a proposal, funds it from
   that pool, which is itself carved from the project's spend for the
   period.
+- **A person's creating offer,** read by the application through
+  `Core::creating_offer`, is the role's authority and models, its task
+  allowance within the tree limit, its depth, and the spend its pool
+  allows, before a root takes its own slot and level. The read admits
+  nothing: a `Create` still checks the batch whole.
 - **Permissions stay primitive.** A role says which executors and
   charters a party in it may create with (its delegation's kinds), which
   models its tasks may use, how deep and how much (its depth and spend),

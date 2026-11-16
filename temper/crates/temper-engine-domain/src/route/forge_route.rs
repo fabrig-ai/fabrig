@@ -3157,7 +3157,8 @@ fn change_member(
     }
     let base = change_destination(domain, env, task, &repository, change)?;
     change_repairs(domain, env, change, &repository, &base)?;
-    match chat_change(domain, env, context, change, &repository, base, branch, spend) {
+    let origin = ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
+    match chat_change(domain, env, &origin, change, &repository, base, branch, spend) {
         Ok(member) => Ok(member),
         Err(why) => Err(ChangeRefused::Refusal(why)),
     }
@@ -3382,43 +3383,56 @@ fn change_branch(
     Ok(Some(branch))
 }
 
+/// One builder's authority before the change takes its slot and level
+/// (temper/docs/design/domain/forge/change/opened.md, 3).
+pub(super) struct ChangeOrigin {
+    pub(super) authority: tasks::Authority,
+    pub(super) tasks_left: u32,
+    pub(super) source: Option<OpenedSource>,
+}
+pub(super) struct OpenedSource {
+    pub(super) title: Box<[u8]>,
+    pub(super) parameter: Box<[u8]>,
+}
+
 /// Expand one change with its share of the call's remaining authority.
 /// Ordinary delegation admission decides the resulting batch by its call name.
 #[expect(clippy::too_many_arguments, reason = "the resolved branch and landing accompany the admitted change context")]
 #[expect(clippy::too_many_lines, reason = "the change delegate keeps its authority and plan parameters together")]
-fn chat_change(
+pub(super) fn chat_change(
     domain: &Domain,
     env: &Env<Limits>,
-    context: &tasks::DelegationContext,
+    origin: &ChangeOrigin,
     change: &crate::ChangeCall,
     repository: &forge::Repository,
     base: Box<[u8]>,
     branch: Option<Box<[u8]>>,
     spend: u64,
 ) -> Result<super::Delegate, tasks::Refusal> {
+    let ChangeOrigin { authority: held, tasks_left, source } = origin;
     let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
     let review_charter = domain.forge.charters().review;
     if domain.core.charter(producer_charter).is_none() || domain.core.charter(review_charter).is_none() {
         return Err(tasks::Refusal::Executor);
     }
     if let Some(choice) = &change.llm.producer {
-        domain.core.tasks.check_llm(producer_charter, context.authority.models, choice)?;
+        domain.core.tasks.check_llm(producer_charter, held.models, choice)?;
     }
     if let Some(choice) = &change.llm.review {
-        domain.core.tasks.check_llm(review_charter, context.authority.models, choice)?;
+        domain.core.tasks.check_llm(review_charter, held.models, choice)?;
     }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
-    if context.tasks_left == 1 {
+    if *tasks_left == 1 {
         return Err(tasks::Refusal::Tree);
     }
-    if context.authority.delegation.depth == 1 {
+    if held.delegation.depth == 1 {
         return Err(tasks::Refusal::Depth);
     }
     if spend <= domain.core.authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
-    let mut authority = context.authority.clone();
+    let mut authority = held.clone();
     authority.grants = change_grants(domain, env, repository, &authority.grants, false)?;
     let mut kinds = List::with_capacity(5);
     kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
@@ -3434,11 +3448,19 @@ fn chat_change(
             kinds.push(tasks::AuthorityExecutor::Role(1)).expect("one person gate role");
         }
     }
-    if context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
+    // Opened changes also hold the person gate's role for covering approval rules.
+    // A run's origin retains its existing gate expansion.
+    if source.is_some()
+        && opening_person_gate(domain, repository, &base)
+        && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
+    {
+        kinds.push(tasks::AuthorityExecutor::Role(1)).expect("one person gate role");
+    }
+    if held.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks = change_task_limit(env).min(context.tasks_left.saturating_sub(1));
+    authority.delegation.tasks = change_task_limit(env).min(tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
@@ -3448,6 +3470,12 @@ fn chat_change(
         if parameters.push(parameter).is_err() {
             return Err(tasks::Refusal::Spec);
         }
+    }
+    if let Some(source) = source
+        && (parameters.push(tasks::Parameter::Bytes { name: 10, value: source.title.clone() }).is_err()
+            || parameters.push(tasks::Parameter::Bytes { name: 19, value: source.parameter.clone() }).is_err())
+    {
+        return Err(tasks::Refusal::Spec);
     }
     if let Some(branch) = branch {
         if parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).is_err()
@@ -3519,6 +3547,15 @@ fn chat_change(
         flags: tasks::Flags::PLAIN,
         budget: people::Budget::Named,
     })
+}
+
+fn opening_person_gate(domain: &Domain, repository: &forge::Repository, base: &[u8]) -> bool {
+    for held in domain.forge.landing_rules(repository.project) {
+        if !held.rule.approvals.is_empty() && forge::covers(&held.rule, repository, base, forge::Touched::UNKNOWN) {
+            return true;
+        }
+    }
+    false
 }
 
 /// jig owns both the descendant ledger and remaining spend; take a fresh snapshot.

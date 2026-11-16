@@ -250,7 +250,15 @@ record FollowReasonAct { after: fixed 32 reason: bytes 8192 }
 record FollowMergeAct { afters: list 32 fixed 32 }
 enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
 record FollowOutcome { refusal: option bytes 8192 }
-enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused, make_kept, make_refused: MakeRefused, follow: FollowOutcome }
+# A person's opened change terminal (domain/forge/change/opened.md, 2 and 3).
+record Opened { task: u64 }
+record OpenRepository { owner: bytes 1024 name: bytes 1024 }
+record SeveralRepositories { repositories: list 64 OpenRepository }
+record UnderPrefix { owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 }
+record NamePast { bound: u32 }
+enum OpenRefusal { several: SeveralRepositories, no_repository, not_a_repository, under_prefix: UnderPrefix, name_past: NamePast }
+record OpenRefused { reason: OpenRefusal }
+enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused, make_kept, make_refused: MakeRefused, follow: FollowOutcome, opened: Opened, open_refused: OpenRefused }
 record Application { token: u64 until: u64 outcome: ApplicationOutcome }
 # Family 16: each forge's writer, before restored effects (protocol/store.md, 2).
 record ForgeWriter { forge: u16 author: u64 }
