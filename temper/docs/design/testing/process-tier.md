@@ -600,11 +600,14 @@
     and in this package's `suite::fake::the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap`,
     beside the fake's other process stories, `temper-box fake oauth` logging
     each one. Each fails without its half of the fix.
-  - **A long document built in parts,** in the real loop,
+  - **A long document built in parts,** in the system world
+    (`../domain/worker/README.md`, 9), `tests/system`'s
     `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`:
-    a hosted agent's bounded `note` calls build it past one call's size,
+    smith's agent's bounded `note` calls build it past one call's size,
     its stale and past-the-end edits are refused and save nothing, and a
-    fresh run finds it in its brief and revises it by lines. Beside it,
+    fresh run finds it in its brief and revises it by lines, the note
+    read back whole and uncut as the pane reads it. Its path in the real
+    loop (`real-loop.md`),
     `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up`:
     the person's follow-up message reaches the chat's run, which
     rewrites its note whole.

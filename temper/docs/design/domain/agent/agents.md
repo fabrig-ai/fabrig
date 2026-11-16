@@ -406,7 +406,9 @@ and not its name.
   of 65536`.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`../../testing/real-loop.md`), proved through ctl and walked in the journey `chat-draft`
-  (`../../client/web/journeys.md`, 9); and the real loop's
+  (`../../client/web/journeys.md`, 9), the real loop's path rewriting it whole once
+  the person's follow-up reaches its run; and the system world's
+  (`../worker/README.md`, 9) `tests/system`
   `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`
   (`../../testing/process-tier.md`), whose script builds a 30 KB note in calls of under 10 KB
   each, one line longer than a call among it, then has a fresh run find the note

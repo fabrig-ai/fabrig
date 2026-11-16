@@ -742,7 +742,20 @@ among temper's tiers and keeps their fakes.
   repository prepared and mounted in smith; a parked run resuming
   through both roots; a parked producer's delivered and saved edits
   surviving a moved landing branch, clean and in conflict, to its next
-  delivery; a withheld commit holding the assignment.
+  delivery; a withheld commit holding the assignment. And section 2's
+  absences, the engine's root stopped and reopened on its store while
+  the worker's root keeps hosting, the link between them cut and joined
+  again, the grace passing on the world's clock: an engine back within
+  the grace adopting the run in its same attempt, one assignment and
+  one run, the model asked once a turn and the reply read once; the
+  same after two starts refused before it admits the hello, one absence
+  to the worker; past the grace, the run cancelled for contact, its
+  attempt ended interrupted with no try spent and the next resuming
+  from its transcript, the committed turn in its messages once; and a
+  worker stopped before its run's first turn and started again, the
+  next attempt reading the chat's first message once. The link's own
+  grace, its redials and refused hellos, is jig's worker link's world's;
+  a start's refusal, `temper-service`'s.
 - **The one-process world** (`tests/one-process`): temper's services on
   skein's simulator, the worker's agents smith's processes over skein's
   fake LLM (`temper/docs/design/testing/README.md`, 2.5).
