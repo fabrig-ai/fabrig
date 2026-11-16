@@ -435,6 +435,8 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let s = Scratch::new("drive-preflight");
     let root = s.path();
+    // The session takes a private scratch directory alone, whatever the umask made it.
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
     for dir in ["bin", "bundle", "session", "config", "data", "cache", "files"] {
         fs::create_dir(root.join(dir)).expect("fixture directory");
     }
@@ -566,6 +568,7 @@ fn ctl_preflight_needs_no_chromium_but_keeps_the_box_bundle_requirement() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let scratch = skein_scratch::Scratch::new("drive-ctl-preflight");
     let root = scratch.path();
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private scratch");
     fs::create_dir(root.join("bin")).expect("bin");
     fs::create_dir(root.join("bundle")).expect("bundle");
     for name in ["temper-box", "fake-claude", "temper"] {
