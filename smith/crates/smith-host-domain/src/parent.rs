@@ -10,6 +10,8 @@ use skein_lib::{Time, Token};
 /// Commands sent by a parent to either kind of agent capability.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Parent cannot renew grants, or can again; forwarded to each live run.
+    Renewals { held: bool },
     /// Parent requests one agent capability; exactly one Gone.
     Spawn {
         client: Token,
@@ -43,7 +45,7 @@ pub enum Event {
     /// Parent replaces a known credential name.
     Grant {
         agent: Token,
-        /// Positive advancing generation and relative validity.
+        /// Positive generation and relative validity; an equal generation is resent without renewal.
         grant: Grant,
     },
     /// Parent politely stops once; no deadline reset.

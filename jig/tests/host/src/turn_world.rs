@@ -99,6 +99,8 @@ pub struct World {
     last_read: Option<Token>,
     refusals: crate::refusals::Referee,
     pub reports: Vec<host::LinkUp>,
+    pub renewals: Vec<bool>,
+    pub grant_order: Vec<&'static str>,
     pub link_words: Vec<&'static str>,
 }
 
@@ -152,6 +154,8 @@ impl World {
             next_relay: None,
             hold_relays: false,
             received_grant: None,
+            renewals: Vec::new(),
+            grant_order: Vec::new(),
             link_words: Vec::new(),
             reports: Vec::new(),
             prepare_waits: false,
@@ -728,6 +732,11 @@ impl World {
                 );
                 self.hello = Some(hello);
             }
+            Request::Agent(ToAgent::Renewals { agent, held }) => {
+                assert_eq!(agent, AGENT);
+                self.renewals.push(held);
+                self.grant_order.push(if held { "held" } else { "resumed" });
+            }
             Request::Agent(ToAgent::Grant { agent, grant }) => self.receive_grant(agent, grant),
             Request::CancelRelay { run, attempt, call } => {
                 self.events.push_back(Event::RelayCancelled { run, attempt, call });
@@ -756,6 +765,7 @@ impl World {
         assert_eq!(agent, AGENT);
         assert!(self.agent_live);
         assert_eq!(grant.form, Form::Credential(Scheme::Key));
+        self.grant_order.push("grant");
         self.received_grant = Some(grant);
     }
 

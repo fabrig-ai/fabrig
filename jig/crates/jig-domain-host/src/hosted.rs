@@ -1304,6 +1304,24 @@ fn phase(state: &State) -> Phase {
     }
 }
 
+/// Tell agents whether the engine link can renew their grants (hub.md, 6).
+pub(crate) fn renewals(domain: &Hub, held: bool, out: &mut Queue<Request>) {
+    for (_, entry) in &domain.hosted {
+        match entry.state {
+            State::Active { agent, .. } | State::Waiting { agent, .. } | State::Stopping { agent, gone: false, .. } => {
+                out.push(Request::Agent(crate::ToAgent::Renewals { agent, held }));
+            }
+            State::Preparing { .. }
+            | State::Starting { .. }
+            | State::Cancelling { .. }
+            | State::Unwanted { .. }
+            | State::Stopping { gone: true, .. }
+            | State::Saving { .. }
+            | State::Closed => {}
+        }
+    }
+}
+
 /// A refresh is fenced to the attempt and to one of its admitted accounts.
 pub(crate) fn grant(domain: &mut Hub, run: Token, attempt: Token, grant: Grant, out: &mut Queue<Request>) {
     let Some(id) = fenced(&domain.names, &domain.hosted, run, attempt) else {
@@ -1314,7 +1332,7 @@ pub(crate) fn grant(domain: &mut Hub, run: Token, attempt: Token, grant: Grant, 
     for current in &mut entry.grants {
         if current.form.table() == grant.form.table()
             && current.account == grant.account
-            && current.generation < grant.generation
+            && current.generation <= grant.generation
         {
             *current = grant;
             accepted = true;

@@ -1,5 +1,5 @@
 //! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
-use crate::{kind, v9};
+use crate::{kind, v10};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
 
@@ -7,47 +7,49 @@ use skein_lib::Writer;
 #[derive(Debug)]
 pub enum Body {
     /// The `Start` wire body.
-    Start(v9::Start),
+    Start(v10::Start),
     /// The `Message` wire body.
-    Message(v9::Message),
+    Message(v10::Message),
     /// The `HostAnswer` wire body.
-    HostAnswer(v9::HostAnswer),
+    HostAnswer(v10::HostAnswer),
     /// The `Acknowledge` wire body.
-    Acknowledge(v9::Acknowledge),
+    Acknowledge(v10::Acknowledge),
     /// The `GrantRefresh` wire body.
-    GrantRefresh(v9::GrantRefresh),
+    GrantRefresh(v10::GrantRefresh),
     /// The `Cancel` wire body.
-    Cancel(v9::Cancel),
+    Cancel(v10::Cancel),
     /// The `Drain` wire body.
-    Drain(v9::Drain),
+    Drain(v10::Drain),
+    /// The `Renewals` wire body.
+    Renewals(v10::Renewals),
     /// The `Admitted` wire body.
-    Admitted(v9::Admitted),
+    Admitted(v10::Admitted),
     /// The `Call` wire body.
-    Call(v9::Call),
+    Call(v10::Call),
     /// The `Withdraw` wire body.
-    Withdraw(v9::Withdraw),
+    Withdraw(v10::Withdraw),
     /// The `Turn` wire body.
-    Turn(v9::Turn),
+    Turn(v10::Turn),
     /// The `Waiting` wire body.
-    Waiting(v9::Waiting),
+    Waiting(v10::Waiting),
     /// The `Long` wire body.
-    Long(v9::Long),
+    Long(v10::Long),
     /// The `LongDone` wire body.
-    LongDone(v9::LongDone),
+    LongDone(v10::LongDone),
     /// The `Unauthorized` wire body.
-    Unauthorized(v9::Unauthorized),
+    Unauthorized(v10::Unauthorized),
     /// The `Limited` wire body.
-    Limited(v9::Limited),
+    Limited(v10::Limited),
     /// The `Fact` wire body.
-    Fact(v9::Fact),
+    Fact(v10::Fact),
     /// The `Answer` wire body.
-    Answer(v9::Answer),
+    Answer(v10::Answer),
     /// The `MessageRefused` wire body.
-    MessageRefused(v9::MessageRefused),
+    MessageRefused(v10::MessageRefused),
     /// The `Live` wire body.
-    Live(v9::Live),
+    Live(v10::Live),
     /// The `AccountRefused` wire body.
-    AccountRefused(v9::AccountRefused),
+    AccountRefused(v10::AccountRefused),
 }
 
 /// Encode a body with its matching kind and exactly measured frame length.
@@ -60,6 +62,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::GrantRefresh(record) => (kind::GRANT_REFRESH, record.measure()),
         Body::Cancel(record) => (kind::CANCEL, record.measure()),
         Body::Drain(record) => (kind::DRAIN, record.measure()),
+        Body::Renewals(record) => (kind::RENEWALS, record.measure()),
         Body::Admitted(record) => (kind::ADMITTED, record.measure()),
         Body::Call(record) => (kind::CALL, record.measure()),
         Body::Withdraw(record) => (kind::WITHDRAW, record.measure()),
@@ -84,6 +87,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::GrantRefresh(record) => record.encode(&mut writer),
         Body::Cancel(record) => record.encode(&mut writer),
         Body::Drain(record) => record.encode(&mut writer),
+        Body::Renewals(record) => record.encode(&mut writer),
         Body::Admitted(record) => record.encode(&mut writer),
         Body::Call(record) => record.encode(&mut writer),
         Body::Withdraw(record) => record.encode(&mut writer),

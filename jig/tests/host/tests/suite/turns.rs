@@ -602,3 +602,30 @@ fn a_newer_account_grant_reaches_a_started_agent() {
         })
     );
 }
+
+#[test]
+fn link_loss_holds_renewals_until_hello_and_new_runs_start_unheld() {
+    let mut world = World::new();
+    world.reconnect();
+    let original =
+        Grant { account: 3, generation: 1, valid: Duration::from_secs(60), form: Form::Credential(Scheme::Key) };
+    world.assign_granted(Box::new([original]));
+    assert!(world.renewals.is_empty(), "the engine hub never holds renewals");
+    world.lose_contact();
+    assert_eq!(world.renewals, [true]);
+    world.reconnect();
+    assert_eq!(world.renewals, [true, false]);
+    world.grant(Grant { generation: 2, ..original });
+    assert_eq!(world.grant_order, ["held", "resumed", "grant"]);
+    world.shutdown();
+    world.acknowledge_answer();
+    world.assert_settled();
+    let mut fresh = World::new();
+    fresh.lose_contact();
+    fresh.reconnect();
+    fresh.assign(false);
+    assert_eq!(fresh.renewals, Vec::<bool>::new());
+    fresh.shutdown();
+    fresh.acknowledge_answer();
+    fresh.assert_settled();
+}

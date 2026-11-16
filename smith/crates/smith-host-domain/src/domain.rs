@@ -77,6 +77,7 @@ pub(crate) enum Sent {
     Busy { call: Token, name: CallName },
     Ack(u32),
     Grant,
+    Renewals,
     Cancel,
     Drain,
 }
@@ -206,6 +207,20 @@ fn from_parent(
     out: &mut Queue<Output>,
 ) -> Option<Id<Agent>> {
     let token = match event {
+        parent::Event::Renewals { held } => {
+            let mut live = skein_lib::List::with_capacity(env.limits.agents);
+            for (id, agent) in &domain.agents {
+                // A stopped run issues no further completion and needs no renewal record to end.
+                if accepts(agent) && listens(agent) {
+                    live.push(id).expect("room for every live agent");
+                }
+            }
+            for id in &live {
+                domain.agents.get_mut(*id).expect("live agent").outbox.push(Down::Renewals { held });
+                follow(domain, env, *id, out);
+            }
+            return None;
+        }
         parent::Event::Spawn { client, start } => {
             spawn(domain, env, client, start, out);
             return None;
@@ -535,16 +550,34 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
     let Some(known) = agent.accounts.get_mut(&grant.account) else {
         return;
     };
-    if grant.generation <= known.latest.generation {
+    if grant.generation < known.latest.generation {
         return;
     }
     known.latest = grant;
     let count = agent.outbox.len();
+    let mut after_renewals = 0;
+    for (index, queued) in agent.outbox.iter().enumerate() {
+        match queued {
+            Down::Renewals { .. } => {
+                after_renewals = u32::try_from(index)
+                    .expect("outbox length fits u32")
+                    .checked_add(1)
+                    .expect("queued item precedes its length");
+            }
+            Down::Start { .. }
+            | Down::Message { .. }
+            | Down::Answer { .. }
+            | Down::Acknowledge { .. }
+            | Down::Grant { .. }
+            | Down::Cancel
+            | Down::Drain => {}
+        }
+    }
     let mut replaced = false;
-    for _ in 0..count {
+    for index in 0..count {
         let old = agent.outbox.pop().expect("stable bounded outbox");
         let next = match old {
-            Down::Grant { grant: old } if old.account == grant.account => {
+            Down::Grant { grant: old } if old.account == grant.account && index >= after_renewals => {
                 replaced = true;
                 Down::Grant { grant }
             }
@@ -554,7 +587,8 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
             | Down::Cancel
-            | Down::Drain) => old,
+            | Down::Drain
+            | Down::Renewals { .. }) => old,
         };
         agent.outbox.push(next);
     }
@@ -739,7 +773,8 @@ fn settle_send(agent: &mut Agent, sent: Sent) {
             let turn = agent.turns.remove(&number).expect("ACK transmission still reserved");
             assert!(turn.stage == SendState::Sending, "ACK send terminal owns metadata");
         }
-        Sent::Start | Sent::Message | Sent::Busy { .. } | Sent::Grant | Sent::Cancel | Sent::Drain => {}
+        Sent::Start | Sent::Message | Sent::Busy { .. } | Sent::Grant | Sent::Renewals | Sent::Cancel | Sent::Drain => {
+        }
     }
 }
 
@@ -870,6 +905,7 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     agent.accounts.get_mut(&grant.account).expect("known grant").emitted = grant.generation;
                     Sent::Grant
                 }
+                Down::Renewals { .. } => Sent::Renewals,
                 Down::Cancel => Sent::Cancel,
                 Down::Drain => Sent::Drain,
             };
@@ -899,7 +935,7 @@ fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
                 agent.messages = agent.messages.checked_sub(1).expect("queued message count");
             }
             Down::Start { .. } => unreachable!("start never queued"),
-            Down::Grant { .. } | Down::Cancel | Down::Drain => {}
+            Down::Grant { .. } | Down::Renewals { .. } | Down::Cancel | Down::Drain => {}
         }
     }
     let busy_count = agent.busy.len();

@@ -263,6 +263,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Ask { run, attempt, bytes } => crate::asks::ask(domain, env, run, attempt, bytes, out),
         Event::LinkLost => {
             domain.link_up = false;
+            hosted::renewals(domain, true, out);
             crate::asks::lost(domain, out);
             crate::sources::lost(&mut domain.sources, out);
         }
@@ -305,6 +306,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Opened { stop_bound, workstreams, bounds, jobs } => {
             domain.link_up = true;
+            hosted::renewals(domain, false, out);
             hosted::carried(domain);
             domain.job_kinds = jobs;
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);

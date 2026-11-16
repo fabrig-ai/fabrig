@@ -1486,3 +1486,28 @@ fn a_program_failure_report_reaches_the_host_with_and_without_status() {
         );
     }
 }
+
+#[test]
+fn renewals_and_resent_grants_reach_the_domain_without_reinstalling_values() {
+    let mut world = world_with_initial_grant();
+    world.host_renewals(true);
+    world.settle();
+    world.host_renewals(false);
+    world.settle();
+    world.host_refreshes_grant(3, 4, initial_grant());
+    world.settle();
+    let notices = world
+        .observations()
+        .iter()
+        .filter(|notice| matches!(notice, Observation::AgentRenewals { .. } | Observation::AgentGrantResent { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        notices,
+        [
+            &Observation::AgentRenewals { held: true },
+            &Observation::AgentRenewals { held: false },
+            &Observation::AgentGrantResent { account: 3, generation: 4 }
+        ]
+    );
+    assert_eq!(world.agent_grant_value(3, 4), Some(initial_grant()));
+}

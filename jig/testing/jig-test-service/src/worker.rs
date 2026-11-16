@@ -503,6 +503,7 @@ impl Worker {
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
+            | smith::Down::Renewals { .. }
             | smith::Down::Cancel
             | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
@@ -534,6 +535,9 @@ impl Worker {
             }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
+            }
+            smith::Down::Renewals { held } => {
+                process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
             smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),

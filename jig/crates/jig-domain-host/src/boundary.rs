@@ -171,6 +171,11 @@ pub enum Request {
 /// ). These requests carry no process or channel vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum ToAgent {
+    /// The engine link cannot renew grants, or can again.
+    Renewals {
+        agent: Token,
+        held: bool,
+    },
     /// Pass a named message with its sender label and words.
     Message {
         agent: Token,

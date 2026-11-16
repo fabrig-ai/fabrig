@@ -38,7 +38,8 @@ pub const fn refusal(value: smith::MessageRefusal) -> host::MessageRefusal {
 pub const fn operation(value: smith::Operation) -> Operation {
     match value {
         smith::Operation::Checks => Operation::Checks,
-        smith::Operation::Completion => Operation::Completion,
+        // domain/hosts/hub.md, 5; smith domain/session.md, 4: a grant wait keeps the completion busy.
+        smith::Operation::Completion | smith::Operation::Grant => Operation::Completion,
         smith::Operation::Command => Operation::Command,
     }
 }

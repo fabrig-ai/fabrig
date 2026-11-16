@@ -316,6 +316,10 @@ impl Process {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.drain_at(agent.now());
             }
+            agent::Down::Renewals { held } => {
+                let agent = self.agent.as_mut().expect("live agent");
+                agent.renewals_at(agent.now(), held);
+            }
             agent::Down::Grant { .. } => {}
         }
     }

@@ -357,7 +357,7 @@ impl World {
             }
             agent::Down::Cancel => self.report.cancellations += 1,
             agent::Down::Drain => self.report.drains += 1,
-            agent::Down::Acknowledge { turn: 1 } => {}
+            agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
             agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
                 panic!("unscripted process record")
             }

@@ -719,6 +719,9 @@ impl HostIo {
                             &mut self.io_requests,
                         )
                     }
+                    host::Down::Renewals { held } => {
+                        process.send_renewals(held, send_token, &mut self.process_events, &mut self.io_requests)
+                    }
                     host::Down::Cancel => {
                         process.send_cancel(send_token, &mut self.process_events, &mut self.io_requests)
                     }

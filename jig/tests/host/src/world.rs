@@ -805,7 +805,8 @@ impl World {
             )
             | Request::CancelRelay { .. }
             | Request::Agent(
-                ToAgent::Grant { .. }
+                ToAgent::Renewals { .. }
+                | ToAgent::Grant { .. }
                 | ToAgent::Start { .. }
                 | ToAgent::Message { .. }
                 | ToAgent::Answer { .. }
@@ -961,7 +962,7 @@ impl World {
             | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. }
-            | Request::Agent(ToAgent::Grant { .. }) => self.parcel(request),
+            | Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => self.parcel(request),
         }
         Ok(())
     }

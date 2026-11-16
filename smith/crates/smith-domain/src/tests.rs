@@ -255,7 +255,7 @@ impl Harness {
                             self.checking = true;
                             requests.push(Request::Long { host_run, operation, until });
                         }
-                        crate::Operation::Completion | crate::Operation::Command => {}
+                        crate::Operation::Completion | crate::Operation::Command | crate::Operation::Grant => {}
                     }
                 }
                 Request::LongDone { host_run } => {

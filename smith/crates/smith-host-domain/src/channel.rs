@@ -359,6 +359,8 @@ pub enum Up {
 /// Owned downlink; Start first, ordered controls, one Drain at most, then one Cancel at most.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Down {
+    /// Whether the host can renew none of this run's grants.
+    Renewals { held: bool },
     /// First and exactly once; concrete values moved from Spawn.
     Start {
         /// Validated parent start including post-transcript answers.
@@ -390,7 +392,7 @@ pub enum Down {
     },
     /// Coalesced known-account credential refresh.
     Grant {
-        /// Names only; generation increases.
+        /// Names only; a resent generation does not renew its validity.
         grant: Grant,
     },
     /// First polite stop, once; operations retain terminal rights.
