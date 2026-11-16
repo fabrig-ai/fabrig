@@ -6,8 +6,7 @@ Draft, 2026-11-13, from a session with the user, who approved its shape, the hor
 
 **Today**
 
-- **An upgrade rewrites whole families.** The codec is positional with no defaults, so an added field, even an `option` or a counter that starts at 0, changes every old record's bytes. Each record carries its family's version, so moving the family moves every record in it, whether or not its own type changed. And patching runs at open, over a full copy of the store, before the engine serves.
-- **On dev.fabrig.ai that cost about 11 minutes down.** jig's patch 3 added two enum variants and one `u32` defaulting to 0. It rewrote 1,020,992 records of the tasks family, 922,619 of them milestones, whose bytes none of its changes touched. Fifteen stored-format patches landed in the two days after the baseline of 11-11.
+- **An upgrade checks the store's layouts.** Registered families change through defaults, former names or a written job, with no version move or patch. A store below the floor is refused by name, naming bridge build `3d1c717d379e` (`store-floor.md`, section 3).
 - **The map holds about 430 rows per task, where `kv.md` planned for about 15.** 1.14 million rows for about 2,650 tasks, 3 days old, 87% of them milestones: one immutable row per phase change, kept forever.
 - **No task or transcript ages out.** Settings' history, answered keys, landing history and temper's decisions for an away person are pruned, but the tasks' horizon, ended tasks shrunk to summaries and transcripts dropped are designed and not built: only a project's deletion erases tasks today. Transcripts reached 669 MB in 2.5 days, uncompressed.
 - **The log is mostly whole records written again.** Over 90% of what the log writes is three kinds of hot record (a live task, a goal's projection, temper's change record), each written whole on every change.
@@ -24,7 +23,7 @@ Draft, 2026-11-13, from a session with the user, who approved its shape, the hor
 **The way there** (section 10)
 
 - Eight milestones, landed as goals and reaching each deployment as ordinary upgrades. The store migrates in place: nothing is exported, started afresh or lost beyond what section 6 lets go.
-- The first three are small and make every later upgrade cheap: the census, identity walks that rewrite a value's head alone, and generations by hard links. Layout ids come next, seeded from the kept texts so that no stored value is rewritten. Then milestones become attempts, retention runs, history leaves the map, and hot records split.
+- The census measures the store, and generations use hard links. Layout ids name the layouts and texts held by the store's registry; a store without a registry is refused by name, naming bridge build `3d1c717d379e`. Then milestones become attempts, retention runs, history leaves the map, and hot records split.
 
 ## 2. State in memory, history on disk
 
@@ -33,14 +32,14 @@ Two places, each keyspace declaring which it uses:
 - **The map holds state:** what changes, and what a restart or a step must read at once. That means live tasks, claims, holds, slots, people, accounts, settings, goals' projections, the indexes, each ended task's summary, and temper's live connector records. It is answered in the step that asks, as today, and restart reads it whole. On dev.fabrig.ai, a few MB.
 - **A task's log holds its history:** what is appended and never changed. That means its attempts (section 6), activity lines, history revisions, terminals, decided proposals, turns, and its full record once it ends. It is skein-kv's payload log (skein's `data/kv.md`, section 6), one file per task, generalized beyond turns. Frames are synced before the commit that records the log's new extent, read by page when asked, compressed, and dropped whole as one file. A log lives in the store's generation, beside the snapshot and segments.
 
-The split fixes growth where it starts: the map follows live work, and history costs disk, not memory, and goes in one unlink. It also makes every walk over the map cheap. On dev.fabrig.ai's figures, the state map would be about 30,000 rows, which today's patch machine would walk in under 20 seconds, not 11 minutes.
+The split fixes growth where it starts: the map follows live work, and history costs disk, not memory, and goes in one unlink. It also makes every job over the map cheap. On dev.fabrig.ai's figures, the state map would be about 30,000 rows.
 
 ## 3. Values name their layout
 
-- **A layout id in place of the family's version.** The u16 at a value's head names the exact layout of its value type, the alternative of its family's broad root that its key holds (the tasks family's `Row` holds a task, a milestone, an activity line and more). It is an id, within that value type, into the store's registry of layouts: a component keyspace of rows holding the value type, the id, its fingerprint (skein's `data/codec/README.md`, section 9, without the family's version it carries today) and its schema text. The key says which value type a value is, as today. A binary that writes a value at a layout the registry lacks adds it in the same commit. A change to one type moves only the value types that reach it: a milestone keeps its layout when `Tries` changes, and when `Class` gains a variant it gains a layout whose plan from the old one is the identity.
-- **Defaults in the schema.** `infrastructure: u32 = 0`, and an `option` defaults to none. An added field, an appended variant, a widened bound, a dropped field and a widened integer are all derived from the two layouts. None needs a patch file, a version of its own or a frozen text: the rule that froze a text once a landed patch named it (skein's `data/codec/command.md`, section 2) goes.
-- **Converted when read.** At open, the component builds one plan per stored layout, from its text to the binary's, out of the derived changes `diff.md` names today, run at read time rather than at patch time. A value at the binary's layout decodes by its generated code, as today. An older one is rewritten by its plan to the binary's bytes, then decoded. A derived plan is a pass over the value's bytes (copy, insert a default's bytes, skip, widen), so it needs none of the patch machine's generic values; the machine stays for written changes. Writes are always at the binary's layout, so a record converges the next time it's written. History is never rewritten: it is converted as it is read, as turns already are (jig's `protocol/store/transcripts.md`).
-- **Written changes** (a change of meaning, a field computed from others) are a function from an old value to a new one, registered against the two fingerprints and applied at read like a plan. Context, the configured executors of jig's patch 1 for one, is the serving engine's.
+- **A layout id in place of the family's version.** The u16 at a value's head names the exact layout of its value type, the alternative of its family's broad root that its key holds (the tasks family's `Row` holds a task, an attempt, an activity line and more). It is an id, within that value type, into the store's registry of layouts: a component keyspace of rows holding the value type, the id, its fingerprint (skein's `data/codec/README.md`, section 9, without the family's version it carries today) and its schema text. The key says which value type a value is, as today. A binary that writes a value at a layout the registry lacks adds it in the same commit. A change to one type moves only the value types that reach it: an attempt keeps its layout when `Tries` changes, and when `Class` gains a variant it gains a layout whose plan from the old one is the identity.
+- **Defaults in the schema.** `infrastructure: u32 = 0`, and an `option` defaults to none. An added field, an appended variant, a widened bound, a dropped field and a widened integer are all derived from the two layouts. None needs a patch file, a version of its own or a frozen text: registered families keep their texts in the store's registry (jig's `protocol/store/layouts.md`, section 3).
+- **Converted when read.** At open, the component builds one plan per stored layout, from its text to the binary's, out of the derived changes `diff.md` names today, run at read time rather than at patch time. A value at the binary's layout decodes by its generated code, as today. An older one is rewritten by its plan to the binary's bytes, then decoded. A derived plan is a pass over the value's bytes (copy, insert a default's bytes, skip, widen), so it needs no generic values; written changes use their owner's written job. Writes are always at the binary's layout, so a record converges the next time it's written. History is never rewritten: it is converted as it is read, as turns already are (jig's `protocol/store/transcripts.md`).
+- **Written changes** (a change of meaning, a field computed from others) are their owner's written job at open, converting values at the stored layout to the binary's (jig's `protocol/store/jobs.md`, section 4).
 - **Keys don't change in place.** A new key layout is a new keyspace, filled from the old one by a job at open. Since the map holds only state, a job's walk takes seconds.
 - **Layouts retire** when no value holds them. The component counts values per layout as it applies commits (a value's first two bytes and its key's root type), and rebuilds the counts at recovery. A layout still held in logs stays until retention drops them.
 
@@ -49,7 +48,7 @@ The split fixes growth where it starts: the map follows live work, and history c
 At open, before the root starts:
 
 1. Read the registry.
-2. For each stored layout, find its plan or its written function. If one is missing, refuse, naming the layout, its type and how many values hold it.
+2. For each stored layout, find its plan or its written job. If one is missing, refuse, naming the layout, its type and how many values hold it.
 3. When the binary differs from the last one that opened the store, start a new generation by links (section 5), before anything is written.
 4. Run the jobs of any keyspace whose keys changed, over the state map.
 
@@ -93,11 +92,11 @@ The store reports, per keyspace, its rows, keys' and values' bytes, layouts, and
 
 | | Today | Ideal | Owner |
 |---|---|---|---|
-| what a value says about itself | its family's version | its root type's layout id | skein-codec, jig's component |
-| an added field with a default | a patch, a version, every record of the family rewritten | the schema's default; nothing written | skein-codec |
-| an appended variant or widened bound | a patch, since texts freeze | nothing | skein-codec |
-| conversion | eager, at open, over a copy | at read, per layout | jig's component |
-| an upgrade's downtime | grows with records (11 min at 1M) | grows with layouts (seconds) | jig's component |
+| what a value says about itself | its value type's layout id | its root type's layout id | skein-codec, jig's component |
+| an added field with a default | the schema's default; nothing rewritten | the schema's default; nothing written | skein-codec |
+| an appended variant or widened bound | a derived registry plan | nothing | skein-codec |
+| conversion | at read, per layout | at read, per layout | jig's component |
+| an upgrade's downtime | the open and pending jobs | grows with layouts (seconds) | jig's component |
 | going back | a copied generation | a generation of hard links | jig's component, skein-io |
 | history | in the map, in memory, forever | in a log per task, on disk, dropped whole | skein-kv (payload logs), jig |
 | retention | designed, not built | declared per keyspace, run by the domain's timers | jig, temper |
@@ -108,23 +107,23 @@ The store reports, per keyspace, its rows, keys' and values' bytes, layouts, and
 
 ## 10. The way there
 
-Eight milestones, S1 to S8, take a deployment's store to the ideal in place: dev.fabrig.ai's first, and every other with it. Each lands as goals through temper and reaches a deployment as an ordinary upgrade, by the mechanism the milestones before it leave. None exports the store, starts one afresh or drops what section 6 keeps. Going back stays as section 5 says throughout.
+Eight milestones, S1 to S8, take a deployment's store to the ideal in place: dev.fabrig.ai's first. A store below the floor is refused by name, naming bridge build `3d1c717d379e`. Each lands as goals through temper and reaches a deployment as an ordinary upgrade, by the mechanism the milestones before it leave. None exports the store, starts one afresh or drops what section 6 keeps. Going back stays as section 5 says throughout.
 
 ### 10.1 The milestones
 
 - **S1, the census** (section 8). Counts per keyspace and per layout, kept as commits apply and rebuilt at recovery; `temper store census`; the deployment's document. At its upgrade nothing is written. It measures every milestone after it, on the deployment, before and after.
-- **S2, identity walks rewrite the head alone.** A stopgap in today's patching, which decodes every walked value into generic nodes, the identity's included: where a patch leaves a value type's old bytes valid (its layout unchanged, or changed only by appended variants and by types its values can't hold, nested heads and holds included), the walk rewrites the value's version, its first two bytes, and puts it, with no decode, machine or encode. At its upgrade nothing of its own is written. Until S4, a patch that moves the tasks family then costs a put per milestone rather than 0.64 ms.
+- **S2.** No head-only walk remains: stores behind the build are refused by name, naming bridge build `3d1c717d379e` (`store-floor.md`, sections 3 and 4.2).
 - **S3, generations by hard links** (section 5). Opening's new generation links the previous one's snapshot and sealed segments rather than copying them, and skein-io gains the link, in its kernel, its ring, the simulator and the file layer, with crash cleanup. The previous generation stays a whole store, so going back is today's. At its upgrade nothing is written, and the upgrades after it link. The copy goes, and the two generations, about 400 MB on dev.fabrig.ai, share their files.
-- **S4, layout ids** (sections 3 and 4). Defaults in the codec's schemas; the head as a layout id per value type, the families' broad roots resolved by key; fingerprints without the family's version; the registry; derived plans at read; written changes as registered functions; jobs at open, which don't exist today (a job's identity, progress and routing are S4's to design); the open's check; the frozen-text rule dropped. At its upgrade the registry is seeded from the kept texts and no value is rewritten: each root type's layout at the family version the store holds takes that version's number as its id within the root type, which is what every stored value's head already says. That is one commit of a row per root type. A store behind S4's binary runs its outstanding patches first, as today. From then on, an upgrade of derived changes writes registry rows alone, and its downtime is the open's: 9 s on dev.fabrig.ai today, mostly loading the map.
-- **S5, milestones as attempts** (section 6). jig's tasks child designs the attempt and hold records, moves the milestones' readers to them and retires the milestones' keyspace. The readers: escalations and the task record, which name a hold by its position; history and activity pages; goals' projections and temper's feed, which read holds and ends alone; the clients' wire and what renders it (the task page, the TUI, `temper ctl`). At its upgrade a job at open folds each task's milestones, contiguous under its key, into its attempts and erases them, in commits of bounded size: on dev.fabrig.ai about a million rows, read and erased in memory. 87% of the map's rows go, and the growth per wake stops.
-- **S6, retention** (section 6). Owners declare each keyspace's horizon; the domain's timers erase what has passed it, in pages within a step's budget, beside the prunings that run today (settings' history, answered keys, landing history, temper's decisions for an away person); an ended task's summary is written when it ends; turns' files are dropped 14 days after their task ends. At its upgrade a job at open writes the summary of each task already ended (about 2,600 on dev.fabrig.ai today). Nothing is erased at once: on dev.fabrig.ai the first turns go about 11-24, 14 days after 11-10's tasks ended, and the first full records about 12-10. Until S7, 30 days of ended tasks stay whole in the map, about 380 MB at this week's pace.
-- **S7, history in task logs** (section 2). skein-kv's payload logs, generalized; jig's history keyspaces moved to them, by page on read; new turns written to the task's log, compressed. At its upgrade a job at open writes each task's history from the map into its log, syncs the files together, then erases those rows and records each log's extent, in commits of bounded size: on dev.fabrig.ai, a log per task and a few tens of MB once S5 has run. Turns' files written before S7 stay where they are, read as today, until S6's horizon drops them; none is converted. The map then holds state and summaries alone.
-- **S8, hot records apart from cold** (section 7). Live tasks, goals' projections and temper's change records keyed as a part written once and a part that changes. At its upgrade a job at open re-keys them: a few hundred rows on dev.fabrig.ai. The log then carries what changed, from about 24 MB an hour to a few.
+- **S4, layout ids** (sections 3 and 4). Defaults in the codec's schemas; the head as a layout id per value type, the families' broad roots resolved by key; fingerprints without the family's version; the registry; derived plans at read; written changes as written jobs; jobs at open; the open's check. An upgrade of derived changes writes registry rows alone. A store from before S4 is below the floor and refused by name, naming bridge build `3d1c717d379e` (`store-floor.md`, section 3).
+- **S5, milestones as attempts** (section 6). jig's tasks child designs the attempt and hold records, moves the milestones' readers to them and retires the milestones' keyspace. The readers: escalations and the task record, which name a hold by its position; history and activity pages; goals' projections and temper's feed, which read holds and ends alone; the clients' wire and what renders it (the task page, the TUI, `temper ctl`). The milestones' keyspace holds nothing, and the growth per wake stops.
+- **S6, retention** (section 6). Owners declare each keyspace's horizon; the domain's timers erase what has passed it, in pages within a step's budget, beside the prunings that run today (settings' history, answered keys, landing history, temper's decisions for an away person); an ended task's summary is written when it ends; turns' files are dropped 14 days after their task ends. Nothing is erased at once: on dev.fabrig.ai the first turns go about 11-24, 14 days after 11-10's tasks ended, and the first full records about 12-10. Until S7, 30 days of ended tasks stay whole in the map, about 380 MB at this week's pace.
+- **S7, history in task logs** (section 2). skein-kv's payload logs, generalized; jig's history keyspaces moved to them, by page on read; new turns written to the task's log, compressed. Turns' files written before S7 stay where they are, read as today, until S6's horizon drops them; none is converted. The map then holds state and summaries alone.
+- **S8, hot records apart from cold** (section 7). Live tasks, goals' projections and temper's change records keyed as a part written once and a part that changes. The log then carries what changed, from about 24 MB an hour to a few.
 
 ### 10.2 Order
 
-- **S1, S2 and S3 first,** in parallel: each is small and needs nothing, and S2 and S3 make the upgrades that bring the rest cheaper. S1 lands before the others' upgrades reach a deployment where it can, so each is measured.
-- **S4 next:** from it on, a derived change rewrites nothing, and the jobs at open that S5 to S8 need exist.
+- **S1 and S3 first,** in parallel: each is small and needs nothing, and S3 makes the upgrades that bring the rest cheaper. S2 leaves no machinery. S1 lands before the others' upgrades reach a deployment where it can, so each is measured.
+- **S4 next:** from it on, a derived change rewrites nothing, and the jobs' runner exists.
 - **S5 and S6 after S4,** in parallel: the rows, then the growth.
 - **S7 after S5 and S6:** it moves what S5 shaped and S6 bounds.
 - **S8 after S4,** at any point: it is last in gain.
@@ -135,8 +134,8 @@ Estimates from the assessment's census, each to be measured by S1 as its milesto
 
 | After | Rows in the map | The map | An upgrade's downtime | The log |
 |---|---|---|---|---|
-| today (11-13 21:25Z) | 1.14 million | 121 MB | about 11 min when a patch moves tasks, 9 s otherwise | 24 MB an hour |
-| S2 and S3 | the same | the same | the open's, plus a put per walked value | the same |
+| today (11-13 21:25Z) | 1.14 million | 121 MB | the open and pending jobs | 24 MB an hour |
+| S3 | the same | the same | the open's | the same |
 | S4 | the same, and a row per root type | the same | the open's, for derived changes | the same |
 | S5 | about 160,000 | about 50 MB | under 9 s | the same |
 | S6 | bounded by the horizons | about 380 MB at 30 days of this week's pace | grows with the map | the same |
@@ -145,7 +144,7 @@ Estimates from the assessment's census, each to be measured by S1 as its milesto
 
 ### 10.4 Meanwhile
 
-- **Until S4 lands,** a stored format's change moves its family's version and brings its patch, as the rule for upgrades says. From S4, a derived change moves its root type's layout alone and brings nothing; a written one brings its function. Patches landed before S4 keep running for stores behind them, and S4's design says what becomes of patch files in goals still in flight.
+- **Registered families** change through defaults, former names (`was`) or a written job, with no version move or patch. No build keeps the patches or seeds a registry from code; an older store is refused by name, naming bridge build `3d1c717d379e` (`store-floor.md`, sections 3 and 4).
 - **Going back** stays the previous generation's switch, losing what was committed after it.
 - **S5 moves the clients' wire,** whose history and activity lines carry milestones today: a client's wire moves its version unbridged, and a client of another version reloads, as the rule for upgrades says. No worker reads milestones, and no other milestone changes a wire.
 

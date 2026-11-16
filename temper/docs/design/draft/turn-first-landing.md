@@ -46,5 +46,5 @@ affected tests by name.
 
 ## 5. Formats
 
-If a fix needs a field no store keeps today, the store's version moves
-and its patch comes with it: upgrades are supported (`redeploys.md`).
+If a fix needs a field no store keeps today, the registered family gains
+a field with a default, with no version move or patch (jig's `protocol/store/layouts.md`).

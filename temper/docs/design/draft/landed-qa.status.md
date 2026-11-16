@@ -9,7 +9,8 @@ built: the drive session (`../client/drive.md`), recipes and their walk
 (`../client/recipe.md`), the fake model's given scripts and strict
 switch (`../protocol/setup/box.md`, 5; skein's `testing/fakes/llm.md`,
 2.5), a box started again with a newer build (`../protocol/setup/box.md`,
-1) and a store refused by name (`../protocol/store.md`, 5). The draft
+1) and a store below the floor refused by name, naming bridge build
+`3d1c717d379e`, with no finding (`../protocol/store.md`, 5). The draft
 leaves `../domain/findings.md`, 8, temper's own pass, as it is (section
 2).
 
@@ -49,7 +50,7 @@ its place on its fake forges' state (`../testing/process-tier.md`).
   - 2, 4, 5, 7, 10: places are boxes alone and surfaces web and TUI (`../testing/qa/README.md`, 3.2; `../testing/qa/triage.md`, 3; `../testing/qa/places.md`), where the draft, since 2026-11-14, has places of two kinds, a box and a deployment, and ctl cases first; Q6 to Q8 carry it.
   - 3: a kept build has no engine, worker or agent, and builds its bundles with `bundle.sh` options it no longer takes (`../testing/qa/builds.md`, 2), where loopback and recording are a page's query since 2026-11-12; Q6 carries both.
   - 5: a place's box directory takes the umask's mode, and the drivers refuse it unless it is private (`../testing/qa/places.md`, 4; `../client/drive.md`); Q6 carries it.
-  - 5, 7: a copy whose store a newer build refuses by name is made again with no finding (`../testing/qa/places.md`, 4), where the draft, since 2026-11-12, files a finding as well, so that passes prove the stores' patches; no milestone carries it yet.
+
 - **Design departs:**
   - 5: a copy leaves out its worker's pinned agent, the program and configuration the worker writes into its root's `agent/` at each start (`../testing/qa/places.md`, 4; `../testing/qa/deployment.md`, 2), where the draft has a copy the place's whole data: that directory is the build's, a box's 354 of its 372 MB, saved and restored at every setup, and in a copy restored for a newer build it would hold the older program only for the start to replace it. Every start pins from the place's `bin/`, as the draft has the copies name the place's programs. The goal's designer, 2026-11-16.
   - 5: `project-landing` connects the box's fake Forgejo as its admin through a ctl line naming the box's values, where the draft names the web journey's setup as the first recipes' source: the web's connect takes the admin's token itself, which no recipe names, and gives no git program, so the box's agents would reach no fake forge's git. It reaches the journey's state, Hello with `work/hello` and ChatGPT, on the fake Forgejo (`../testing/qa/setups.md`, 2). The goal's designer, 2026-11-12.

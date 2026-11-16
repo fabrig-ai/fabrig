@@ -153,10 +153,8 @@ configures work:
   own (section 4).
 - **The document stops naming them.** A document that names one is
   refused, as any unknown member is (`../protocol/configuration/README.md`,
-  section 1); from the baseline on, a removed member is first accepted
-  for one release with a warning (`upgrades.md`, section 10). Until the
-  baseline a store whose format changes is made again, so nothing needs
-  importing; an operator who keeps settings in a file proposes it
+  section 1); a removed member is first accepted
+  for one release with a warning (`upgrades.md`, section 10); an operator who keeps settings in a file proposes it
   whole with `settings propose` (`../client/ctl/tools.md`, 3).
 - **Bounds stay the start's.** A change is checked as the start checks
   a document today: charters within jig's `tasks.charters`, a charter's
@@ -248,8 +246,8 @@ made follows the new one, and what is in flight keeps the old.
   its history stays (3.3).
 - **In the store:** each task's revision (a change to jig's tasks
   family), and the revisions in use, whole. A restart restores them
-  before the core admits anything, and an upgrade's patches carry them
-  as any record (`upgrades.md`).
+  before the core admits anything, and the registry converts them at read
+  as any registered record (jig's `protocol/store/layouts.md`).
 - **In the children:** jig's core holds charters, templates and models
   as one value today, its settings, documented as immutable. The tasks
   child's models per charter and the fleet's host needs per charter
