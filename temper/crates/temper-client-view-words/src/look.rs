@@ -1176,10 +1176,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decided",
         b"temper-decision",
         b"temper-decision-took",
-        b"temper-decision-why",
+        b"temper-reserved-444",
         b"temper-decision-late",
         b"temper-decision-overturned",
-        b"temper-reserved-447",
+        b"temper-decision-landed",
         b"temper-goals-progress",
         b"temper-reserved-449",
         b"temper-reserved-450",
@@ -1663,9 +1663,9 @@ pub const AWAY_TRACK: Style = Style { owner: owner(), token: 440 };
 pub const DECIDED: Style = Style { owner: owner(), token: 441 };
 pub const DECISION: Style = Style { owner: owner(), token: 442 };
 pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
-pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+pub const DECISION_LANDED: Style = Style { owner: owner(), token: 447 };
 
 /// What allowed a decision (temper/docs/design/client/pages/README.md, Decided for you).
 pub const DECISION_ALLOWED: Style = Style { owner: owner(), token: 688 };

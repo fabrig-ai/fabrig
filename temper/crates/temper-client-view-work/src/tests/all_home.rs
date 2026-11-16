@@ -323,15 +323,11 @@ fn decisions_keep_the_project_words_bound_and_seven_rows() {
         for words in [f::words(), f::browser_words()] {
             let (tree, bindings) = drawn(&facts, &words);
             assert!(named(&tree, Role::Heading { level: 2 }, &format!("Decided for you · {showing}")));
-            for word in [
-                "rust · Porter · 01:05",
-                "A compiler builtin?",
-                "Ported as checked_add.",
-                "Keeps its shape.",
-                "What reaches you",
-            ] {
+            for word in ["rust · Porter · 01:05", "A compiler builtin?", "Ported as checked_add.", "What reaches you"]
+            {
                 assert!(has(&tree, word), "{word}");
             }
+            assert!(!has(&tree, "Keeps its shape."));
             assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), expected);
             assert_eq!(
                 action(&tree, &bindings, "Overturn"),

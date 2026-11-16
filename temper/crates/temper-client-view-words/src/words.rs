@@ -2179,7 +2179,7 @@ const PHRASES: u32 = 2694;
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 const SEGMENTS: u32 = 4934;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64303;
+const ENGLISH_BYTES: u32 = 64196;
 const ALL: [Word; 1979] = [
     Word::TellTitle,
     Word::TellHint,
@@ -7949,8 +7949,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ToastOverturned => (&[b"Overturned: it asks you again, under Needs you."], &[]),
         Word::Overturn => (&[b"Overturn"], &[]),
         Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
-        Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
-        Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
+        Word::HomeDecisionEnded => (&[b"ended ", b""], &[Name]),
+        Word::HomeDecisionLanded => (&[b"landed ", b""], &[Name]),
         Word::ReachWording => (&[b"wording choices"], &[]),
         Word::ReachRetry => (&[b"retries and splits"], &[]),
         Word::ReachImplementation => (&[b"implementation choices"], &[]),
@@ -7963,7 +7963,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ReachOther => (&[b"other decisions"], &[]),
         Word::ReachPathSet => (&[b"changes to a path set"], &[]),
         Word::DecidedCountMore => (&[b"Decided for you \xc2\xb7 ", b"+"], &[Number]),
-        Word::AllowedDecide => (&[b"Allowed: ", b" are decided and listed."], &[Name]),
+        Word::AllowedDecide | Word::AllowedAway => (&[b"Allowed: ", b"."], &[Name]),
         Word::WhyFindingArea => (&[b"Reached you as ", b"\xe2\x80\x99s owner."], &[Name]),
         Word::WhyFindingTriager => (&[b"Reached you as ", b"\xe2\x80\x99s triager: findings that no area owns come to you."], &[Name]),
         Word::WhyFindingOwner => (&[b"Reached you as ", b"\xe2\x80\x99s owner: findings that no area owns come to you."], &[Name]),
@@ -8010,7 +8010,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WhyProposal => (&[b"Reached you because a proposal always waits for whoever may accept it."], &[]),
         Word::WhyHeld => (&[b"Reached you because a held task always waits for whoever may release it."], &[]),
         Word::WhyFunds => (&[b"Reached you because money past a budget always waits for you."], &[]),
-        Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
         Word::StopAsking => (&[b"Stop asking"], &[]),
         Word::StopAskingRule => (&[b"Stop asking: let agents decide ", b""], &[Name]),

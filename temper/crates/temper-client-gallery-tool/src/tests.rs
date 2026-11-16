@@ -1794,7 +1794,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Region, name: "Decided for you · 2" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
-            Part::Named { role: Role::Text, name: "Allowed: wording choices are decided and listed." },
+            Part::Named { role: Role::Text, name: "Allowed: wording choices." },
         ],
     },
     Holds {
@@ -6648,13 +6648,14 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
         );
         if landed {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
-                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+                && n.styles.as_slice().contains(&look::DECISION_LANDED)
+                && n.name.as_deref() == Some(b"landed 03:12")));
         }
         let kicker =
             tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
         assert_eq!(kicker.name.as_deref(), Some(expected_kicker.as_bytes()));
         assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_ALLOWED)
-            && n.name.as_deref() == Some("Allowed: implementation choices are decided while you’re away.".as_bytes())));
+            && n.name.as_deref() == Some("Allowed: implementation choices.".as_bytes())));
         assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
             && n.name.as_deref() == Some(b"In temper serve".as_slice())));
         assert_eq!(
@@ -6669,7 +6670,8 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
                 && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
-                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+                && n.styles.as_slice().contains(&look::DECISION_LANDED)
+                && n.name.as_deref() == Some(b"landed 03:12")));
         }
     }
 }

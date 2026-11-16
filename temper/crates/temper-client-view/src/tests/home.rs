@@ -3092,26 +3092,14 @@ fn limits_goes_to_settings() {
 #[test]
 fn a_row_says_title_and_clock() {
     for (kind, class, reason, away_on, allowed) in [
-        (
-            w::ReachKind::Tests,
-            w::ReachClass::Decide,
-            w::ReachReason::Kind,
-            false,
-            Some("Allowed: test-only changes are decided and listed."),
-        ),
-        (
-            w::ReachKind::Retry,
-            w::ReachClass::Ask,
-            w::ReachReason::Kind,
-            true,
-            Some("Allowed: retries and splits are decided while you’re away."),
-        ),
+        (w::ReachKind::Tests, w::ReachClass::Decide, w::ReachReason::Kind, false, Some("Allowed: test-only changes.")),
+        (w::ReachKind::Wording, w::ReachClass::Ask, w::ReachReason::Kind, true, Some("Allowed: wording choices.")),
         (
             w::ReachKind::Implementation,
             w::ReachClass::Decide,
             w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 1 }).unwrap()),
             false,
-            Some("Allowed: changes to a path set are decided and listed."),
+            Some("Allowed: changes to a path set."),
         ),
         (
             w::ReachKind::Tests,
@@ -3140,7 +3128,12 @@ fn a_row_says_title_and_clock() {
             contains(&text, "welcome-stall · Sun 23:05");
             contains(&text, "Fix in the store or serve?");
             contains(&text, "In serve");
-            contains(&text, "The store changes a record.");
+            absent(&text, "The store changes a record.");
+            for node in subtree(view.tree(), row.id) {
+                for style in node.styles.as_slice() {
+                    assert_ne!(crate::look::NAMES.style(*style), Some(b"temper-decision-why".as_slice()));
+                }
+            }
             main_find(view.tree(), Role::Button, b"Overturn");
             let mut line = None;
             for node in main_nodes(view.tree()) {
@@ -3158,8 +3151,7 @@ fn a_row_says_title_and_clock() {
             if let Some(allowed) = allowed {
                 let took = skein_lib::bytes::find(&text, b"In serve").unwrap();
                 let allowed_at = skein_lib::bytes::find(&text, allowed.as_bytes()).unwrap();
-                let why = skein_lib::bytes::find(&text, b"The store changes a record.").unwrap();
-                assert!(took < allowed_at && allowed_at < why);
+                assert!(took < allowed_at);
             }
             if !browser {
                 let printed = printed(&view);
@@ -3167,7 +3159,7 @@ fn a_row_says_title_and_clock() {
                 if let Some(allowed) = allowed {
                     contains(&printed, allowed);
                 }
-                contains(&printed, "The store changes a record.");
+                absent(&printed, "The store changes a record.");
             }
         }
     }
@@ -3188,7 +3180,21 @@ fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool,
     let root = default_away(away);
     for browser in [false, true] {
         let view = status_view(&root, browser);
-        assert_eq!(styled(view.tree(), crate::look::DECISION_LATE).name.as_deref(), Some(late.as_bytes()));
+        let node = styled(view.tree(), crate::look::DECISION_LATE);
+        assert_eq!(node.name.as_deref(), Some(late.as_bytes()));
+        let landed = match state {
+            d::pages::decided::DecisionTask::Done(_) => true,
+            d::pages::decided::DecisionTask::Ended(_)
+            | d::pages::decided::DecisionTask::Live
+            | d::pages::decided::DecisionTask::Unknown => false,
+        };
+        assert_eq!(node.styles.as_slice().contains(&crate::look::DECISION_LANDED), landed);
+        if !browser {
+            let print = printed(&view);
+            contains(&print, late);
+            absent(&print, "a new goal can undo it");
+            absent(&print, "✓");
+        }
         assert_eq!(
             styled(view.tree(), crate::look::DECISION).styles.as_slice().contains(&crate::look::DECISION_OVERTURNED),
             overturned
@@ -3198,19 +3204,19 @@ fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool,
 }
 #[test]
 fn done_says_landed() {
-    assert_decision_end(
-        d::pages::decided::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
-        false,
-        "landed 00:00 · a new goal can undo it",
-    );
+    for (at, late) in
+        [(STATUS_NOW, "landed 00:00"), (STATUS_NOW - (24 * 60 + 4 * 60 + 59) * STATUS_MINUTE, "landed Sat 19:01")]
+    {
+        assert_decision_end(d::pages::decided::DecisionTask::Done(skein_lib::Wall::from_nanos(at)), false, late);
+    }
 }
 #[test]
 fn ended_says_ended() {
-    assert_decision_end(
-        d::pages::decided::DecisionTask::Ended(skein_lib::Wall::from_nanos(STATUS_NOW)),
-        false,
-        "ended 00:00 · a new goal can undo it",
-    );
+    for (at, late) in
+        [(STATUS_NOW, "ended 00:00"), (STATUS_NOW - (24 * 60 + 2 * 60 + 38) * STATUS_MINUTE, "ended Sat 21:22")]
+    {
+        assert_decision_end(d::pages::decided::DecisionTask::Ended(skein_lib::Wall::from_nanos(at)), false, late);
+    }
 }
 #[test]
 fn overturned_says_it_asks_again_and_strikes_took() {
@@ -3221,7 +3227,7 @@ fn ended_and_overturned_says_landed_and_strikes_took() {
     assert_decision_end(
         d::pages::decided::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
         true,
-        "landed 00:00 · a new goal can undo it",
+        "landed 00:00",
     );
 }
 #[test]
