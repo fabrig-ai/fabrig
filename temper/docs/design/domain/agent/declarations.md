@@ -65,9 +65,10 @@ engine already decides each call by (`temper/crates/temper-engine-domain/src/tra
   whose `tools` already name their roles' families):
   - the coder's, charter 2 (read and message, 514), where its change's
     questions go up, so that its authority holds message
-    (`../forge/change/questions.md`): `message`, `read_task`, `read_docs`,
-    `read_forge`, `read_issues` and `read_ci`, beside smith's own tools;
-    with questions `none`, the same without `message`;
+    (`../forge/change/questions.md`): `message`, `introduce`, `read_task`,
+    `read_docs`, `read_forge`, `read_issues` and `read_ci`, beside smith's
+    own tools; with questions `none`, the same without `message` and
+    `introduce`;
   - the reviewer's, charter 4 (read, 512): `read_task`, `read_forge`,
     `read_issues`, `read_ci` and `read_docs`;
   - the goal's, charter 5 (every family but settings and asking, 1,023),
@@ -130,7 +131,7 @@ are.
   - the stock goal's, charter 5 at policy 1's authority, 14,336 bytes at
     most;
   - the stock coder's, charter 2 at the authority of a change's producer
-    whose questions go up, 4,096 bytes at most, and exactly the six tools
+    whose questions go up, 4,096 bytes at most, and exactly the seven tools
     section 1 lists;
   - the reviewer's, the read family's tools and `read_docs`.
 - **Every other offer,** each family's alone, every family's, and each
