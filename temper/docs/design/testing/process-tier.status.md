@@ -13,6 +13,7 @@
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
 - **Not yet:** the whole document: the story of a deployment at its place has no runtime result in the tier; it is written and compiled in its plan and runs after landing.
+- **Not yet:** the whole document: the story of a deployment at its place opening its sessions `--ctl --deployment` with a fixture bundle as `--bundle` [in flight: change 5681].
 
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
