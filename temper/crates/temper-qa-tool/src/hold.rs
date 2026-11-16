@@ -175,9 +175,11 @@ impl Drive {
     }
     pub fn close(&self) -> Result<Reply, Refusal> {
         let mut reply = self.request("end", None)?;
-        // The response precedes socket removal and lock release. Do not report a free place early.
+        // The response precedes socket removal and lock release. Do not report a free place early, and
+        // hold the lock no longer than it takes to see it released, so the place frees at once.
         let lock = self.lock()?;
         lock.lock().map_err(|why| refused(format!("drive.lock: {why}")))?;
+        drop(lock);
         let lines = match fs::read_to_string(self.place.scratch.join("session/lines")) {
             Ok(lines) => lines,
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => String::new(),
