@@ -1016,6 +1016,15 @@ pub(crate) fn events_up(
         }
     }
 }
+/// Work the directory can advance without another file terminal.
+pub(crate) fn ready(store: &Store) -> bool {
+    store.phase != Phase::Stopped
+        && !crate::rehearsal::preparing(store)
+        && store.back.is_none()
+        && (phase::ready(store)
+            || skein_kv::is_ready(&store.stores.store, &store.limits.store)
+            || skein_kv::is_ready(&store.stores.secrets, &store.limits.secrets))
+}
 pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     for secret in [false, true] {
         let kv_env = self::env(store, env, secret);
