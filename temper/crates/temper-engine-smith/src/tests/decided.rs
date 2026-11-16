@@ -36,7 +36,7 @@ fn decided_decodes() {
     assert_eq!(
         decided(b"decided", &input("Q", &["A", "B"], 0, "W", "unknown")),
         Err(Problem::Range(
-            b"kind: wording, retry, implementation, tests, dependency, departure, money, irreversible, rules or other"
+            b"kind: wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other or findings"
         ))
     );
     let original = r#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#;

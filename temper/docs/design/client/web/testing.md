@@ -362,9 +362,11 @@ setup across desktop and phone widths. The twelve test functions in
     before and after a reload (`../README.md`, 2). Before that chat, at
     420 px, Home's To begin and its Start open Ask temper's page, whose
     composer and model picker end above the three tabs' top (`look.md`, *The
-    project's frame*), and whose ways show their tabs, Agents review
-    current; "Draft first" pressed shows its line, its path and "Use this"
-    (`../pages/README.md`).
+    project's frame*), and whose ways show their head, the way the
+    project runs, Agents review, shown; "Draft first" chosen from the
+    head's "Stock ways" menu, as a person chooses it, shows its path and
+    "Use this" and "Back" (`../pages/ask-temper.md`, 1, *Ask temper's
+    page*).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../../playground.md`, 9).
 13. **Reading a public project** (`public.md`, 4), with no sign-in, its board and task

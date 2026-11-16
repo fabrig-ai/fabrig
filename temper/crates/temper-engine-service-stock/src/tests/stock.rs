@@ -822,7 +822,7 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
             assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says."));
             assert!(paragraph.contains(decision));
-            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the eleven; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
@@ -831,6 +831,7 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         "Before you ask anything, call `decided`",
         "the question, its options, the one you'd take, why, its kind, the paths",
         "see settings project-classes",
+        "other for what fits none of the eleven",
         "On Decided, carry on with it and ask no one; on Ask, ask as the answer says.",
         "If you're told a decision was overturned, ask it with `message`",
     ] {
@@ -852,6 +853,10 @@ fn the_triager_is_told_to_group_findings_and_ask_once_a_group() {
     paragraphs.find(|paragraph| paragraph.starts_with("Before asking your person")).expect("asking paragraph");
     let grouping = paragraphs.next().expect("grouping paragraph after asking");
     assert!(grouping.starts_with("Group what you keep: the findings one act would settle, by what they are."));
+    assert!(grouping.contains("Call `decided` for the group's question with kind `findings` and no paths, since its choice starts work and changes no file itself."));
+    assert!(grouping.contains(
+        "Where `decided` says Decided, carry your recommended choice out; your person reads it under Decided for you."
+    ));
     assert!(grouping.contains("Ask your person one question a group, after `decided` says Ask as Before asking says, in the line form: the question in one sentence; then what the findings share and what the choices weigh;"));
     assert!(
         grouping.contains(

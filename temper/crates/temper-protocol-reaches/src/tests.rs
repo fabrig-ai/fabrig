@@ -29,6 +29,7 @@ fn check_names_the_first_fault() {
         ("you approve", Classes::stock(Way::YouApprove), Ok(())),
         ("agents review", Classes::stock(Way::AgentsReview), Ok(())),
         ("draft first", Classes::stock(Way::DraftFirst), Ok(())),
+        ("findings", table(&[own(Kind::Findings, Class::Ask)], &[]), Ok(())),
         ("items", table(&vec![base.clone(); ITEMS + 1], &[]), Err(Refusal::Items)),
         ("sets", table(&[], &vec![core.clone(); SETS + 1]), Err(Refusal::Sets)),
         ("fixed", table(&[own(Kind::Money, Class::Ask)], &[]), Err(Refusal::Fixed { item: 1 })),
@@ -150,15 +151,8 @@ fn stocks_and_away_follow_the_way() {
         (Reason::Set(0), false),
         (Reason::Set(7), false),
     ] {
-        let reach = Reach {
-            kind: Kind::Dependency,
-            class: Class::AskAway,
-            reason,
-            under: 20,
-            sets: 63,
-            matched: 33,
-            away: true,
-        };
+        let reach =
+            Reach { kind: Kind::Findings, class: Class::AskAway, reason, under: 20, sets: 63, matched: 33, away: true };
         assert_eq!(reach_from(&reach_record(&reach)), good.then_some(reach));
     }
 
@@ -169,6 +163,7 @@ fn stocks_and_away_follow_the_way() {
         own(Kind::Implementation, Class::Ask),
         own(Kind::Dependency, Class::Ask),
         own(Kind::Departure, Class::Ask),
+        own(Kind::Findings, Class::Ask),
     ];
     for (name, way, items, away) in [
         ("you approve", Way::YouApprove, &[][..], false),
@@ -180,7 +175,7 @@ fn stocks_and_away_follow_the_way() {
         assert!(classes.sets.is_empty(), "{name}: no sets");
         assert_eq!(classes.away_may_decide(), away, "{name}: away");
     }
-    let names: [&[u8]; 10] = [
+    let names: [&[u8]; 11] = [
         b"wording",
         b"retry",
         b"implementation",
@@ -191,7 +186,11 @@ fn stocks_and_away_follow_the_way() {
         b"irreversible",
         b"rules",
         b"other",
+        b"findings",
     ];
+    assert_eq!(Kind::ALL.len(), 11);
+    assert_eq!(Kind::ALL.last(), Some(&Kind::Findings));
+    assert!(!Kind::Findings.fixed());
     for (kind, name) in Kind::ALL.into_iter().zip(names) {
         assert_eq!(kind.name(), name);
         assert_eq!(Kind::named(name), Some(kind));
@@ -227,6 +226,14 @@ fn judgement_uses_the_strictest_subject() {
                 (Class::Wait, Reason::Kind, 0, 10, 0, false),
             ));
         }
+    }
+    for away in [false, true] {
+        rows.push((
+            "findings stock",
+            Classes::stock(Way::AgentsReview),
+            Ask { kind: Kind::Findings, paths: &[], away, ..base },
+            (Class::Ask, Reason::Kind, 0, 0, 0, away),
+        ));
     }
     rows.extend([
         ("missing kind", Classes::default(), base, (Class::AskAway, Reason::Kind, 0, 0, 0, false)),
@@ -345,6 +352,18 @@ fn stop_asking_makes_the_narrowest_table() {
         .chain((1..ITEMS).map(|_| item(Subject::Kind(Kind::Retry), b"words", Class::Ask)))
         .collect();
     for (name, classes, ask, expected) in [
+        (
+            "findings stock",
+            Classes::stock(Way::AgentsReview),
+            Ask { kind: Kind::Findings, paths: &[], ..base },
+            vec![Offer::Decide(Subject::Kind(Kind::Findings))],
+        ),
+        (
+            "findings missing",
+            Classes::stock(Way::YouApprove),
+            Ask { kind: Kind::Findings, paths: &[], ..base },
+            vec![Offer::Decide(Subject::Kind(Kind::Findings))],
+        ),
         ("kind", own_ask.clone(), base, vec![Offer::Decide(Subject::Kind(Kind::Wording))]),
         ("worded kind", worded.clone(), Ask { under: 2, ..base }, vec![Offer::Decide(Subject::Kind(Kind::Wording))]),
         ("missing kind", Classes::default(), base, vec![Offer::Decide(Subject::Kind(Kind::Wording))]),
@@ -391,7 +410,10 @@ fn stop_asking_makes_the_narrowest_table() {
                     if name == "worded kind" {
                         assert_eq!(narrowed.items.first(), classes.items.first(), "own item retained");
                     }
-                    if name == "missing kind" {
+                    if name == "findings stock" || name == "findings missing" {
+                        assert_eq!(narrowed.items.last(), Some(&own(Kind::Findings, Class::Decide)));
+                    }
+                    if name == "missing kind" || name == "findings missing" {
                         assert_eq!(narrowed.items.len(), 1, "appended");
                     }
                 }

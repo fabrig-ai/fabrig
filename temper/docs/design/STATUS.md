@@ -68,6 +68,14 @@ finding, its context and its choices; the stock triager groups what it
 keeps and asks one question a group; the headline and Needs you's head
 count the findings the open cards concern, each once. Its walk follows
 landing (`draft/home-for-a-person.status.md`; `client/pages/needs-you.md`, 1).
+Its milestone F2, goal 4747, says why a group reached its person: a
+kind of decision of its own, `findings`, starting work on findings,
+which the stock's Agents review and Draft first tables ask unless the
+person is away; the triager's question over a group names it, so its
+line reads "Reached you because it starts work on findings, which asks
+you unless you’re away.", said once on Home, with its Stop asking, "Let
+the triager start goals for findings, then tell you." Its walk follows
+landing (`draft/home-for-a-person.status.md`; `domain/forge/attention.md`, 6).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -545,6 +553,7 @@ Drafts:
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
+- [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)

@@ -9929,6 +9929,8 @@ pub enum ReachKind {
     Rules,
     /// `other` without a payload.
     Other,
+    /// `findings` without a payload.
+    Findings,
 }
 
 impl ReachKind {
@@ -32828,7 +32830,7 @@ impl ReachKind {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Wording | Self::Retry | Self::Implementation | Self::Tests | Self::Dependency | Self::Departure | Self::Money | Self::Irreversible | Self::Rules | Self::Other => 1,
+            Self::Wording | Self::Retry | Self::Implementation | Self::Tests | Self::Dependency | Self::Departure | Self::Money | Self::Irreversible | Self::Rules | Self::Other | Self::Findings => 1,
         }
     }
 
@@ -32845,6 +32847,7 @@ impl ReachKind {
             Self::Irreversible => writer.put(&[7_u8])?,
             Self::Rules => writer.put(&[8_u8])?,
             Self::Other => writer.put(&[9_u8])?,
+            Self::Findings => writer.put(&[10_u8])?,
         }
         Ok(())
     }
@@ -32869,6 +32872,7 @@ impl ReachKind {
             7 => Self::Irreversible,
             8 => Self::Rules,
             9 => Self::Other,
+            10 => Self::Findings,
             _ => return Err(Problem { path: Path::ReachKindTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

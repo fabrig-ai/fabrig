@@ -131,7 +131,7 @@ record AnswerValue { answer: Answer }
 enum ReadResult { answer: boxed AnswerValue, error: ErrorValue }
 record CallRead { result: ReadResult }
 record CallEffect { entry: u64 deadline: u64 outcome: option Outcome }
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other, findings }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
 enum ReachReason { kind, set: ReachSet, always }

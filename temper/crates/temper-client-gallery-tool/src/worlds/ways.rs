@@ -79,6 +79,7 @@ pub(super) fn reaches_setting(name: &str) -> Box<[u8]> {
             (Subject::Set(1), Class::AskAway),
             (Subject::Kind(Kind::Dependency), Class::Ask),
             (Subject::Kind(Kind::Departure), Class::Ask),
+            (Subject::Kind(Kind::Findings), Class::Ask),
         ]
         .into_iter()
         .map(|(subject, class)| Item { subject, words: Box::default(), class })

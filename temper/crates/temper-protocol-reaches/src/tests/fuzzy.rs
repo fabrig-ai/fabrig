@@ -47,6 +47,7 @@ fn random_table(rng: &mut Rng) -> Classes {
             patterns: (0..=rng.below(u64::try_from(PATTERNS).expect("bound"))).map(|_| pattern(rng)).collect(),
         });
     }
+    let movable: Vec<_> = Kind::ALL.into_iter().filter(|kind| !kind.fixed()).collect();
     let mut items: Vec<Item> = Vec::new();
     for _item in 0..rng.below(u64::try_from(ITEMS + 1).expect("bound")) {
         let subject = if !sets.is_empty() && rng.chance(500) {
@@ -56,7 +57,14 @@ fn random_table(rng: &mut Rng) -> Classes {
                     .number,
             )
         } else {
-            Subject::Kind(*Kind::ALL.get(usize::try_from(rng.below(6)).expect("kind draw")).expect("movable kind"))
+            Subject::Kind(
+                *movable
+                    .get(
+                        usize::try_from(rng.below(u64::try_from(movable.len()).expect("kind count")))
+                            .expect("kind draw"),
+                    )
+                    .expect("movable kind"),
+            )
         };
         let length = if rng.chance(500) && !items.iter().any(|item| item.subject == subject && item.words.is_empty()) {
             0
@@ -108,7 +116,13 @@ fn subject_class(classes: &Classes, subject: Subject, under: u8) -> Class {
     match subject {
         Subject::Kind(Kind::Money | Kind::Irreversible | Kind::Rules | Kind::Other) => return Class::Wait,
         Subject::Kind(
-            Kind::Wording | Kind::Retry | Kind::Implementation | Kind::Tests | Kind::Dependency | Kind::Departure,
+            Kind::Wording
+            | Kind::Retry
+            | Kind::Implementation
+            | Kind::Tests
+            | Kind::Dependency
+            | Kind::Departure
+            | Kind::Findings,
         )
         | Subject::Set(_) => {}
     }
@@ -128,6 +142,7 @@ fn subject_class(classes: &Classes, subject: Subject, under: u8) -> Class {
 fn decides(class: Class, away: bool) -> bool {
     class == Class::Decide || (class == Class::Ask && away)
 }
+#[expect(clippy::too_many_lines, reason = "one reach checks the independent judgement and narrowing rules")]
 fn invariants(classes: &Classes, ask: &Ask<'_>, reach: Reach, seed: u64) {
     let mut subjects = vec![(Subject::Kind(ask.kind), subject_class(classes, Subject::Kind(ask.kind), ask.under))];
     let mut touched = 0;
@@ -165,7 +180,13 @@ fn invariants(classes: &Classes, ask: &Ask<'_>, reach: Reach, seed: u64) {
             assert_eq!(reach.class, Class::Wait, "seed {seed}: fixed wait");
             assert!(!reach.decided(), "seed {seed}: fixed never decided");
         }
-        Kind::Wording | Kind::Retry | Kind::Implementation | Kind::Tests | Kind::Dependency | Kind::Departure => {}
+        Kind::Wording
+        | Kind::Retry
+        | Kind::Implementation
+        | Kind::Tests
+        | Kind::Dependency
+        | Kind::Departure
+        | Kind::Findings => {}
     }
     let reason = match reach.reason {
         Reason::Kind => {
@@ -240,7 +261,11 @@ fn the_judgement_keeps_its_rules() {
         assert_eq!(classes.check(), Ok(()), "seed {seed}: generated table checks");
         for _ask in 0..32_u8 {
             let paths = random_paths(&classes, &mut rng);
-            let kind = *Kind::ALL.get(usize::try_from(rng.below(10)).expect("kind draw")).expect("kind");
+            let kind = *Kind::ALL
+                .get(
+                    usize::try_from(rng.below(u64::try_from(Kind::ALL.len()).expect("kind count"))).expect("kind draw"),
+                )
+                .expect("kind");
             let under = if rng.chance(500) {
                 u8::try_from(rng.below(256)).expect("any under")
             } else {
