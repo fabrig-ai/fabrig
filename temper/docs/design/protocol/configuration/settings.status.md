@@ -5,6 +5,7 @@
 
 - **Not yet:** 8: the forge's `ways` read gives no rules by path [in
   flight: change 872].
+- **Not yet:** 2: kind 20, the deployment's welcome, is not declared, and the welcome is the document's `application.welcome` [in flight: change 5814].
 
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

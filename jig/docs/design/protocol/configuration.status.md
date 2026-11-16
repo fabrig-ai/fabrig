@@ -4,6 +4,8 @@
 
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts.md`, 3.4) [in flight: change 928].
+- **Not yet:** 3.4: no member of the engine's part can be fixed: `engine` takes no `Fixed` [in flight: change 5811].
+- **Not yet:** 3.4: no member of a worker's part can be fixed: `worker` takes no `FixedWorker` [in flight: change 5813].
 
 - **Not yet:** 3 and 3.2: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7).
 - **Not yet:** 3: parts under a resuming charter (`../domain/tasks/standing.md`, 5.4).
