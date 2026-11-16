@@ -166,8 +166,9 @@ pub fn run(task: &c::Task) -> Option<Run> {
         }),
     }
 }
-// Jig's facts::reader is private; keep its person and project-role identity rule.
-fn reader(whom: c::Whom, project: u32, me: &c::Me) -> bool {
+/// Jig's person and project-role reader identity rule (client/pages/goal.md, 2).
+#[must_use]
+pub fn reader(whom: c::Whom, project: u32, me: &c::Me) -> bool {
     match whom {
         c::Whom::Person(person) => person == me.party.number,
         c::Whom::Role { project: held_project, role } => {

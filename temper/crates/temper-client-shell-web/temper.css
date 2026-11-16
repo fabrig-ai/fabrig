@@ -2478,6 +2478,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goals-state-needs { color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goals-state-running, #app:has(> .temper-rail) .temper-goals-state-planning { color: var(--gf-good); }
 #app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-closed, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goals-state-waits { color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
 #app:has(> .temper-rail) .temper-goals-filters button { padding: 5px 12px; border: 0; border-radius: 7px; background: none; font-size: 13px; color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px var(--gf-selection-shadow); }

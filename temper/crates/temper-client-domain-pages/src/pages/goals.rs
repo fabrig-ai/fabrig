@@ -396,6 +396,18 @@ impl Goals {
         }
         None
     }
+    /// The first selection goal is the need's own task; the rest are its ancestors (client/pages/work.md, 1).
+    #[must_use]
+    pub fn needs_own(&self, task: u64) -> bool {
+        if let Some(selection) = &self.selection {
+            for row in selection {
+                if row.goals.as_slice().first() == Some(&task) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
     #[must_use]
     pub fn needs_person(&self, task: u64) -> bool {
         if let Some(selection) = &self.selection {
@@ -427,10 +439,54 @@ pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
         executor: None,
     })
 }
+/// A chip's listed wait (temper/docs/design/client/pages/work.md, 1, Goals).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Wait {
+    pub first: u64,
+    pub second: Option<u64>,
+    pub count: u32,
+    pub more: bool,
+}
+
+/// The leading goal id (temper/docs/design/client/pages/work.md, 1, A goal's id).
+#[must_use]
+pub fn id(title: &[u8]) -> Option<&[u8]> {
+    let mut letters = 0_usize;
+    for byte in title {
+        if !byte.is_ascii_uppercase() {
+            break;
+        }
+        letters = letters.checked_add(1).expect("title fits");
+    }
+    if !(1..=3).contains(&letters) {
+        return None;
+    }
+    let rest = title.get(letters..)?;
+    let mut digits = 0_usize;
+    for byte in rest {
+        if !byte.is_ascii_digit() {
+            break;
+        }
+        digits = digits.checked_add(1).expect("title fits");
+    }
+    if !(1..=3).contains(&digits) {
+        return None;
+    }
+    let end = letters.checked_add(digits).expect("goal id fits");
+    if let Some(byte) = title.get(end)
+        && byte.is_ascii_alphanumeric()
+    {
+        return None;
+    }
+    title.get(..end)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Needs { funds: bool },
     Paused,
+    Waits(Wait),
+    WaitsForRoom,
     Planning,
     Running,
     Landed,
@@ -470,10 +526,20 @@ pub fn state(chip: &c::Chip, needs: bool, report: bool, delegates_total: u32) ->
                 return State::Paused;
             }
         }
-        c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Active(_)
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_) => {}
+        c::ChipPhase::Waiting { dependencies, more, holds } => {
+            if !dependencies.is_empty() || *more {
+                return State::Waits(Wait {
+                    first: dependencies.as_slice().first().copied().unwrap_or_default(),
+                    second: dependencies.get(1).copied(),
+                    count: dependencies.len(),
+                    more: *more,
+                });
+            }
+            if *holds {
+                return State::WaitsForRoom;
+            }
+        }
+        c::ChipPhase::Active(_) | c::ChipPhase::Person { .. } | c::ChipPhase::Closing(_) => {}
     }
     if !report && delegates_total == 0 { State::Planning } else { State::Running }
 }
@@ -484,15 +550,27 @@ pub fn shown(filter: GoalsFilter, state: State) -> bool {
         GoalsFilter::All => true,
         GoalsFilter::Needs => match state {
             State::Needs { .. } => true,
-            State::Paused | State::Planning | State::Running | State::Landed | State::Closed | State::Failed => false,
+            State::Paused
+            | State::Waits(_)
+            | State::WaitsForRoom
+            | State::Planning
+            | State::Running
+            | State::Landed
+            | State::Closed
+            | State::Failed => false,
         },
         GoalsFilter::Live => match state {
-            State::Paused | State::Planning | State::Running => true,
+            State::Paused | State::Waits(_) | State::WaitsForRoom | State::Planning | State::Running => true,
             State::Needs { .. } | State::Landed | State::Closed | State::Failed => false,
         },
         GoalsFilter::Ended => match state {
             State::Landed | State::Closed | State::Failed => true,
-            State::Needs { .. } | State::Paused | State::Planning | State::Running => false,
+            State::Needs { .. }
+            | State::Paused
+            | State::Waits(_)
+            | State::WaitsForRoom
+            | State::Planning
+            | State::Running => false,
         },
     }
 }

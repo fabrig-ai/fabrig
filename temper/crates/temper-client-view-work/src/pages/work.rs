@@ -321,7 +321,8 @@ fn goal(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             report.is_some(),
             line.delegates_total,
         );
-        text(b, Role::Paragraph, look::WORK_QUOTE, &super::goals::headline(words, line, state, report));
+        let names = super::goals::Names::of(root);
+        text(b, Role::Paragraph, look::WORK_QUOTE, &super::goals::headline(words, line, state, report, &names));
         if line.delegates_total > 0 {
             let label = words.say(
                 Word::GoalCount,

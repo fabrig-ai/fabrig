@@ -213,6 +213,60 @@ fn a_planning_goal_with_no_draft() {
 }
 
 #[test]
+fn a_waiting_goals_heading_and_state_use_its_document_dependencies() {
+    for (link, expected) in [
+        (c::TaskLink::Live(dependency(b"S6 retention by horizon")), "waits on S6"),
+        (c::TaskLink::Retained { chip: dependency(b"Fast service tests"), at: None }, "waits on Fast service tests"),
+        (c::TaskLink::Stored { number: 12, status: None }, "waits on task 12"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Party(fixtures::chat::PARTY))), "waits for you"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Party(999))), "waits on S6"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Role(0))), "waits on S6"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Role(1))), "waits for you"),
+    ] {
+        let mut task = document();
+        f::phase(
+            &mut task,
+            c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([12])), more: false, holds: false },
+        );
+        task.dependencies = List::from_boxed(Box::new([link]));
+        let mut sentence = crate::accounts::words::join(&[expected.as_bytes(), b"."]);
+        sentence[0].make_ascii_uppercase();
+        for report in [None, Some(note(b"A report still wins."))] {
+            let has_report = report.is_some();
+            let root = root(task.clone(), 0, 0, report, false);
+            for words in [fixtures::browser_words(), fixtures::words()] {
+                let tree = draw(&root, &words).0;
+                assert_eq!(
+                    heading(&tree).as_ref(),
+                    if has_report { b"The report's headline." } else { sentence.as_ref() }
+                );
+                if words.shell == crate::words::Shell::Browser {
+                    assert_eq!(styled_text(&tree, look::GOALS_STATE_WAITS).as_ref(), expected.as_bytes());
+                }
+            }
+        }
+    }
+    let mut task = document();
+    f::phase(&mut task, c::ChipPhase::Waiting { dependencies: List::uncapped(), more: false, holds: true });
+    assert_heading(task.clone(), 0, 0, b"Waits for its resources.");
+    assert_state(task, 0, false, b"waits for its resources", look::GOALS_STATE_WAITS);
+}
+
+fn dependency(title: &[u8]) -> c::Chip {
+    let mut chip = document().chip;
+    chip.task = 12;
+    chip.title = text(title);
+    chip
+}
+
+fn person_dependency(address: c::PersonAddress) -> c::Chip {
+    let mut chip = dependency(b"S6 retention by horizon");
+    chip.details.phase = c::ChipPhase::Person { address, taken_by: None, since: None };
+    chip.phase = c::Phase::Active;
+    chip
+}
+
+#[test]
 fn a_closed_goals_heading() {
     let mut task = document();
     let by = task.requester;

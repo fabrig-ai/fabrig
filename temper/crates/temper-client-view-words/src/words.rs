@@ -821,6 +821,11 @@ pub enum Word {
     GoalNeedsFunds,
     GoalNeedsYou,
     GoalPaused,
+    GoalWaitingYou,
+    GoalWaitingResources,
+    GoalWaitingPair,
+    GoalWaitingMore,
+    GoalWaitingSentence,
     GoalPlanning,
     GoalLanded,
     GoalDoneAt,
@@ -2164,7 +2169,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2714;
+const PHRASES: u32 = 2719;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2191,10 +2196,10 @@ const PHRASES: u32 = 2714;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4982;
+const SEGMENTS: u32 = 4995;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64562;
-const ALL: [Word; 1993] = [
+const ENGLISH_BYTES: u32 = 64629;
+const ALL: [Word; 1998] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2959,6 +2964,11 @@ const ALL: [Word; 1993] = [
     Word::GoalNeedsFunds,
     Word::GoalNeedsYou,
     Word::GoalPaused,
+    Word::GoalWaitingYou,
+    Word::GoalWaitingResources,
+    Word::GoalWaitingPair,
+    Word::GoalWaitingMore,
+    Word::GoalWaitingSentence,
     Word::GoalPlanning,
     Word::GoalLanded,
     Word::GoalDoneAt,
@@ -4989,6 +4999,11 @@ impl Word {
             Self::GoalNeedsFunds => 3254,
             Self::GoalNeedsYou => 3255,
             Self::GoalPaused => 3256,
+            Self::GoalWaitingYou => 3290,
+            Self::GoalWaitingResources => 3291,
+            Self::GoalWaitingPair => 3292,
+            Self::GoalWaitingMore => 3293,
+            Self::GoalWaitingSentence => 3294,
             Self::GoalPlanning => 3257,
             Self::GoalLanded => 3258,
             Self::GoalDoneAt => 4115,
@@ -7105,6 +7120,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
         Word::GoalNeedsYou => (&[b"needs you"], &[]),
         Word::GoalPaused => (&[b"paused by you"], &[]),
+        Word::GoalWaitingYou => (&[b"waits for you"], &[]),
+        Word::GoalWaitingResources => (&[b"waits for its resources"], &[]),
+        Word::GoalWaitingPair => (&[b"waits on ", b" and ", b""], &[Name, Name]),
+        Word::GoalWaitingMore => (&[b"waits on ", b"+ tasks"], &[Number]),
+        Word::GoalWaitingSentence => (&[b"", b"."], &[Name]),
         Word::GoalPlanning => (&[b"planning"], &[]),
         Word::GoalLanded => (&[b"landed ", b""], &[Name]),
         Word::GoalDoneAt => (&[b"done ", b""], &[Name]),

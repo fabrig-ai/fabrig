@@ -2407,6 +2407,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
             *phase = c::ChipPhase::Active(c::RunStage::Idle);
             line.chip.phase = c::Phase::Idle;
         }
+        GoalState::Waits(_) | GoalState::WaitsForRoom => unreachable!("gallery facts supply no waiting goal"),
         GoalState::Needs { funds: false } | GoalState::Running => {}
     }
     line

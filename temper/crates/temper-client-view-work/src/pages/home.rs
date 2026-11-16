@@ -290,6 +290,7 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     };
     b.open(Role::Slot);
     b.style(look::GOALS_ROWS);
+    let names = super::goals::Names::of(root);
     for line in live.iter().chain(goals.ended()).take(ROWS.max(live.len())) {
         let report = goals.report(line.chip.task);
         let state = temper_client_domain::pages::goals::state(
@@ -298,7 +299,7 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
             report.is_some(),
             line.delegates_total,
         );
-        super::goals::row(b, w, bindings, times, line, state, report);
+        super::goals::row(b, w, bindings, times, line, state, report, &names);
     }
     b.close();
     b.close();

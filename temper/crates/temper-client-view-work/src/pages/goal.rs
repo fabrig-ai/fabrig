@@ -45,6 +45,7 @@ pub(crate) fn main(
                     let bands = open_bands(root, words.shell);
                     let shown = Page {
                         task,
+                        names: super::goals::Names::dependencies(task, root.pages().me(root.client())),
                         report: goal.report.as_ref(),
                         draft: &goal.draft,
                         counts: goal.counts(task, ended),
@@ -209,6 +210,7 @@ fn funds_offered(asked: &ask::Asked<'_>) -> bool {
 
 struct Page<'a> {
     task: &'a c::Task,
+    names: super::goals::Names<'a>,
     report: Option<&'a Report>,
     draft: &'a (Option<Box<[u8]>>, Option<u64>),
     counts: Counts,
@@ -221,7 +223,7 @@ impl Page<'_> {
         self.meta(b, words, times);
         let headline = match self.report {
             Some(report) => report.headline.clone(),
-            None => fallback(words, goal::fallback(self.state, self.task, self.counts)),
+            None => fallback(words, goal::fallback(self.state, self.task, self.counts), &self.names, &self.task.chip),
         };
         text(b, Role::Heading { level: 1 }, &headline);
         byline(b, self.report, Word::GoalWrittenAt, words, times);
@@ -260,10 +262,10 @@ impl Page<'_> {
     }
 
     fn meta(&self, b: &mut Builder, words: &Words, times: &mut Times) {
-        let (state_word, token) = super::goals::state_word(self.state);
+        let (state_word, token) = super::goals::state_word(words, self.state, &self.names, &self.task.chip);
         let mut items = List::with_capacity(5);
         items.push(copy_of(self.task.chip.title.bytes())).expect("five meta items");
-        items.push(words.say(state_word, &[])).expect("five meta items");
+        items.push(state_word).expect("five meta items");
         if self.counts.total != 0 {
             items
                 .push(words.say(
@@ -381,7 +383,14 @@ impl Page<'_> {
                 }
                 b.close();
             }
-            State::Needs { .. } | State::Paused | State::Running | State::Landed | State::Closed | State::Failed => {
+            State::Needs { .. }
+            | State::Paused
+            | State::Waits(_)
+            | State::WaitsForRoom
+            | State::Running
+            | State::Landed
+            | State::Closed
+            | State::Failed => {
                 if let Some(report) = self.report {
                     for (word, value) in [(Word::GoalLeft, &report.left), (Word::GoalRisk, &report.risk)] {
                         if let Some(value) = value {
@@ -402,7 +411,12 @@ impl Page<'_> {
                             }
                             None => {}
                         },
-                        State::Needs { .. } | State::Paused | State::Planning | State::Running => {}
+                        State::Needs { .. }
+                        | State::Paused
+                        | State::Waits(_)
+                        | State::WaitsForRoom
+                        | State::Planning
+                        | State::Running => {}
                     }
                 }
             }
@@ -412,7 +426,7 @@ impl Page<'_> {
     }
 }
 
-fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
+fn fallback(words: &Words, value: Fallback, names: &super::goals::Names<'_>, chip: &c::Chip) -> Box<[u8]> {
     match value {
         Fallback::Planning { draft: Some(draft) } => words.say(Word::GoalPlanningDraft, &[Hole::Name(draft)]),
         Fallback::Planning { draft: None } => words.say(Word::GoalPlanningAsked, &[]),
@@ -421,6 +435,8 @@ fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
         Fallback::Landed { first_line: None } => words.say(Word::GoalLandedLine, &[]),
         Fallback::Failed { reason } => words.say(Word::GoalFailedReason, &[Hole::Name(reason)]),
         Fallback::Tasks(counts) => super::goals::tasks_done(words, counts.done, counts.total),
+        Fallback::Waits(wait) => super::goals::wait_sentence(words, State::Waits(wait), names, chip),
+        Fallback::WaitsForRoom => super::goals::wait_sentence(words, State::WaitsForRoom, names, chip),
     }
 }
 fn text(b: &mut Builder, role: Role, value: &[u8]) {

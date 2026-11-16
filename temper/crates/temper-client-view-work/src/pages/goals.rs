@@ -8,16 +8,115 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
-use skein_lib::List;
+use skein_lib::{List, Map, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, GoalsFilter,
     pages::{
         Act,
-        goals::{self, State},
+        goals::{self, Goals, State, Wait},
         report::Report,
     },
 };
+
+/// Names held by a page, extensible with further task lines (client/pages/work.md, 1).
+#[derive(Debug)]
+pub struct Names<'a> {
+    chips: Map<u64, &'a c::Chip>,
+    goals: Option<&'a Goals>,
+    me: Option<&'a c::Me>,
+}
+impl<'a> Names<'a> {
+    #[must_use]
+    #[expect(clippy::new_without_default, reason = "page-local names use an explicit constructor")]
+    pub fn new() -> Self {
+        Self { chips: Map::uncapped(), goals: None, me: None }
+    }
+    #[must_use]
+    pub fn of(root: &'a Domain) -> Self {
+        let mut names = Self::new();
+        names.goals = root.pages().goals();
+        if let Some(page) = names.goals {
+            if let Some(live) = page.live(root.client()) {
+                for line in &live.rows {
+                    names.add(line);
+                }
+            }
+            for line in page.ended() {
+                names.add(line);
+            }
+        }
+        names
+    }
+    pub fn add(&mut self, line: &'a c::TaskLine) {
+        self.chips.insert(line.chip.task, &line.chip).expect("held task names fit");
+    }
+    pub(crate) fn dependencies(task: &'a c::Task, me: Option<&'a c::Me>) -> Self {
+        let mut names = Self::new();
+        names.me = me;
+        for link in &task.dependencies {
+            match link {
+                c::TaskLink::Live(chip) | c::TaskLink::Retained { chip, .. } => {
+                    names.chips.insert(chip.task, chip).expect("document dependency names fit");
+                }
+                c::TaskLink::Stored { .. } => {}
+            }
+        }
+        names
+    }
+    fn title(&self, task: u64) -> Option<Box<[u8]>> {
+        let title = self.chips.get(&task)?.title.bytes();
+        Some(match goals::id(title) {
+            Some(id) => copy_of(id),
+            None => crate::common::chat::cut_title(title, 40, false),
+        })
+    }
+    fn yours(&self, task: u64) -> bool {
+        if let Some(goals) = self.goals {
+            return goals.needs_own(task);
+        }
+        if let Some(chip) = self.chips.get(&task)
+            && let c::ChipPhase::Person { address, .. } = chip.details.phase
+            && let Some(me) = self.me
+        {
+            let project = chip.details.details.project;
+            let whom = match address {
+                c::PersonAddress::Party(party) => c::Whom::Person(party),
+                c::PersonAddress::Role(role) => c::Whom::Role { project, role },
+            };
+            return temper_client_domain::pages::task::reader(whom, project, me);
+        }
+        false
+    }
+    fn wait(&self, words: &Words, wait: Wait, chip: &c::Chip) -> Box<[u8]> {
+        if let c::ChipPhase::Waiting { dependencies, .. } = &chip.details.phase {
+            for task in dependencies {
+                if self.yours(*task) {
+                    return words.say(Word::GoalWaitingYou, &[]);
+                }
+            }
+        }
+        if !wait.more {
+            if wait.count == 1 {
+                return match self.title(wait.first) {
+                    Some(title) => words.say(Word::GoalWaitsTitle, &[Hole::Name(title)]),
+                    None => words.say(Word::GoalWaitsTask, &[Hole::Number(wait.first)]),
+                };
+            }
+            if wait.count == 2
+                && let Some(first) = self.title(wait.first)
+                && let Some(second_task) = wait.second
+                && let Some(second) = self.title(second_task)
+            {
+                return words.say(Word::GoalWaitingPair, &[Hole::Name(first), Hole::Name(second)]);
+            }
+        }
+        words.say(
+            if wait.more { Word::GoalWaitingMore } else { Word::GoalWaitsTasks },
+            &[Hole::Number(u64::from(wait.count))],
+        )
+    }
+}
 
 pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     b.open(Role::Main);
@@ -47,7 +146,12 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
                 line.delegates_total,
             );
             match state {
-                State::Needs { .. } | State::Running | State::Planning | State::Paused => {
+                State::Needs { .. }
+                | State::Running
+                | State::Planning
+                | State::Paused
+                | State::Waits(_)
+                | State::WaitsForRoom => {
                     underway = underway.checked_add(1).expect("goal rows fit");
                 }
                 State::Landed | State::Closed | State::Failed => {}
@@ -140,6 +244,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             b.close();
         }
         b.close();
+        let names = Names::of(root);
         let mut any = false;
         for line in live.rows.iter().chain(page.ended()) {
             let report = page.report(line.chip.task);
@@ -151,7 +256,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
                     b.style(look::GOALS_ROWS);
                     any = true;
                 }
-                row(b, words, bindings, times, line, state, report);
+                row(b, words, bindings, times, line, state, report, &names);
             }
         }
         if any {
@@ -178,20 +283,37 @@ fn text(b: &mut Builder, role: Role, style: skein_ui::Style, value: &[u8]) {
 }
 
 /// A goal's state word and token (client/pages/README.md, client/pages/goal.md, 2).
-pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
-    match state {
+pub(crate) fn state_word(
+    words: &Words,
+    state: State,
+    names: &Names<'_>,
+    chip: &c::Chip,
+) -> (Box<[u8]>, skein_ui::Style) {
+    let (word, token) = match state {
         State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
         State::Needs { funds: false } => (Word::GoalNeedsYou, look::GOALS_STATE_NEEDS),
         State::Paused => (Word::GoalPaused, look::GOALS_STATE_PAUSED),
+        State::Waits(wait) => return (names.wait(words, wait, chip), look::GOALS_STATE_WAITS),
+        State::WaitsForRoom => (Word::GoalWaitingResources, look::GOALS_STATE_WAITS),
         State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
         State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
         State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
         State::Closed => (Word::GoalClosed, look::GOALS_STATE_CLOSED),
         State::Failed => (Word::GoalFailed, look::GOALS_STATE_CLOSED),
+    };
+    (words.say(word, &[]), token)
+}
+
+pub(crate) fn wait_sentence(words: &Words, state: State, names: &Names<'_>, chip: &c::Chip) -> Box<[u8]> {
+    let (mut word, _) = state_word(words, state, names, chip);
+    if let Some(first) = word.first_mut() {
+        first.make_ascii_uppercase();
     }
+    words.say(Word::GoalWaitingSentence, &[Hole::Name(word)])
 }
 
 /// One goal links its title, state and report to its task (client/pages/README.md).
+#[expect(clippy::too_many_arguments, reason = "the shared row takes its held names alongside the report and state")]
 pub(crate) fn row(
     b: &mut Builder,
     words: &Words,
@@ -200,18 +322,19 @@ pub(crate) fn row(
     line: &c::TaskLine,
     state: State,
     report: Option<&Report>,
+    names: &Names<'_>,
 ) {
     if words.shell == Shell::Terminal {
         b.open(Role::Slot);
     }
-    let (word, token) = state_word(state);
+    let (word, token) = state_word(words, state, names, &line.chip);
     let status = if state == State::Landed {
         match line.ended_at {
             Some(at) => words.say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, at))]),
-            None => words.say(word, &[]),
+            None => word,
         }
     } else {
-        words.say(word, &[])
+        word
     };
     let count = if line.delegates_total == 0 {
         Box::default()
@@ -230,7 +353,12 @@ pub(crate) fn row(
     b.style(look::GOALS_ROW);
     match state {
         State::Landed | State::Closed | State::Failed => b.style(look::GOALS_ROW_ENDED),
-        State::Needs { .. } | State::Paused | State::Planning | State::Running => {}
+        State::Needs { .. }
+        | State::Paused
+        | State::Waits(_)
+        | State::WaitsForRoom
+        | State::Planning
+        | State::Running => {}
     }
     match words.shell {
         Shell::Browser => {
@@ -257,7 +385,7 @@ pub(crate) fn row(
     }
     b.open(if words.shell == Shell::Browser { Role::Text } else { Role::Paragraph });
     b.style(look::GOALS_LINE);
-    let headline = headline(words, line, state, report);
+    let headline = headline(words, line, state, report, names);
     match words.shell {
         Shell::Browser => b.run(Run::Plain, &headline),
         Shell::Terminal => b.text(Run::Plain, &headline),
@@ -266,11 +394,18 @@ pub(crate) fn row(
     b.close();
 }
 
-pub(crate) fn headline(words: &Words, line: &c::TaskLine, state: State, report: Option<&Report>) -> Box<[u8]> {
+pub(crate) fn headline(
+    words: &Words,
+    line: &c::TaskLine,
+    state: State,
+    report: Option<&Report>,
+    names: &Names<'_>,
+) -> Box<[u8]> {
     if let Some(report) = report {
         return report.headline.clone();
     }
     let word = match state {
+        State::Waits(_) | State::WaitsForRoom => return wait_sentence(words, state, names, &line.chip),
         State::Planning => Word::GoalPlanningLine,
         State::Needs { .. } => {
             if line.delegates_total == 0 {
@@ -298,7 +433,12 @@ fn progress(b: &mut Builder, words: &Words, line: &c::TaskLine, state: State) {
     }
     let ongoing = match state {
         State::Landed | State::Closed | State::Failed => false,
-        State::Needs { .. } | State::Paused | State::Planning | State::Running => true,
+        State::Needs { .. }
+        | State::Paused
+        | State::Waits(_)
+        | State::WaitsForRoom
+        | State::Planning
+        | State::Running => true,
     };
     b.open(Role::Figure);
     b.style(look::GOAL_BAR);

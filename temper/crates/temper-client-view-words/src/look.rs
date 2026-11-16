@@ -186,6 +186,8 @@ pub const GOALS_STATE_RUNNING: Style = Style { owner: owner(), token: 290 };
 pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 291 };
 /// A goal paused by the person (client/pages/README.md).
 pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 292 };
+/// A goal waiting for dependencies or resources (client/pages/work.md, 1).
+pub const GOALS_STATE_WAITS: Style = Style { owner: owner(), token: 793 };
 /// A landed goal (client/pages/README.md).
 pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 293 };
 /// A closed or failed goal (client/pages/README.md).
@@ -1526,6 +1528,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-group-context",
         b"temper-group-card",
         b"temper-finding-title",
+        b"temper-goals-state-waits",
     ],
     regions: &[b"temper-link"],
 };

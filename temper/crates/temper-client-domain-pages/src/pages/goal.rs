@@ -406,6 +406,8 @@ pub enum Fallback {
     Landed { first_line: Option<Box<[u8]>> },
     Failed { reason: Box<[u8]> },
     Tasks(Counts),
+    Waits(goals::Wait),
+    WaitsForRoom,
 }
 #[must_use]
 pub fn fallback(state: goals::State, task: &c::Task, counts: Counts) -> Fallback {
@@ -418,6 +420,8 @@ pub fn fallback(state: goals::State, task: &c::Task, counts: Counts) -> Fallback
         },
         goals::State::Closed => Fallback::Closed,
         goals::State::Failed => Fallback::Failed { reason: bytes::copy_of(said(task).unwrap_or_default()) },
+        goals::State::Waits(wait) => Fallback::Waits(wait),
+        goals::State::WaitsForRoom => Fallback::WaitsForRoom,
         goals::State::Planning => planning(task),
         goals::State::Needs { .. } | goals::State::Paused | goals::State::Running => {
             if counts.total == 0 {
@@ -463,7 +467,12 @@ pub fn landing(state: goals::State, task: &c::Task, ended_at: Option<Wall>, coun
         goals::State::Landed => Landing::Landed(ended_at),
         goals::State::Closed => Landing::Closed,
         goals::State::Failed => Landing::Failed,
-        goals::State::Needs { .. } | goals::State::Paused | goals::State::Planning | goals::State::Running => {
+        goals::State::Needs { .. }
+        | goals::State::Paused
+        | goals::State::Waits(_)
+        | goals::State::WaitsForRoom
+        | goals::State::Planning
+        | goals::State::Running => {
             if holds_branch(task) {
                 Landing::Whole { total: counts.total }
             } else {
