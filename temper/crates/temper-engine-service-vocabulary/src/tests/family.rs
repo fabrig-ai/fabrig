@@ -616,6 +616,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
 }
 fn panel() -> forge::Panel {
     forge::Panel {
+        wait: None,
         way: change::Way::Queue,
         in_landing: None,
         task: CHANGE_TASK,
@@ -673,6 +674,14 @@ fn decoded_panel(value: forge::Panel, forges: &crate::forges::Forges) -> w::Chan
     let bytes = family::panel(value, forges, &w::CEILINGS).unwrap();
     wire::decode_change_panel(&bytes, &w::CEILINGS).expect("whole panel at CLIENT_VERSION")
 }
+#[test]
+fn a_panel_encodes_its_outbox_wait_or_none() {
+    for (wait, expected) in [(Some(forge::PanelWait::OutboxRoom), Some(w::ChangeWait::OutboxRoom)), (None, None)] {
+        let mut value = panel();
+        value.wait = wait;
+        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).wait(), expected);
+    }
+}
 fn queued(place: u32, tasks: &[u64]) -> w::Step {
     let mut ahead = List::with_capacity(wire::TASKS_AHEAD);
     for task in tasks {
@@ -694,6 +703,7 @@ fn a_panel_encodes_and_decodes_back_whole() {
     let expected = w::ChangePanel::new(
         &w::CEILINGS,
         w::ChangePanelParts {
+            wait: None,
             way: w::Way::Queue,
             in_landing: None,
             task: CHANGE_TASK,

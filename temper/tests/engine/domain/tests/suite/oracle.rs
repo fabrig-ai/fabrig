@@ -104,6 +104,7 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
         pull: None,
         step: PanelStep::Checking,
         hold: None,
+        wait: None,
         runs: None,
         ci_required: true,
         ci: Status::Pending,

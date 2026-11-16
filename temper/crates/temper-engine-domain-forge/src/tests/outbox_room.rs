@@ -112,7 +112,7 @@ fn entries(out: &[Request]) -> Box<[skein_forge_client::Entry]> {
     entries.into_boxed()
 }
 
-fn free_one(d: &mut Domain) -> Box<[Request]> {
+pub(super) fn free_one(d: &mut Domain) -> Box<[Request]> {
     outputs(d, Event::Withdraw { entry: 1 })
 }
 

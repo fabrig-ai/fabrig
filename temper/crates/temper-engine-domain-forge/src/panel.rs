@@ -94,6 +94,7 @@ impl Domain {
             pull: row.pull,
             step,
             hold,
+            wait: if row.room.is_some() { Some(PanelWait::OutboxRoom) } else { None },
             runs: match row.delegate {
                 Some((task, _)) => Some(task),
                 None => None,

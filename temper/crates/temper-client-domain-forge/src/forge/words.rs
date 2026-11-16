@@ -865,9 +865,10 @@ pub enum ChangeWord {
     RepairLanding,
     ProbingByTest,
     ProbingByTestAt,
+    OutboxRoom,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 138] = [
+pub const CHANGES: [ChangeRow; 139] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -911,6 +912,7 @@ pub const CHANGES: [ChangeRow; 138] = [
     (ChangeWord::LandingLine, &[b"Merging at its head."], &[]),
     (ChangeWord::LandedLine, &[b"Landed \xc2\xb7 merge commit ", b""], &[Name]),
     (ChangeWord::Held, &[b"Held while ", b": ", b"."], &[Name, Name]),
+    (ChangeWord::OutboxRoom, &[b"Waiting for room in the forge outbox."], &[]),
     (ChangeWord::HeldProducing, &[b"producing"], &[]),
     (ChangeWord::HeldOpening, &[b"opening"], &[]),
     (ChangeWord::HeldRecreating, &[b"recreating"], &[]),
@@ -1149,6 +1151,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::HeldCleared
         | ChangeWord::HeldUncleared
         | ChangeWord::Stalled
+        | ChangeWord::OutboxRoom
         | ChangeWord::RepairsSpent
         | ChangeWord::QuestionsSpent
         | ChangeWord::ResolutionsSpent

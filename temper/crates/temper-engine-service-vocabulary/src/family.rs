@@ -707,6 +707,10 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             pull,
             step: panel_step(value.step, limits)?,
             hold: panel_hold(value.hold),
+            wait: match value.wait {
+                Some(forge::PanelWait::OutboxRoom) => Some(w::ChangeWait::OutboxRoom),
+                None => None,
+            },
             runs: value.runs,
             ci_required: value.ci_required,
             ci: match value.ci {

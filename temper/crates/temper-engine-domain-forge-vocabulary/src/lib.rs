@@ -106,7 +106,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};

@@ -104,6 +104,11 @@ pub struct PanelApproval {
     pub remaining: Option<u32>,
     pub refused: bool,
 }
+/// Why a change waits (domain/forge/room.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PanelWait {
+    OutboxRoom,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Panel {
     pub way: change::Way,
@@ -118,6 +123,7 @@ pub struct Panel {
     pub pull: Option<u64>,
     pub step: PanelStep,
     pub hold: Option<change::Hold>,
+    pub wait: Option<PanelWait>,
     pub runs: Option<u64>,
     pub ci: change::Status,
     /// Whether this repository and its effective landing rules ask for CI.
