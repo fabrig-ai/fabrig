@@ -207,6 +207,12 @@ task logs this read has fetched. The jobs' pages read the map alone
   (`transcripts.md`, 6). A record past what is left of a page is read
   whole alone, its fields kept and its bytes left out, as a cut turn is.
   A record skein-kv cannot give is a frame unread.
+- **One record per demand:** forwards and backwards, the reader asks
+  `ReadLog` for at most one record, so skein-kv checks and inflates no
+  later record before this one's body is consumed. A body's decode
+  that stops at a written patch site ends that step; the next record
+  is demanded only after the frame completes. A record returned cut
+  is retried alone under the whole-page byte bound.
 - **No cut at open:** skein-kv's extent leaves a torn tail as garbage
   (skein's `data/kv.md`, 6.2), so a turns log needs none of
   `transcripts.md`, 4.
