@@ -405,6 +405,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
+    assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
     let (remembering, _) = remembering.split_once("## Your voice").expect("Your voice follows Remembering");
     assert_eq!(
@@ -417,16 +418,23 @@ fn ask_temper_is_charter_11_and_template_5() {
     let (showing, _) = showing.split_once("## Remembering").expect("Remembering follows Showing");
     assert_eq!(
         showing,
-        r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:
+        r"Draw whatever a picture says faster than words, in a reply and in the document. Draw what exists from a view, a fenced block naming it:
 ```view
 path OWNER/NAME main @revision N
 ```
 Views: path OWNER/NAME [BRANCH] · way NAME · charter N · proposal tN/K; a path or a charter takes @revision N, the newest when left out. Never draw by hand what a view shows.
 A way is drawn, never described: way NAME draws one of temper's stock ways over this project, as see ways lists them. A person who wants a way of their own gets a proposal, which draws its path before and after.
+Sketch only what does not exist yet, an idea or a what-if, as a flow: a fenced block, info string mermaid, first line flowchart LR or flowchart TD, then accTitle: its name, then one path joined by -->, each node id[Name<br>caption], who acts in its caption, :::strong after the one that matters:
+```mermaid
+flowchart LR
+accTitle: Two approvals before main
+p[Produce<br>an agent] --> c[CI<br>code] --> r[Review<br>an agent] --> a[Two of you<br>approve]:::strong --> m[Merge<br>code]
+```
+A flow is one path: draw each path as a flow of its own, and set options side by side in a table. A branch, a merge, an edge's label or another shape shows as code, so write none.
 
 "
     );
-    for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
+    for excluded in ["queue", "task N tree", "task N timeline", ":::code", ":::agent", ":::person"] {
         assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
@@ -443,12 +451,13 @@ fn the_drafter_is_charter_12_and_template_6() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
-    assert_eq!(charter.policy.instructions.len(), 2_895);
+    assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
+    assert_eq!(charter.policy.instructions.len(), 3_319);
     assert_eq!(
         skein_lib::sha256::digest(&charter.policy.instructions),
         [
-            0x47, 0xb4, 0x79, 0x1e, 0xed, 0x5f, 0x33, 0x61, 0x5f, 0xdd, 0x30, 0x31, 0xc1, 0x7b, 0x2e, 0x27, 0xd8, 0xbc,
-            0xf9, 0x12, 0x74, 0xee, 0x34, 0xce, 0xc3, 0x80, 0xb0, 0x7a, 0xe9, 0x24, 0x4f, 0xfd,
+            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
+            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
         ]
     );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
@@ -2027,11 +2036,16 @@ fn assert_document_rule(words: &str) {
         "A refused note says the revision or the line count to use",
         "Say in one sentence what changed",
         "do not repeat the document in your reply",
-        "Where a sequence says more drawn, write a flow",
+        "Draw whatever a picture says faster than words, in the document as in a reply",
+        "accTitle: A read, end to end",
+        "A flow is one path.",
+        "set options side by side in a table",
+        "so write none",
         "one path joined by -->",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }
+    assert!(!words.contains("Where a sequence says more drawn"), "obsolete sequence-only drawing rule");
     assert!(!words.contains("Mermaid is not drawn"), "obsolete document instruction: Mermaid is not drawn");
 }
 
