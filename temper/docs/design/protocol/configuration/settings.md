@@ -397,6 +397,36 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     and the forge's `findings` subject (`../../client/forge/records.md`);
     a save of either moves the findings it concerns, and tells their new
     owners (`../../domain/areas.md`, section 5).
+- **The deployment's welcome, kind 20** (`../../draft/config.md`, 6.5;
+  `moved.md`, section 4), which was the document's `application.welcome`:
+  a kind of temper's beside the table's, owned by the forge's connector
+  and kept, read and never pinned as kind 9 is. Kinds 16 to 19 are left to
+  the configuration's other milestones, which run beside the one that
+  made it (`../../draft/config.execution.md`):
+  - *its scope and number:* the deployment's, number 1; decided by the
+    deployment's owners;
+  - *its value,* a `Welcome` record in temper's codec, `shown`, a bool:
+    whether the welcome shows (`../../client/pages/README.md`) and the
+    deployment offers the playground (`../setup/playground.md`). Its
+    bound, the kind's, is its encoding;
+  - *its default,* from how the deployment was made: shown under the box,
+    whose `temper-box internal serve` is given `--box` at every start
+    (`../setup/box.md`, 1), as a deployment `temper-box init --box` made
+    is; not shown otherwise. The root gives it with the stock's defaults
+    at each start (2), so a deployment made by `temper-box init` and
+    served by a hand-written unit shows none until an owner sets it;
+  - *judged by the forge,* as the table's kinds are: a value that does not
+    decode. A removal or a reset is always good, back to the default;
+  - *named* `welcome`, with no scope, in a settings file and a run's
+    `settings`, `see` and `propose_settings`; its value `{"shown": true}`;
+    read by any signed-in party, as the deployment's read is
+    (`../../client/forge/records.md`);
+  - *read at once* by the deployment's read, whose `welcome` is the
+    setting's current value, so a change reaches each client as any change
+    of that read does, and by `StartPlayground`, refused *not offered*
+    while the welcome isn't shown (`../setup/playground.md`). The
+    playground is configured at start whatever the welcome says, so that
+    turning it on offers the playground with no restart.
 
 ## 3. How the landing rules are enforced
 

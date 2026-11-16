@@ -54,6 +54,11 @@ when configuration is read. What is still open is listed in section 8.
   (`configuration.md`, section 7). One that passes its own has those four members refused
   as unknown, each naming its path and that its setting lives in the
   store, so that no document seems to configure what it does not.
+- **An application may fix members** as its constants (3.4): the
+  deployment's directory and seed, the identity providers, the
+  connectors, the acts, the seeded projects, the clients' heartbeat,
+  link and approval, and a worker's graces and programs. A document
+  naming one is refused, naming its path.
 - **Templates are data the engine serves and never expands.** The
   application's shapes of work (jig's chat and goal among them) are
   numbered templates among the settings; a project's policy may override some
@@ -411,6 +416,47 @@ no `ended_by` key.
 - **Checked at start:** the list's shape and bound, and no pair twice.
   Whether a connector offers a symbol is the connector's to say, at the
   batch.
+
+### 3.4 Members an application fixes
+
+An application may fix some of jig's members as its own constants, so
+that its documents stop carrying values nobody changes (temper's
+`protocol/configuration/moved.md`). It passes them to the parser, as it
+passes its settings' defaults (section 1); jig's reference binary passes
+none and reads every member as the tables above and section 4 give them.
+
+- **What may be fixed,** each on its own: of the engine's part,
+  `deployment` (its directory and its seed), `providers`, `connectors`,
+  `acts`, `projects` (fixed as none: the first start seeds no project,
+  and projects are made at runtime, `../domain/people/acts.md`, 2), and
+  `clients`' `heartbeat_ms`, `link` and `approval` together; of the
+  worker's part, `graces` and `programs` (its `check_interval_ms`).
+- **A fixed member is refused** where a document names it, naming its
+  path, as an unknown member is (section 1), with `What::Fixed`: the
+  application's words say where it went. A part left with no member, the
+  worker's `programs`, is refused whole; `clients` keeps `provider`, and
+  is optional once its other members are fixed: absent, it has no
+  provider.
+- **A fixed value is checked as a document's would be,** and joins the
+  start's checks across the whole (section 7) as if read: an owner's
+  provider among the fixed providers, an act's connector among the fixed
+  connectors, the printed link's loopback check. A fixed value that
+  fails one is the application's fault, refused at start by the path its
+  member would have, so that a test of the application's constants finds
+  it.
+- **The contract,** in `jig-protocol-config`: a value `Fixed` given to
+  `engine` beside `Defaults`, each member an `Option`, `None` read from
+  the document: `deployment: Option<Deployment>`, `providers:
+  Option<Box<[IdentityProvider]>>`, `connectors: Option<Box<[u16]>>`,
+  `acts: Option<Box<[ActGrant]>>`, `projects: Option<Box<[Project]>>`
+  (`Some` of none alone), and `clients: Option<FixedClients>`, a
+  `FixedClients { heartbeat, link, approval }` of the types `Clients`
+  has them; and a value `FixedWorker` given to `worker`, `graces:
+  Option<Graces>` and `check_interval: Option<Duration>` of the types
+  `Worker` has them, the hub's `source_interval` following
+  `check_interval` as it does when read. `Fixed::NONE` and
+  `FixedWorker::NONE` fix nothing. The typed `Engine` and `Worker` are
+  unchanged: a fixed member's field holds the fixed value.
 
 ## 4. jig's part for a worker
 

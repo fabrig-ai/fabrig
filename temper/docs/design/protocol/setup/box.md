@@ -597,12 +597,12 @@ ever, its kind and its refusals its own. `temper-box forge remove` reads the
 file alone, and refuses a forge with none: it removes a directory by
 its kind, which it does not guess.
 
-The welcome follows the document under every arrangement, its member
-`application.welcome` (../configuration/engine.md), and never `--box`,
-which only the box gives `temper-box internal serve`, for its pipe. A unit
-running `temper box` shows the welcome as any box does; one running
-`temper-box serve` on a hand-written document shows it only if that document
-asks.
+The welcome is a setting (../configuration/settings.md, 2, kind 20),
+shown by default under the box: `--box`, which only the box gives
+`temper-box internal serve`, tells its default as it tells serve to
+take its pipe. A unit running `temper box` shows the welcome as any box
+does; one running `temper-box serve` shows it only once an owner sets
+it.
 
 - **systemd,** a unit for `temper box`, whose own stop stops its tree
   (2), or one for `temper-box serve` alone; `temper-box serve`'s
