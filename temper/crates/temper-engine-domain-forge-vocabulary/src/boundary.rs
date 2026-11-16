@@ -2571,6 +2571,7 @@ pub enum Request {
     StatusRun {
         project: u32,
         words: Box<[u8]>,
+        findings: Box<[u8]>,
         signers: Box<[u64]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.

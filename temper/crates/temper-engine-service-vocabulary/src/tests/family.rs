@@ -3617,6 +3617,7 @@ fn looked_and_status_translate_both_ways() {
                 lede: b"The work landed.".as_slice().into(),
                 at: skein_lib::Wall::from_nanos(234),
                 landed: 5,
+                findings: Some([7; 32]),
             }),
             Some(skein_lib::Wall::from_nanos(345)),
         ),

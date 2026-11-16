@@ -553,6 +553,7 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
             lede: temper_codecs_world::drawn(rng, 600).into_boxed_slice(),
             at: Wall::from_nanos(rng.next_u64()),
             landed: rng.next_u64(),
+            findings: if rng.below(2) == 0 { None } else { Some([u8::try_from(rng.below(256)).expect("byte"); 32]) },
         })
     };
     let running = if rng.below(2) == 0 {
@@ -562,6 +563,7 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
             task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
             landed: rng.next_u64(),
             since: Wall::from_nanos(rng.next_u64()),
+            findings: if rng.below(2) == 0 { None } else { Some([u8::try_from(rng.below(256)).expect("byte"); 32]) },
         })
     };
     let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
