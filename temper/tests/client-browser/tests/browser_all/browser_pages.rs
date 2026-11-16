@@ -151,10 +151,14 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     steps.extend(reload_chats(&tier));
     stories.begin("night across a reload", &steps);
     steps.extend([
+        // Away adds a button before the rail's other children when its project facts arrive.
+        // Wait for that frame before finding Night mode, whose old node can become the hidden phone chip.
+        see(Find::exactly_named(Role::Button, b"Away")),
         press(Role::Button, b"Night mode"),
         pressed(b"Night mode"),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats") }),
         pressed(b"Night mode"),
+        see(Find::exactly_named(Role::Button, b"Away")),
         press(Role::Button, b"Night mode"),
     ]);
     stories.begin("history", &steps);
@@ -183,6 +187,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         // This chat read docs without starting work; its Work filter is empty.
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(Find::exactly_named(Role::Button, b"Closed")),
+        // This project's ways offer drafts; their filter arrives before Closed and moves it.
+        see(Find::exactly_named(Role::Button, b"Drafts")),
         press(Role::Button, b"Closed"),
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats?state=closed") }),
