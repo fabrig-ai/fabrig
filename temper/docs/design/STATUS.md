@@ -133,7 +133,10 @@ build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
 `batch` of two. Its passes follow landing; QA gaps are filed for people
-with no goal, then reopened for judgement by a closing landing
+with no goal, then reopened for judgement by a closing landing. By goal
+5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
+model as the person's account and scripts its reviews' approving
+verdicts, so that a ctl case's change lands by the stock rule
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
 `testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 

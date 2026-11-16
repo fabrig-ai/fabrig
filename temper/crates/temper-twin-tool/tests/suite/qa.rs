@@ -1,4 +1,4 @@
-//! One source for the twins and their QA scripts (testing/qa/setups.md, 4–5).
+//! One source for the twins and their QA scripts (testing/qa/setups.md, 2, 4–5).
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -13,6 +13,30 @@ fn b1_plan_scripts_are_exactly_the_twins_cued_and_asked_in_box_form() {
         setup == json!({"cued":fixture["cued"], "asked":fixture["asked"]}),
         "only the fixture's cued and asked, with no otherwise"
     );
+    temper_fake::llm::Document::decode_with_scripts(&twin, Some(&scripts)).expect("box --scripts form");
+}
+
+#[test]
+fn ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let twin = std::fs::read(root.join("tests/real-loop/tests/fixtures/b0/llm.json")).expect("B0 twin");
+    let scripts =
+        std::fs::read(root.join("docs/development/qa/setups/ctl-hello/scripts.json")).expect("ctl-hello scripts");
+    let fixture: Value = serde_json::from_slice(&twin).expect("fixture JSON");
+    let setup: Value = serde_json::from_slice(&scripts).expect("setup JSON");
+    let mut review = fixture["cued"]
+        .as_array()
+        .expect("cued")
+        .iter()
+        .find(|script| script["cue"] == "Review this change at the named head")
+        .expect("review")
+        .clone();
+    let last = review["turns"].as_array_mut().expect("turns").last_mut().expect("last turn");
+    let finish = last["lines"].as_array_mut().expect("lines").last_mut().expect("finish line");
+    assert_eq!(finish["call"], "finish");
+    finish["arguments"]["text"] =
+        json!("Approve. QA's scripted review read the pull request, the files it changes and its checks.");
+    assert_eq!(setup, json!({"cued": [review]}), "only B0's review, all but its verdict text");
     temper_fake::llm::Document::decode_with_scripts(&twin, Some(&scripts)).expect("box --scripts form");
 }
 
