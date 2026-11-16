@@ -263,7 +263,7 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(recipe.config.len(), 5);
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [b"ctl project show Hello".as_slice(), b"ctl forge list", b"ctl forge repositories 1"]
+        [b"ctl project show Hello".as_slice(), b"ctl forge list --until made:1", b"ctl forge repositories 1"]
     );
 
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");

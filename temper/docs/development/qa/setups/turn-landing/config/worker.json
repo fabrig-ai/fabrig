@@ -28,6 +28,8 @@
         "profile": "standard",
         "overrides": {
           "hub.slots": 2,
+          "hub.accounts": 4,
+          "hub.inbox": 8,
           "tasks.result_bytes": 4096,
           "hub.event_bytes": 10660,
           "hub.outcome_bytes": 10662,
@@ -51,6 +53,7 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "checkout.message_bytes": 10662,
         "root.journal.transcript_bytes": 4194304,
         "root.loads.bytes": 1334279,
         "root.loads.reply_bytes": 1334279,
