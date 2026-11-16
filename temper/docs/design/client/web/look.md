@@ -244,12 +244,20 @@
   area (`../pages/README.md` and `../view.md`, 3). Needs you's open card takes the top bar
   with its own, `temper-needs-bar` (`../pages/README.md`, *Needs you*), as a
   chat's bar does, the night switch keeping its place. Over 760 px the
-  link's state is one word with its dot, 12.5 px, at the right of the rail's
+  link's state is one word with its dot at the right of the rail's
   first row, temper's name's, out of the foot's flow: "Live"; "Behind", its
   dot amber, in place of "Live" while a page's watch reopens; or
   "Connecting" or "Offline" alone, so that the foot's height and place
   never move with it (`../view.md`, 3; the look request `rail-word`). Its
   rules replace, where it stood, the one that hid the live link's region.
+  The word is the foot's 13.5 px on temper's own 24 px line, so that the
+  two baselines meet, and every state's dot, Live's too, is 7 px, as tall
+  as the word's lowercase letters, sitting on the baseline (the look
+  request `rail-word-line`, 2026-11-16). Its rule outweighs the foot's
+  rule for the foot's items, wherever the two stand in the file, by one
+  more attribute in its selector (`[role=status].temper-behind`), so that
+  the foot's 6 by 10 px padding never reaches it; a phone's top bar keeps
+  its dots as they are.
   The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`../pages/README.md` and `../view.md`, 3
