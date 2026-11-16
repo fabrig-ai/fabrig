@@ -310,13 +310,16 @@
       task", "it is an implementation choice", "it changes only tests", "it
       adds a dependency", "it departs from a landed design", "it spends
       money past a budget", "it can’t be undone", "it changes what reaches
-      you" (`rules`), "no kind of decision names it" (`other`); for a reason
+      you" (`rules`), "no kind of decision names it" (`other`), "it starts
+      work on findings" (`findings`, `../../draft/home-for-a-person.md`,
+      5); for a reason
       `set`, "it changes NAME", NAME the set's name in the project's classes
       (`settings.md`, 2), or "one of PROJECT’s path sets" until they are read. With
       `under` an item with words, " under “WORDS”" follows the subject. A
       reason `always` reads "Reached you because its goal always asks you."
       So: "Reached you because it changes vsr’s protocol core, which asks
-      you, even when away."
+      you, even when away.", and a triager's group's: "Reached you because
+      it starts work on findings, which asks you unless you’re away."
     - *A question with no row,* its project's document delivered and not
       `cut`: "Reached you because it was asked of you directly.": no call
       judged it, so it came by its route (kind 6,
@@ -361,7 +364,8 @@
       money past a budget", "they spend money past a budget"; "it can’t be
       undone", "they can’t be undone"; "it changes what reaches you",
       "they change what reaches you"; "no kind of decision names it", "no
-      kind of decision names them"; "it changes NAME", "they change NAME";
+      kind of decision names them"; "it starts work on findings", "they
+      start work on findings"; "it changes NAME", "they change NAME";
       " under “WORDS”" and CLASS as they are. Then "These reached you
       because their goals always ask you.", "These reached you because
       they were asked of you directly.", "These reached you because
@@ -419,8 +423,20 @@
       rest of NAME.", PATTERNS the matched patterns joined by ", ". OBJECT
       is the subject's plural: "wording choices", "retries and splits",
       "implementation choices", "test-only changes", "new dependencies",
-      "departures from a landed design", "changes to NAME", with `under`'s
-      words after it as in CLAUSE.
+      "departures from a landed design", "starting work on findings",
+      "changes to NAME", with `under`'s words after it as in CLAUSE; so
+      Decided for you's "Allowed: starting work on findings." (`home.md`,
+      1).
+    - *Starting work on findings,* `Decide(Kind(Findings))`, names who
+      asks it, as `../../draft/home-for-a-person.md`, 5 words it: its
+      offer reads "Let the triager start goals for findings, then tell
+      you.", and its narrower rule on this page "Stop asking: let the
+      triager start goals for findings", each with `under`'s words after
+      "findings" as in CLAUSE. Only the triager's charter names the kind
+      (`../../domain/areas.md`, 6, *Its groups*), so the words name it
+      whoever asked; the offer moves the project's item, as any
+      `Decide`'s. A Stop asking proposal's reason (*Its act*) says it as
+      any kind's, by OBJECT.
     - *Its act:* an owner of the card's project (`me`'s row for it `Owner`)
       has "Apply": jig's `ChangeSettings` of one item, kind 8 of that
       project (`../../protocol/configuration/settings.md`, 2), set to the offer's

@@ -98,21 +98,24 @@ pub fn file_limits() -> FileLimits {
         timeout,
     }
 }
-fn drivers(fd: skein_io::kernel::Fd) -> [FileIo; 3] {
+fn drivers(fd: skein_io::kernel::Fd, limits: &FileLimits) -> [FileIo; 3] {
     core::array::from_fn(|_| {
-        let mut io = FileIo::with_limits(&file_limits()).with_effective_user(0);
+        let mut io = FileIo::with_limits(limits).with_effective_user(0);
         assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
         io
     })
 }
 impl Disk {
     pub fn new(items: &[Item]) -> Disk {
+        Self::with_file_limits(items, file_limits())
+    }
+    pub fn with_file_limits(items: &[Item], file_limits: FileLimits) -> Disk {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(items);
         let mut sim = Sim::new(SEED, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
-        let mut io = drivers(fd);
+        let mut io = drivers(fd, &file_limits);
         let [store, secrets, transcripts] = &mut io;
         let seeded = crate::seed([store, secrets, transcripts], SEED);
         Disk {
@@ -122,7 +125,7 @@ impl Disk {
             pid,
             root: Root { token: Token::new(1), fd },
             io,
-            file_limits: file_limits(),
+            file_limits,
             seeded,
             cut: None,
             operations: 0,
@@ -279,7 +282,7 @@ impl Disk {
         let fd = self.sim.root(self.pid, Handle::new(self.handle.raw()));
         self.root = Root { token: Token::new(1), fd };
         self.starts += 1;
-        self.io = drivers(fd);
+        self.io = drivers(fd, &self.file_limits);
         let [store, secrets, transcripts] = &mut self.io;
         self.seeded =
             crate::seed([store, secrets, transcripts], seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts));

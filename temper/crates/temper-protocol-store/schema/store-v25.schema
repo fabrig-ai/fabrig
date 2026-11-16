@@ -131,7 +131,7 @@ record AnswerValue { answer: Answer }
 enum ReadResult { answer: boxed AnswerValue, error: ErrorValue }
 record CallRead { result: ReadResult }
 record CallEffect { entry: u64 deadline: u64 outcome: option Outcome }
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other, findings }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
 enum ReachReason { kind, set: ReachSet, always }
@@ -196,7 +196,9 @@ enum Way { queue, turn }
 record StartedFrom { task: u64 head: fixed 32 }
 record EarlyHeads { heads: list 64 StartedFrom }
 enum Early { none, started: EarlyHeads, spent: EarlyHeads }
-record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
+enum Execution { unknown, waiting, running }
+record ExecutionClock { since: u64 head: fixed 32 run: u64 attempt: u32 ran: u64 waited: u64 unknown: u64 at: u64 seen: Execution }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
@@ -307,7 +309,7 @@ record LandingResolve { base: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
-record LandingRun { id: u64 attempt: u32 ended: bool }
+record LandingRun { id: u64 attempt: u32 ended: bool clock: option ExecutionClock = none }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
 enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }

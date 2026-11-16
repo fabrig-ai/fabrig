@@ -1,4 +1,4 @@
-use crate::upgrades::{check, frames, patching};
+use crate::upgrades::{check, frames, patching, rehearsal};
 use jig_store_world::patches;
 
 #[test]
@@ -31,6 +31,20 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
         switched |= !source_active;
     }
     assert!(source_opened && switched, "cuts reached each whole generation");
+}
+
+#[test]
+fn every_wires_commit_cut_keeps_back_open_or_refuses_as_committed() {
+    let (first, sync) = rehearsal::wires_commit_cuts();
+    let mut lost = false;
+    let mut durable = false;
+    for cut in first..=sync + 1 {
+        let outcome = rehearsal::a_wires_cut_recovers(cut);
+        eprintln!("wires cut {cut}: {outcome:?}");
+        lost |= outcome == rehearsal::WiresOutcome::Lost;
+        durable |= outcome == rehearsal::WiresOutcome::Durable;
+    }
+    assert!(lost && durable, "sweep reached both a lost and a durable wires commit");
 }
 
 #[test]

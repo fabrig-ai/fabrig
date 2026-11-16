@@ -20,6 +20,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["help"],
         vec!["--version"],
         vec!["run", "--help"],
+        vec!["wake", "--help"],
         vec!["build", "keep", "--help"],
         vec!["triage", "none", "--help"],
         vec!["triage", "case", "--help"],
@@ -57,6 +58,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                 let commands = stdout.split_once("\n\n").expect("help body").1;
                 for internal in [
                     "run",
+                    "wake",
                     "build keep",
                     "triage none",
                     "triage case",

@@ -279,6 +279,8 @@ pub const NAMES: &[&str] = &[
     "forge.change_policy.questions",
     "forge.change_policy.tasks",
     "forge.change_policy.stall_ms",
+    "forge.change_policy.unknown_grace_ms",
+    "forge.change_policy.runner_wait_ms",
     "forge.change_policy.gates",
     "forge.change_policy.clean_heads",
     "forge.issue_policy.plan_items",

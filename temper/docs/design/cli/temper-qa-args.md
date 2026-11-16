@@ -13,6 +13,13 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Watch main and triage its landings, one service per QA home.
 - **Notes:** Holds run.lock for its life; reads qa.json once at start.
 
+### `temper-qa wake`
+
+- **Set:** internal
+- **Forms:** ``
+- Wake the QA loop after moving main's ref.
+- **Notes:** Connects to run.sock and closes; no running loop is no error.
+
 ### `temper-qa build keep`
 
 - **Set:** internal

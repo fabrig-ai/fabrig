@@ -632,11 +632,17 @@ impl World {
         self.store.wires(wires)
     }
 
+    /// A start request for stories that inspect its events without answering frame sites or jobs.
+    #[must_use]
+    pub fn open_request(&self) -> Request {
+        Request::Open { owner: OWNER, root: self.root, installation: self.drawn }
+    }
+
     /// Start an open whose fixture job pages the caller answers itself.
     pub fn begin_open(&mut self) -> Vec<Event> {
         self.ran.clear();
         self.refusal = None;
-        self.request(Request::Open { owner: OWNER, root: self.root, installation: self.drawn })
+        self.request(self.open_request())
     }
 
     pub fn open(&mut self) -> Option<u64> {

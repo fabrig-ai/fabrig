@@ -4,4 +4,4 @@
 
 - **Not yet:**
   - 3.2 and 6: deployment places and their ports, setup kinds and selection by kind are not built; configuration accepts box places alone.
-  - 7: no deployment runs landed QA yet: its home, its service and its after-landing build are its person's to set up once the tool lands.
+  - 7: no deployment runs landed QA yet: its home, its service, its after-landing wake and its build are its person's to set up once the tool lands.

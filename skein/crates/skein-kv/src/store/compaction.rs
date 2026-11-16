@@ -1,4 +1,4 @@
-//! A snapshot's replacement lifecycle (skein/docs/design/data/kv.md, 5).
+//! A snapshot's replacement lifecycle and queued reads (skein/docs/design/data/kv.md, 5 and 6.3).
 
 use alloc::boxed::Box;
 use core::mem;
@@ -6,7 +6,9 @@ use skein_io::file;
 use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, List, Queue, Token, usize_of};
 
-use super::{Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, log_number};
+use super::{
+    Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, follow_ready, log_number,
+};
 use crate::boundary::Row;
 use crate::snapshot;
 use crate::{Census, Limits};
@@ -271,7 +273,7 @@ pub(super) fn opened(store: &mut Store, mut dir: Dir, log: Log, file: Token, ste
         | Compaction::RemoveOld { .. }
         | Compaction::CleanupSyncDirectory => unreachable!("only snapshot creation opens a file"),
     };
-    store.start_batch(dir, log, &step.env.limits, step.below)
+    follow_ready(store, dir, log, step)
 }
 
 pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Step<'_>) -> State {
@@ -290,7 +292,7 @@ pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Ste
             unreachable!("snapshot creation opens a file; Idle and Due have no snapshot request")
         }
     };
-    store.start_batch(dir, log, &step.env.limits, step.below)
+    follow_ready(store, dir, log, step)
 }
 
 fn created(start: u64, file: Token) -> Compaction {

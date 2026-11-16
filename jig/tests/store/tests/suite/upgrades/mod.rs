@@ -9,6 +9,6 @@ mod jobs;
 mod links;
 pub(crate) mod logs;
 pub(crate) mod patching;
-mod rehearsal;
+pub(crate) mod rehearsal;
 mod restores;
 mod upgrade_edges;

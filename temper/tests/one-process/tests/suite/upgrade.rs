@@ -39,6 +39,10 @@ fn power_lost_at_the_wires_commit_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(3);
 }
 #[test]
+fn power_lost_at_a_drawn_moment_keeps_a_whole_generation() {
+    temper_one_process_world::upgrade::story::drawn_power_loss(5);
+}
+#[test]
 fn a_story_keeps_its_history_through_a_settled_upgrade() {
     temper_one_process_world::upgrade::story::settled();
 }
@@ -82,4 +86,13 @@ fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
 #[test]
 fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
     temper_one_process_world::upgrade::story::unsettled();
+}
+
+#[test]
+fn the_settled_image_matches_the_story() {
+    let scratch = skein_scratch::Scratch::new("settled-upgrade-image");
+    temper_one_process_world::upgrade::story::settled_image(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/settled"),
+        scratch.path(),
+    );
 }

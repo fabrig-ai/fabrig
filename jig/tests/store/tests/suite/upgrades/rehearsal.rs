@@ -6,6 +6,7 @@ use jig_store_world::{
     World,
     patches::{self, BASE, Records, SETS},
     root,
+    world::Change,
 };
 use skein_lib::Token;
 
@@ -187,6 +188,102 @@ fn switched() -> (World, u64) {
     world.crash(SEED);
     (world, last)
 }
+fn wires_start() -> (World, u64) {
+    let (mut world, last) = switched();
+    assert_eq!(world.open(), Some(last), "switched generation opens before its own commit");
+    assert!(world.wires(WIRES));
+    (world, last)
+}
+
+/// Only the mark is traced: its next header and wires form the first commit past the manifest.
+pub(crate) fn wires_commit_cuts() -> (u32, u32) {
+    let (mut complete, last) = wires_start();
+    complete.trace_writes();
+    assert_eq!(complete.mark(), Some(last + 1));
+    let first = complete.written().first().expect("mark's first write").0;
+    let sync = complete
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > first && *change == Change::Sync)
+        .expect("mark's durability sync")
+        .0;
+    (first, sync)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WiresOutcome {
+    Lost,
+    Durable,
+}
+
+fn cut_wires(cut: u32) -> (World, u64) {
+    let (mut world, last) = wires_start();
+    world.trace_writes();
+    world.cut_at(cut);
+    let _ = world.mark();
+    assert!(world.reached_cut(), "wires cut {cut} reached");
+    assert_eq!(world.operation_count(), cut, "wires cut reached exactly");
+    world.crash(SEED);
+    (world, last)
+}
+
+/// Power loss at the wires' commit keeps going back open or closes it durably
+/// (protocol/store/opening.md 2, step 8; domain/testing.md 9).
+pub(crate) fn a_wires_cut_recovers(cut: u32) -> WiresOutcome {
+    let (mut world, last) = cut_wires(cut);
+    let before = world.contents();
+    let events = world.back();
+    match events.as_slice() {
+        [Event::Back { owner: OWNER, to: 1 }] => {
+            assert_eq!(world.active(), b"1\n");
+            world.crash(SEED);
+            world.owner_sets(BASE);
+            assert_eq!(world.open(), Some(1), "previous generation opens: cut {cut}");
+            Records::story().check_public(&mut world, &cut);
+
+            // Back removes the switched generation on the next start. Replay the
+            // same crash to check the forward start without consuming that copy.
+            let (mut retry, replay_last) = cut_wires(cut);
+            assert_eq!(replay_last, last);
+            assert_eq!(retry.contents(), before, "cut {cut} replays the same crash");
+            assert_eq!(retry.active(), b"2\n");
+            let events = retry.request(retry.open_request());
+            assert!(
+                matches!(events.as_slice(), [Event::Opened { last: found, pending: false, .. }] if *found == last),
+                "no patch or site on the next start: cut {cut}: {events:?}"
+            );
+            retry.accept_recovery(last);
+            Records::story().check_public(&mut retry, &cut);
+            assert!(retry.wires(WIRES));
+            assert_eq!(retry.mark(), Some(last + 1), "retry commits its wires: cut {cut}");
+            WiresOutcome::Lost
+        }
+        [Event::BackRefused { owner: OWNER, why: BackRefusal::Committed { manifest, last: found } }] => {
+            assert_eq!((*manifest, *found), (last, last + 1), "wires commit recovered: cut {cut}");
+            unchanged_except_recovery_empty_segments(&before, &world.contents(), Some(2));
+            WiresOutcome::Durable
+        }
+        other => panic!("back after wires cut {cut}: {other:?}"),
+    }
+}
+
+#[test]
+fn cuts_at_the_wires_commit_keep_back_open_or_refuse_as_committed() {
+    let (first, sync) = wires_commit_cuts();
+    let mut lost = false;
+    let mut durable = false;
+    // A single write can be both the first write and the last operation before sync.
+    let mut cuts = vec![first, sync - 1, sync, sync + 1];
+    cuts.dedup();
+    for cut in cuts {
+        let outcome = a_wires_cut_recovers(cut);
+        eprintln!("wires cut {cut}: {outcome:?}");
+        lost |= outcome == WiresOutcome::Lost;
+        durable |= outcome == WiresOutcome::Durable;
+    }
+    assert!(lost && durable, "cuts reached both a lost and a durable wires commit");
+}
+
 #[test]
 fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);

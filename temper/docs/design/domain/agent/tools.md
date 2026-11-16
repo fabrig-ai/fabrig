@@ -360,9 +360,10 @@
 - **`decided`,** of the control family, offered as every host tool is, to
   every task whose question would reach a person (`../forge/attention.md`, 5): `{
   question, options, took, why, kind, paths, under }`, `options` 2 to 6
-  words of the agent's, `took` an index into them, `kind` one of the ten
+  words of the agent's, `took` an index into them, `kind` one of the eleven
   of `../forge/attention.md`, 6, `wording`, `retry`, `implementation`, `tests`,
-  `dependency`, `departure`, `money`, `irreversible`, `rules` and `other`;
+  `dependency`, `departure`, `money`, `irreversible`, `rules`, `other` and
+  `findings`, the schema's enumeration in that order;
   `paths`, optional, at most 16 repository-relative paths of at most 256
   bytes that the choice would change; `under`, optional, the number of an
   item with words of the project's classes the choice falls under;
@@ -398,7 +399,17 @@
   - Funds, sign-ins, machines, a plan's go-ahead and
     anything hard to reverse are `money` or `irreversible` and always wait,
     by the charter's words (`../../protocol/configuration/stock.md`); a change
-    to the classes, a landing rule or a standing role's rules is `rules`.
+    to the classes, a landing rule or a standing role's rules is `rules`;
+    what becomes of findings the asker holds, a goal started for them,
+    the backlog or a hand-off, is `findings`, the triager's question over
+    a group (`../areas.md`, 6, *Its groups*).
+  - **`findings` moved the host tools' contract:** the enumeration's
+    added value is a layout change of `decided`'s line, so the contract's
+    version moves by one with its kept text, and each kept version from
+    the floor whose `decided` line differs has its adapter, which hands
+    the old call's input on unchanged, since every kind an older contract
+    names is a current one (`../../protocol/wires.md`, 7). The floor
+    stays.
     A task that overturned words reach (`../../client/pages/README.md`) asks it
     by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
     answers a question for it, and one that skips the tool waits as ever.

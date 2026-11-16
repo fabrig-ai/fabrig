@@ -284,6 +284,16 @@ pub const SITTING_WAIT_SECS: Variable = Variable {
     way: Way::Reads,
 };
 
+pub const UPGRADE_IMAGE: Variable = Variable {
+    name: "TEMPER_TEST_UPGRADE_IMAGE",
+    set: Set::Test,
+    form: "1",
+    line: "Rewrite the settled upgrade image from its story; a developer sets it for the drift test alone.",
+    absent: "Compare with the kept image.",
+    notes: "Only 1 enables rewriting.",
+    way: Way::Reads,
+};
+
 pub const WRAPPER: Variable = Variable {
     name: "TEMPER_TEST_WRAPPER",
     set: Set::Test,
@@ -326,6 +336,7 @@ pub const TESTS: TestTable = TestTable {
         RATE,
         RECORD_RELEASE,
         SITTING_WAIT_SECS,
+        UPGRADE_IMAGE,
         WRAPPER,
     ],
 };

@@ -1,4 +1,4 @@
-family temper-client-wire 26
+family temper-client-wire 27
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -56,7 +56,7 @@ versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 record Looked { project: u32 }
 
 # Away and decisions (temper/docs/design/client/forge/records.md).
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other, findings }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
 record ReachKindOf { kind: ReachKind }

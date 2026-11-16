@@ -42,8 +42,20 @@ fn decimal(value: &str) -> bool {
 }
 
 pub fn watch(git: &mut impl GitFace, config: &Git, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
+    watch_with_fetch(git, config, ledger, now, true)
+}
+
+pub(crate) fn watch_with_fetch(
+    git: &mut impl GitFace,
+    config: &Git,
+    ledger: &mut Ledger,
+    now: u64,
+    fetch: bool,
+) -> Result<(), Refusal> {
     let reference = if let Some(remote) = &config.fetch {
-        git.fetch(remote, &config.branch)?;
+        if fetch {
+            git.fetch(remote, &config.branch)?;
+        }
         format!("refs/temper-qa/{}", config.branch)
     } else {
         format!("refs/heads/{}", config.branch)
