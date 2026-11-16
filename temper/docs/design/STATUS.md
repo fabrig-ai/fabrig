@@ -605,6 +605,7 @@ Drafts:
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
+- [`draft/tools-by-role.md`](draft/tools-by-role.status.md)
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
