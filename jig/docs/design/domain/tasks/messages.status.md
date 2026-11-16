@@ -9,3 +9,4 @@
    widening, moves, successors and surviving questions remain `changes.status.md` (Not yet, the whole document). 3: markers.
   5: a conversation's questions.
    the missing stories remain `README.status.md`, 7.
+- **Not yet:** 5, *A gathering's questions*: a delegate's question to a gathering reaching its person requester [in flight: change 4841].

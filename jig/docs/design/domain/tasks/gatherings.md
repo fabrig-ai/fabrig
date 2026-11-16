@@ -142,8 +142,8 @@ person's inbox, answered there and refused to the gathering, and one
 under a deployment's gathering waiting in its inbox. The core
 configuration tests check a chosen template ended by `Requester` with
 no conversation accepted as a gathering's, one with a conversation
-still checked as an agent's, and a gathering's template whose flags
-fit no gathering refused. The core world (`jig/tests/core`) has a party's
+still checked as an agent's, and a named charter's template ended by
+`Requester` with no conversation refused. The core world (`jig/tests/core`) has a party's
 `Create`, `Delegate` and `Conclude` through to its end, and the client
 protocol world (`jig/tests/client-protocol`) the requests and its
 document on the wire.

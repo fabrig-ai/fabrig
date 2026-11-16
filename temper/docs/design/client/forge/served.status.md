@@ -9,3 +9,4 @@
    the drift-hold card remains `README.status.md`, 5.2.
    the goal-issue, landing and finding views remain `README.status.md`, 6. the whole document:
   the reads of the forge's other parts.  the stopped admin-panel connect remains `deployment.status.md` (Not yet, the whole document).
+- **Not yet:** the table's milestone totals, the read `Milestone` [in flight: change 4862].

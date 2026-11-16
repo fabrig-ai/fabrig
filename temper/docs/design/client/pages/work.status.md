@@ -10,3 +10,4 @@
   kicker and the lede alone, with no heading and no filters, where the section
   says "No goals yet."; a project with no tracked template has a lede that
   stops at "landed work.", which the section has no words for.
+- **Not yet:** 1, *Ways*: a template ended by its requester still counts as a way [in flight: change 4858].
