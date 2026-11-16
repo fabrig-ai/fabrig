@@ -289,6 +289,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                 entries: Box::new([]),
                 landing: l::Landing {
                     last_left: None,
+                    searched: None,
                     round: l::Round::new(b"landing".as_slice().into()),
                     task: 1,
                     project: 1,

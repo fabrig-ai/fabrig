@@ -74,6 +74,12 @@ pub fn configure(root: &Path, repository: u64) {
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
+/// The narrowed batch reports failed ids and accepts a selected probe.
+pub(super) fn selected_gate(value: &mut Value) {
+    let gate = &mut value["application"]["landing"]["projects"][0]["gates"][0]["gates"][0];
+    gate["report"] = json!({"artifact":"failed-tests", "format":"lines"});
+}
+
 const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
 
 /// Staging's deployment limits, shared by the owned Forgejo stories.

@@ -65,6 +65,20 @@ pub fn see_answer(
         }
         SeeAnswer::Settings(settings) => {
             if let jig_domain_core::SettingsAnswer::Unknown = &settings.answer {
+                if let Some(number) = settings.project_landing_rule {
+                    let number = Decimal::of(u64::from(number));
+                    return refused(
+                        line,
+                        &join(&[
+                            b"not read: the deployment has no landing rule ",
+                            number.as_bytes(),
+                            b"; this project's is settings landing-rule ",
+                            number.as_bytes(),
+                            b" project",
+                        ]),
+                        max_bytes,
+                    );
+                }
                 return refused(
                     line,
                     b"not read: no such setting. This says nothing about the settings: see settings lists them.",
@@ -119,7 +133,8 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
                 jig_domain_core::settings::Setting::Model(_) => "settings model N",
                 jig_domain_core::settings::Setting::Rules => "settings rules",
                 jig_domain_core::settings::Setting::Application { kind, .. } => match kind {
-                    1 | 2 => "settings landing-rule N [project]",
+                    1 => "settings landing-rule N",
+                    2 => "settings landing-rule N project",
                     3 => "settings forge-charter N",
                     6 => "settings project-questions",
                     7 => "settings project-ways",

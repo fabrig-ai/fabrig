@@ -3,7 +3,8 @@ name: Gate
 # landing's candidate, with the round's base. What it runs is the runner
 # host's `$CI_GATE`, the same as ci.yml's. temper also dispatches it at a
 # search's probes, with `temper_probe` `yes`, given to `$CI_GATE` as
-# `CI_GATE_PROBE` so that it may stop at its first red.
+# `CI_GATE_PROBE` so that it may stop at its first red. `temper_tests`,
+# given as `CI_GATE_TESTS`, selects cases; failed-tests lists the failed ids.
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +18,9 @@ on:
       temper_probe:
         required: false
         default: ""
+      temper_tests:
+        required: false
+        default: ""
 jobs:
   gate:
     runs-on: dogfood
@@ -25,8 +29,14 @@ jobs:
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_GATE_PROBE: ${{ inputs.temper_probe }}
+          CI_GATE_TESTS: ${{ inputs.temper_tests }}
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: junit
           path: junit.xml
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: failed-tests
+          path: failed-tests.txt

@@ -6600,6 +6600,7 @@ dependencies = [
  "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
  "temper-engine-service-stock",

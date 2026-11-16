@@ -4,7 +4,7 @@
 use skein_lib::{Overflow, Writer};
 
 /// The compact line an unknown address answers with, held to this table and ask.txt by a step test.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
 pub(crate) struct Group {
     pub form: &'static str,
@@ -116,12 +116,12 @@ pub(crate) const GROUPS: &[Group] = &[
         }],
     },
     Group {
-        form: "settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager]",
+        form: "settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager]",
         rows: &[
             Address {
                 form: "settings",
                 line: "Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.",
-                next: "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+                next: "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
             },
             Address {
                 form: "settings charter N",
@@ -169,14 +169,19 @@ pub(crate) const GROUPS: &[Group] = &[
                 next: "settings · revisions · help settings-fields",
             },
             Address {
-                form: "settings landing-rule N [project]",
-                line: "A landing rule whole: the deployment's, or, with project, this project's.",
+                form: "settings landing-rule N",
+                line: "The deployment's landing rule N whole, at the newest revision.",
+                next: "settings landing · settings · help landing-rule",
+            },
+            Address {
+                form: "settings landing-rule N project",
+                line: "This project's landing rule N whole, at the newest revision; project is that word, not a number.",
                 next: "settings landing · settings · help landing-rule",
             },
             Address {
                 form: "settings landing",
                 line: "Project landing: queue or turn, merge job, after-landing retries and bound, repository gate and tier counts; set in configuration, never by proposal.",
-                next: "settings gates OWNER/NAME · settings landing-rule N [project] · help landing",
+                next: "settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing",
             },
             Address {
                 form: "settings gates OWNER/NAME",

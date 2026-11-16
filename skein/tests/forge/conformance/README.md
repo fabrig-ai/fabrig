@@ -102,17 +102,39 @@ for branch tips, tree pages and rewritten commit parents. Its isolated `turn`
 repository has two dispatch-only workflows to test both run filters, three
 runs across a page, and a branch moved during a dispatched job. Each workflow
 has two inline host-shell jobs: one passes and one fails in a workflow step.
-One input is echoed and read through the passing job's log. The group also
+Two declared inputs are echoed and read through the passing job's log: a word
+and two test ids, each followed by LF. A base64 echo checks the multi-line value
+including its final LF. The same dispatch sends an undeclared input, whose
+value must not reach the job. The group also
 records rerun attempts, fast-forward-only merges, rebase updates, status words
 and links, and root/directory tree paging in git order. A public bare clone of
 only the throwaway repository supplies an independent root-tree id. Without
 `--runner`, this group's facts are unchecked.
 
-The artifact captures record Forgejo 17.0.0 listing a run's artifacts by name,
+The artifact captures record the pin listing a run's artifacts by name,
 an absent name returning an empty array, and an unknown run returning 404.
+An inline host-shell step uses Python's standard library to create, upload and
+finalize two artifacts through `ACTIONS_RUNTIME_URL`, with the job's runtime
+token kept out of arguments and logs. It downloads no action or container.
 The download is a direct 200 ZIP containing one deflated `failed.txt`, with a
 signed data descriptor. The artifact listing carries no commit; the supporting
 run read supplies `commit_sha`. `facts.txt` names the seven recorded facts.
+
+`--dispatch-inputs` records the two input facts and seven artifact facts without
+the API, CLI or delivery groups. It runs the Actions and turn fixtures so the
+resource ids keep their ordinary recording order; only those nine fact lines
+are written. It requires the pinned runner:
+
+```sh
+cargo run -p forgejo-conformance -- --dispatch-inputs \
+  --forgejo <absolute path to the pinned Forgejo> \
+  --runner <absolute path to the pinned runner> \
+  --scratch target/forgejo-conformance/dispatch-inputs --out target/dispatch-inputs-recording
+```
+
+Copy back only these new input captures (including
+`actions-dispatch-inputs-with-undeclared-name`) and the artifact captures, and
+merge only their fact lines. Retain every other group's bytes.
 
 `--migrate` records copies and repository deletion alone, on two fresh loopback
 instances and a loopback HTTP proxy. The destination enables local migrations;
