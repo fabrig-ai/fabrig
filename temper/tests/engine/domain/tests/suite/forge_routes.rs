@@ -427,6 +427,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
 #[test]
 fn a_change_whose_ci_never_reports_is_stalled_and_held() {
     let (mut world, chat, producer, branch) = change_world(true, 1000, None);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change producer") };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -451,8 +452,21 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..450 {
+    for _ in 0..1000 {
         world.tick();
+        if questions::row(&world, change).change.clock.is_some() {
+            break;
+        }
+    }
+    world.until(Until::Ready);
+    let bound = world.env.limits.forge.change_policy.stall;
+    stall_hold::jump(&mut world, bound);
+    for _ in 0..1000 {
+        world.tick();
+        if matches!(questions::row(&world, change).change.state, temper_engine_domain_forge_change::State::Held { .. })
+        {
+            break;
+        }
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,

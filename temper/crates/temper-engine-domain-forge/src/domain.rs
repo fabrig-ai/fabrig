@@ -84,6 +84,7 @@ enum StepStage {
     Base,
     Pull,
     Ci,
+    ExecutionRun(u64),
     StallChecks,
     StallJobs,
     BaseCi,
@@ -116,6 +117,7 @@ pub(crate) struct PendingStep {
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
+    execution: Option<crate::execution::Gather>,
     failed: crate::change_ci::Failed,
     stall: Option<crate::stall::Report>,
     base_ci: change::Status,
@@ -4484,6 +4486,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        execution: None,
         failed: crate::change_ci::Failed::new(Box::new([])),
         stall: None,
         base_ci: change::Status::Unknown,
@@ -4606,6 +4609,7 @@ fn step_verified(
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        execution: None,
         failed: crate::change_ci::Failed::new(Box::new([])),
         stall: None,
         base_ci: change::Status::Unknown,
@@ -4913,7 +4917,7 @@ fn step_read(
                     let saved = row.clone();
                     save_change_parts(d, out, saved);
                 }
-                if ci == skein_forge::api::Ci::Failed || result_rows {
+                if ci == skein_forge::api::Ci::Failed || result_rows || execution_due(&preparing, &pending) {
                     // Repairs retain the contexts they observed, beside the pull verdict.
                     skein_forge::api::Read::Checks { commit }
                 } else if let Some(read) = step_after_ci(d, &mut pending, out) {
@@ -4943,13 +4947,33 @@ fn step_read(
                     let saved = row.clone();
                     save_change_parts(d, out, saved);
                 }
-                pending.failed = crate::change_ci::Failed::new(rows);
+                if execution_due(&preparing, &pending) {
+                    pending.execution = Some(crate::execution::Gather::new(rows));
+                } else {
+                    pending.failed = crate::change_ci::Failed::new(rows);
+                }
             }
-            if pending.ci == change::Status::Failed
+            if pending.execution.is_none() && execution_due(&preparing, &pending) {
+                pending.execution = Some(crate::execution::Gather::new(Box::new([])));
+            }
+            if let Some(read) = next_execution(&mut pending) {
+                read
+            } else if pending.ci == change::Status::Failed
                 && let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32]))
             {
                 let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
                 pending.stage = StepStage::Run(run);
+                read
+            } else if let Some(read) = step_after_ci(d, &mut pending, out) {
+                read
+            } else {
+                step_paths(d, env, owner, pending, out);
+                return;
+            }
+        }
+        StepStage::ExecutionRun(run) => {
+            pending.execution.as_mut().expect("execution gather").answered(run, result);
+            if let Some(read) = next_execution(&mut pending) {
                 read
             } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
@@ -5073,6 +5097,45 @@ fn step_read(
     };
     d.steps.insert(owner, pending).expect("replaces step");
     child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
+}
+
+fn execution_due(state: &change::State, pending: &PendingStep) -> bool {
+    match state {
+        change::State::Checking { head } => {
+            pending.branch == Some(*head)
+                && (pending.ci == change::Status::Pending || pending.ci == change::Status::Unknown)
+        }
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Judging { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Held { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    }
+}
+
+fn next_execution(pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
+    let read = pending.execution.as_mut()?.next()?;
+    let skein_forge::api::Read::Run { run } = read else { unreachable!("execution run") };
+    pending.stage = StepStage::ExecutionRun(run);
+    Some(read)
 }
 
 fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
@@ -5712,7 +5775,12 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                             &row,
                             &facts,
                             &heard,
-                            crate::settle::cap(d, env, &row, &facts, decision),
+                            execution_poll(
+                                env,
+                                &facts,
+                                execution_due(&row.change.state, &pending),
+                                crate::settle::cap(d, env, &row, &facts, decision),
+                            ),
                         ),
                         entry: None,
                         evidence: if decision == change::Decision::Hold(change::Hold::BranchMoved) {
@@ -5793,6 +5861,18 @@ fn drive_check(
             }
         }
     }
+}
+
+/// Poll both the first reading after entering checking and later readings (stalls.md, 2.1).
+fn execution_poll(env: &Env<Limits>, facts: &change::Facts, due: bool, decision: change::Decision) -> change::Decision {
+    if (facts.execution.is_some() || due)
+        && let change::Decision::Wait { until } = decision
+    {
+        let delay = if facts.execution.is_some() { env.limits.client.poll_max } else { Duration::ZERO };
+        let poll = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(delay.as_nanos()));
+        return change::Decision::Wait { until: Some(until.unwrap_or(poll).min(poll)) };
+    }
+    decision
 }
 
 fn repair_poll(
@@ -6016,7 +6096,10 @@ fn change_facts(
             head: pending.branch.unwrap_or([0; 32]),
             status: if has_ci && requires.ci { pending.ci } else { change::Status::Passed },
         },
-        execution: None,
+        execution: match &pending.execution {
+            Some(gather) => Some(gather.reading()),
+            None => None,
+        },
         base_ci: change::Ci {
             head: base_tip,
             status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },

@@ -1,12 +1,12 @@
 //! Installation HTTP traffic, with the root's wake-driven procedure scheduler.
 //!
-//! Two-minute warmup, then a full 40-second steady cycle scaled by ninety. The shipped
+//! Two-minute warmup, then a 40-second observation window scaled by ninety. The shipped
 //! 1800-second stall stays outside the window. CI takes 7200 virtual seconds.
 //! Set `TEMPER_TEST_RATE` to a nonempty value to print the installation's HTTP routes and costs.
 //! An empty value is unset.
-//! Conservative phase allowance: two passes per endpoint/resource (fast and
-//! slow), scaled by ninety: at most 180*(7*N+1) requests/hour either way.
-//! The shipped 5-second listing, 20-second checks and 40-second slow reads all fit this cycle.
+//! The recorded window includes 30-second execution gathers (change/stalls.md, 2.1),
+//! alongside 5-second listings, 20-second checks and 40-second slow reads.
+//! Its per-kind counts retain the phase and shared base reads for each cohort.
 //!
 //! Busy stories keep changes unlanded, report staggered worker pushes every
 //! 300 s, accept each reported new head, and let CI turn green after 120 s.
@@ -291,32 +291,34 @@ fn pending_changes_installation_requests_per_hour() {
         let table = histogram(&world, start);
         let total: u64 = table.values().sum();
         let changes = u64::try_from(count).expect("small change count");
-        // One full steady cycle: one branch read and two of each of the
-        // pull's six HTTP endpoints per change, plus eight repository listings.
+        let gathers = [1, 3, 6][count - 1];
+        let base_tips = [1, 3, 4][count - 1];
+        // The window includes execution's poll_max gathers: fresh head checks,
+        // ancestry and reviews, alongside the client's shared base and pull reads.
         let expected: BTreeMap<_, _> = KINDS
             .into_iter()
             .zip([
-                0,
-                0,
-                0,
-                changes,
+                base_tips,
+                gathers,
+                gathers,
+                changes + gathers,
+                2 * (changes + gathers),
+                2 * (changes + gathers),
                 2 * changes,
                 2 * changes,
-                2 * changes,
-                2 * changes,
-                2 * changes,
-                2 * changes,
+                2 * changes + gathers,
+                2 * changes + gathers,
                 8,
                 0,
+                gathers,
                 0,
-                0,
-                0,
+                gathers,
                 0,
             ])
             .map(|(kind, count)| (kind.to_owned(), count))
             .collect();
         assert_eq!(table, expected, "recorded per-kind baseline for N={count}");
-        assert_eq!(total * SCALE, [1890, 3060, 4230][count - 1]);
+        assert_eq!(total * SCALE, [2970, 6300, 10530][count - 1]);
         assert_eq!(total, world.costs() - costs, "all installation HTTP requests charged exactly once");
         assert_eq!(world.delivery_hints(), 0, "no public webhook or delivery hints in this shape");
         assert_eq!(world.writes(), 0, "all fixture pulls stay open; pending CI admits no writes");
@@ -350,7 +352,7 @@ fn pending_changes_installation_requests_per_hour() {
                 measured[2][kind] * SCALE
             );
         }
-        eprintln!("TOTAL                                       1890    3060    4230");
+        eprintln!("TOTAL                                       2970    6300   10530");
     }
 }
 

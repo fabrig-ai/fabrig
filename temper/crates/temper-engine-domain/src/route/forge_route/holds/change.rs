@@ -1,4 +1,4 @@
-//! A change's drift and stall name the heads and the wait (domain/forge/change/repairs.md).
+//! A change's drift and stall name the heads and the wait (domain/forge/change/stalls.md, 3).
 use super::super::{Domain, Env, Limits, List, append, commit_text, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 
@@ -41,11 +41,21 @@ pub(in super::super) fn account(
         append(&mut words, b"no progress at ");
         append(&mut words, step_name(was));
         append(&mut words, b" for ");
-        append(
-            &mut words,
-            skein_lib::Decimal::of(env.limits.forge.change_policy.stall.as_nanos() / 60_000_000_000).as_bytes(),
-        );
+        let runner = if let change::State::Checking { .. } = was.as_ref() {
+            match row.change.clock {
+                Some(clock) => clock.waited >= env.limits.forge.change_policy.runner_wait,
+                None => false,
+            }
+        } else {
+            false
+        };
+        let bound =
+            if runner { env.limits.forge.change_policy.runner_wait } else { env.limits.forge.change_policy.stall };
+        append(&mut words, skein_lib::Decimal::of(bound.as_nanos() / 60_000_000_000).as_bytes());
         append(&mut words, b" minutes: waiting for ");
+        if runner {
+            append(&mut words, b"a runner for ");
+        }
         if evidence.is_some() {
             waiting_on_reads(&mut words, was, row);
         } else {

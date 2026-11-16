@@ -489,6 +489,7 @@ pub(super) fn read_failed(
         StepStage::StallChecks
         | StepStage::StallJobs
         | StepStage::Ci
+        | StepStage::ExecutionRun(_)
         | StepStage::Run(_)
         | StepStage::ContainsHead
         | StepStage::BaseCi

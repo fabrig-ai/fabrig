@@ -82,7 +82,9 @@ pub(super) fn waiting(world: &mut World, task: u64, producer: &engine::Assignmen
     for _ in 0..STEPS {
         world.tick();
         if world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(producer.task))))
-            && (!ci || matches!(row(world, task).change.state, State::Checking { .. }))
+            && (!ci
+                || (matches!(row(world, task).change.state, State::Checking { .. })
+                    && row(world, task).change.clock.is_some()))
             && world.store.pending.is_empty()
         {
             break;
@@ -113,7 +115,11 @@ fn stall(world: &mut World, task: u64) {
 }
 
 pub(super) fn assert_stalled(world: &World, task: u64) {
-    assert!(matches!(row(world, task).change.state, State::Held { why: Hold::Stalled, .. }));
+    assert!(
+        matches!(row(world, task).change.state, State::Held { why: Hold::Stalled, .. }),
+        "{:?}",
+        row(world, task).change
+    );
     assert!(
         matches!(live_task(world, task).phase, tasks::Phase::Held { why: tasks::Hold::Stalled, .. }),
         "held row must hold its task: {:?}",
@@ -516,6 +522,171 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     assert_stalled(&world, task);
     let entry = goal_entry(&world, task, goal.task);
     heard_live(&mut world, &goal, entry);
+    close(world, &goal);
+}
+
+pub(super) fn execution_reads(world: &mut World, task: u64, state: skein_forge::api::RunState) {
+    use skein_forge::api::{self, RunState};
+    let State::Checking { head } = row(world, task).change.state else { panic!("checking") };
+    let attempt = api::JobAttempt { head, run: 7, job: 41, attempt: 2 };
+    let checks = api::Read::Checks { commit: head };
+    world.scripted_forge_reads.retain(|(read, _)| {
+        *read != checks && *read != api::Read::Run { run: 7 } && *read != api::Read::JobState { attempt }
+    });
+    world.scripted_forge_reads.push((
+        checks,
+        Ok(api::Answer::Checks(Box::new([api::Status {
+            at: world.env.now,
+            context: b"build".as_slice().into(),
+            check: api::Check::Pending,
+            description: Box::new([]),
+            url: Box::new([]),
+            job: Some(attempt),
+        }]))),
+    ));
+    world.scripted_forge_reads.push((
+        api::Read::Run { run: 7 },
+        Ok(api::Answer::Run(api::Run {
+            id: 7,
+            number: 7,
+            workflow: b"ci".as_slice().into(),
+            commit: head,
+            event: api::Event::Other,
+            actor: 1,
+            state,
+            conclusion: None,
+            url: Box::new([]),
+            created: world.env.now,
+            jobs: Box::new([api::RunJob {
+                id: 41,
+                name: b"build".as_slice().into(),
+                attempt: 2,
+                state,
+                conclusion: None,
+                steps: 0,
+                step: None,
+            }]),
+        })),
+    ));
+    world.scripted_forge_reads.push((
+        api::Read::JobState { attempt },
+        Ok(api::Answer::JobState {
+            attempt,
+            state: if state == RunState::Waiting { api::JobState::Waiting } else { api::JobState::Running },
+            labels: Box::new([]),
+            step: None,
+            cut: false,
+        }),
+    ));
+    let seen = if state == RunState::Waiting {
+        temper_engine_domain_forge_change::Execution::Waiting
+    } else {
+        temper_engine_domain_forge_change::Execution::Running
+    };
+    for _ in 0..STEPS {
+        world.tick();
+        if row(world, task).change.clock.is_some_and(|clock| clock.seen == seen && clock.run == 7) {
+            world.until(Until::Ready);
+            return;
+        }
+    }
+    panic!("execution reading: {:?}", row(world, task).change);
+}
+
+fn runner_waiting_change() -> (World, engine::Assignment, u64) {
+    use super::update_first;
+    let (mut world, goal, branch, main) = update_first::goal_world(true);
+    let task = make(&mut world, &goal, b"Keep the turn while CI queues", &[]);
+    let producer = next_producer(&mut world, task);
+    let head = super::early_start::push(&mut world, &producer, main, b"change");
+    observe_push(&mut world, &producer);
+    update_first::finish(&mut world, &producer);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(row(&world, task).change.state, State::Checking { .. }) {
+            break;
+        }
+    }
+    update_first::status(&mut world, head, raw::Check::Passed);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(row(&world, task).change.state, State::Queued { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(row(&world, task).change.state, State::Queued { .. }));
+    update_first::move_base(&mut world, &branch);
+    for _ in 0..STEPS {
+        world.tick();
+        if row(&world, task).change.updates == 1 && matches!(row(&world, task).change.state, State::Checking { .. }) {
+            break;
+        }
+    }
+    assert_eq!(row(&world, task).change.updates, 1);
+    assert!(row(&world, task).change.owns_turn);
+    let branch = row(&world, task).branch.clone();
+    let updated = super::goal_branch::branch_tip(&mut world, &branch);
+    update_first::status(&mut world, updated, raw::Check::Pending);
+    execution_reads(&mut world, task, skein_forge::api::RunState::Waiting);
+    (world, goal, task)
+}
+
+#[test]
+fn queued_ci_keeps_its_turn_then_running_ci_stalls_from_its_first_reading() {
+    let (mut world, goal, task) = runner_waiting_change();
+    let bound = world.env.limits.forge.change_policy.stall;
+    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    not_held(&world, task);
+    assert!(row(&world, task).change.owns_turn);
+    execution_reads(&mut world, task, skein_forge::api::RunState::Running);
+    not_held(&world, task);
+    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }) {
+            break;
+        }
+    }
+    assert_stalled(&world, task);
+    assert!(!row(&world, task).change.owns_turn);
+    let State::Held { was, .. } = row(&world, task).change.state.clone() else { panic!("held") };
+    let State::Checking { head } = *was else { panic!("checking hold") };
+    let head = forge_top::commit_text(&head);
+    let minutes = bound.as_nanos() / 60_000_000_000;
+    super::goal_closer::assert_hold_words(
+        &world,
+        task,
+        &format!(
+            "no progress at checking for {minutes} minutes: waiting for CI at {}; build: running",
+            core::str::from_utf8(&head[..12]).unwrap(),
+        ),
+    );
+    close(world, &goal);
+}
+
+#[test]
+fn queued_ci_past_runner_wait_holds_with_runner_words_and_passes_its_turn() {
+    let (mut world, goal, task) = runner_waiting_change();
+    let bound = world.env.limits.forge.change_policy.runner_wait;
+    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }) {
+            break;
+        }
+    }
+    assert_stalled(&world, task);
+    assert!(!row(&world, task).change.owns_turn);
+    let head = forge_top::commit_text(&row(&world, task).change.last_head.unwrap());
+    let minutes = bound.as_nanos() / 60_000_000_000;
+    super::goal_closer::assert_hold_words(
+        &world,
+        task,
+        &format!(
+            "no progress at checking for {minutes} minutes: waiting for a runner for CI at {}; build: waiting for a runner",
+            core::str::from_utf8(&head[..12]).unwrap(),
+        ),
+    );
     close(world, &goal);
 }
 

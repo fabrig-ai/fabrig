@@ -3310,6 +3310,65 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
 }
 
 #[test]
+fn checking_holds_name_the_bound_the_execution_clock_reached() {
+    use super::{forge_change as change, tasks};
+    use skein_lib::{Duration, Wall};
+    let head = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    for (seen, waited, words) in [
+        (
+            change::Execution::Waiting,
+            14_400,
+            b"no progress at checking for 240 minutes: waiting for a runner for CI at 0123456789ab".as_slice(),
+        ),
+        (
+            change::Execution::Waiting,
+            14_399,
+            b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
+        ),
+        (
+            change::Execution::Running,
+            0,
+            b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
+        ),
+        (
+            change::Execution::Unknown,
+            0,
+            b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
+        ),
+    ] {
+        let mut row = change_row(Some(1));
+        row.change.state =
+            change::State::Held { was: Box::new(change::State::Checking { head }), why: change::Hold::Stalled };
+        row.change.clock = Some(change::Clock {
+            since: Wall::EPOCH,
+            head,
+            run: 7,
+            attempt: 2,
+            ran: Duration::from_secs(1800),
+            waited: Duration::from_secs(waited),
+            unknown: Duration::ZERO,
+            at: Wall::from_nanos(1_000_000_000),
+            seen,
+        });
+        let (domain, mut env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
+        env.wall = Wall::from_nanos(1_000_000_000);
+        env.limits.forge.change_policy.stall = Duration::from_secs(1800);
+        env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Hold::Stalled, None);
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: tasks::Hold::Stalled,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
+}
+
+#[test]
 fn a_hold_past_questions_names_its_bound() {
     use super::{forge_change, tasks};
     for (open, words) in [
