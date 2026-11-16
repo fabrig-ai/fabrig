@@ -13,6 +13,8 @@ use temper_qa_tool::installation::install;
 
 // The installable_build fixture holds four bin files and two bundle files.
 const INSTALLED_FILES: usize = 6;
+// Of them, the bin files are linked; the bundle's are copied and checked.
+const LINKED_FILES: usize = 4;
 fn installation() -> (World, PathBuf, PathBuf) {
     let world = World::new();
     let build = world.installable_build(2);
@@ -29,17 +31,19 @@ fn install_links_files_and_an_unchanged_manifest_installs_nothing() {
     let (_world, build, place) = installation();
     let mut face = Files::default();
     install(&build, &id(2), &place, &mut face).expect("installed");
-    assert_eq!(face.links.len(), INSTALLED_FILES);
+    assert_eq!(face.links.len(), LINKED_FILES);
     assert_eq!(face.hashes.len(), 0);
-    assert_eq!(face.checks.len(), 0);
-    for path in ["bin/temper-box", "bundle/assets/app.js"] {
-        assert_eq!(inode(&build.join(path)), inode(&place.join(path)));
-    }
+    assert_eq!(face.checks.len(), 1, "the copied bundle is checked");
+    assert_eq!(inode(&build.join("bin/temper-box")), inode(&place.join("bin/temper-box")));
+    let bundle = place.join("bundle/assets/app.js");
+    assert_ne!(inode(&build.join("bundle/assets/app.js")), inode(&bundle));
+    assert_eq!(fs::metadata(&bundle).expect("bundle file").nlink(), 1, "the box takes one link alone");
     assert_eq!(fs::metadata(place.join("manifest")).expect("receipt").permissions().mode() & 0o777, 0o600);
     fs::write(place.join("setup"), "kept setup").expect("setup");
     let receipt_inode = inode(&place.join("manifest"));
     install(&build, &id(2), &place, &mut face).expect("reused");
-    assert_eq!(face.links.len(), INSTALLED_FILES);
+    assert_eq!(face.links.len(), LINKED_FILES);
+    assert_eq!(face.checks.len(), 1);
     assert_eq!(inode(&place.join("manifest")), receipt_inode);
     assert_eq!(fs::read_to_string(place.join("setup")).expect("untouched"), "kept setup");
     // A changed manifest must install again, even at the same commit.
@@ -47,7 +51,7 @@ fn install_links_files_and_an_unchanged_manifest_installs_nothing() {
     manifest.extend_from_slice(b"\n");
     fs::write(build.join("manifest"), &manifest).expect("changed manifest");
     install(&build, &id(2), &place, &mut face).expect("reinstalled");
-    assert_eq!(face.links.len(), INSTALLED_FILES * 2);
+    assert_eq!(face.links.len(), LINKED_FILES * 2);
     assert!(!place.join("setup").exists());
     assert_eq!(fs::read(place.join("manifest")).expect("receipt"), manifest);
     fs::remove_dir_all(&build).expect("released build deleted");
@@ -68,7 +72,7 @@ fn a_cross_device_install_copies_and_checks_the_installed_manifest() {
     .expect("old row");
     let mut face = Files { cross_device: true, ..Default::default() };
     install(&build, &id(2), &place, &mut face).expect("copied");
-    assert_eq!(face.links.len(), INSTALLED_FILES);
+    assert_eq!(face.links.len(), LINKED_FILES);
     assert_eq!(face.checks.len(), 1);
     let manifest = fs::read_to_string(build.join("manifest")).expect("manifest");
     let expected = manifest

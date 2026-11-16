@@ -80,18 +80,21 @@ fn install_tree(
         if !manifest.contains_key(path) {
             return Err(refused(format!("{}: file is absent from manifest", path.display())));
         }
-        match face.link(&source, &destination) {
-            Ok(()) => (),
-            Err(why) if why.kind() == std::io::ErrorKind::CrossesDevices => {
-                let (temporary, mut output) = temporary(&destination)?;
-                let mut input = io(&source, fs::File::open(&source))?;
-                io(&temporary, std::io::copy(&mut input, &mut output))?;
-                io(&temporary, output.flush())?;
-                io(&temporary, output.set_permissions(metadata.permissions()))?;
-                io(&destination, fs::rename(&temporary, &destination))?;
-                *copied = true;
-            }
-            Err(why) => return Err(refused(format!("{}: {why}", destination.display()))),
+        // A bundle's files are public documents, which the box serves with one link alone, so they are copied.
+        let linked = path.starts_with("bin")
+            && match face.link(&source, &destination) {
+                Ok(()) => true,
+                Err(why) if why.kind() == std::io::ErrorKind::CrossesDevices => false,
+                Err(why) => return Err(refused(format!("{}: {why}", destination.display()))),
+            };
+        if !linked {
+            let (temporary, mut output) = temporary(&destination)?;
+            let mut input = io(&source, fs::File::open(&source))?;
+            io(&temporary, std::io::copy(&mut input, &mut output))?;
+            io(&temporary, output.flush())?;
+            io(&temporary, output.set_permissions(metadata.permissions()))?;
+            io(&destination, fs::rename(&temporary, &destination))?;
+            *copied = true;
         }
         installed.insert(path.into());
     } else {

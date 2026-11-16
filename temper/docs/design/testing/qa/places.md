@@ -114,17 +114,20 @@ place is free and before any box starts there:
   `setup` stays. Only a completed install writes this private receipt;
   a home without one installs normally.
 - **`bin/` and `bundle/`** removed, then each directory made private
-  (section 2) and each regular file hard-linked from the kept build's
-  corresponding directory, with its build's mode. The builds directory
-  and place normally share a filesystem. Every installed file must be
-  named by the manifest, and every manifest path in those directories
-  must be installed. The manifest was checked at keep (`builds.md`, 3
-  and 4), so a linked install does no hashing.
-- **Across filesystems:** a link refused with a cross-device error is
-  copied instead, to a private temporary file in its directory, its
-  build's mode set and then renamed into place. Once the files are in
-  place, one `sha256sum --check` process checks the installed `bin/` and
-  `bundle/` lines of the manifest from the place's directory. No other
+  (section 2); each regular file of `bin/` hard-linked from the kept
+  build's, with its build's mode, and each of `bundle/` copied, since the
+  box serves a bundle's files as public documents and takes them with one
+  link alone. The builds directory and place normally share a
+  filesystem. Every installed file must be named by the manifest, and
+  every manifest path in those directories must be installed. The
+  manifest was checked at keep (`builds.md`, 3 and 4), so the linked
+  binaries are not hashed again; the copies are checked as below.
+- **Copies, and across filesystems:** a bundle's file, and a binary
+  whose link is refused with a cross-device error, is copied to a private
+  temporary file in its directory, its build's mode set and then renamed
+  into place. Once the files are in place, one `sha256sum --check`
+  process checks the installed `bin/` and `bundle/` lines of the manifest
+  from the place's directory. No other
   link error falls back to copying. A failed check names the file, fails
   the install and leaves no completed receipt, so the next tick installs again.
 - **Completed:** `setup` removed, so no case runs on a box restored for
