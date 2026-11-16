@@ -3,16 +3,13 @@
 2026-11-16. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
 - **Not yet:** 10.2, 11.5, 11.6, 11.10: a starved pass in a one-process run unwinds (`skein_world::pass_starved`), libtest reports it failed, and the lanes read it starved by its last line whatever libtest's result, so a failure whose output ends with the line reads starved; a process a starved pass ends with exit 0 reads as a crash, and only a crash starts a fresh process; the fixture's starved case unwinds with `resume_unwind` [in flight: change 2711].
-- **Not yet:** 3, 11.9, 11.10: no entry point reads `TIERS_HOLD`: one-process by hand takes no hold, so the executables its listing built run after cargo has exited with nothing holding their build directory, and its suite has no fake hold [in flight: change 1023].
-- **Not yet:** 11.9, *A process again*, and 11.10's `--again` cases: `tools/tiers/one-process` takes no `--again` [in flight: change 2815].
-- **Not yet:** 10.1, 10.2, 11.1, 11.7, 11.9, 11.10: no walls file: `run`, `execute_one_process` and `tools/tiers/one-process` take no `walls` or `--walls`, `.config/gate/walls.toml` doesn't exist, the profiles' own `global-timeout` is 300 s focused and 600 s fuzzy, and no boundary check holds it at three times the gate's wall [in flight: change 5323].
+- **Not yet:** 11.8: `results.json` holds no `workspace` [in flight: change 5649].
+- **Not yet:** 10.1, 10.2, 10.3, 11.8, 11.9: no ledger: `cpu.py` has no `ledger`, `summary` and `execute_one_process` take no `ledger`, `tools/tiers/cpu-summary` and `tools/tiers/one-process` no `--ledger`, the summary's rows have none of `tools/tiers/budgets.md`, 8's keys, and a run writes no `ledger.json` [in flight: change 5653].
 
-The gate tables' form and figures, and the summary by layer, are
-`tools/tiers/budgets.md`'s; its status has their gaps. Section 8 keeps the
-revisit of the three figures raised by half on 11-08 deferred.
-
-- **Not yet:** 11.1, 11.4, 11.8: `run` takes no `layers`, and `plan.json`'s binaries and `results.json`'s processes hold no `tree` or `layer` [in flight: change 5591].
-- **Not yet:** 7.3, 10.1, 10.2, 11.9: `budgets()` reads the gate tables in their old form; the summary has no `layers` or `trees`; `summary`, `execute_one_process` and both commands take no `gate` or `--gate`; one-process reads no budgets by default [in flight: change 5592].
+The gate tables' form and figures, the summary by layer, the ledger, the
+held budget and the moves are `tools/tiers/budgets.md`'s; its status has
+their gaps. Section 8 keeps the revisit of the three figures raised by half
+on 11-08 deferred.
 
 Sections 10 and 11 have the one-process runner, summary and hand command:
 process CPU from `wait4`, null per-test CPU, selected-test results and

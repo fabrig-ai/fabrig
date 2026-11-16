@@ -21,8 +21,8 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
    with a `-p` for each package in `.config/gate/wasm32.txt`.
    Rule: `skein/docs/design/testing/README.md`, 10, “Checked in the gate”.
 4. **The focused and fuzzy suites:** `tools/tiers/one-process --gate --walls
-   .config/gate/walls.toml default` (focused) and `tools/tiers/one-process
-   --gate --walls .config/gate/walls.toml fuzzy`, the profiles `.config/nextest.toml`
+   .config/gate/walls.toml --ledger LEDGER default` (focused) and `tools/tiers/one-process
+   --gate --walls .config/gate/walls.toml --ledger LEDGER fuzzy`, the profiles `.config/nextest.toml`
    defines: each test binary's selected tests in one process, one at a time, and
    binaries in parallel (`tools/tiers/design.md`, 11), with nextest as their front
    end, selecting and building. For a selection, add a `-p` for each package, as
@@ -30,7 +30,11 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
    the gate's wall limits, 270 s focused and 215 s fuzzy, in place of the
    profiles' own (`tools/tiers/design.md`, 11.7). `--gate` asks for the
    gate's verdict on each tree's layers against `tools/tiers/budgets.toml`
-   (`tools/tiers/budgets.md`, 5). Rules:
+   (`tools/tiers/budgets.md`, 5). `LEDGER` is main's ledger for that suite,
+   where the gate's runner keeps one; omit `--ledger LEDGER` until it does.
+   The run writes `ledger.json` with its figures folded in, which the runner
+   keeps for the next gate when the candidate lands (`tools/tiers/budgets.md`, 7).
+   Rules:
    `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: a CPU budget for
    each layer of each tree, and the repository's checks', over budget is
    red, starved is a warning; a run its wall stopped
