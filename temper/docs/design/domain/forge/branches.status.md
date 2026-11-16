@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** the opening list: no change's own branch is made by temper at the head a change a person opened takes [in flight: change 4096].
 
 - **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`).
 

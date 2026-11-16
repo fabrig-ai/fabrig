@@ -9,7 +9,6 @@
 - **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
   `drafts`*: no such request, outcome, subject or panel on the wire
   [in flight: change 662].
-- **Not yet:** *`OpenChange`* and `ChangePanel`'s step `taking` and its `source`: no such request, outcomes, step or field on the wire [in flight: change 4105].
 - **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
