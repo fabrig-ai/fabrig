@@ -101,9 +101,11 @@ from how the deployment was made.
 
 ## 5. A forge's place
 
-Designed in `../forge/engine.md`, sections 1 and 2, from
-`../../draft/config.md`, 6.4: chosen when the forge is set up, and kept
-with it.
+Designed in `../setup/place.md`, from `../../draft/config.md`, 6.4:
+chosen when the forge is set up, a free port on loopback and binaries
+fetched, and kept in its record and its setup file; a host's own units
+write the setup file once with `forge prepare`'s flags; a test's fake
+GitHub is `application.test.github`.
 
 ## 6. Open questions
 

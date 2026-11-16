@@ -1,10 +1,12 @@
 # temper's members for the engine
 
-**`machine`:** the machine's places, never a forge: where a box's owned
-Forgejo and the playground's fake forge listen, which `temper-box init
---box` chooses (../setup/init.md, 2) and the box holds from its start (../setup/box.md,
-1), and where GitHub is. A forge set up or connected takes its place
-from here (../forge/engine.md, 2). Each:
+**`machine`** is no member now: a start refuses it (`moved.md`,
+section 3). A forge's place is chosen when it is set up and kept with
+it (../setup/place.md): the members below are the forms an owned or
+fake forge's setup file and `forge prepare`'s flags take
+(../setup/place.md, 3 and 4), and `github`'s are `application.test`'s,
+a test's fake GitHub (../setup/place.md, 7). Where the text below says
+the machine, read the forge's setup file. Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
@@ -22,9 +24,9 @@ from here (../forge/engine.md, 2). Each:
   when it names a port.
 - **No forge here.** A forge's kind, mode, place, git program, bot
   and number are its record's in temper's store (../forge/engine.md, 1), made
-  at runtime: an owned Forgejo's from `owned` by `SetUp`, the
-  playground's fake forge's from `fake` at its start, a GitHub forge's
-  from `github` by `Connect`, and a Forgejo connected as its admin from
+  at runtime: an owned Forgejo's by `SetUp` and the playground's fake
+  forge's at its start, each on a place they choose, a GitHub forge's
+  from github.com's or a test's by `Connect`, and a Forgejo connected as its admin from
   the address, base and git program the person gives (../setup/reconcile.md, 5).
   A first run's document names no forge.
 - **No credential is configured:** a forge's API token, git token,
@@ -339,7 +341,7 @@ any member it doesn't know.
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (../credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
-| `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
+| `machine` | the test's GitHub place, `application.test.github`, or github.com's; an owned or fake forge's place is chosen at its set-up (../setup/place.md) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
 | `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
@@ -350,7 +352,7 @@ origins (../forge/README.md, 2.6), with the access the engine's routing builds
 from the forge's credentials (../credentials.md, section 5), and the
 webhooks' listener, `webhooks.listener`; the engine's setup host takes
 each kept forge's record, with an owned or fake one's setup entry,
-and the machine's GitHub place for GitHub's plans (../forge/engine.md, 6); the
+and GitHub's place for GitHub's plans (../forge/engine.md, 6); the
 identities' table takes each kept forge's identity, its number, login
 and author from its record, its value from its forge (../credentials.md,
 section 4); the engine's routing takes each forge's `git` base and git
