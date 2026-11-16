@@ -40,8 +40,12 @@ is designed in the pages' documents as milestone M3 of
 
 - **Template 8, `milestone`,** in the stock
   (`../protocol/configuration/stock.md`): executor chosen; a report,
-  template 1's bound; the creator's authority, `shallower` 0, so that a
-  goal beneath it, one level shallower, has a goal's depth; the
+  template 1's bound; the creator's authority, `shallower` 1, the
+  deepest a party may give a task it makes (jig's `domain/authority.md`,
+  section 5; a template of `shallower` 0 can't be filled: jig's
+  `client/domain/client/helpers.md`), so that a goal beneath it is one
+  level shallower than a goal its maker starts alone, within the stock's
+  32 levels; the
   creator's budget, given; no deadline; tracked at priority 1;
   `ended_by` `Requester`, not a conversation, listed, kept; label 4; no
   grace, LLM choice or resources. jig checks it as a gathering's
