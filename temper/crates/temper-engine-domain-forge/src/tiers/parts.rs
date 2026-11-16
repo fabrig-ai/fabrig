@@ -49,18 +49,7 @@ pub(super) fn part_inputs(commit: Commit, key: p::Key, tests: Option<&[p::TestId
     for input in base {
         inputs.push(input).expect("two landing inputs");
     }
-    let mut length = 0_usize;
-    for test in tests {
-        length = length.checked_add(test.len()).expect("bounded ids").checked_add(1).expect("newline");
-    }
-    let mut value = skein_lib::Writer::new(length);
-    for test in tests {
-        value.put(test).expect("measured ids");
-        value.put(b"\n").expect("newline per id");
-    }
-    inputs
-        .push(api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() })
-        .expect("selection input");
+    inputs.push(crate::runs::tests_input(tests)).expect("selection input");
     inputs.into_boxed()
 }
 pub(super) fn report_read(d: &Domain, row: &TierRow, env: &Env<Limits>) -> Option<api::Read> {

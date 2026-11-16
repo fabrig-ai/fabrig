@@ -435,8 +435,12 @@ leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
 a project keeps the page where it can (`pages/README.md`): on `Home`, `Work`, keeping its
 filter, `Goals`, its filter All, `Changes`, `Settings`, `Models`, `Builders`,
-`Repositories` and `Ask`, that project's page; on `Forges`, `Accounts`,
+`Repositories` and `Ask`, that project's page; on `AllHome`, that project's
+`Home`; on `Inbox`, across projects or on one, that project's `Inbox`, its
+filter's kind kept and its goal dropped, since a goal is one project's, but
+the filter whole where it already names the project chosen; on `Forges`, `Accounts`,
 `Members` and `Limits`, the same page, the words naming the project changed.
+The All projects row is the way back across projects, below.
 
 **All projects** (`../draft/surfaces.md`, section 2): the switcher's first
 row while the person is in two projects or more, a button named "All

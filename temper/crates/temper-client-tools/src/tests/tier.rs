@@ -54,7 +54,7 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                 let call = root.submit(words.as_slice());
                 let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("tier family") };
                 assert_eq!(*scope, c::Scope::Project(f::PROJECT));
-                assert_eq!(record.version, 24);
+                assert_eq!(record.version, 25);
                 assert!(root.sent_name(call).is_some());
                 let w::Request::TierAct(request) =
                     wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request

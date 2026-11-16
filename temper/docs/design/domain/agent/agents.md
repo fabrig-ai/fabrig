@@ -431,8 +431,10 @@ needs no record, read or wire field of its own. The client reads and draws it
   by `changed`.
 - **When:** after planning, and whenever what is true of the goal changes: a
   task landed, failed or split, a decision taken, a risk found.
-- **Its words:** the headline says where the goal stands, in a sentence a person
-  reads first. The paragraphs say what happened and why, in the first person.
+- **Its words:** the headline says where the goal stands, in one line a person
+  reads first, naming no task, change or pull request by number, as `5 of its
+  7 changes landed; the other 2 are building.` (`charter.md`, 4, *Words a
+  person reads first*); the numbers are the body's. The paragraphs say what happened and why, in the first person.
   `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.

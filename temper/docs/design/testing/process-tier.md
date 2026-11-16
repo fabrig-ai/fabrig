@@ -158,14 +158,17 @@
     the member's pull request read merged at its prefix, its head kept,
     as Forgejo's detection marks it once the turn has moved main;
   - `a_red_batch_is_narrowed_before_the_remaining_change_lands`: three
-    changes into main in one landing, the second's file making the
-    gate's `check.sh` fail; the top's and the probes' runs dispatch-only
-    runs on the owned runner, at the top and at the prefixes; the first
-    change landed by a fast-forward of a pull request from its prefix's
-    branch; the third landed in the next round, its round's pull
-    request read at the proved head once its branch is gone, by its
-    branch or `refs/pull/N/head` as Forgejo keeps a merged pull's head;
-    each landed member's pull request read merged at its prefix once
+    changes into main in one landing, the second's file making a case of
+    the gate's `check.sh` fail, the gate reporting its failed ids as
+    `lines` and its workflow declaring `temper_tests`, so the search is
+    by test (`../domain/landing-search-by-test.md`); the top's and the
+    probes' runs dispatch-only runs on the owned runner, the probes'
+    given that case alone; nothing landed on a probe: the first and the
+    third landed together in the next round, proved whole at its top by
+    a fast-forward of its pull request, read at the proved head once its
+    branch is gone, by its branch or `refs/pull/N/head` as Forgejo keeps
+    a merged pull's head, its body naming the search by test; each
+    landed member's pull request read merged at its prefix once
     Forgejo's detection marks it; four runs in all.
 
   Their setup is the owned turn landing's

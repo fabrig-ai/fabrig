@@ -1311,6 +1311,30 @@ fn an_asking_chat_reads_each_address() {
         ("settings model 1", "model 1, revision 2", "scripted", false),
         ("settings rules", "rules, revision 2", "\"ceiling\":", false),
         ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2", "\"enforce\":true", false),
+        (
+            "settings landing-rule 1",
+            "see settings landing-rule 1: not read: the deployment has no landing rule 1; this project's is settings landing-rule 1 project",
+            "settings landing-rule 1 project",
+            true,
+        ),
+        (
+            "settings landing-rule 2",
+            "see settings landing-rule 2: not read: no such setting. This says nothing about the settings: see settings lists them.",
+            "see settings lists them.",
+            true,
+        ),
+        (
+            "settings landing-rule 2 project",
+            "see settings landing-rule 2 project: not read: no such setting. This says nothing about the settings: see settings lists them.",
+            "see settings lists them.",
+            true,
+        ),
+        (
+            "settings landing-rule 1 1",
+            "see: no address settings landing-rule 1 1; addresses: ",
+            temper_engine_smith::ADDRESSES,
+            true,
+        ),
         ("settings forge-charter 1", "forge-charter 1, revision 2", "default, ", false),
         (
             "settings template-goal 4",
@@ -1369,8 +1393,12 @@ fn an_asking_chat_reads_each_address() {
             assert!(end <= usize::try_from(temper_engine_smith::SEE_PART).unwrap());
         }
         assert_eq!(world.driver.store.rows, before, "{address} commits nothing");
+        if address == "settings landing-rule 1 project" {
+            assert!(text.ends_with("see: settings landing · settings · help landing-rule\n"), "{text}");
+        }
         if address == "settings" {
             assert!(text.contains("charter-words 4: changed in revision 2"), "{text}");
+            assert!(text.contains("settings landing-rule N · settings landing-rule N project"), "{text}");
             assert!(text.ends_with("settings project-classes · revisions · help settings\n"), "{text}");
             eprintln!("see settings first part: {} bytes", body.len());
         }

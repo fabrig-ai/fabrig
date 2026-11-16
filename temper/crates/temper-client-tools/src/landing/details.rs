@@ -1,5 +1,6 @@
 //! Train, round and prefix evidence (temper/docs/design/domain/landing.md, 14).
 use super::{Encoder, Text, hex, optional_hex, w};
+mod search;
 
 pub(super) fn step(value: &w::LandingStep) -> &'static [u8] {
     match value {
@@ -7,6 +8,7 @@ pub(super) fn step(value: &w::LandingStep) -> &'static [u8] {
         w::LandingStep::Preparing => b"preparing",
         w::LandingStep::Proving => b"proving",
         w::LandingStep::Probing => b"probing",
+        w::LandingStep::ProbingByTest => b"probing by test",
         w::LandingStep::Proved => b"proved",
         w::LandingStep::Turn => b"turn",
         w::LandingStep::Landed => b"landed",
@@ -59,7 +61,7 @@ pub(super) fn round_text(value: &w::LandingRound, out: &mut Text) {
     }
     out.put(b" \xc2\xb7 step: ");
     out.put(step(value.step()));
-    if *value.step() == w::LandingStep::Probing
+    if (*value.step() == w::LandingStep::Probing || *value.step() == w::LandingStep::ProbingByTest)
         && let Some(search) = value.search()
         && let Some(prefix) = search.probe()
     {
@@ -73,6 +75,7 @@ pub(super) fn round_text(value: &w::LandingRound, out: &mut Text) {
         out.put(b" \xc2\xb7 red member ");
         bound_text(search.red(), out);
         out.put(b"\n");
+        search::text(search.tests(), out);
     }
     if let Some(upstream) = value.upstream() {
         out.put(b"upstream: ");
@@ -90,7 +93,13 @@ fn bound_text(value: &w::SearchBound, out: &mut Text) {
     out.put(b" at ");
     out.put(&hex(value.prefix()));
 }
-pub(super) fn member_text(value: &w::Member, out: &mut Text) {
+pub(super) fn member_text(value: &w::Member, round: Option<&w::LandingRound>, out: &mut Text) {
+    if let Some(round) = round
+        && let Some(search) = round.search()
+        && let Some(prefix) = value.candidate()
+    {
+        search::passes_text(search.tests(), prefix, out);
+    }
     if let Some(head) = value.head() {
         out.put(b"  round head: ");
         out.put(&hex(head));
@@ -226,6 +235,8 @@ pub(super) fn round_json(value: Option<&w::LandingRound>, out: &mut Encoder) {
         bound_json(search.red(), out);
         out.key(b"probe");
         optional_hex(search.probe().as_ref(), out);
+        out.key(b"tests");
+        search::json(search.tests(), out);
         out.object_end();
     }
     out.object_end();
