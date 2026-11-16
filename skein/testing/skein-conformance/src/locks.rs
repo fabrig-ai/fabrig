@@ -52,7 +52,16 @@ pub fn lock<B: Backend>(backend: &mut B, executable: &[u8]) -> Locks {
 
 fn ended<B: Backend>(run: &mut Run<'_, B>, process: B::Process, child: Fd) {
     assert_eq!(
-        run.call(process, Op::Signal { pidfd: child, signal: Signal::Kill, to: Target::Child }).result,
+        run.call(
+            process,
+            Op::Signal {
+                pidfd: child,
+                signal: Signal::Kill,
+                to: Target::Child,
+                reason: skein_io::kernel::Reason::Unknown
+            }
+        )
+        .result,
         NOTHING,
         "the contract: Kill signals the living child"
     );

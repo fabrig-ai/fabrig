@@ -123,7 +123,7 @@ impl Below {
             }
             records::Request::Stream { stream, down } => self.stream(stream, down),
             records::Request::Close { entity } | records::Request::Abort { entity } => self.close(entity),
-            records::Request::Signal { child, signal, to } => {
+            records::Request::Signal { child, signal, to, .. } => {
                 let child = self.children.get(&child).expect("issued child").pid;
                 let signal = match signal {
                     records::kernel::Signal::Kill => linux::Signal::Kill,

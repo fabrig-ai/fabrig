@@ -682,7 +682,7 @@ fn prepare(
             return Prepared::Done(locked.map(|()| Done::Nothing).map_err(|errno| error(kind, errno, false)));
         }
         Op::Spawn { spawn: command } => return Prepared::Done(spawn(command)),
-        Op::Signal { pidfd, signal, to } => return Prepared::Done(signal_child(*pidfd, *signal, *to)),
+        Op::Signal { pidfd, signal, to, .. } => return Prepared::Done(signal_child(*pidfd, *signal, *to)),
         Op::Window { fd } => return Prepared::Done(terminal::size(*fd).map(Done::Window)),
         Op::Usage => return Prepared::Done(process::usage().map(Done::Usage)),
         Op::ReadSignal { fd } => opcode::Read::new(

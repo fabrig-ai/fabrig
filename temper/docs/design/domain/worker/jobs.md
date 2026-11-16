@@ -40,7 +40,10 @@ smith's agent processes, and declares in its hello the kinds it runs:
   the contract's (`../../protocol/tooling.md`), its directory the job's,
   its environment free of credentials and of the worker's own, its
   wall time the job's deadline, its output files bounded; it reaches no
-  forge, since the checkout fetched everything it reads.
+  forge, since the checkout fetched everything it reads. The worker kills
+  its group at that deadline, at the job's cancel, or as the worker
+  aborts, and the kill names which: `Deadline`, `Cancelled` or `Closed`
+  (skein's `runtime/io/processes.md`, section 5).
 - **Then the delivery:** a prepare job's prefixes are pushed, each to
   its member's branch in the landing, the branches the items name as
   writable, expecting each new (`../../protocol/git.md`, 4.4,

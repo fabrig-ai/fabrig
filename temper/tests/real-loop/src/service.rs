@@ -54,7 +54,7 @@ pub struct ServiceHost {
 
     pub(crate) cluster: Option<crate::cluster::Shape>,
     pub(crate) workers_address: Option<SocketAddr>,
-    pub(crate) notes: Vec<temper_service::Note>,
+    pub(crate) notes: Vec<(Time, temper_service::Note)>,
     pub(crate) runs: crate::cluster::Runs,
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
     started_at: Option<Time>,
@@ -648,14 +648,14 @@ impl Host for ServiceHost {
                     note,
                     temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
                 ));
-                self.notes.push(note);
+                self.notes.push((now, note));
             }
             while let Some(note) = service.take_note() {
                 self.linked += usize::from(matches!(
                     note,
                     temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
                 ));
-                self.notes.push(note);
+                self.notes.push((now, note));
             }
             while let Some(link) = service.take_link() {
                 if !self.records_seeded {

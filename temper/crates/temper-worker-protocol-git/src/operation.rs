@@ -1,4 +1,5 @@
-//! One operation owns its identity until its terminal, and one child at a time.
+//! One operation owns its identity until its terminal, and one child at a time
+//! (temper/docs/design/protocol/git.md, 7).
 use crate::{
     Identity, Limits, Outputs, Settings, Version,
     capped::Capped,
@@ -254,7 +255,7 @@ impl Operation {
             self.stop = Some(fault);
         }
         match &mut self.phase {
-            Phase::Active(child) => child.close(self.aborted, out),
+            Phase::Active(child) => child.close(self.aborted, stop_reason(self.stop), out),
             Phase::Spawning { .. } | Phase::Settled => {}
         }
     }
@@ -463,7 +464,7 @@ impl Operation {
                 };
                 self.ran = true;
                 if self.stop.is_some() || self.aborted {
-                    child.close(self.aborted, out);
+                    child.close(self.aborted, stop_reason(self.stop), out);
                 } else {
                     child.read(1, delimiter, out);
                     child.read(2, delimiter, out);
@@ -548,7 +549,7 @@ impl Operation {
                             *child.ended.get_mut(i).expect("standard pipe") = true;
                             if self.stop.is_none() {
                                 self.stop = Some(git::Fault::Broken);
-                                child.close(self.aborted, out);
+                                child.close(self.aborted, stop_reason(self.stop), out);
                             }
                         }
                         stream::Up::Bytes(_) | stream::Up::Room => {}
@@ -568,7 +569,7 @@ impl Operation {
             io::Event::Failed { owner, .. } if owner == self.io_owner => {
                 if self.stop.is_none() {
                     self.stop = Some(git::Fault::Broken);
-                    child.close(self.aborted, out);
+                    child.close(self.aborted, stop_reason(self.stop), out);
                 }
             }
             io::Event::Listening { .. }
@@ -649,11 +650,16 @@ impl Child {
             );
         }
     }
-    fn close(&mut self, aborted: bool, out: &mut Outputs) {
+    fn close(&mut self, aborted: bool, reason: kernel::Reason, out: &mut Outputs) {
         if !aborted {
             emit(
                 out,
-                io::Request::Signal { child: self.token, signal: kernel::Signal::Kill, to: kernel::Target::Group },
+                io::Request::Signal {
+                    child: self.token,
+                    signal: kernel::Signal::Kill,
+                    to: kernel::Target::Group,
+                    reason,
+                },
             );
         }
         emit(
@@ -667,6 +673,15 @@ impl Child {
             );
         }
         self.closing = true;
+    }
+}
+
+fn stop_reason(fault: Option<git::Fault>) -> kernel::Reason {
+    match fault {
+        Some(git::Fault::TimedOut) => kernel::Reason::Deadline,
+        Some(git::Fault::Cancelled) => kernel::Reason::Cancelled,
+        Some(git::Fault::Broken) | None => kernel::Reason::Closed,
+        Some(git::Fault::Missing { .. } | git::Fault::Refused | git::Fault::Unreachable) => kernel::Reason::Unknown,
     }
 }
 

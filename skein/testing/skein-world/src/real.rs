@@ -21,7 +21,7 @@ use core::ops::{Deref, DerefMut};
 
 use crate::ring::{Ring, State};
 use skein_heap::Span;
-use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, ServiceSignal, Signal, Spawn, Submit};
+use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Reason, ServiceSignal, Signal, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
 use skein_shell::{Backend, Clock, Kernel, Now, Wait};
 
@@ -172,12 +172,26 @@ pub fn try_run<P: Host, R: Referee<P>>(
     world.try_run(clock, patience)
 }
 
-/// A killed hosted child, reported after its operations and descriptors settle.
+/// A killed hosted child, reported after its operations and descriptors settle
+/// (skein/docs/design/testing/README.md, 5).
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
+    /// Its admission index.
     pub host: usize,
     pub exit: Exit,
+    /// When the kill was submitted: the iteration's `now`, on the clock
+    /// `Outcome::start` and `end` read.
+    pub at: Time,
+    /// Its program and its arguments' first word, as admitted (lossy UTF-8).
+    pub program: String,
+    pub argument: Option<String>,
+    /// The host whose signal killed it, and that host's program as
+    /// admitted; `None` for a root.
+    pub requester: usize,
+    pub requester_program: Option<String>,
+    /// The signal's reason (skein/docs/design/runtime/io/processes.md, 5).
+    pub reason: Reason,
     /// Its peak after exact metered release, when memory was checked.
     peak: Option<u64>,
 }
@@ -188,6 +202,39 @@ impl Killed {
     #[must_use]
     pub fn peak(&self) -> Option<u64> {
         self.peak
+    }
+}
+
+impl core::fmt::Display for Killed {
+    #[expect(
+        clippy::use_debug,
+        reason = "the kill record's Display names Exit with its Debug form (testing/README.md, 5)"
+    )]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "host {} ({}", self.host, self.program)?;
+        if let Some(argument) = &self.argument {
+            write!(f, " {argument}")?;
+        }
+        write!(
+            f,
+            ") killed at {} ns by host {} ({}): {}; exit {:?}",
+            self.at.as_nanos(),
+            self.requester,
+            self.requester_program.as_deref().unwrap_or("a root"),
+            reason_words(self.reason),
+            self.exit,
+        )
+    }
+}
+
+fn reason_words(reason: Reason) -> &'static str {
+    match reason {
+        Reason::Unknown => "no reason given",
+        Reason::Asked => "asked for",
+        Reason::Closed => "closed while running",
+        Reason::Grace => "forced after its grace",
+        Reason::Deadline => "at its deadline",
+        Reason::Cancelled => "cancelled",
     }
 }
 
@@ -390,7 +437,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
             housekeeping: BTreeMap::new(),
             cleanup: VecDeque::new(),
             killed: Vec::new(),
-            dying: BTreeSet::new(),
+            dying: BTreeMap::new(),
             iterations: 0,
         }
         .run(&mut kernel, clock, patience)
@@ -446,6 +493,7 @@ impl Process {
 struct Child {
     host: usize,
     program: usize,
+    argument: Option<String>,
     signal_writer: Fd,
     exit: Option<Exit>,
     waiters: Vec<Submit>,
@@ -473,7 +521,8 @@ struct Running<P, R> {
     housekeeping: BTreeMap<Token, usize>,
     cleanup: VecDeque<(usize, Op)>,
     killed: Vec<Killed>,
-    dying: BTreeSet<usize>,
+    // Submission time, requester and reason stay with the host until release.
+    dying: BTreeMap<usize, (Time, usize, Reason)>,
     iterations: u32,
 }
 
@@ -746,11 +795,11 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 }
                 while let Some(record) = self.submits.pop() {
                     let record = self.ring.register(host, record);
-                    self.submit(record);
+                    self.submit(record, now);
                 }
                 self.check_exit(at, host);
             }
-            if self.dying.contains(&host) {
+            if self.dying.contains_key(&host) {
                 self.discard(at, host);
                 ran = true;
             }
@@ -947,7 +996,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         self.answer(Complete { op: record.op, kind: record.kind, result });
     }
 
-    fn submit(&mut self, mut record: Submit) {
+    fn submit(&mut self, mut record: Submit, now: Time) {
         assert!(record.kind.is_valid(), "only valid records cross the kernel boundary");
         let host = self.ring.bindings.get(&record.op).expect("a registered operation").host;
         self.processes.get_mut(host).expect("an operation owner").submitted(&record.kind);
@@ -972,7 +1021,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     return;
                 }
             }
-            Op::Signal { pidfd, signal, .. } => {
+            Op::Signal { pidfd, signal, reason, .. } => {
                 if let Some(child) = self.placeholders.get(pidfd).and_then(|host| self.children.get(host)) {
                     let child_host = child.host;
                     let writer = child.signal_writer;
@@ -992,7 +1041,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                             }
                             Signal::Stop | Signal::Continue => Err(Error::InvalidArgument),
                             Signal::Kill => {
-                                self.kill(child_host);
+                                self.kill(child_host, host, *reason, now);
                                 Ok(Done::Nothing)
                             }
                         }
@@ -1130,6 +1179,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     Child {
                         host: child,
                         program,
+                        argument: spawn.args.first().map(|arg| String::from_utf8_lossy(arg).into_owned()),
                         signal_writer: pipes.signal_writer,
                         exit: None,
                         waiters: Vec::new(),
@@ -1147,10 +1197,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         }
     }
 
-    fn kill(&mut self, host: usize) {
+    fn kill(&mut self, host: usize, requester: usize, reason: Reason, now: Time) {
         let exit = Exit::Signal(9);
         self.processes.get_mut(host).expect("child process").exit = Some(exit);
-        assert!(self.dying.insert(host), "a hosted child is killed once");
+        assert!(self.dying.insert(host, (now, requester, reason)).is_none(), "a hosted child is killed once");
         self.settling_children.insert(host);
         // Keep the child until every submitted buffer returns. Returned records
         // are discarded under that child's meter, never by the backend.
@@ -1186,7 +1236,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         }
     }
 
-    fn release_killed(&mut self, host: usize, exit: Exit) {
+    fn release_killed(&mut self, host: usize, exit: Exit, submitted: (Time, usize, Reason)) {
         let at =
             self.positions.get_mut(host).expect("a position per host").take().expect("a dying child remains admitted");
         self.living_hosts.remove(&host);
@@ -1208,7 +1258,17 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 None
             }
         };
-        self.killed.push(Killed { host, exit, peak });
+        let (at, requester, reason) = submitted;
+        let child = self.children.get_mut(&host).expect("a killed child");
+        let program =
+            String::from_utf8_lossy(&self.world.programs.get(child.program).expect("a registered program").program)
+                .into_owned();
+        let argument = child.argument.take();
+        let requester_program = self.children.get(&requester).map(|child| {
+            String::from_utf8_lossy(&self.world.programs.get(child.program).expect("a registered program").program)
+                .into_owned()
+        });
+        self.killed.push(Killed { host, exit, at, program, argument, requester, requester_program, reason, peak });
     }
 
     fn settle_children(&mut self) {
@@ -1240,8 +1300,8 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             if process.cleanup != 0 || process.queued_cleanup != 0 {
                 continue;
             }
-            if self.dying.remove(&host) {
-                self.release_killed(host, exit);
+            if let Some(submitted) = self.dying.remove(&host) {
+                self.release_killed(host, exit, submitted);
             }
             let child = self.children.get_mut(&host).expect("registered child");
             child.exit = Some(exit);
@@ -1314,11 +1374,11 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) -> Option<St
 #[cfg(test)]
 mod tests {
     use super::{Child, Process, Running, Sched, World, deadline_diagnostic, referee_diagnostic};
-    use crate::{Figures, Host, Referee, ring::State};
+    use crate::{Figures, Host, HostedProgram, Referee, ring::State};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
-    use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Submit};
+    use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Reason, Submit};
     use skein_lib::{Duration, Queue, Time, Token, Wall};
 
     #[test]
@@ -1446,6 +1506,12 @@ mod tests {
 
     fn children_with<R: Referee<Idle>>(referee: R) -> Running<Idle, R> {
         let mut world = World::new(referee);
+        world.host(HostedProgram {
+            program: Box::from(&b"hosted"[..]),
+            make: |_, _| idle(),
+            instances: 2,
+            operations: 2,
+        });
         for _ in 0_usize..3 {
             world.spawn(|| Idle {
                 completions: Queue::with_capacity(2),
@@ -1485,6 +1551,7 @@ mod tests {
                         Child {
                             host,
                             program: 0,
+                            argument: None,
                             signal_writer: Fd::new(-1),
                             exit: None,
                             waiters: Vec::new(),
@@ -1498,7 +1565,7 @@ mod tests {
             housekeeping: BTreeMap::new(),
             cleanup: VecDeque::new(),
             killed: Vec::new(),
-            dying: BTreeSet::new(),
+            dying: BTreeMap::new(),
             iterations: 0,
         }
     }
@@ -1570,7 +1637,7 @@ mod tests {
         let seen = Rc::new(RefCell::new(Vec::new()));
         let mut running = children_with(Observations(seen.clone()));
         retain_exited(&mut running, 2);
-        running.kill(1);
+        running.kill(1, 0, Reason::Asked, Time::ZERO);
         assert!(!running.begin_iteration(Time::ZERO, Time::from_nanos(1)));
         running.world.referee.act(Time::ZERO, &mut running.world.procs);
         assert!(running.drive(Time::ZERO, Wall::from_nanos(0)).expect("the referee holds").is_none());
@@ -1664,7 +1731,7 @@ mod tests {
     #[test]
     fn releasing_a_killed_child_keeps_the_other_childs_position_and_instance() {
         let mut running = children_after_descriptor_cleanup();
-        running.kill(1);
+        running.kill(1, 0, Reason::Asked, Time::ZERO);
         running.settle_children();
         assert_eq!(running.ids, [0, 2]);
         assert_eq!(running.positions, [Some(0), None, Some(1)]);
@@ -1678,8 +1745,8 @@ mod tests {
     #[test]
     fn another_hosts_queued_cleanup_does_not_hold_a_settling_child() {
         let mut running = children_after_descriptor_cleanup();
-        running.kill(1);
-        running.kill(2);
+        running.kill(1, 0, Reason::Asked, Time::ZERO);
+        running.kill(2, 0, Reason::Asked, Time::ZERO);
         running.queue_cleanup(2, Op::Close { fd: Fd::new(-1) });
         running.settle_children();
         assert_eq!(running.killed.len(), 1);
@@ -1706,11 +1773,11 @@ mod tests {
         let local = Token::new(10);
         for host in [0, 1] {
             let record = running.ring.register(host, Submit { op: local, kind: Op::Wait { pidfd, reap: false } });
-            running.submit(record);
+            running.submit(record, Time::ZERO);
         }
         let cancel = Token::new(11);
         let record = running.ring.register(0, Submit { op: cancel, kind: Op::Cancel { target: local } });
-        running.submit(record);
+        running.submit(record, Time::ZERO);
         assert_eq!(running.waiting_children.len(), 1);
         assert_eq!(running.children.get(&2).expect("waited child").waiters.len(), 1);
         let mut returned = Queue::with_capacity(2);
@@ -1723,7 +1790,7 @@ mod tests {
         assert_eq!(terminal.kind, Op::Cancel { target: local });
         assert_eq!(terminal.result, Ok(Done::Nothing));
         assert!(!running.ring.has_ready(), "the other wait still waits on its child");
-        running.kill(1);
+        running.kill(1, 0, Reason::Asked, Time::ZERO);
         assert!(running.waiting_children.is_empty(), "kill removes the killed hosts waiter");
         assert!(running.children.get(&2).expect("waited child").waiters.is_empty(), "both waits have terminals");
         assert!(running.ring.has_ready(), "kill returns its cancelled wait before releasing the child");

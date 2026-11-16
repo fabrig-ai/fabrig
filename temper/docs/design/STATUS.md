@@ -34,6 +34,9 @@ worker, the workspace, the repository, the stage and git's command, with
 check out and clean told apart, and the operation's and the prepare's
 times, and the worker logs a line for it
 (`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
+A real-loop story that fails on a kill it didn't ask for names each kill's
+target, killer, time and reason, with the service's notes from the run's
+last seconds (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -613,6 +616,7 @@ Drafts:
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
+- [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)

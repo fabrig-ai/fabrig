@@ -368,6 +368,7 @@ impl Host for Parent {
                 pidfd: self.child.expect("silent child"),
                 signal: Signal::Terminate,
                 to: Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
             });
         }
         if !self.waiting && !self.signal_waiting && (!self.signal_ready || self.signalled) {
