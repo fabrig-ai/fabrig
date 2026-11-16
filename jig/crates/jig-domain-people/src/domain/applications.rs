@@ -116,6 +116,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::AnswerPerson { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }

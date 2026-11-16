@@ -279,6 +279,7 @@ fn reports() -> Answer {
 }
 fn task() -> d::Task {
     d::Task {
+        concluded: None,
         talk: None,
         session: None,
         settings: None,

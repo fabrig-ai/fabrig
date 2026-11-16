@@ -601,6 +601,7 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
+            | Event::Conclude { .. }
             | Event::Cancel { .. }
             | Event::Release { .. }
             | Event::Propose { .. }
@@ -705,6 +706,7 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
+            | Event::Conclude { .. }
             | Event::Cancel { .. }
             | Event::Release { .. }
             | Event::MoveToNewest { .. }
@@ -1224,6 +1226,12 @@ impl World {
                 unreachable!("live key")
             }
         }
+    }
+
+    /// The connector step the tasks child would request, if any.
+    #[must_use]
+    pub fn procedure_due(&self, task: u64) -> Option<(u16, u32, u64)> {
+        self.domain.procedure_due(task)
     }
 
     pub fn make(&mut self, creator: Party, batch: Vec<New>) -> Reply {

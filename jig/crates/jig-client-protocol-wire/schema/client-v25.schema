@@ -1,4 +1,4 @@
-family jig-client-wire 24
+family jig-client-wire 25
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -317,6 +317,9 @@ record Decide { project: u32 on: DecideOn }
 record Release { project: u32 task: u64 revision: Revision again: option bool }
 record Amend { project: u32 task: u64 revision: option Revision change: Amendment reason: text 65536 }
 record Stop { project: u32 task: u64 }
+record Conclude { project: u32 task: u64 }
+record Concluded { by: u64 at: u64 }
+record RefusalConcluded { at: u64 }
 record Cancel { project: u32 task: u64 reason: text 65536 grace: option duration }
 record Move { project: u32 task: u64 reason: text 65536 }
 record Seen { through: SeenThrough }
@@ -399,7 +402,8 @@ record OutcomeProjectRemoved { project: u32 }
 record OutcomeAccountMovedIn { account: u32 renewed: bool }
 record OutcomeAccountFinishing { source: u32 }
 record OutcomeLifted { hold: u64 released: u32 }
-enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet, left: OutcomeStopped, account_login_asked: OutcomeAccountLoginAsked }
+record OutcomeConcluded { task: u64 }
+enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet, left: OutcomeStopped, account_login_asked: OutcomeAccountLoginAsked, concluded: OutcomeConcluded }
 record MadeTasks { tasks: list 32 u64 }
 record MadeService { party: u64 credential: secret 40 }
 record MadePersonResult { task: u64 }
@@ -585,7 +589,7 @@ record DecodedActivityLine { source: ActivityLine decoded: option ArchivedTurn }
 record ActivityPage { cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record SpendLine { task: u64 attempt: option u64 spent: u64 }
 record Hold { revision: Revision reason: HoldReason before: Phase since: u64 result: option ResultValue spend: list 32 SpendLine placed: option PlacedLine }
-enum HistoryChange { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn }
+enum HistoryChange { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn, concluded }
 record ParameterDocumentNumber { name: u32 value: u64 }
 record ParameterDocumentBytes { name: u32 value: DocumentText }
 record ParameterDocumentResource { name: u32 connector: u16 resource: u64 }
@@ -721,7 +725,7 @@ enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunW
 record TaskSettings { task: u32 run: option u32 newest: u32 }
 record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 last: u64 }
-record Task { talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
+record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
 record ReadPosition { task: u64 through: u64 }
 record Tasks { rows: bytes 16777216 more: bool }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }
@@ -835,10 +839,11 @@ record PersonCapacityActionHandBackPerson { task: u64 }
 record PersonCapacityActionAnswerPerson { task: u64 }
 record PersonCapacityActionStop { task: u64 }
 record PersonCapacityActionCancel { task: u64 }
+record PersonCapacityActionConclude { task: u64 }
 record PersonCapacityActionRelease { task: u64 }
 record PersonCapacityActionMarkSeen { seen: SeenThrough }
 record PersonCapacityActionLift { hold: u64 }
-enum PersonCapacityAction { create, compound, application: PersonCapacityActionApplication, note: PersonCapacityActionNote, service, adoption, roles, policy, pool: PersonCapacityActionPool, escalation: PersonCapacityActionEscalation, proposal: PersonCapacityActionProposal, words: PersonCapacityActionWords, question: PersonCapacityActionQuestion, amend: PersonCapacityActionAmend, move_task: PersonCapacityActionMove, take_person: PersonCapacityActionTakePerson, hand_back_person: PersonCapacityActionHandBackPerson, answer_person: PersonCapacityActionAnswerPerson, stop: PersonCapacityActionStop, cancel: PersonCapacityActionCancel, release: PersonCapacityActionRelease, mark_seen: PersonCapacityActionMarkSeen, account_sign_in, account_sign_out, account_change, lift: PersonCapacityActionLift }
+enum PersonCapacityAction { create, compound, application: PersonCapacityActionApplication, note: PersonCapacityActionNote, service, adoption, roles, policy, pool: PersonCapacityActionPool, escalation: PersonCapacityActionEscalation, proposal: PersonCapacityActionProposal, words: PersonCapacityActionWords, question: PersonCapacityActionQuestion, amend: PersonCapacityActionAmend, move_task: PersonCapacityActionMove, take_person: PersonCapacityActionTakePerson, hand_back_person: PersonCapacityActionHandBackPerson, answer_person: PersonCapacityActionAnswerPerson, stop: PersonCapacityActionStop, cancel: PersonCapacityActionCancel, release: PersonCapacityActionRelease, mark_seen: PersonCapacityActionMarkSeen, account_sign_in, account_sign_out, account_change, lift: PersonCapacityActionLift, conclude: PersonCapacityActionConclude }
 record PersonCapacityCauseRequests { limit: u32 }
 record PersonCapacityCausePending { limit: u32 }
 record PersonCapacityCauseWaiters { limit: u32 }

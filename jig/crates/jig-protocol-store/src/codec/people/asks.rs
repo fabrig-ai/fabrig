@@ -396,6 +396,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
         domain::Ask::Stop { project, task } => {
             wire::Ask::Stop(wire::AskStop::new(limits, wire::AskStopParts { project: *project, task: *task })?)
         }
+        domain::Ask::Conclude { project, task } => wire::Ask::Conclude(wire::AskConclude::new(
+            limits,
+            wire::AskConcludeParts { project: *project, task: *task },
+        )?),
         domain::Ask::Cancel { project, task, reason, grace } => wire::Ask::Cancel(wire::AskCancel::new(
             limits,
             wire::AskCancelParts {
@@ -613,6 +617,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskStopParts { project, task } = value.into_parts();
             domain::Ask::Stop { project, task }
         }
+        wire::Ask::Conclude(value) => domain::Ask::Conclude { project: value.project(), task: value.task() },
         wire::Ask::Cancel(value) => {
             let wire::AskCancelParts { project, task, reason, grace } = value.into_parts();
             domain::Ask::Cancel {

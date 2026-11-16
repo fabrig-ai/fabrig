@@ -275,6 +275,10 @@ fn person_action(b: &mut Builder, words: &Words, value: PersonCapacityAction) {
             text(b, words, P::PersonCapacityActionStop, &[]);
             field_number(b, words, P::Task, task);
         }
+        PersonCapacityAction::Conclude { task } => {
+            text(b, words, P::PersonCapacityActionConclude, &[]);
+            field_number(b, words, P::Task, task);
+        }
         PersonCapacityAction::Cancel { task } => {
             text(b, words, P::PersonCapacityActionCancel, &[]);
             field_number(b, words, P::Task, task);

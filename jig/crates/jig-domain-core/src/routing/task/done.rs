@@ -49,6 +49,7 @@ pub(crate) fn complete(
                 PersonTaskRoute::Answer(task) => people::Outcome::PersonAnswered { task },
                 PersonTaskRoute::Leave(task) => people::Outcome::Left { task },
                 PersonTaskRoute::Stop(task) => people::Outcome::Stopped { task },
+                PersonTaskRoute::Conclude(task) => people::Outcome::Concluded { task },
                 PersonTaskRoute::Cancel(task) => people::Outcome::Cancelled { task },
                 PersonTaskRoute::Release(task) => people::Outcome::Released { task },
                 PersonTaskRoute::Amended { task, released } => people::Outcome::Amended { task, released },

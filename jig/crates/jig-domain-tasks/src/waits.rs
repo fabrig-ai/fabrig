@@ -1137,6 +1137,7 @@ fn circle_cut(why: &Refusal) -> bool {
         | Refusal::Kept
         | Refusal::Executor
         | Refusal::Spec
+        | Refusal::Concluded { .. }
         | Refusal::Contract
         | Refusal::AuthorityShape
         | Refusal::Inputs

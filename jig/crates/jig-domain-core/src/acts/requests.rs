@@ -38,7 +38,8 @@ pub(crate) fn request(
         | people::Ask::Withdraw { .. }
         | people::Ask::AccountSignIn { .. }
         | people::Ask::AccountSignOut { .. }
-        | people::Ask::AccountChange { .. } => return Ok(()),
+        | people::Ask::AccountChange { .. }
+        | people::Ask::Conclude { .. } => return Ok(()),
         people::Ask::Create { .. }
         | people::Ask::Propose { action: people::Action::Batch(_) | people::Action::Amend { .. }, .. } => {
             return standing::role(core, project, role, Act::Amend);
@@ -170,6 +171,7 @@ pub(crate) fn request(
         | people::Ask::Release { .. }
         | people::Ask::Amend { .. }
         | people::Ask::Stop { .. }
+        | people::Ask::Conclude { .. }
         | people::Ask::Cancel { .. }
         | people::Ask::Move { .. }
         | people::Ask::Create { .. }

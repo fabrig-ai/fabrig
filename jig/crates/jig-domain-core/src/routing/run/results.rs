@@ -24,6 +24,7 @@ pub(crate) struct ResultRead {
 
 #[derive(Hash, Debug)]
 pub(crate) enum ReadFor {
+    Conclude { party: crate::routing::party::dispatch::Party, task: u64 },
     DeploymentClose { request: Token, project: u32 },
     Preparation { task: u64, last_message: u64 },
     Amendment(Box<AmendmentRead>),
@@ -40,7 +41,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
             let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
             let token = id.token();
             let owner = match &read.why {
-                ReadFor::DeploymentClose { .. } | ReadFor::Batch(_) => None,
+                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Batch(_) => None,
                 ReadFor::Preparation { task, .. } => Some(*task),
                 ReadFor::Amendment(read) => match &read.replay {
                     Replay::Agent { key, .. } => Some(key.task),
@@ -55,7 +56,10 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
         let Some(request) = request else { break };
         if let Some(read) = core.take_result_read(request) {
             match read.why {
-                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } | ReadFor::Batch(_) => {}
+                ReadFor::Conclude { .. }
+                | ReadFor::DeploymentClose { .. }
+                | ReadFor::Preparation { .. }
+                | ReadFor::Batch(_) => {}
                 ReadFor::Amendment(amendment) => match amendment.replay {
                     Replay::Agent { key, .. } => {
                         let _pending = core.pending_calls.remove(&key);
@@ -75,7 +79,8 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ReadFor::Preparation { task: owner, .. } if owner == task => {
                 return out;
             }
-            ReadFor::DeploymentClose { .. }
+            ReadFor::Conclude { .. }
+            | ReadFor::DeploymentClose { .. }
             | ReadFor::Preparation { .. }
             | ReadFor::Amendment(_)
             | ReadFor::Batch(_) => {}
@@ -112,6 +117,7 @@ fn retain(core: &mut Core, out: &mut Queue<Request>, read: ResultRead) {
     out.push(Request::Held(Box::new(Held::Load(Box::new(Now::EndedTask { request, task })))));
 }
 
+#[expect(clippy::too_many_lines, reason = "each retained read resumes its owning route")]
 pub(crate) fn loaded(
     core: &mut Core,
     env: &Env<Limits>,
@@ -124,6 +130,13 @@ pub(crate) fn loaded(
 
     let Some(mut read) = core.take_result_read(request) else { return out };
     match read.why {
+        ReadFor::Conclude { party, task } => {
+            let outcome = concluded_outcome(core, party, task, row, busy);
+            work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
+                request: party.request,
+                outcome,
+            })));
+        }
         ReadFor::DeploymentClose { request, project } => {
             let outcome = closed_outcome(project, *read.ids.first().expect("one close subject"), row, busy);
             work.push(Work::Event(Event::People(jig_domain_people::Event::Decided { request, outcome })));
@@ -295,7 +308,7 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
                     }
                     Replay::Person { .. } | Replay::Agent { .. } => {}
                 },
-                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
             }
         }
         let Some(request) = found else { break };
@@ -303,7 +316,7 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
             match read.why {
                 ReadFor::Amendment(read) => discard_party(core, read.replay),
                 ReadFor::Batch(read) => batch_reads::discard(core, read.request),
-                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+                ReadFor::Conclude { .. } | ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
             }
         }
     }
@@ -363,5 +376,59 @@ fn discard_party(core: &mut Core, replay: Replay) {
             drop(core.land_kind(request, crate::routing::flight::Kind::Party));
         }
         Replay::Agent { .. } => {}
+    }
+}
+
+/// Load an ended gathering through the ordinary retained-result read (gatherings.md, 3).
+pub(crate) fn conclude(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    party: crate::routing::party::dispatch::Party,
+    task: u64,
+) {
+    if core.result_read_flights() == core.flight_tasks_capacity {
+        crate::routing::refusals::pool_again(work, party.request, jig_domain_people::Again::Busy);
+        return;
+    }
+    retain(
+        core,
+        out,
+        ResultRead {
+            why: ReadFor::Conclude { party, task },
+            ids: Box::new([task]),
+            at: 0,
+            results: List::with_capacity(0),
+        },
+    );
+}
+
+fn concluded_outcome(
+    core: &Core,
+    party: crate::routing::party::dispatch::Party,
+    task: u64,
+    row: Option<Box<tasks::TaskRecord>>,
+    busy: bool,
+) -> jig_domain_people::Outcome {
+    use jig_domain_people::{Outcome, Refusal, Role};
+    if busy {
+        return Outcome::Again(jig_domain_people::Again::Busy);
+    }
+    let Some(row) = row else { return Outcome::Refused(Refusal::Unknown) };
+    let allowed = match core.people.role(party.person, party.project) {
+        Some(Role::Owner | Role::Maintainer) => true,
+        Some(Role::Member | Role::Observer | Role::Policy { .. }) => {
+            row.requester == tasks::Party::Person(party.person)
+        }
+        None => false,
+    };
+    if !allowed || row.number != task || row.project != party.project {
+        return Outcome::Refused(Refusal::Unknown);
+    }
+    match &row.phase {
+        tasks::Phase::Ended(ending) => Outcome::Refused(crate::routing::refusals::ended(ending)),
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+            Outcome::Refused(Refusal::Unknown)
+        }
     }
 }

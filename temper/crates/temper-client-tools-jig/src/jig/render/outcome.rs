@@ -123,6 +123,7 @@ impl Operation {
                 c::Ask::Lift { .. } => (b"lift", None),
                 c::Ask::Release { task, .. } => (b"release", Some(*task)),
                 c::Ask::Stop { task, .. } => (b"stop", Some(*task)),
+                c::Ask::Conclude { task, .. } => (b"conclude", Some(*task)),
                 c::Ask::Cancel { task, .. } => (b"cancel", Some(*task)),
                 c::Ask::Take { task, .. } => (b"take", Some(*task)),
                 c::Ask::HandBack { task, .. } => (b"hand-back", Some(*task)),
@@ -1247,6 +1248,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::Release { .. }
             | c::Ask::Amend { .. }
             | c::Ask::Stop { .. }
+            | c::Ask::Conclude { .. }
             | c::Ask::Cancel { .. }
             | c::Ask::Move { .. }
             | c::Ask::Seen { .. }
@@ -1346,6 +1348,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
+        | c::Refusal::Concluded { .. }
         | c::Refusal::Llm { .. } => false,
     }
 }

@@ -217,6 +217,7 @@ pub struct HoldRow {
 /// One kind of durable task-tree change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
+    Concluded,
     Cancelled,
     Released,
     Amended,
@@ -553,6 +554,9 @@ fn check_amend_fields(
         return Err(Refusal::Spec);
     }
     if let Some(dependencies) = &amendment.dependencies {
+        if crate::gathering::executor(old.executor) && !dependencies.is_empty() {
+            return Err(Refusal::Contract);
+        }
         if dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies) {
             return Err(Refusal::Dependencies);
         }
@@ -1091,6 +1095,7 @@ pub(crate) fn apply_release(
     history(domain, number, env.wall, by, Change::Released, &[], out);
     publish(domain, env, number, out);
     return_to_waits(domain, env, number, out);
+    crate::gathering::settle(domain, env, number, out);
     if let Some(held) = held {
         crate::placed::prune(domain, held, out);
     }

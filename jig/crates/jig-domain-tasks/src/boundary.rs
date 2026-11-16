@@ -1109,6 +1109,8 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The first concluding party and decision (domain/tasks/gatherings.md, 3).
+    pub concluded: Option<crate::Concluded>,
     pub talk: Option<crate::Talk>,
     /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
     pub session: Option<crate::Session>,
@@ -1396,6 +1398,10 @@ impl Stored {
 /// (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
+    Concluded {
+        at: Wall,
+    },
     NotStanding,
     TalkOpen {
         party: u64,
@@ -1580,6 +1586,12 @@ pub enum Accepted {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
+    /// Root-authorized concluding word (domain/tasks/gatherings.md, 3).
+    Conclude {
+        reply_to: ReplyTo,
+        by: u64,
+        task: u64,
+    },
     /// Close project rows (jig/docs/design/domain/tasks/changes.md).
     CloseProject {
         project: u32,

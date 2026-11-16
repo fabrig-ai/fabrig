@@ -272,6 +272,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::Release { .. }
             | contract::Ask::Amend { .. }
             | contract::Ask::Stop { .. }
+            | contract::Ask::Conclude { .. }
             | contract::Ask::Cancel { .. }
             | contract::Ask::Move { .. }
             | contract::Ask::EditNote { .. }

@@ -222,6 +222,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Withdrawn { .. }
                     | people::Outcome::Left { .. }
                     | people::Outcome::Stopped { .. }
+                    | people::Outcome::Concluded { .. }
                     | people::Outcome::Cancelled { .. }
                     | people::Outcome::Lifted { .. }
                     | people::Outcome::Released { .. }
@@ -364,6 +365,9 @@ pub(crate) fn tag_people_part(
                         );
                     }
                     people::Ask::Stop { task, .. } => stop_request(core, env, &mut routed, party, task),
+                    people::Ask::Conclude { task, .. } => {
+                        super::controls::conclude_request(core, env, &mut routed, party, task);
+                    }
                     people::Ask::Cancel { task, reason, grace, .. } => {
                         cancel_request(core, env, &mut routed, party, task, reason, grace);
                     }

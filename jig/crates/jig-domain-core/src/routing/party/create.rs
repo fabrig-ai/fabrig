@@ -416,7 +416,9 @@ fn executor(core: &Core, executor: people::TaskExecutor) -> Result<tasks::Execut
             tasks::Executor::Agent { charter }
         }
         people::TaskExecutor::Procedure { connector, code } => {
-            if code == 0 || !core.connectors.contains(&connector) {
+            if code == 0
+                || !(core.connectors.contains(&connector) || connector == crate::RECURRING && code == crate::GATHERING)
+            {
                 return Err(people::Refusal::NotOffered);
             }
             tasks::Executor::Procedure { connector, code }

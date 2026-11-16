@@ -140,6 +140,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::Lift { hold, .. } => *hold != 0,
         Ask::TakePerson { task, .. }
         | Ask::HandBackPerson { task, .. }
+        | Ask::Conclude { task, .. }
         | Ask::Stop { task, .. }
         | Ask::Leave { task, .. }
         | Ask::Release { task, .. } => *task != 0,
@@ -228,6 +229,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::Application { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }

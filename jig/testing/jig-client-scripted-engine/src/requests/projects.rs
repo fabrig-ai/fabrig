@@ -35,6 +35,7 @@ impl<A: Application> Engine<A> {
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }
+            | Ask::Conclude { .. }
             | Ask::Cancel { .. }
             | Ask::Move { .. }
             | Ask::Seen { .. }

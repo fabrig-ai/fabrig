@@ -1,7 +1,7 @@
 //! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/README.md, 3).
 use super::refusals;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v25 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 pub(crate) fn answer(
@@ -197,6 +197,9 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         }
         p::Outcome::Stopped { task } => {
             w::DocumentOutcome::Stopped(w::OutcomeStopped::new(limits, w::OutcomeStoppedParts { task: *task })?)
+        }
+        p::Outcome::Concluded { task } => {
+            w::DocumentOutcome::Concluded(w::OutcomeConcluded::new(limits, w::OutcomeConcludedParts { task: *task })?)
         }
         p::Outcome::Cancelled { task } => {
             w::DocumentOutcome::Cancelled(w::OutcomeCancelled::new(limits, w::OutcomeCancelledParts { task: *task })?)

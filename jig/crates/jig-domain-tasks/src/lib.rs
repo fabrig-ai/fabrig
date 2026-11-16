@@ -83,7 +83,9 @@ mod escalation;
 mod facts;
 mod failures;
 mod flags;
+mod gathering;
 mod goals;
+pub use gathering::Concluded;
 mod grace;
 #[doc(hidden)]
 pub use flags::shaped;

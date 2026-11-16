@@ -25,6 +25,7 @@ fn header(value: &DocumentOutcome) -> P {
         DocumentOutcome::Adopted { .. } => P::Adopted,
         DocumentOutcome::Left { .. } => P::Left,
         DocumentOutcome::Stopped { .. } => P::Stopped,
+        DocumentOutcome::Concluded { .. } => P::Concluded,
         DocumentOutcome::Cancelled { .. } => P::Cancelled,
         DocumentOutcome::Released { .. } | DocumentOutcome::Lifted { .. } => P::Released,
         DocumentOutcome::PersonTaken { .. } => P::PersonTaken,
@@ -153,6 +154,7 @@ fn details(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
         | DocumentOutcome::PolicyChanged { project } => number(b, words, P::Project, u64::from(*project)),
         DocumentOutcome::Left { task }
         | DocumentOutcome::Stopped { task }
+        | DocumentOutcome::Concluded { task }
         | DocumentOutcome::Cancelled { task }
         | DocumentOutcome::Released { task }
         | DocumentOutcome::PersonTaken { task }

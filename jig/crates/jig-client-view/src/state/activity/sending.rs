@@ -39,6 +39,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }

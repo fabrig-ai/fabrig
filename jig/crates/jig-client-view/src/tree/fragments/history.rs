@@ -40,6 +40,7 @@ fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
 }
 fn change(b: &mut Builder, value: HistoryChange, words: &Words) {
     let phrase = match value {
+        HistoryChange::Concluded => P::Concluded,
         HistoryChange::Cancelled => P::Cancelled,
         HistoryChange::Released => P::Released,
         HistoryChange::Amended => P::Amended,

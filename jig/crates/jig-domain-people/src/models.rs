@@ -132,6 +132,7 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
         | Ask::MakeService { .. }
         | Ask::Adopt { .. }
         | Ask::Withdraw { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }
@@ -227,6 +228,7 @@ fn selectors(ask: &Ask) -> Selectors {
         | Ask::MakeService { .. }
         | Ask::Adopt { .. }
         | Ask::Withdraw { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }

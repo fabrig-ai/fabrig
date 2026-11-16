@@ -1,7 +1,7 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
 use super::Untranslatable;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v25 as w;
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, length::len_u64};
 #[derive(Debug)]
@@ -120,6 +120,7 @@ fn decode(
             let v = value.into_parts();
             p::Ask::Stop { project: v.project, task: v.task }
         }
+        w::Ask::Conclude(value) => p::Ask::Conclude { project: value.project(), task: value.task() },
         w::Ask::Cancel(value) => {
             let v = value.into_parts();
             p::Ask::Cancel { project: v.project, task: v.task, reason: v.reason, grace: v.grace }

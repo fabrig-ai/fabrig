@@ -208,6 +208,7 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::Take { .. }
         | Ask::HandBack { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }

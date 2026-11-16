@@ -19,6 +19,10 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
+    Concluded {
+        at: Wall,
+    },
     NoTerminal,
     LoginUnderWay,
     NotLending,

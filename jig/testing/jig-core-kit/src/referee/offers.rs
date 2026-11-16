@@ -265,7 +265,9 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         people::Ask::Release { task, .. } => (Act::Release, Subject::Task { task: *task }),
         people::Ask::Amend { task, .. } => (Act::Amend, Subject::Task { task: *task }),
         people::Ask::Stop { task, .. } => (Act::Stop, Subject::Task { task: *task }),
-        people::Ask::Cancel { task, .. } => (Act::Cancel, Subject::Task { task: *task }),
+        people::Ask::Conclude { task, .. } | people::Ask::Cancel { task, .. } => {
+            (Act::Cancel, Subject::Task { task: *task })
+        }
         people::Ask::Move { task, .. } => (Act::Move, Subject::Task { task: *task }),
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, .. } } => {
             (Act::Seen, Subject::Task { task: *task })

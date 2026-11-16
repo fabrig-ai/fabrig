@@ -29,6 +29,7 @@ pub enum CapacityAction {
     AnswerPerson { task: u64 },
     Stop { task: u64 },
     Cancel { task: u64 },
+    Conclude { task: u64 },
     Release { task: u64 },
     Lift { hold: u64 },
     MarkSeen { seen: crate::Seen },
@@ -92,6 +93,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::HandBackPerson { task, .. } => CapacityAction::HandBackPerson { task: *task },
         Ask::AnswerPerson { task, .. } => CapacityAction::AnswerPerson { task: *task },
         Ask::Stop { task, .. } => CapacityAction::Stop { task: *task },
+        Ask::Conclude { task, .. } => CapacityAction::Conclude { task: *task },
         Ask::Cancel { task, .. } => CapacityAction::Cancel { task: *task },
         Ask::Lift { hold, .. } => CapacityAction::Lift { hold: *hold },
         Ask::Release { task, .. } => CapacityAction::Release { task: *task },
@@ -184,6 +186,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::Authority { .. }
         | Refusal::Moved { .. }
         | Refusal::Taken { .. }
+        | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::NotWaiting
         | Refusal::NoFurther

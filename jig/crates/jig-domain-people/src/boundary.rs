@@ -231,6 +231,11 @@ pub enum NoteChange {
     )
 )]
 pub enum Ask {
+    /// Conclude a gathering (jig/docs/design/domain/tasks/gatherings.md, 3).
+    Conclude {
+        project: u32,
+        task: u64,
+    },
     /// Propose the settings as a revision left them (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/people/acts.md, 1).
     Restore {
         revision: u32,
@@ -506,6 +511,7 @@ impl Ask {
             | Self::HandBackPerson { project, .. }
             | Self::AnswerPerson { project, .. }
             | Self::Stop { project, .. }
+            | Self::Conclude { project, .. }
             | Self::Cancel { project, .. }
             | Self::Release { project, .. }
             | Self::Create { project, .. }
@@ -552,6 +558,7 @@ impl Ask {
             | Self::HandBackPerson { .. }
             | Self::AnswerPerson { .. }
             | Self::Stop { .. }
+            | Self::Conclude { .. }
             | Self::Cancel { .. }
             | Self::Lift { .. }
             | Self::Release { .. }
@@ -656,6 +663,10 @@ pub enum OutcomeFamily {
 /// final outcomes with the parent's task decision. (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// The gathering keeps its concluding word.
+    Concluded {
+        task: u64,
+    },
     AccountReading {
         count: u32,
     },
@@ -1475,6 +1486,7 @@ impl Outcome {
             | Self::Withdrawn { .. }
             | Self::Left { .. }
             | Self::Stopped { .. }
+            | Self::Concluded { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
             | Self::Released { .. }
@@ -1529,6 +1541,7 @@ impl Outcome {
             | Self::Withdrawn { .. }
             | Self::Left { .. }
             | Self::Stopped { .. }
+            | Self::Concluded { .. }
             | Self::Cancelled { .. }
             | Self::Lifted { .. }
             | Self::Released { .. }

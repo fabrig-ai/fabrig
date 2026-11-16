@@ -410,8 +410,8 @@ const STANDARD_ROOT: Root = Root {
         // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
         // + 22 executor places * 8 bytes per AuthorityExecutor
         // + 8 bytes for the question wake watermark
-        // + 56 bytes for Option<OpenAttempt> = 22,467,904.
-        transcript_bytes: 22_467_904,
+        // + 56 bytes for Option<OpenAttempt> and 24 for Option<Concluded> = 22,467,928.
+        transcript_bytes: 22_467_928,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

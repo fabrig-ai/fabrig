@@ -562,6 +562,7 @@ fn decisions(ask: &Ask) -> Vec<(ObjectKey, ActKind)> {
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }
         | Ask::MakeProject { .. }
+        | Ask::Conclude { .. }
         | Ask::SetPool { .. } => Vec::new(),
     }
 }

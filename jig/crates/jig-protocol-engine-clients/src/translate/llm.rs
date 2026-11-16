@@ -365,6 +365,7 @@ pub(crate) fn refused(
         | w::Ask::Release(_)
         | w::Ask::Lift(_)
         | w::Ask::Stop(_)
+        | w::Ask::Conclude(_)
         | w::Ask::Cancel(_)
         | w::Ask::MoveTask(_)
         | w::Ask::Seen(_)

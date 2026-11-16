@@ -630,6 +630,7 @@ impl World {
                         Ask::EditNote { .. }
                         | Ask::Adopt { .. }
                         | Ask::Stop { .. }
+                        | Ask::Conclude { .. }
                         | Ask::Cancel { .. }
                         | Ask::Move { .. }
                         | Ask::AnswerQuestion { .. }
@@ -1049,6 +1050,7 @@ impl World {
                                         | Ask::Propose { .. }
                                         | Ask::Withdraw { .. }
                                         | Ask::Stop { .. }
+                                        | Ask::Conclude { .. }
                                         | Ask::Cancel { .. }
                                         | Ask::Lift { .. }
                                         | Ask::Release { .. }
@@ -1085,6 +1087,7 @@ impl World {
                             Ask::EditNote { .. }
                             | Ask::Adopt { .. }
                             | Ask::Stop { .. }
+                            | Ask::Conclude { .. }
                             | Ask::Cancel { .. }
                             | Ask::Move { .. }
                             | Ask::AnswerQuestion { .. }

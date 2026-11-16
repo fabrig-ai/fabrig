@@ -53,6 +53,7 @@ pub(crate) fn check_result_followups(
     check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, &[])
 }
 
+#[expect(clippy::too_many_lines, reason = "one batch entrance checks its creator before whole-member admission")]
 fn check_with_result_proposal(
     domain: &Domain,
     limits: &Limits,
@@ -82,6 +83,9 @@ fn check_with_result_proposal(
             let Some(parent) = record(domain, number) else {
                 return Err(problem(Some(number), Refusal::Unknown));
             };
+            if let Some(concluded) = parent.concluded {
+                return Err(problem(Some(number), Refusal::Concluded { at: concluded.at }));
+            }
             if matches_job(parent.executor) {
                 return Err(problem(Some(number), Refusal::Executor));
             }
@@ -230,6 +234,9 @@ fn check_members(
         if !crate::flags::valid(new.flags, new.executor, creator)
             || (new.flags.ended_by == crate::EndedBy::Standing && new.tracked.is_some())
         {
+            return Err(problem(number, Refusal::Contract));
+        }
+        if crate::gathering::executor(new.executor) && !crate::gathering::shape(new) {
             return Err(problem(number, Refusal::Contract));
         }
         if domain.names.contains_key(&new.number) {

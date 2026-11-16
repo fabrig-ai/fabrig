@@ -13,6 +13,7 @@ pub enum HistoryPhrase {
     History,
     Task,
     Revision,
+    Concluded,
     Cancelled,
     Released,
     Amended,
@@ -67,10 +68,11 @@ pub enum HistoryPhrase {
     DependenciesAbsent,
     DependenciesCut,
 }
-pub const ALL: [HistoryPhrase; 56] = [
+pub const ALL: [HistoryPhrase; 57] = [
     HistoryPhrase::History,
     HistoryPhrase::Task,
     HistoryPhrase::Revision,
+    HistoryPhrase::Concluded,
     HistoryPhrase::Cancelled,
     HistoryPhrase::Released,
     HistoryPhrase::Amended,
@@ -132,6 +134,7 @@ impl HistoryPhrase {
             Self::History => 7600,
             Self::Task => 7601,
             Self::Revision => 7602,
+            Self::Concluded => 7657,
             Self::Cancelled => 7603,
             Self::Released => 7604,
             Self::Amended => 7605,
@@ -191,6 +194,7 @@ impl HistoryPhrase {
     fn hole(self) -> Option<HoleKind> {
         match self {
             Self::History
+            | Self::Concluded
             | Self::Cancelled
             | Self::Released
             | Self::Amended
@@ -252,6 +256,7 @@ impl HistoryPhrase {
             Self::History => b"Semantic history",
             Self::Task => b"Task: ",
             Self::Revision => b"Revision: ",
+            Self::Concluded => b"Concluded",
             Self::Cancelled => b"Cancelled",
             Self::Released => b"Released",
             Self::Amended => b"Amended",

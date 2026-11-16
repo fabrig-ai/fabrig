@@ -609,6 +609,7 @@ pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(
         | c::Ask::SetPool { .. }
         | c::Ask::SignIn { .. }
         | c::Ask::SignOut { .. }
+        | c::Ask::Conclude { .. }
         | c::Ask::SetVisibility { .. } => return None,
     };
     match change {

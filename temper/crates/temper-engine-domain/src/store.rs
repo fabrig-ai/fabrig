@@ -1056,6 +1056,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::TakePerson { .. }
                     | jig_domain_people::Ask::SetPool { .. }
                     | jig_domain_people::Ask::HandBackPerson { .. }
+                    | jig_domain_people::Ask::Conclude { .. }
                     | jig_domain_people::Ask::Stop { .. }
                     | jig_domain_people::Ask::Lift { .. }
                     | jig_domain_people::Ask::Release { .. }
@@ -1382,6 +1383,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::Withdrawn { .. }
         | Outcome::Left { .. }
         | Outcome::Stopped { .. }
+        | Outcome::Concluded { .. }
         | Outcome::Cancelled { .. }
         | Outcome::Released { .. }
         | Outcome::PersonTaken { .. }

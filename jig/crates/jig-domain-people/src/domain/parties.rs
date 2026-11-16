@@ -179,6 +179,7 @@ pub(super) fn make_service(
         | Ask::Create { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }

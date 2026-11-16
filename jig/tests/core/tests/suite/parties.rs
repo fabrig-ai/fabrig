@@ -139,7 +139,13 @@ fn finish(world: &mut World) {
 }
 
 fn person_world(seed: u64) -> World {
-    jig_core_world::stories::offers::world_with_policy(seed, Some(people::Role::Member), |limits, rules, policy| {
+    person_world_with_procedure(seed, PROCEDURE)
+}
+fn person_world_with_procedure(seed: u64, procedure: u32) -> World {
+    person_world_with_procedure_role(seed, procedure, people::Role::Member)
+}
+fn person_world_with_procedure_role(seed: u64, procedure: u32, role: people::Role) -> World {
+    jig_core_world::stories::offers::world_with_policy(seed, Some(role), |limits, rules, policy| {
         limits.core.people.batch = 2;
         limits.core.tasks.batch = 2;
         limits.core.authority.batch = 2;
@@ -150,7 +156,7 @@ fn person_world(seed: u64) -> World {
         limits.core.documents.executors = 3;
         let kinds: Box<[jig_domain_authority::Executor]> = Box::new([
             jig_domain_authority::Executor::Charter(CHARTER),
-            jig_domain_authority::Executor::Procedure(PROCEDURE),
+            jig_domain_authority::Executor::Procedure(procedure),
             jig_domain_authority::Executor::Role(MEMBER_ROLE),
         ]);
         rules.ceiling.delegation.kinds.clone_from(&kinds);
@@ -1036,4 +1042,51 @@ fn a_partys_widening_amendment_is_proposed_by_the_party_and_accepted() {
     );
     assert_eq!((pool_reserved(&world, PARTY), pool_reserved(&world, OTHER_PARTY)), (300, 150));
     assert!(inbox(&mut world, member_sign_in, reads::Group::Updates).contains(&proposal_object(proposal)));
+}
+
+#[test]
+fn a_partys_gathering_is_created_and_concluded_with_cancel_tree_reach() {
+    for case in 0..4 {
+        let mut world = person_world_with_procedure_role(
+            360 + case,
+            jig_domain_core::GATHERING,
+            if case == 2 { people::Role::Maintainer } else { people::Role::Member },
+        );
+        let mut member = people_member(b"gather the work", 20);
+        member.executor =
+            people::TaskExecutor::Procedure { connector: jig_domain_core::RECURRING, code: jig_domain_core::GATHERING };
+        member.flags.ended_by = people::EndedBy::Requester;
+        create(&mut world, Box::new([member]));
+        assert_eq!(
+            world.people_answers.last(),
+            Some(&people::Reply::Outcome(people::Outcome::Created { first: FIRST, last: FIRST, given: None }))
+        );
+        assert!(world.procedure_inputs.is_empty(), "the gathering never asks a connector to step");
+        assert_eq!(live_row(&world, FIRST).concluded, None);
+        if case == 1 {
+            other_party(&mut world, people::Role::Member);
+        }
+        if case == 2 {
+            other_party(&mut world, people::Role::Maintainer);
+        }
+        let sign_in = world.sign_in.expect("signed in");
+        let target = if case == 3 { CHAT } else { FIRST };
+        ask_as(&mut world, sign_in, 81, people::Ask::Conclude { project: PROJECT, task: target });
+        match case {
+            1 => refusal(&world, people::Refusal::Unknown),
+            3 => refusal(&world, people::Refusal::NotWellFormed { at: 0, why: people::Malformed::EndedBy }),
+            0 | 2 => {
+                assert_eq!(
+                    world.people_answers.last(),
+                    Some(&people::Reply::Outcome(people::Outcome::Concluded { task: FIRST }))
+                );
+                ask_as(&mut world, sign_in, 82, people::Ask::Conclude { project: PROJECT, task: FIRST });
+                assert!(matches!(
+                    world.people_answers.last(),
+                    Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Ended { .. })))
+                ));
+            }
+            _ => unreachable!(),
+        }
+    }
 }

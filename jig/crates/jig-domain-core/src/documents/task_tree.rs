@@ -361,6 +361,7 @@ fn task_with_lineage(
     let acts = super::offers::task(core, limits, party, row, decision)?;
     let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
     Ok(Task {
+        concluded: row.concluded,
         talk: row.talk,
         session: row.session,
         settings: match row.executor {

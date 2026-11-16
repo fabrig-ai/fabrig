@@ -202,6 +202,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        concluded: None,
         session: None,
         talk: None,
         activation_open: false,
@@ -1841,7 +1842,7 @@ pub fn forge_connecting(
     request: temper_client_protocol_wire::v1::Request,
     bundle: Secret,
 ) {
-    use jig_client_protocol_wire::v24 as j;
+    use jig_client_protocol_wire::v25 as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());

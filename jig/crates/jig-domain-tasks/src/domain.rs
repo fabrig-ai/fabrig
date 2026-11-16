@@ -470,7 +470,7 @@ impl Domain {
         if record.phase != Phase::Active(Active::Due) {
             return None;
         }
-        if record.recurring.is_some() {
+        if record.recurring.is_some() || crate::gathering::executor(record.executor) {
             return None;
         }
         match record.executor {
@@ -670,6 +670,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
         }
+        Event::Conclude { reply_to, by, task } => crate::gathering::conclude(domain, env, reply_to, by, task, out),
         Event::Cancel { reply_to, by, operation } => {
             crate::control::cancel(domain, env, reply_to, by, operation, out);
         }
@@ -772,6 +773,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::DelegateResult { task, word } => {
             crate::inbox::delegate_result(domain, env, task, word, out);
             crate::recurring::after_delegate(domain, env, task, out);
+            crate::gathering::settle(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
         Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
@@ -983,6 +985,9 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// Changed connector facts wake an idle procedure or survive its pending step.
 pub(crate) fn wake_procedure(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, task) else { return };
+    if crate::gathering::executor(row.executor) {
+        return;
+    }
     match row.executor {
         crate::Executor::Procedure { .. } => {}
         crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => return,
@@ -1549,6 +1554,7 @@ pub(crate) fn make_admitted(
             }
         }
         let task = Task::new(TaskRecord {
+            concluded: None,
             session: None,
             talk: None,
             activation_open: false,

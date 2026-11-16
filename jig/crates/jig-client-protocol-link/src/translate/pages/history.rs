@@ -6,6 +6,7 @@ use super::{
 
 pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
     match value {
+        w::HistoryChange::Concluded => c::HistoryChange::Concluded,
         w::HistoryChange::Cancelled => c::HistoryChange::Cancelled,
         w::HistoryChange::Released => c::HistoryChange::Released,
         w::HistoryChange::Amended => c::HistoryChange::Amended,

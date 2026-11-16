@@ -307,6 +307,7 @@ pub fn header(commits: u64) -> core::Record {
 #[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        concluded: None,
         session: None,
         talk: None,
         activation_open: false,

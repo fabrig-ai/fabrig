@@ -139,6 +139,9 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         domain::Outcome::Stopped { task } => {
             wire::Outcome::Stopped(wire::OutcomeStopped::new(limits, wire::OutcomeStoppedParts { task: *task })?)
         }
+        domain::Outcome::Concluded { task } => {
+            wire::Outcome::Concluded(wire::OutcomeConcluded::new(limits, wire::OutcomeConcludedParts { task: *task })?)
+        }
         domain::Outcome::Cancelled { task } => {
             wire::Outcome::Cancelled(wire::OutcomeCancelled::new(limits, wire::OutcomeCancelledParts { task: *task })?)
         }
@@ -299,6 +302,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             let wire::OutcomeStoppedParts { task } = value.into_parts();
             domain::Outcome::Stopped { task }
         }
+        wire::Outcome::Concluded(value) => domain::Outcome::Concluded { task: value.task() },
         wire::Outcome::Cancelled(value) => {
             let wire::OutcomeCancelledParts { task } = value.into_parts();
             domain::Outcome::Cancelled { task }
