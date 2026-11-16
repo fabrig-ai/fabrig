@@ -359,6 +359,29 @@ def place(binary_id, manifest_path, workspace_root, table):
     return tree, table.get(tree, {}).get(binary_id) if table is not None else None
 
 
+def workspace_binaries(metadata, listing, table):
+    """Record every test target, selected or not (tools/tiers/budgets.md, 3)."""
+    workspace = []
+    for package in metadata['packages']:
+        for target in package['targets']:
+            if not target['test']:
+                continue
+            for kind in target['kind']:
+                if kind in ('lib', 'rlib', 'cdylib', 'dylib', 'staticlib', 'proc-macro'):
+                    binary_id = package['name']
+                elif kind == 'test':
+                    binary_id = f"{package['name']}::{target['name']}"
+                elif kind in ('bin', 'example', 'bench'):
+                    binary_id = f"{package['name']}::{kind}/{target['name']}"
+                else:
+                    continue
+                tree, layer = place(binary_id, package['manifest_path'], metadata['workspace_root'], table)
+                listed = listing['rust-suites'].get(binary_id, {}).get('status') == 'listed'
+                workspace.append(dict(binary_id=binary_id, tree=tree, layer=layer, listed=listed))
+                break
+    return sorted(workspace, key=lambda binary: binary['binary_id'])
+
+
 def make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings, table):
     build = listing['rust-build-meta']
     target = Path(build['target-directory'])
@@ -405,6 +428,7 @@ def make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
                                  path=suite['binary-path'], cwd=suite['cwd'], tests=tests,
                                  env=binary_environment(binary_env, cargo, suite, package, build, profile, host_libdir)))
     return dict(profile=profile, binaries=binaries, groups=groups, layers=table['layers'] if table is not None else [],
+                workspace=workspace_binaries(metadata, listing, table),
                 global_timeout=duration(settings.get('global-timeout')), lanes=LANES,
                 term_grace_s=TERM_GRACE_S, wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S,
                 times_path=str(times_path))
@@ -806,7 +830,7 @@ def again_plan(run_directory, binary_id, names):
         if name not in selected:
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
-                lanes=1, single_process=True, alone_diagnostics=False, layers=[])
+                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[])
 
 
 def again(plan, prefix, env, directory):
@@ -841,7 +865,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     save(directory / 'plan.json', plan)
     selected = sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None,
-                   processes=[], tests=[], unobserved=[], layers=plan['layers'])
+                   processes=[], tests=[], unobserved=[], layers=plan['layers'], workspace=plan['workspace'])
     tests = {}
     starts, active = {}, set()
     lane_count = plan['lanes'] or len(os.sched_getaffinity(0))
