@@ -663,7 +663,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
   environment builders, and its output parsers against transcripts of
   real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
-  `skein/docs/design/testing/fakes/forge.md`, section 7);
+  `skein/docs/design/testing/fakes/throwaway.md`, section 2);
   temper's pages as skein's text shell prints them (`../client/testing.md`
   ).
 - **Machine worlds:** the forge component against a scripted HTTP peer

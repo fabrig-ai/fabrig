@@ -447,6 +447,7 @@ pub(super) fn get_run(input: &mut Reader<'_>, limits: &Limits) -> Result<actions
         created: time(input)?,
         inputs: get_inputs(input, limits)?,
         cancelled_by: None,
+        wait: None,
     })
 }
 pub(super) fn put_job(out: &mut Sink, v: &actions::Job) {

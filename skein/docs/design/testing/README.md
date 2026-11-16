@@ -161,7 +161,7 @@ reproduced in skein's own tier, and fixed there.
 A service that works on a forge takes the forge's fakes from skein: the
 domain and the protocol layer in its protocol worlds, the forge peer in
 its real loop, and the throwaway Forgejo in its tools and process tiers
-(fakes/forge.md, sections 2 to 6). The peer serves plaintext on loopback
+(fakes/forge.md, sections 2 to 5, and fakes/throwaway.md, section 1). The peer serves plaintext on loopback
 over a forge the service may share with its own fake of git. Its
 transcripts of git stay its own.
 
@@ -474,8 +474,8 @@ testing/skein-fork              a run forked at a chosen moment of a test and wa
 testing/skein-rows              one table test's rows: each named as it runs, and the first failure ends the table (../../foundation/testing-strategy.md, 8)
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
-testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fakes/forge.md, 6)
-testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fakes/forge.md, 7)
+testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fakes/throwaway.md, 1)
+testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fakes/throwaway.md, 2)
 testing/skein-fake-channel      a scripted framed peer for a service's protocol worlds (channel.md)
 testing/skein-protocol-kit      what the protocol worlds share: a demand's reads and the draws below them, the sweep's tally, the transcript loader
 testing/skein-json-kit          what a second crate takes of the JSON world: the reference reader, the generator and their outcome types
@@ -513,7 +513,7 @@ tests/forge/protocol            the protocol world: the client and the component
 tests/forge/client              the client world: the client alone under a scripted parent, over the fake forge's domain (../forge/client.md, 10)
 tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (../forge/setup/README.md, 5)
 tests/forge/dialect             both dialects' documents, plans and bounds driven from outside, with their fuzzy mutations, skein-forge-dialect-tests
-tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fakes/forge.md, 7)
+tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fakes/throwaway.md, 2)
 tests/forge/github              GitHub's conformance tool, outside the suites: the hosted fake and owner fixtures (fakes/github.md, 2)
 tests/fake-forge                the fake forge's domain, its Forgejo layer and its GitHub service against the counting allocator, skein-fake-forge-tests
 tests/fail-stop                 a panic on any thread aborts the process after its report, through a fixture binary, skein-fail-stop-tests

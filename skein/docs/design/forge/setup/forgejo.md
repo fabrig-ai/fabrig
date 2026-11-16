@@ -583,7 +583,7 @@ pin (../README.md, section 4.3), and named by the fact's name.
   `setup-file-missing-reads-raw-404`.
 - **A copy** (1.10), from a source served by a second throwaway on
   loopback, with `ALLOW_LOCALNETWORKS` on in the first throwaway alone
-  (../../testing/fakes/forge.md, section 7): `Migrate` refuses a plain `http` source
+  (../../testing/fakes/throwaway.md, section 2): `Migrate` refuses a plain `http` source
   until `ALLOW_UNENCRYPTED` is on; it answers 201 once whole, private,
   with the source's default branch and every branch; it brings no
   issues; a name already there answers 409; a missing source, and a

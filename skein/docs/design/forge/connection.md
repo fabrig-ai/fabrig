@@ -1091,7 +1091,7 @@ The owner's domain owes:
   together. Scenarios check each kind and both kinds together under
   named ceilings with headroom.
 - **The conformance** drives the component against a real Forgejo
-  (../testing/fakes/forge.md, section 7).
+  (../testing/fakes/throwaway.md, section 2).
 
 ## 11. Open questions
 
