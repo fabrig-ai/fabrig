@@ -85,7 +85,7 @@ impl ListRead {
     /// Withdraw the answer right and settle the command's resources.
     pub fn cancel(&mut self, below: &mut Queue<io::Request>) {
         self.cancelled = true;
-        self.command.cancel(below);
+        self.command.cancel(kernel::Reason::Cancelled, below);
     }
 
     /// The command's next host deadline, absent while settling or after closure.

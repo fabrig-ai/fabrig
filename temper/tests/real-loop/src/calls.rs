@@ -1246,7 +1246,15 @@ impl Caller {
     fn kill_call(&mut self, index: usize) -> bool {
         if self.current.is_none() {
             let pidfd = self.running[index].as_ref().expect("kill running call").pidfd.expect("spawned call");
-            self.submit(index, Op::Signal { pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Child });
+            self.submit(
+                index,
+                Op::Signal {
+                    pidfd,
+                    signal: Signal::Kill,
+                    to: skein_io::kernel::Target::Child,
+                    reason: skein_io::kernel::Reason::Asked,
+                },
+            );
             self.current = Some(index);
             return false;
         }

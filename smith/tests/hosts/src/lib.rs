@@ -233,7 +233,11 @@ impl HostService {
         if self.crash_requested {
             self.crash_requested = false;
             self.crashed = true;
-            self.process.as_ref().expect("started child").signal(kernel::Signal::Kill, &mut self.io_requests);
+            self.process.as_ref().expect("started child").signal(
+                kernel::Signal::Kill,
+                kernel::Reason::Asked,
+                &mut self.io_requests,
+            );
         }
         self.domain_env.now = now;
         self.domain_env.wall = wall;
@@ -424,11 +428,11 @@ impl HostService {
             host::Output::Process(host::process::Request::Send { message, .. }) => self.send(message),
             host::Output::Process(host::process::Request::Signal { signal, .. }) => {
                 self.seen.signals.push(signal);
-                let signal_below = match signal {
-                    host::Signal::Terminate => kernel::Signal::Terminate,
-                    host::Signal::Kill => kernel::Signal::Kill,
+                let (signal_below, reason) = match signal {
+                    host::Signal::Terminate => (kernel::Signal::Terminate, kernel::Reason::Unknown),
+                    host::Signal::Kill => (kernel::Signal::Kill, kernel::Reason::Grace),
                 };
-                self.process.as_ref().expect("spawned child").signal(signal_below, &mut self.io_requests);
+                self.process.as_ref().expect("spawned child").signal(signal_below, reason, &mut self.io_requests);
                 self.domain_events
                     .push(host::Input::Process(host::process::Event::Signalled { owner: self.agent_owner() }));
             }

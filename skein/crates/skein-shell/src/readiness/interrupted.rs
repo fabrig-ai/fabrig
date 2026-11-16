@@ -119,7 +119,15 @@ fn every_other_interrupted_operation_completes_eintr_after_one_call() {
             },
             false,
         ),
-        (Op::Signal { pidfd: FD, signal: Signal::Terminate, to: Target::Child }, false),
+        (
+            Op::Signal {
+                pidfd: FD,
+                signal: Signal::Terminate,
+                to: Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
+            false,
+        ),
         (Op::Usage, false),
         (Op::Window { fd: FD }, false),
     ] {

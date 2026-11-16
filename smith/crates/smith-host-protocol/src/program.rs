@@ -90,7 +90,7 @@ impl ProgramSource {
 
     /// Cancel the host's source operation, answering only after its resources settle.
     pub fn cancel(&mut self, below: &mut Queue<IoRequest>) {
-        self.command.cancel(below);
+        self.command.cancel(kernel::Reason::Cancelled, below);
     }
 
     /// The source command's next host deadline.

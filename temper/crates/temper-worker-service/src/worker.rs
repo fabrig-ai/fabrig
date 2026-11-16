@@ -1021,11 +1021,11 @@ impl Worker {
         }
     }
     fn process_signal(&mut self, owner: Token, signal: smith::Signal) {
-        let signal = match signal {
-            smith::Signal::Terminate => io::kernel::Signal::Terminate,
-            smith::Signal::Kill => io::kernel::Signal::Kill,
+        let (signal, reason) = match signal {
+            smith::Signal::Terminate => (io::kernel::Signal::Terminate, io::kernel::Reason::Unknown),
+            smith::Signal::Kill => (io::kernel::Signal::Kill, io::kernel::Reason::Grace),
         };
-        self.processes.get(&owner).expect("root owns process").signal(signal, &mut self.io);
+        self.processes.get(&owner).expect("root owns process").signal(signal, reason, &mut self.io);
         self.events.push(root::Event::Process(Box::new(smith::process::Event::Signalled { owner })));
     }
     fn process_read(&mut self, owner: Token) {

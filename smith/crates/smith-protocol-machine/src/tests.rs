@@ -598,7 +598,8 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
         Some(Below::Process(skein_io::Request::Signal {
             child: Token::new(45),
             to: kernel::Target::Group,
-            signal: kernel::Signal::Terminate
+            signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown,
         }))
     );
     harness.component.from_below(
@@ -615,7 +616,8 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
         Some(Below::Process(skein_io::Request::Signal {
             child: Token::new(45),
             to: kernel::Target::Group,
-            signal: kernel::Signal::Kill
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Grace,
         }))
     );
     assert_eq!(harness.component.next_deadline(), Some(Time::from_nanos(20_000_102)));

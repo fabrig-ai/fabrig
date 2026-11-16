@@ -838,7 +838,7 @@ impl Summary {
                 pipes: spawn.pipes.len(),
             },
             Op::Wait { pidfd, reap } => Summary::Wait { pidfd: *pidfd, reap: *reap },
-            Op::Signal { pidfd, signal, to } => Summary::Signal { pidfd: *pidfd, signal: *signal, to: *to },
+            Op::Signal { pidfd, signal, to, .. } => Summary::Signal { pidfd: *pidfd, signal: *signal, to: *to },
             Op::ReadSignal { fd } => Summary::ReadSignal { fd: *fd },
             Op::PipeRead { fd, buf } => Summary::PipeRead { fd: *fd, len: buf.len() },
             Op::PipeWrite { fd, bytes, from } => Summary::PipeWrite { fd: *fd, len: bytes.len(), from: *from },
