@@ -102,7 +102,7 @@
       "listener": {
         "socket": "{place.clients}"
       },
-      "bundle": null,
+      "bundle": "{place.bundle}",
       "public": null
     },
     "machine": {},

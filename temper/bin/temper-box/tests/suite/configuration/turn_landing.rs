@@ -34,6 +34,8 @@ fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
 fn the_turn_landing_documents_check_as_their_shapes() {
     let directories = jig_protocol_config::Directories::working();
     let bytes = rendered("engine.json");
+    let bundle = place().value("bundle").expect("test place bundle");
+    assert_eq!(json(&bytes)["application"]["clients"]["bundle"], std::str::from_utf8(&bundle).expect("bundle path"));
     assert_eq!(startup::shape(&bytes, &directories).expect("engine shape"), Shape::EngineAlone);
     let named = startup::named(&bytes, &directories)
         .unwrap_or_else(|why| panic!("engine: {}", String::from_utf8_lossy(&startup::lines(&why))));

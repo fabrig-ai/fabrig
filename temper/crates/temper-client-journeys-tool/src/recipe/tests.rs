@@ -286,6 +286,57 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     );
 }
 
+/// Both clients see Hello on the deployment's engine (testing/qa/setups.md, 5.1, 6).
+#[test]
+fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let chain = Chain::read(&setups, "turn-landing-clients").expect("deployment clients chain");
+    assert_eq!(chain.kind(), Kind::Deployment);
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["turn-landing", "turn-landing-clients"]);
+    assert!(!chain.ctl_only());
+    let recipe = chain.recipes.last().expect("clients recipe");
+    assert_eq!(recipe.check.iter().map(|line| line.number).collect::<Vec<_>>(), [7, 8, 9]);
+    assert!(recipe.scripts.is_none());
+    assert!(recipe.files.is_empty());
+    assert!(recipe.config.is_empty());
+    let turn = Chain::read(&setups, "turn-landing").expect("turn-landing chain");
+    assert_ne!(chain.hash(), turn.hash());
+    assert_ne!(chain.hash(), [0; 32]);
+
+    let ports = "1,2,3,4,5,6,7,8,9";
+    let mut arguments = args(&["--bin", "/build", "--scratch", "/scratch", "--ports", ports]);
+    assert!(command::session_options(&chain, &setups, &arguments).expect_err("bundle required").contains("--bundle"));
+    arguments.extend(args(&["--bundle", "/bundle"]));
+    let options = command::session_options(&chain, &setups, &arguments).expect("full deployment session");
+    assert!(!options.ctl);
+    assert_eq!(options.deployment, Some(setups.join("turn-landing/config")));
+    assert_eq!(options.ports.as_deref(), Some(ports));
+    assert_eq!(options.bundle.as_deref(), Some(Path::new("/bundle")));
+    assert_eq!(options.scripts, vec![setups.join("turn-landing/scripts.json")]);
+    assert_eq!(
+        shown(chain.lines(Some("turn-landing")).expect("from turn-landing copy")),
+        [
+            "turn-landing:8 ctl project show Hello",
+            "turn-landing:9 ctl forge list",
+            "turn-landing:10 ctl forge repositories 1",
+            "turn-landing-clients:3 web reload \"/projects/1\"",
+            "turn-landing-clients:4 web see \"work/hello is in Hello\"",
+            "turn-landing-clients:5 tui see \"Ask temper\"",
+            "walk: web reload \"/\"",
+            "walk: tui stop",
+            "turn-landing-clients:7 ctl project show Hello",
+            "turn-landing-clients:8 web see \"Nothing needs you.\"",
+            "turn-landing-clients:9 tui see \"Ask temper\"",
+        ]
+    );
+    assert_eq!(
+        command::catalogue(&Reader::Directory(&setups), vec!["turn-landing-clients".into()]),
+        [
+            "turn-landing-clients (after turn-landing): Hello landing by turn, as turn-landing leaves it, is seen through the web client and the TUI on the deployment's engine."
+        ]
+    );
+}
+
 /// Ctl alone reaches Hello and the person's model account (testing/qa/setups.md, 2, 6).
 #[test]
 fn ctl_hello_reads_hashes_and_walks_its_steps_and_checks_in_a_ctl_session() {
