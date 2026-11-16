@@ -2,6 +2,7 @@
 //! Every chip carries whole bounded phase facts. Dependency chips are visited
 //! once through a bounded work list; neither the carrier nor traversal is recursive.
 use crate::JigBindings;
+pub use crate::words::fragments::chip::failure;
 use crate::words::phrases::jig::JigPhrase;
 use crate::words::{Words, name};
 
@@ -12,7 +13,7 @@ use crate::{
     Borrowed,
     state::{action::Act, address::Address, objects::Body},
 };
-use jig_client::contract::{Chip, ChipPhaseFacts, FailureClass};
+use jig_client::contract::{Chip, ChipPhaseFacts};
 
 /// The task's named link and copied title, with its executor kind in words.
 pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindings) {
@@ -82,16 +83,6 @@ fn region(
     head(b, chip, words, bindings);
     details(b, client, &chip.details, words, bindings, pending, seen);
     b.close();
-}
-/// Failure classes have one whole table so a new class must acquire words.
-pub fn failure(b: &mut Builder, class: FailureClass, words: &Words) {
-    let phrase = match class {
-        FailureClass::HostLost => JigPhrase::HostLost,
-        FailureClass::Temporary => JigPhrase::Temporary,
-        FailureClass::Permanent => JigPhrase::Permanent,
-        FailureClass::Stall => JigPhrase::Stall,
-    };
-    words.text(b, phrase, &[]);
 }
 /// Detailed task runtime, with application phase explanations left as parts.
 pub fn details(

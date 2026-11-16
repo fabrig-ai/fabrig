@@ -1,10 +1,11 @@
-use crate::tests::tree::cards::CLIENT;
 use crate::words::Words;
 use skein_lib::{List, bytes::zeroed};
 use skein_ui::phrases::{
     Form, Language, Phrase, PhraseId, PhraseLimits, PhraseShape, Phrasebook, PluralClass, PluralRule, Segment,
     SpanUnit, WallFormat,
 };
+
+const TEXT: u32 = 128;
 
 #[test]
 fn a_partial_book_has_no_jig_capacity() {
@@ -40,10 +41,10 @@ fn english_loads_beside_the_reference_ui_s_phrases_in_one_phrasebook() {
 
 #[test]
 fn replacing_words_recomputes_capacity_without_changing_a_clone() {
-    let mut words = Words::new(crate::words::phrases::english::english(CLIENT.client.text).unwrap(), 0, 60);
+    let mut words = Words::new(crate::words::phrases::english::english(TEXT).unwrap(), 0, 60);
     let original = words.clone();
     assert_eq!(words.jig_capacity(), crate::words::phrases::jig_capacity(words.book()));
-    words.set_book(crate::words::phrases::english::english(CLIENT.client.text * 2).unwrap());
+    words.set_book(crate::words::phrases::english::english(TEXT * 2).unwrap());
     assert_eq!(words.jig_capacity(), crate::words::phrases::jig_capacity(words.book()));
     assert_ne!(words.jig_capacity(), original.jig_capacity());
     assert_eq!(original.jig_capacity(), crate::words::phrases::jig_capacity(original.book()));
@@ -55,11 +56,11 @@ fn replacing_words_recomputes_capacity_without_changing_a_clone() {
 
 #[test]
 fn words_capacity_covers_unselected_languages_and_ignores_other_owners() {
-    let base = crate::words::phrases::english::english(CLIENT.client.text).unwrap();
+    let base = crate::words::phrases::english::english(TEXT).unwrap();
     let longer = crate::words::phrases::jig_capacity(&base).unwrap() + 1;
     let unrelated = PhraseId { owner: crate::Owner::Application { number: 0 }.opaque(), number: 0 };
     let mut shapes = List::with_capacity(crate::words::document_words::phrase_count() + 1);
-    for shape in crate::words::phrases::jig::shapes(CLIENT.client.text) {
+    for shape in crate::words::phrases::jig::shapes(TEXT) {
         shapes.push(shape).unwrap();
     }
     shapes.push(PhraseShape { id: unrelated, holes: Box::new([]), plural: None }).unwrap();
@@ -93,7 +94,7 @@ fn words_capacity_covers_unselected_languages_and_ignores_other_owners() {
             holes: 4,
             segments: 6000,
             text_bytes: 100_000,
-            hole_bytes: CLIENT.client.text,
+            hole_bytes: TEXT,
         },
     )
     .unwrap();
@@ -118,7 +119,7 @@ fn full_answers_phrase_names_the_count_and_room_time() {
     use skein_ui::phrases::Hole;
     const HELD: u64 = 3; // three occupied answer places
     const ROOM: skein_lib::Wall = skein_lib::Wall::from_nanos(3_720_000_000_000); // 01:02 in the clock vocabulary
-    let book = crate::words::phrases::english::english(CLIENT.client.text).expect("the vocabulary declarations fit");
+    let book = crate::words::phrases::english::english(TEXT).expect("the vocabulary declarations fit");
     let said = book
         .say(0, crate::words::phrases::jig::JigPhrase::AnswersFull.id(), &[Hole::Number(HELD), Hole::Wall(ROOM)])
         .expect("typed full facts");
@@ -127,7 +128,7 @@ fn full_answers_phrase_names_the_count_and_room_time() {
 
 #[test]
 fn a_too_linked_read_names_its_join_bound() {
-    let book = crate::words::phrases::english::english(CLIENT.client.text).expect("English words");
+    let book = crate::words::phrases::english::english(TEXT).expect("English words");
     let words = book
         .say(0, crate::words::phrases::jig::JigPhrase::TooLinked.id(), &[skein_ui::phrases::Hole::Number(4)])
         .expect("join bound");

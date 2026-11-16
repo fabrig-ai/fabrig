@@ -1,0 +1,16 @@
+[package]
+name = "jig-client-view-words"
+description = "Reference client UI words: phrasebook, vocabularies, owner, regions and styles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-ui.workspace = true
+jig-client.workspace = true
+
+[lints]
+workspace = true

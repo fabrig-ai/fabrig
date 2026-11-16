@@ -5,7 +5,6 @@ pub(crate) mod held;
 pub(crate) mod lacking;
 pub(crate) mod refusals;
 pub(crate) mod status;
-use crate::state::intents::Progress;
 use crate::words::phrases::jig::JigPhrase;
 use alloc::boxed::Box;
 use jig_client::contract::{Actor, ChipExecutor, Decision, Ending, Executor, Made, Outcome, ProposalKey, Proposer};
@@ -84,7 +83,7 @@ impl Words {
     }
     pub(crate) fn node_text(&self, text: u32) -> u32 {
         let phrase = self.jig_capacity().expect("complete jig vocabulary checked");
-        crate::sizes::limits::node_text(text, phrase).expect("checked node text")
+        crate::words::literal_segment::node_text(text, phrase).expect("checked node text")
     }
     /// Emit a text leaf using a phrase's checked words.
     pub fn text(&self, b: &mut Builder, phrase: JigPhrase, holes: &[Hole]) {
@@ -107,18 +106,6 @@ impl Words {
             Link::Offline => JigPhrase::Offline,
             Link::SignedOut => JigPhrase::SignedOut,
             Link::OutOfDate => JigPhrase::UpdateClient,
-        };
-        self.status(b, phrase, &[]);
-    }
-    /// Say the request table's progress without owning its retry policy.
-    pub fn progress(&self, b: &mut Builder, progress: Progress) {
-        let phrase = match progress {
-            Progress::Confirming => JigPhrase::Confirming,
-            Progress::InFlight => JigPhrase::InFlight,
-            Progress::Retrying => JigPhrase::Word(Word::Phase(Phase::BackingOff)),
-            Progress::Full { held, room_at } => return self.answers_full(b, held, room_at),
-            Progress::Parked => JigPhrase::Parked,
-            Progress::Unknown => JigPhrase::Unknown,
         };
         self.status(b, phrase, &[]);
     }
@@ -250,7 +237,7 @@ impl Words {
                 self.wall(b, *at);
             }
             Ending::Deleted => self.text(b, JigPhrase::DeletedEnding, &[]),
-            Ending::Task(value) => crate::tree::fragments::chip::ending_summary(b, value, self),
+            Ending::Task(value) => crate::words::fragments::chip::ending_summary(b, value, self),
         }
     }
     /// The named maker, without inventing a party name or another actor kind.
@@ -290,7 +277,7 @@ impl Words {
             Outcome::SettingsChanged(value) => {
                 self.text(b, JigPhrase::SettingsChanged, &[Hole::Number(u64::from(value.revision))]);
             }
-            Outcome::Document(value) => crate::tree::fragments::outcome::render(b, value, self),
+            Outcome::Document(value) => crate::words::fragments::outcome::render(b, value, self),
             Outcome::Made { what } => match what {
                 Made::Tasks { tasks } => {
                     for task in tasks {

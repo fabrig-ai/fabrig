@@ -7,8 +7,6 @@ use skein_ui::phrases::{
     Form, HoleKind, HoleShape, Language, Phrase, PhraseId, PhraseShape, PluralClass, PluralRule, Segment, SpanUnit,
     WallFormat,
 };
-#[cfg(test)]
-use skein_ui::phrases::{Invalid, PhraseLimits, Phrasebook};
 
 /// Closed phrases for exact owner wake facts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -225,13 +223,4 @@ pub fn language() -> Language {
         wall: WallFormat::Nanos,
         phrases: phrases.into_boxed(),
     }
-}
-/// A checked standalone English phrasebook; callers select the loaded language.
-#[cfg(test)]
-pub fn english() -> Result<Phrasebook, Invalid> {
-    Phrasebook::load(
-        shapes(),
-        Box::new([language()]),
-        &PhraseLimits { languages: 1, phrases: 28, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 },
-    )
 }

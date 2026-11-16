@@ -820,6 +820,7 @@ open (`domain/README.md`, section 5), and the client's on its own
 | `jig-client-protocol-link` | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP | `protocol/client/README.md`, section 2 |
 | `jig-client-protocol-http` | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 | `protocol/client/default-http.md`, 4 |
 | `jig-client-view` | the reference UI: pages, places, navigation, the confirmation, drafts, notices, cards and the view, on `jig-client` and skein's `skein-ui` | `client/domain/pages.md`; `client/domain/view.md` |
+| `jig-client-view-words` | the reference UI's words, below `jig-client-view`, which re-exports them under its paths: the phrasebook, each part's vocabulary, jig's owner, region names and style tokens | `client/domain/view-crates.md` |
 | `jig-client-view-codec` | the generated record code of the reference UI's records, below `jig-client-view`, which keeps their schema and golden bytes and translates them | `tools/crates/design.md`, 3.2 |
 | `jig-client-shell-native` | the native shell, over skein's HTTP client, with `jig-client-protocol-http` | `protocol/client/README.md`, section 9 |
 | `jig-client-shell-web` | jig's browser parts, over skein's `skein-ui-web`, each usable alone: the client's adapter over skein's fetch, the printed link's sign-in, jig's look | `protocol/browser/README.md`, section 2 and 5.1 |

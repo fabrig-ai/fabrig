@@ -199,6 +199,7 @@ Design documents:
 - [`client/domain/pages.md`](client/domain/pages.status.md)
 - [`client/domain/objects.md`](client/domain/objects.status.md)
 - [`client/domain/view.md`](client/domain/view.status.md)
+- [`client/domain/view-crates.md`](client/domain/view-crates.status.md)
 - [`client/domain/testing.md`](client/domain/testing.status.md)
 - [`examples.md`](examples.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
