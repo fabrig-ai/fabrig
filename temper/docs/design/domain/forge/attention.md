@@ -52,17 +52,19 @@ What a project's Home says of its landings and of the person's last
 look (`../../client/pages/README.md`): two families of temper's, kept by the
 connector as `Dismissed` is (1), and a document computed at its read.
 
-- **`ProjectFacts`,** one row a project that has landed anything, held
-  in memory, restored whole at the restart step, at most
-  `judge_projects`:
+- **`ProjectFacts`,** one row a project that has landed anything, or
+  that held open findings at a sitting (3, *When*), held in memory,
+  restored whole at the restart step, at most `judge_projects`:
   - `landed`, the count of the changes landed, into every landing
     branch of the project. A merge to a goal's branch counts: a change
     that lands on a goal's branch and the goal's own landing on main
     are two;
   - `last_landed`, the wall time of the latest, the time of its
-    change's decision;
+    change's decision; with `landed` 0, the wall the row was made,
+    which the document reads as none;
   - `brief`, none or what the status agent last wrote (3): `sentence`,
-    `lede`, `at` and `landed`, the count it covers.
+    `lede`, `at`, `landed`, the count it covers, and `findings`, the
+    mark of the open findings it read (3, *The open findings*).
 
   A landing is counted in the decision that first logs its change in
   the landing log (`../after-landing.md`, section 10), once a change; the
@@ -102,7 +104,7 @@ connector as `Dismissed` is (1), and a document computed at its read.
   watcher's party, as for the subject `dismissed` (1), and the
   connector computes it at that read:
   - `landed`, `last_landed` and `brief`, the row's; 0 and none with no
-    row;
+    row, and `last_landed` none where `landed` is 0;
   - `previous` and `seen`, the party's `Looked`; none and `landed` with
     no row, so nothing reads as new;
   - `queued`, the project's changes the subject `changes` counts
@@ -133,15 +135,24 @@ new to say. Its charter is the stock's 9
 (`../../protocol/configuration/stock.md`).
 
 - **When:** in the decision of a `Looked` that moves `previous` (2),
-  with `landed` above the brief's `landed`, the brief over an hour old or
-  none, and no run in flight for the project. A party's first look moves
-  no `previous` and starts none. There are no timers: nobody looking, or
-  nothing landed, spends nothing.
-- **In flight:** `ProjectFacts.running`, none or `{ task, landed, since }`,
-  saved in that decision, `task` none until the root has made it, so a
-  restart keeps it. A run in flight over an hour counts as none, so one
-  that is held or waits on an account never stops the next, and its late
-  result is dropped, as `running` no longer names it.
+  with something new to say: `landed` above the brief's `landed`, or the
+  open findings' mark other than the brief's (*The open findings*,
+  below), none with no brief; and the brief over an hour old or none,
+  and no run in flight for the project. A party's first look moves no
+  `previous` and starts none. There are no timers: nobody looking, or
+  nothing landed and no finding changed, spends nothing.
+- **A project that has landed nothing** has no `ProjectFacts` row (2).
+  Where it holds open findings at such a decision, that decision makes
+  its row, `landed` 0, `last_landed` the wall, no brief, saved and the
+  subject `status` marked, as a landing makes one, and its run then
+  starts by the same rule. Past `judge_projects` no row is made and no
+  run starts.
+- **In flight:** `ProjectFacts.running`, none or `{ task, landed, since,
+  findings }`, saved in that decision, `findings` the mark its words were
+  made with, `task` none until the root has made it, so a restart keeps
+  it. A run in flight over an hour counts as none, so one that is held or
+  waits on an account never stops the next, and its late result is
+  dropped, as `running` no longer names it.
 - **Made** as a tier run's task is (`../after-landing.md`, section 3):
   `Request::StatusRun { project, words }`; the root makes a procedure task
   of the project's period, code `STATUS_CODE`, on `repair_seed`, as it has
@@ -162,13 +173,56 @@ new to say. Its charter is the stock's 9
   project whose policy's delegation doesn't name charter 9 has its
   delegate refused, which is a refused run. It is kept as a tier run's task
   is: jig forgets a result only for a person's request.
+- **Its instructions,** the stock's `status.txt`, whole, these words:
+
+  > You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: "Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked." Say only what the facts say. No greetings, no lists, no advice.
+
+  The file is those bytes alone, with no newline at its end.
 - **Its words,** made by the forge, and the root adding the goals and
   the standing roles, which are core's: the span since the last brief,
   the landed count, the titles of the changes the landing log holds since
   the last brief (at most 20), the project's live goals each with its
   delegates done and total, the failing tests each tier of the project's
-  repositories holds, and each live standing role's Now. They say only
-  what the engine keeps.
+  repositories holds, the project's open findings, and each live
+  standing role's Now. They say only what the engine keeps.
+- **The open findings** (`../findings.md`, 2): the project's findings
+  in state `new` or `backlog`, as the forge holds them. Their part of
+  the words, made by the forge in the same decision as the rest of its
+  words:
+
+  ```
+  Open findings: 11
+  - qa: 1 high, 2 medium
+  - flake: 4 low
+  - red: 1 high, 3 low
+  High ones, newest first:
+  - Refund rounding drops a cent on split payments (qa)
+  - The compaction test fails on CI's runner alone (red)
+  ```
+
+  The first line counts them; then a line for each kind with any open,
+  in the order `qa`, `flake`, `red`, `review`, `feedback`, the kind's
+  label word (`../findings.md`, 2), each severity with any in the order
+  high, medium, low, joined by ", "; then, where any is high, "High
+  ones, newest first:" and the high ones' titles, the highest number
+  first, at most 20, each followed by its kind in parentheses, and "-
+  and K more" past the 20. With none open, the part is the one line
+  "Open findings: none". Each line ends in a newline. The part names no
+  finding's number, area or holder: the agent names findings by what
+  they are about.
+- **Their mark:** none where no finding is open, else the SHA-256 of the
+  part's bytes (skein's `sha256::digest`). A brief keeps the mark its
+  run was made with, so a run starts when what the words would say of
+  the findings differs from what the last brief read: a finding filed,
+  one leaving `new` and `backlog`, or one's severity changed; a move between
+  `new` and `backlog` changes nothing it says, and starts none. A brief
+  written before briefs kept a mark keeps none, so a project with open
+  findings has its next sitting's run read them.
+- **Their place:** `Request::StatusRun` carries the part as `findings`,
+  beside `words` and `signers`; the root sets it after the goals and
+  "People who signed:", and before "Standing roles:". The words are
+  fitted to the spec's bound as before, from their end: the roles' part
+  first, then the findings' part from its end.
 - **The roles' Nows** (`../agent/standing.md`, section 8): after the
   goals, a line "Standing roles:", then for each of the project's live
   standing roles, label 3, by number, at most 8, a line "Role N:" and its
@@ -187,8 +241,8 @@ new to say. Its charter is the stock's 9
   party the project no longer lists is "- person 9: no longer a member".
 - **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
-  `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
-  the subject `status` marked. A failed, cancelled, refused or empty run
+  `ProjectFacts.brief` with `at`, the wall, and `landed` and `findings`,
+  `running`'s, and the subject `status` marked. A failed, cancelled, refused or empty run
   saves nothing and asks nobody: Home keeps the computed words, and the
   next chance is the next sitting. The procedure then ends.
 ## 4. The Away switch
