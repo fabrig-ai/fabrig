@@ -25,7 +25,10 @@ bundle`) stay as they are until then.
   (`../documentation.md`, section 8).
 - **What moved to the store or to set-up** is designed where it lives:
   the welcome, a setting (section 4); a forge's place, chosen when it's
-  set up (section 5).
+  set up (section 5); a project's landing, temper's kinds 4 and 5
+  (`../../domain/landing-settings.md`, 1.1), with the operator's hold that
+  lets a deployment set them before anything lands
+  (`../../domain/landing-settings.md`, 1.3).
 - **What stays** for now: the members `README.md` and `engine.md` give
   that this document doesn't name, among them the OpenID provider,
   `engine.clients.provider`, which a managed Forgejo's sign-in through
@@ -84,6 +87,7 @@ at most 120 bytes:
 | `workers[i].programs` | `moved: temper fixes the login checks' interval` |
 | `application.workers` | `moved: a worker's workspaces are the data directory's; its git is found on PATH` |
 | `application.welcome` | `moved: the welcome is a setting; change it with temper ctl settings` |
+| `application.landing` | `moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply` |
 | `application.machine` | `moved: a forge's place is chosen when it's set up, and kept with the forge` |
 
 The reference pages give the same words in each member's row, so a

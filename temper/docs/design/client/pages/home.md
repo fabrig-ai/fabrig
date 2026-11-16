@@ -812,7 +812,7 @@
 - **How a project lands, on To begin's repository step**
   (`../../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
-  project's `by` (`../../domain/landing.md`, 13.1). A new fact of a protocol,
+  project's `by` (`../../domain/landing-settings.md`, 1.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
 - **Decided for you across many projects** (1, *Decided for you*): the

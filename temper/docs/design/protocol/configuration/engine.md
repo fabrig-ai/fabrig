@@ -42,13 +42,16 @@ from here (../forge/engine.md, 2). Each:
   `records.value_bytes`, or a GitHub forge's list at
   `forges.installations` entries, each at its largest (`limits.md`).
 
-**`landing`:** the projects' ways of landing, `projects` alone, each
-entry its `project`, `by`, `gates` and the turn's and the tiers' project
-settings below. The landing rules are settings in the store, temper's
-kinds 1 and 2 (`settings.md`): a `deployment` member, or a project's
-`rules`, is refused as `settings.md`, 4 says. What `landing` keeps leaves the
-document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
-13.1 moves there (`settings.md`, 5, step 2).
+**`landing`** is no member now: a start refuses it (`moved.md`,
+section 3). Each project's way of landing is temper's kind 4, and its
+repositories' gates and tiers kind 5, settings taken at the next start
+(`../../domain/landing-settings.md`, 1.1; `settings.md`, 2). What follows gives
+their fields' forms, bounds and defaults, as the member had them: a
+project's entry is kind 4's value with its `gates` as kind 5's
+`repositories`. Where a bullet says a value refuses the start at its
+member, the forge refuses the change of settings instead, naming its
+field. The landing rules were settings already, temper's kinds 1 and 2
+(`settings.md`).
 
 ```
 "landing": {
@@ -67,7 +70,7 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
-  a repository at most once (`../../domain/landing.md`, 13.1;
+  a repository at most once (`../../domain/landing-settings.md`, 1.1;
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
   and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
@@ -116,8 +119,8 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   (`../../domain/worker/jobs.md`).
 - **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
   `forge.landing_members`, 1 when absent: the most changes a landing
-  into a repository's main forms with (`../../domain/landing.md`,
-  section 9 and 13.1). One past its bounds refuses the start at its
+  into a repository's main forms with (`../../domain/landing.md`, section 9, and `../../domain/landing-settings.md`, section 1.1
+  ). One past its bounds refuses the start at its
   member, `application.landing.projects[i].batch`, naming
   `forge.landing_members` where it passes that.
 - **The trains' way of combining,** beside `by`: `combine`,
@@ -126,7 +129,7 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   the trains into a repository's main and `other` for those into any
   other branch; a member absent, or `combine` absent, takes its stock,
   `merge` for `main` and `squash` for `other`
-  (`../../domain/landing.md`, 5.2 and 13.1). Another value refuses the
+  (`../../domain/landing.md`, 5.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
   start at its member, `application.landing.projects[i].combine.main`
   or `.other`.
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of

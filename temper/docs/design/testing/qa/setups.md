@@ -208,8 +208,8 @@ machinery alone. A root recipe, at a deployment's place
   adopted; then `deployment patch engine landing.json`, whose file sets
   Hello's landing by `turn`, `batch` 2, its repository's gate `gate`,
   workflow `gate.yml`, blocking, on the forge and repository numbers
-  those lines made (`deployment.md`, 6.2; `../../domain/landing.md`,
-  13.1); its check, after `check`, ctl's reads of the project, its
+  those lines made (`deployment.md`, 6.2; `../../domain/landing-settings.md`,
+  1.1); its check, after `check`, ctl's reads of the project, its
   forge and its repository.
 - **Its gate by content:** a dispatched `gate.yml` at a landing's top
   passes unless the top's tree holds `.fake-forge/gate` reading `fail`,

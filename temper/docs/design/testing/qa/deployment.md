@@ -234,7 +234,7 @@ bound is 300 seconds. It is kept as any line (`../../client/drive.md`,
 
 So a recipe gives a project's landing to what its own lines made, a
 project and a repository whose numbers exist once those lines have run
-(`../../domain/landing.md`, 13.1): `deployment patch engine
+(`../../domain/landing-settings.md`, 1.1): `deployment patch engine
 landing.json`, the file holding `{"application": {"landing":
 {"projects": [...]}}}`, which a merge patch replaces whole. Once a
 project's `by`, `batch` and gates are settings
