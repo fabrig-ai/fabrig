@@ -768,6 +768,7 @@ impl Domain {
     #[must_use]
     pub fn room_asked(&self, task: u64) -> bool {
         if crate::room::asked(self, crate::room::Waiter::Change(task))
+            || crate::room::asked(self, crate::room::Waiter::Landing(task))
             || crate::room::asked(self, crate::room::Waiter::Release(task))
         {
             return true;
@@ -9068,7 +9069,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Verification(row) => {
             d.verifications.insert((row.repository, row.commit), row).expect("restored verification within limits");
         }
-        Stored::Landing(row) => {
+        Stored::Landing(mut row) => {
+            if row.landing.phase == temper_engine_domain_forge_landing::Phase::Landed
+                || row.landing.phase == temper_engine_domain_forge_landing::Phase::Cancelled
+            {
+                row.room = None;
+            }
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
         Stored::Receipt { key, receipt } => {

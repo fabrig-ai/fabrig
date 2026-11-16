@@ -306,7 +306,7 @@ enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknow
 record HistoryJobFailed { class: HistoryJobFailure }
 enum HistoryJobOutcome { done, conflict, failed, lost, timeout, cancelled, failed_class: HistoryJobFailed }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
-record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
+record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry room: option u64 = none }
 record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }

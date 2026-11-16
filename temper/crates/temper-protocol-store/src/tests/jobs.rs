@@ -209,6 +209,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
         (
             "Landing",
             Stored::Landing(d::LandingRow {
+                room: None,
                 job: None,
                 asks: Box::new([None, None]),
                 entries: Box::new([]),
@@ -368,6 +369,7 @@ fn deleted_repository_job_refuses_unreadable_rows_and_keys() {
 pub(super) fn landing(task: u64, branch: &[u8]) -> Stored {
     use temper_engine_domain_forge_landing as l;
     Stored::Landing(d::LandingRow {
+        room: None,
         job: None,
         asks: Box::new([]),
         entries: Box::new([]),

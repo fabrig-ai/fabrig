@@ -548,6 +548,12 @@ impl Domain {
     }
     /// The top owns each landing's bounded retry deadline (domain/landing.md, 4.2).
     pub fn wait_landing(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>) {
+        if let Some(row) = self.landing.rows.get(&task)
+            && row.room.is_some()
+        {
+            self.landing.due.remove(&task);
+            return;
+        }
         let until = match until {
             Some(until) => until,
             None => poll_at(self, env, task),
@@ -738,7 +744,10 @@ fn proof_key(proof: policy::Proof) -> Option<policy::Key> {
         | policy::Proof::Failed { key } => Some(key),
     }
 }
-pub(crate) fn save(d: &mut Domain, row: LandingRow, out: &mut Queue<Request>) {
+pub(crate) fn save(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Request>) {
+    if matches_terminal(&row.landing.phase) {
+        leave_room(d, &mut row);
+    }
     let project = row.landing.project;
     let task = row.landing.task;
     let was_turn = match d.landing.rows.get(&task) {
@@ -958,6 +967,7 @@ pub(crate) fn step(
     if d.stopping {
         return;
     }
+    crate::room::stepping(d, task);
     if let Some(job) = heard.job.take() {
         crate::job_history::heard(d, env.wall, task, job, out);
     }
@@ -1138,7 +1148,13 @@ fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
 fn wall_at(env: &Env<Limits>, at: skein_lib::Time) -> Wall {
     Wall::from_nanos(env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())))
 }
-fn wait(d: &Domain, task: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
+fn wait(d: &mut Domain, task: u64, env: &Env<Limits>, repository: api::Repository, out: &mut Queue<Request>) {
+    if let Some(mut row) = d.landing.rows.get(&task).cloned()
+        && row.room.is_some()
+    {
+        leave_room(d, &mut row);
+        save(d, row, out);
+    }
     emit(
         out,
         Request::LandingDecision {
@@ -2351,7 +2367,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if unprepared {
         row.landing.round.upstream = p.upstream;
     }
-    if continue_retry(d, &mut row, p.entry, out) {
+    if continue_retry(d, env, &mut row, p.entry, out) {
         return;
     }
     let outcomes = crate::preparation::outcomes(&row.landing.round.failure, env.limits.landing_members)
@@ -2469,7 +2485,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                         Some((_, _, _, _, _, settings, _)) => *settings,
                         None => policy::Project::DEFAULT,
                     };
-                    if let Some(since) = flight.since
+                    if row.room.is_none()
+                        && let Some(since) = flight.since
                         && env.now.as_nanos().saturating_sub(since.as_nanos()) > settings.gate_timeout.as_nanos()
                         && flight.outcome.is_none()
                         && flight.run.is_some()
@@ -2519,6 +2536,15 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         },
         env.wall,
     );
+    let writing = write_member(stepped.decision);
+    if let Some(member) = writing
+        && !admit_entry(d, env, p.task, p.entry, &row, member, out)
+    {
+        return;
+    }
+    if writing.is_none() {
+        leave_room(d, &mut row);
+    }
     if p.stall.is_none()
         && let policy::Decision::Hold(policy::Hold::Timeout { member, run, .. }) = stepped.decision
     {
@@ -2680,10 +2706,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 | policy::Decision::Hold(_) => unreachable!("round write"),
             };
             let member = row.landing.members.get(usize::from(position)).expect("member");
-            if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                refuse_entry(d, env, &p, &row, 0, out);
-                return;
-            }
             let (op, write, condition) = match decision {
                 policy::Decision::Open => {
                     let (title, body) = round_words(d, &row);
@@ -2843,10 +2865,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Dispatch { member, gate, key, try_ }
         | policy::Decision::Retry { member, gate, key, try_ } => {
-            if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                refuse_entry(d, env, &p, &row, member, out);
-                return;
-            }
             let m = row.landing.members.get(usize::from(member)).expect("member");
             let repo = repository(m);
             let configured = d.train_gates(&row, repo).get(usize::from(gate)).expect("configured gate").clone();
@@ -2901,10 +2919,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             committed = Some(p.entry);
         }
         policy::Decision::Post { member, gate, posting } => {
-            if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                refuse_entry(d, env, &p, &row, member, out);
-                return;
-            }
             let m = row.landing.members.get(usize::from(member)).expect("member");
             let repo = repository(m);
             let configured = d.train_gates(&row, repo).get(usize::from(gate)).expect("configured gate").clone();
@@ -2926,10 +2940,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             committed = Some(p.entry);
         }
         policy::Decision::Merge { member, candidate } => {
-            if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                refuse_entry(d, env, &p, &row, member, out);
-                return;
-            }
             let m = row.landing.members.get(usize::from(member)).expect("member");
             let change = d.changes.get(&m.change).expect("member change");
             let condition = skein_forge_client::Condition::Merge { base: change.base.clone() };
@@ -3435,6 +3445,7 @@ fn keep(
     condition: skein_forge_client::Condition,
     out: &mut Queue<Request>,
 ) {
+    leave_room(d, row);
     let mut entries = List::with_capacity(d.landing.limits.entries);
     for old in &row.entries {
         entries.push(*old).expect("bounded entries");
@@ -4018,7 +4029,13 @@ fn reset_results(d: &mut Domain, row: &LandingRow, prior: &LandingRow) {
         }
     }
 }
-fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Queue<Request>) -> bool {
+fn continue_retry(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut LandingRow,
+    entry: u64,
+    out: &mut Queue<Request>,
+) -> bool {
     let mut pending = None;
     for (key, flight) in &d.landing.flights {
         if flight.task == row.landing.task && !flight.writes.is_empty() {
@@ -4056,10 +4073,9 @@ fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Qu
     let Some((member, gate, try_)) = position else {
         return false;
     };
-    if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending
-        || d.entries.contains_key(&entry)
-        || d.entries.len() == d.landing.limits.entries
-    {
+    if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending {
+        leave_room(d, row);
+        save(d, row.clone(), out);
         emit(
             out,
             Request::LandingDecision {
@@ -4071,13 +4087,15 @@ fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Qu
         );
         return true;
     }
-    let flight = d.landing.flights.get_mut(&key).expect("pending reruns");
+    let flight = d.landing.flights.get(&key).expect("pending reruns");
     if flight.waiting
         || match &flight.run {
             Some(run) => run.state != api::RunState::Completed,
             None => true,
         }
     {
+        leave_room(d, row);
+        save(d, row.clone(), out);
         emit(
             out,
             Request::LandingDecision {
@@ -4089,6 +4107,10 @@ fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Qu
         );
         return true;
     }
+    if !admit_entry(d, env, row.landing.task, entry, row, member, out) {
+        return true;
+    }
+    let flight = d.landing.flights.get_mut(&key).expect("admitted reruns");
     let write = flight.write(entry).expect("next failed job");
     keep(d, row, entry, member, gate, Operation::Rerun, write, skein_forge_client::Condition::None, out);
     save(d, row.clone(), out);
@@ -4117,6 +4139,9 @@ fn following(d: &Domain, task: u64) -> bool {
 /// (domain/landing.md, 12; domain/root.md, 8.1).
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
     for (task, row) in &d.landing.rows {
+        if row.room.is_some() {
+            continue;
+        }
         match row.landing.phase {
             policy::Phase::Waiting
             | policy::Phase::Preparing
@@ -4261,6 +4286,7 @@ fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
     };
     d.stall_words.remove(&task);
     let retired = d.landing.rows.remove(&task).expect("selected finished landing");
+    crate::room::leave(d, crate::room::Waiter::Landing(task));
     emit(
         out,
         Request::Marked {
@@ -4791,34 +4817,80 @@ fn mark_key(d: &Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     }
 }
 
-fn refuse_entry(
-    d: &Domain,
+fn write_member(decision: policy::Decision) -> Option<u16> {
+    match decision {
+        // Every member of a round names its train's repository.
+        policy::Decision::Open | policy::Decision::Close => Some(0),
+        policy::Decision::Delete { member }
+        | policy::Decision::Record { member, .. }
+        | policy::Decision::Dispatch { member, .. }
+        | policy::Decision::Retry { member, .. }
+        | policy::Decision::Post { member, .. }
+        | policy::Decision::Merge { member, .. } => Some(member),
+        policy::Decision::None
+        | policy::Decision::Wait { .. }
+        | policy::Decision::Prepare { .. }
+        | policy::Decision::Landed { .. }
+        | policy::Decision::Leave { .. }
+        | policy::Decision::Judge { .. }
+        | policy::Decision::Resolve { .. }
+        | policy::Decision::Key { .. }
+        | policy::Decision::Repair { .. }
+        | policy::Decision::Proved
+        | policy::Decision::Stale
+        | policy::Decision::Finish
+        | policy::Decision::Cancel
+        | policy::Decision::Hold(_) => None,
+    }
+}
+
+fn leave_room(d: &mut Domain, row: &mut LandingRow) {
+    row.room = None;
+    crate::room::leave(d, crate::room::Waiter::Landing(row.landing.task));
+}
+
+fn admit_entry(
+    d: &mut Domain,
     env: &Env<Limits>,
-    pending: &Pending,
+    task: u64,
+    entry: u64,
     row: &LandingRow,
     member: u16,
     out: &mut Queue<Request>,
-) {
-    let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
-    if d.entries.contains_key(&pending.entry) {
-        crate::refusal::read(
-            out,
-            pending.task,
-            b"reserve landing effect",
-            repo,
-            &api::Read::Settings,
-            api::Error::Exists,
-        );
-    } else {
-        crate::refusal::limit(
-            out,
-            pending.task,
-            repo,
-            "forge.entries",
-            env.limits.entries,
-            u64::from(d.entries.len()).saturating_add(1),
-        );
+) -> bool {
+    if d.entries.contains_key(&entry) {
+        let mut prior = d.landing.rows.get(&task).expect("pending landing").clone();
+        if prior.room.is_some() {
+            leave_room(d, &mut prior);
+            save(d, prior, out);
+        }
+        refuse_entry(task, row, member, out);
+        return false;
     }
+    if crate::room::check(d, &env.limits, Some(crate::room::Waiter::Landing(task))) {
+        return true;
+    }
+    let mut prior = d.landing.rows.get(&task).expect("pending landing").clone();
+    if prior.room.is_none() {
+        prior.room = Some(crate::room::next_place(d));
+        save(d, prior, out);
+    }
+    d.landing.due.remove(&task);
+    emit(
+        out,
+        Request::LandingDecision {
+            task,
+            decision: policy::Decision::Wait { until: None },
+            entry: None,
+            evidence: None,
+        },
+    );
+    false
+}
+
+fn refuse_entry(task: u64, row: &LandingRow, member: u16, out: &mut Queue<Request>) {
+    let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
+    crate::refusal::read(out, task, b"reserve landing effect", repo, &api::Read::Settings, api::Error::Exists);
 }
 
 #[expect(clippy::match_like_matches_macro, reason = "explicit state observation")]

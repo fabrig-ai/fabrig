@@ -245,6 +245,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,

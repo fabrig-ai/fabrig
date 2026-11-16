@@ -430,7 +430,13 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     }
     w::LandingRow::new(
         &w::CEILINGS,
-        w::LandingRowParts { landing, asks, entries, job: super::history::encode_job_record(row.job.as_ref()) },
+        w::LandingRowParts {
+            landing,
+            asks,
+            entries,
+            job: super::history::encode_job_record(row.job.as_ref()),
+            room: row.room,
+        },
     )
     .expect(FITS)
 }
@@ -443,7 +449,7 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     top::LandingRun { id, attempt, ended }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
+    let w::LandingRowParts { landing, asks, entries, job, room } = row.into_parts();
     let w::LandingStateParts {
         task,
         project,
@@ -492,6 +498,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
             .expect(FITS);
     }
     Ok(top::LandingRow {
+        room,
         job: super::history::decode_job_record(job),
         landing: d::Landing {
             searched: match searched {

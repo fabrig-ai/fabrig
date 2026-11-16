@@ -1416,6 +1416,7 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,

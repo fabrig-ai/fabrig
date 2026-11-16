@@ -2786,6 +2786,8 @@ pub enum Path {
     LandingRowAsks,
     /// The `entries` field of `LandingRow`.
     LandingRowEntries,
+    /// The `room` field of `LandingRow`.
+    LandingRowRoom,
     /// Bytes after `LandingRow`.
     LandingRowTail,
     /// The `name` field of `ReceiptName`.
@@ -16651,6 +16653,8 @@ pub struct LandingRowParts {
     pub asks: List<LandingAskSlot>,
     /// The `entries` field.
     pub entries: List<LandingEntry>,
+    /// The `room` field.
+    pub room: Option<u64>,
 }
 
 /// `LandingRow` in this codec family.
@@ -16660,13 +16664,14 @@ pub struct LandingRow {
     landing: LandingState,
     asks: List<LandingAskSlot>,
     entries: List<LandingEntry>,
+    room: Option<u64>,
 }
 
 impl LandingRow {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LandingRowParts) -> Result<Self, Problem> {
-        let LandingRowParts { job, landing, asks, entries } = parts;
-        let value = Self { job, landing, asks, entries };
+        let LandingRowParts { job, landing, asks, entries, room } = parts;
+        let value = Self { job, landing, asks, entries, room };
         value.check(limits)?;
         Ok(value)
     }
@@ -16687,9 +16692,13 @@ impl LandingRow {
     #[must_use]
     pub fn entries(&self) -> &List<LandingEntry> { &self.entries }
 
+    /// Reads the `room` field.
+    #[must_use]
+    pub fn room(&self) -> &Option<u64> { &self.room }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LandingRowParts { LandingRowParts { job: self.job, landing: self.landing, asks: self.asks, entries: self.entries } }
+    pub fn into_parts(self) -> LandingRowParts { LandingRowParts { job: self.job, landing: self.landing, asks: self.asks, entries: self.entries, room: self.room } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.job.as_ref() {
@@ -39416,6 +39425,11 @@ impl LandingRow {
         for item_0 in field_entries.as_slice() {
         size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
         }
+        let field_room = &self.room;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_room.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -39441,6 +39455,14 @@ impl LandingRow {
         for item_0 in field_entries.as_slice() {
         item_0.encode(writer)?;
         }
+        let field_room = &self.room;
+        match field_room {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -39456,7 +39478,8 @@ impl LandingRow {
         let decoded_landing = LandingState::decode_from(limits, reader)?;
         let decoded_asks = { let count = match skein_codec::read_count(reader, limits.landing_row_asks.min(CEILINGS.landing_row_asks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowAsks, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingRowAsks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingAskSlot::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_entries = { let count = match skein_codec::read_count(reader, limits.landing_row_entries.min(CEILINGS.landing_row_entries)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowEntries, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingRowEntries, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingEntry::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { job: decoded_job, landing: decoded_landing, asks: decoded_asks, entries: decoded_entries })
+        let decoded_room = match reader.u8().ok_or(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { job: decoded_job, landing: decoded_landing, asks: decoded_asks, entries: decoded_entries, room: decoded_room })
     }
 }
 
@@ -58815,6 +58838,7 @@ impl LandingRow {
         let mut size = 0_u64;
         size = size.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?.checked_add(LandingState::encoded_bound_within(limits)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.landing_row_asks).checked_mul(LandingAskSlot::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.landing_row_entries).checked_mul(LandingEntry::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -58829,6 +58853,7 @@ impl LandingRow {
         let mut heap = 0_u64;
         heap = heap.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?.checked_add(LandingState::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(List::<LandingAskSlot>::price(limits.landing_row_asks)?.checked_add(u64::from(limits.landing_row_asks).checked_mul(LandingAskSlot::decoded_bound_within(limits)?)?)?)?.checked_add(List::<LandingEntry>::price(limits.landing_row_entries)?.checked_add(u64::from(limits.landing_row_entries).checked_mul(LandingEntry::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

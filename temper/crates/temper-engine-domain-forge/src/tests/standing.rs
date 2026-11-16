@@ -97,6 +97,7 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,

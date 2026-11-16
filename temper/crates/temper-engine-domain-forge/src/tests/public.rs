@@ -413,6 +413,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -910,6 +911,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    room: None,
                     job: None,
                     landing: policy::Landing {
                         last_left: None,

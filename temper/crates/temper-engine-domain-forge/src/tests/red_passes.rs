@@ -115,6 +115,7 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        room: None,
                         job: None,
                         landing: landing::Landing {
                             task: 61,
