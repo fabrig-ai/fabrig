@@ -296,7 +296,12 @@ terminal client, the captures and the faults.
     made once;
   - power lost at a drawn moment of that start, from the copy to the
     wires' commit: the next start finds one whole generation and goes
-    on as above.
+    on as above. Focused draws one moment; fuzzy sweeps drawn moments
+    and the cuts at the copy's first write, the patch's commit, the
+    switch's rename and the wires' commit, each a whole story. The
+    store's own cuts there are jig's store world's (jig's
+    `domain/testing.md`, 9). These cases and the settled stop start
+    from the settled image (`../protocol/baseline.md`, 8).
 
   The upgrade's referee compares the history at the stop with the
   history once the start's wires are durable, before anything acts:
@@ -338,7 +343,8 @@ terminal client, the captures and the faults.
   - no git identity's value or API token in a domain's state, a store
     record or an agent process's environment.
 - **Budget:** a story aims at 2 s (`checks.md`, 1); sweeps of drawn kills are fuzzy
-  tests.
+  tests. The upgrade module's tests are placed as `../protocol/baseline.md`, 8
+  lists.
 
 ### 2.8 macOS
 
