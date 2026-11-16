@@ -142,7 +142,7 @@ fn task_authority_round_trip_preserves_every_part_and_model_selector() {
             let mut tasks = tasks_value();
             tasks.models = models;
             tasks.budget.deadline = deadline;
-            let translated = values::tasks_authority(&tasks);
+            let translated = tasks_authority(&tasks);
             assert_eq!(task_authority(&translated), tasks);
             let mut people = people_value();
             people.models = Some(people::Models::from_parts(models.bits(), models.is_all()));
@@ -199,7 +199,7 @@ fn amendment_authority_preserves_model_inheritance_and_admission_bounds() {
 fn task_and_project_documents_show_the_same_authority_line() {
     let (mut core, mut limits) = tree_core();
     let tasks = tasks_value();
-    let authority = values::tasks_authority(&tasks);
+    let authority = tasks_authority(&tasks);
     limits.documents.grants = 2;
     limits.documents.executors = 3;
     limits.authority.grants = 2;

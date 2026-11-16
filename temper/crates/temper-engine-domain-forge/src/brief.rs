@@ -1295,7 +1295,8 @@ fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
         change::State::Resolving { base, .. } => PullMode::Conflict(*base),
         change::State::Repairing { why: change::Repair::Semantic, .. } => PullMode::Semantic(clean.last().copied()),
         change::State::Judging { .. } | change::State::Gating { .. } => PullMode::Review,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::WaitingProducer { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }

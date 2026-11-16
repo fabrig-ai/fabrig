@@ -248,6 +248,8 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
             limits.forge.change_policy.tasks = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge.change_policy.stall_ms" => limits.forge.change_policy.stall = duration(value)?,
+        b"forge.change_policy.unknown_grace_ms" => limits.forge.change_policy.unknown_grace = duration(value)?,
+        b"forge.change_policy.runner_wait_ms" => limits.forge.change_policy.runner_wait = duration(value)?,
         b"forge.change_policy.gates" => {
             limits.forge.change_policy.gates = u32::try_from(value).or(Err(Refused::Range))?;
         }
@@ -367,7 +369,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 192] = [
+pub static NAMES: [Name; 194] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -1093,6 +1095,18 @@ pub static NAMES: [Name; 192] = [
         unit: Unit::Milliseconds,
         line: "Bounds the wait for a silent forge during a change.",
         value: |limits| limits.forge.change_policy.stall.as_millis(),
+    },
+    Name {
+        name: "forge.change_policy.unknown_grace_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the grace for CI that says nothing of its execution at checking.",
+        value: |limits| limits.forge.change_policy.unknown_grace.as_millis(),
+    },
+    Name {
+        name: "forge.change_policy.runner_wait_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the wait for a runner at checking.",
+        value: |limits| limits.forge.change_policy.runner_wait.as_millis(),
     },
     Name {
         name: "forge.change_policy.gates",

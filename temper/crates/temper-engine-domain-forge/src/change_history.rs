@@ -263,7 +263,8 @@ pub(crate) fn advanced(
         change::State::Red { .. } => history::AfterVerdict::Red,
         change::State::Cleared { .. } => history::AfterVerdict::Cleared,
         change::State::Uncleared { .. } => history::AfterVerdict::Uncleared,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }

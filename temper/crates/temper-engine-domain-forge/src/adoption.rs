@@ -14,6 +14,7 @@ pub(crate) struct Pending {
     pub(crate) token: Token,
     pub(crate) retention: Duration,
     pub(crate) observed: Option<ApplicationOutcome>,
+    pub(crate) opening: bool,
 }
 
 #[derive(Hash, Debug)]
@@ -48,6 +49,33 @@ impl State {
 }
 
 impl Domain {
+    /// Retain an opening's refusal, or correlate its synchronous creation part
+    /// (temper/docs/design/domain/forge/change/opened.md, 3).
+    pub fn opening(
+        &mut self,
+        env: &Env<Limits>,
+        request: Token,
+        token: Token,
+        retention: Duration,
+        outcome: Option<ApplicationOutcome>,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        if !room(self, env, request, out) {
+            return false;
+        }
+        let pending = Pending { token, retention, observed: None, opening: true };
+        if let Some(outcome) = outcome {
+            finish(self, env, request, pending, outcome, out);
+            return false;
+        }
+        if self.application.pending.len() >= env.limits.adoptions {
+            again(request, people::Again::Busy, out);
+            return false;
+        }
+        self.application.pending.insert(request, pending).expect("reserved opening flight");
+        true
+    }
+
     /// The repository located for this core-admitted application.
     #[must_use]
     pub fn applying(&self, request: Token) -> Option<api::Repository> {
@@ -80,7 +108,7 @@ pub(crate) fn start(
     if d.application.pending.len() >= env.limits.adoptions || d.adoptions.len() >= env.limits.adoptions {
         return again(request, people::Again::Busy, out);
     }
-    let pending = Pending { token, retention, observed: None };
+    let pending = Pending { token, retention, observed: None, opening: false };
     if !d.identities.contains_key(&adoption.forge) && !d.writers.contains_key(&adoption.forge) {
         return finish(d, env, request, pending, ApplicationOutcome::ForgeRefused(AdoptionRefusal::NoSuchForge), out);
     }
@@ -207,6 +235,18 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(mut pending) = d.application.pending.remove(&request) else { return };
+    if pending.opening {
+        if let people::Outcome::Created { first, .. } = outcome {
+            finish(d, env, request, pending, ApplicationOutcome::Opened { task: first }, out);
+        } else if let people::Outcome::Refused(why) = outcome {
+            finish(d, env, request, pending, ApplicationOutcome::CoreRefused(why), out);
+        } else if let people::Outcome::Again(why) = outcome {
+            again(request, why, out);
+        } else {
+            unreachable!("a creation part ends with a creation outcome");
+        }
+        return;
+    }
     d.adoptions.remove(&request);
     let outcome = if let Some(ApplicationOutcome::ForgeRefused(why)) = &pending.observed {
         ApplicationOutcome::ForgeRefused(*why)
@@ -798,7 +838,9 @@ pub(crate) fn retire_repository(d: &mut Domain, repository: api::Repository) {
         let adopted = match &pending.observed {
             Some(ApplicationOutcome::Adopted(row)) => row.repository == repository,
             Some(
-                ApplicationOutcome::CoreRefused(_)
+                ApplicationOutcome::Opened { .. }
+                | ApplicationOutcome::OpenRefused(_)
+                | ApplicationOutcome::CoreRefused(_)
                 | ApplicationOutcome::ForgeRefused(_)
                 | ApplicationOutcome::MakeKept
                 | ApplicationOutcome::Follow(_)

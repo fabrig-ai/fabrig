@@ -431,7 +431,7 @@ pub static PAGES: [Page; 74] = [
         name: "ctl-change",
         kind: Kind::Reference,
         title: "temper ctl change",
-        summary: "Changes: read a change's way to landing.",
+        summary: "Changes: open one or read its way to landing.",
         text: include_str!("../../../docs/help/reference/ctl-change.md"),
     },
     Page {

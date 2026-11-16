@@ -417,6 +417,67 @@ fn a_changes_last_checked_head_round_trips_some_and_none() {
 }
 
 #[test]
+fn a_changes_execution_clock_round_trips_for_each_last_reading() {
+    use skein_lib::{Duration, Wall};
+    use temper_engine_domain_forge_change::{Clock, Execution, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for seen in [Execution::Unknown, Execution::Waiting, Execution::Running] {
+        let mut row = fixtures::change_row(State::Checking { head: [15; 32] });
+        row.change.clock = Some(Clock {
+            since: row.change.since,
+            head: [15; 32],
+            run: 7,
+            attempt: 2,
+            ran: Duration::from_nanos(13),
+            waited: Duration::from_nanos(17),
+            unknown: Duration::from_nanos(23),
+            at: Wall::from_nanos(53),
+            seen,
+        });
+        let row = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+/// Registered additions default during layout conversion, without a version move.
+#[test]
+fn a_change_written_without_an_execution_clock_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::PATCH_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" clock: option ExecutionClock = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored = fixtures::change_hot(fixtures::change_row(temper_engine_domain_forge_change::State::Checking {
+        head: [15; 32],
+    }));
+    let mut bytes = records::encode(&stored);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+}
+
+#[test]
 fn an_ended_changes_hold_round_trips_in_its_state() {
     use temper_engine_domain_forge_change::{Hold, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -951,6 +1012,32 @@ fn application_outcomes() -> Box<[forge::ApplicationOutcome]> {
     outcomes.into_boxed()
 }
 #[test]
+fn opened_application_outcomes_preserve_tasks_and_refusal_details() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repositories = Box::new([
+        forge::DraftRepository { owner: b"one".as_slice().into(), name: b"first".as_slice().into() },
+        forge::DraftRepository { owner: b"two".as_slice().into(), name: b"second".as_slice().into() },
+    ]);
+    let outcomes = [
+        forge::ApplicationOutcome::Opened { task: u64::MAX },
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::Several(repositories)),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NoRepository),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NotARepository),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix {
+            owner: b"one".as_slice().into(),
+            name: b"first".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+        }),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NamePast { bound: 1024 }),
+    ];
+    for outcome in outcomes {
+        let row = application(outcome);
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn every_application_outcome_preserves_its_complete_record() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for outcome in application_outcomes() {
@@ -1402,7 +1489,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                     },
                     asks: Box::new([ask]),
                     entries: Box::new([forge::LandingEntry {
-                        run: Some(forge::LandingRun { id: 23, attempt: 2, ended: true }),
+                        run: Some(forge::LandingRun { id: 23, attempt: 2, ended: true, clock: None }),
                         preparation: Some(2),
                         base: Some([5; 32]),
                         entry: 7,
@@ -1418,6 +1505,96 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
         }
     }
 }
+fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
+    use temper_engine_domain_forge_landing as l;
+    forge::Stored::Landing(forge::LandingRow {
+        job: None,
+        landing: l::Landing {
+            task: 61,
+            project: 5,
+            phase: l::Phase::Proving,
+            members: Box::new([]),
+            preparation: 1,
+            stale_proofs: 0,
+            branch: b"main".as_slice().into(),
+            round: l::Round::new(b"temper/1/l61".as_slice().into()),
+            last_left: None,
+            searched: None,
+        },
+        asks: Box::new([]),
+        entries: Box::new([forge::LandingEntry {
+            entry: 7,
+            member: 0,
+            gate: 0,
+            operation: forge::Operation::Dispatch,
+            preparation: Some(1),
+            base: Some([5; 32]),
+            run: Some(forge::LandingRun { id: 23, attempt: 2, ended: false, clock }),
+        }]),
+    })
+}
+
+#[test]
+fn a_landing_runs_execution_clock_round_trips() {
+    use skein_lib::{Duration, Wall};
+    use temper_engine_domain_forge_change::{Clock, Execution};
+    let stored = landing_with_clock(Some(Clock {
+        since: Wall::from_nanos(7),
+        head: [5; 32],
+        run: 23,
+        attempt: 2,
+        ran: Duration::from_nanos(13),
+        waited: Duration::from_nanos(17),
+        unknown: Duration::ZERO,
+        at: Wall::from_nanos(53),
+        seen: Execution::Running,
+    }));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_landing_run_written_without_a_clock_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::PATCH_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let mut run = None;
+    for line in family.current.lines() {
+        if line.starts_with("record LandingRun ") {
+            run = Some(line);
+        }
+    }
+    let run = run.unwrap();
+    let before = family.current.replace(run, "record LandingRun { id: u64 attempt: u32 ended: bool }");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored = landing_with_clock(None);
+    let mut bytes = records::encode(&stored);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+}
+
 #[test]
 fn landing_faults_and_own_holds_are_mutually_exclusive() {
     use skein_lib::{List, Writer};
@@ -2988,6 +3165,10 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
     let mut random = Rng::new(0x12_2f_30);
     for state in fixtures::change_states().into_boxed() {
         let mut row = fixtures::change_row(state);
+        if let temper_engine_domain_forge_change::State::Taking { .. } = row.change.state {
+            row.source = Some(forge::ChangeSource { branch: b"docs/x".as_slice().into(), at: Some([4; 32]) });
+            row.kept = Some([4; 32]);
+        }
         row.task = random.next_u64();
         row.change.task = row.task;
         row.priority =

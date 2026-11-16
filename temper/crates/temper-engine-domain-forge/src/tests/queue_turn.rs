@@ -81,6 +81,7 @@ fn pending(task: u64) -> PendingStep {
         ci: change::Status::Passed,
         failed: crate::change_ci::Failed::new(Box::new([])),
         stall: None,
+        execution: None,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Failed,
@@ -159,6 +160,67 @@ fn stale_turn_flags_do_not_block_the_queue_and_base_repairs_go_first() {
     assert!(d.changes.get(&OWNER).unwrap().change.owns_turn, "the owner keeps its turn for after the repair");
     let view = d.changes_view(5, env().wall, &env().limits).unwrap();
     assert_eq!([view.queues[0].changes[0].task, view.queues[0].changes[1].task], [SECOND, OWNER]);
+}
+
+#[test]
+fn entering_checking_arms_the_first_execution_reading() {
+    let mut d = changes_setup(change::State::Opening { requested: true }, SINCE);
+    let mut e = env();
+    e.limits.change_policy.stall = Duration::from_secs(1800);
+    let mut read = pending(OWNER);
+    read.ci = change::Status::Pending;
+    let mut out = Queue::uncapped();
+    decide_step(&mut d, &e, read, &mut out);
+    assert_eq!(d.change(OWNER).unwrap().change.state, change::State::Checking { head: HEAD });
+    assert_eq!(d.change(OWNER).unwrap().change.clock, None, "the gather began at opening");
+    let until = e.wall;
+    let mut scheduled = false;
+    for request in &out {
+        scheduled |= *request
+            == Request::ChangeDecision {
+                task: OWNER,
+                decision: change::Decision::Wait { until: Some(until) },
+                entry: None,
+                evidence: None,
+            };
+    }
+    assert!(scheduled, "first reading within poll_max: {out:?}");
+}
+
+#[test]
+fn waiting_for_a_runner_keeps_the_turn_until_running_reaches_the_stall() {
+    use skein_forge::api::{self, RunState};
+    let mut d = changes_setup(change::State::Checking { head: HEAD }, SINCE);
+    let mut e = env();
+    let link = api::JobAttempt { head: HEAD, run: 7, job: 41, attempt: 2 };
+    for (elapsed, state, held) in [
+        (Duration::ZERO, RunState::Waiting, false),
+        (e.limits.change_policy.stall.saturating_add(Duration::from_secs(1)), RunState::Waiting, false),
+        (Duration::ZERO, RunState::Running, false),
+        (e.limits.change_policy.stall.saturating_add(Duration::from_secs(1)), RunState::Running, true),
+    ] {
+        e.wall = Wall::from_nanos(e.wall.as_nanos().saturating_add(elapsed.as_nanos()));
+        e.now = e.now.saturating_add(elapsed);
+        let api::Answer::Checks(mut checks) = fixtures::checks(api::Check::Pending) else { panic!("checks") };
+        checks[0].job = Some(link);
+        let mut gather = crate::execution::Gather::new(checks);
+        assert_eq!(gather.next(), Some(api::Read::Run { run: 7 }));
+        let mut run = fixtures::failed_run(link, None);
+        run.jobs[0].state = state;
+        gather.answered(7, Ok(api::Answer::Run(run)));
+        let mut p = pending(OWNER);
+        p.ci = change::Status::Pending;
+        p.execution = Some(gather);
+        p.stall = Some(crate::stall::Report::checks(&[]));
+        decide_step(&mut d, &e, p, &mut Queue::uncapped());
+        let owner = d.changes.get(&OWNER).unwrap();
+        assert_eq!(owner.change.owns_turn, !held, "{state:?} at {:?}", e.wall);
+        assert_eq!(follower_facts(&d).first, held);
+        assert_eq!(d.procedure_wakes.contains_key(&SECOND), held, "wake_after_turn");
+        if held {
+            assert!(matches!(owner.change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

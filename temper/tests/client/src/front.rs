@@ -1282,22 +1282,27 @@ impl Joint {
     /// client/engine.md and client/testing.md: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, false, None)
+        Self::change_landing(seed, limits, None, false, false, None, None)
+    }
+    /// Hold-card stories can shorten execution's unknown grace below the fixture's sign-in lifetime.
+    #[must_use]
+    pub fn with_change_grace(seed: u64, limits: &client::Limits, grace: Duration) -> Self {
+        Self::change_landing(seed, limits, None, false, false, None, Some(grace))
     }
     /// testing/checks.md, 3: the deployment also waits for the project's owner's review.
     #[must_use]
     pub fn with_change_approval(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, true, None)
+        Self::change_landing(seed, limits, None, false, true, None, None)
     }
     /// Settings and a following change through the same joined engine.
     #[must_use]
     pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, true, false, None)
+        Self::change_landing(seed, limits, None, true, false, None, None)
     }
     /// One Change record's room, so a settled row can be evicted while its history stays.
     #[must_use]
     pub fn with_change_eviction(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, false, Some(1))
+        Self::change_landing(seed, limits, None, false, false, Some(1), None)
     }
     #[expect(
         clippy::too_many_lines,
@@ -1310,6 +1315,7 @@ impl Joint {
         settings: bool,
         approval: bool,
         changes: Option<u32>,
+        unknown_grace: Option<Duration>,
     ) -> Self {
         // Chat, reviewer and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
@@ -1323,6 +1329,9 @@ impl Joint {
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
+            if let Some(grace) = unknown_grace {
+                limits.forge.change_policy.unknown_grace = grace;
+            }
             if let Some(changes) = changes {
                 limits.forge.changes = changes;
             }

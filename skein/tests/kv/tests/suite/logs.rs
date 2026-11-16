@@ -296,6 +296,43 @@ fn lru_closes_before_opening_another_payload_and_drop_then_append_starts_at_zero
 }
 
 #[test]
+fn a_log_read_queued_during_snapshot_io_finishes_without_another_request() {
+    let boundaries: [fn(&file::Request) -> bool; 3] = [
+        |request| matches!(request, file::Request::Create { .. }),
+        |request| matches!(request, file::Request::Sync { .. }),
+        |request| matches!(request, file::Request::Close { .. }),
+    ];
+    for waiting in boundaries {
+        let mut world = World::new(Limits { snapshot_after: 1, ..limits() });
+        world.logs(b"e/");
+        open(&mut world, 0);
+        let a = append(&world, 7, b"a");
+        world.request_no_fire(Request::Commit { owner: OWNER, ops: Box::new([a]) });
+        assert_eq!(world.pop(), Event::Committed { owner: OWNER, number: 1 });
+        // Roll over, then stop with the chosen snapshot file operation outstanding.
+        world.fire_once();
+        for _ in 0..32 {
+            skein_kv::fire(&mut world.store, &world.env, &mut world.above, &mut world.below);
+            if world.below.iter().next().is_some_and(waiting) {
+                break;
+            }
+            world.drive(false);
+        }
+        assert!(world.below.iter().next().is_some_and(waiting), "snapshot reaches the file boundary");
+        world.start(Request::ReadLog { owner: OWNER, log: 7, at: 0, direction: Direction::Forward, max: 1024 });
+        world.drive(true);
+        let Some(Event::LogRead { records, next: None, .. }) = world.above.pop() else {
+            panic!("snapshot completion must start its queued payload read");
+        };
+        assert_eq!(records.len(), 1);
+        assert_eq!(records.first().expect("one frame").record.as_deref(), Some(b"a".as_slice()));
+        world.request(Request::Close { owner: OWNER });
+        assert_eq!(world.pop(), Event::Closed { owner: OWNER });
+        assert_eq!(world.io.open_files(), 0);
+    }
+}
+
+#[test]
 fn payload_golden_bytes_and_recovery() {
     const BODY: &[u8] = b"{\"model\":\"gpt-5-codex\",\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello again\"}]}],\"stream\":true}";
     const KEPT: &[u8] = include_bytes!("../../golden/payload-log");
