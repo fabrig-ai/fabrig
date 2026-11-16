@@ -448,7 +448,7 @@ impl Session {
                         child.stop(&mut self.pump, true);
                     }
                 }
-                Action::Log { output: _, line } => {
+                Action::Log { line } => {
                     if let Err(error) = self.box_log.write_all(&line) {
                         self.event(Event::OwnFailure(format!("session/box.log: {error}")));
                     }

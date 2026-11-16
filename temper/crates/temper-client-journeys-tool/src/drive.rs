@@ -110,7 +110,6 @@ pub enum Action {
     CancelFace,
     StopCtl,
     Log {
-        output: Output,
         line: Box<[u8]>,
     },
     Keep(Box<[u8]>),
@@ -408,7 +407,9 @@ impl Machine {
         self.forge = None;
     }
     fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
-        out.push(Action::Log { output, line: line.into() });
+        if output == Output::Stderr {
+            out.push(Action::Log { line: line.into() });
+        }
         if output == Output::Stderr
             && (line.windows(11).any(|s| s == b"; giving up") || line.windows(13).any(|s| s == b"; restarting "))
         {
