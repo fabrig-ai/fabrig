@@ -76,6 +76,14 @@ line reads "Reached you because it starts work on findings, which asks
 you unless you’re away.", said once on Home, with its Stop asking, "Let
 the triager start goals for findings, then tell you." Its walk follows
 landing (`draft/home-for-a-person.status.md`; `domain/forge/attention.md`, 6).
+Its milestone M3, goal 5517, draws milestones on the pages: a goal that
+waits says on what, "waits on S6", or "waits for its resources"; a
+milestone is one row on Home with its count, state, strip of its goals and
+headline, one card in Work's In flight holding its goals and their changes,
+a group under the Goals filter, and a page of its own; Needs you's cards,
+Decided for you's rows and Landed this week name a goal's milestone, and a
+goal's page says "in Store shape". Its walk follows landing
+(`draft/milestones.status.md`; `client/pages/milestone.md`).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -592,7 +600,7 @@ Drafts:
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
-- [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`).
+- [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`). M3, goal 5517: the pages' milestones, a goal's waits, Home's grouped Goals, Work's milestone card, a milestone's page and its goals named by it on Needs you, Decided for you and a goal's page (`client/pages/milestone.md`).
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)

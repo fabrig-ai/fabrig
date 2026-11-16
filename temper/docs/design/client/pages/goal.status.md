@@ -1,9 +1,12 @@
 # goal: status
 
-2026-11-15. Where the tree's code lags or departs from [goal.md](goal.md).
+2026-11-16. Where the tree's code lags or departs from [goal.md](goal.md).
 
 - **Not yet:** 3, *From a landed draft*: no landed draft opens the sheet,
   and no `started` is sent [in flight: change 664].
+- **Not yet:** 2: a waiting goal's heading is not its wait [in flight: change 5528].
+- **Not yet:** 2: every task requester is linked as "Chat TN", and a milestone
+  gives no "in NAME" [in flight: change 5548].
 - **Departs:** 3: a party whose `me` gives the project no creating bound still
   sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
   and a press opens nothing (`pages/start_goal.rs`, `open`;
