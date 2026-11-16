@@ -233,6 +233,25 @@ real key in that restored form.
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that
   can't fit them is two tests, never a longer run.
+- **A loaded machine:** the tier runs after landing on machines whose other
+  work keeps their load past their cores, where a page settles later than
+  on an idle one, and a story holds there as it does idle. Each step waits on
+  the page's own state for what it reads or acts on, never on the page having
+  been fast: a press waits until its target stands where a person meets it,
+  nothing covering it and no later member of its row still to arrive and
+  move it (skein's `testing/browser.md`, 6: a cover is the test's to wait
+  out); a read waits for the words, status or box the page shows for it;
+  and a step resting on a scroll position, an earlier page of messages, a
+  reply or a disclosure first sees that the page shows it. Where only a
+  slow page breaks the product's own rule (a read never triggered, a node
+  replaced under its reader, a run of calls folded by when its parts
+  arrived), the product is repaired, and pinned in the lowest world that
+  shows it. A failure only a loaded machine shows is reproduced on one: the
+  story alone by name, its box and Chromium confined to two cores that busy
+  loops share with them; busy loops spread over every core of a larger
+  machine don't reproduce it. No `WITHIN`, `ABSENT`, run deadline, budget or
+  cap rises for it, and no story is skipped, ignored, retried or moved to
+  escape it.
 - **Chromium** is the machine's, at the path its owner configures
   (skein's `testing/browser.md`), which skein's, jig's and temper's browser
   tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
