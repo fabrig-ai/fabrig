@@ -30,6 +30,7 @@ pub(super) fn me() -> c::Me {
     template.executor = c::TemplateExecutor::Charter(CHARTER);
     template.budget = c::TemplateBudget::Given;
     template.flags.conversation = false;
+    template.flags.ended_by = c::EndedBy::Result;
     let creating = member.creating.as_mut().unwrap();
     creating.within.charters = List::from_boxed(Box::new([CHARTER]));
     me
@@ -283,12 +284,19 @@ fn the_default_way_is_the_first_numbered() {
     let templates = &mut me.projects.get_mut(0).unwrap().templates;
     let base = templates.get(0).unwrap().clone();
     *templates = List::from_boxed(Box::new([
+        c::Template {
+            number: 3,
+            flags: c::TaskFlags { ended_by: c::EndedBy::Requester, ..base.flags },
+            ..base.clone()
+        },
         c::Template { number: 9, ..base.clone() },
         c::Template { number: 1, tracked: None, ..base.clone() },
         c::Template { number: 4, ..base },
     ]));
     assert_eq!(start_goal::default_way(&me, fixtures::PROJECT), Some(4));
-    for (configured, expected) in [(None, Some(4)), (Some(9), Some(9)), (Some(1), Some(4)), (Some(99), Some(4))] {
+    for (configured, expected) in
+        [(None, Some(4)), (Some(9), Some(9)), (Some(1), Some(4)), (Some(3), Some(4)), (Some(99), Some(4))]
+    {
         assert_eq!(start_goal::preferred_way(&me, fixtures::PROJECT, configured), expected);
     }
     assert_eq!(start_goal::default_way(&me, 99), None);
@@ -359,12 +367,17 @@ fn way_must_be_a_tracked_template() {
     let base = templates.get(0).unwrap().clone();
     *templates = List::from_boxed(Box::new([
         base.clone(),
+        c::Template {
+            number: 3,
+            flags: c::TaskFlags { ended_by: c::EndedBy::Requester, ..base.flags },
+            ..base.clone()
+        },
         c::Template { number: 9, ..base.clone() },
         c::Template { number: 1, tracked: None, ..base },
     ]));
     let mut h = Harness::new(me);
     h.open();
-    for template in [99, 1] {
+    for template in [99, 1, 3] {
         h.act(Act::StartWay { template });
         assert_eq!(h.pages.start().unwrap().way, Some(WAY));
     }

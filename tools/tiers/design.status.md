@@ -1,10 +1,11 @@
 # design: status
 
-2026-11-14. Where the slow tier runner's code lags or departs from [design.md](design.md).
+2026-11-16. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
 - **Not yet:** 10.2, 11.5, 11.6, 11.10: a starved pass in a one-process run unwinds (`skein_world::pass_starved`), libtest reports it failed, and the lanes read it starved by its last line whatever libtest's result, so a failure whose output ends with the line reads starved; a process a starved pass ends with exit 0 reads as a crash, and only a crash starts a fresh process; the fixture's starved case unwinds with `resume_unwind` [in flight: change 2711].
 - **Not yet:** 3, 11.9, 11.10: no entry point reads `TIERS_HOLD`: one-process by hand takes no hold, so the executables its listing built run after cargo has exited with nothing holding their build directory, and its suite has no fake hold [in flight: change 1023].
 - **Not yet:** 11.9, *A process again*, and 11.10's `--again` cases: `tools/tiers/one-process` takes no `--again` [in flight: change 2815].
+- **Not yet:** 10.1, 10.2, 11.1, 11.7, 11.9, 11.10: no walls file: `run`, `execute_one_process` and `tools/tiers/one-process` take no `walls` or `--walls`, `.config/gate/walls.toml` doesn't exist, the profiles' own `global-timeout` is 300 s focused and 600 s fuzzy, and no boundary check holds it at three times the gate's wall [in flight: change 5323].
 
 Section 7.3 has no known gap in the gate entries: Skein's `default` is
 `cpu_suite_s` alone at 40, with the header's Skein line naming the user's

@@ -377,24 +377,18 @@ fn requester_template(conversation: bool) -> Template {
 
 #[test]
 fn requester_template_overrides_refuse_invalid_ending_authority_without_changing_policy() {
-    for (conversation, executor) in
-        [(false, people::TemplateExecutor::Charter(PROJECT)), (true, people::TemplateExecutor::Chosen)]
-    {
-        let (mut core, limits) = make_tree();
-        core.current.test_templates(Box::new([requester_template(conversation)]));
-        let templates = templates::current_merged(&core.current, &[]);
-        let before = template_policy(&core);
-        let change = people::PolicyChange::Templates {
-            overrides: Box::new([people::TemplateOverride { executor: Some(executor), ..executor_override(PROJECT) }]),
-        };
-        assert_eq!(
-            core.change_policy(&limits, OWNER, PROJECT, change),
-            Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape }),
-        );
-        assert_eq!(template_policy(&core), before);
-        assert_eq!(templates::current_merged(&core.current, &[]), templates);
-        assert!(core.template_overrides.get(&PROJECT).expect("seed overrides").is_empty());
-    }
+    let (mut core, limits) = make_tree();
+    core.current.test_templates(Box::new([requester_template(false)]));
+    let templates = templates::current_merged(&core.current, &[]);
+    let before = template_policy(&core);
+    let change = people::PolicyChange::Templates { overrides: Box::new([executor_override(PROJECT)]) };
+    assert_eq!(
+        core.change_policy(&limits, OWNER, PROJECT, change),
+        Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape }),
+    );
+    assert_eq!(template_policy(&core), before);
+    assert_eq!(templates::current_merged(&core.current, &[]), templates);
+    assert!(core.template_overrides.get(&PROJECT).expect("seed overrides").is_empty());
 }
 
 #[test]
@@ -420,24 +414,18 @@ fn a_standing_template_admits_a_chosen_agent_charter() {
 }
 
 #[test]
-fn startup_refuses_requester_templates_without_conversation_or_a_named_executor() {
-    for (conversation, executor) in
-        [(false, people::TemplateExecutor::Charter(PROJECT)), (true, people::TemplateExecutor::Chosen)]
-    {
-        let mut config = config(41);
-        let mut template = requester_template(conversation);
-        template.executor = executor;
-        config.defaults.templates = Box::new([template]);
-        let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
-        assert_eq!(
-            crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
-            Err(crate::settings::Failure {
-                setting: crate::settings::Setting::Template(1),
-                fault: crate::settings::Fault::Shape,
-                detail: None
-            })
-        );
-    }
+fn startup_refuses_a_requester_charter_without_conversation() {
+    let mut config = config(41);
+    config.defaults.templates = Box::new([requester_template(false)]);
+    let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
+    assert_eq!(
+        crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
+        Err(crate::settings::Failure {
+            setting: crate::settings::Setting::Template(1),
+            fault: crate::settings::Fault::Shape,
+            detail: None
+        })
+    );
 }
 
 #[test]
