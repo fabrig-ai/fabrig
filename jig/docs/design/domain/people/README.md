@@ -336,7 +336,9 @@ entry naming the task or proposal it is and its project:
 - **questions** from tasks they asked for, conversations included,
   but a question a delegate asks a conversation, which stays with the
   conversation, which answers it or asks its person itself in its own
-  words (../tasks/messages.md, 5);
+  words (../tasks/messages.md, 5); and a question a gathering's
+  delegate asks the gathering they asked for, which comes to them
+  (../tasks/gatherings.md, section 4);
 - **proposals** routed to them, or to a role they hold;
 - **escalations** that reached them: a held task nobody below could
   decide;

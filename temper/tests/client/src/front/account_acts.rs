@@ -64,6 +64,34 @@ pub fn tools_fixture(seed: u64) -> (Joint, Root) {
 pub fn goal_choice_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::GoalChoice, 2, None, false, WelcomeForge::None, false)
 }
+/// A party request made as the fixture's ctl client, through the same engine pump.
+pub fn party_ask(front: &mut Joint, key: u8, ask: jig_domain_people::Ask) -> jig_domain_people::Outcome {
+    use skein_lib::{ReplyTo, Token};
+    let to = ReplyTo::new(Token::new(u64::from(key)));
+    front.engine.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: front.transport.sign_in(CLIENT).expect("authenticated fixture client"),
+        key: [key; 16],
+        ask,
+    }));
+    front.settle();
+    front
+        .engine
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply { to: reply, reply: jig_domain_people::Reply::Outcome(outcome) } =
+                delivery
+                && *reply == to
+            {
+                Some(outcome.clone())
+            } else {
+                None
+            }
+        })
+        .expect("party request answered")
+}
 /// An owner's small initial pool and room to double the project's spend, configured before startup.
 #[must_use]
 pub fn tools_fixture_with_spend(seed: u64, spend: u64) -> (Joint, Root) {
@@ -387,6 +415,37 @@ fn goal_choice_template(config: &mut engine::Config) {
     config.core.settings.models[0].effort = Some(b"low".as_slice().into());
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
     config.core.defaults.charters[0].policy.resume = false;
+    // This fixture admits the stock milestone and its two goals.
+    let kinds: Box<[jig_domain_authority::Executor]> = Box::new([
+        jig_domain_authority::Executor::Charter(1),
+        jig_domain_authority::Executor::Procedure(jig_client::shapes::GATHERING),
+    ]);
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    for authority in [&mut config.core.defaults.rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+        authority.delegation = jig_domain_authority::Delegation { kinds: kinds.clone(), tasks: 4, depth: 2 };
+    }
+    let models = config
+        .core
+        .settings
+        .models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+            first_read: None,
+            number: u32::try_from(at).expect("fixture models") + 1,
+            model: model.clone(),
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect();
+    let stock = temper_engine_service_stock::stock::with_models(models, engine_limits().tasks.result_bytes);
+    let mut templates = config.core.defaults.templates.to_vec();
+    templates.push(stock.templates.iter().find(|template| template.number == 8).expect("stock milestone").clone());
+    config.core.defaults.templates = templates.into_boxed_slice();
     let template = &mut config.core.defaults.templates[1];
     template.executor = TemplateExecutor::Charter(1);
     template.deadline = TemplateDeadline::None;
@@ -588,6 +647,31 @@ fn fixture_root(
         }
         let mut engine_limits = engine_limits();
         engine_limits.tasks.charters = 2;
+        if goal_choice {
+            engine_limits.tasks.tasks = 3;
+            engine_limits.tasks.project_tasks = 3;
+            engine_limits.tasks.project_goals = 3;
+            engine_limits.tasks.tree_tasks = 3;
+            engine_limits.tasks.delegates = 2;
+            engine_limits.people.inbox_tasks = 6;
+            engine_limits.authority.executors = 2;
+            engine_limits.tasks.executor_kinds = 2;
+            engine_limits.documents.executors = 2;
+            // Two delegate results and the gathering's standing notices reserve inbox bytes.
+            engine_limits.tasks.inbox_bytes = engine_limits
+                .tasks
+                .result_bytes
+                .checked_mul(2)
+                .expect("two results")
+                .checked_add(
+                    engine_limits
+                        .tasks
+                        .message_bytes
+                        .checked_mul(engine_limits.tasks.inbox_messages)
+                        .expect("standing notices"),
+                )
+                .expect("gathering inbox");
+        }
         // Restore one deployment account and leave the requested room for party accounts.
         engine_limits.documents.lines = engine_limits.documents.lines.max(own_accounts);
         engine_limits.accounts.accounts = own_accounts + 1;

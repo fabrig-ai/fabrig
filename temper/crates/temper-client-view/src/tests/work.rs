@@ -108,7 +108,11 @@ impl Fixture {
         goal.label = 8;
         let mut chat = goals::template(jig_client::shapes::CHAT, b"chat", false);
         chat.label = 7;
-        frame.projects.get_mut(0).unwrap().templates = list(&[chat, goal]);
+        let mut milestone = goal.clone();
+        milestone.number = 1;
+        milestone.name = text(b"milestone");
+        milestone.flags.ended_by = c::EndedBy::Requester;
+        frame.projects.get_mut(0).unwrap().templates = list(&[chat, milestone, goal]);
         f::deliver_me(&mut root, me, frame);
         let mut fixture = Self {
             root,
@@ -397,6 +401,7 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
         ] {
             assert!(has(&tree, value), "missing {value}");
         }
+        assert!(!has(&tree, "milestone"));
         assert_eq!(styled(&tree, look::WORK_SECTION).len(), 3);
         let mut addresses = List::uncapped();
         for node in tree.nodes() {

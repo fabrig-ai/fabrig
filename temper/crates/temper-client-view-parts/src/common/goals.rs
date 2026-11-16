@@ -12,7 +12,7 @@ pub struct Way {
     pub line: Option<Box<[u8]>>,
 }
 
-/// Tracked templates in their configured number order (client/pages/README.md).
+/// Tracked templates not ended by their requester, in number order (client/pages/work.md, 1, Ways).
 #[must_use]
 pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
     let mut result = List::uncapped();
@@ -22,7 +22,7 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
         }
         let mut order = List::uncapped();
         for (index, template) in member.templates.iter().enumerate() {
-            if template.tracked.is_some() {
+            if template.tracked.is_some() && template.flags.ended_by != c::EndedBy::Requester {
                 order
                     .push((template.number, u32::try_from(index).expect("template index fits")))
                     .expect("ways grow with templates");

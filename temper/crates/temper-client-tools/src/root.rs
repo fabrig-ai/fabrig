@@ -579,6 +579,26 @@ mod tests;
 #[derive(Debug)]
 pub struct Parts;
 impl jig::render::Parts for Parts {
+    fn extra_read(&self, reading: &runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
+        crate::milestone::next(reading)
+    }
+    fn print_read(
+        &self,
+        reading: &runner::reads::Reading,
+        me: Option<&jig_client::contract::Me>,
+        client: &Client,
+        handle: jig_client::Handle,
+        limits: &jig::Limits,
+    ) -> Option<jig::Printed> {
+        if reading.called.call.tool == jig::rows::MILESTONE_LIST_AT
+            || reading.called.call.tool == jig::rows::MILESTONE_SHOW_AT
+        {
+            Some(crate::milestone::print(reading, me, client, handle, limits, self))
+        } else {
+            None
+        }
+    }
+
     fn prepare_setting(&self, call: &mut jig::call::Call, me: Option<&jig_client::contract::Me>) -> bool {
         crate::settings::resolve_project(call, me)
     }

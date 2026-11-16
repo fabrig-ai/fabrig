@@ -778,6 +778,9 @@ fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
     if present(call, 5) && present(call, 6) {
         return Err(Usage::Twice { tool: 0, form: 0, argument: 6 });
     }
+    if present(call, 7) && present(call, 13) {
+        return Err(Usage::Twice { tool: 0, form: 0, argument: 13 });
+    }
     if let Some(Value::Text(text)) = super::call::value(call, 7) {
         deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 7 })?;
     }
@@ -791,7 +794,34 @@ fn check_creation(tool: &Tool, call: &Call, limits: &Limits) -> Result<(), Usage
     if tool.name == super::rows::GOAL_START.name {
         check_goal(call, limits)?;
     }
+    if tool.name == super::rows::MILESTONE_NEW.name {
+        let Some(Value::Text(name)) = super::call::value(call, 1) else {
+            return Err(Usage::Kind { tool: 0, form: 0, argument: 1 });
+        };
+        if !milestone_name(name) {
+            return Err(Usage::Kind { tool: 0, form: 0, argument: 1 });
+        }
+        if present(call, 4) && present(call, 5) {
+            return Err(Usage::Twice { tool: 0, form: 0, argument: 5 });
+        }
+        if let Some(Value::Text(text)) = super::call::value(call, 6) {
+            deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 6 })?;
+        }
+    }
     Ok(())
+}
+
+#[expect(clippy::disallowed_methods, reason = "a milestone name is bounded in Unicode scalar values")]
+fn milestone_name(name: &[u8]) -> bool {
+    let Ok(name) = core::str::from_utf8(name) else { return false };
+    let mut count = 0u32;
+    for character in name.chars() {
+        if character.is_control() || count >= 60 {
+            return false;
+        }
+        count = count.checked_add(1).expect("at most 60 characters");
+    }
+    count > 0
 }
 
 #[expect(clippy::disallowed_methods, reason = "argv validates device labels as UTF-8 before the host reads a file")]

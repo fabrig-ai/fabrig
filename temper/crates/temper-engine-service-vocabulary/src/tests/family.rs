@@ -1783,7 +1783,7 @@ fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v26::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 27);
+    assert_eq!(wire::CLIENT_VERSION, 28);
 }
 
 #[test]
@@ -4860,6 +4860,9 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
         .is_none()
     );
 }
+
+#[path = "milestones.rs"]
+mod milestones;
 
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {

@@ -889,6 +889,7 @@ mod tests {
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
             verdicts: Box::new([]),
+            milestone: None,
             goal: None,
             ending: None,
             repair_tasks: Box::new([]),

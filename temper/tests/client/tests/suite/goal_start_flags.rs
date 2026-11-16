@@ -1,4 +1,5 @@
 //! A start's flags hold for every run (temper/docs/design/client/ctl/areas.md).
+use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use temper_client_world::{
     app::{Event, Root},
@@ -21,6 +22,107 @@ fn shown(front: &mut Joint, root: &mut Root, number: u32, goal: u64) -> String {
     let answer = call(front, root, number, &[b"task", b"show", goal.to_string().as_bytes()]);
     assert_eq!(answer.status, 0, "{answer:?}");
     String::from_utf8(answer.stdout.to_vec()).expect("task text")
+}
+
+fn gathering(front: &mut Joint) -> u64 {
+    let people::Ask::Create { batch, .. } = front.engine.chat_ask(1, b"offered authority") else { panic!("create") };
+    let mut authority = batch[0].authority.clone();
+    authority.spend = 100;
+    authority.deadline = None;
+    authority.delegation.depth = 1;
+    authority.delegation.tasks = 2;
+    let gathering = people::Member {
+        executor: people::TaskExecutor::Procedure {
+            connector: jig_client::shapes::RECURRING,
+            code: jig_client::shapes::GATHERING,
+        },
+        words: b"Store shape".as_slice().into(),
+        parameters: Box::new([]),
+        inputs: Box::new([]),
+        contract: people::Contract::Report { words: 128 },
+        authority,
+        budget: people::Budget::Named,
+        deadline: people::Deadline::Named,
+        wake: None,
+        dependencies: Box::new([]),
+        named: Box::new([]),
+        symbols: Box::new([]),
+        tracked: Some(0),
+        label: 0,
+        flags: people::Flags {
+            ended_by: people::EndedBy::Requester,
+            conversation: false,
+            listed: true,
+            retention: people::Retention::Kept,
+        },
+        llm: None,
+    };
+    let outcome = accounts::party_ask(front, 91, people::Ask::Create { project: 1, batch: Box::new([gathering]) });
+    let people::Outcome::Created { first, .. } = outcome else { panic!("gathering refused: {outcome:?}") };
+    first
+}
+
+#[test]
+fn a_person_starts_waiting_goals_beneath_a_gathering() {
+    let (mut front, mut root) = accounts::goal_choice_fixture(fixtures::SEED);
+    let milestone = gathering(&mut front);
+    let milestone_arg = milestone.to_string();
+    let first = call(
+        &mut front,
+        &mut root,
+        1,
+        &[
+            b"goal",
+            b"start",
+            b"--project",
+            b"1",
+            b"--budget",
+            b"10",
+            b"--no-deadline",
+            b"--milestone",
+            milestone_arg.as_bytes(),
+            b"S1 Draft the layout",
+            b"--key",
+            b"draft-layout",
+        ],
+    );
+    assert_eq!(first.status, 0, "{first:?}");
+    let first = fixtures::done_task(&first);
+    let first_arg = first.to_string();
+    let second = call(
+        &mut front,
+        &mut root,
+        2,
+        &[
+            b"goal",
+            b"start",
+            b"--project",
+            b"1",
+            b"--budget",
+            b"10",
+            b"--no-deadline",
+            b"--milestone",
+            milestone_arg.as_bytes(),
+            b"--after",
+            first_arg.as_bytes(),
+            b"S2 Check the layout",
+            b"--key",
+            b"check-layout",
+        ],
+    );
+    assert_eq!(second.status, 0, "{second:?}");
+    let second = fixtures::done_task(&second);
+    for goal in [first, second] {
+        let task = front.engine.task(goal).expect("goal row");
+        assert_eq!(task.requester, tasks::Party::Task(milestone));
+        assert_eq!(task.funder, tasks::Funder::Task(milestone));
+        assert_eq!(task.authority.budget.deadline, None);
+    }
+    let waiting = front.engine.task(second).expect("second goal");
+    assert!(matches!(waiting.phase, tasks::Phase::Waiting));
+    assert_eq!(waiting.dependencies.as_ref(), &[first]);
+    let parent = front.engine.task(milestone).expect("gathering");
+    assert!(parent.delegates.contains(&first) && parent.delegates.contains(&second));
 }
 
 #[test]
