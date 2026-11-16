@@ -21,6 +21,7 @@ mod landing_red_four;
 mod landing_rounds;
 mod member_message;
 mod memory;
+mod opened;
 mod protection;
 mod public;
 mod readiness;
@@ -41,6 +42,7 @@ mod fuzzy {
     mod history;
     mod landing_batches;
     mod member_message;
+    mod opened;
     mod pull_cutoff;
     mod queue_history;
     mod rules_by_path;

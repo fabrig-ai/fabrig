@@ -75,6 +75,26 @@ pub fn change_row() -> top::ChangeRow {
     }
 }
 
+/// Register an opened change on its own held branch, without a producing task
+/// (domain/forge/change/opened.md, 4). The caller pushes the source first.
+pub fn open_change(world: &mut World, task: u64, source: &[u8], at: Option<skein_forge::api::Commit>) {
+    let mut row = change_row();
+    row.task = task;
+    row.change.task = task;
+    row.source = Some(top::ChangeSource { branch: source.into(), at });
+    row.branch = format!("temper/{task}/c{task}").into_bytes().into();
+    row.change.state = change::State::Taking { requested: false };
+    row.change.since = world.wall();
+    let name = |branch: &[u8]| top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(branch.split(|byte| *byte == b'/').map(Into::into).collect()),
+    };
+    world.event(top::Event::Hold { task, resource: name(&row.branch), entry: 0, from: None });
+    world.event(top::Event::Change { row });
+    world.event(top::Event::Names { task, resources: Box::new([name(b"main")]) });
+}
+
 pub fn change_step(
     world: &mut World,
     entry: u64,

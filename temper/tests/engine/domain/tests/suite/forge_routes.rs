@@ -91,6 +91,7 @@ mod light_rules;
 
 #[path = "forge_routes/catch_up.rs"]
 mod catch_up;
+mod opened;
 
 #[path = "forge_routes/squash_in.rs"]
 mod squash_in;

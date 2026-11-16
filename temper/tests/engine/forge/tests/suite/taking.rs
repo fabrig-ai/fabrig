@@ -16,14 +16,7 @@ fn name(branch: &[u8]) -> top::Name {
     }
 }
 fn register(world: &mut World, at: Option<Commit>) {
-    let mut row = changes::change_row();
-    row.source = Some(top::ChangeSource { branch: SOURCE.into(), at });
-    row.branch = OWN.into();
-    row.change.state = change::State::Taking { requested: false };
-    row.change.since = world.wall();
-    world.event(top::Event::Change { row });
-    world.event(top::Event::Names { task: TASK, resources: Box::new([name(b"main")]) });
-    world.event(top::Event::Hold { task: TASK, resource: name(OWN), entry: 0, from: None });
+    changes::open_change(world, TASK, SOURCE, at);
     world.take_calls();
     world.observations();
 }

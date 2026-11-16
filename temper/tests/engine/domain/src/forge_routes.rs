@@ -193,6 +193,8 @@ pub struct World {
 pub struct StoryLimits {
     /// Scripted task trees may dispatch workflow checks without an authority proposal.
     pub workflow_dispatch: bool,
+    /// Opened changes make their own branch from a person's pushed source.
+    pub create_branches: bool,
     /// Tool families granted by the deployment and project for this story.
     pub tools: Option<u64>,
     /// Scalar note scopes and a resource scope held by the parent in narrowing stories.
@@ -449,6 +451,7 @@ impl World {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
             workflow_dispatch,
+            create_branches,
             tools,
             notes,
             person_executor,
@@ -550,7 +553,7 @@ impl World {
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
-                limits.tasks.authority_grants = 11 + u32::from(workflow_dispatch);
+                limits.tasks.authority_grants = 11 + u32::from(workflow_dispatch) + u32::from(create_branches);
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
@@ -560,7 +563,7 @@ impl World {
                     inbox_bytes.unwrap_or(limits.tasks.inbox_messages * limits.tasks.message_bytes);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
-                limits.authority.grants = 11 + u32::from(workflow_dispatch);
+                limits.authority.grants = 11 + u32::from(workflow_dispatch) + u32::from(create_branches);
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
                 limits.authority.writes = 2.max(u32::from(batch.unwrap_or(1)));
@@ -638,9 +641,14 @@ impl World {
                 } else {
                     Box::new([grant.clone(), effect_grant.clone()])
                 };
-                let grants = if workflow_dispatch {
+                let grants = if workflow_dispatch || create_branches {
                     let mut grants = grants.into_vec();
-                    grants.push(authority::Grant { kind: 16, ..grant.clone() });
+                    if workflow_dispatch {
+                        grants.push(authority::Grant { kind: 16, ..grant.clone() });
+                    }
+                    if create_branches {
+                        grants.push(authority::Grant { kind: 9, ..grant.clone() });
+                    }
                     grants.into_boxed_slice()
                 } else {
                     grants
