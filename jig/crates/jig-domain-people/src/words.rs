@@ -6,7 +6,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
     match ask {
         Ask::Talk { words, .. } | Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => is_utf8(words),
         Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => is_utf8(reason) && batch_words(batch),
-        Ask::Create { batch, .. } => batch_words(batch),
+        Ask::Create { batch, .. } | Ask::Delegate { batch, .. } => batch_words(batch),
         Ask::MakeService { name, .. } => is_utf8(name),
         Ask::Restore { reason, .. }
         | Ask::Propose { action: crate::Action::Settings { .. }, reason, .. }
@@ -42,6 +42,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         | Ask::Adopt { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }

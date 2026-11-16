@@ -222,6 +222,7 @@ pub struct TaskSettings {
 /// A task page's header, overview, funding, authority and current held decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Task {
+    pub concluded: Option<tasks::Concluded>,
     pub talk: Option<tasks::Talk>,
     pub session: Option<tasks::Session>,
     /// None for a procedure's or a person's task.

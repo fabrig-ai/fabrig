@@ -540,3 +540,17 @@ fn a_task_waiting_on_its_question_round_trips_through_the_wire_and_link() {
     let task = documents::task(record, &limits).unwrap();
     assert_eq!(task.waits_on, c::WaitsOn::Question { number: 7 });
 }
+
+#[test]
+fn a_concluded_refusal_decodes_its_concluding_wall() {
+    let limits = fixtures::limits();
+    let at = 123_456;
+    let wire = w::Refusal::Concluded(w::RefusalConcluded::new(limits.wire(), w::RefusalConcludedParts { at }).unwrap());
+    let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut bytes).unwrap();
+    let wire = w::Refusal::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+    assert_eq!(
+        translate::answers::refusal(&wire, &limits),
+        Ok(c::Refusal::Concluded { at: skein_lib::Wall::from_nanos(at) })
+    );
+}

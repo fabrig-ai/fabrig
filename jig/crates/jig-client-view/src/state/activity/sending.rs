@@ -31,6 +31,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Answer { .. }
         | Ask::Take { .. }
         | Ask::HandBack { .. }
@@ -39,6 +40,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         | Ask::Release { .. }
         | Ask::Amend { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }

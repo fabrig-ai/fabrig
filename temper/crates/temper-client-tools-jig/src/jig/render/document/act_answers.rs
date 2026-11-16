@@ -220,6 +220,7 @@ pub(super) fn encode_owner_escalation_choice(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the owner result vocabulary is projected exhaustively")]
 pub(super) fn encode_owner_outcome(
     value: &jig_client::contract::DocumentOutcome,
     out: &mut Encoder,
@@ -300,6 +301,15 @@ pub(super) fn encode_owner_outcome(
         jig_client::contract::DocumentOutcome::NoteEdited { .. } => owner_note_edited(value, out, budget),
         jig_client::contract::DocumentOutcome::ServiceMade { .. } => owner_service_made(value, out, budget),
         jig_client::contract::DocumentOutcome::Adopted { .. } => owner_adopted(value, out, budget),
+        jig_client::contract::DocumentOutcome::Concluded { task } => {
+            out.object_start();
+            out.key(b"concluded");
+            out.object_start();
+            out.key(b"task");
+            out.unsigned(*task);
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::DocumentOutcome::Left { task } => owner_left(*task, out),
         jig_client::contract::DocumentOutcome::Stopped { .. } => owner_stopped(value, out, budget),
         jig_client::contract::DocumentOutcome::Cancelled { .. } => owner_cancelled(value, out, budget),

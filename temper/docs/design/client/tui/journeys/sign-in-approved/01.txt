@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:41251                                     │
+│ Sign in this terminal to 127.0.0.1:42513                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ QZFX-RRJD, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:41251/terminal?code=QZFX-RRJD                  │
+│ PDFZ-SWXX, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42513/terminal?code=PDFZ-SWXX                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:41251/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:42513/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

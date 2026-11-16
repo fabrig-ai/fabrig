@@ -158,6 +158,8 @@ fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
         &mut core,
         &limits,
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Person(1),
             batch: Box::new([holder]),
@@ -345,6 +347,8 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Person(1),
             batch: Box::new([parent]),

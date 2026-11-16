@@ -60,6 +60,7 @@ pub struct Limits {
     pub operation_message_words: u32,
     pub ask_compound_operations: u32,
     pub ask_create_batch: u32,
+    pub ask_delegate_batch: u32,
     pub ask_make_service_name: u32,
     pub action_batch_members: u32,
     pub ask_propose_reason: u32,
@@ -155,6 +156,7 @@ pub const CEILINGS: Limits = Limits {
     operation_message_words: 8_192,
     ask_compound_operations: 1_024,
     ask_create_batch: 8,
+    ask_delegate_batch: 8,
     ask_make_service_name: 8_192,
     action_batch_members: 8,
     ask_propose_reason: 8_192,
@@ -195,7 +197,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 91] = [
+pub const LIMIT_NAMES: [&str; 92] = [
     "segment_bytes",
     "identity_key_subject",
     "identity_login",
@@ -250,6 +252,7 @@ pub const LIMIT_NAMES: [&str; 91] = [
     "operation_message_words",
     "ask_compound_operations",
     "ask_create_batch",
+    "ask_delegate_batch",
     "ask_make_service_name",
     "action_batch_members",
     "ask_propose_reason",
@@ -292,7 +295,7 @@ pub const LIMIT_NAMES: [&str; 91] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 91] {
+    pub fn values(&self) -> [u32; 92] {
         [
             self.segment_bytes, self.identity_key_subject, self.identity_login, self.identity_name, self.last_exact_value, self.last_open_value, self.pattern_segments, self.delegation_kinds,
             self.authority_grants, self.authority_note_resources, self.policy_value_projections, self.policy_value_roles, self.policy_value_requirements, self.policy_value_permissions, self.policy_value_templates, self.policy_change_requirements_requirements,
@@ -300,12 +303,12 @@ impl Limits {
             self.person_result_approved_state, self.person_result_approved_words_some, self.person_result_report_words, self.person_result_verdict_words, self.person_result_failure_reason, self.proposal_decision_reject_reason, self.escalation_decision_reject_reason, self.parameter_bytes_value,
             self.spec_words, self.spec_parameters, self.spec_inputs, self.llm_later_subagents, self.llm_choice_subagents, self.amendment_instructions_some, self.amendment_dependencies_some, self.amendment_reason,
             self.field_rule_name, self.verdict_fields, self.contract_verdict_choices, self.member_words, self.member_parameters, self.member_inputs, self.member_dependencies, self.member_named,
-            self.member_symbols, self.operation_cancel_reason, self.operation_move_reason, self.operation_message_words, self.ask_compound_operations, self.ask_create_batch, self.ask_make_service_name, self.action_batch_members,
-            self.ask_propose_reason, self.ask_cancel_reason, self.ask_move_reason, self.ask_say_words, self.ask_answer_question_words, self.ask_set_roles_holdings, self.ask_rename_name, self.ask_restore_reason,
-            self.ask_change_settings_projects, self.outcome_restored_left_out, self.refusal_full_tasks, self.ask_make_project_name, self.account_change_declare_program_name, self.account_change_add_key_digest, self.account_change_replace_key_digest, self.account_change_set_uses_uses_some,
-            self.account_change_move_in_digest, self.account_change_finish_sign_in_digest, self.account_change_login_program_name, self.stored_roles_holdings, self.model_name_name, self.stored_policy_name, self.stored_policy_models, self.refusal_circle_tasks,
-            self.refusal_live_tasks_tasks, self.refusal_kept_pending, self.refusal_judged_why, self.outcome_account_sign_in_started_address, self.account_host_failure_name, self.outcome_account_program_declared_name, self.outcome_account_signed_out_failed_hosts, self.outcome_account_removed_failed_hosts,
-            self.act_close_reason, self.act_make_project_name, self.stored_answer_models,
+            self.member_symbols, self.operation_cancel_reason, self.operation_move_reason, self.operation_message_words, self.ask_compound_operations, self.ask_create_batch, self.ask_delegate_batch, self.ask_make_service_name,
+            self.action_batch_members, self.ask_propose_reason, self.ask_cancel_reason, self.ask_move_reason, self.ask_say_words, self.ask_answer_question_words, self.ask_set_roles_holdings, self.ask_rename_name,
+            self.ask_restore_reason, self.ask_change_settings_projects, self.outcome_restored_left_out, self.refusal_full_tasks, self.ask_make_project_name, self.account_change_declare_program_name, self.account_change_add_key_digest, self.account_change_replace_key_digest,
+            self.account_change_set_uses_uses_some, self.account_change_move_in_digest, self.account_change_finish_sign_in_digest, self.account_change_login_program_name, self.stored_roles_holdings, self.model_name_name, self.stored_policy_name, self.stored_policy_models,
+            self.refusal_circle_tasks, self.refusal_live_tasks_tasks, self.refusal_kept_pending, self.refusal_judged_why, self.outcome_account_sign_in_started_address, self.account_host_failure_name, self.outcome_account_program_declared_name, self.outcome_account_signed_out_failed_hosts,
+            self.outcome_account_removed_failed_hosts, self.act_close_reason, self.act_make_project_name, self.stored_answer_models,
         ]
     }
 }
@@ -1017,6 +1020,14 @@ pub enum Path {
     AskCreateBatch,
     /// Bytes after `AskCreate`.
     AskCreateTail,
+    /// The `project` field of `AskDelegate`.
+    AskDelegateProject,
+    /// The `task` field of `AskDelegate`.
+    AskDelegateTask,
+    /// The `batch` field of `AskDelegate`.
+    AskDelegateBatch,
+    /// Bytes after `AskDelegate`.
+    AskDelegateTail,
     /// The `seen` field of `AskMarkSeen`.
     AskMarkSeenSeen,
     /// Bytes after `AskMarkSeen`.
@@ -1473,6 +1484,12 @@ pub enum Path {
     AskSetVisibilityPublic,
     /// Bytes after `AskSetVisibility`.
     AskSetVisibilityTail,
+    /// The `project` field of `AskConclude`.
+    AskConcludeProject,
+    /// The `task` field of `AskConclude`.
+    AskConcludeTask,
+    /// Bytes after `AskConclude`.
+    AskConcludeTail,
     /// The tag of `Ask`.
     AskTag,
     /// The `number` field of `StoredPerson`.
@@ -1789,6 +1806,10 @@ pub enum Path {
     RefusalForgottenOldest,
     /// Bytes after `RefusalForgotten`.
     RefusalForgottenTail,
+    /// The `at` field of `RefusalConcluded`.
+    RefusalConcludedAt,
+    /// Bytes after `RefusalConcluded`.
+    RefusalConcludedTail,
     /// The tag of `Refusal`.
     RefusalTag,
     /// The tag of `ProposalChoice`.
@@ -2039,6 +2060,10 @@ pub enum Path {
     OutcomeAccountLoginAskedNumber,
     /// Bytes after `OutcomeAccountLoginAsked`.
     OutcomeAccountLoginAskedTail,
+    /// The `task` field of `OutcomeConcluded`.
+    OutcomeConcludedTask,
+    /// Bytes after `OutcomeConcluded`.
+    OutcomeConcludedTail,
     /// The tag of `Outcome`.
     OutcomeTag,
     /// The `connector` field of `ActKey`.
@@ -2210,6 +2235,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.operation_message_words > CEILINGS.operation_message_words { return Err(Problem { path: Path::OperationMessageWords, reason: skein_codec::Reason::Bound }); }
     if limits.ask_compound_operations > CEILINGS.ask_compound_operations { return Err(Problem { path: Path::AskCompoundOperations, reason: skein_codec::Reason::Bound }); }
     if limits.ask_create_batch > CEILINGS.ask_create_batch { return Err(Problem { path: Path::AskCreateBatch, reason: skein_codec::Reason::Bound }); }
+    if limits.ask_delegate_batch > CEILINGS.ask_delegate_batch { return Err(Problem { path: Path::AskDelegateBatch, reason: skein_codec::Reason::Bound }); }
     if limits.ask_make_service_name > CEILINGS.ask_make_service_name { return Err(Problem { path: Path::AskMakeServiceName, reason: skein_codec::Reason::Bound }); }
     if limits.action_batch_members > CEILINGS.action_batch_members { return Err(Problem { path: Path::ActionBatchMembers, reason: skein_codec::Reason::Bound }); }
     if limits.ask_propose_reason > CEILINGS.ask_propose_reason { return Err(Problem { path: Path::AskProposeReason, reason: skein_codec::Reason::Bound }); }
@@ -2245,11 +2271,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.outcome_account_signed_out_failed_hosts > CEILINGS.outcome_account_signed_out_failed_hosts { return Err(Problem { path: Path::OutcomeAccountSignedOutFailedHosts, reason: skein_codec::Reason::Bound }); }
     if limits.outcome_account_removed_failed_hosts > CEILINGS.outcome_account_removed_failed_hosts { return Err(Problem { path: Path::OutcomeAccountRemovedFailedHosts, reason: skein_codec::Reason::Bound }); }
     if limits.act_close_reason > CEILINGS.act_close_reason { return Err(Problem { path: Path::ActCloseReason, reason: skein_codec::Reason::Bound }); }
-    if limits.act_make_project_name > CEILINGS.act_make_project_name { return Err(Problem { path: Path::ActMakeProjectName, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.act_make_project_name > CEILINGS.act_make_project_name { return Err(Problem { path: Path::ActMakeProjectName, reason: skein_codec::Reason::Bound }); }
     if limits.stored_answer_models > CEILINGS.stored_answer_models { return Err(Problem { path: Path::StoredAnswerModels, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
@@ -7134,6 +7160,59 @@ impl AskCreate {
     }
 }
 
+/// Movable fields of `AskDelegate`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AskDelegateParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `task` field.
+    pub task: u64,
+    /// The `batch` field.
+    pub batch: List<Member>,
+}
+
+/// `AskDelegate` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AskDelegate {
+    project: u32,
+    task: u64,
+    batch: List<Member>,
+}
+
+impl AskDelegate {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: AskDelegateParts) -> Result<Self, Problem> {
+        let AskDelegateParts { project, task, batch } = parts;
+        let value = Self { project, task, batch };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `batch` field.
+    #[must_use]
+    pub fn batch(&self) -> &List<Member> { &self.batch }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AskDelegateParts { AskDelegateParts { project: self.project, task: self.task, batch: self.batch } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.batch.capacity() > limits.ask_delegate_batch.min(CEILINGS.ask_delegate_batch) { return Err(Problem { path: Path::AskDelegateBatch, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.batch.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
 /// Movable fields of `AskMarkSeen`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AskMarkSeenParts {
@@ -10231,6 +10310,44 @@ impl AskSetVisibility {
 
 }
 
+/// Movable fields of `AskConclude`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AskConcludeParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `task` field.
+    pub task: u64,
+}
+
+/// `AskConclude` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AskConclude {
+    project: u32,
+    task: u64,
+}
+
+impl AskConclude {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AskConcludeParts) -> Result<Self, Problem> {
+        let AskConcludeParts { project, task } = parts;
+        let value = Self { project, task };
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AskConcludeParts { AskConcludeParts { project: self.project, task: self.task } }
+
+}
+
 /// `Ask` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
@@ -10308,6 +10425,10 @@ pub enum Ask {
     Talk(AskSay),
     /// `leave` carrying `AskStop`.
     Leave(AskStop),
+    /// `conclude` carrying `AskConclude`.
+    Conclude(AskConclude),
+    /// `delegate` carrying `AskDelegate`.
+    Delegate(AskDelegate),
 }
 
 impl Ask {
@@ -10340,7 +10461,8 @@ impl Ask {
             Self::AccountChange(record) => AskAccountChange::check(record, limits),
             Self::ChangeSettings(record) => AskChangeSettings::check(record, limits),
             Self::Restore(record) => AskRestore::check(record, limits),
-            Self::MarkSeen(_) | Self::Application(_) | Self::Stop(_) | Self::Release(_) | Self::TakePerson(_) | Self::HandBackPerson(_) | Self::SetPool(_) | Self::Withdraw(_) | Self::AccountSignIn(_) | Self::AccountSignOut(_) | Self::MoveToNewest(_) | Self::Lift(_) | Self::RemoveProject(_) | Self::SetVisibility(_) | Self::Leave(_) => Ok(()),
+            Self::Delegate(record) => AskDelegate::check(record, limits),
+            Self::MarkSeen(_) | Self::Application(_) | Self::Stop(_) | Self::Release(_) | Self::TakePerson(_) | Self::HandBackPerson(_) | Self::SetPool(_) | Self::Withdraw(_) | Self::AccountSignIn(_) | Self::AccountSignOut(_) | Self::MoveToNewest(_) | Self::Lift(_) | Self::RemoveProject(_) | Self::SetVisibility(_) | Self::Leave(_) | Self::Conclude(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -12846,6 +12968,37 @@ impl RefusalForgotten {
 
 }
 
+/// Movable fields of `RefusalConcluded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalConcludedParts {
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `RefusalConcluded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalConcluded {
+    at: u64,
+}
+
+impl RefusalConcluded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalConcludedParts) -> Result<Self, Problem> {
+        let RefusalConcludedParts { at } = parts;
+        let value = Self { at };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalConcludedParts { RefusalConcludedParts { at: self.at } }
+
+}
+
 /// `Refusal` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
@@ -12911,6 +13064,8 @@ pub enum Refusal {
     LoginUnderWay,
     /// `not_lending` without a payload.
     NotLending,
+    /// `concluded` carrying `RefusalConcluded`.
+    Concluded(RefusalConcluded),
 }
 
 impl Refusal {
@@ -12927,7 +13082,7 @@ impl Refusal {
             Self::Full(record) => RefusalFull::check(record, limits),
             Self::Judged(record) => RefusalJudged::check(record, limits),
             Self::LiveTasks(record) => RefusalLiveTasks::check(record, limits),
-            Self::NameTaken | Self::NotWellFormed(_) | Self::Role(_) | Self::Authority(_) | Self::Limit(_) | Self::Moved(_) | Self::Ended(_) | Self::Taken(_) | Self::NotWaiting | Self::NoFurther | Self::Unknown | Self::NotOffered | Self::KeyConflict | Self::NoEscalationHolder | Self::Llm(_) | Self::Provider | Self::Account(_) | Self::Dependency(_) | Self::AccountMove(_) | Self::Stale(_) | Self::SignInRedirect(_) | Self::Forgotten(_) | Self::ProgramNameReserved | Self::NoTerminal | Self::LoginUnderWay | Self::NotLending => Ok(()),
+            Self::NameTaken | Self::NotWellFormed(_) | Self::Role(_) | Self::Authority(_) | Self::Limit(_) | Self::Moved(_) | Self::Ended(_) | Self::Taken(_) | Self::NotWaiting | Self::NoFurther | Self::Unknown | Self::NotOffered | Self::KeyConflict | Self::NoEscalationHolder | Self::Llm(_) | Self::Provider | Self::Account(_) | Self::Dependency(_) | Self::AccountMove(_) | Self::Stale(_) | Self::SignInRedirect(_) | Self::Forgotten(_) | Self::ProgramNameReserved | Self::NoTerminal | Self::LoginUnderWay | Self::NotLending | Self::Concluded(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -14630,6 +14785,37 @@ impl OutcomeAccountLoginAsked {
 
 }
 
+/// Movable fields of `OutcomeConcluded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OutcomeConcludedParts {
+    /// The `task` field.
+    pub task: u64,
+}
+
+/// `OutcomeConcluded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OutcomeConcluded {
+    task: u64,
+}
+
+impl OutcomeConcluded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: OutcomeConcludedParts) -> Result<Self, Problem> {
+        let OutcomeConcludedParts { task } = parts;
+        let value = Self { task };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> OutcomeConcludedParts { OutcomeConcludedParts { task: self.task } }
+
+}
+
 /// `Outcome` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
@@ -14729,6 +14915,8 @@ pub enum Outcome {
     Left(OutcomeStopped),
     /// `account_login_asked` carrying `OutcomeAccountLoginAsked`.
     AccountLoginAsked(OutcomeAccountLoginAsked),
+    /// `concluded` carrying `OutcomeConcluded`.
+    Concluded(OutcomeConcluded),
 }
 
 impl Outcome {
@@ -14747,7 +14935,7 @@ impl Outcome {
             Self::AccountRemoved(record) => OutcomeAccountRemoved::check(record, limits),
             Self::AccountProgramDeclared(record) => OutcomeAccountProgramDeclared::check(record, limits),
             Self::Restored(record) => OutcomeRestored::check(record, limits),
-            Self::Renamed(_) | Self::ProjectMade(_) | Self::Compound(_) | Self::Created(_) | Self::MarkedSeen(_) | Self::Applied(_) | Self::Again(_) | Self::SignedOut | Self::NoteEdited(_) | Self::ServiceMade(_) | Self::Adopted(_) | Self::Proposed(_) | Self::Stopped(_) | Self::Cancelled(_) | Self::Released(_) | Self::PersonTaken(_) | Self::PersonHandedBack(_) | Self::PersonAnswered(_) | Self::Moved(_) | Self::ProposalDecided(_) | Self::Said(_) | Self::QuestionAnswered(_) | Self::Amended(_) | Self::RolesSet(_) | Self::PolicyChanged(_) | Self::PoolSet(_) | Self::EscalationDecided(_) | Self::Withdrawn(_) | Self::AccountKeyKept(_) | Self::AccountChanged | Self::AccountMovingOut(_) | Self::AccountMovedIn(_) | Self::SettingsChanged(_) | Self::AccountFinishing(_) | Self::MovedToNewest(_) | Self::Lifted(_) | Self::ProjectRemoved(_) | Self::VisibilitySet(_) | Self::AccountReading(_) | Self::Left(_) | Self::AccountLoginAsked(_) => Ok(()),
+            Self::Renamed(_) | Self::ProjectMade(_) | Self::Compound(_) | Self::Created(_) | Self::MarkedSeen(_) | Self::Applied(_) | Self::Again(_) | Self::SignedOut | Self::NoteEdited(_) | Self::ServiceMade(_) | Self::Adopted(_) | Self::Proposed(_) | Self::Stopped(_) | Self::Cancelled(_) | Self::Released(_) | Self::PersonTaken(_) | Self::PersonHandedBack(_) | Self::PersonAnswered(_) | Self::Moved(_) | Self::ProposalDecided(_) | Self::Said(_) | Self::QuestionAnswered(_) | Self::Amended(_) | Self::RolesSet(_) | Self::PolicyChanged(_) | Self::PoolSet(_) | Self::EscalationDecided(_) | Self::Withdrawn(_) | Self::AccountKeyKept(_) | Self::AccountChanged | Self::AccountMovingOut(_) | Self::AccountMovedIn(_) | Self::SettingsChanged(_) | Self::AccountFinishing(_) | Self::MovedToNewest(_) | Self::Lifted(_) | Self::ProjectRemoved(_) | Self::VisibilitySet(_) | Self::AccountReading(_) | Self::Left(_) | Self::AccountLoginAsked(_) | Self::Concluded(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -20516,6 +20704,50 @@ impl AskCreate {
     }
 }
 
+impl AskDelegate {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_batch = &self.batch;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_batch.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_batch = &self.batch;
+        writer.put(&field_batch.len().to_be_bytes())?;
+        for item_0 in field_batch.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AskDelegateTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::AskDelegateProject, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::AskDelegateTask, reason: skein_codec::Reason::Short })?;
+        let decoded_batch = { let count = match skein_codec::read_count(reader, limits.ask_delegate_batch.min(CEILINGS.ask_delegate_batch)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AskDelegateBatch, reason }), }; if count > reader.remaining() / 86 { return Err(Problem { path: Path::AskDelegateBatch, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Member::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { project: decoded_project, task: decoded_task, batch: decoded_batch })
+    }
+}
+
 impl AskMarkSeen {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -23474,6 +23706,39 @@ impl AskSetVisibility {
     }
 }
 
+impl AskConclude {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AskConcludeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::AskConcludeProject, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::AskConcludeTask, reason: skein_codec::Reason::Short })?;
+        Ok(Self { project: decoded_project, task: decoded_task })
+    }
+}
+
 impl Ask {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -23514,6 +23779,8 @@ impl Ask {
             Self::RemoveProject(record) => 1_u32.checked_add(AskRemoveProject::measure(record)).expect("schema ceilings fit u32"),
             Self::Restore(record) => 1_u32.checked_add(AskRestore::measure(record)).expect("schema ceilings fit u32"),
             Self::SetVisibility(record) => 1_u32.checked_add(AskSetVisibility::measure(record)).expect("schema ceilings fit u32"),
+            Self::Conclude(record) => 1_u32.checked_add(AskConclude::measure(record)).expect("schema ceilings fit u32"),
+            Self::Delegate(record) => 1_u32.checked_add(AskDelegate::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -23557,6 +23824,8 @@ impl Ask {
             Self::SetVisibility(record) => { writer.put(&[34_u8])?; record.encode(writer)?; }
             Self::Talk(record) => { writer.put(&[35_u8])?; record.encode(writer)?; }
             Self::Leave(record) => { writer.put(&[36_u8])?; record.encode(writer)?; }
+            Self::Conclude(record) => { writer.put(&[37_u8])?; record.encode(writer)?; }
+            Self::Delegate(record) => { writer.put(&[38_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -23608,6 +23877,8 @@ impl Ask {
             34 => Self::SetVisibility(AskSetVisibility::decode_from(limits, reader)?),
             35 => Self::Talk(AskSay::decode_from(limits, reader)?),
             36 => Self::Leave(AskStop::decode_from(limits, reader)?),
+            37 => Self::Conclude(AskConclude::decode_from(limits, reader)?),
+            38 => Self::Delegate(AskDelegate::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::AskTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -26354,6 +26625,35 @@ impl RefusalForgotten {
     }
 }
 
+impl RefusalConcluded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RefusalConcludedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::RefusalConcludedAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at })
+    }
+}
+
 impl Refusal {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -26378,6 +26678,7 @@ impl Refusal {
             Self::Judged(record) => 1_u32.checked_add(RefusalJudged::measure(record)).expect("schema ceilings fit u32"),
             Self::Forgotten(record) => 1_u32.checked_add(RefusalForgotten::measure(record)).expect("schema ceilings fit u32"),
             Self::LiveTasks(record) => 1_u32.checked_add(RefusalLiveTasks::measure(record)).expect("schema ceilings fit u32"),
+            Self::Concluded(record) => 1_u32.checked_add(RefusalConcluded::measure(record)).expect("schema ceilings fit u32"),
             Self::NameTaken | Self::NotWaiting | Self::NoFurther | Self::Unknown | Self::NotOffered | Self::KeyConflict | Self::NoEscalationHolder | Self::Provider | Self::ProgramNameReserved | Self::NoTerminal | Self::LoginUnderWay | Self::NotLending => 1,
         }
     }
@@ -26416,6 +26717,7 @@ impl Refusal {
             Self::NoTerminal => writer.put(&[28_u8])?,
             Self::LoginUnderWay => writer.put(&[29_u8])?,
             Self::NotLending => writer.put(&[30_u8])?,
+            Self::Concluded(record) => { writer.put(&[31_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -26461,6 +26763,7 @@ impl Refusal {
             28 => Self::NoTerminal,
             29 => Self::LoginUnderWay,
             30 => Self::NotLending,
+            31 => Self::Concluded(RefusalConcluded::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::RefusalTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -28030,6 +28333,35 @@ impl OutcomeAccountLoginAsked {
     }
 }
 
+impl OutcomeConcluded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::OutcomeConcludedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::OutcomeConcludedTask, reason: skein_codec::Reason::Short })?;
+        Ok(Self { task: decoded_task })
+    }
+}
+
 impl Outcome {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -28080,6 +28412,7 @@ impl Outcome {
             Self::VisibilitySet(record) => 1_u32.checked_add(OutcomeVisibilitySet::measure(record)).expect("schema ceilings fit u32"),
             Self::AccountReading(record) => 1_u32.checked_add(OutcomeAccountReading::measure(record)).expect("schema ceilings fit u32"),
             Self::AccountLoginAsked(record) => 1_u32.checked_add(OutcomeAccountLoginAsked::measure(record)).expect("schema ceilings fit u32"),
+            Self::Concluded(record) => 1_u32.checked_add(OutcomeConcluded::measure(record)).expect("schema ceilings fit u32"),
             Self::SignedOut | Self::AccountChanged => 1,
         }
     }
@@ -28135,6 +28468,7 @@ impl Outcome {
             Self::AccountReading(record) => { writer.put(&[45_u8])?; record.encode(writer)?; }
             Self::Left(record) => { writer.put(&[46_u8])?; record.encode(writer)?; }
             Self::AccountLoginAsked(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
+            Self::Concluded(record) => { writer.put(&[48_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -28197,6 +28531,7 @@ impl Outcome {
             45 => Self::AccountReading(OutcomeAccountReading::decode_from(limits, reader)?),
             46 => Self::Left(OutcomeStopped::decode_from(limits, reader)?),
             47 => Self::AccountLoginAsked(OutcomeAccountLoginAsked::decode_from(limits, reader)?),
+            48 => Self::Concluded(OutcomeConcluded::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::OutcomeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -32615,6 +32950,36 @@ impl AskCreate {
     }
 }
 
+impl AskDelegate {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.ask_delegate_batch).checked_mul(Member::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<Member>::price(limits.ask_delegate_batch)?.checked_add(u64::from(limits.ask_delegate_batch).checked_mul(Member::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl AskMarkSeen {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -34865,6 +35230,34 @@ impl AskSetVisibility {
     }
 }
 
+impl AskConclude {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Ask {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -34893,7 +35286,8 @@ impl Ask {
         biggest = biggest.max(AskMoveToNewest::encoded_bound_within(limits)?).max(AskLift::encoded_bound_within(limits)?);
         biggest = biggest.max(AskRemoveProject::encoded_bound_within(limits)?).max(AskRestore::encoded_bound_within(limits)?);
         biggest = biggest.max(AskSetVisibility::encoded_bound_within(limits)?).max(AskSay::encoded_bound_within(limits)?);
-        biggest = biggest.max(AskStop::encoded_bound_within(limits)?);
+        biggest = biggest.max(AskStop::encoded_bound_within(limits)?).max(AskConclude::encoded_bound_within(limits)?);
+        biggest = biggest.max(AskDelegate::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -34924,7 +35318,8 @@ impl Ask {
         biggest = biggest.max(AskMoveToNewest::decoded_bound_within(limits)?).max(AskLift::decoded_bound_within(limits)?);
         biggest = biggest.max(AskRemoveProject::decoded_bound_within(limits)?).max(AskRestore::decoded_bound_within(limits)?);
         biggest = biggest.max(AskSetVisibility::decoded_bound_within(limits)?).max(AskSay::decoded_bound_within(limits)?);
-        biggest = biggest.max(AskStop::decoded_bound_within(limits)?);
+        biggest = biggest.max(AskStop::decoded_bound_within(limits)?).max(AskConclude::decoded_bound_within(limits)?);
+        biggest = biggest.max(AskDelegate::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -36955,6 +37350,34 @@ impl RefusalForgotten {
     }
 }
 
+impl RefusalConcluded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Refusal {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -36974,7 +37397,7 @@ impl Refusal {
         biggest = biggest.max(RefusalAccountMove::encoded_bound_within(limits)?).max(RefusalStale::encoded_bound_within(limits)?);
         biggest = biggest.max(RefusalFull::encoded_bound_within(limits)?).max(RefusalSignInRedirect::encoded_bound_within(limits)?);
         biggest = biggest.max(RefusalJudged::encoded_bound_within(limits)?).max(RefusalForgotten::encoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalLiveTasks::encoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalLiveTasks::encoded_bound_within(limits)?).max(RefusalConcluded::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -36996,7 +37419,7 @@ impl Refusal {
         biggest = biggest.max(RefusalAccountMove::decoded_bound_within(limits)?).max(RefusalStale::decoded_bound_within(limits)?);
         biggest = biggest.max(RefusalFull::decoded_bound_within(limits)?).max(RefusalSignInRedirect::decoded_bound_within(limits)?);
         biggest = biggest.max(RefusalJudged::decoded_bound_within(limits)?).max(RefusalForgotten::decoded_bound_within(limits)?);
-        biggest = biggest.max(RefusalLiveTasks::decoded_bound_within(limits)?);
+        biggest = biggest.max(RefusalLiveTasks::decoded_bound_within(limits)?).max(RefusalConcluded::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -38329,6 +38752,34 @@ impl OutcomeAccountLoginAsked {
     }
 }
 
+impl OutcomeConcluded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Outcome {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -38362,6 +38813,7 @@ impl Outcome {
         biggest = biggest.max(OutcomeProjectRemoved::encoded_bound_within(limits)?).max(OutcomeRestored::encoded_bound_within(limits)?);
         biggest = biggest.max(OutcomeVisibilitySet::encoded_bound_within(limits)?).max(OutcomeAccountReading::encoded_bound_within(limits)?);
         biggest = biggest.max(OutcomeStopped::encoded_bound_within(limits)?).max(OutcomeAccountLoginAsked::encoded_bound_within(limits)?);
+        biggest = biggest.max(OutcomeConcluded::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -38397,6 +38849,7 @@ impl Outcome {
         biggest = biggest.max(OutcomeProjectRemoved::decoded_bound_within(limits)?).max(OutcomeRestored::decoded_bound_within(limits)?);
         biggest = biggest.max(OutcomeVisibilitySet::decoded_bound_within(limits)?).max(OutcomeAccountReading::decoded_bound_within(limits)?);
         biggest = biggest.max(OutcomeStopped::decoded_bound_within(limits)?).max(OutcomeAccountLoginAsked::decoded_bound_within(limits)?);
+        biggest = biggest.max(OutcomeConcluded::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -39022,6 +39475,7 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Operation::encoded_bound_within(limits)?);
     biggest = biggest.max(AskCompound::encoded_bound_within(limits)?);
     biggest = biggest.max(AskCreate::encoded_bound_within(limits)?);
+    biggest = biggest.max(AskDelegate::encoded_bound_within(limits)?);
     biggest = biggest.max(AskMarkSeen::encoded_bound_within(limits)?);
     biggest = biggest.max(ScopeProject::encoded_bound_within(limits)?);
     biggest = biggest.max(ApplicationScope::encoded_bound_within(limits)?);
@@ -39071,11 +39525,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AccountHolder::encoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignIn::encoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignOut::encoded_bound_within(limits)?);
-    biggest = biggest.max(AccountUseParty::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountUseParty::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountUseProject::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountUse::encoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeDeclareProgram::encoded_bound_within(limits)?);
@@ -39104,6 +39558,7 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AskMoveToNewest::encoded_bound_within(limits)?);
     biggest = biggest.max(AskRemoveProject::encoded_bound_within(limits)?);
     biggest = biggest.max(AskSetVisibility::encoded_bound_within(limits)?);
+    biggest = biggest.max(AskConclude::encoded_bound_within(limits)?);
     biggest = biggest.max(Ask::encoded_bound_within(limits)?);
     biggest = biggest.max(StoredPerson::encoded_bound_within(limits)?);
     biggest = biggest.max(StoredReadResults::encoded_bound_within(limits)?);
@@ -39164,12 +39619,12 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalNotWellFormed::encoded_bound_within(limits)?);
     biggest = biggest.max(LlmWhy::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalLlm::encoded_bound_within(limits)?);
-    biggest = biggest.max(AccountWhy::encoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalAccount::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountWhy::encoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalAccount::encoded_bound_within(limits)?);
     biggest = biggest.max(DependencyStatus::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalCircle::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalLiveTasks::encoded_bound_within(limits)?);
@@ -39181,6 +39636,7 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalAccountMove::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalJudged::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalForgotten::encoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalConcluded::encoded_bound_within(limits)?);
     biggest = biggest.max(Refusal::encoded_bound_within(limits)?);
     biggest = biggest.max(ProposalChoice::encoded_bound_within(limits)?);
     biggest = biggest.max(EscalationChoice::encoded_bound_within(limits)?);
@@ -39229,6 +39685,7 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OutcomeProjectRemoved::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountReading::encoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountLoginAsked::encoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeConcluded::encoded_bound_within(limits)?);
     biggest = biggest.max(Outcome::encoded_bound_within(limits)?);
     biggest = biggest.max(ActKey::encoded_bound_within(limits)?);
     biggest = biggest.max(ActClose::encoded_bound_within(limits)?);
@@ -39396,6 +39853,7 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Operation::decoded_bound_within(limits)?);
     biggest = biggest.max(AskCompound::decoded_bound_within(limits)?);
     biggest = biggest.max(AskCreate::decoded_bound_within(limits)?);
+    biggest = biggest.max(AskDelegate::decoded_bound_within(limits)?);
     biggest = biggest.max(AskMarkSeen::decoded_bound_within(limits)?);
     biggest = biggest.max(ScopeProject::decoded_bound_within(limits)?);
     biggest = biggest.max(ApplicationScope::decoded_bound_within(limits)?);
@@ -39445,11 +39903,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AccountHolder::decoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignIn::decoded_bound_within(limits)?);
     biggest = biggest.max(AskAccountSignOut::decoded_bound_within(limits)?);
-    biggest = biggest.max(AccountUseParty::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountUseParty::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountUseProject::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountUse::decoded_bound_within(limits)?);
     biggest = biggest.max(AccountChangeDeclareProgram::decoded_bound_within(limits)?);
@@ -39478,6 +39936,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AskMoveToNewest::decoded_bound_within(limits)?);
     biggest = biggest.max(AskRemoveProject::decoded_bound_within(limits)?);
     biggest = biggest.max(AskSetVisibility::decoded_bound_within(limits)?);
+    biggest = biggest.max(AskConclude::decoded_bound_within(limits)?);
     biggest = biggest.max(Ask::decoded_bound_within(limits)?);
     biggest = biggest.max(StoredPerson::decoded_bound_within(limits)?);
     biggest = biggest.max(StoredReadResults::decoded_bound_within(limits)?);
@@ -39538,12 +39997,12 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalNotWellFormed::decoded_bound_within(limits)?);
     biggest = biggest.max(LlmWhy::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalLlm::decoded_bound_within(limits)?);
-    biggest = biggest.max(AccountWhy::decoded_bound_within(limits)?);
-    biggest = biggest.max(RefusalAccount::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(AccountWhy::decoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalAccount::decoded_bound_within(limits)?);
     biggest = biggest.max(DependencyStatus::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalCircle::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalLiveTasks::decoded_bound_within(limits)?);
@@ -39555,6 +40014,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalAccountMove::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalJudged::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalForgotten::decoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalConcluded::decoded_bound_within(limits)?);
     biggest = biggest.max(Refusal::decoded_bound_within(limits)?);
     biggest = biggest.max(ProposalChoice::decoded_bound_within(limits)?);
     biggest = biggest.max(EscalationChoice::decoded_bound_within(limits)?);
@@ -39603,6 +40063,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(OutcomeProjectRemoved::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountReading::decoded_bound_within(limits)?);
     biggest = biggest.max(OutcomeAccountLoginAsked::decoded_bound_within(limits)?);
+    biggest = biggest.max(OutcomeConcluded::decoded_bound_within(limits)?);
     biggest = biggest.max(Outcome::decoded_bound_within(limits)?);
     biggest = biggest.max(ActKey::decoded_bound_within(limits)?);
     biggest = biggest.max(ActClose::decoded_bound_within(limits)?);

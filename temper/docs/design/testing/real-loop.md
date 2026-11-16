@@ -33,15 +33,21 @@ in the lower world that owns it, never here.
   the one-process world wherever they apply. Backend setup supplies
   real descriptors, directories and time here. The real loop replays
   neither the simulator's schedule nor its crashes and power losses.
-- **The stories,** one end-to-end path each: sign-in, a scripted chat
-  and reply, a wait satisfied by another client, and a drained shutdown;
-  a service restarted on the same directory that retains the work; a
-  call whose answer was lost, asked again under its named key and made
-  once; two acts on one DIRECTORY taking `temper ctl`'s lock in turn,
-  and a signed-in DIRECTORY private to its user (../client/ctl/testing.md,
-  3); a repository adopted, a hooked repository's webhook delivered,
-  and a chat's change cloned, pushed and landed on the fake git program
-  (below); a chat's document written, and rewritten whole once its
+- **The stories,** one end-to-end path each: sign-in (`suite::sign_in`,
+  below), a scripted chat and reply, a signed-in DIRECTORY private to
+  its user, and a wait satisfied by another client, `me` and a second
+  wait answered beside it on connections of their own (`suite::tools`),
+  and a drained shutdown (`suite::lifecycle`); a service restarted on
+  the same directory that retains the work, its chat's reply and its
+  settings (`suite::restart`); a call whose answer was lost, asked again
+  under its named key and made once (`suite::lost`); two acts on one
+  DIRECTORY taking `temper ctl`'s lock in turn (`suite::lock`;
+  ../client/ctl/testing.md, 3); a repository adopted and a hooked
+  repository's webhook delivered (`suite::forge`), and a chat's change
+  cloned, pushed and landed on the fake git program (below); a
+  welcome's model check answered on a program's source through the
+  worker and read on its Ready (`suite::model_check`;
+  `../domain/trial.md`); a case's step (`suite::case_5_3`, below); a chat's document written, and rewritten whole once its
   person's follow-up reaches its run (`suite::notes`;
   `../domain/agent/agents.md`, 3), a long one built in parts and found
   by a fresh run being the system world's; a chat adding a landing dependency to its live report delegate,
@@ -51,6 +57,18 @@ in the lower world that owns it, never here.
   repair, a change whose first head fails CI for its content, repaired
   and landed (`suite::fuzzy::repair`, below); and GitHub's, one per feature of a
   GitHub forge (below).
+- **Their behaviours are the lower worlds'.** A person's words during
+  a chat's turn, answered once in its next call, and a goal's design
+  delivered straight to its goal branch are the system world's
+  (`../domain/agent/README.md`, 7); `chat show`'s older page at an activity cursor is
+  `tests/client`'s (../client/ctl/testing.md, 2); a stop while a
+  program's turn runs is the one-process world's (`README.md`, 2.5);
+  the welcome's pages past its Ready, its project made, To begin
+  skipped and the empty Home and Work, are the joint world's
+  (../client/testing.md); and the fake issuer's admission beside a
+  browser's held sockets, and past its cap, is temper-fake's, on
+  skein's simulator (`process-tier.md`, *The fake box keeps two walks*;
+  `../protocol/setup/box.md`, 5).
 - **The first run's green light,** one story (`suite::fuzzy::green_light`), on
   the first run's cast (`../client/web/mockups/README.md`, "The first
   run"): the person asks their chat T1 "Add CSV export to widget"; T1
@@ -216,7 +234,9 @@ in the lower world that owns it, never here.
     listener on a port the kernel assigns, and the redirect driven by
     the test, as a browser would; the account usable, then a run whose
     credential the fake LLM peer observes as that account's, by its
-    scheme, never its value;
+    scheme, never its value; begun from the terminal's Accounts
+    (`suite::sign_in`), the issuer's admission beside a browser's held
+    sockets being temper-fake's (above);
   - **a program's source:** declared from the client, smith's fake
     `claude` scripted signed in, the source verified, and a run through
     smith's program backend calling host tools the engine decides as a

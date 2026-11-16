@@ -680,6 +680,8 @@ fn make_goal_task(
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
             creator,
             batch: Box::new([tasks::New {
@@ -5569,6 +5571,8 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: super::super::internal(u64::MAX),
             creator: tasks::Party::Deployment { project: 1 },
             batch: batch.into_boxed(),

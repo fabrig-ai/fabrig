@@ -143,6 +143,7 @@ pub enum DeploymentPhrase {
     PersonCapacityActionHandBackPerson,
     PersonCapacityActionAnswerPerson,
     PersonCapacityActionStop,
+    PersonCapacityActionConclude,
     PersonCapacityActionCancel,
     PersonCapacityActionRelease,
     PersonCapacityActionMarkSeen,
@@ -251,7 +252,7 @@ pub enum DeploymentPhrase {
     CensusErases,
     CensusWritten,
 }
-pub const ALL: [DeploymentPhrase; 305] = [
+pub const ALL: [DeploymentPhrase; 306] = [
     DeploymentPhrase::Agent(AgentPhrase::Model),
     DeploymentPhrase::Agent(AgentPhrase::Window),
     DeploymentPhrase::Agent(AgentPhrase::Output),
@@ -430,6 +431,7 @@ pub const ALL: [DeploymentPhrase; 305] = [
     DeploymentPhrase::PersonCapacityActionHandBackPerson,
     DeploymentPhrase::PersonCapacityActionAnswerPerson,
     DeploymentPhrase::PersonCapacityActionStop,
+    DeploymentPhrase::PersonCapacityActionConclude,
     DeploymentPhrase::PersonCapacityActionCancel,
     DeploymentPhrase::PersonCapacityActionRelease,
     DeploymentPhrase::PersonCapacityActionMarkSeen,
@@ -694,6 +696,7 @@ impl DeploymentPhrase {
                 Self::PersonCapacityActionHandBackPerson => 9322,
                 Self::PersonCapacityActionAnswerPerson => 9323,
                 Self::PersonCapacityActionStop => 9324,
+                Self::PersonCapacityActionConclude => 12005,
                 Self::PersonCapacityActionCancel => 9325,
                 Self::PersonCapacityActionRelease => 9326,
                 Self::PersonCapacityActionMarkSeen => 9327,
@@ -895,6 +898,7 @@ impl DeploymentPhrase {
             | Self::PersonCapacityActionHandBackPerson
             | Self::PersonCapacityActionAnswerPerson
             | Self::PersonCapacityActionStop
+            | Self::PersonCapacityActionConclude
             | Self::PersonCapacityActionCancel
             | Self::PersonCapacityActionRelease
             | Self::PersonCapacityActionMarkSeen
@@ -1171,6 +1175,7 @@ impl DeploymentPhrase {
             Self::PersonCapacityActionHandBackPerson => b"Person Capacity Action Hand Back Person",
             Self::PersonCapacityActionAnswerPerson => b"Person Capacity Action Answer Person",
             Self::PersonCapacityActionStop => b"Person Capacity Action Stop",
+            Self::PersonCapacityActionConclude => b"Conclude",
             Self::PersonCapacityActionCancel => b"Person Capacity Action Cancel",
             Self::PersonCapacityActionRelease => b"Person Capacity Action Release",
             Self::PersonCapacityActionMarkSeen => b"Person Capacity Action Mark SeenThrough",

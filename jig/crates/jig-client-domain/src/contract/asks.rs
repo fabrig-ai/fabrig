@@ -79,6 +79,11 @@ pub enum AnswerOn {
 /// Every jig request, without keys owned by the root table.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
+    /// Conclude a gathering (jig/docs/design/domain/tasks/gatherings.md, 3).
+    Conclude {
+        project: u32,
+        task: u64,
+    },
     ReadLists {
         provider: u32,
     },
@@ -93,6 +98,12 @@ pub enum Ask {
     /// Admit and create a batch together.
     Create {
         project: u32,
+        tasks: List<super::NewTask>,
+    },
+    /// Make a batch beneath a task (jig/docs/design/domain/tasks/README.md, 4).
+    Delegate {
+        project: u32,
+        task: u64,
         tasks: List<super::NewTask>,
     },
     /// Submit a proposal in the party's own name.

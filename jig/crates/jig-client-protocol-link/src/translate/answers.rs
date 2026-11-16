@@ -3,7 +3,7 @@ use crate::Limits;
 use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
@@ -70,6 +70,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
         w::DocumentOutcome::Adopted(row) => c::DocumentOutcome::Adopted { project: row.project() },
         w::DocumentOutcome::Left(row) => c::DocumentOutcome::Left { task: row.task() },
         w::DocumentOutcome::Stopped(row) => c::DocumentOutcome::Stopped { task: row.task() },
+        w::DocumentOutcome::Concluded(row) => c::DocumentOutcome::Concluded { task: row.task() },
         w::DocumentOutcome::Cancelled(row) => c::DocumentOutcome::Cancelled { task: row.task() },
         w::DocumentOutcome::Lifted(row) => c::DocumentOutcome::Lifted { hold: row.hold(), released: row.released() },
         w::DocumentOutcome::Released(row) => c::DocumentOutcome::Released { task: row.task() },
@@ -504,6 +505,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::LiveTasks(value) => c::Refusal::LiveTasks { tasks: value.tasks().clone(), more: value.more() },
         w::Refusal::Circle(value) => c::Refusal::Circle { tasks: value.tasks().clone(), cut: value.cut() },
         w::Refusal::Kept(value) => c::Refusal::Kept { pending: value.pending().clone() },
+        w::Refusal::Concluded(value) => c::Refusal::Concluded { at: Wall::from_nanos(value.at()) },
         w::Refusal::Dependency(value) => c::Refusal::Dependency {
             dependency: value.dependency(),
             how: match value.how() {

@@ -116,7 +116,7 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, RECURRING, SeedProject, Settings, ToolFamilies,
+    Config, ConfiguredPolicy, EndpointFacts, GATHERING, RECURRING, SeedProject, Settings, ToolFamilies,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,

@@ -337,6 +337,12 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     w::Task::new(
         limits,
         w::TaskParts {
+            concluded: match value.concluded {
+                Some(value) => {
+                    Some(w::Concluded::new(limits, w::ConcludedParts { by: value.by, at: value.at.as_nanos() })?)
+                }
+                None => None,
+            },
             talk: match value.talk {
                 Some(talk) => Some(w::Talk::new(
                     limits,

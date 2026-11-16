@@ -13,6 +13,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
 #[derive(Hash, Debug)]
 pub(crate) struct Inputs {
+    pub beneath: Option<u64>,
     pub person: u64,
     pub project: u32,
     pub role: people::Role,
@@ -134,6 +135,6 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, lo
 fn kind(flight: &mut Inputs, stubs: Box<[tasks::Stub]>) -> CreationKind {
     match flight.proposal.take() {
         Some((reason, to)) => CreationKind::Propose { person: flight.person, reason, to, stubs },
-        None => CreationKind::Batch { person: flight.person, given: flight.given, stubs },
+        None => CreationKind::Batch { beneath: flight.beneath, person: flight.person, given: flight.given, stubs },
     }
 }

@@ -37,7 +37,7 @@ pub struct Symbol {
     pub symbol: u16,
 }
 
-/// One root requested by a party, mirroring the tasks child's New.
+/// One member of a party's batch, mirroring the tasks child's New.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Member {
     pub executor: TaskExecutor,
@@ -207,6 +207,19 @@ pub struct Closer {
 /// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle.md, 9 and 11).
 #[must_use]
 pub fn shaped(member: &Member) -> bool {
+    let gathering = match member.executor {
+        TaskExecutor::Procedure { connector, code } => connector == u16::MAX && code == 2,
+        TaskExecutor::Agent { .. } | TaskExecutor::Person(_) => false,
+    };
+    if gathering {
+        return member.flags.ended_by == EndedBy::Requester
+            && !member.flags.conversation
+            && member.dependencies.is_empty()
+            && match member.contract {
+                Contract::Report { .. } => true,
+                Contract::Verdict { .. } | Contract::Change { .. } => false,
+            };
+    }
     if member.flags.ended_by == EndedBy::Result {
         return true;
     }

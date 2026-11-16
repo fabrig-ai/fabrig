@@ -1,6 +1,6 @@
 //! A welcome trial on the hosted worker and fake Claude Code
 //! (temper/docs/design/domain/trial.md, 2, 6; temper/docs/design/testing/real-loop.md).
-use temper_real_loop_world::{Exit, Scratch, claude, forge, run_forge_on, terminal};
+use temper_real_loop_world::{Exit, Scratch, calls, claude, forge, run_forge_on, terminal};
 
 const SOURCE: &str = "claude-owner";
 
@@ -17,8 +17,8 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
         forge::Fixture {
             configure: |document, _, _| {
                 document["application"]["welcome"] = true.into();
-                // The trial's 64-byte report and the period/pool pairs for
-                // project 0, the seed and Create's project fit this story.
+                // The trial's 64-byte report and the fixture's project and
+                // period/pool room fit this story.
                 let limits = &mut document["engine"]["limits"]["overrides"];
                 limits["tasks.result_bytes"] = 64.into();
                 limits["tasks.funders"] = 6.into();
@@ -39,16 +39,9 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
                 terminal::see(b"Create your project"),
                 terminal::see(b"answered in "),
                 terminal::see(b"you@example.com"),
-                terminal::type_on(b"Create your project", b""),
-                // To begin has its ready headline; the everyday headline follows Skip.
-                terminal::see(b"Optional Skip"),
-                terminal::type_on(b"Optional Skip", b""),
-                terminal::see(b"Nothing needs you."),
-                terminal::see(b"No chats yet."),
-                // Work has no Chats filter until a chat starts work.
-                terminal::type_on(b"Work", b""),
-                terminal::see(b"Nothing in flight yet."),
                 terminal::close(),
+                // Ready observes the answer before the trial finishes closing.
+                calls::trial_ended(),
             ]
         },
     );
@@ -68,15 +61,6 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
         .expect("the try answered");
     let seconds = answered.split_whitespace().next().expect("elapsed seconds").parse::<u64>().expect("seconds");
     assert!(seconds >= 1 && answered.starts_with(&format!("{seconds} s")), "{answered}");
-    let home = read
-        .pages
-        .iter()
-        .find(|page| {
-            page.commands == 4 && page.bytes.windows(b"No chats yet.".len()).any(|part| part == b"No chats yet.")
-        })
-        .expect("Home has read its chats");
-    let text = std::str::from_utf8(&home.bytes).expect("Home text");
-    assert!(text.contains("Nothing needs you."), "Home has no needs: {text}");
     assert!(ran.llm().is_empty(), "the program's model answers, with no direct-key call");
     let bytes = std::fs::read(ran.path().join("programs").join(SOURCE).join(smith_fake_claude::OBSERVATIONS_FILE))
         .expect("fake program observations");

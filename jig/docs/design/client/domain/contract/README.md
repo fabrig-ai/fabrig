@@ -223,14 +223,19 @@ Every request has one answer, of one of these kinds:
     how many more (`../../../domain/people/acts.md`, 2), in jig's words
     "This project has live tasks; end them first:", each client listing
     the numbers after them;
-  - *dependency:* a dependency an amendment adds has failed or was
+  - *dependency:* a dependency a party's batch names or an amendment adds has failed or was
     cancelled, naming it and how it ended (`../../../domain/tasks/changes.md`
-    );
+    ; `../../../domain/tasks/README.md`, section 4);
+  - *concluded:* a `Delegate` beneath a gathering its requester has
+    concluded, naming when (`../../../domain/tasks/gatherings.md`,
+    section 3);
   - *kept:* a person task's answer while it is kept, naming its pending
     dependencies (`../../../domain/tasks/lifecycle.md`, 8);
   - *not well formed:* which task or operation, and why (two tasks of a
     batch giving `AsAllowed`; the conversation flag on a task that is not
-    an agent's; a proposed batch giving `AsAllowed`; a project's name out
+    an agent's; a `Conclude` of a task that is not a gathering, and a
+    gathering made out of its shape, `EndedBy`
+    (`../../../domain/tasks/gatherings.md`, section 2); a proposed batch giving `AsAllowed`; a project's name out
     of shape, saying which rule; a change of settings whose settings
     would fail their check, naming the setting and its fault, one of
     the check's closed list (`../../../domain/engine/settings.md`, 1), or that

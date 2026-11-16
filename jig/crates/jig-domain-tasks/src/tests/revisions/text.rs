@@ -16,7 +16,13 @@ fn parameter_spec() -> Spec {
 fn refuse_batch(spec: Spec) {
     let mut test = Harness::new();
     let member = crate::New { spec, ..task(TASK, &[]) };
-    let out = test.send(Event::Make { reply_to: to(), creator: Party::Person(REQUESTER), batch: Box::new([member]) });
+    let out = test.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(REQUESTER),
+        batch: Box::new([member]),
+    });
     assert_eq!(out, vec![Request::Refused { reply_to: to(), problem: Problem::new(Some(TASK), Refusal::Spec) }]);
 }
 

@@ -48,6 +48,9 @@ pub struct Closer {
 /// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle.md, 9 and 11).
 #[must_use]
 pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
+    if crate::gathering::executor(executor) {
+        return flags.ended_by == EndedBy::Requester && !flags.conversation;
+    }
     if crate::batch::matches_job(executor) {
         return flags.ended_by == EndedBy::Result && !flags.conversation;
     }
