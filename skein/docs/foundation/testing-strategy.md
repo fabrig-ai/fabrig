@@ -664,6 +664,25 @@ its ideal, reported, never enforced. The user sets budgets from measured numbers
 slow tier's CPU budget is set, its existing figures stand.
 Live tests have budgets on the same terms.
 
+**A layer's budget at the gate only falls.** The figure in
+`tools/tiers/budgets.toml` is the user's ceiling. The gate holds the
+lower of that ceiling and the layer's lowest figure at main since the
+ceiling was last set, plus a tenth and at least a second: after each
+landing a budget falls to its layer's figure at main plus that, where it
+is lower, so what a repair wins is kept and the next change can't spend
+it, and nothing raises a budget by itself. The gate runs the packages a
+change reaches and takes the others' figures from a ledger of main's, so
+each layer is judged whole. A layer over its budget is the change's red
+where main is within it, or where the change adds more than the noise, a
+hundredth of the layer and at least half a second; otherwise the red is
+main's, as a failure the base has too is. The red names the binaries
+that grew and their tests (`tools/tiers/budgets.md`, 7 to 9). **Budget
+moves down the pyramid with the tests a change places lower** (section
+9): a line beside the budgets moves CPU seconds from one layer's budget
+to that of a layer below it, in any tree, and the gate checks that it
+goes down and applies it to the ceiling and the held budget alike. A
+move up is a raise (`tools/tiers/budgets.md`, 10).
+
 **Every test binary is in one layer,** a tier of section 2, since a
 process runs one binary's tests and its CPU is the binary's:
 `tools/tiers/layers.toml` places each, and a boundary check keeps it

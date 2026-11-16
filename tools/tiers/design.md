@@ -767,14 +767,14 @@ change to the build command a caller wraps changes none of them.
   and 7).
 - `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
   (7.5).
-- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--gate] [--json]`:
+- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--gate] [--json]`:
   prints `summary`'s result (10.2) as text, or with `--json` as one JSON
   object, and exits 0 for a valid run within its CPU budgets or with none
   set, 1 over a CPU budget, and 2 for invalid input or unverified
   coverage (7.3). A one-process run's directory reads the same way (11).
-  `--gate` asks for the gate's verdict on its layers
-  (`tools/tiers/budgets.md`, 5).
-- `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
+  `--gate` asks for the gate's verdict on its layers, and `--ledger` judges
+  them whole against main's ledger (`tools/tiers/budgets.md`, 5 and 8).
+- `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 
 ### 10.2 `cpu.py`
@@ -814,23 +814,32 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
-- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False)`:
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None)`:
   runs the selection of `command`, the caller's nextest command as it would
   give `execute` without `prepare`'s arguments, a binary's tests in one
   process (section 11), into `directory`, fresh as `prepare` makes one, which
   it makes itself. `walls`, a walls file's path or none, gives the run's
   `global-timeout` (11.7). `gate` is given to `summary`: true asks for the
-  gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). It holds `wall_hard_s` from `limits` as `execute` does,
+  gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). `ledger`,
+  main's ledger as `ledger` read it or none, is given to `summary` too, and
+  folded with the run's figures into the run's `ledger.json`
+  (`tools/tiers/budgets.md`, 7 and 8). It holds `wall_hard_s` from `limits` as `execute` does,
   writes 11.8's files, prints the summary as text and returns as `execute`
   does: 1 over a CPU budget; otherwise 100 when a failure stands; otherwise 0
   when the run was starved or its only blemishes are starved tests; otherwise
   the empty selection's status (4 for nextest's default) or 0. A refusal
   (11.1), an invalid run or summary raises `ValueError`; an interruption stops
   the lanes (11.7) and is raised again.
-- `summary(directory, limits=None, pair=None, expected=None, gate=False)`: the verdict
+- `ledger(path)`: main's ledger for one suite, at `path`, as a dictionary,
+  checked against its form; a refused one raises `ValueError`
+  (`tools/tiers/budgets.md`, 7).
+- `summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None)`: the verdict
   on a finished run directory, as the dictionary below. With `gate`, a
   one-process run's layer over its budget is red; without, a warning
-  (`tools/tiers/budgets.md`, 4). A run nextest's
+  (`tools/tiers/budgets.md`, 4). With `ledger`, a one-process run's layers
+  are judged whole, what it didn't run counted from the ledger, and held to
+  the budgets main's figures give (`tools/tiers/budgets.md`, 8 and 9); for
+  any other run it is refused. A run nextest's
   `global-timeout` cancelled is starved as one past the hard wall is (7.3):
   `summary` reads that from `command-output.txt`, so a caller never writes
   `run.json` itself. `pair` defaults to
@@ -858,8 +867,8 @@ Relative paths are the caller's working directory's, the checkout root.
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
-| `layers` | for each tree and layer with a process in a one-process run: `tree`, `layer`, `cpu_s`, `budget_s`, `ideal_s`, `reference_s`, `over` (`tools/tiers/budgets.md`, 4); empty for a nextest run and for tools |
-| `trees` | for each tree with a process in a one-process run: `tree`, `cpu_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4); empty for a nextest run and for tools |
+| `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
+| `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where
@@ -908,8 +917,8 @@ In a directory `prepare` made, once `execute` has returned:
 configuration, nextest's inputs, not results. A directory
 `execute_one_process` made holds 11.8's files instead: `run.json` with its
 `mode` and `lanes`, `command-output.txt`, `junit.xml`, `results.json`,
-`plan.json` (the lanes' input, no result) and `starved.json` as above; no
-`records/`. A directory `cpu-run` wrote
+`ledger.json` (`tools/tiers/budgets.md`, 7), `plan.json` (the lanes' input,
+no result) and `starved.json` as above; no `records/`. A directory `cpu-run` wrote
 holds one suite record for each ID, `<ID-sanitized>.json` (7.5); a name
 ending `.tmp` is no record.
 
@@ -1262,11 +1271,17 @@ In the directory `run` made, once it has returned:
 - `results.json`, written once after the lanes end: each process with a record
   (binary ID, kind, its tests in the order they ran, user and system seconds,
   wall, exit status or signal, leaked, and its binary's `tree` and `layer`,
-  `tools/tiers/budgets.md`, 3), the layers file's `layers` list, and each test (outcome, wall, its
+  `tools/tiers/budgets.md`, 3), the layers file's `layers` list, the
+  workspace's test binaries, each placed and marked listed or not
+  (`workspace`, `tools/tiers/budgets.md`, 3), and each test (outcome, wall, its
   process, none where a forced kill left that process without a record (11.7),
   the tests before it and its alone result where it failed, its output where it
   did not pass), the unobserved tests, the selection's count and the
   cancellation; `summary` reads it;
+- `ledger.json`, written by `execute_one_process` once the summary is made:
+  main's ledger for the suite as it will stand should the run's candidate
+  land, the ledger it was given, or none, with the run's figures folded in
+  (`tools/tiers/budgets.md`, 7); `--again` writes none;
 - `plan.json`, the lanes' input, no result; `starved.json` as in 10.3.
 
 **Kept times.** After the lanes end, the mode writes each test's wall time into
@@ -1278,7 +1293,7 @@ and nothing reads it as a result.
 
 ### 11.9 By hand
 
-`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] PROFILE [NEXTEST_ARGS...]`,
+`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`,
 from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 --no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a
 package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
@@ -1287,7 +1302,9 @@ prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
 directory, printed first; `--budgets`' limits (`budgets`) apply,
 `tools/tiers/budgets.toml` by default where it exists and none otherwise;
 `--walls` names a walls file (11.7), passed to `execute_one_process` as
-`walls`, none by default; `--gate` asks for the gate's verdict on the
+`walls`, none by default; `--ledger` names main's ledger for the profile,
+read with `ledger` before anything runs and passed as `ledger`, none by
+default; `--gate` asks for the gate's verdict on the
 run's layers, passed as `gate` (`tools/tiers/budgets.md`, 5).
 It exits as `execute_one_process` returns, 2 for an invalid invocation or
 run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
@@ -1315,7 +1332,7 @@ times; `DIR` defaults as above and is printed first. It exits 0 when every
 name passed, 100 when one did not, and 2 for an invalid invocation or run:
 no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
 tests or given twice, no names, or a `DIR` not fresh; `--budgets`,
-`--walls` or `--gate` with `--again` is an invalid invocation too, since
+`--walls`, `--ledger` or `--gate` with `--again` is an invalid invocation too, since
 the plan holds its run's bound. The hold is as
 above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`.
 
