@@ -1,6 +1,6 @@
 # agents: status
 
-2026-11-12. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-16. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).

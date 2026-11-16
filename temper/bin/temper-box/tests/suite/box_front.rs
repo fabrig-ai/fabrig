@@ -187,6 +187,7 @@ fn front_refuses_without_a_first_link_before_starting_steps() {
     let scratch = support::Scratch::startup("box-front-no-link");
     let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
     assert!(initialized.status.success());
+    support::own_listener_files(&scratch.path().join("config"));
     let path = scratch.path().join("config/temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("document");
