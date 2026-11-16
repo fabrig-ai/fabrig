@@ -283,10 +283,10 @@ fn a_by_test_repair_keeps_its_top_fact_and_older_boundaries_have_neither_fact() 
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for (by_test, top) in [(true, false), (true, true), (false, true)] {
         let below = Some(Below { green: [0xbb; 32], changes: [None; 4], by_test, top });
-        let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Repairing {
+        let row = fixtures::change_hot(fixtures::change_row(State::Repairing {
             requested: true,
             why: Repair::LandingAt { gate: 1, candidate: [0xaa; 32], below },
-        })));
+        }));
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         let mut row = seed.clone();
         row.landing.phase = landing::Phase::Preparing;
