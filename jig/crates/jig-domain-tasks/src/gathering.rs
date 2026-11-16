@@ -10,7 +10,9 @@ pub struct Concluded {
     pub at: Wall,
 }
 
-pub(crate) fn executor(executor: Executor) -> bool {
+/// Whether this executor is a gathering (domain/tasks/gatherings.md, 2).
+#[must_use]
+pub fn executor(executor: Executor) -> bool {
     match executor {
         Executor::Procedure { connector, code } => connector == u16::MAX && code == 2,
         Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => false,

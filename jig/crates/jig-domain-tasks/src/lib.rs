@@ -83,7 +83,7 @@ mod escalation;
 mod facts;
 mod failures;
 mod flags;
-mod gathering;
+pub mod gathering;
 mod goals;
 pub use gathering::Concluded;
 mod grace;

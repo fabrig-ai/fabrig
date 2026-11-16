@@ -327,6 +327,7 @@ fn repair() -> forge::ChangeRow {
         delegate: Some((8, change::Delegate::Repair(change::Repair::Ci))),
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

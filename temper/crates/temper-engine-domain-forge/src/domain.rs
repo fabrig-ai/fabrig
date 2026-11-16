@@ -216,6 +216,7 @@ pub struct Domain {
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
+    pub(crate) milestones: Map<u64, crate::MilestoneRow>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) history_reads: crate::history::read::State,
     pub(crate) history_sweep: crate::history::sweep::State,
@@ -860,6 +861,7 @@ impl Domain {
             bindings: Map::with_capacity(l.bindings),
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
+            milestones: Map::uncapped(),
             project_facts: Map::with_capacity(l.judge_projects),
             history_reads: crate::history::read::State::new(l.judge_projects),
             history_sweep: crate::history::sweep::State::new(l.history_events),
@@ -1938,6 +1940,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(row) });
             keep_entry(d, entry, None, out);
         }
+        Event::Milestone { row } => crate::milestone_rows::project(d, row, out),
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
         Event::FailProjection { goal, repository, closing } => {
             fail_projection(d, env, goal, Some(repository), closing, out);
@@ -8872,6 +8875,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Tier(row) => {
             d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
         }
+        Stored::Milestone(row) => {
+            d.milestones.insert(row.task, row).expect("restored milestone within project bound");
+        }
         Stored::LandingLog(row) => {
             d.landing_logs.insert(row.repository, row).expect("restored log within limits");
         }
@@ -9735,6 +9741,7 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device

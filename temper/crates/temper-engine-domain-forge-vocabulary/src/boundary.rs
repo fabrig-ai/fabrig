@@ -999,6 +999,7 @@ pub struct ChangeRow {
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
+    pub milestone: Option<u64>,
     pub ending: Option<Ending>,
     /// Whole-life delegate account; a release resets retry counts alone.
     pub repair_tasks: Box<[u64]>,
@@ -1068,6 +1069,7 @@ pub struct ChangeCold {
     pub branch: Box<[u8]>,
     pub base: Box<[u8]>,
     pub goal: Option<u64>,
+    pub milestone: Option<u64>,
     pub base_repair: bool,
     pub producing_charter: u32,
     pub review_charter: u32,
@@ -1121,6 +1123,7 @@ impl ChangeRow {
             job,
             signed,
             goal,
+            milestone,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1168,6 +1171,7 @@ impl ChangeRow {
                 branch,
                 base,
                 goal,
+                milestone,
                 base_repair,
                 producing_charter,
                 review_charter,
@@ -1221,6 +1225,7 @@ impl ChangeRow {
             branch,
             base,
             goal,
+            milestone,
             base_repair,
             producing_charter,
             review_charter,
@@ -1269,6 +1274,7 @@ impl ChangeRow {
             job,
             signed,
             goal,
+            milestone,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1657,6 +1663,7 @@ pub enum Stored {
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
+    Milestone(crate::MilestoneRow),
     Making(crate::RepositoryMaking),
     /// A person's dismissals (temper/docs/design/domain/forge/attention.md, 1).
     Dismissed {
@@ -1739,6 +1746,7 @@ pub enum Key {
     RedPass { change: u64, key: Box<[u8]> },
     ChangeCold(u64),
     ChangeHot(u64),
+    Milestone(u64),
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -2244,6 +2252,10 @@ pub enum Event {
     KeepProjection {
         row: IssueRow,
         entry: skein_forge_client::Entry,
+    },
+    /// A milestone's identity and end from the tracked-task projection (domain/milestones.md, 8).
+    Milestone {
+        row: crate::MilestoneRow,
     },
     /// Describe the next write for a goal projection.
     Project {

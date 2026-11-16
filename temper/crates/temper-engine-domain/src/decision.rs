@@ -328,6 +328,19 @@ impl Decision {
         self.overrun
     }
 
+    /// End facts still belong to this decision after jig retires its live task.
+    pub(crate) fn ended_task(&self, number: u64) -> Option<&jig_domain_tasks::TaskRecord> {
+        for write in &self.writes {
+            if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row)))) =
+                write
+                && row.number == number
+            {
+                return Some(row);
+            }
+        }
+        None
+    }
+
     pub(crate) fn write_free(&self) -> bool {
         !self.overrun && self.writes.is_empty()
     }

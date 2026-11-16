@@ -1144,7 +1144,15 @@ pub(crate) struct RunWorkspace {
 
 /// Translate committed tracked-task facts into one bounded issue projection.
 #[expect(clippy::disallowed_methods, reason = "projection renders already validated task text")]
-pub(crate) fn project_goal(domain: &mut Domain, env: &Env<Limits>, feed: &jig_domain_core::ProjectionFeed) {
+pub(crate) fn project_goal(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    feed: &jig_domain_core::ProjectionFeed,
+    decision: &Decision,
+) {
+    if milestones::project(domain, feed, decision) {
+        return;
+    }
     goal_topics(domain, env, feed);
     goal_priorities(domain, feed);
     let goal = &feed.goal;
@@ -1626,7 +1634,7 @@ fn tracked_ancestor(domain: &Domain, requester: tasks::Party) -> Option<u64> {
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return None,
         };
         let row = domain.core.tasks.task(task)?;
-        if row.tracked.is_some() {
+        if row.tracked.is_some() && !tasks::gathering::executor(row.executor) {
             return Some(task);
         }
         next = row.requester;
@@ -2546,6 +2554,8 @@ pub(super) fn start_recovered_change(
     if domain.forge.change(task).is_none() {
         let mut out = Queue::uncapped();
         drop_settled_change(domain, env, &mut out);
+        let goal = tracked_ancestor(domain, context.requester);
+        let milestone = milestones::of(domain, goal);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 task_release: None,
@@ -2600,7 +2610,8 @@ pub(super) fn start_recovered_change(
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
                 verdicts: Box::new([]),
-                goal: tracked_ancestor(domain, context.requester),
+                goal,
+                milestone,
                 ending: None,
                 repair_tasks: Box::new([]),
                 resolution_tasks: Box::new([]),
@@ -6693,3 +6704,5 @@ fn a_producer_amendment_cuts_a_long_reason_at_its_end() {
 }
 
 pub(crate) use follow_route::make_refused as follow_make_refused;
+
+mod milestones;

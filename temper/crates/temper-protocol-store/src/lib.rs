@@ -87,6 +87,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         status_brief_lede: 600,
         effect_account_words: temper_engine_domain_forge_vocabulary::EFFECT_ACCOUNT_BYTES,
         // Explicit titles fit the forge; the body retains the task words.
+        milestone_row_name: 256,
         change_cold_title: 256,
         change_cold_body: change_words,
         change_cold_report: forge.client.op_bytes,

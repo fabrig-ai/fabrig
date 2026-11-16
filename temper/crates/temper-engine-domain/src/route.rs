@@ -566,7 +566,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
-            Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
+            Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal, decision),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
             Work::Activate { context, ready } => activate(domain, env, decision, context, ready),

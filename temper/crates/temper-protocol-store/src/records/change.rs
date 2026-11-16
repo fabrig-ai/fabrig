@@ -697,6 +697,7 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
         branch,
         base,
         goal,
+        milestone,
         base_repair,
         producing_charter,
         review_charter,
@@ -739,6 +740,7 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
             catch_up: *catch_up,
             close: close.clone(),
             goal: *goal,
+            milestone: *milestone,
         },
     )
     .expect(FITS)
@@ -750,6 +752,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
         branch,
         base,
         goal,
+        milestone,
         base_repair,
         producing_charter,
         review_charter,
@@ -765,6 +768,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
     } = value.into_parts();
     top::ChangeCold {
         goal,
+        milestone,
         task,
         repository: names::decode_repository(repository),
         branch,

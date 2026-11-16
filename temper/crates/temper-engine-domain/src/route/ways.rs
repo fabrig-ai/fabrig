@@ -405,6 +405,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Playground
         | forge::Key::Tier { .. }
         | forge::Key::Verification { .. }
+        | forge::Key::Milestone(_)
         | forge::Key::LandingLog { .. }
         | forge::Key::Dismissed { .. }
         | forge::Key::Making(_)

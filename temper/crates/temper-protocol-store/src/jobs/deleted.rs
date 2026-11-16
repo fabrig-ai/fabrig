@@ -263,6 +263,7 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
             dropped = Some(7);
             RecordKind::Verification
         }
+        Stored::Milestone(_) => RecordKind::Milestone,
         Stored::LandingLog(value) => {
             repositories.push(value.repository).expect("uncapped");
             dropped = Some(8);
