@@ -299,7 +299,79 @@ pub enum Need<'a> {
     Existing(needs::Need<'a>),
     Finding(&'a Card),
 }
+/// A finding's holder reason, or another card's reach (client/pages/needs-you.md, 1).
+#[must_use]
+pub fn why(root: &dyn Root, need: Need<'_>) -> Option<needs::Why> {
+    let card = match need {
+        Need::Existing(need) => return needs::why(root, need),
+        Need::Finding(card) => card,
+    };
+    let document = root.pages().needs().findings().document(card.id.project)?;
+    let holds = if let Some(name) = card.row.area() {
+        needs::Holds::Area { name: name.clone() }
+    } else {
+        match super::tell::route(document, None) {
+            super::tell::Goes::Triager { holder: super::team::Holder::Party(party), .. }
+                if match root.pages().me(root.client()) {
+                    Some(me) => me.party.number == party,
+                    None => false,
+                } =>
+            {
+                needs::Holds::Triager
+            }
+            super::tell::Goes::Triager { .. } | super::tell::Goes::Area { .. } | super::tell::Goes::Owners { .. } => {
+                needs::Holds::Owner
+            }
+        }
+    };
+    Some(needs::Why::Finding { project: card.id.project, holds })
+}
+/// Findings counted once across the open cards (client/pages/home.md, 1, Counted).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Counted {
+    pub high: u32,
+    pub medium: u32,
+    pub low: u32,
+    pub only: bool,
+}
+#[expect(clippy::derivable_impls, reason = "the step subset writes defaults explicitly")]
+impl Default for Counted {
+    fn default() -> Self {
+        Self { high: 0, medium: 0, low: 0, only: false }
+    }
+}
+#[must_use]
+pub fn counted(open: &[Need<'_>]) -> Counted {
+    let mut counts = Counted { only: !open.is_empty(), ..Counted::default() };
+    for need in open {
+        let count = match need.severity() {
+            Some(w::Severity::High) => &mut counts.high,
+            Some(w::Severity::Medium) => &mut counts.medium,
+            Some(w::Severity::Low) => &mut counts.low,
+            None => {
+                counts.only = false;
+                continue;
+            }
+        };
+        *count = count.checked_add(1).expect("open cards fit");
+    }
+    counts
+}
 impl Need<'_> {
+    #[must_use]
+    pub fn severity(self) -> Option<w::Severity> {
+        match self {
+            Self::Finding(card) => Some(card.row.severity().clone()),
+            Self::Existing(_) => None,
+        }
+    }
+    fn rank(self) -> u8 {
+        match self.severity() {
+            Some(w::Severity::High) | None => 0,
+            Some(w::Severity::Medium) => 1,
+            Some(w::Severity::Low) => 2,
+        }
+    }
     #[must_use]
     pub fn same(self, other: Self) -> bool {
         match (self, other) {
@@ -370,7 +442,7 @@ impl needs::Session {
         if rows.len() == existing_count {
             return rows.into_boxed();
         }
-        // A mixed finding feed is oldest wait first, with Later marks last.
+        // Later marks last, then severity and the oldest wait within each rank.
         // With no findings, the inbox and approvals keep their own ordering.
         for index in 1..rows.len() {
             let mut at = index;
@@ -380,7 +452,7 @@ impl needs::Session {
                 let right = *rows.get(at).expect("bounded needs");
                 let left_later = if let Need::Existing(need) = left { self.later(need.object()) } else { false };
                 let right_later = if let Need::Existing(need) = right { self.later(need.object()) } else { false };
-                if (!left_later && right_later) || (left_later == right_later && left.at() <= right.at()) {
+                if (left_later, left.rank(), left.at()) <= (right_later, right.rank(), right.at()) {
                     break;
                 }
                 *rows.get_mut(previous).expect("bounded needs") = right;

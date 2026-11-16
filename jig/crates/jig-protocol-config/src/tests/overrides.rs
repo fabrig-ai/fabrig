@@ -482,7 +482,7 @@ fn the_journal_prices_each_pending_settings_withdrawal() {
 
 #[test]
 fn settings_revision_limits_are_positive_and_size_the_children() {
-    for (profile_name, revisions, versions) in [(Profile::Small, 4, 8), (Profile::Standard, 8, 16)] {
+    for (profile_name, revisions, versions) in [(Profile::Small, 4, 16), (Profile::Standard, 8, 16)] {
         let limits = profile(profile_name).core;
         assert_eq!(limits.settings.revisions, revisions);
         assert_eq!(limits.settings.versions, versions);

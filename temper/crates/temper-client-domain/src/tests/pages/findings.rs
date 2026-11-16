@@ -142,6 +142,44 @@ fn ids(root: &Domain) -> Box<[Id]> {
     ids.into_boxed()
 }
 #[test]
+fn finding_why_uses_the_area_or_the_standing_person_triager_after_the_document() {
+    use pages::{
+        findings::why,
+        needs::{Holds, Why},
+    };
+    let (mut root, _, watches) = setup(1);
+    let (unread, _, _) = setup(1);
+    let mine = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: f::PARTY }).unwrap());
+    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
+    for (area, triager, expected) in [
+        (Some(b"store".as_slice()), None, Holds::Area { name: b"store".as_slice().into() }),
+        (None, Some(mine), Holds::Triager),
+        (None, Some(other), Holds::Owner),
+        (None, None, Holds::Owner),
+    ] {
+        let mut row = row(7, 20).into_parts();
+        row.area = match area {
+            Some(name) => Some(name.into()),
+            None => None,
+        };
+        let mut parts = document(1, Box::new([w::FindingRow::new(&w::CEILINGS, row).unwrap()]), false).into_parts();
+        parts.triager = triager;
+        deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+        let cards = root.pages().needs().findings().cards();
+        let need = Need::Finding(cards[0]);
+        assert_eq!(why(&unread, need), None);
+        assert_eq!(why(&root, need), Some(Why::Finding { project: 1, holds: expected }));
+    }
+    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
+    let mut parts = document(1, Box::new([row(7, 20)]), false).into_parts();
+    parts.triager = Some(other);
+    parts.holder = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 99 }).unwrap());
+    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+    let cards = root.pages().needs().findings().cards();
+    assert_eq!(why(&root, Need::Finding(cards[0])), Some(Why::Finding { project: 1, holds: Holds::Owner }));
+}
+
+#[test]
 fn team_areas_read_the_findings_document_and_its_triager() {
     use pages::team::{self, HeldArea, HeldAreas, Holder};
     let (mut root, _, watches) = setup(1);
@@ -350,6 +388,72 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     answer(&mut root, w::Outcome::Triaged);
     deliver(&mut root, watch, document(ID.project, Box::new([]), false));
     assert!(ids(&root).is_empty());
+}
+
+#[test]
+fn open_cards_rank_severity_before_age_and_keep_later_last() {
+    use pages::findings::{Counted, counted};
+    const HOUR: u64 = 3_600_000_000_000;
+    const NOW: u64 = 3 * 24 * HOUR;
+    let (mut root, inbox, watches) = setup(1);
+    let later = c::ObjectKey::Question { task: f::acts::TASK, message: 99 };
+    f::inbox_entries(
+        &mut root,
+        inbox,
+        List::from_boxed(Box::new([
+            f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, ID.project, 1),
+            f::inbox_entry(later, c::InboxGroup::Questions, ID.project, 2),
+        ])),
+    );
+    for card in root.pages.inbox.as_mut().unwrap().cards.iter_mut() {
+        let c::ReadValue::Question(mut question) = f::acts::question() else { panic!("question fixture") };
+        question.since = Wall::from_nanos(if card.object == later { 0 } else { NOW - HOUR });
+        card.page = Some(c::ReadValue::Question(question));
+    }
+    let rows = [
+        (1, NOW - 48 * HOUR, w::Severity::Low),
+        (2, NOW - 24 * HOUR, w::Severity::High),
+        (3, NOW - 3 * HOUR, w::Severity::Medium),
+    ]
+    .map(|(number, at, severity)| {
+        let mut parts = row(number, at).into_parts();
+        parts.severity = severity;
+        w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+    });
+    deliver(&mut root, watches[0].1, document(ID.project, Box::new(rows), false));
+    event(
+        &mut root,
+        Event::Act { action: Action::Pages(pages::Act::Needs(pages::needs::Act::Later { object: later })) },
+    );
+    let all = root.pages().needs().all(root.pages().inbox().unwrap(), root.forge().approvals());
+    let [
+        Need::Finding(high),
+        Need::Existing(pages::needs::Need::Card(question)),
+        Need::Finding(medium),
+        Need::Finding(low),
+        Need::Existing(pages::needs::Need::Card(last)),
+    ] = all.as_ref()
+    else {
+        panic!("ranked cards: {all:?}")
+    };
+    assert_eq!(
+        (high.id.number, question.object, medium.id.number, low.id.number, last.object),
+        (2, f::acts::QUESTION, 3, 1, later)
+    );
+    for (need, severity) in
+        all.iter().zip([Some(w::Severity::High), None, Some(w::Severity::Medium), Some(w::Severity::Low), None])
+    {
+        assert_eq!(need.severity(), severity);
+    }
+    assert_eq!(counted(&all), Counted { high: 1, medium: 1, low: 1, only: false });
+    assert_eq!(
+        counted(&[Need::Finding(high), Need::Finding(medium), Need::Finding(low)]),
+        Counted { high: 1, medium: 1, low: 1, only: true }
+    );
+    assert_eq!(counted(&[]), Counted { high: 0, medium: 0, low: 0, only: false });
+    let mut proposal = (*question).clone();
+    proposal.object = c::ObjectKey::Proposal(f::acts::PROPOSAL);
+    assert_eq!(Need::Existing(pages::needs::Need::Card(&proposal)).severity(), None);
 }
 
 #[test]

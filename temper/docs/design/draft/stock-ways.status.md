@@ -27,4 +27,9 @@ by `../domain/forge/change/branch-path.md`.
   (`../client/pages/ask-temper.md`, 1; `../client/pages/settings.md`, 2).
   Decided by the person: the look request `ways-current`, and its
   default for How work runs, 2026-11-16.
+- **Design departs:** 6: `../domain/agent/ask-temper.md`: the Showing
+  part's sketch line joins before M3b, a flow in skein's subset with no
+  actors' marks, which join with M3b. Decided by the user, 2026-11-16, for
+  every document a chat writes to draw what a picture says faster
+  (`../domain/agent/agents.md`, 3, *What a document draws*).
 - **Open:** none.

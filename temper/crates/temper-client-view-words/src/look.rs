@@ -170,6 +170,8 @@ pub const GOALS_ROW: Style = Style { owner: owner(), token: 283 };
 pub const GOALS_ROW_ENDED: Style = Style { owner: owner(), token: 284 };
 /// A goal’s title, counts and state (client/pages/README.md).
 pub const GOALS_TOP: Style = Style { owner: owner(), token: 285 };
+/// A goal row’s bar, count and state (client/pages/work.md, 1).
+pub const GOALS_PROGRESS: Style = Style { owner: owner(), token: 448 };
 /// A goal’s report headline (client/pages/README.md).
 pub const GOALS_LINE: Style = Style { owner: owner(), token: 286 };
 /// Goals’ filter buttons (client/pages/README.md).
@@ -296,6 +298,8 @@ pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
 pub const HOME_NEEDS: Style = Style { owner: owner(), token: 214 };
 /// A Home section's heading and link (client/pages/README.md).
 pub const HOME_HEAD: Style = Style { owner: owner(), token: 215 };
+/// Findings counted by severity in Home's head (client/pages/home.md, 1).
+pub const HOME_SEVS: Style = Style { owner: owner(), token: 484 };
 /// The Needs you heading while something needs the person (client/pages/README.md).
 pub const HOME_SIGNAL: Style = Style { owner: owner(), token: 216 };
 /// Home's wide-page Answer in a row link (client/pages/README.md).
@@ -1172,11 +1176,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decided",
         b"temper-decision",
         b"temper-decision-took",
-        b"temper-decision-why",
+        b"temper-reserved-444",
         b"temper-decision-late",
         b"temper-decision-overturned",
-        b"temper-reserved-447",
-        b"temper-reserved-448",
+        b"temper-decision-landed",
+        b"temper-goals-progress",
         b"temper-reserved-449",
         b"temper-reserved-450",
         b"temper-reserved-451",
@@ -1205,19 +1209,19 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-out",
         b"temper-latest",
         b"temper-thread-loading",
-        b"temper-reserved-477",
-        b"temper-reserved-478",
-        b"temper-reserved-479",
-        b"temper-reserved-480",
-        b"temper-reserved-481",
-        b"temper-reserved-482",
-        b"temper-reserved-483",
-        b"temper-reserved-484",
+        b"temper-severity",
+        b"temper-severity-low",
+        b"temper-severity-medium",
+        b"temper-severity-high",
+        b"temper-chip-low",
+        b"temper-chip-medium",
+        b"temper-chip-high",
+        b"temper-home-sevs",
         b"temper-reserved-485",
         b"temper-reserved-486",
-        b"temper-reserved-487",
-        b"temper-reserved-488",
-        b"temper-reserved-489",
+        b"temper-finding-rows",
+        b"temper-finding-when",
+        b"temper-home-more",
         b"temper-reserved-490",
         b"temper-reserved-491",
         b"temper-reserved-492",
@@ -1667,9 +1671,9 @@ pub const AWAY_TRACK: Style = Style { owner: owner(), token: 440 };
 pub const DECIDED: Style = Style { owner: owner(), token: 441 };
 pub const DECISION: Style = Style { owner: owner(), token: 442 };
 pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
-pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+pub const DECISION_LANDED: Style = Style { owner: owner(), token: 447 };
 
 /// What allowed a decision (temper/docs/design/client/pages/README.md, Decided for you).
 pub const DECISION_ALLOWED: Style = Style { owner: owner(), token: 688 };
@@ -1711,6 +1715,21 @@ pub const LATEST: Style = Style { owner: owner(), token: 475 };
 
 /// The conversation’s call runs and reading position (client/pages/README.md).
 pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
+
+/// Severity's three bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY: Style = Style { owner: owner(), token: 477 };
+/// One filled bar (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_LOW: Style = Style { owner: owner(), token: 478 };
+/// Two filled bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_MEDIUM: Style = Style { owner: owner(), token: 479 };
+/// Three filled bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const SEVERITY_HIGH: Style = Style { owner: owner(), token: 480 };
+/// A chip on low severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_LOW: Style = Style { owner: owner(), token: 481 };
+/// A chip on medium severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_MEDIUM: Style = Style { owner: owner(), token: 482 };
+/// A chip on high severity's ground (temper/docs/design/client/pages/home.md, 1, Findings, drawn).
+pub const CHIP_HIGH: Style = Style { owner: owner(), token: 483 };
 
 /// Ready’s model line (client/pages/README.md, The try).
 pub const WELCOME_STATUS_WHY: Style = Style { owner: owner(), token: 516 };
@@ -2059,6 +2078,13 @@ pub const TELL_META: Style = Style { owner: owner(), token: 778 };
 pub const TELL_ACTS: Style = Style { owner: owner(), token: 779 };
 pub const TELL_LINK: Style = Style { owner: owner(), token: 780 };
 pub const TELL_CONTEXT: Style = Style { owner: owner(), token: 781 };
+
+/// A finding list on Home.
+pub const FINDING_ROWS: Style = Style { owner: owner(), token: 487 };
+/// A finding row’s kind and age.
+pub const FINDING_WHEN: Style = Style { owner: owner(), token: 488 };
+/// Home’s remaining cards.
+pub const HOME_MORE: Style = Style { owner: owner(), token: 489 };
 
 #[cfg(test)]
 mod tests {

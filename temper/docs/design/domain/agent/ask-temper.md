@@ -20,9 +20,15 @@ proposal of settings an owner accepts (`agents.md`, 1).
   them, but of its part *Showing* all but the first
   step: its first paragraph, its `view` example, its Views line naming
   `path`, `way`, `charter` and `proposal` alone, and its paragraph on ways,
-  the views the client draws (`../../client/pages/chat/conversation.md`, 3); the other views
-  and the sketches join with M3b, since a view or a mark not built yet shows
-  as code. They name every address of `see`'s (1), and are at most 10,240
+  the views the client draws (`../../client/pages/chat/conversation.md`, 3); and
+  its sketch line in skein's flow subset as `chat.txt` names it, with no
+  actors' marks: who acts at a node is its caption's word, an agent, code
+  or a person, and its example is the draft's what-if in that form. Its first paragraph opens with `agents.md`, 3's rule
+  (*What a document draws*): "Draw whatever a picture says faster than
+  words, in a reply and in the document"; and its document line, in
+  *Configuring*, asks the document drawn as that rule has it. The other
+  views and the actors' marks join with M3b, since a view or a mark not
+  built yet shows as code. They name every address of `see`'s (1), and are at most 10,240
   bytes, `../../draft/ask-temper.md`, 4.1's 10 KB, which the stock's test holds.
 - **Its authority** is its chat's, policy 1's for its role: the rules and policy
   1 hold the asking family beside the others, and the delegation names charter
@@ -101,13 +107,14 @@ chat's person, of the chat's project alone, through jig's run read as its person
 
 | Address | Answers | Over | `see:` |
 |---|---|---|---|
-| `settings` | the inventory, as the `settings` read gives it (`tools.md`): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (`agents.md`, 1) | the `settings` family's inventory, with the root's context of `agents.md`, 1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings` |
+| `settings` | the inventory, as the `settings` read gives it (`tools.md`): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (`agents.md`, 1) | the `settings` family's inventory, with the root's context of `agents.md`, 1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
 | `settings template-goal N` | template N's work: whether its coordinator designs first and makes a close-out, or, with none stored, that it plans and makes none, marked so (`agents.md`, 1) | the family's setting read, kind 11 | `settings template N · ways · help settings-fields` |
-| `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
+| `settings landing-rule N` | the deployment's landing rule N whole, at the newest revision, as `settings` gives it | the family's setting read, kind 1 | `settings landing · settings · help landing-rule` |
+| `settings landing-rule N project` | the chat's project's landing rule N whole, at the newest revision, as `settings` gives it; `project` is that word, never the project's number | the family's setting read, kind 2 | `settings landing · settings · help landing-rule` |
 | `settings project-ways`, `settings project-questions`, `settings project-classes` | the chat's project's ways, questions or classes, at their stock where none is stored, marked so (`agents.md`, 1) | the family's setting read, kinds 7, 6 and 8 | `settings · revisions · help settings-fields` |
 | `settings charter-words N`, `settings project-words` | a charter's words, at the stock's where none is stored, marked so, or that it has none; the chat's project's words, or that it has none (`agents.md`, 1) | the family's setting read, kinds 9 and 10 | `settings · revisions · help settings-fields` |
-| `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../../protocol/configuration/engine.md`), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
+| `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../../protocol/configuration/engine.md`), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N · settings landing-rule N project · help landing` |
 | `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows, and its description where it has one (`../../protocol/configuration/engine.md`); then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
 | `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../../protocol/configuration/settings.md`, 8): a block a way, its name, then `now` where the project runs it, its headline, its line, and its path as one line of stops, each its words and, in brackets, its actor, then `, when needed` for a stop made only when needed and `; ` and its small words where it has them (`repair (an agent, when needed; tests, review)`), joined by ` → `; then, where the project runs none, `Yours`, its own path; then, where the project holds a rule by path, `Rules by path` and a line a row, its paths, then `: review `, its review, `; sign-off `, its sign-off, each `none` where empty, and `; lands `, when it lands, then its note on a line (`../forge/change/branch-path.md`, *Rules by path*); then whether the person may change the settings, in a line | the root's `ways` document (`../forge/change/branch-path.md`), made as the client's is | `settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
@@ -149,6 +156,16 @@ chat's person, of the chat's project alone, through jig's run read as its person
   down, as the table gives them, joined by ` · `, on every part of an answer but
   a refusal and an unknown address. Its words are the address forms,
   N and OWNER/NAME left for the run to fill from what it read.
+- **A form's words:** a word in capitals (`N`, `OWNER/NAME`, `PATH`,
+  `BRANCH`, `KIND`, `NAME`, `WORDS`, `TOKEN`, `A.T`) is the run's to fill;
+  every other word is written as it stands. A literal word that follows a
+  value the run fills, as `project` after a landing rule's number, has a form
+  of its own rather than brackets, which read as a value to fill: the
+  table, its `see:` lines and the line of addresses write
+  `settings landing-rule N` and `settings landing-rule N project`, two
+  forms, and the line's settings bracket `landing-rule N | landing-rule N
+  project` (journey 27, 2026-11-15: a run read `[project]` as the project's
+  number).
 - **How an answer reads,** for the addresses read as the person
   (`../../draft/ask-temper.md`, 5.1): temper's nouns; each number with its name, a
   task's title, a person's name (their login where they have none), a charter's
@@ -175,6 +192,22 @@ chat's person, of the chat's project alone, through jig's run read as its person
   words them. A setting that is not there answers `see ADDRESS: not read: no such
   setting. This says nothing about the settings: see settings lists them.`, an
   error.
+- **A deployment landing rule the project holds:** `settings landing-rule N`
+  answered unknown, where the chat's project has a landing rule N, answers
+  `see ADDRESS: not read: the deployment has no landing rule N; this
+  project's is settings landing-rule N project`, an error, N the address's
+  number, with no full stop, so that the address it names reads as it
+  stands. The project has rule N where `settings landing-rule N project`
+  read then would answer it whole: the forge's setting of kind 2, the chat's
+  project and N, at the newest revision, the value the root's settings
+  delivery takes for kind 2 where the core answers unknown
+  (`route/host_route.rs`, `settings`). The root decides it when the
+  settings read answers, and carries N to the renderer in `SeeSettings`'
+  `project_landing_rule` (`Some(N)` there alone, `None` for every other
+  answer); `temper-engine-smith`'s `see` module words it. A project's rule
+  the project lacks, `settings landing-rule N project`, keeps the words of
+  any setting not there, and so does the `settings` tool's own refusal,
+  whose selector names a project by number.
 - **What it never reads:** anything of another project, since every project the
   parser names is the chat's own, and a read as the person of another project's
   task, change or turn answers as one that is not there; more than its person
@@ -194,7 +227,9 @@ chat's person, of the chat's project alone, through jig's run read as its person
   repository; a proposal waiting, rejected and accepted. Each row checks the
   answer's first line and a part of its text, its body within the bound, its `see:`
   line or its error; a long setting and a long file read whole through `more`; a
-  refusal of the `settings` family; the store unchanged by every read. The
+  refusal of the `settings` family; a deployment landing rule the project
+  holds, refused naming the project's address, and one neither holds,
+  refused as any setting not there; the store unchanged by every read. The
   person's addresses as rows of one table in a world with two projects, the
   chat's with its goals, live and ended tasks, a change with its activity and a
   turn, and something waiting on the person, and another project with its own:
@@ -486,8 +521,9 @@ entry's description, its body empty.
   question needs the mapping.
 
 - **Ask temper before M3b** (`ask-temper.md`): M3b supplies
-  the other views, the Showing part's paragraph on sketches and the actors'
-  marks (`../../draft/ask-temper.execution.md`, section 3). The
+  the other views and the actors' marks in the Showing part's sketch line,
+  which names skein's flow subset alone until then
+  (`../../draft/ask-temper.execution.md`, section 3). The
   ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
   addresses, of the `view` block and of `remember`, and the user's judgement
   of `ask.txt`, its Remembering part among it, follow landing.

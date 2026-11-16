@@ -175,7 +175,7 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
     );
     assert_eq!(
         roles.last().expect("status agent").description.as_deref(),
-        Some(b"When you look at Home after landings: writes the few lines at the top of Home, from what landed and what waits".as_slice())
+        Some(b"When you look at Home after landings or findings: writes the few lines at the top of Home, from what landed and what waits".as_slice())
     );
     for (repository, paths) in [(Repository::CiAndTiers, PATHS[0]), (Repository::Neither, PATHS[1])] {
         let (mut world, person) = with_repository(Reader::Owner, Some(repository));

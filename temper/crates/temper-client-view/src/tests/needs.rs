@@ -648,8 +648,8 @@ fn decided_head_and_rows_follow_the_project_filter() {
             assert_eq!(f::find(view.tree(), Role::Button, b"Limits").is_some(), project.is_some());
             assert!(has(&view, b"Which approach?"));
             assert!(has(&view, b"Fixed the harness."));
-            assert!(has(&view, b"Allowed: test-only changes are decided and listed."));
-            assert!(has(&view, b"Tests are its area."));
+            assert!(has(&view, b"Allowed: test-only changes."));
+            assert!(!has(&view, b"Tests are its area."));
             let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
             if project.is_some() {
                 assert!(has(&view, "Decided task · 01:05".as_bytes()));

@@ -404,7 +404,7 @@ fn the_status_words_carry_each_standing_roles_now_after_the_goals() {
     land_and_look(&mut world, &requester);
     let words = status_words(&world);
     assert!(words.ends_with(
-        "Make the widget fix: 0 of 1 delegates done\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
+        "Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\nRepairing the flaky test.\nWaiting for change 52.\nRole 42:\nno Now yet\n"
     ), "{words}");
     let agent = run(&world);
     finish(&mut world, &agent);
@@ -509,7 +509,10 @@ fn status_words_trim_roles_from_the_end_before_the_goals() {
     let words = status_words(&world);
     assert_eq!(words.len(), usize::try_from(BOUND).expect("spec bound"));
     assert!(words.contains("Small fix"), "{words}");
-    assert!(words.contains("Make the widget fix: 0 of 1 delegates done\nStanding roles:\nRole 41:\n"), "{words}");
+    assert!(
+        words.contains("Make the widget fix: 0 of 1 delegates done\nOpen findings: none\nStanding roles:\nRole 41:\n"),
+        "{words}"
+    );
     assert!(!words.contains("Role 42:"));
     assert!(words.ends_with("aaa..."));
     let agent = run(&world);
@@ -594,13 +597,96 @@ fn its_words_name_the_people_who_signed_after_the_goals() {
         if has_signers {
             assert!(
                 after_goals.ends_with(
-                    "People who signed:\n- person 4: Sam\n- person 7: seven\n- person 9: no longer a member\n"
+                    "People who signed:\n- person 4: Sam\n- person 7: seven\n- person 9: no longer a member\nOpen findings: none\n"
                 ),
                 "{words}"
             );
         } else {
             assert!(!words.contains("People who signed:"), "{words}");
         }
+        finish(&mut world, &agent);
+        world.close();
+    }
+}
+
+#[test]
+fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
+    let mut complete = String::new();
+    for bound in [None, Some(1024), Some(512)] {
+        let (mut world, requester) = roles_world_with_spec(bound);
+        let role = standing_role(&mut world, 110);
+        land(&mut world, &requester);
+        drain_api(&mut world);
+        seed_note(&mut world, 1, role, b"now", &vec![b'z'; 1024]);
+        let mut saves = Vec::new();
+        for record in world.store.rows.values() {
+            if let Record::Forge { row } = record
+                && let forge_top::Stored::LandingLog(log) = row.as_ref()
+            {
+                let mut log = log.clone();
+                for landing in &mut log.landings {
+                    for change in &mut landing.changes {
+                        change.signed =
+                            Box::new([forge_top::SignOff { person: 4, head: landing.commit, at: landing.at }]);
+                    }
+                }
+                saves.push(Record::Forge { row: Box::new(forge_top::Stored::LandingLog(log)) });
+            }
+        }
+        for (number, title) in [(1, b'a'), (2, b'b'), (3, b'c')] {
+            saves.push(Record::Forge {
+                row: Box::new(forge_top::Stored::Finding(forge_top::Finding {
+                    project: PROJECT,
+                    number,
+                    kind: forge_top::FindingKind::Qa,
+                    severity: forge_top::Severity::High,
+                    area: None,
+                    state: forge_top::FindingState::New,
+                    title: vec![title; 200].into_boxed_slice(),
+                    body: Box::new([]),
+                    filer: forge_top::Filer::Party(1),
+                    at: world.env.wall,
+                    why: None,
+                    hander: None,
+                    goal: None,
+                    reason: None,
+                    signature: None,
+                    seen: None,
+                })),
+            });
+        }
+        world.store.seed(saves.into_boxed_slice(), Box::new([]));
+        restart_status_world(&mut world);
+        next_sitting(&mut world, 171);
+        let words = status_words(&world);
+        assert!(words.contains("Make the widget fix: 1 of 1 delegates done\nPeople who signed:\n- person 4: no longer a member\nOpen findings: 3\n- qa: 3 high\nHigh ones, newest first:\n"), "{words}");
+        match bound {
+            None => {
+                assert!(
+                    words.contains(&format!(
+                        "- {} (qa)\n- {} (qa)\n- {} (qa)\nStanding roles:\nRole {role}:\n",
+                        "c".repeat(200),
+                        "b".repeat(200),
+                        "a".repeat(200)
+                    )),
+                    "{words}"
+                );
+                complete = words.to_owned();
+            }
+            Some(bound) => {
+                let bound = usize::try_from(bound).unwrap();
+                assert_eq!(words.len(), bound);
+                assert_eq!(words, format!("{}...", &complete[..bound - 3]));
+                if bound == 1024 {
+                    assert!(words.contains("Standing roles:\nRole 41:\n"), "only roles are cut: {words}");
+                    assert!(words.ends_with("zzz..."));
+                } else {
+                    assert!(!words.contains("Standing roles:"), "findings are cut after all roles: {words}");
+                    assert!(words.ends_with("bbb..."), "the findings' end is cut: {words}");
+                }
+            }
+        }
+        let agent = run(&world);
         finish(&mut world, &agent);
         world.close();
     }

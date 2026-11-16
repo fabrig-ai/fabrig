@@ -210,18 +210,13 @@ fn welcome_and_repository_styles_keep_their_css_names() {
 }
 
 #[test]
-fn decision_tokens_name_the_away_rows() {
-    for (token, name) in [
-        (DECIDED, b"temper-decided".as_slice()),
-        (DECISION, b"temper-decision"),
-        (DECISION_ALLOWED, b"temper-decision-allowed".as_slice()),
-        (DECISION_TOOK, b"temper-decision-took"),
-        (DECISION_WHY, b"temper-decision-why"),
-        (DECISION_LATE, b"temper-decision-late"),
-        (DECISION_OVERTURNED, b"temper-decision-overturned"),
-    ] {
-        assert_eq!(NAMES.style(token), Some(name));
-    }
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn decision_landed_is_named_and_draws_its_tick() {
+    assert_eq!(NAMES.style(DECISION_LANDED), Some(b"temper-decision-landed".as_slice()));
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains(
+        "#app > :is(.temper-home, .temper-needs) .temper-decision-landed::before { content: '✓'; margin-right: 5px; color: var(--gf-good); }"
+    ));
 }
 
 #[test]

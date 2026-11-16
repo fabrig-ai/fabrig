@@ -1399,6 +1399,16 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-project-rename-form > [aria-keyshortcuts=Escape] { display: none; }
 .temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
 
+/* Severity's three bars (temper/docs/design/client/pages/home.md, 1, Findings, drawn). */
+#app .temper-severity { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; flex: none; color: var(--gf-faint); }
+#app .temper-severity > span { width: 3px; border-radius: 1px; background: currentColor; opacity: .28; }
+#app .temper-severity > span:nth-child(1) { height: 5px; }
+#app .temper-severity > span:nth-child(2) { height: 8px; }
+#app .temper-severity > span:nth-child(3) { height: 11px; }
+#app .temper-severity-low > span:nth-child(1), #app .temper-severity-medium > span:nth-child(-n+2), #app .temper-severity-high > span { opacity: 1; }
+#app .temper-severity-medium { color: var(--temper-amber); }
+#app .temper-severity-high { color: var(--gf-signal); }
+
 /* ==== ui: home ==== */
 #app > .temper-home .temper-home-needs .temper-home-head { padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-home .temper-home-needs { display: flex; flex-direction: column; gap: 14px; }
@@ -1419,12 +1429,23 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-home .temper-need-acts .temper-recommended { background: var(--gf-ink); border-color: var(--gf-ink); color: var(--gf-surface); order: -1; }
 #app > .temper-home .temper-need-acts .temper-ask-quiet { border-color: transparent; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); }
 #app > .temper-home .temper-need-card > .temper-need-more { display: none; }
+#app > .temper-home .temper-finding-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--gf-line); }
+#app > .temper-home .temper-finding-rows > li { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--gf-line); font-size: 14.5px; }
+#app > .temper-home .temper-finding-rows > li > a { flex: 1; min-width: 0; color: var(--gf-ink); text-decoration: none; }
+#app > .temper-home .temper-finding-rows > li > a:hover { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-finding-when { flex: none; font: 12px/1.6 var(--gf-mono); color: var(--gf-faint); }
+#app > .temper-home .temper-home-more { margin: 0; font-size: 13.5px; color: var(--gf-muted); display: flex; align-items: center; gap: 8px; }
+#app > .temper-home .temper-home-more > a { color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home section > .temper-why { margin-top: 2px; }
 #app > .temper-home .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
 #app > .temper-home .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--gf-line); border-radius: 999px; font: 400 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); background: var(--gf-surface); white-space: nowrap; }
 .temper-needs .temper-chips, #app > .temper-home .temper-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .temper-needs .temper-chips .temper-chip, #app > .temper-home .temper-chips .temper-chip { display: inline-block; }
 #app > .temper-home .temper-chip-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gf-good); }
 #app > .temper-home .temper-chip-signal { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal); }
+#app > .temper-home .temper-chip-low { background: var(--gf-hover); }
+#app > .temper-home .temper-chip-medium { border-color: color-mix(in srgb, var(--temper-amber) 35%, transparent); background: var(--temper-amber-pale); color: var(--temper-amber); font-weight: 500; }
+#app > .temper-home .temper-chip-high { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal-ink); font-weight: 500; }
 #app > .temper-home .temper-projects { margin: 0; padding: 0; list-style: none; }
 #app > .temper-home .temper-projects > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 10px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
 #app > .temper-home .temper-projects > li > a { font-weight: 600; }
@@ -1478,6 +1499,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
    and the landing's line. */
 #app > .temper-home .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-home .temper-home-head > h2.temper-home-signal { color: var(--gf-signal); }
+#app > .temper-home .temper-home-needs .temper-home-head > .temper-home-sevs { margin-left: auto; display: flex; gap: 14px; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-needs .temper-home-sevs > span { display: inline-flex; align-items: center; gap: 6px; }
 #app > .temper-home .temper-home-head > a { font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-home .temper-home-head > a:hover { text-decoration-color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a > .temper-nav-count, #app > .temper-tabbar > a > .temper-nav-count { color: var(--gf-signal); font-weight: 600; }
@@ -2274,7 +2297,6 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-needs .temper-decision > div { display: flex; flex-direction: column; gap: 3px; }
 .temper-needs .temper-decision > div > :first-child { color: var(--gf-muted); }
 .temper-needs .temper-decision-took { font-weight: 500; }
-.temper-needs .temper-decision-why { font-size: 13px; color: var(--gf-muted); }
 .temper-needs .temper-decision-late { font-size: 12.5px; color: var(--gf-faint); }
 .temper-needs .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
 .temper-needs .temper-decision > button { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13px/1.6 var(--gf-sans); }
@@ -2445,6 +2467,9 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goals-rows { display: flex; flex-direction: column; }
 #app:has(> .temper-rail) .temper-goals-row { display: flex; flex-direction: column; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--gf-line); text-decoration: none; }
 #app:has(> .temper-rail) .temper-goals-top { display: flex; justify-content: space-between; gap: 12px; font: 12px/1.6 var(--gf-mono); color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goals-progress { display: inline-flex; align-items: center; gap: 10px; }
+#app:has(> .temper-rail) .temper-goals-progress > .temper-goal-bar { width: 84px; margin: 0; }
+#app:has(> .temper-rail) .temper-goals-progress > .temper-goal-bar > * { height: 4px; border-radius: 2px; }
 #app:has(> .temper-rail) .temper-goals-line { font-size: 16px; }
 #app:has(> .temper-rail) .temper-goals-row:hover .temper-goals-line { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app:has(> .temper-rail) .temper-goals-row-ended .temper-goals-line { color: var(--gf-muted); }
@@ -3210,8 +3235,8 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
 #app > :is(.temper-home, .temper-needs) .temper-decision > div > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > :is(.temper-home, .temper-needs) .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
 #app > :is(.temper-home, .temper-needs) .temper-decision-took { font-weight: 500; }
-#app > :is(.temper-home, .temper-needs) .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
 #app > :is(.temper-home, .temper-needs) .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
+#app > :is(.temper-home, .temper-needs) .temper-decision-landed::before { content: '✓'; margin-right: 5px; color: var(--gf-good); }
 #app > :is(.temper-home, .temper-needs) .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
 #app > :is(.temper-home, .temper-needs) .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
 #app > :is(.temper-home, .temper-needs) .temper-decision > .temper-home-small:hover { border-color: var(--gf-control-hover-line); }
@@ -3220,7 +3245,6 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
 #app > :is(.temper-home, .temper-needs) > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
 @media (max-width: 760px) {
   #app > :is(.temper-home, .temper-needs) .temper-decision { padding: 12px 0; }
-  #app > :is(.temper-home, .temper-needs) .temper-decision .temper-decision-why { display: none; }
   #app > :is(.temper-home, .temper-needs) .temper-decision .temper-decision-late { max-width: 8em; }
 }
 
@@ -3443,12 +3467,15 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
   #app > .temper-home:has(.temper-home-phone) h1 { font-size: 24px; }
   #app > .temper-home .temper-home-wide { display: none; }
   #app > .temper-home .temper-home-needs .temper-home-head > a { display: none; }
+  #app > .temper-home .temper-home-needs .temper-home-head { flex-wrap: wrap; }
+  #app > .temper-home .temper-home-needs .temper-home-head > .temper-home-sevs { flex-basis: 100%; margin-left: 0; flex-wrap: wrap; }
   #app > .temper-home .temper-home-phone { display: block; }
   #app > .temper-home .temper-home-phone.temper-home-byline { font-size: 12px; color: var(--gf-faint); }
   #app > .temper-home > .temper-home-phone > a { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); text-decoration: none; }
   #app > .temper-home:has(.temper-home-phone) > .temper-home-intro { gap: 10px; }
   #app > .temper-home .temper-need-card { padding: 14px; gap: 10px; }
   #app > .temper-home .temper-need-card .temper-ask-question { font-size: 15.5px; }
+  #app > .temper-home .temper-need-card:has(.temper-finding-rows) > :is(.temper-ask-context, .temper-why, .temper-need-acts) { display: none; }
   #app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: contents; }
   #app > .temper-home .temper-need-acts :is(a, button, details, textarea) { display: none; }
   #app > .temper-home .temper-need-acts .temper-recommended { display: flex; width: 100%; min-height: 44px; }

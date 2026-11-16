@@ -310,7 +310,7 @@ pub(super) fn roles(root: &mut Domain, read: Token, team: bool, out: &mut Queue<
         (
             9,
             "Status agent",
-            "When you look at Home after landings: writes the lines at its top",
+            "When you look at Home after landings or findings: writes the lines at its top",
             "read the facts in its task; never merge",
             "Write the few lines at the top of the project’s Home, from the facts in your task.",
         ),

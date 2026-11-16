@@ -2225,11 +2225,22 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
                 lede: Box::from([b'l'; forge::BRIEF_LEDE_BYTES]),
                 at: Wall::from_nanos(count),
                 landed: count,
+                findings: None,
             });
             for running in [
                 None,
-                Some(forge::StatusRunning { task: None, landed: count, since: Wall::from_nanos(count) }),
-                Some(forge::StatusRunning { task: Some(u64::MAX), landed: count, since: Wall::from_nanos(count) }),
+                Some(forge::StatusRunning {
+                    task: None,
+                    landed: count,
+                    since: Wall::from_nanos(count),
+                    findings: None,
+                }),
+                Some(forge::StatusRunning {
+                    task: Some(u64::MAX),
+                    landed: count,
+                    since: Wall::from_nanos(count),
+                    findings: None,
+                }),
             ] {
                 let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
                     project,
@@ -2254,6 +2265,73 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
             }
         }
     }
+}
+
+fn status_findings_row(brief: Option<[u8; 32]>, running: Option<[u8; 32]>) -> forge::Stored {
+    forge::Stored::ProjectFacts(forge::ProjectFacts {
+        project: 1,
+        landed: 0,
+        last_landed: skein_lib::Wall::EPOCH,
+        brief: Some(forge::Brief {
+            sentence: b"Findings remain".as_slice().into(),
+            lede: Box::new([]),
+            at: skein_lib::Wall::EPOCH,
+            landed: 0,
+            findings: brief,
+        }),
+        running: Some(forge::StatusRunning {
+            task: Some(7),
+            landed: 0,
+            since: skein_lib::Wall::EPOCH,
+            findings: running,
+        }),
+    })
+}
+
+#[test]
+fn status_findings_marks_round_trip_some_and_none() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for brief in [None, Some([0; 32]), Some([255; 32])] {
+        for running in [None, Some([7; 32])] {
+            let row = status_findings_row(brief, running);
+            assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        }
+    }
+}
+
+#[test]
+fn status_written_before_findings_marks_defaults_to_none() {
+    let mut family = None;
+    for candidate in crate::PATCH_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" findings: option fixed 32 = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let row = status_findings_row(None, None);
+    let mut bytes = records::encode(&row);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .expect("registered status fields have defaults");
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
 }
 
 fn away_row(present: bool, party: u64, project: u32, at: u64) -> forge::Away {
