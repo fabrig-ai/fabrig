@@ -135,6 +135,7 @@ fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]
 }
 pub(super) fn session_options(chain: &Chain, setups: &std::path::Path, mut options: drive::Options) -> drive::Options {
     options.scripts = chain.scripts(setups);
+    options.ctl = chain.ctl_only();
     options
 }
 pub(super) fn catalogue(reader: &Reader<'_>, mut names: Vec<String>) -> Vec<String> {

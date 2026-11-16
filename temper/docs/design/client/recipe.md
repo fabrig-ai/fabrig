@@ -177,7 +177,9 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   scratch directory's box holds, restored there by the place
   (`../draft/landed-qa.md`, 5). Without it, the scratch directory holds
   no box, no `config/` and no `data/`, or the walk refuses, naming them;
-  with it, it holds them, or the walk refuses.
+  with it, it holds `data/`, and `config/` where its box made one (a box
+  with fake backends keeps its configuration under `data/`), or the walk
+  refuses.
 - **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
   root first, as `--scripts`, and `--strict` and `--ports` as given: on

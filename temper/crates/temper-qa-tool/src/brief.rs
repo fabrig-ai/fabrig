@@ -83,6 +83,23 @@ impl Inputs {
         let drafts = landing_drafts(git, landing)?;
         let mut pages = Pages::new();
         let mut surfaces = String::new();
+        let mut groups = Vec::new();
+        for entry in git.entries(commit, REFERENCE_DIRECTORY.trim_end_matches('/'))? {
+            if !entry.directory
+                && let Some(group) = entry.name.strip_prefix("ctl-").and_then(|name| name.strip_suffix(".md"))
+            {
+                groups.push(group.to_owned());
+            }
+        }
+        groups.sort();
+        groups.dedup();
+        for group in &groups {
+            writeln!(surfaces, "- ctl: {group}: {REFERENCE_DIRECTORY}ctl-{group}.md").expect("string");
+        }
+        pages.insert("ctl".into(), groups);
+        surfaces.push_str(
+            "- ctl design: temper/docs/design/client/ctl/README.md; temper/docs/design/client/ctl/tools.md\n",
+        );
         for (surface, directory, journeys) in [
             ("web", "temper/docs/design/client/pages", "temper/docs/design/client/web/journeys.md"),
             ("tui", "temper/docs/design/client/tui/pages", "temper/docs/design/client/tui/journeys.md"),
@@ -131,7 +148,7 @@ impl Inputs {
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {
         let mut text = String::from(
-            "# Triage\n\nJudge what a person now sees or does in the web client or TUI, the green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait; ctl and help are outside these surfaces. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, so what only the box's own Forgejo or another real backend shows is no case, and a landing that changes nothing else a person meets is no QA, its line saying so. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+            "# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, so what only the box's own Forgejo or another real backend shows is no case, and a landing that changes nothing else a person meets is no QA, its line saying so. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
         );
         writeln!(
             text,
@@ -169,7 +186,9 @@ impl Inputs {
         if ledger.cases.is_empty() {
             text.push_str("None.\n");
         }
-        for case in &ledger.cases {
+        let mut cases: Vec<_> = ledger.cases.iter().collect();
+        cases.sort_by_key(|case| (case.surface != "ctl", case.surface != "web"));
+        for case in cases {
             writeln!(
                 text,
                 "Case {}: {} / {}; landings {}",
@@ -189,7 +208,7 @@ impl Inputs {
                 }
             }
         }
-        text.push_str("\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{\"surface\":\"web\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}]}\n```\nUse only the pages and setups above; give at least one step, each with nonempty do and expect.\n");
+        text.push_str("\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{\"surface\":\"web\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}]}\n```\nA case's surface is ctl, web or tui; for ctl, page is one of its groups. Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n");
         text
     }
 }
