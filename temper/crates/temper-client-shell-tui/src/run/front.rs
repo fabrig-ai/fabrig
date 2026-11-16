@@ -402,7 +402,12 @@ impl Child {
         if (self.active == Some(Kind::Fetch) || self.stop == Some(Stop::Second))
             && let Some(child) = self.process
         {
-            self.requests.push(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child });
+            self.requests.push(io::Request::Signal {
+                child,
+                signal: Signal::Terminate,
+                to: Target::Child,
+                reason: io::kernel::Reason::Unknown,
+            });
         }
         if let Some(entity) = self.life.take() {
             self.requests.push(io::Request::Abort { entity });

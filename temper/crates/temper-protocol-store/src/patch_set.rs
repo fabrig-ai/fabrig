@@ -1,6 +1,6 @@
 //! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, Retired, ValueType};
+use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
@@ -8,50 +8,39 @@ use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerS
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
 pub const OWNER_SET: OwnerSet = OwnerSet {
-    jobs: &[
-        Job {
-            settles: false,
-            name: "deleted-repository-forge-rows",
-            keys: &[
-                KeyRange { from: &[1], to: &[2] },
-                KeyRange { from: &[3], to: &[9] },
-                KeyRange { from: &[10], to: &[12] },
-                KeyRange { from: &[13], to: &[16] },
-                KeyRange { from: &[23], to: &[25] },
-                KeyRange { from: &[28], to: &[31] },
-                KeyRange { from: &[42], to: &[43] },
-                KeyRange { from: &[47], to: &[48] },
-            ],
-            converts: None,
-            counts: &[
-                "dropped",
-                "BranchHead",
-                "PullState",
-                "Ci",
-                "Client",
-                "Receipt",
-                "Tier",
-                "Verification",
-                "LandingLog",
-                "Application",
-                "Names",
-            ],
-        },
-        Job { name: "settle-layouts", keys: &[], converts: None, settles: true, counts: &[] },
-        Job {
-            name: "round-branches",
-            keys: &[KeyRange { from: &[23], to: &[24] }],
-            converts: None,
-            settles: false,
-            counts: &["empty", "named"],
-        },
-    ],
+    jobs: &[Job {
+        name: "deleted-repository-forge-rows",
+        keys: &[
+            KeyRange { from: &[1], to: &[2] },
+            KeyRange { from: &[3], to: &[9] },
+            KeyRange { from: &[10], to: &[12] },
+            KeyRange { from: &[13], to: &[16] },
+            KeyRange { from: &[23], to: &[25] },
+            KeyRange { from: &[28], to: &[31] },
+            KeyRange { from: &[42], to: &[43] },
+            KeyRange { from: &[47], to: &[48] },
+        ],
+        converts: None,
+        counts: &[
+            "dropped",
+            "BranchHead",
+            "PullState",
+            "Ci",
+            "Client",
+            "Receipt",
+            "Tier",
+            "Verification",
+            "LandingLog",
+            "Application",
+            "Names",
+        ],
+    }],
     owner: Owner::Application,
     name: "temper",
     level: Some(14),
     families: &[
         KeptFamily {
-            retired: &[Retired { number: 12, keys: &[KeyRange { from: &[12], to: &[13] }] }],
+            retired: &[],
             current: include_str!("../schema/store-v25.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
@@ -343,7 +332,6 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                 Keys { from: &[9], to: &[10], root: "Row" },
                 Keys { from: &[10], to: &[11], root: "Row" },
                 Keys { from: &[11], to: &[12], root: "Row" },
-                Keys { from: &[12], to: &[13], root: "Row" },
                 Keys { from: &[13], to: &[14], root: "Row" },
                 Keys { from: &[14], to: &[15], root: "Row" },
                 Keys { from: &[15], to: &[16], root: "Row" },

@@ -38,10 +38,7 @@ fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv:
             store.registry.write(key, value).or(Err(CommitCheck::Encoding))?;
         }
     }
-    if crate::logs::write::enabled(store, &ops)? {
-        ops = crate::logs::write::route(store, ops)?;
-        store.history_routing = true;
-    }
+    let ops = crate::logs::write::route(store, ops)?;
     crate::logs::write::bounds(store, &ops)?;
     Ok(ops)
 }

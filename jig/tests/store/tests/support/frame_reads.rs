@@ -11,6 +11,16 @@ const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
 pub(crate) const FRAME_KEY_BYTES: usize = 18;
 pub(crate) use jig_store_world::patches::FRAME_SETS as SETS;
+pub(crate) fn floor() -> Box<[u8]> {
+    let row = store::component_v3::Floor::new(
+        &store::component_v3::CEILINGS,
+        store::component_v3::FloorParts { number: store::FLOOR, build: Box::new([]) },
+    )
+    .expect("floor fits");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure()));
+    row.encode(&mut writer).expect("measured floor");
+    writer.finish()
+}
 fn env(limits: &store::Limits) -> Env<store::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }
@@ -32,6 +42,7 @@ pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, 
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
     let ops = Box::new([
         skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
+        skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
         skein_kv::Op::Put { key: own(keys::Own::Layouts), value: format::layouts().encode() },
         skein_kv::Op::Put {
             key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),

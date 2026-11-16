@@ -647,7 +647,7 @@ impl Sim {
                     self.park(pid, token, Op::Wait { pidfd, reap });
                 }
             }
-            Op::Signal { pidfd, signal, to } => {
+            Op::Signal { pidfd, signal, to, reason } => {
                 let child_id = self.process(pid).pidfds[&pidfd];
                 let group = self.process(pid).children[&child_id].group;
                 if (signal == Signal::Stop || signal == Signal::Continue)
@@ -657,7 +657,7 @@ impl Sim {
                         })
                     })
                 {
-                    self.complete(pid, token, Op::Signal { pidfd, signal, to }, Err(Error::InvalidArgument));
+                    self.complete(pid, token, Op::Signal { pidfd, signal, to, reason }, Err(Error::InvalidArgument));
                     return;
                 }
                 match to {
@@ -689,7 +689,7 @@ impl Sim {
                         }
                     }
                 }
-                self.complete(pid, token, Op::Signal { pidfd, signal, to }, Ok(Done::Nothing));
+                self.complete(pid, token, Op::Signal { pidfd, signal, to, reason }, Ok(Done::Nothing));
             }
             Op::ReadSignal { fd } => {
                 let source = self.process_mut(pid).signal_fds.get_mut(&fd).expect("checked signalfd");
@@ -1367,7 +1367,12 @@ mod tests {
         sim.submit(child, &mut child_submits);
         submits.push(Submit {
             op: Token::new(32),
-            kind: Op::Signal { pidfd, signal: Signal::Terminate, to: skein_io::kernel::Target::Child },
+            kind: Op::Signal {
+                pidfd,
+                signal: Signal::Terminate,
+                to: skein_io::kernel::Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
         });
         sim.submit(parent, &mut submits);
         sim.reap(parent, &mut completes);
@@ -1481,11 +1486,21 @@ mod tests {
             submit(&mut sim, child, READ, Op::ReadSignal { fd });
             let mut completes = Queue::with_capacity(ONE_RECORD);
             for signal in [Signal::Stop, Signal::Continue] {
-                submit(&mut sim, parent, WRITE, Op::Signal { pidfd, signal, to });
+                submit(
+                    &mut sim,
+                    parent,
+                    WRITE,
+                    Op::Signal { pidfd, signal, to, reason: skein_io::kernel::Reason::Unknown },
+                );
                 sim.reap(parent, &mut completes);
                 assert_eq!(completes.pop().expect("refused signal").result, Err(Error::InvalidArgument));
             }
-            submit(&mut sim, parent, WRITE, Op::Signal { pidfd, signal: Signal::Terminate, to });
+            submit(
+                &mut sim,
+                parent,
+                WRITE,
+                Op::Signal { pidfd, signal: Signal::Terminate, to, reason: skein_io::kernel::Reason::Unknown },
+            );
             sim.reap(parent, &mut completes);
             assert_eq!(completes.pop().expect("termination sent").result, Ok(Done::Nothing));
             sim.reap(child, &mut completes);
@@ -1556,7 +1571,12 @@ mod tests {
         submits.push(Submit { op: Token::new(3), kind: Op::PipeRead { fd: pipes[1], buf: Box::new([0; 1]) } });
         submits.push(Submit {
             op: Token::new(4),
-            kind: Op::Signal { pidfd, signal: Signal::Terminate, to: skein_io::kernel::Target::Child },
+            kind: Op::Signal {
+                pidfd,
+                signal: Signal::Terminate,
+                to: skein_io::kernel::Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
         });
         sim.submit(pid, &mut submits);
         sim.reap(pid, &mut completes);

@@ -338,6 +338,35 @@ pub enum Unplanned {
     Retired,
 }
 
+/// Join the bridge into a static piece, keeping deployment slots unchanged.
+macro_rules! bridge_words {
+    ($before:expr, $after:expr) => {{
+        #[expect(clippy::indexing_slicing, reason = "const concatenation indexes within each measured piece")]
+        const BYTES: [u8; $before.len() + crate::FLOOR_BRIDGE.len() + $after.len()] = {
+            let mut bytes = [0; $before.len() + crate::FLOOR_BRIDGE.len() + $after.len()];
+            let parts = [$before.as_bytes(), crate::FLOOR_BRIDGE.as_bytes(), $after.as_bytes()];
+            let mut part = 0_usize;
+            let mut at = 0_usize;
+            while part < parts.len() {
+                let mut i = 0_usize;
+                while i < parts[part].len() {
+                    bytes[at] = parts[part][i];
+                    at = at.checked_add(1).expect("measured text");
+                    i = i.checked_add(1).expect("measured piece");
+                }
+                part = part.checked_add(1).expect("three pieces");
+            }
+            bytes
+        };
+        #[expect(clippy::disallowed_methods, reason = "const concatenation of UTF-8 literals and FLOOR_BRIDGE")]
+        const TEXT: &str = match ::core::str::from_utf8(&BYTES) {
+            Ok(text) => text,
+            Err(_) => panic!("UTF-8 pieces"),
+        };
+        TEXT
+    }};
+}
+
 /// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying
 /// which version or build.
 macro_rules! older {
@@ -347,11 +376,7 @@ macro_rules! older {
     ($clause:literal, $why:literal) => {
         &[
             "",
-            concat!(
-                $clause,
-                $why,
-                ", and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
-            ),
+            bridge_words!(concat!($clause, $why, ", and this start has changed nothing in it. No build translates a store from before the baseline, build `"), "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of "),
             " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
         ]
     };
@@ -400,6 +425,7 @@ impl OpenRefusal {
     /// between each two consecutive pieces, wherever protocol/store/README.md has `<deployment>`.
     /// No allocation, no formatting.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one match keeps every open refusal's operator instructions together")]
     pub fn words(&self) -> &'static [&'static str] {
         match self {
             Self::Format { family, .. } => family.version_words(),
@@ -424,20 +450,34 @@ impl OpenRefusal {
                 " could not be read or written, or its store could not be recovered, while this start opened it, and the start stopped there. Check the disk's space and the directory's permissions, and start again. If the next start fails the same way, restore ",
                 " from a backup.",
             ],
+            Self::OlderBuild { why: Older::Floor } => &[
+                "",
+                bridge_words!(
+                    " holds a store older than this build opens: it has no floor, or one below this build's, and this start has changed nothing in it. Start build `",
+                    "` on it and let it open, then this build."
+                ),
+            ],
+            Self::OlderBuild { why: Older::Unregistered } => &[
+                "",
+                bridge_words!(
+                    " holds a store older than this build opens: it has no registry of its layouts, and this start has changed nothing in it. Start build `",
+                    "` on it and let it open, then this build."
+                ),
+            ],
             Self::OlderBuild { why: Older::Unleveled } => &[
                 "",
-                " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                bridge_words!(
+                    " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. No build translates a store from before the baseline, build `",
+                    "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of "
+                ),
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
             Self::OlderBuild { why: Older::Behind } => &[
                 "",
-                " holds a store from an older build, at patch levels behind this build's, and this start has changed nothing in it. This build keeps no patch: start build c1019509e3 on ",
-                " and let it open, which brings it to this build's levels, then start this build.",
-            ],
-            Self::OlderBuild { why: Older::Unregistered } => &[
-                "",
-                " holds a store from an older build, with values and no registry of their layouts, and this start has changed nothing in it. This build registers no older store's layouts: start build c1019509e3 on ",
-                " and let it open, which registers them, then start this build.",
+                bridge_words!(
+                    " holds a store from an older build, at patch levels behind this build's, and this start has changed nothing in it. This build keeps no patch: start build `",
+                    "` on it and let it open, which brings it to this build's levels, then start this build."
+                ),
             ],
             Self::Ahead { .. } => &[
                 "",
@@ -464,7 +504,10 @@ impl OpenRefusal {
             },
             Self::OlderBuild { why: Older::Directory } => &[
                 "",
-                " holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of ",
+                bridge_words!(
+                    " holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. No build translates a store from before generations, build `",
+                    "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of "
+                ),
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
             Self::Job { .. } => &[
@@ -498,6 +541,8 @@ impl OpenRefusal {
 pub enum Older {
     /// A store before an owner's baseline, which records no patch level (5.3).
     Unleveled,
+    /// No floor row, or one below this build's floor (protocol/store/opening.md, 1.8).
+    Floor,
     /// A level behind the binary's (protocol/store/records.md, 3).
     Behind,
     /// A store holding values and no registry (protocol/store/layouts.md, 5.1).

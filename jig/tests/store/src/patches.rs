@@ -75,7 +75,6 @@ pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
     name: "inspect-fixtures",
     keys: &[jig_protocol_store::KeyRange { from: b"s", to: b"t" }],
     converts: None,
-    settles: false,
     counts: &[],
 };
 pub const BASE: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };

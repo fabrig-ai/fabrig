@@ -844,30 +844,62 @@ pair = "default"
 package = "temper-one-process-world"
 filter = "kind(lib)"
 
-# Baseline's whole deployment, kept once; the focused reader starts this build on it.
+# Floor's whole deployment, kept once; the focused reader starts this build on it.
 [[fixture]]
 paths = [
-    "temper/tests/one-process/golden/baseline/state/**",
-    "temper/tests/one-process/golden/baseline/worker/**",
-    "temper/tests/one-process/golden/baseline/client/**",
-    "temper/tests/one-process/golden/baseline/setup/**",
-    "temper/tests/one-process/golden/baseline/configuration.json",
-    "temper/tests/one-process/golden/baseline/modes.txt",
-    "temper/tests/one-process/golden/baseline/patched.txt",
+    "temper/tests/one-process/golden/floor/state/**",
+    "temper/tests/one-process/golden/floor/worker/**",
+    "temper/tests/one-process/golden/floor/client/**",
+    "temper/tests/one-process/golden/floor/setup/**",
+    "temper/tests/one-process/golden/floor/configuration.json",
+    "temper/tests/one-process/golden/floor/modes.txt",
+    "temper/tests/one-process/golden/floor/upgraded.txt",
 ]
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & test(=golden::baseline_golden_store_refuses_retired_milestones)"
+filter = "binary(=suite) & test(=golden::floor_golden_store_opens_and_serves_the_kept_person)"
 [[fixture.reader]]
 pair = "default"
-package = "temper-protocol-store"
-filter = "kind(lib) & test(=tests::baseline::baseline_store_refuses_retired_milestones_without_switching_active)"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=golden::floorless_golden_store_is_refused_without_writing)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::golden_rehearsal_decodes_every_record_and_restores_without_pending_work)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::golden_rehearsal_names_the_broken_record)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::floorless_golden_rehearsal_refuses_before_decoding)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-shell"
+filter = "kind(lib) & test(=upgrade::tests::deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-shell"
+filter = "kind(lib) & test(=upgrade::tests::deployment_back_with_accounts_workers_and_forge_reports_no_previous_generation)"
 
 [[fixture]]
-paths = ["temper/tests/one-process/golden/baseline/README.md"]
+paths = ["temper/tests/one-process/golden/floor/README.md"]
 disposition = "provenance"
-reason = "Baseline commit, making story and once-only export provenance."
+reason = "Floor commit, making story and once-only export provenance."
 
 # The current build's settled upgrade stop and every case that loads it.
 [[fixture]]
@@ -1072,11 +1104,3 @@ filter = "binary(=suite)"
 [[fixture]]
 paths = ["tools/tiers/fixtures/one-process/*"]
 reader = [{ suite = "tools/tiers/test_one_process.py" }]
-
-# Dev's registered temper text before F0 drops the whole change variant.
-[[fixture]]
-paths = ["temper/crates/temper-protocol-store/src/tests/cb429613c6-store-v25.schema"]
-[[fixture.reader]]
-pair = "default"
-package = "temper-protocol-store"
-filter = "kind(lib) & test(/tests::store_floor::/)"

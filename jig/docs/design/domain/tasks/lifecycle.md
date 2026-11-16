@@ -822,9 +822,10 @@ record HoldRow { task: u64 position: u64 held: Held at: u64 }
 Every store at or past dev.fabrig.ai's has run the job this section
 describes, so since store-floor's F0 (temper's `draft/store-floor.md`,
 section 2) the tasks' milestone variant is gone from the schema, its
-value type is retired with its range (`../../protocol/store/layouts.md`,
-2), and the job is no longer declared: a store that still holds a
-milestone is refused at open. What it did:
+value type's number is never given again and its range lies outside
+the family's keys (`../../protocol/store/layouts.md`, 2), and the job
+is not declared: a store from before it is below the floor and refused
+at open (`../../protocol/store/records.md`, 3). What it did:
 
 A store written before this design holds a row per phase change,
 `Milestone { task, position, phase, at }` at `01 01 0a <task>

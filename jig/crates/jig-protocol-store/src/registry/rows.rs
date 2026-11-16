@@ -1,4 +1,4 @@
-//! Registry rows, their commit operations (protocol/store/layouts.md, 3 and 5).
+//! Registry rows and their commit operations (protocol/store/layouts.md, 3 and 5).
 use super::{Layouts, Range, Row, RowKey, Text, Type, texts};
 use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;

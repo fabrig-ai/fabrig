@@ -243,7 +243,6 @@ fn written_jobs_name_a_registered_type_and_its_ranges() {
     for owner in [Owner::Application, Owner::Jig] {
         let base = family(owner);
         let job = Job {
-            settles: false,
             counts: &[],
             name: "convert",
             keys: base.types[0].keys,

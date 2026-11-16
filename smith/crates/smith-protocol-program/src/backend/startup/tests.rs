@@ -77,7 +77,12 @@ fn closing_a_check_keeps_its_late_spawn_until_every_resource_settles() {
                 Below::File { .. } => None,
             })
             .any(|request| *request
-                == io::Request::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill })
+                == io::Request::Signal {
+                    child,
+                    to: kernel::Target::Child,
+                    signal: kernel::Signal::Kill,
+                    reason: kernel::Reason::Closed
+                })
     );
     assert_eq!(
         startup.io_event(

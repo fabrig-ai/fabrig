@@ -327,7 +327,12 @@ impl Child {
             self.signals += 1;
             submit.push(Submit {
                 op: self.token(CANCEL),
-                kind: Op::Signal { pidfd: self.pidfd.expect("ctl pidfd"), signal: Signal::Kill, to: Target::Child },
+                kind: Op::Signal {
+                    pidfd: self.pidfd.expect("ctl pidfd"),
+                    signal: Signal::Kill,
+                    to: Target::Child,
+                    reason: skein_io::kernel::Reason::Cancelled,
+                },
             });
         }
         if let Input::After(words) = self.typing
@@ -935,6 +940,7 @@ impl Calls {
                 pidfd: child.pidfd.expect("started call pidfd"),
                 signal: Signal::Terminate,
                 to: Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
             },
         });
     }

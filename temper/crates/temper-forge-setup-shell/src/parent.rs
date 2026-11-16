@@ -209,7 +209,10 @@ impl Running {
                         Stop::Terminate => Signal::Terminate,
                         Stop::Interrupt => Signal::Interrupt,
                     };
-                    self.down(env, Request::Signal { child, signal, to: Target::Child });
+                    self.down(
+                        env,
+                        Request::Signal { child, signal, to: Target::Child, reason: skein_io::kernel::Reason::Unknown },
+                    );
                 }
             }
             Act::End(code) => self.exit = Some(code),

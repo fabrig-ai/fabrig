@@ -70,12 +70,22 @@ impl Child {
         self.stopping = true;
         if let Some(child) = self.identity {
             if force && self.process.deployment_log().is_some() {
-                pump.request(io::Request::Signal { child, signal: Signal::Kill, to: Target::Group });
+                pump.request(io::Request::Signal {
+                    child,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: io::kernel::Reason::Unknown,
+                });
             }
             pump.request(if force {
                 io::Request::Close { entity: child }
             } else {
-                io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child }
+                io::Request::Signal {
+                    child,
+                    signal: Signal::Terminate,
+                    to: Target::Child,
+                    reason: io::kernel::Reason::Unknown,
+                }
             });
             if force {
                 for entity in &self.pipes {

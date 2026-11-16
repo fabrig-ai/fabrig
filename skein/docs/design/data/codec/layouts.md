@@ -77,9 +77,10 @@ one given on one side alone has no plan (`Underived::Held`).
   own), and its enumeration and every declaration enclosing it in the
   reach no longer keep, so no copy of a span passes over it. Any other
   part that is not derived still refuses the plan as `derive` does. A
-  plan with no drop is `derive`'s, byte for byte. A store uses it only
-  to settle its values once (jig's `protocol/store/jobs.md`, 5), never
-  for what it reads while serving.
+  plan with no drop is `derive`'s, byte for byte. A store's reads while
+  serving never use it: jig's tests of its real families name with it
+  the layouts every store at its floor holds no value of (jig's
+  `protocol/store/layouts.md`, 8).
 - **What a plan keeps** for its pass, per old declaration of the reach:
   its new declaration; per new field, its old field and that field's
   conversion, or the default's bytes; per old variant, its new tag; per

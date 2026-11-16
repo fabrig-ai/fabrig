@@ -21,16 +21,14 @@ use skein_io::{
     file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Error, Kind, Submit},
 };
-use skein_lib::{Queue, Token, length::len_u64};
+use skein_lib::{Queue, Token};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
-mod charter_versions;
 mod checked;
 mod floor;
+mod history;
 mod jobs;
 mod registry;
-mod store_floor;
-mod task_logs;
 mod value_types;
 
 const CHUNK: u32 = 4096;
@@ -912,7 +910,6 @@ const UPGRADE_JOB: crate::Job = crate::Job {
     name: "upgrade-fixture",
     keys: &[crate::KeyRange { from: b"l", to: b"m" }],
     converts: None,
-    settles: false,
     counts: &[],
 };
 fn upgrade_sets(generation: usize) -> crate::OwnerSets {

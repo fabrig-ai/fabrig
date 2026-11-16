@@ -7,9 +7,8 @@ of a value's layout. A job is an owner's walk over ranges of the map,
 run once per store by the open, after the patches and the registry's
 commit and before the root starts, in pages: the store reads each page,
 hands it to the job's owner, and commits what the owner answers (temper's
-`draft/store-shape.md`, sections 3 and 4, step 4). Milestones S5 to S8
-of temper's `draft/store-shape.execution.md` bring the jobs; this
-document designs what runs them.
+`draft/store-shape.md`, sections 3 and 4, step 4). This document
+designs what runs them.
 
 - **Its identity** (1): its owner and its name, stable and never reused.
 - **When it runs** (2): when the binary declares it and the store has
@@ -36,8 +35,7 @@ pub struct Job {
     pub name: &'static str,             // unique within its owner, never reused: its identity, at most 64 bytes
     pub keys: &'static [KeyRange],      // the ranges its pages walk, in order (`layouts.md`, 2); the application's relative to its tag
     pub converts: Option<Converts>,     // a written job's layout (4)
-    pub settles: bool,                  // a settling job (5): the store's own, its keys and converts empty
-    pub counts: &'static [&'static str], // the names of what its answers count, in order (3); empty for a job that counts nothing, and for a settling job
+    pub counts: &'static [&'static str], // the names of what its answers count, in order (3); empty for a job that counts nothing
 }
 pub struct Converts {
     pub family: &'static str,           // a registered family of its set
@@ -57,28 +55,21 @@ pub struct Converts {
   the map, never the secrets' store; a written job's family a registered
   family of the set and its value type one of that family's, its ranges
   that value type's; a job's count names at most 16, each given once
-  within the job, 1 to 32 bytes of ASCII letters, digits and `-`; a
-  settling job with no keys, no `converts` and no counts, at most one per
-  set, in a set with a registered family.
-- **jig's jobs:** `charter-versions`, a written job (4);
-  `retention-rows` and `retention-proposals` (`retention.md`);
-  `settle-layouts`, jig's settling job (5), and `ended-talk`, which puts
-  each ended task stored before talk again as the binary writes it
-  (5.4), both store-floor's F0 (temper's `draft/store-floor.md`,
-  section 2); and, last, `task-logs`, which moves a store's history out
-  of the map into its tasks' logs (`logs.md`, 6), after F0's two so
-  that history enters the logs at the binary's layouts. `milestones`,
-  `live-task-parts` and `projection-parts` are no longer declared: what
-  they read is the forms F0 drops, and every store at or past dev.fabrig.ai's
-  has run them, so their done rows stay inert (2).
-- **temper's jobs** (temper's `protocol/store.md`, 4):
+  within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
+- **jig's set declares no job.** Every store at the floor (temper's
+  `draft/store-floor.md`, section 3) has run each job jig declared
+  before it, and an empty store's first commit marked each done (2), so
+  their done rows stay, inert, and their names stay used: `milestones`,
+  `live-task-parts`, `projection-parts`, `charter-versions`,
+  `retention-rows`, `retention-proposals`, `settle-layouts`,
+  `ended-talk` and `task-logs`.
+- **temper's job** (temper's `protocol/store.md`, 4):
   `deleted-repository-forge-rows`, the first job that counts: it
   drops the forge rows naming a repository whose record is gone, its
   answers counting them per family, and reads the repositories and
-  forges stored while each page is out (3); then F0's
-  `settle-layouts`, temper's settling job (5), and `round-branches`,
-  which counts the landing records with an empty round branch (5.4).
-  `change-parts` is no longer declared, as jig's three are not.
+  forges stored while each page is out (3). Its done jobs' names stay
+  used as jig's do: `change-parts`, `settle-layouts` and
+  `round-branches`.
 - **Order:** the sets' order, `Owner`'s, upstream first (skein, smith,
   jig, the application), and within a set its own; each job runs to its
   end before the next starts, so a later job reads what an earlier one
@@ -173,17 +164,18 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal>;
 ```
 
 `OpenRefusal::Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> }`.
-jig's and the application's dispatches name no job at first: each
-milestone that brings one adds its arm, and a name a dispatch does not
-know is its refusal, `why` saying so.
+jig's dispatch names no job, and temper's names
+`deleted-repository-forge-rows`: a landing that brings a job adds its
+arm, and a name a dispatch does not know is its refusal, `why` saying
+so.
 
 ## 4. Written jobs
 
 A written job converts a registered value type's values to the
 binary's layout from a layout that no derived plan reaches, or from one
 whose values are not all the root it names (`layouts.md`, 6; skein's
-`data/codec/layouts.md`, 2). jig's first is `charter-versions`
-(`layouts.md`, 2).
+`data/codec/layouts.md`, 2). No set declares one now; the next
+change no plan derives brings its own.
 
 - **Its pages** hold only the values of its value type whose head is the
   id of its `from` layout in the registry, as they are stored: the read
@@ -206,106 +198,26 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 
 ## 5. Settling jobs
 
-A settling job puts every value of its set's registered value types
-that is not at the binary's layout again at the binary's, so that its
-end proves which layouts no value holds and retires them (temper's
-`draft/store-floor.md`, section 2: store-floor's F0). The store runs
-it alone: no page goes to its owner, and the shell routes nothing for
-it. jig's set and temper's each declare one, `settle-layouts`, run
-once per store as any job (2): an empty store's first commit marks it
-done, so only a store from before F0 runs it.
+No set declares a settling job, and the store runs none: every store at
+the floor has run jig's and temper's `settle-layouts` (temper's
+`draft/store-floor.md`, sections 3 and 4.3). The check (`layouts.md`,
+5.3) takes no layout for one.
 
 ### 5.1 Its pages
 
-- **Its ranges** are every range of every value type (`layouts.md`, 2)
-  of its set's registered families, in key order, read from the map as
-  stored, as a written job's are (4). A retired value type's ranges
-  are not among them (`layouts.md`, 2).
-- **A value at the binary's id** is passed over, unread past its head.
-- **A value at another layout the registry holds** is converted by that
-  layout's plan (`layouts.md`, 5.3), its own or one derived with drops
-  refused (5.2), into the binary's layout with its family's version at
-  its head, as the read edge converts it (`layouts.md`, 4), and put
-  again at its key through the component's path (`commits::submit`),
-  which writes the binary's id at its head.
-- **Refused,** the start refused `OpenRefusal::Job { owner, job, key,
-  why }` with the active generation unchanged (3), for a value:
-  - whose plan refuses a dropped variant (skein's
-    `data/codec/layouts.md`, 3: `Dropped`): why "holds the variant
-    `<variant>` of `<enumeration>`, which this build no longer has";
-  - that its plan refuses otherwise: why "does not convert from layout
-    `<id>`: `<Misconverted>`";
-  - whose head the registry lacks for its value type, or too short for
-    a head: why "is at layout `<id>`, which the registry does not hold";
-  - at a written job's `from` layout: why "is at layout `<id>`, which
-    the written job `<name>` converts": a written job runs before it
-    in the sets' order, so none is left once that job is done.
-- **Pages and commits** are a job's (3): at most `limits.store.ops`
-  rows and the store's page bytes read, the puts within the commit
-  edge less the job's row, one commit per page's puts; a page with
-  nothing to put makes no commit.
+None (5).
 
 ### 5.2 The check
 
-The check (`layouts.md`, 5.3) takes a layout as planned where its
-value type is a registered type of a set whose settling job is pending
-in this store and `derive` refuses it only for dropped variants
-(`VariantDropped`): its plan is `derive_dropping`'s (skein's
-`data/codec/layouts.md`, 2), held for the read edge as any plan until
-the job retires the layout. Any other reason a plan is not derived is
-refused as before.
-
-- **Log-held value types** (`logs.md`, 2) are taken so only while
-  `task-logs` is pending in the store too, when no task log holds a
-  value of theirs; with `task-logs` done, a log-held layout that does not
-  derive is refused as `logs.md`, 8 says, and its layouts never
-  retire (5.3).
-- **Pending alone:** a settling job done takes no layout, so a later
-  build that drops a variant brings its own job, as any written change
-  does (`layouts.md`, 6).
+None (5).
 
 ### 5.3 Its end: retirement by proof
 
-Its end, past its last page, has walked every range of its value types
-whole, so every value of theirs in the map is at the binary's layout.
-The commit that writes its done row (or as many as the commit edge
-needs, the done row in the last) erases every `Layout` row of those
-value types but the binary's, and each `Text` row no remaining row
-names, held texts counted (`layouts.md`, 3). A log-held value type's
-rows are erased only while `task-logs` is pending (5.2). This retires
-exactly what a census bucket cannot clear, such as the charter versions'
-old layout within the settings' bucket (`layouts.md`, 9).
-
-`Event::Ran` names the job with the store's counts, in this order:
-`put`, the values put again; `retired`, the layout rows erased. jig's
-settling job adds the transcripts' turns (5.4).
+None (5): a layout row retires as `layouts.md`, 5.4 says.
 
 ### 5.4 F0's counts
 
-What a layout id cannot show, counted once in F0's open and reported
-in its jobs' `Ran` lines, at the check (`opening.md`, 5) as at the
-start:
-
-- **Turns by their inner version,** by jig's settling job: before its
-  first page, the store reads the head of every frame of every
-  transcript file and every record of every turns log (`transcripts.md`,
-  6: a frame's versions are read with its head), and counts the turns by
-  smith's `Turn` version: `turns-6`, `turns-7`, `turns-other`, and
-  `turns-unread` for a frame whose head does not read. Nothing is
-  written and no frame is patched. Turns at 6 stay readable by smith's
-  machine until retention drops them (temper's `draft/store-floor.md`,
-  section 2).
-- **Ended tasks by variant,** by jig's `ended-talk`, an owner's job over
-  the ended tasks (`01 01 06`), after the settling job: each value
-  stored as `ended` (before talk) is decoded and put again as the binary
-  encodes it, `ended_talk` with no talk; its counts are `ended`, the
-  values so put, and `ended-talk`, those already so.
-- **Landing records with an empty round branch,** by temper's
-  `round-branches`, an owner's job over the landings (temper's
-  `protocol/store.md`, 4), which writes nothing: its counts are `empty`
-  and `named`. Such a landing has no current form to convert to, and its
-  reader (`temper/crates/temper-engine-domain-forge/src/views.rs`) stays
-  until none is left.
+None (5).
 
 ## 6. Tests
 
@@ -322,25 +234,6 @@ start:
   has its answers' numbers summed across its pages into `Ran`, by name
   and in order, an answer with the wrong number of counts refusing the
   start, and a set naming a count badly refused at admission.
-- **Settling,** step tests over the test owners' sets, whose fixture
-  families gain a current text that drops a variant: values at the
-  binary's layout, at a layout whose plan keeps, at one it converts and
-  at one only `derive_dropping` plans are each put at the binary's id
-  or passed over as 5.1 says, the check taking the last only while the
-  job is pending (5.2); its end erases every other layout row of its
-  types and the texts none names, so a reopen writes nothing and the
-  census counts one layout per value type; a value holding a dropped
-  variant, and one at a layout the registry lacks, each refuse the start
-  with the active generation unchanged; a log-held type's layout taken
-  and retired only with `task-logs` pending; its `Ran` counts.
-- **F0's jobs,** in each owner's crate over its real set (5.4): jig's
-  `ended-talk` and temper's `round-branches` by page; and the stores
-  dev.fabrig.ai holds (temper's `draft/store-floor.execution.md`, F0),
-  made from the kept texts and the texts dev's build registered: the
-  ended tasks at layouts 13 and 14 and the projections at 7 in
-  `jig-protocol-store`, the landing history at 25 and 26 in
-  `temper-protocol-store`, each settled by one open and reopened in
-  place.
 - **The shell's routing,** in temper's store route: `Event::Job` of each
   owner reaches that owner's dispatch and comes back as `Request::Job`.
 
@@ -349,6 +242,6 @@ start:
 - **Progress across starts:** a job's progress lives and dies with its
   start's new generation. A job too long for one start would need its
   cursor kept in its row and the generation kept across starts.
-- **Files:** a job writes no file of its own. `task-logs` writes task
-  logs through its answer's puts, which the commit path appends to them,
-  synced before the commit that names them (`logs.md`, 3 and 6).
+- **Files:** a job writes no file of its own. Its puts of log-held
+  keys go to their tasks' logs through the commit path, synced before
+  the commit that names them (`logs.md`, 3).
