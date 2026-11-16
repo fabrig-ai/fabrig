@@ -2,7 +2,6 @@
 
 2026-11-16. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4, *A member's name*: no such read; temper's status words name a signer by their own lookup [in flight: change 4297].
 - **Not yet:** 10: the world's story of an owner's deletion refused while a task is live [in flight: change 628].
 - **Not yet:** 10: the world's stories of a deleted project's read answered gone and an owner's deletion answered removed after it ended [in flight: change 629].
 

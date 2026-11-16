@@ -3,8 +3,6 @@
 2026-11-16. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
-- **Not yet:** 2, *Its person by name*: a brief names a person requester by number alone [in flight: change 4297].
-- **Not yet:** 2, *Its person by name*: the stock charters say nothing of the name and write none [in flight: change 4298].
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
