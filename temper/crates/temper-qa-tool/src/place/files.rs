@@ -10,6 +10,8 @@ pub(super) fn copy(lines: &[String], source: &Path, destination: &Path) -> Resul
             (tail, 2)
         } else if let Some(tail) = line.strip_prefix("forge push forgejo ") {
             (tail, 3)
+        } else if let Some(tail) = line.strip_prefix("deployment patch ") {
+            (tail, 1)
         } else {
             continue;
         };

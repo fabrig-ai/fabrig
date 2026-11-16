@@ -22,7 +22,7 @@ pub fn build(ledger: &mut Ledger, name: &str, holds: &[u64], order: u64) {
     ledger.set_build_holds(name, holds.to_vec(), order).expect("holds");
 }
 pub fn start(ledger: &mut Ledger) -> PassStart {
-    ledger.start_pass("places/1", &["web".into()], "high", 4).expect("start")
+    ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("start")
 }
 pub fn finding(case: u64) -> FindingInput {
     FindingInput {
@@ -58,7 +58,7 @@ fn start_takes_newest_reached_unheld_build_and_all_compatible_cases() {
     queue(&mut ledger, "home", "web");
     queue(&mut ledger, "chat", "tui");
     let before = ledger.clone();
-    assert_eq!(ledger.start_pass("places/1", &["web".into()], "high", 4), None);
+    assert_eq!(ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4), None);
     assert_eq!(ledger, before);
     build(&mut ledger, "A", &[1], 5);
     build(&mut ledger, "B", &[1, 2, 3], 9);
@@ -76,7 +76,7 @@ fn start_takes_newest_reached_unheld_build_and_all_compatible_cases() {
     assert_eq!((ledger.cases[2].state, ledger.cases[2].pass), (CaseState::Queued, None));
     assert_eq!(ledger.sessions.last().expect("session").effort, "high");
     let before = ledger.clone();
-    assert!(ledger.start_pass("places/1", &["web".into()], "high", 5).is_none());
+    assert!(ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 5).is_none());
     assert_eq!(ledger, before);
     assert!(!ledger.deletable_builds().iter().any(|build| build.commit == "B"));
     assert!(ledger.mark_build_deleted("B", 5).is_err());
@@ -242,7 +242,7 @@ fn empty_sessions_block_twice_but_a_note_leaves_missing_outcomes_uncounted() {
     assert_eq!(ledger.cases[0].state, CaseState::Blocked);
     assert_eq!(ledger.cases[0].blocks, 2);
     assert_eq!(ledger.lines[1].words, "case 1 (work on web; landings 1) blocked twice: no browser");
-    assert!(ledger.start_pass("places/1", &["web".into()], "high", 10).is_none());
+    assert!(ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 10).is_none());
     ledger.mark_build_deleted("A", 10).expect("released and no queued case");
 }
 
@@ -261,7 +261,8 @@ fn failed_linked_cases_move_to_the_other_live_pass_for_its_resume() {
     assert_eq!(ledger.passes[1].state, PassState::Ended);
     ledger.file_request(first.pass, 1, Some(100), 13).expect("file");
     ledger.end_goal(100, 14).expect("goal end");
-    let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 15).expect("resume");
+    let resumed =
+        ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 15).expect("resume");
     assert_eq!(resumed.pass, first.pass);
     assert_eq!(ledger.cases[1].state, CaseState::Assigned);
     // Linked targets no longer open cannot keep a new failed case in a pass.
@@ -279,7 +280,7 @@ fn resumes_joined_and_queued_cases_on_newest_build_then_closes_or_hands_findings
     assert_eq!(ledger.passes[0].requests[0].findings, [1]);
     assert_eq!(ledger.passes[0].requests[0].recipes, ["recipe"]);
     let before = ledger.clone();
-    assert!(ledger.resume_pass("places/1", &["web".into()], "high", 8).is_none());
+    assert!(ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 8).is_none());
     assert_eq!(ledger, before);
     ledger.file_request(pass.pass, 1, Some(100), 8).expect("file");
     assert_eq!(ledger.findings[0].goals, [100]);
@@ -299,7 +300,8 @@ fn resumes_joined_and_queued_cases_on_newest_build_then_closes_or_hands_findings
     ledger.end_session(triage, Exit::Code(0), None, 12, "qa").expect("end");
     build(&mut ledger, "goal-landing", &[1, 2, 3, 4], 10);
     build(&mut ledger, "newer-than-landing", &[1, 2, 3, 4], 15);
-    let resumed = ledger.resume_pass("places/2", &["web".into()], "high", 13).expect("resume");
+    let resumed =
+        ledger.resume_pass("places/2", temper_qa_tool::Kind::Box, &["web".into()], "high", 13).expect("resume");
     assert_eq!(resumed.build, "newer-than-landing");
     assert_eq!(ledger.builds[0].held, None);
     assert_eq!(ledger.builds[2].held, Some(1));
@@ -338,7 +340,9 @@ fn resumes_joined_and_queued_cases_on_newest_build_then_closes_or_hands_findings
     ledger.end_goal(101, 17).expect("no landing");
     assert_eq!(ledger.passes[0].requests[1].ended, Some(17));
     assert_eq!(ledger.findings[0].goals, [100, 101]);
-    let resumed = ledger.resume_pass("places/2", &["web".into()], "high", 18).expect("resume ended goal");
+    let resumed = ledger
+        .resume_pass("places/2", temper_qa_tool::Kind::Box, &["web".into()], "high", 18)
+        .expect("resume ended goal");
     ledger.record_check(resumed.session, 1, "holds", "still there", 19).expect("check");
     ledger.end_pass_session(resumed.session, Exit::Code(0), None, 20, "qa", &[]).expect("end");
     assert_eq!(ledger.findings[0].state, FindingState::Handed);
@@ -369,7 +373,8 @@ fn unstarted_start_and_resume_undo_from_persisted_before_records() {
     ledger.end_goal(100, 9).expect("end goal");
     build(&mut ledger, "B", &[1, 2, 3], 9);
     let cases = ledger.cases.clone();
-    let resumed = ledger.resume_pass("places/2", &["web".into()], "high", 10).expect("resume");
+    let resumed =
+        ledger.resume_pass("places/2", temper_qa_tool::Kind::Box, &["web".into()], "high", 10).expect("resume");
     ledger = roundtrip(&ledger);
     ledger.end_pass_session(resumed.session, Exit::Unstarted, None, 11, "qa", &[]).expect("undo resume");
     assert_eq!(ledger.cases, cases);
@@ -396,7 +401,8 @@ fn q1_decodes_without_q3_and_all_q3_records_roundtrip() {
     let (mut ledger, pass) = waiting();
     ledger.file_request(pass.pass, 1, Some(100), 8).expect("file");
     ledger.end_goal(100, 9).expect("goal");
-    let resumed = ledger.resume_pass("places/2", &["web".into()], "high", 10).expect("resume");
+    let resumed =
+        ledger.resume_pass("places/2", temper_qa_tool::Kind::Box, &["web".into()], "high", 10).expect("resume");
     ledger.record_note(resumed.session, "a note", 11).expect("note");
     ledger.record_finding(resumed.session, &finding(1), &[], "product", 11).expect("linked");
     ledger.record_check(resumed.session, 1, "gone", "fixed", 12).expect("check");
@@ -428,4 +434,112 @@ fn q1_decodes_without_q3_and_all_q3_records_roundtrip() {
             "{pointer}"
         );
     }
+}
+
+/// Two ctl cases on the same page, separated only by setup kind.
+pub fn queue_kinds(ledger: &mut Ledger) {
+    landing(ledger, 1);
+    let session = ledger
+        .start_session(
+            1,
+            "low",
+            [
+                ("ctl".into(), vec!["task".into()]),
+                ("web".into(), vec!["work".into()]),
+                ("tui".into(), vec!["chat".into()]),
+            ]
+            .into(),
+            vec!["welcome".into(), "turn-landing".into()],
+            vec!["turn-landing".into()],
+            0,
+        )
+        .expect("triage");
+    let mut input = case();
+    input.surface = "ctl".into();
+    input.page = "task".into();
+    input.setup = "turn-landing".into();
+    ledger.add_case(session, &input, 1).expect("deployment case");
+    input.setup = "welcome".into();
+    ledger.add_case(session, &input, 1).expect("box case");
+    ledger.end_session(session, Exit::Code(0), None, 2, "qa").expect("triaged");
+}
+
+#[test]
+fn cases_merge_roundtrip_and_take_places_of_their_kind_alone() {
+    use temper_qa_tool::Kind;
+    let mut ledger = Ledger::default();
+    queue_kinds(&mut ledger);
+    assert_eq!(ledger.cases.len(), 2, "the same page does not merge across kinds");
+    assert_eq!(ledger.cases[0].kind, Kind::Deployment);
+    assert_eq!(ledger.cases[1].kind, Kind::Box);
+    build(&mut ledger, "A", &[1], 1);
+    build(&mut ledger, "B", &[1], 2);
+    let deployment =
+        ledger.start_pass("deployment", Kind::Deployment, &["ctl".into()], "high", 4).expect("deployment pass");
+    assert_eq!(ledger.passes[0].cases, [1]);
+    assert_eq!(ledger.cases[1].state, CaseState::Queued);
+    let box_pass = ledger.start_pass("box", Kind::Box, &["ctl".into()], "high", 4).expect("box pass");
+    assert_eq!(ledger.passes[1].cases, [2]);
+    assert_eq!(ledger.passes[0].kind, Kind::Deployment);
+    assert_ne!(deployment.pass, box_pass.pass);
+    assert_eq!(roundtrip(&ledger), ledger);
+    let doc = ledger.document();
+    assert_eq!(doc["cases"][0]["kind"], "deployment");
+    assert!(doc["cases"][1].get("kind").is_none(), "box kind is omitted");
+    assert_eq!(doc["passes"][0]["kind"], "deployment");
+    assert!(doc["passes"][1].get("kind").is_none());
+    assert_eq!(doc["sessions"][0]["deployments"], serde_json::json!(["turn-landing"]));
+    assert!(doc["sessions"][1].get("deployments").is_none());
+    let mut old = doc;
+    old["cases"][0].as_object_mut().expect("case").remove("kind");
+    old["passes"][0].as_object_mut().expect("pass").remove("kind");
+    old["sessions"][0].as_object_mut().expect("session").remove("deployments");
+    let old = Ledger::decode(&serde_json::to_vec(&old).expect("JSON")).expect("older ledger");
+    assert_eq!(old.cases[0].kind, Kind::Box);
+    assert_eq!(old.passes[0].kind, Kind::Box);
+    assert_eq!(old.sessions[0].deployments.len(), 0);
+}
+
+#[test]
+fn deployment_setups_refuse_web_and_tui_cases_before_recording() {
+    let mut ledger = Ledger::default();
+    landing(&mut ledger, 1);
+    let session = ledger
+        .start_session(1, "low", super::pages(), vec!["turn-landing".into()], vec!["turn-landing".into()], 0)
+        .expect("triage");
+    let mut input = case();
+    input.setup = "turn-landing".into();
+    for (surface, page) in [("web", "work"), ("tui", "chat")] {
+        input.surface = surface.into();
+        input.page = page.into();
+        let before = ledger.clone();
+        assert_eq!(
+            ledger.add_case(session, &input, 1).expect_err("ctl alone").to_string(),
+            "case refused: setup turn-landing is a deployment's, which takes ctl cases alone"
+        );
+        assert_eq!(ledger, before);
+    }
+}
+
+#[test]
+fn waiting_passes_resume_only_at_their_kind_and_take_only_that_kinds_cases() {
+    use temper_qa_tool::Kind;
+    let mut ledger = Ledger::default();
+    queue_kinds(&mut ledger);
+    build(&mut ledger, "A", &[1], 1);
+    let pass = ledger.start_pass("deployment", Kind::Deployment, &["ctl".into()], "high", 4).expect("pass");
+    let mut input = finding(1);
+    input.setup = "turn-landing".into();
+    ledger.record_finding(pass.session, &input, &["turn-landing".into()], "product", 5).expect("finding");
+    ledger.record_outcome(pass.session, 1, "failed", "failed", &[1], 6).expect("outcome");
+    ledger.end_pass_session(pass.session, Exit::Code(0), None, 7, "qa", &[]).expect("waiting");
+    ledger.file_request(pass.pass, 1, Some(42), 8).expect("filed");
+    ledger.end_goal(42, 9).expect("ended without landing");
+    let before = ledger.clone();
+    assert!(ledger.resume_pass("box", Kind::Box, &["ctl".into()], "high", 10).is_none());
+    assert_eq!(ledger, before);
+    let resumed = ledger.resume_pass("deployment-2", Kind::Deployment, &["ctl".into()], "high", 10).expect("resume");
+    assert_eq!(resumed.pass, pass.pass);
+    assert_eq!(ledger.passes[0].cases, [1]);
+    assert_eq!(ledger.cases[1].state, CaseState::Queued);
 }

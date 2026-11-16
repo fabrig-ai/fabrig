@@ -66,7 +66,7 @@ fn pass(home: &temper_qa_tool::Home) {
         ledger.end_session(1, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build("build", 3)?;
         ledger.set_build_holds("build", vec![1], 1)?;
-        ledger.start_pass("places/1", &["web".into()], "high", 4).expect("pass");
+        ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("pass");
         Ok(())
     })
     .expect("assigned case");

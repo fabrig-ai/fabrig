@@ -69,7 +69,7 @@ fn default_surfaces_take_all_and_web_only_leaves_ctl_and_tui_queued() {
         super::passes::queue(&mut ledger, "chat", "tui");
         super::passes::queue(&mut ledger, "task", "ctl");
         super::passes::build(&mut ledger, "build", &[1, 2, 3], 2);
-        let pass = ledger.start_pass("places/1", &config.surfaces, "high", 3).expect("pass");
+        let pass = ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &config.surfaces, "high", 3).expect("pass");
         assert_eq!(ledger.passes[0].cases.len(), if surfaces.is_none() { 3 } else { 1 });
         assert_eq!(ledger.cases[1].pass, if surfaces.is_none() { Some(pass.pass) } else { None });
         assert_eq!(ledger.cases[2].pass, if surfaces.is_none() { Some(pass.pass) } else { None });
@@ -178,4 +178,36 @@ fn ctl_surfaces_areas_and_box_place_kinds_are_accepted() {
         .expect_err("unsupported kind")
         .to_string();
     assert!(why.contains("plain") && why.contains("unknown"), "{why}");
+}
+
+#[test]
+fn deployment_places_require_ports_and_keep_their_kind() {
+    use temper_qa_tool::Kind;
+    let mut value = configuration();
+    value["places"] = json!([{"directory":"places/2", "kind":"deployment", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
+    let config =
+        Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa")).expect("deployment place");
+    assert_eq!(config.place_kind("places/2"), Kind::Deployment);
+    assert_eq!(config.ports["places/2"], "31001,31002,31003,31004,31005,31006,31007,31008,31009");
+    value["places"][0].as_object_mut().expect("place").remove("ports");
+    assert_eq!(
+        Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa"))
+            .expect_err("ports required")
+            .to_string(),
+        "qa.json: place places/2 is a deployment's and names no ports"
+    );
+    value["places"][0]["kind"] = json!("box");
+    assert_eq!(
+        Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa"))
+            .expect("box")
+            .place_kind("places/2"),
+        Kind::Box
+    );
+    value["places"][0].as_object_mut().expect("place").remove("kind");
+    assert_eq!(
+        Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa"))
+            .expect("default")
+            .place_kind("places/2"),
+        Kind::Box
+    );
 }

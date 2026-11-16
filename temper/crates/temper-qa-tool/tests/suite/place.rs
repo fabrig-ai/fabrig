@@ -123,21 +123,31 @@ impl World {
         Self::with_ports(false)
     }
     fn with_ports(fixed: bool) -> Self {
+        Self::with_kind(fixed, temper_qa_tool::Kind::Box)
+    }
+    fn with_kind(fixed: bool, kind: temper_qa_tool::Kind) -> Self {
         let scratch = Scratch::new("qa-place");
         let mut config = serde_json::json!({"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["unused"]}});
         if fixed {
             config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
         }
+        if kind == temper_qa_tool::Kind::Deployment {
+            config["places"][0]["kind"] = serde_json::json!("deployment");
+        }
         fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("configuration");
         let home = Home::open(scratch.path()).expect("home");
         let started = home
             .transact(|ledger| {
-                super::passes::queue(ledger, "work", "web");
-                super::passes::queue(ledger, "home", "web");
+                if kind == temper_qa_tool::Kind::Box {
+                    super::passes::queue(ledger, "work", "web");
+                    super::passes::queue(ledger, "home", "web");
+                } else {
+                    super::passes::queue_kinds(ledger);
+                }
                 super::passes::build(ledger, OLD, &[1], 1);
-                super::passes::build(ledger, BUILD, &[1, 2], 2);
+                super::passes::build(ledger, BUILD, if kind == temper_qa_tool::Kind::Box { &[1, 2] } else { &[1] }, 2);
                 ledger.mark_build_deleted(OLD, 3)?;
-                Ok(super::passes::start(ledger))
+                Ok(ledger.start_pass("places/1", kind, &["ctl".into(), "web".into()], "high", 4).expect("pass"))
             })
             .expect("pass through ledger operations");
         let environment = vec![
@@ -174,7 +184,9 @@ impl World {
         }
         fs::write(place.paths.directory.join("catalogue"), CATALOGUE).expect("catalogue");
         let tool = place.paths.bin.join("temper-client-journeys");
-        fs::write(&tool, TOOL).expect("fake build");
+        let tool_text =
+            if kind == temper_qa_tool::Kind::Deployment { TOOL.replace("box", "deployment") } else { TOOL.into() };
+        fs::write(&tool, tool_text).expect("fake build");
         fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).expect("executable");
         Self { _scratch: scratch, home, session: started.session, place }
     }
@@ -808,7 +820,7 @@ fn recipe_input_and_names_reject_paths_and_multiline_records() {
                 .contains("invalid recipe name")
         );
     }
-    let paths = PlacePaths::new(&world.place.paths.directory);
+    let paths = PlacePaths::new(&world.place.paths.directory, temper_qa_tool::Kind::Box);
     assert_eq!(paths.scratch, world.place.paths.directory.join("box"));
 }
 
@@ -867,4 +879,93 @@ fn a_new_recipe_copies_push_files_and_keeps_the_push_line() {
     assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
     assert_eq!(fs::read(world.place.setups.join("added/files/a.txt")).expect("kept file"), b"pushed");
     assert!(fs::read_to_string(world.place.setups.join("added/recipe")).expect("recipe").contains(&input.lines[0]));
+}
+
+fn deployment_world() -> World {
+    let world = World::with_kind(true, temper_qa_tool::Kind::Deployment);
+    fs::create_dir_all(world.place.setups.join("welcome/config")).expect("root config");
+    let tool = world.place.paths.bin.join("temper-client-journeys");
+    let text = fs::read_to_string(&tool).expect("fake").replace("mkdir -p deployment/config deployment/data", "mkdir -p deployment/config deployment/data\n    if test \"$from\" = fresh; then printf 'saved config' > deployment/config/receipt; else test \"$(cat deployment/config/receipt)\" = 'saved config'; fi");
+    fs::write(tool, text).expect("config-checking fake");
+    world
+}
+
+#[test]
+fn deployment_walks_save_and_restore_their_private_scratch_without_bundle() {
+    if under_umasks("place::deployment_walks_save_and_restore_their_private_scratch_without_bundle", &["022", "000"]) {
+        return;
+    }
+    let mut world = deployment_world();
+    let paths = world.place.paths.clone();
+    assert_eq!(paths.scratch, paths.directory.join("deployment"));
+    assert!(!paths.directory.join("box").exists());
+    assert_mode(&paths.scratch, 0o700);
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2);
+    assert_eq!(
+        world.walks()[0],
+        format!(
+            "recipe walk welcome --bin {} --scratch {} --setups {} --strict --ports 31001,31002,31003,31004,31005,31006,31007,31008,31009",
+            paths.bin.display(),
+            paths.scratch.display(),
+            world.place.setups.display()
+        )
+    );
+    // Save the next state with both data and the configuration receipt.
+    assert_eq!(world.setup("chat-draft").0, 0);
+    fs::write(paths.scratch.join("data/state"), "changed").expect("changed state");
+    fs::write(paths.scratch.join("config/receipt"), "changed").expect("changed config");
+    assert_eq!(world.setup("chat-draft").0, 0);
+    assert_eq!(fs::read_to_string(paths.scratch.join("config/receipt")).expect("restored config"), "saved config");
+    assert_eq!(fs::read_to_string(paths.scratch.join("data/state")).expect("checked state"), "chat-draft\n");
+    assert_eq!(world.place.archive.saved.len(), 3, "checking a copy does not replace it");
+}
+
+#[test]
+fn setups_refuse_fresh_and_chains_of_the_other_places_kind_before_walking() {
+    let mut deployment = deployment_world();
+    let before = deployment.walks();
+    assert_eq!(
+        deployment.place.setup("fresh", &mut Vec::new()).expect_err("no fresh").to_string(),
+        "a deployment's place has no fresh setup: its setups start from their root's config/"
+    );
+    fs::remove_dir(deployment.place.setups.join("welcome/config")).expect("box root");
+    assert_eq!(
+        deployment.place.setup("chat-draft", &mut Vec::new()).expect_err("box chain").to_string(),
+        "setup chat-draft is a box's; places/1 is a deployment's place"
+    );
+    assert_eq!(deployment.walks(), before);
+    let mut boxed = World::new();
+    fs::create_dir(boxed.place.setups.join("welcome/config")).expect("deployment root");
+    assert_eq!(
+        boxed.place.setup("chat-draft", &mut Vec::new()).expect_err("deployment chain").to_string(),
+        "setup chat-draft is a deployment's; places/1 is a box's place"
+    );
+    assert_eq!(boxed.walks().len(), 0);
+}
+
+#[test]
+fn deployment_recipes_copy_patch_files_and_inherit_the_parents_kind_without_config() {
+    let mut world = deployment_world();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(files.join("patches")).expect("patch directory");
+    fs::write(files.join("patches/engine.json"), b"{\"application\":{}}").expect("patch");
+    let input = RecipeInput::decode(br#"{"after":"welcome","lines":["deployment patch engine \"patches/engine.json\"","check","ctl task list"],"readme":"A patched deployment."}"#).expect("recipe input");
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
+    let added = world.place.setups.join("added");
+    assert_eq!(fs::read(added.join("files/patches/engine.json")).expect("recipe patch"), b"{\"application\":{}}");
+    assert!(!added.join("config").exists());
+    assert!(
+        fs::read_to_string(added.join("recipe"))
+            .expect("recipe")
+            .starts_with("recipe 1\nafter \"welcome\"\ndeployment patch engine")
+    );
+    fs::write(world.place.paths.directory.join("catalogue"), format!("{CATALOGUE}added (after welcome): Patched.\n"))
+        .expect("catalogue");
+    assert_eq!(world.setup("added").0, 0, "the new recipe is a deployment's through its root");
+    let missing = RecipeInput { lines: vec!["deployment patch agent missing.json".into()], ..input };
+    let why = world.place.recipe("added", &missing, &[], &mut Vec::new()).expect_err("missing patch").to_string();
+    assert!(why.contains("missing.json"), "{why}");
+    assert!(!added.exists(), "a refused recipe leaves nothing");
 }
