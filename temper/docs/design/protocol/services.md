@@ -353,9 +353,18 @@ and their tests.
   `shutdown`, `notes`, `end`, `is_empty` and `operations`. Its start
   refuses any other shape as `binaries.md`, 5 says.
 - **Its vocabulary:** its own `End`, `Stop` and `Note` (`WorkerJob`,
-  `Linked`, `Lost`, `Refused`), its loss and refusal reasons, and a job's
-  ending of its own, in jig's host's words, where it builds the engine's
-  `JobDiagnosticEnding` today; the line printed for it is unchanged.
+  `Linked`, `Lost`, `Refused`, `Cancelling`), its loss and refusal
+  reasons, and a job's ending of its own, in jig's host's words, where it
+  builds the engine's `JobDiagnosticEnding` today; the line printed for
+  it is unchanged.
+- **A cancel noted:** `Note::Cancelling { run: u64, attempt: u64 }` is
+  taken once for each cancel the engine sends down the link for a run's
+  attempt (jig's host's `LinkDown::Cancel`), in the iteration the worker
+  hands it to its host, whether or not the host still holds that
+  attempt. Wherever the worker's notes are printed, its line is
+  `<binary> worker: run <run> attempt <attempt> cancelled by the
+  engine`. It is how a real-loop world tells which work a cancel's kill
+  ended (`../testing/real-loop.md`).
 - **Its settings and limits:** `settings::Worker` and `Agent`, smith's
   host profile, which gives the agent's declaration (3); the worker's
   aggregate on the core's shared parts and the peer envelope, never
