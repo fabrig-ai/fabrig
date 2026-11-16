@@ -331,6 +331,26 @@ pub struct Schema {
 }
 
 impl Schema {
+    /// Immutable tables retain their items, not the grammar's growth slack.
+    fn fitted(self) -> Self {
+        Self {
+            declarations: List::from_boxed(self.declarations.into_boxed()),
+            fields: List::from_boxed(self.fields.into_boxed()),
+            variants: List::from_boxed(self.variants.into_boxed()),
+            types: List::from_boxed(self.types.into_boxed()),
+            minimum: List::from_boxed(self.minimum.into_boxed()),
+            maximum: List::from_boxed(self.maximum.into_boxed()),
+            former: List::from_boxed(self.former.into_boxed()),
+            declaration_former: List::from_boxed(self.declaration_former.into_boxed()),
+            field_former: List::from_boxed(self.field_former.into_boxed()),
+            variant_former: List::from_boxed(self.variant_former.into_boxed()),
+            defaults: List::from_boxed(self.defaults.into_boxed()),
+            encodings: List::from_boxed(self.encodings.into_boxed()),
+            pool: List::from_boxed(self.pool.into_boxed()),
+            ..self
+        }
+    }
+
     /// The schema's copied text.
     #[must_use]
     pub fn text(&self) -> &[u8] {
@@ -483,7 +503,7 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     let mut parsed = parser.parse()?;
     layout::check(&mut parsed)?;
     metadata::check(&mut parsed.schema)?;
-    Ok(parsed.schema)
+    Ok(parsed.schema.fitted())
 }
 
 /// Bounds schema parse workspace and tables.
