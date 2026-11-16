@@ -348,7 +348,18 @@ def binary_environment(env, cargo, suite, package, build, profile, host_libdir):
     return result
 
 
-def make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings):
+def place(binary_id, manifest_path, workspace_root, table):
+    """Place one binary by the ordered rules in tools/tiers/budgets.md, 3."""
+    relative = Path(manifest_path).relative_to(workspace_root)
+    tree = relative.parts[0]
+    if tree not in ('skein', 'smith', 'jig', 'temper', 'hearth'):
+        return 'repository', 'checks'
+    if '::' not in binary_id or '::bin/' in binary_id or binary_id.endswith('::generated'):
+        return tree, 'step'
+    return tree, table.get(tree, {}).get(binary_id) if table is not None else None
+
+
+def make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings, table):
     build = listing['rust-build-meta']
     target = Path(build['target-directory'])
     times_path = target / 'tiers-one-process/times.json'
@@ -389,9 +400,11 @@ def make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
                 wall = None
             tests.append(dict(name=name, priority=applied.get('priority', 0), group=group, kept_s=wall))
         if tests:
-            binaries.append(dict(binary_id=binary_id, path=suite['binary-path'], cwd=suite['cwd'], tests=tests,
+            tree, layer = place(binary_id, package['manifest_path'], metadata['workspace_root'], table)
+            binaries.append(dict(binary_id=binary_id, tree=tree, layer=layer,
+                                 path=suite['binary-path'], cwd=suite['cwd'], tests=tests,
                                  env=binary_environment(binary_env, cargo, suite, package, build, profile, host_libdir)))
-    return dict(profile=profile, binaries=binaries, groups=groups,
+    return dict(profile=profile, binaries=binaries, groups=groups, layers=table['layers'] if table is not None else [],
                 global_timeout=duration(settings.get('global-timeout')), lanes=LANES,
                 term_grace_s=TERM_GRACE_S, wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S,
                 times_path=str(times_path))
@@ -608,6 +621,7 @@ class BinaryProcess:
             self.close(fd, selector)
         self.log_directory.cleanup()
         record = dict(binary_id=self.job['binary']['binary_id'], kind=self.job['kind'], tests=announced,
+                      tree=self.job['binary']['tree'], layer=self.job['binary']['layer'],
                       user_s=self.usage.ru_utime, system_s=self.usage.ru_stime,
                       wall_s=self.reaped_at - self.start, start_s=self.start,
                       exit_code=code if code >= 0 else None, signal=-code if code < 0 else None, leaked=leaked)
@@ -728,7 +742,8 @@ def write_junit(directory, results):
     ET.ElementTree(root).write(directory / 'junit.xml', encoding='utf-8', xml_declaration=True)
 
 
-def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):
+def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
+        layers=Path('tools/tiers/layers.toml')):
     """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
     directory = Path(directory).resolve()
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
@@ -737,6 +752,14 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     settings, overrides, default_filter, groups = configuration(config, profile, env, limits, caller_filter)
     if walls is not None:
         settings['global-timeout'] = profile_wall(walls, profile)
+    try:
+        with Path(layers).open('rb') as source:
+            table = tomllib.load(source)
+    except FileNotFoundError:
+        table = None
+    if table is not None and (not isinstance(table.get('layers'), list)
+                              or any(not isinstance(layer, str) for layer in table['layers'])):
+        raise ValueError('layers: expected a list of strings')
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
     output = bytearray()
@@ -764,7 +787,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     listing = json_listing(listing_output.decode('utf-8', 'backslashreplace'))
     metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
                                                 env=env, stdin=subprocess.DEVNULL, text=True))
-    plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings)
+    plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings, table)
     execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output)
 
 
@@ -783,7 +806,7 @@ def again_plan(run_directory, binary_id, names):
         if name not in selected:
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
-                lanes=1, single_process=True, alone_diagnostics=False)
+                lanes=1, single_process=True, alone_diagnostics=False, layers=[])
 
 
 def again(plan, prefix, env, directory):
@@ -818,7 +841,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     save(directory / 'plan.json', plan)
     selected = sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None,
-                   processes=[], tests=[], unobserved=[])
+                   processes=[], tests=[], unobserved=[], layers=plan['layers'])
     tests = {}
     starts, active = {}, set()
     lane_count = plan['lanes'] or len(os.sched_getaffinity(0))

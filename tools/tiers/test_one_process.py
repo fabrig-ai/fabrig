@@ -124,10 +124,10 @@ class RunnerFixture(unittest.TestCase):
         (self.root / 'listing.json').write_text(json.dumps(self.listing) + '\n')
         (self.root / 'metadata.json').write_text(json.dumps(self.metadata) + '\n')
 
-    def invoke(self, limits=None):
+    def invoke(self, limits=None, **kwargs):
         self.prepare()
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.run(self.command, self.env, self.directory, 'default', limits or {}, self.config)
+        with contextlib.chdir(self.root), contextlib.redirect_stdout(io.StringIO()):
+            self.run(self.command, self.env, self.directory, 'default', limits or {}, self.config, **kwargs)
         self.results = json.loads((self.directory / 'results.json').read_text())
         self.record = json.loads((self.directory / 'run.json').read_text())
         return self.results
@@ -142,6 +142,81 @@ class RunnerFixture(unittest.TestCase):
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, previous)
+
+
+class PlacementTests(RunnerFixture):
+    def placement_binaries(self, rows):
+        self.listing['rust-suites'].clear()
+        original = self.metadata['packages'][0]
+        packages = {}
+        for binary_id, manifest, kind, _, _ in rows:
+            package_id = binary_id.split('::')[0]
+            packages[package_id] = dict(original, id=package_id, name=package_id,
+                                        manifest_path=str(self.root / manifest))
+            self.binary(binary_id, names=('a',))
+            self.listing['rust-suites'][binary_id].update({'package-id': package_id, 'kind': kind})
+        self.metadata['packages'] = list(packages.values())
+
+    def assert_placements(self, result, rows):
+        expected = {binary_id: (tree, layer) for binary_id, _, _, tree, layer in rows}
+        plan = json.loads((self.directory / 'plan.json').read_text())
+        for records in (plan['binaries'], result['processes']):
+            self.assertEqual({b['binary_id']: (b['tree'], b['layer']) for b in records}, expected)
+        self.assertEqual([t['outcome'] for t in result['tests']], ['passed'] * len(rows))
+
+    def test_layers_place_binaries_by_tree_and_ordered_rules(self):
+        rows = [
+            ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'domain'),
+            ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
+            ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
+            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
+            ('a::unplaced', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
+            ('b::suite', 'skein/tests/b/Cargo.toml', 'test', 'skein', 'protocol'),
+            ('c::suite', 'smith/tests/c/Cargo.toml', 'test', 'smith', 'world'),
+            ('d::suite', 'jig/tests/d/Cargo.toml', 'test', 'jig', 'machine'),
+            ('e::suite', 'hearth/tests/e/Cargo.toml', 'test', 'hearth', 'domain'),
+            ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
+            ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
+            ('x::bin/x', 'tests/x/Cargo.toml', 'bin', 'repository', 'checks'),
+            ('x::generated', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
+        ]
+        self.placement_binaries(rows)
+        layers = self.root / 'tools/tiers/layers.toml'
+        layers.parent.mkdir(parents=True)
+        layers.write_text('layers = ["step", "domain", "protocol", "world", "machine"]\n'
+                          '[temper]\n"a::suite" = "domain"\n'
+                          '"a" = "world"\n"a::bin/a" = "world"\n"a::generated" = "world"\n'
+                          '[skein]\n"b::suite" = "protocol"\n'
+                          '[smith]\n"c::suite" = "world"\n'
+                          '[jig]\n"d::suite" = "machine"\n'
+                          '[hearth]\n"e::suite" = "domain"\n')
+        result = self.invoke()
+        self.assert_placements(result, rows)
+        self.assertEqual(result['layers'], ['step', 'domain', 'protocol', 'world', 'machine'])
+
+    def test_absent_layers_still_places_rule_binaries(self):
+        rows = [
+            ('a', 'temper/crates/a/Cargo.toml', 'lib', 'temper', 'step'),
+            ('a::bin/a', 'temper/crates/a/Cargo.toml', 'bin', 'temper', 'step'),
+            ('a::generated', 'temper/crates/a/Cargo.toml', 'test', 'temper', 'step'),
+            ('a::suite', 'temper/crates/a/Cargo.toml', 'test', 'temper', None),
+            ('x', 'tests/x/Cargo.toml', 'lib', 'repository', 'checks'),
+            ('x::t', 'tests/x/Cargo.toml', 'test', 'repository', 'checks'),
+        ]
+        self.placement_binaries(rows)
+        result = self.invoke()
+        self.assert_placements(result, rows)
+        self.assertEqual(result['layers'], [])
+
+    def test_invalid_layers_refuse_before_commands(self):
+        layers = self.root / 'custom-layers.toml'
+        for text in ('not toml', '', 'layers = "step"', 'layers = ["step", 1]', 'layers = {}'):
+            with self.subTest(text=text):
+                layers.write_text(text)
+                with self.assertRaises(ValueError):
+                    self.invoke(layers=layers)
+                self.assertFalse((self.root / 'cargo-argv.jsonl').exists())
+                self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
 
 
 class EndToEndTests(RunnerFixture):
@@ -290,6 +365,8 @@ class AgainTests(RunnerFixture):
         # A process-of-its-own group must not split an explicitly requested process.
         path = self.directory / 'plan.json'
         plan = json.loads(path.read_text())
+        plan['layers'] = ['step', 'domain']
+        plan['binaries'][0].update(tree='temper', layer='domain')
         plan['groups']['process-of-its-own'] = 1
         plan['binaries'][0]['tests'][0]['group'] = 'process-of-its-own'
         path.write_text(json.dumps(plan))
@@ -302,6 +379,9 @@ class AgainTests(RunnerFixture):
                           ('fixture::suite', 'c_reads', 'passed')])
         self.assertEqual(len(results['processes']), 1)
         self.assertEqual(results['processes'][0]['tests'], ['a_passes', 'c_reads'])
+        self.assertEqual((results['processes'][0]['tree'], results['processes'][0]['layer']),
+                         ('temper', 'domain'))
+        self.assertEqual(results['layers'], [])
         self.assertEqual(results['unobserved'], [])
         self.assertEqual({p.name for p in self.again_directory.iterdir()},
                          {'plan.json', 'run.json', 'results.json', 'junit.xml', 'command-output.txt'})
@@ -309,7 +389,7 @@ class AgainTests(RunnerFixture):
         self.assertEqual((record['mode'], record['lanes'], record['finished']), ('one-process', 1, True))
         again_plan = json.loads((self.again_directory / 'plan.json').read_text())
         self.assertEqual(again_plan['global_timeout'], plan['global_timeout'])
-        for key in ('path', 'cwd', 'env', 'tests'):
+        for key in ('path', 'cwd', 'env', 'tests', 'tree', 'layer'):
             expected = plan['binaries'][0][key]
             if key == 'tests':
                 expected = [t for t in expected if t['name'] != 'b_fails']
@@ -545,7 +625,14 @@ class RunnerTests(RunnerFixture):
 
     def test_crash_fresh_and_before_first(self):
         self.env['FIXTURE_CASE'] = 'crash'
-        result = self.invoke()
+        self.metadata['packages'][0]['manifest_path'] = str(self.root / 'temper/crates/fixture/Cargo.toml')
+        layers = self.root / 'custom-layers.toml'
+        layers.write_text('layers = ["step", "domain"]\n[temper]\n"fixture::suite" = "domain"\n')
+        result = self.invoke(layers=Path('custom-layers.toml'))
+        self.assertEqual(result['layers'], ['step', 'domain'])
+        self.assertEqual({p['kind']: (p['tree'], p['layer']) for p in result['processes']},
+                         {'tests': ('temper', 'domain'), 'fresh': ('temper', 'domain'),
+                          'alone': ('temper', 'domain')})
         tests = {t['test_name']: t for t in result['tests']}
         self.assertEqual(tests['b']['outcome'], 'crashed')
         self.assertIn('crash output', tests['b']['output'])
