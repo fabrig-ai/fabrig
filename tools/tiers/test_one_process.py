@@ -291,6 +291,138 @@ class WorkspaceTests(RunnerFixture):
         self.assertEqual(result['processes'], [])
 
 
+class ReferenceTests(RunnerFixture):
+    """New and flagged tests measured after the suite (references.md, 3 and 4)."""
+
+    def test_flag_rule(self):
+        for wall, median, flagged in ((0.130, 0.060, True), (0.110, 0.060, False),
+                                      (0.060, 0.020, False)):
+            with self.subTest(wall=wall, median=median):
+                tests = [dict(binary_id='fixture', test_name='test', outcome='passed', wall_s=wall)]
+                ledger = dict(binaries={'fixture': dict(tests={'test': [median + 1, median, 0]})})
+                self.assertEqual(self.module['pick_references'](tests, ledger),
+                                 [('fixture', 'test', 'flagged')] if flagged else [])
+
+    def test_picks_processes_and_suite_records(self):
+        self.env['FIXTURE_CASE'] = 'slow'
+        self.binary('fixture::failure', names=('b_fails',), native='again')
+        self.binary('fixture::early', names=('d',))
+        ledger = dict(binaries={'fixture::suite': dict(tests={'b': [0.0], 'c': [0.080]})})
+        self.config.write_text('[test-groups.serial]\nmax-threads=1\n[profile.default]\n'
+                               '[[profile.default.overrides]]\nfilter="test(=b)"\ntest-group="serial"\n')
+        results = self.invoke(ledger=ledger)
+        self.assertEqual([(r['binary_id'], r['test_name'], r['why']) for r in results['references']],
+                         [('fixture::early', 'd', 'new'), ('fixture::suite', 'a', 'new'),
+                          ('fixture::suite', 'b', 'flagged')])
+        suite = [p for p in results['processes'] if p['kind'] == 'tests']
+        refs = [p for p in results['processes'] if p['kind'] == 'reference']
+        empties = [p for p in results['processes'] if p['kind'] == 'empty']
+        self.assertEqual([p['tests'] for p in refs], [['d'], ['a'], ['b']])
+        self.assertEqual(len(empties), 2)
+        for empty in empties:
+            self.assertEqual((empty['tests'], empty['exit_code'], empty['leaked']), ([], 0, False))
+        self.assertGreaterEqual(min(p['start_s'] for p in refs + empties),
+                                max(p['start_s'] + p['wall_s'] for p in suite))
+        for row in results['references']:
+            reference, empty = (results['processes'][row[key]] for key in ('process', 'empty_process'))
+            self.assertEqual(row['outcome'], 'passed')
+            self.assertEqual(row['cpu_s'], round(max(0, reference['user_s'] + reference['system_s']
+                                                   - empty['user_s'] - empty['system_s']), 3))
+            self.assertIn(f"REFERENCE {row['binary_id']} {row['test_name']}:",
+                          (self.directory / 'command-output.txt').read_text())
+        plan = json.loads((self.directory / 'plan.json').read_text())
+        self.assertNotIn('reference_picks', plan)
+        phase = json.loads((self.directory / 'references-plan.json').read_text())
+        jobs = self.module['split_jobs'](phase, 1)
+        self.assertEqual([j['tests'][0]['group'] for j in jobs], [None, None, None, None, 'serial'])
+        self.assertEqual({j['tests'][0]['name'] for j in jobs if j['kind'] == 'empty'},
+                         {'tiers-one-process: no test'})
+        cases = ET.parse(self.directory / 'junit.xml').findall('.//testcase')
+        self.assertEqual(len(cases), 5)
+        times = json.loads((self.root / 'target/tiers-one-process/times.json').read_text())['default']
+        self.assertEqual(times, {binary: {t['test_name']: t['wall_s'] for t in results['tests']
+                                        if t['binary_id'] == binary} for binary in times})
+        self.assertAlmostEqual(self.record['wall_s'],
+                               max(p['start_s'] + p['wall_s'] for p in results['processes'])
+                               - min(p['start_s'] for p in suite))
+
+    def test_reference_failure_is_not_a_suite_failure(self):
+        self.binary(names=('a_passes', 'c_reads'), native='again')
+        results = self.invoke(ledger=dict(binaries={}))
+        self.assertEqual([t['outcome'] for t in results['tests']], ['passed', 'passed'])
+        self.assertEqual([(r['test_name'], r['outcome']) for r in results['references']],
+                         [('a_passes', 'passed'), ('c_reads', 'failed')])
+        self.assertIsNone(results['references'][1]['cpu_s'])
+        self.assertEqual([p['kind'] for p in results['processes']],
+                         ['tests', 'reference', 'empty', 'reference'])
+        self.assertIsNone(ET.parse(self.directory / 'junit.xml').find('.//failure'))
+        self.assertEqual(self.module['CPU']['summary'](self.directory)['failures'], [])
+
+    def test_no_references_without_ledger_or_in_again(self):
+        results = self.invoke()
+        self.assertEqual(results['references'], [])
+        self.assertEqual([p['kind'] for p in results['processes']], ['tests'])
+        plan = self.module['again_plan'](self.directory, 'fixture::suite', ['a'])
+        again = self.root / 'again'
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.module['again'](plan, [], self.env, again), 0)
+        results = json.loads((again / 'results.json').read_text())
+        self.assertEqual(results['references'], [])
+        self.assertEqual([p['kind'] for p in results['processes']], ['tests'])
+
+    def test_cancelled_suite_runs_no_references(self):
+        self.env['FIXTURE_CASE'] = 'hang'
+        self.config.write_text('[profile.default]\nglobal-timeout="1s"\n')
+        results = self.invoke(ledger=dict(binaries={}))
+        self.assertEqual(results['cancelled'], 'global-timeout')
+        self.assertEqual(results['tests'][0]['outcome'], 'passed')
+        self.assertEqual(results['references'], [])
+        self.assertEqual([p['kind'] for p in results['processes']], ['tests'])
+
+    def test_reference_phase_runs_without_suite_and_crashes_once(self):
+        self.env['FIXTURE_CASE'] = 'crash'
+        self.invoke()
+        plan = json.loads((self.directory / 'plan.json').read_text())
+        for native, announced in (('tests', ['b']), ('before', [])):
+            with self.subTest(native=native):
+                plan['binaries'][0]['path'] = str(NATIVE / native)
+                phase = self.module['reference_plan'](plan, [('fixture::suite', 'b', 'base')])
+                alone = self.root / f'references-{native}'
+                alone.mkdir()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    results = self.module['execute_plan'](phase, [], self.env, alone, {})
+                self.assertEqual([(p['kind'], p['tests']) for p in results['processes']],
+                                 [('reference', announced), ('empty', [])])
+                self.assertEqual(results['references'][0]['outcome'], 'crashed')
+                self.assertEqual(results['references'][0]['process'], 0)
+                self.assertIsNone(results['references'][0]['cpu_s'])
+                self.assertEqual((results['selected'], results['tests'], results['unobserved']), (0, [], []))
+
+    def test_reference_bounds_start_with_suite(self):
+        for hard in (False, True):
+            with self.subTest(hard=hard):
+                self.directory = self.root / str(hard)
+                self.env['FIXTURE_CASE'] = 'slow'
+                self.config.write_text('[profile.default]\nglobal-timeout="60s"\n')
+                self.prepare()
+                # Supply a subsecond bound directly: the config's duration syntax is integral.
+                execute = self.module['execute_plan']
+                original = execute.__globals__['make_plan']
+                def bounded(*args):
+                    plan = original(*args)
+                    plan['global_timeout'] = None if hard else 0.35
+                    return plan
+                with mock.patch.dict(execute.__globals__, make_plan=bounded):
+                    results = self.invoke({'default': {'wall_hard_s': 0.35}} if hard else {},
+                                          ledger=dict(binaries={}))
+                self.assertEqual(results['cancelled'], 'wall-hard' if hard else 'global-timeout')
+                self.assertTrue(self.record['starved'])
+                self.assertEqual([t['outcome'] for t in results['tests']], ['passed'] * 3)
+                self.assertTrue(results['references'])
+                self.assertTrue(any(r['cpu_s'] is None for r in results['references']))
+                self.assertLess(self.record['wall_s'], 0.7)
+
+
 class EndToEndTests(RunnerFixture):
     def test_execute_outcomes(self):
         cpu = runpy.run_path(str(HERE / 'cpu.py'))

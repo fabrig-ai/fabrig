@@ -138,6 +138,20 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(cli.returncode, 0, cli.stderr)
         self.assertEqual(json.loads(cli.stdout), result)
 
+    def test_references_are_outside_every_cpu_sum(self):
+        self.results['processes'].extend([
+            self.process(['z'], kind='reference', user_s=20),
+            self.process([], kind='empty', user_s=10)])
+        result = self.summary()
+        self.assertEqual(result['suite']['cpu_s'], 1.5)
+        self.assertEqual((result['suite']['user_s'], result['suite']['system_s']), (1.0, 0.5))
+        self.assertEqual((result['layers'][0]['cpu_s'], result['layers'][0]['measured_s']), (1.5, 1.5))
+        head = CPU['head_binaries'](result['processes'], self.results['workspace'], None)
+        self.assertEqual(head['pkg::suite']['cpu_s'], 1.5)
+        folded = CPU['fold_ledger'](self.directory, result, {})
+        self.assertEqual(folded['binaries']['pkg::suite']['cpu_s'], 1.5)
+        self.assertEqual([p['kind'] for p in result['processes']], ['tests', 'reference', 'empty'])
+
     def test_crash_fresh_process_and_passing_alone_remain_failures(self):
         self.results['processes'] = [self.process(['z'], exit_code=None, signal=11),
                                     self.process(['a', 'b'], kind='fresh', exit_code=101),
@@ -992,6 +1006,7 @@ class OneProcessTests(unittest.TestCase):
         result = self.command(scripts, env, '--out', str(self.directory), '--ledger', str(path),
                               '--budgets', str(budget), '--gate', 'default')
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads((self.directory / 'ledger-arg.json').read_text()), self.main)
         self.assertEqual(CPU['ledger'](self.directory / 'ledger.json')['binaries']['temper-a::domain']['cpu_s'], 132)
         (self.directory / 'ledger.json').unlink()
         before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
@@ -1006,12 +1021,13 @@ class OneProcessTests(unittest.TestCase):
 
     def stand_in(self, path, body=None):
         path.write_text('import json, os\nfrom pathlib import Path\n'
-                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None):\n"
+                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, ledger=None):\n"
                        + (body if body is not None else
                        f'    run = {self.run!r}\n    results = {self.results!r}\n'
                        '    directory = Path(directory)\n    directory.mkdir(parents=True, exist_ok=True)\n'
                        '    recorded_env = {key: env[key] for key in ("fixture", "TIERS_WRAPPER") if key in env}\n'
                        '    (directory / "called.json").write_text(json.dumps([command, recorded_env, profile, limits, str(config)]))\n'
+                       '    (directory / "ledger-arg.json").write_text(json.dumps(ledger))\n'
                        '    (directory / "mode").write_text(str(os.umask(0o077)))\n'
                        '    (directory / "run.json").write_text(json.dumps(run))\n'
                        '    (directory / "results.json").write_text(json.dumps(results))\n'

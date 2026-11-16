@@ -558,7 +558,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     processes = []
     for item in data['processes']:
         if (not isinstance(item['binary_id'], str) or not item['binary_id']
-                or item['kind'] not in ('tests', 'fresh', 'alone') or not names(item['tests'])
+                or item['kind'] not in ('tests', 'fresh', 'alone', 'reference', 'empty') or not names(item['tests'])
                 or type(item['leaked']) is not bool):
             raise ValueError('invalid process identity, kind, tests or leaked')
         for field in ('user_s', 'system_s', 'wall_s', 'start_s'):
@@ -632,19 +632,20 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                  starved=sum(test['starved'] for test in tests),
                  starved_run=run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s']),
                  unobserved=len(unobserved), leaked=None, incomplete=None, cpu_by='process')
+    suite_processes = [p for p in processes if p['kind'] in ('tests', 'fresh', 'alone')]
     for field in ('cpu_s', 'user_s', 'system_s'):
-        suite[field] = figure(sum(process[field] for process in processes), field)
+        suite[field] = figure(sum(process[field] for process in suite_processes), field)
     over = []
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
     # The layer comparison and ordering are tools/tiers/budgets.md, 4 and 8.
     head = head_binaries(processes, data.get('workspace', []), ledger)
     measured, main = {}, {}
-    for process in processes:
+    for process in suite_processes:
         key = process['tree'], process['layer']
         measured[key] = measured.get(key, 0.0) + process['cpu_s']
     grouped = dict(measured)
-    ran = {process['binary_id'] for process in processes}
+    ran = {process['binary_id'] for process in suite_processes}
     for binary, entry in head.items():
         if binary not in ran:
             key = entry['tree'], entry['layer']
@@ -786,6 +787,8 @@ def head_binaries(processes, workspace, ledger):
     """The head's whole figures, including unlisted targets (budgets.md, 8)."""
     head = {}
     for process in processes:
+        if process['kind'] not in ('tests', 'fresh', 'alone'):
+            continue
         binary = process['binary_id']
         if binary not in head:
             head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0)
@@ -1032,7 +1035,7 @@ def execute_one_process(command, env, directory, profile, limits, config=Path('.
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger)
     result = summary(directory, limits, profile, gate=gate, ledger=ledger)
     save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
     output = io.StringIO()
