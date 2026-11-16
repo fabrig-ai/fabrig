@@ -52,7 +52,10 @@ an open need on it, whether it has a report, and its direct delegates' total.
     goal's words (below), or "Planning: reading what was asked." without one;
     closed, "Closed by you. What landed on the goal branch stays there.";
     landed, the result's first line, or "Landed."; failed, "Failed: " and the
-    failure's reason; otherwise "N of M tasks done.", as a Goals row's (`README.md`).
+    failure's reason; waits or waits for room, its wait as a sentence, "Waits
+    on S6.", as a Goals row's (`work.md`, 1, *Goals*), its names from the
+    goal's document's `dependencies` where they carry a title, else "task N";
+    otherwise "N of M tasks done.", as a Goals row's (`README.md`).
   - `p.byline`: "Written by its agent at " and the note's `changed` in the
     clock form. No byline with no report.
   - `.acts`: "Draft" (`.btn.small`), when the goal's words name a draft and a

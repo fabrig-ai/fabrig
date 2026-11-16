@@ -414,6 +414,7 @@ Design documents:
 - [`client/pages/chats.md`](client/pages/chats.status.md)
 - [`client/pages/goal.md`](client/pages/goal.status.md)
 - [`client/pages/home.md`](client/pages/home.status.md)
+- [`client/pages/milestone.md`](client/pages/milestone.status.md)
 - [`client/pages/needs-you.md`](client/pages/needs-you.status.md)
 - [`client/pages/remembered.md`](client/pages/remembered.status.md)
 - [`client/pages/settings.md`](client/pages/settings.status.md)

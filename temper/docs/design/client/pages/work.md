@@ -219,8 +219,8 @@
     opening `goal.md`, 3's sheet with no draft, while the project has a tracked
     template. Under them, the rows, or, once its reads have answered, "None.";
     "Needs you" is state needs,
-    "Under way" running, planning and paused, "Ended" landed, closed and
-    failed.
+    "Under way" running, planning, paused, waits and waits for room, "Ended"
+    landed, closed and failed.
   - **"More goals",** a quiet button after the rows while the ended page has
     more, reading the next ended page in its place as "more closed chats"; the
     heading's numbers keep counting the rows read before it.
@@ -264,6 +264,8 @@
   |---|---|---|
   | needs | a needs row's `selection` names the goal | "needs funds" where the goal's own chip is held for `HoldCategory::Exceeded`, else "needs you" |
   | paused | live, held by a placed hold of mode Stop over its own subtree | "paused by you" |
+  | waits | live, its chip's phase `ChipPhase::Waiting` listing a dependency, or with `more` | "waits for you" where a dependency is the reader's own need (below); else "waits on NAME" for one, "waits on NAME and NAME" for two whose lines are held, "waits on N tasks" for any other, N its listed dependencies, "N+" with `more` |
+  | waits for room | live, its phase `ChipPhase::Waiting` with no dependency listed and `holds` | "waits for its resources"; "waits for room" once a project names a capacity (`../../draft/milestones.md`, section 11), which none does yet |
   | planning | live, no report, no delegates | "planning" |
   | running | any other live | "running" |
   | landed | ended, done | "landed " and its end in the clock form (`../view.md`, 6) |
@@ -278,7 +280,35 @@
   delegates ended done, whatever they did, since `TaskLine` counts no landings
   (`../README.md`, section 5); "Landed." landed;
   "Closed by you." closed; "Failed." failed; a goal that needs the person
-  takes running's words, or planning's with no delegates.
+  takes running's words, or planning's with no delegates. A goal that waits
+  has no report yet, so its headline is its wait as a sentence, its first
+  word capitalised: "Waits on S6.", "Waits on S5 and S6.", "Waits on 3
+  tasks.", "Waits for you.", "Waits for its resources."
+  (`../../draft/milestones.md`, section 4), on every page that draws its row;
+  a report, where one is read, still wins.
+
+  **A wait's names:** NAME is the dependency's id where its title has one
+  (*A goal's id*, below), else its title cut at 40 characters by the row's
+  cut, from the lines the page holds: the goals' live rows and ended page,
+  and, on a page that reads them, its milestones' goals
+  (`milestone.md`, 1); "task N" where none holds it, and two not both held
+  say "2 tasks". A dependency is the reader's own need where it is the own
+  task of a row of the needs' read, the first of that row's `selection`
+  goals, the rest being its ancestors (jig's `InboxSelection`): a person
+  task addressed to the reader, as a goal asks its person. `goals::state`
+  decides a wait from the chip alone, `State::Waits(Wait)`, `Wait`
+  carrying the first two listed dependencies, their count and `more`, and
+  `State::WaitsForRoom`; the view words them from what the page holds.
+
+  **A goal's id,** `goals::id(title: &[u8]) -> Option<&[u8]>`, one pure
+  function of the domain's: its title's leading run of one to three ASCII
+  capital letters then one to three ASCII digits, where the title ends
+  there or goes on with a character that is neither a letter nor a digit:
+  "S7" in "S7 history in task logs", "K10" in "K10 · prepare reconnect
+  statements once", "H1" in "H1, Home's parts"; none in "Fix 3 bugs", "s7
+  history" or "SS7a". A wait (above), a milestone's strip and its headline
+  name a goal by its id where it has one, else by its title
+  (`milestone.md`, 2).
 
   **Ways** are one public function, `goals::ways`, of the view, the project's
   templates with `tracked` set and not ended by their requester, in number
