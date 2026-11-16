@@ -257,13 +257,13 @@ pub(crate) const RECIPE_LIST: Command = Command {
 };
 pub(crate) const RECIPE_WALK: Command = Command {
     reach: Reach::Words(&["recipe", "walk"]),
-    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
+    forms: &["NAME --bin DIR [--bundle DIR] --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
     line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
     arguments: RECIPE_HASH.arguments,
     settings: &[&RECIPES, &RECIPE_SESSION],
     switches: &[DRIVE.switches[0]],
     variables: DRIVE.variables,
-    notes: "Chain scripts go to the box root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
+    notes: "A box needs --bundle; a deployment needs --ports and takes no --bundle, using its root's config/. Chain scripts go to the session root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
     ..REPRINT
 };
 
