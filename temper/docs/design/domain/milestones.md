@@ -236,7 +236,11 @@ What the forge keeps of a milestone, since jig keeps no landing:
   goals (`forge/issues.md`), which carries a milestone marked as one: the
   forge records its row's `ended` and makes it no issue.
 - **Bounded:** at most 256 rows a project, the row of the milestone that
-  ended first dropped first, a live milestone's never. A dropped row
+  ended first dropped first, a live milestone's never: where a project's
+  live milestones pass 256 (jig's `project_goals` is configurable), it
+  keeps every live row and no ended one, the bound being the greater of
+  256 and its live count, and a restore loads such a set as it is; it
+  falls back to 256 as those milestones end. A dropped row
   reads as none known: `Milestone` answers an ended milestone whose row
   is gone from its ended record, with no landing.
 - **Read by** `Milestone` (section 7) and the status agent's input
