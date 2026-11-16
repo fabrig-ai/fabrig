@@ -20,9 +20,15 @@ proposal of settings an owner accepts (`agents.md`, 1).
   them, but of its part *Showing* all but the first
   step: its first paragraph, its `view` example, its Views line naming
   `path`, `way`, `charter` and `proposal` alone, and its paragraph on ways,
-  the views the client draws (`../../client/pages/chat/conversation.md`, 3); the other views
-  and the sketches join with M3b, since a view or a mark not built yet shows
-  as code. They name every address of `see`'s (1), and are at most 10,240
+  the views the client draws (`../../client/pages/chat/conversation.md`, 3); and
+  its sketch line in skein's flow subset as `chat.txt` names it, with no
+  actors' marks: who acts at a node is its caption's word, an agent, code
+  or a person, and its example is the draft's what-if in that form. Its first paragraph opens with `agents.md`, 3's rule
+  (*What a document draws*): "Draw whatever a picture says faster than
+  words, in a reply and in the document"; and its document line, in
+  *Configuring*, asks the document drawn as that rule has it. The other
+  views and the actors' marks join with M3b, since a view or a mark not
+  built yet shows as code. They name every address of `see`'s (1), and are at most 10,240
   bytes, `../../draft/ask-temper.md`, 4.1's 10 KB, which the stock's test holds.
 - **Its authority** is its chat's, policy 1's for its role: the rules and policy
   1 hold the asking family beside the others, and the delegation names charter
@@ -515,8 +521,9 @@ entry's description, its body empty.
   question needs the mapping.
 
 - **Ask temper before M3b** (`ask-temper.md`): M3b supplies
-  the other views, the Showing part's paragraph on sketches and the actors'
-  marks (`../../draft/ask-temper.execution.md`, section 3). The
+  the other views and the actors' marks in the Showing part's sketch line,
+  which names skein's flow subset alone until then
+  (`../../draft/ask-temper.execution.md`, section 3). The
   ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
   addresses, of the `view` block and of `remember`, and the user's judgement
   of `ask.txt`, its Remembering part among it, follow landing.
