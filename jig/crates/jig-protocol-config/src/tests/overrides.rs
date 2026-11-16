@@ -177,7 +177,6 @@ fn limits_problems_without_a_profile_add_no_bound_of_small() {
     for (case, limits, expected) in [
         ("unknown profile", Some(br#"{"profile":"standrd"}"#.as_slice()), path(&[b"limits", b"profile"])),
         ("profile of the wrong kind", Some(br#"{"profile":7}"#.as_slice()), path(&[b"limits", b"profile"])),
-        ("missing profile", Some(b"{}".as_slice()), path(&[b"limits", b"profile"])),
         ("limits of the wrong kind", Some(b"7".as_slice()), path(&[b"limits"])),
         ("missing limits", None, path(&[b"limits"])),
     ] {
@@ -191,8 +190,15 @@ fn limits_problems_without_a_profile_add_no_bound_of_small() {
         assert_eq!(problems.problems.get(0).unwrap().path, expected, "{case}: {problems:?}");
     }
 }
-fn a_missing_profile_is_refused_naming_it() {
-    problem(b"{}", &[b"limits", b"profile"], What::Missing);
+#[test]
+fn a_missing_profile_reads_the_base() {
+    let mut base = crate::stock();
+    base.core.tasks.tasks = 999;
+    base.core.people.inbox_tasks = 1998;
+    let parsed = overrides::parse_over(&document(b"{}"), 0, &path(&[b"limits"]), &base);
+    assert!(parsed.problems.is_empty());
+    assert_eq!(parsed.limits.core.tasks.tasks, 999);
+    assert_eq!(parsed.limits, base);
 }
 fn an_unknown_limits_member_is_refused_naming_it() {
     problem(br#"{"profile":"small","absent":1}"#, &[b"limits", b"absent"], What::Unknown);
@@ -288,7 +294,6 @@ fn override_document_problems_name_the_invalid_fields() {
     table([
         ("an_override_that_breaks_a_bound_is_refused_naming_it", an_override_that_breaks_a_bound_is_refused_naming_it),
         ("an_unknown_profile_is_refused_naming_it", an_unknown_profile_is_refused_naming_it),
-        ("a_missing_profile_is_refused_naming_it", a_missing_profile_is_refused_naming_it),
         ("an_unknown_limits_member_is_refused_naming_it", an_unknown_limits_member_is_refused_naming_it),
         ("an_override_named_twice_is_refused_naming_it", an_override_named_twice_is_refused_naming_it),
         ("a_non_integer_override_is_refused_naming_it", a_non_integer_override_is_refused_naming_it),

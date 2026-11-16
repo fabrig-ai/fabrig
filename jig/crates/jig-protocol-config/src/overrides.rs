@@ -1,5 +1,5 @@
 //! Named limits and strict profile selection (jig/docs/design/protocol/limits.md).
-use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, read};
+use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, read, stock};
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, bytes};
 
@@ -705,15 +705,21 @@ fn set_link(limits: &mut crate::Link, field: &[u8], value: u64) -> Result<(), Wh
 #[must_use]
 #[derive(Debug)]
 pub struct Parsed {
-    /// The named profile with applied overrides; Standard if no profile was recognized.
+    /// The base, or the named profile, with applied overrides; the base if no profile was recognized.
     /// These limits may be used for further diagnostics, but require no problems for startup.
     pub limits: Limits,
     pub problems: Problems,
 }
 
-/// Read the limits member at its path, retaining its limits when checks find problems.
+/// Read the limits member over jig's stock, retaining its limits when checks find problems.
 pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
-    let mut limits = profile(Profile::Standard);
+    parse_over(document, at, path, &stock())
+}
+
+/// Read the limits member over a base (protocol/limits.md, the stock).
+/// An absent or standard profile reads the base; problems retain the best-known limits.
+pub fn parse_over(document: &Document, at: u32, path: &Path, base: &Limits) -> Parsed {
+    let mut limits = *base;
     let mut problems = Problems::empty();
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
@@ -722,11 +728,11 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
             return Parsed { limits, problems };
         }
     };
-    if let Some(at) = object.required(document, b"profile", path, &mut problems) {
+    if let Some(at) = object.member(document, b"profile") {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
                 b"small" => limits = profile(Profile::Small),
-                b"standard" => limits = profile(Profile::Standard),
+                b"standard" => {}
                 _ => problems.push(path.member(b"profile"), What::Override),
             },
             Err(what) => problems.push(path.member(b"profile"), what),

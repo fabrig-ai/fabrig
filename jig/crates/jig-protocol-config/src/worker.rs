@@ -1,5 +1,5 @@
 //! A worker's startup values and its bounded end (configuration.md, 4; protocol/channel/README.md, 9.1).
-use crate::{Address, Directories, Directory, Limits, Path, Problems, Profile, What, check, overrides, profile, read};
+use crate::{Address, Directories, Directory, Limits, Path, Problems, What, check, overrides, read, stock};
 use alloc::boxed::Box;
 use skein_json::Document;
 use skein_lib::{Duration, List};
@@ -49,14 +49,19 @@ pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<
 }
 /// Parse jig's worker member before startup constructs any component.
 pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result<Worker, Problems> {
+    worker_over(document, at, directories, &stock())
+}
+
+/// Parse jig's worker member over an application's base (protocol/limits.md, the stock).
+pub fn worker_over(document: &Document, at: u32, directories: &Directories, base: &Limits) -> Result<Worker, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "worker") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Standard);
+    let mut limits = *base;
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+        let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
             problems.push(problem.path.clone(), problem.what);

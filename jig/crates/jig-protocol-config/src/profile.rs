@@ -54,6 +54,12 @@ pub struct Limits {
     pub clients: jig_protocol_engine_clients::Limits,
     pub clients_http: jig_protocol_engine_clients_http::Limits,
 }
+/// Jig's one stock of consistent limits (protocol/limits.md, the stock).
+#[must_use]
+pub fn stock() -> Limits {
+    profile(Profile::Standard)
+}
+
 #[must_use]
 pub fn profile(profile: Profile) -> Limits {
     match profile {

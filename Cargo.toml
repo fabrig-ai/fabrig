@@ -219,6 +219,7 @@ members = [
     "jig/testing/jig-test-store-files",
     "jig/testing/jig-test-domain",
     "jig/testing/jig-test-profile",
+    "jig/testing/jig-protocol-config-fixtures",
     "jig/testing/jig-test-worker",
     "jig/testing/jig-test-service",
     "jig/testing/jig-client-test-protocol-wire",

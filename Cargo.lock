@@ -1998,6 +1998,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-protocol-config-fixtures"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
+]
+
+[[package]]
 name = "jig-protocol-engine-clients"
 version = "0.0.0"
 dependencies = [
