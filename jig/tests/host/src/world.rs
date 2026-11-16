@@ -805,7 +805,8 @@ impl World {
             )
             | Request::CancelRelay { .. }
             | Request::Agent(
-                ToAgent::Grant { .. }
+                ToAgent::Renewals { .. }
+                | ToAgent::Grant { .. }
                 | ToAgent::Start { .. }
                 | ToAgent::Message { .. }
                 | ToAgent::Answer { .. }
@@ -920,7 +921,8 @@ impl World {
                         CallAnswer::Relayed { .. }
                         | CallAnswer::Unavailable
                         | CallAnswer::Busy
-                        | CallAnswer::Withdrawn => {
+                        | CallAnswer::Withdrawn
+                        | CallAnswer::Unsent => {
                             panic!("a delivery kept through the stop says how it went: {reply:?}")
                         }
                     }
@@ -930,7 +932,10 @@ impl World {
                 match reply {
                     CallAnswer::Unavailable => self.stats.unavailable += 1,
                     CallAnswer::Busy => self.stats.busy += 1,
-                    CallAnswer::Relayed { .. } | CallAnswer::Delivered(_) | CallAnswer::Withdrawn => {}
+                    CallAnswer::Relayed { .. }
+                    | CallAnswer::Delivered(_)
+                    | CallAnswer::Withdrawn
+                    | CallAnswer::Unsent => {}
                 }
                 self.parcel(request);
             }
@@ -957,7 +962,7 @@ impl World {
             | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. }
-            | Request::Agent(ToAgent::Grant { .. }) => self.parcel(request),
+            | Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => self.parcel(request),
         }
         Ok(())
     }

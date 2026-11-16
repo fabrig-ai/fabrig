@@ -133,6 +133,7 @@ pub fn limits() -> engine::Limits {
         progress_bytes: 0,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };
@@ -884,6 +885,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),
             }
@@ -1018,6 +1020,7 @@ impl World {
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")

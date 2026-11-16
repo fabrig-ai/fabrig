@@ -228,7 +228,9 @@ pub fn review(observations: &[Observation], credential: Box<[u8]>) -> Referee<Me
             | Observation::HostParked { .. }
             | Observation::AgentHistory { .. }
             | Observation::TranscriptFailed(_)
-            | Observation::AgentGrant { .. } => None,
+            | Observation::AgentGrant { .. }
+            | Observation::AgentRenewals { .. }
+            | Observation::AgentGrantResent { .. } => None,
         };
         if let Some(seen) = seen {
             referee.observe(Time::ZERO, seen, &mut stimuli);

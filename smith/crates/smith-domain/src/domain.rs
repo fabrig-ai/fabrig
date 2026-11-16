@@ -4,7 +4,7 @@
 //! layer out.
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
-//! acknowledgements, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
+//! acknowledgements or renewable grants, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
 //! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, sections 2, 3, 9,
 //! 12; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
@@ -66,6 +66,9 @@ pub struct Domain {
     /// session's token for them.
     pub(crate) flights: Map<Token, Flight>,
     pub(crate) grants: Map<u32, Credential>,
+    pub(crate) renewals_held: bool,
+    /// Unsent completions awaiting their account's next grant.
+    pub(crate) grant_waits: Map<Token, route::PendingCompletion>,
     pub(crate) completions: Map<Token, IssuedCompletion>,
     /// One unsent main completion per run awaiting acknowledgement credit.
     pub(crate) pending: Map<Token, route::PendingCompletion>,
@@ -229,6 +232,8 @@ impl Domain {
             grants: Map::with_capacity(limits.accounts),
             completions: Map::with_capacity(limits.run.conversations),
             pending: Map::with_capacity(limits.run.runs),
+            renewals_held: false,
+            grant_waits: Map::with_capacity(limits.run.conversations),
             notices: Queue::uncapped(),
             commands: Map::with_capacity(limits::commands(limits).expect("valid limits")),
             ready: Ready::with_capacity(handoffs),

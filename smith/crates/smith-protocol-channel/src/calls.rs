@@ -121,6 +121,7 @@ pub(crate) fn host_reply(reply: &wire::Reply) -> Option<run::HostReply> {
         wire::Reply::Busy => run::HostReply::Busy,
         wire::Reply::Unavailable => run::HostReply::Unanswered(run::Unanswered::Lost),
         wire::Reply::Withdrawn => run::HostReply::Withdrawn,
+        wire::Reply::Unsent => run::HostReply::Unsent,
         wire::Reply::TooLarge => run::HostReply::TooLarge,
         wire::Reply::Delivery(_) => return None,
     };

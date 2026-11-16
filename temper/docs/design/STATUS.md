@@ -15,9 +15,15 @@ each worker that may stay by the opening the engine kept of it
 keeps: the build staged on every host, the engine's settled stop and the
 new build's check, then the engine alone when the workers may stay,
 workers in turn when asked, and every part together otherwise, each
-redeploy recorded and refereed: each worker's agreed versions, the window
-against the workers' grace, and no try spent or task held since but for
-a run's own failure (`redeploy.md`; R6, goal 2487). Its drills on the
+redeploy recorded and refereed: each worker's agreed versions, each
+worker's return against the wait it was given, and no try spent or task
+held since but for a run's own failure (`redeploy.md`; R6, goal 2487).
+The engine's settled stop tells its workers it restarts: each that heard
+it keeps its runs through the restart wait, twenty minutes by default,
+its runs' relayed calls and completions waiting within their deadlines,
+and the next start holds their claims as long; the redeploy names who
+was told (`domain/root.md`, 8.2; `domain/worker/README.md`, section 2;
+jig's `protocol/channel/restart.md`; R8, goal 4843). Its drills on the
 deployments follow landing, each a redeploy its operator starts.
 A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model

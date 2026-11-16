@@ -460,6 +460,7 @@ impl HostService {
             host::Down::Start { .. }
             | host::Down::Message { .. }
             | host::Down::Acknowledge { .. }
+            | host::Down::Renewals { .. }
             | host::Down::Grant { .. }
             | host::Down::Cancel
             | host::Down::Drain => None,
@@ -495,6 +496,9 @@ impl HostService {
                 &mut self.process_events,
                 &mut self.io_requests,
             ),
+            host::Down::Renewals { held } => {
+                process.send_renewals(held, token, &mut self.process_events, &mut self.io_requests)
+            }
             host::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io_requests),
             host::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io_requests),
         };

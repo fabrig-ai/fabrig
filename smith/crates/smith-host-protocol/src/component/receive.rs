@@ -200,6 +200,7 @@ impl Component {
             smith_channel::Operation::Check => smith_domain::Operation::Checks,
             smith_channel::Operation::Completion => smith_domain::Operation::Completion,
             smith_channel::Operation::Command => smith_domain::Operation::Command,
+            smith_channel::Operation::Grant => smith_domain::Operation::Grant,
         };
         self.long_open = self.long_open.checked_add(1).ok_or(Error::Order)?;
         Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span() } })

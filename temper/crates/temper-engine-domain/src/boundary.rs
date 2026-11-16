@@ -1121,6 +1121,10 @@ pub enum Request {
     /// A forge input the drain does not decide, returned to its owner (jig's
     /// `domain/engine/restart.md`, 1).
     Busy(Box<forge::Event>),
+    /// Tell workers after the word is durable and before closing their links (domain/root.md, 8.2).
+    Restarting {
+        wait: skein_lib::Duration,
+    },
     /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 1).
     Drained,
     Stop,
@@ -1382,6 +1386,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
+        Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::Drained => Request::Drained,
         Delivery::Bound { request, answer } => Request::Bound { request, answer },
         Delivery::ForgeCall { call, repository, op } => Request::Forge { call, repository, op },

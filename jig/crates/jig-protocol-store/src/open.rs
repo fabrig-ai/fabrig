@@ -80,12 +80,11 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if registry && store.directory.patch.is_none() {
         store.directory.patch = Some(Box::new(found_levels));
     }
-    let Some(header) = header else {
+    if header.is_none() {
         refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
         return;
-    };
-    let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec_limits, &store.names)
-    else {
+    }
+    let Some(header) = decode_header(store) else {
         corrupt_header(store, owner, restore::DecodeFailure::Value, above);
         return;
     };
@@ -117,6 +116,15 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
             corrupt_header(store, owner, restore::DecodeFailure::KeyValueDisagree, above);
         }
     }
+}
+
+/// The header's registered layout may add defaults before this open writes.
+pub(crate) fn decode_header(store: &mut Store) -> Option<Record> {
+    let key = Key::Core(CoreKey::Deployment);
+    let encoded = keys::encode(&key, store.limits.store.key)?;
+    let mut bytes = crate::view::get(store, encoded.clone()).ok()??;
+    crate::registry::header(store, &encoded, &mut bytes);
+    codec::decode(&key, &bytes, &store.codec_limits, &store.names)
 }
 
 /// The identifier kept by the first commit replaces the drawn one (4.4); a

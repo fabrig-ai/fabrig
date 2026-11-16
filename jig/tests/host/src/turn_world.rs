@@ -93,11 +93,14 @@ pub struct World {
     hello: Option<jig_domain_link::Hello>,
     reply: Option<host::CallAnswer>,
     next_relay: Option<host::Relayed>,
+    hold_relays: bool,
     received_grant: Option<Grant>,
     prepare_waits: bool,
     last_read: Option<Token>,
     refusals: crate::refusals::Referee,
     pub reports: Vec<host::LinkUp>,
+    pub renewals: Vec<bool>,
+    pub grant_order: Vec<&'static str>,
     pub link_words: Vec<&'static str>,
 }
 
@@ -149,7 +152,10 @@ impl World {
             hello: None,
             reply: None,
             next_relay: None,
+            hold_relays: false,
             received_grant: None,
+            renewals: Vec::new(),
+            grant_order: Vec::new(),
             link_words: Vec::new(),
             reports: Vec::new(),
             prepare_waits: false,
@@ -191,6 +197,16 @@ impl World {
     #[must_use]
     pub fn reply(&self) -> Option<&host::CallAnswer> {
         self.reply.as_ref()
+    }
+
+    /// Leave relays pending until the agent withdraws them.
+    pub fn hold_relays(&mut self) {
+        self.hold_relays = true;
+    }
+
+    /// Withdraw the opaque call, retaining its terminal through local cancellation.
+    pub fn withdraw_call(&mut self) {
+        self.agent_report(FromAgent::Withdrawn { owner: self.owner(), call: Box::from(&b"call-one"[..]) });
     }
 
     pub fn relay_answer(&mut self, answer: host::Relayed) {
@@ -506,6 +522,7 @@ impl World {
     /// A channel loss does not drop host-owned turn bodies or the link's answer.
     pub fn lose_contact(&mut self) {
         self.connected = false;
+        self.send(Event::LinkLost);
     }
 
     /// Hello reports the run; the link then sends turns before the answer.
@@ -715,8 +732,16 @@ impl World {
                 );
                 self.hello = Some(hello);
             }
+            Request::Agent(ToAgent::Renewals { agent, held }) => {
+                assert_eq!(agent, AGENT);
+                self.renewals.push(held);
+                self.grant_order.push(if held { "held" } else { "resumed" });
+            }
             Request::Agent(ToAgent::Grant { agent, grant }) => self.receive_grant(agent, grant),
-            Request::CancelRelay { .. } | Request::Abort { .. } => {
+            Request::CancelRelay { run, attempt, call } => {
+                self.events.push_back(Event::RelayCancelled { run, attempt, call });
+            }
+            Request::Abort { .. } => {
                 panic!("unscripted request: {request:?}")
             }
         }
@@ -728,6 +753,9 @@ impl World {
         let call = relayed.name.clone();
         self.relayed_call = Some(relayed);
         self.stats.relays += 1;
+        if self.hold_relays {
+            return;
+        }
         let answer =
             self.next_relay.take().unwrap_or(host::Relayed::Answer { error: false, text: Box::from(&b"reply"[..]) });
         self.events.push_back(Event::Down(LinkDown::Relayed { run: RUN, attempt: ATTEMPT, call, answer }));
@@ -737,6 +765,7 @@ impl World {
         assert_eq!(agent, AGENT);
         assert!(self.agent_live);
         assert_eq!(grant.form, Form::Credential(Scheme::Key));
+        self.grant_order.push("grant");
         self.received_grant = Some(grant);
     }
 
