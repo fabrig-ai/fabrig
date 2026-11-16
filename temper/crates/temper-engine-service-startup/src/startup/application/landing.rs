@@ -312,6 +312,53 @@ fn description(
     );
     None
 }
+// A tier requires both report members (domain/after-landing.md, 2).
+fn report(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<(Box<[u8]>, Format)> {
+    let artifact = object.member(document, b"artifact");
+    let format = object.member(document, b"format");
+    let artifact = match artifact {
+        Some(at) => match config::read::text(document, at, u32::try_from(CHECK_NAME_BYTES).expect("artifact bound")) {
+            Ok(value) => {
+                read::form(!value.is_empty() && !value.contains(&b'/'), path.member(b"artifact"), problems);
+                Some(value)
+            }
+            Err(what) => {
+                problems.push(path.member(b"artifact"), What::Jig(what));
+                None
+            }
+        },
+        None => {
+            problems.push(path.member(b"artifact"), What::Jig(config::What::Missing));
+            None
+        }
+    };
+    let format = match format {
+        Some(at) => match config::read::text(document, at, 1_048_576) {
+            Ok(value) => match value.as_ref() {
+                b"junit" => Some(Format::Junit),
+                b"lines" => Some(Format::Lines),
+                _ => {
+                    read::form(false, path.member(b"format"), problems);
+                    None
+                }
+            },
+            Err(what) => {
+                problems.push(path.member(b"format"), What::Jig(what));
+                None
+            }
+        },
+        None => {
+            problems.push(path.member(b"format"), What::Jig(config::What::Missing));
+            None
+        }
+    };
+    Some((artifact?, format?))
+}
 fn tier(
     document: &Document,
     at: u32,
@@ -321,15 +368,7 @@ fn tier(
 ) -> Option<engine::TierCheck> {
     let mut object = read::object(document, at, "tier-check", path, problems)?;
     let check = check(&mut object, document, path, limits, problems);
-    let artifact = checked_text(
-        &mut object,
-        document,
-        b"artifact",
-        u32::try_from(CHECK_NAME_BYTES).expect("artifact bound"),
-        path,
-        problems,
-    );
-    let format = read::text(&mut object, document, b"format", path, problems);
+    let report = report(&mut object, document, path, problems);
     let follows = match object.member(document, b"branch") {
         Some(at) => match config::read::text(document, at, 1_048_576) {
             Ok(value) => {
@@ -350,25 +389,14 @@ fn tier(
     let span_ms = optional_integer(&mut object, document, b"span_ms", 0, u64::MAX, path, problems);
     let description = description(&mut object, document, path, problems);
     read::finish(object, document, path, problems);
-    if let Some(artifact) = &artifact {
-        read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
-    }
-    let format = match format.as_deref() {
-        Some(b"junit") => Some(Format::Junit),
-        Some(b"lines") => Some(Format::Lines),
-        Some(_) => {
-            read::form(false, path.member(b"format"), problems);
-            None
-        }
-        None => None,
-    };
     let check = check?;
+    let (artifact, format) = report?;
     Some(engine::TierCheck {
         name: check.name,
         workflow: check.workflow,
         ignored: check.ignored,
-        artifact: artifact?,
-        format: format?,
+        artifact,
+        format,
         follows: follows?,
         span_ms: span_ms?,
         description: description?,

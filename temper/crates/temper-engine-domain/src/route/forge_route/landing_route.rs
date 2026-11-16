@@ -296,6 +296,7 @@ fn create_landing(
             job: None,
             landing: landing::Landing {
                 last_left: None,
+                searched: None,
                 round: landing::Round::new(own_branch.clone()),
 
                 task: number,

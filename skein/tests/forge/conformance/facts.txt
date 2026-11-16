@@ -107,6 +107,8 @@ holds actions-dispatch-run-names-trigger-event-and-trigger-user
 holds actions-dispatch-run-jobs-list-both-outcomes
 holds actions-dispatch-job-steps-setup-first-completion-last
 holds actions-dispatch-input-reaches-job-log
+holds actions-dispatch-multiline-input-reaches-job-log
+holds actions-dispatch-undeclared-input-is-ignored
 holds actions-rerun-completed-is-204
 holds actions-rerun-next-attempt-visible-on-job
 fails actions-runs-filter-workflow-and-head-newest-first: head_sha and newest order hold; workflow is ignored: page 2 also contains other.yaml
@@ -302,7 +304,6 @@ holds component-keys-found-on-read-back
 holds component-costs-equal-requests-sent
 holds component-read-pull-for-open-after-closed
 holds component-write-open-pull-no-changes
-# The following seven actions-artifact facts retain their 17.0.0 evidence; unobserved at 17.0.1.
 holds actions-artifact-run-read-keeps-dispatch-head
 holds actions-artifacts-unknown-run-is-404
 holds actions-artifact-upload-completes

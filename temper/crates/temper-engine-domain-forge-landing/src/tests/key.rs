@@ -205,6 +205,18 @@ fn a_base_definition_appends_only_the_true_flag() {
 }
 
 #[test]
+fn a_report_definition_follows_the_optional_base_flag() {
+    let mut gate = gate();
+    gate.report = Some(crate::GateReport { artifact: copy_of(b"failed"), format: crate::Format::Junit, fuzzy: None });
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x02\0\x06failed\0");
+    gate.base = true;
+    gate.report.as_mut().expect("report").format = crate::Format::Lines;
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01\x02\0\x06failed\x01");
+    gate.report = None;
+    assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x01");
+}
+
+#[test]
 fn version_two_counts_and_encodes_the_filtered_base_before_the_candidate() {
     let candidate = [tree(1, &[(b"z", 9)])];
     let mut base_root = tree(2, &[(b"dir", 3)]);

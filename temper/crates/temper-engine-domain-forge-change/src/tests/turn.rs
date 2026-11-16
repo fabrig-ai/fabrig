@@ -181,7 +181,12 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
 #[test]
 fn ready_and_judging_changes_keep_the_blamed_repair_context() {
     use crate::{Below, Judgement, Landed};
-    let below = Some(Below { green: BASE, changes: [Some(Landed { change: 2341, pull: 7 }), None, None, None] });
+    let below = Some(Below {
+        by_test: true,
+        top: true,
+        green: BASE,
+        changes: [Some(Landed { change: 2341, pull: 7 }), None, None, None],
+    });
     let why = Repair::LandingAt { gate: 3, candidate: NEW, below };
     let f = Facts { ask: Some(Ask::Repair { gate: 3, candidate: NEW, below }), ..facts() };
     let mut judging = ready();

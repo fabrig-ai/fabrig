@@ -1,7 +1,7 @@
 use super::{Probe, REPO, Result, number, pause, rows};
 use crate::json::Json;
 
-const WORKFLOW: &str = "name: turn-dispatch\non:\n  workflow_dispatch:\n    inputs:\n      word:\n        required: true\n        type: string\njobs:\n  pass:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_INPUT=%s\\n' '${{ inputs.word }}'\n          sleep 5\n  fail:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_FAILED_STEP\\n'\n          exit 1\n";
+const WORKFLOW: &str = "name: turn-dispatch\non:\n  workflow_dispatch:\n    inputs:\n      word:\n        required: true\n        type: string\n      tests:\n        required: true\n        type: string\njobs:\n  pass:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_INPUT=%s\\n' '${{ inputs.word }}'\n          printf 'TURN_TESTS_BEGIN\\n%sTURN_TESTS_END\\n' '${{ inputs.tests }}'\n          printf 'TURN_TESTS_BASE64='\n          printf '%s' '${{ inputs.tests }}' | base64 -w0\n          printf '\\nTURN_UNDECLARED=%s\\n' '${{ inputs.undeclared }}'\n          sleep 5\n  fail:\n    runs-on: kit-host\n    steps:\n      - run: |\n          printf 'TURN_FAILED_STEP\\n'\n          exit 1\n";
 fn listing(head: &str, workflow: &str, page: u64) -> String {
     format!("{REPO}/actions/runs?workflow_id={workflow}&head_sha={head}&page={page}&limit=2")
 }
@@ -10,7 +10,9 @@ fn dispatch(p: &mut Probe<'_>, name: &str, workflow: &str, branch: &str) -> Resu
         name,
         "POST",
         &format!("{REPO}/actions/workflows/{workflow}/dispatches"),
-        Some(&format!(r#"{{"ref":"{branch}","inputs":{{"word":"KIT_TURN_INPUT"}}}}"#)),
+        Some(&format!(
+            r#"{{"ref":"{branch}","inputs":{{"word":"KIT_TURN_INPUT","tests":"kit::first\nkit::second\n","undeclared":"KIT_NOT_DECLARED"}}}}"#
+        )),
     )
 }
 fn wait_run(p: &mut Probe<'_>, head: &str, previous: u64) -> Result<u64> {
@@ -25,7 +27,7 @@ fn wait_run(p: &mut Probe<'_>, head: &str, previous: u64) -> Result<u64> {
     }
     Err("dispatch run not found in 30 seconds".into())
 }
-fn settled(p: &mut Probe<'_>, run: u64) -> Result<Json> {
+pub(super) fn settled(p: &mut Probe<'_>, run: u64) -> Result<Json> {
     let target = format!("{REPO}/actions/runs/{run}");
     for _ in 0..900 {
         let read = p.recorder.f.get(&target)?;
@@ -54,7 +56,7 @@ pub(super) fn record(p: &mut Probe<'_>) -> Result<()> {
     let answer = dispatch(p, name, "turn.yaml", "absent")?;
     p.fact(name, answer.status == 400, &answer);
     let name = "actions-dispatch-is-204-with-no-body";
-    let answer = dispatch(p, name, "turn.yaml", "dispatch")?;
+    let answer = dispatch(p, "actions-dispatch-inputs-with-undeclared-name", "turn.yaml", "dispatch")?;
     p.fact(name, answer.status == 204 && answer.body.is_empty(), &answer);
     let run = wait_run(p, &before, 0)?;
     let jobs = p.get("actions-dispatch-jobs-before-rerun", &format!("{REPO}/actions/runs/{run}/jobs"))?;
@@ -157,6 +159,27 @@ fn detail(p: &mut Probe<'_>, run: u64, job: u64, attempt: u64) -> Result<()> {
     let name = "actions-dispatch-input-reaches-job-log";
     let log = p.send(name, "GET", &format!("{REPO}/actions/jobs/{job}/logs?attempt={attempt}"), None)?;
     p.fact(name, log.status == 200 && String::from_utf8_lossy(&log.body).contains("TURN_INPUT=KIT_TURN_INPUT"), &log);
+    let target = format!("{REPO}/actions/jobs/{job}/logs?attempt={attempt}");
+    let name = "actions-dispatch-multiline-input-reaches-job-log";
+    let log = p.send(name, "GET", &target, None)?;
+    let body = String::from_utf8_lossy(&log.body);
+    let declared = log.status == 200 && body.contains("TURN_INPUT=KIT_TURN_INPUT");
+    p.check(
+        name,
+        declared && body.contains("TURN_TESTS_BASE64=a2l0OjpmaXJzdApraXQ6OnNlY29uZAo="),
+        "expected word and both test ids, each followed by LF, in the passing job's log",
+    );
+    let name = "actions-dispatch-undeclared-input-is-ignored";
+    let log = p.send(name, "GET", &target, None)?;
+    let body = String::from_utf8_lossy(&log.body);
+    p.check(
+        name,
+        declared
+            && body.contains("TURN_TESTS_BASE64=a2l0OjpmaXJzdApraXQ6OnNlY29uZAo=")
+            && body.lines().any(|line| line.ends_with("Z TURN_UNDECLARED="))
+            && !body.contains("KIT_NOT_DECLARED"),
+        "expected an accepted dispatch, a started job with both declared inputs intact, and no undeclared value",
+    );
     Ok(())
 }
 fn filters(p: &mut Probe<'_>, before: &str, after: &str) -> Result<()> {

@@ -6,6 +6,7 @@ use temper_engine_domain_forge_landing as policy;
 pub use temper_engine_domain_forge_vocabulary::views::*;
 #[expect(hidden_glob_reexports, reason = "the top keeps its private namesake module")]
 mod changes;
+mod search;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, TrainLanding};
 #[expect(hidden_glob_reexports, reason = "the top keeps its private namesake module")]
 mod follows;
@@ -162,7 +163,7 @@ impl Domain {
             stale_proofs: row.stale_proofs,
             turn: self.turn_holder(row.project),
             train: self.landing_train(row),
-            round: round_view(row),
+            round: round_view(self, row)?,
             step: landing_step(self, row),
             probe: landing_probe(self, row),
         })
@@ -264,18 +265,27 @@ impl Domain {
         Some(LandingsView { project, turn, landings: landings.into_boxed() })
     }
 }
-fn round_view(row: &policy::Landing) -> policy::Round {
-    let mut round = row.round.clone();
+fn round_view(d: &Domain, row: &policy::Landing) -> Option<LandingRound> {
+    let mut round = LandingRound {
+        branch: row.round.branch.clone(),
+        pull: row.round.pull,
+        upstream: row.round.upstream,
+        combined: row.round.combined,
+        failure: crate::preparation::failure(&row.round.failure),
+        search: match &row.round.search {
+            Some(search) => Some(d.search_view(row, search)?),
+            None => None,
+        },
+    };
     if !round.branch.is_empty() {
         for member in &row.members {
-            if member.candidate.is_some() && (member.left.is_none() || round.ending.is_some()) {
+            if member.candidate.is_some() && (member.left.is_none() || row.round.ending.is_some()) {
                 round.branch.clone_from(&member.branch);
                 round.combined = member.combined;
             }
         }
     }
-    round.failure = crate::preparation::failure(&round.failure);
-    round
+    Some(round)
 }
 pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
     match row.phase {
@@ -296,7 +306,13 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
             match row.phase {
                 policy::Phase::Waiting => LandingStep::Waiting,
                 policy::Phase::Preparing => LandingStep::Preparing,
-                policy::Phase::Proving if policy::probe(row).is_some() => LandingStep::Probing,
+                policy::Phase::Proving if policy::probe(row).is_some() => {
+                    if let Some(policy::Search { tests: policy::SearchTests::ByTest { .. }, .. }) = &row.round.search {
+                        LandingStep::ProbingByTest
+                    } else {
+                        LandingStep::Probing
+                    }
+                }
                 policy::Phase::Proving | policy::Phase::Proved { .. } if judging(d, row) => LandingStep::Judging,
                 policy::Phase::Proving => LandingStep::Proving,
                 policy::Phase::Proved { .. } => LandingStep::Proved,
@@ -309,7 +325,8 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
     }
 }
 pub(crate) fn landing_probe(d: &Domain, row: &policy::Landing) -> Option<[u8; 32]> {
-    if landing_step(d, row) != LandingStep::Probing {
+    let step = landing_step(d, row);
+    if step != LandingStep::Probing && step != LandingStep::ProbingByTest {
         return None;
     }
     row.members.get(usize::from(policy::probe(row)?))?.candidate

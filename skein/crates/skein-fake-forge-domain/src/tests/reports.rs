@@ -18,7 +18,7 @@ fn configured_report_jobs(
     workflow.fails = names(fails);
     workflow.flaky = names(flaky);
     workflow.report = Some(Report { artifact: copy_of(REPORT), format, deflate: true });
-    workflow.select = Some(copy_of(b"select"));
+    workflow.select = Some(copy_of(b"temper_tests"));
     workflow.cue = cue;
     configured.workflows = Box::new([workflow]);
     // The three-failure JUnit document is this fixture's largest report.
@@ -27,7 +27,7 @@ fn configured_report_jobs(
 }
 fn run_report(h: &mut Harness, selected: Option<&[u8]>) -> Result<Answer, Error> {
     let inputs: Box<[crate::api::WorkflowInput]> = match selected {
-        Some(ids) => Box::new([(copy_of(b"select"), copy_of(ids))]),
+        Some(ids) => Box::new([(copy_of(b"temper_tests"), copy_of(ids))]),
         None => Box::new([]),
     };
     h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"gate.yml"), branch: copy_of(MAIN), inputs }));
@@ -64,6 +64,39 @@ fn selected_junit_reports_contain_only_requested_test_identifiers() {
             let mut h = configured_report(calm(), ReportFormat::Junit, fails, None);
             assert_eq!(run_report(&mut h, selection), expected);
         },
+    );
+}
+
+#[test]
+fn an_undeclared_selection_input_leaves_the_whole_run() {
+    let mut configured = setup();
+    configured.checks.contexts = Box::new([]);
+    configured.workflows = Box::new([crate::api::Workflow {
+        fails: names(&[b"a", b"b"]),
+        report: Some(Report { artifact: copy_of(REPORT), format: ReportFormat::Lines, deflate: true }),
+        select: None,
+        ..workflow(&[b"tests"])
+    }]);
+    let mut h = Harness::with(calm(), configured);
+    let inputs = Box::new([(copy_of(b"temper_tests"), copy_of(b"b\n")), (copy_of(b"key"), copy_of(b"value"))]);
+    h.ok(
+        ENGINE,
+        write(Write::Dispatch { workflow: copy_of(b"gate.yml"), branch: copy_of(MAIN), inputs: inputs.clone() }),
+    );
+    h.settle();
+    let run = &workflow_runs(&h)[0];
+    assert_eq!(run.inputs.as_ref(), inputs.as_ref());
+    assert_eq!(
+        h.inspect(&Read::Artifact { run: run.id, name: copy_of(REPORT) }),
+        Ok(Answer::Artifact {
+            commit: FIRST,
+            artifact: Artifact {
+                name: copy_of(REPORT),
+                path: copy_of(b"failed.txt"),
+                bytes: copy_of(b"a\nb\n"),
+                deflate: true,
+            },
+        })
     );
 }
 

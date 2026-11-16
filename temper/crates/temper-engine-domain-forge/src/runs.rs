@@ -5,6 +5,57 @@ use skein_forge::api;
 use skein_lib::{Duration, List, Time};
 use temper_engine_domain_forge_landing as policy;
 
+/// Dispatches with different inputs cannot share the run-matching window
+/// (temper/docs/design/domain/landing-search-by-test.md, 5).
+/// Restored caller-owned flights count before their first step, too.
+pub(crate) fn busy(
+    d: &crate::Domain,
+    repository: api::Repository,
+    workflow: &[u8],
+    commit: api::Commit,
+    inputs: &[api::Input],
+) -> bool {
+    for (_, follow) in &d.landing.flights {
+        if follow.conflicts(repository, workflow, commit, inputs) {
+            return true;
+        }
+    }
+    for (_, follow) in &d.landing.faults {
+        if follow.conflicts(repository, workflow, commit, inputs) {
+            return true;
+        }
+    }
+    for (_, row) in &d.tiers {
+        if let Some(follow) = crate::tiers::in_flight(d, row)
+            && follow.conflicts(repository, workflow, commit, inputs)
+        {
+            return true;
+        }
+    }
+    for (_, row) in &d.changes {
+        if let Some(follow) = crate::follow_check::in_flight(d, row)
+            && follow.conflicts(repository, workflow, commit, inputs)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// The shared LF-terminated selection encoding (domain/landing-search-by-test.md, 3).
+pub(crate) fn tests_input(tests: &[Box<[u8]>]) -> api::Input {
+    let mut length = 0_usize;
+    for test in tests {
+        length = length.checked_add(test.len()).expect("bounded ids").checked_add(1).expect("newline");
+    }
+    let mut value = skein_lib::Writer::new(length);
+    for test in tests {
+        value.put(test).expect("measured ids");
+        value.put(b"\n").expect("newline per id");
+    }
+    api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() }
+}
+
 /// One caller-owned dispatch and its current run. The caller persists its outbox entry.
 #[derive(Clone, Hash, Debug)]
 pub struct Follow {
@@ -120,6 +171,23 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
 }
 
 impl Follow {
+    fn conflicts(
+        &self,
+        repository: api::Repository,
+        workflow: &[u8],
+        commit: api::Commit,
+        inputs: &[api::Input],
+    ) -> bool {
+        let live = match self.outcome {
+            Some(policy::Verdict::Passed | policy::Verdict::Failed) => false,
+            Some(policy::Verdict::Fault(_) | policy::Verdict::Running) | None => true,
+        };
+        live && self.repository == repository
+            && self.workflow.as_ref() == workflow
+            && self.commit == commit
+            && self.inputs.as_ref() != inputs
+    }
+
     /// Take the next committed write; the caller records the supplied entry number.
     pub fn write(&mut self, entry: u64) -> Option<api::Write> {
         let mut remaining = List::with_capacity(u32::try_from(self.writes.len()).expect("bounded jobs"));

@@ -12,6 +12,7 @@
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
 
+
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
   rather than reading macOS's configured range. The plan chose its

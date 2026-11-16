@@ -47,6 +47,20 @@ impl JobBarrier {
         workflow.replacen("      - run: |", &step, 1)
     }
 
+    /// Keep the selected ids in the started marker before blocking the run.
+    #[must_use]
+    pub fn gate_workflow_by_test(&self, workflow: &str) -> String {
+        self.gate_workflow(workflow).replace(
+            ": > \"$barrier/started/$run\"",
+            "printf '%s' '${{ inputs.temper_tests }}' > \"$barrier/$run\"\n          mv \"$barrier/$run\" \"$barrier/started/$run\"",
+        )
+    }
+
+    #[must_use]
+    pub(super) fn selection(&self, run: u64) -> Vec<u8> {
+        fs::read(self.directory.join("started").join(run.to_string())).expect("started selection")
+    }
+
     #[must_use]
     pub fn started(&self, run: u64) -> bool {
         self.directory.join("started").join(run.to_string()).is_file()

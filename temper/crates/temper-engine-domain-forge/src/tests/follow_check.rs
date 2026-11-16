@@ -336,6 +336,40 @@ fn a_follow_job_fault_retries_its_failed_attempt_and_an_authority_veto_keeps_the
 }
 
 #[test]
+fn a_follow_check_waits_for_a_gate_and_its_restored_flight_blocks_other_inputs() {
+    let (mut d, mut row) = configured();
+    keyed(&mut d, &mut row);
+    let gate_key =
+        ReceiptKey { project: PROJECT, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [8; 32] };
+    let mut gate = runs::follow();
+    gate.workflow = b".forgejo/workflows/follow.yml".as_slice().into();
+    gate.commit = fixtures::HEAD;
+    gate.inputs = landing::inputs(gate.commit, gate_key.key, None, false);
+    let gate_inputs = gate.inputs.clone();
+    d.landing.flights.insert(gate_key.clone(), gate).unwrap();
+    assert!(matches!(advance(&mut d, &mut row), Action::Wait), "a different key owns the workflow window");
+    assert!(row.follow_check.as_ref().unwrap().flight.is_none(), "the waiter keeps no dispatch");
+    d.landing.flights.get_mut(&gate_key).unwrap().outcome = Some(temper_engine_domain_forge_landing::Verdict::Passed);
+    assert!(matches!(advance(&mut d, &mut row), Action::Write));
+    let write = check::write(&d, &mut row, fixtures::OPEN).expect("dispatch after the gate ends");
+    let api::Write::Dispatch { inputs, .. } = write else { panic!("follow dispatch") };
+    // Restore only the stored row: there is no volatile follow-check follower.
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
+    assert!(crate::runs::busy(&d, REPO, b".forgejo/workflows/follow.yml", fixtures::HEAD, &gate_inputs));
+    assert!(!crate::runs::busy(&d, REPO, b".forgejo/workflows/follow.yml", fixtures::HEAD, &inputs));
+    let flight = row.follow_check.as_mut().unwrap().flight.as_mut().unwrap();
+    flight.waiting = false;
+    flight.start = Some(env().now);
+    flight.since = Some(env().now);
+    completed(&mut d, &mut row, true);
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    assert!(
+        !crate::runs::busy(&d, REPO, b".forgejo/workflows/follow.yml", fixtures::HEAD, &gate_inputs),
+        "the completed verdict releases the workflow after restoration, too"
+    );
+}
+
+#[test]
 fn a_follow_workflow_judges_the_train_prefix_on_its_landing_branch() {
     let (mut d, mut row) = configured();
     let prefix = sha1(0xcc);

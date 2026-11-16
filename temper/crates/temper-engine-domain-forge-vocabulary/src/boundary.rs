@@ -3136,7 +3136,7 @@ pub struct LoggedChange {
     pub title: Box<[u8]>,
 }
 
-/// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
+/// The landing transitions reported to its member's goal (domain/landing.md, 4.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LandingNews {
     Probing,
@@ -3145,6 +3145,7 @@ pub enum LandingNews {
     Landed,
     Left,
     Held,
+    WholeAgain,
 }
 /// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

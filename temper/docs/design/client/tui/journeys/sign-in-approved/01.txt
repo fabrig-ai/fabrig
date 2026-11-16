@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:35917                                     │
+│ Sign in this terminal to 127.0.0.1:46353                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ VZWL-HHQV, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:35917/terminal?code=VZWL-HHQV                  │
+│ KDKC-BWNH, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:46353/terminal?code=KDKC-BWNH                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:35917/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:46353/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

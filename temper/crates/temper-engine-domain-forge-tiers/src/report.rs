@@ -8,14 +8,18 @@ use skein_lib::{List, Stack, Writer, bytes};
 
 /// Reads a report, sorting and deduplicating its bounded failing ids.
 pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, Unreadable> {
-    match read(format, file, *limits, KeyForm::Tier)? {
-        NamedFailures::Many => Ok(Failures::Many),
+    Ok(keys(read(format, file, *limits, KeyForm::Tier)?, limits.failing_tests))
+}
+
+fn keys(failures: NamedFailures, capacity: u32) -> Failures {
+    match failures {
+        NamedFailures::Many => Failures::Many,
         NamedFailures::Tests(tests) => {
-            let mut ids = List::with_capacity(limits.failing_tests);
+            let mut ids = List::with_capacity(capacity);
             for test in tests {
                 ids.push(test.key).expect("bounded tests");
             }
-            Ok(Failures::Tests(ids.into_boxed()))
+            Failures::Tests(ids.into_boxed())
         }
     }
 }
@@ -45,8 +49,48 @@ enum KeyForm {
 fn read(format: Format, file: &[u8], limits: Limits, form: KeyForm) -> Result<NamedFailures, Unreadable> {
     match format {
         Format::Lines => Ok(lines(file, limits)),
-        Format::Junit => junit(file, limits, form),
+        Format::Junit => junit_cases(file, limits, form, true),
     }
+}
+
+/// A gate's failed cases only, safe to send as a selection
+/// (temper/docs/design/domain/landing-search-by-test.md, 2).
+#[must_use]
+pub fn selection(format: Format, file: &[u8], limits: &Limits) -> Option<Failures> {
+    let failures = keys(
+        match format {
+            Format::Lines => lines(file, *limits),
+            Format::Junit => junit_cases(file, *limits, KeyForm::Tier, false).ok()?,
+        },
+        limits.failing_tests,
+    );
+    match &failures {
+        Failures::Many => Some(failures),
+        Failures::Tests(tests) => {
+            if tests.is_empty() {
+                return None;
+            }
+            for test in tests {
+                if !selection_id(test) {
+                    return Some(Failures::Many);
+                }
+            }
+            Some(failures)
+        }
+    }
+}
+
+#[expect(clippy::disallowed_methods, reason = "this report boundary validates ids before a gate can send them as text")]
+fn selection_id(test: &[u8]) -> bool {
+    if core::str::from_utf8(test).is_err() {
+        return false;
+    }
+    for byte in test {
+        if *byte < 32 || *byte == 127 {
+            return false;
+        }
+    }
+    true
 }
 
 /// A failed run without a readable, nonempty report is a runner fault.
@@ -133,7 +177,7 @@ struct Case {
     failed: bool,
 }
 
-fn junit(file: &[u8], limits: Limits, form: KeyForm) -> Result<NamedFailures, Unreadable> {
+fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Result<NamedFailures, Unreadable> {
     let mut failures = NamedFailures::Tests(Box::new([]));
     // The artifact bounds the nesting; the stack grows only as tags arrive.
     let Ok(capacity) = u32::try_from(file.len()) else { return Err(Unreadable) };
@@ -201,7 +245,7 @@ fn junit(file: &[u8], limits: Limits, form: KeyForm) -> Result<NamedFailures, Un
                 }
             }
         } else if !closing
-            && (name == b"failure" || name == b"error")
+            && (name == b"failure" || (errors && name == b"error"))
             && let Some(case) = &mut case
         {
             case.failed = true;

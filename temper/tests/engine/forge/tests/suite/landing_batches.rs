@@ -591,6 +591,8 @@ fn a_blamed_repair_keeps_the_green_members_and_the_red_receipts_brief() {
         let member = &row.landing.members[usize::try_from(breaking - 51).unwrap()];
         let Some(landing::Leave::Blamed { gate, red, green, run }) = member.left else { panic!("blamed member") };
         let below = change::Below {
+            by_test: false,
+            top: false,
             green,
             changes: if breaking == 51 {
                 [None; 4]

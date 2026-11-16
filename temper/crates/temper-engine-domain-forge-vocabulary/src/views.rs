@@ -3,6 +3,8 @@ use crate::{Panel, PersonFact, ReceiptRun};
 use alloc::boxed::Box;
 use core::mem::size_of_val;
 use temper_engine_domain_forge_landing as policy;
+mod landing;
+pub use landing::{LandingRound, LandingSearch, LandingSearchTests, SearchPass, SearchSelection};
 pub mod changes;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, TrainLanding};
 pub mod follows;
@@ -23,10 +25,6 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a change panel carries the bounded Copy landing repair context")
-)]
 pub enum Document {
     Findings(crate::Findings),
     Change(Panel),
@@ -52,7 +50,7 @@ pub struct LandingView {
     pub stale_proofs: u32,
     pub turn: Option<u64>,
     pub train: Option<LandingTrain>,
-    pub round: policy::Round,
+    pub round: LandingRound,
     pub step: LandingStep,
     pub probe: Option<[u8; 32]>,
 }
@@ -80,6 +78,7 @@ pub enum LandingStep {
     Recording,
     Telling,
     Probing,
+    ProbingByTest,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PrefixJudgement {
@@ -233,7 +232,8 @@ impl Document {
                     .saturating_add(size_of_val(view.members.as_ref()))
                     .saturating_add(train_bytes(view.train.as_ref()))
                     .saturating_add(view.round.branch.len())
-                    .saturating_add(view.round.failure.len());
+                    .saturating_add(view.round.failure.len())
+                    .saturating_add(landing::search_bytes(view.round.search.as_ref()));
                 for member in &view.members {
                     size = size
                         .saturating_add(member.owner.len())

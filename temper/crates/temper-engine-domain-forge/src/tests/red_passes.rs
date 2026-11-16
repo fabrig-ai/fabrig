@@ -121,6 +121,7 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                             phase: landing::Phase::Landed,
                             round: landing::Round::new(Box::default()),
                             last_left: None,
+                            searched: None,
                             branch: b"temper/7/g7".as_slice().into(),
                             preparation: 0,
                             stale_proofs: 0,

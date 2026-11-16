@@ -56,7 +56,7 @@ impl Domain {
         w::PublicLanding::new(
             l,
             w::PublicLandingParts {
-                search: match row.round.search {
+                search: match &row.round.search {
                     Some(search) => Some(
                         w::PublicSearch::new(
                             l,
@@ -148,7 +148,7 @@ fn step(value: crate::LandingStep) -> w::PublicLandingStep {
         S::Judging => w::PublicLandingStep::Judging,
         S::Leaving => w::PublicLandingStep::Leaving,
         S::Recording => w::PublicLandingStep::Recording,
-        S::Probing => w::PublicLandingStep::Probing,
+        S::Probing | S::ProbingByTest => w::PublicLandingStep::Probing,
         S::Telling => w::PublicLandingStep::Telling,
     }
 }
