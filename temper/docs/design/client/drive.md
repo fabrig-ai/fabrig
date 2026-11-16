@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-14. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-16. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -24,7 +24,8 @@ open.
 - **Signed in by the session, three ways:** ctl from a file holding the
   box's first link, the browser with the fresh link serve prints when
   the spent one is opened, and the TUI, when a line first needs it, by
-  the browser's approval (2.3 and 3.3). No line signs in.
+  the browser's approval (2.3 and 3.3). No line signs in, and no link
+  is logged, answered or kept.
 - **A ctl session** (2.6), `--ctl`, takes ctl and forge lines alone and
   starts no browser and no TUI; a deployment's session
   (`--deployment`) is one too, on the deployment's processes.
@@ -105,7 +106,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 | `session/ctl/` | ctl's directory (`ctl/README.md`, 6), which its sign-in makes | |
 | `session/browser/` | Chromium's profile and downloads | |
 | `session/bin/` | `xdg-open` and `open`, links to `true`, first in the TUI's `PATH` (`tui/journeys.md`, 8.2) | |
-| `session/box.log` | the box's stdout and stderr, each line as it comes | |
+| `session/box.log` | the box's stderr, each line as it comes, and never a link: its stdout, which carries its sign-in links alone (`../protocol/setup/box.md`, 2), is read for them and written nowhere (2.3) | |
 | `session/looks/` | each look's screenshot, `NNNN-WIDTH.png`, NNNN the line's number from 1 | |
 | `session/lines` | the kept lines (section 4) | |
 
@@ -121,8 +122,9 @@ In order, each within its bound; a failure is 2.5's.
 1. **The box:** `BIN/temper-box --fake-backends --bundle BUNDLE --config
    SCRATCH/config --data SCRATCH/data --cache SCRATCH/cache`, then each
    `--scripts FILE` and `--strict` as given, its stdin closed, its
-   stdout and stderr read a line at a time into `session/box.log`. Its
-   first link is the first stdout line starting `http://`
+   stdout and stderr each read a line at a time: its stderr into
+   `session/box.log`, its stdout for its links (below). Its first link
+   is the first stdout line starting `http://`
    (`../protocol/setup/box.md`, 2), within 60 seconds.
 2. **ctl, signed in from a file:** the link written to
    `SCRATCH/session/link`, 0o600, then `BIN/temper ctl
@@ -147,6 +149,19 @@ While any step waits, the box's exit, or a line on its stderr saying a
 step is restarting or the box gives up (`../protocol/setup/box.md`, 2),
 ends the wait as the box's failure.
 
+**Its links.** Every line of the box's stdout is a sign-in link, its
+first or a fresh one serve prints (`../protocol/setup/box.md`, 2). The
+session takes its first for ctl (step 2) and, but in a ctl session, the
+fresh one the spent first brings for the browser (step 3); it drops
+every other line of the box's stdout as it reads it, as a deployment's
+session drops the engine's later links (`../testing/qa/deployment.md`,
+5). No line of the box's stdout is written to `session/box.log`, and no
+link is answered or kept (section 4), so `session/box.log`, the tail a
+`box failed:` answer prints from it (2.5) and a finding's evidence that
+copies it (`../testing/qa/findings.md`, 2) hold no link. The box's
+opening lines, which the box's values are read from (3.4), are on its
+stderr and so in `session/box.log`.
+
 ### 2.4 Its end
 
 At a line `end`, or at stdin's end: the TUI ended, its process group
@@ -162,7 +177,7 @@ directory stays until the next session.
 |---|---|---|
 | 0 | the session reached its end and the box stopped cleanly, whatever its lines answered | `ended` |
 | 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box.md`, 2), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store.md`, 5; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
-| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
+| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| `: neither holds a link (2.3; `../protocol/setup/box.md`, 2) |
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
@@ -457,6 +472,11 @@ Focused, with no browser, no box and no Chromium:
 - **ctl from a file:** the box's first link written to `session/link`,
   0o600, ctl given its path and no stdin, the file gone once ctl has
   answered; the link in no answer and no program's argument.
+- **No link logged:** given box output with links on its stdout, the
+  first, the fresh one and a later one, among lines on its stderr, the
+  session's `session/box.log` holds each stderr line, in order, and no
+  link; a box that then gives up ends with status 4, its answer showing
+  those stderr lines in its tail and no link.
 - **A ctl session:** its start asks for no browser and needs no
   `SKEIN_TEST_CHROMIUM`; it is `ready` once ctl has signed in; a web or
   tui line, or a look of either, fails and is not kept; ctl and forge
