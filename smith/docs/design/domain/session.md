@@ -217,7 +217,22 @@ child domain `smith-domain-session`, whose own child is the tools domain
   renewal policy even if a later generation arrives while it is in
   flight. A missing or lapsed grant that fails unsent keeps its recovery
   retries. The others end the session as a failure of its model, naming
-  the account. A model with no
+  the account.
+- **A completion waits for a grant that will come** (temper's
+  `draft/redeploys.md`, 5.3). Where the grant its account needs has
+  lapsed, or is missing, and is renewable (a bearer's or a program
+  source's, `Grant.renewable`), the completion is not issued and fails
+  nothing: the session waits, its reservation released and no retry
+  spent, until a newer generation of that account's grant arrives
+  (`Event::Grant`), and then issues it, as when its engine is away and
+  renews nothing. It waits within the conversation's expiry and the
+  run's deadline, past which it ends as those deadlines end it; the
+  run's budgets keep counting. The agent tells its host of the wait as
+  a long operation, `grant`, bounded by those deadlines, and its end as
+  any long done (protocol/channel.md, section 4), so the host's
+  watchdog knows of it (host.md, section 4). A key's lapsed or missing
+  grant, which no host renews, fails unsent as before; a completion
+  already issued runs on under its provider's deadlines. A model with no
   account raises none of them: no grant can come for it, so each ends
   the session as a failure of its model, with its provider's failure
   class and no account (protocol/charter.md, section 2). An unsupported

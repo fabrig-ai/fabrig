@@ -44,8 +44,9 @@ tags stay fixed (`../README.md`, 7).
   once, and no acknowledge follows it (`../../domain/hosts/hub.md`, 2;
   `../../domain/engine/fleet.md`).
 - **A call the run withdraws** ends on the worker: the hub answers the run
-  that it is withdrawn and drops the engine's answer if one comes
-  (`../../domain/hosts/hub.md`, 2). Nothing crosses for it. A call asked again
+  that it is withdrawn, or unsent where the link never carried it, and
+  drops the engine's answer if one comes (`../../domain/hosts/hub.md`, 2
+  and 6). Nothing crosses for it. A call asked again
   by the same name crosses again: the engine answers it busy while it is
   still deciding the first, so the run asks again, and from the record it
   kept once the first is decided, never deciding it twice

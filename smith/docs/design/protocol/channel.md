@@ -203,6 +203,9 @@ of domain/host.md, section 2.
 - **withdrawn:** the host settled a call the run withdrew, without giving
   its answer. Whatever the host did stands, and the run asks again under
   the same name to learn it (domain/run.md, 5.2);
+- **unsent:** the host settled a call the run withdrew that never reached
+  what decides it, so nothing was done, and the run asks again as after
+  busy (domain/run.md, 5.2). `Reply`'s last variant, `unsent`;
 - **too large:** the host's answer is larger than the run takes. The run
   tells the LLM so, as an error, and does not ask again, since the host
   would answer the same.
@@ -217,7 +220,7 @@ of domain/host.md, section 2.
 | withdraw | a call's name | once per call, at most |
 | turn | its number in this activation; the spend so far; the last message read, if any; `opens_window`; its body, as bytes (transcript.md) | numbered from one in each activation, each once |
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
-| long | what it is (`check`, `completion` or `command`) and how long, at most, as a duration | when the checks, an LLM completion or a command start |
+| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
 | unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |

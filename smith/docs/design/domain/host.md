@@ -199,7 +199,8 @@ policy.
   deadline for it bounds; and while a turn waits for room to be sent
   (section 6). It stretches to the span of the long operations the run
   reports (its checks, its LLM completions, its commands, its `job`
-  calls' waits), each bounded by the run's own deadlines, until the run
+  calls' waits, a completion's wait for a grant: session.md, section 4),
+  each bounded by the run's own deadlines, until the run
   says each is done. A job that runs on between calls is no long
   operation: the run reports the calls that read it. What
   silence remains is the run's own steps and io's short operations, and
