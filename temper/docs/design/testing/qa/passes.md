@@ -129,13 +129,19 @@ The loop's third step (`README.md`, 4), for each free place
   - **The setups:** `fresh` at a box's place, and each recipe of
     `passes/P/setups/` of the place's kind, its
     name and its README's first sentence, as `recipe list` gives them
-    (`../../client/recipe.md`, 5.2); a case whose state no setup reaches
-    is brought there from the nearest, and once it has run its lines
+    (`../../client/recipe.md`, 5.2). When neither `web` nor `tui` is
+    configured, offer `fresh` and only recipes whose whole chain has no
+    web or tui line, as triage does (`triage.md`, 3); a case whose state
+    no setup reaches is brought there from the nearest, and once it has run its lines
     become a recipe (`places.md`, 6).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
     lines in brief (`../../client/drive.md`, 3), among them ctl's box
-    values and the `forge` lines on the fake Forgejo, each file a
-    `forge commit` names written under `passes/P/files/` first
+    values and the `forge commit`, `forge push` and `forge checks` lines
+    on the fake Forgejo. One line says quoted bytes take printable ASCII
+    alone, other bytes as `\xHH`, with `\"` and `\\` for quote and
+    backslash (`../../client/drive.md`, 3.1). Each file a
+    `forge commit` or `forge push` names is written under
+    `passes/P/files/` first
     (`../../client/drive.md`, 3.4 and 3.5; section 2), and the recording
     commands (section 5; `findings.md`, 2), each with its form; that
     `pass setup`, `pass recipe` and `pass open` may take minutes, each

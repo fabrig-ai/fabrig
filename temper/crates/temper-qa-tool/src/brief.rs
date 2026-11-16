@@ -30,12 +30,11 @@ fn ctl_chain(name: &str, recipes: &BTreeMap<String, String>) -> bool {
     }
 }
 
-fn read_setups(git: &mut impl GitFace, commit: &str, pages: &Pages) -> Result<(Vec<String>, String), Refusal> {
+pub(crate) fn setup_names(git: &mut impl GitFace, commit: &str, configured: &[String]) -> Result<Vec<String>, Refusal> {
     let mut setups = vec!["fresh".into()];
-    let mut catalogue = String::from("- fresh: a fresh box at its welcome with nothing set up\n");
     let directory = SETUPS_DIRECTORY;
     let entries = git.entries(commit, directory)?;
-    let ctl_only = !pages.contains_key("web") && !pages.contains_key("tui");
+    let ctl_only = !configured.iter().any(|surface| surface == "web" || surface == "tui");
     let mut recipes = BTreeMap::new();
     if ctl_only {
         for entry in &entries {
@@ -49,16 +48,21 @@ fn read_setups(git: &mut impl GitFace, commit: &str, pages: &Pages) -> Result<(V
         }
     }
     for entry in entries {
-        if entry.directory && entry.name != "fresh" {
-            if ctl_only && !ctl_chain(&entry.name, &recipes) {
-                continue;
-            }
-            let path = format!("{directory}/{}/README.md", entry.name);
-            let bytes = git.file(commit, &path)?.unwrap_or_default();
-            let text = String::from_utf8_lossy(&bytes);
-            writeln!(catalogue, "- {}: {} ({path})", entry.name, first_paragraph(&text)).expect("string");
+        if entry.directory && entry.name != "fresh" && (!ctl_only || ctl_chain(&entry.name, &recipes)) {
             setups.push(entry.name);
         }
+    }
+    Ok(setups)
+}
+
+fn read_setups(git: &mut impl GitFace, commit: &str, configured: &[String]) -> Result<(Vec<String>, String), Refusal> {
+    let setups = setup_names(git, commit, configured)?;
+    let mut catalogue = String::from("- fresh: a fresh box at its welcome with nothing set up\n");
+    for name in setups.iter().skip(1) {
+        let path = format!("{SETUPS_DIRECTORY}/{name}/README.md");
+        let bytes = git.file(commit, &path)?.unwrap_or_default();
+        let text = String::from_utf8_lossy(&bytes);
+        writeln!(catalogue, "- {name}: {} ({path})", first_paragraph(&text)).expect("string");
     }
     Ok((setups, catalogue))
 }
@@ -196,7 +200,7 @@ impl Inputs {
             pages.insert(surface.into(), names);
             writeln!(surfaces, "- {surface} journeys: {journeys}").expect("string");
         }
-        let (setups, catalogue) = read_setups(git, commit, &pages)?;
+        let (setups, catalogue) = read_setups(git, commit, configured)?;
         let mut qa = Vec::new();
         for value in git.qa_trailers(&parent, commit)? {
             if !qa.contains(&value) {
@@ -302,7 +306,7 @@ impl Inputs {
         };
         write!(text, "\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{{\"surface\":\"{example}\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}}]}}\n```\nA case's surface is {names};").expect("string");
         if self.pages.contains_key("ctl") {
-            text.push_str(" for ctl, page is one of its groups.");
+            text.push_str(r#" for ctl, page is one of its groups. For ctl steps, write do as ctl or forge drive lines. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#);
         }
         text.push_str(
             " Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n",

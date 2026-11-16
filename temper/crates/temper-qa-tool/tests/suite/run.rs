@@ -981,6 +981,7 @@ fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
         "- fresh: a fresh box at its welcome with nothing set up\n- ctl-chain: The ctl-chain state. (temper/docs/development/qa/setups/ctl-chain/README.md)\n- ctl-root: The ctl-root state. (temper/docs/development/qa/setups/ctl-root/README.md)\n"
     );
     assert!(brief.contains("\"surface\":\"ctl\""));
+    assert!(brief.contains(r#"Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#));
     assert!(brief.contains("A case's surface is ctl; for ctl, page is one of its groups."));
 }
 

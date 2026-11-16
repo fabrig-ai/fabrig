@@ -219,7 +219,7 @@ impl World {
 }
 
 fn ctl_world() -> World {
-    let world = World::new();
+    let mut world = World::new();
     for (name, recipe) in [
         ("welcome", "recipe 1\ncheck\nctl project list\n"),
         (
@@ -237,6 +237,9 @@ fn ctl_world() -> World {
         )
         .replace("cat \"hash-$3\" ;;", "cmp \"expected-$3\" \"$5/$3/recipe\"\n    cat \"hash-$3\" ;;");
     fs::write(world.place.paths.bin.join("temper-client-journeys"), tool).expect("ctl fake build");
+    world.home.configuration.surfaces = vec!["ctl".into()];
+    world.place =
+        PassPlace::for_session(&world.home, world.session, world.place.drive, world.place.archive).expect("ctl place");
     world
 }
 
@@ -819,4 +822,49 @@ fn a_copy_takes_the_members_its_box_made() {
     assert_eq!(copy_members(box_directory).expect("members"), ["data"]);
     fs::create_dir(box_directory.join("config")).expect("config");
     assert_eq!(copy_members(box_directory).expect("members"), ["config", "data"]);
+}
+
+#[test]
+fn ctl_only_pass_refuses_web_and_tui_in_a_setups_parent_before_restore() {
+    for surface in ["web", "tui"] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = vec!["ctl".into()];
+        world.place = PassPlace::for_session(
+            &world.home,
+            world.session,
+            RealDrive {
+                environment: vec![(Box::from(b"QA_RECIPE_ENV".as_slice()), Box::from(b"captured".as_slice()))],
+            },
+            Archive::default(),
+        )
+        .expect("ctl pass place");
+        fs::write(&world.place.paths.setup, "fresh\n").expect("prior setup");
+        fs::write(
+            world.place.setups.join("chat-draft/recipe"),
+            "recipe 1\nafter project-landing\ncheck\nctl task list\n",
+        )
+        .expect("ctl child");
+        fs::write(world.place.setups.join("project-landing/recipe"), format!("recipe 1\n{surface} see Ready\n"))
+            .expect("parent");
+        let why = world.place.setup("chat-draft", &mut Vec::new()).expect_err("surface refused").to_string();
+        assert!(why.contains(&format!("recipe project-landing:2 has a {surface} line")), "{why}");
+        assert!(why.contains("the pass's surfaces take ctl and forge lines alone"), "{why}");
+        assert_eq!(world.setup_file(), "fresh\n");
+        assert_eq!(world.walks().len(), 0);
+        assert_eq!(world.place.archive.restored.len(), 0);
+        assert_eq!(world.setup("fresh").0, 0);
+    }
+}
+
+#[test]
+fn a_new_recipe_copies_push_files_and_keeps_the_push_line() {
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(&files).expect("files");
+    fs::write(files.join("a.txt"), b"pushed").expect("file");
+    let mut input = commit_input();
+    input.lines[0] = r#"forge push forgejo playground/widget work/topic "m" "a.txt""#.into();
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
+    assert_eq!(fs::read(world.place.setups.join("added/files/a.txt")).expect("kept file"), b"pushed");
+    assert!(fs::read_to_string(world.place.setups.join("added/recipe")).expect("recipe").contains(&input.lines[0]));
 }

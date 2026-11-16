@@ -105,11 +105,11 @@ fn write_setups(git: &mut impl GitFace, text: &mut String, home: &Home, pass: &P
         pass_files::setups(home, pass.number).display()
     )
     .expect("string");
-    for entry in git.entries(&pass.build, pass_files::SETUPS)? {
-        if entry.directory && entry.name != "fresh" {
-            let path = format!("{}/{}/README.md", pass_files::SETUPS, entry.name);
+    for name in crate::brief::setup_names(git, &pass.build, &home.configuration.surfaces)? {
+        if name != "fresh" {
+            let path = format!("{}/{name}/README.md", pass_files::SETUPS);
             let bytes = git.file(&pass.build, &path)?.unwrap_or_default();
-            writeln!(text, "- {}: {}", entry.name, first_sentence(&String::from_utf8_lossy(&bytes))).expect("string");
+            writeln!(text, "- {name}: {}", first_sentence(&String::from_utf8_lossy(&bytes))).expect("string");
         }
     }
     text.push_str("\nA case whose state no setup reaches is brought there from the nearest. Once it has run, turn its kept lines into a recipe. If a recipe no longer walks, compare the landings' drafts: edit it for an intended flow change and retry; otherwise record a finding for the broken step, fail the affected cases with it, and continue the others.\n");
@@ -156,7 +156,7 @@ Place commands:
 
 `pass setup`, `pass recipe` and `pass open` may take minutes. Each walk or start prints a line as it goes: run them where your shell's own timeout does not cut them.
 
-Drive lines: one client, record and fields per line, fields separated by one space, words bare and bytes in double quotes. Use `web press ROLE NAME [ORDER]`, `web submit ROLE NAME [ORDER]`, `web toggle ROLE NAME [ORDER]`, `web input ROLE NAME VALUE [ORDER]`, `web see TEXT`, `web reload PATH`, `web look [WIDTH]`; `tui key KEY`, `tui see TEXT`, `tui stop`, `tui look`; `ctl ARGS...`; `forge commit forgejo REPOSITORY MESSAGE PATH...`, `forge checks forgejo REPOSITORY` or `end`. The forge lines make one commit as the person on the box's fake Forgejo's default branch and wait on its checks. REPOSITORY is OWNER/NAME; give 1–16 distinct relative PATHs, 1–256 bytes without empty, . or .. segments. Write each named file under the pass's files directory at its repository path before the line; each a regular file at most 64 KiB. ROLE is a lowercase accessible role, ORDER starts at 0, WIDTH is 320–3840. A look prints accessible text or the TUI's frame; a web look with WIDTH also writes a screenshot. The TUI starts signed in at its first line. Each ctl field is one argument; ctl stdin is closed. An act and waiting on it are separate lines, e.g. `ctl task show 3 --until ended`. Answers print shown lines prefixed `| `, then `ok` or `failed: WHY`. Looks are not kept in reproduction lines.
+Drive lines: one client, record and fields per line, fields separated by one space, words bare and bytes in double quotes. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash. Use `web press ROLE NAME [ORDER]`, `web submit ROLE NAME [ORDER]`, `web toggle ROLE NAME [ORDER]`, `web input ROLE NAME VALUE [ORDER]`, `web see TEXT`, `web reload PATH`, `web look [WIDTH]`; `tui key KEY`, `tui see TEXT`, `tui stop`, `tui look`; `ctl ARGS...`; `forge commit forgejo REPOSITORY MESSAGE PATH...`, `forge push forgejo REPOSITORY BRANCH MESSAGE PATH...`, `forge checks forgejo REPOSITORY` or `end`. The forge lines make one commit as the person on the box's fake Forgejo and wait on its checks. Commit writes the default branch; push writes BRANCH, making it at the default branch's head when absent. REPOSITORY is OWNER/NAME; give 1–16 distinct relative PATHs, 1–256 bytes without empty, . or .. segments. Write each named file under the pass's files directory at its repository path before the line; each a regular file at most 64 KiB. ROLE is a lowercase accessible role, ORDER starts at 0, WIDTH is 320–3840. A look prints accessible text or the TUI's frame; a web look with WIDTH also writes a screenshot. The TUI starts signed in at its first line. Each ctl field is one argument; ctl stdin is closed. An act and waiting on it are separate lines, e.g. `ctl task show 3 --until ended`. Answers print shown lines prefixed `| `, then `ok` or `failed: WHY`. Looks are not kept in reproduction lines.
 
 Ctl's box values: a whole field, bare or quoted, is replaced when the line runs: `{forgejo.api}` is HOST:PORT of the box's fake Forgejo, `{forgejo.git}` its http://HOST:PORT git base, `{forgejo.admin}` the path of its site admin's token file, and `{git}` the box's fake git program. The kept line keeps the name, never a place's path, port or credential. For example: `ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello`. A missing box value fails the line, naming it.
 

@@ -493,8 +493,14 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   /repos/OWNER/NAME/contents`) validates every create or update, including
   each update's blob SHA, before storing one commit. In a repository with
   no branch it creates the first branch and a commit without a parent;
-  otherwise it commits on the named branch. Moving that head starts the
-  repository's ordinary CI (2.3). A present file's contents read answers
+  otherwise it commits on the named branch. With `new_branch`, `branch`
+  names an existing base: the batch makes the new branch at that base's
+  head with the commit, whose parent and unchanged files come from the
+  base. An existing new branch is refused (`422`), a missing base is
+  `404`; neither changes a branch or stores a commit. Every validation
+  and room check precedes storing the commit and making the branch.
+  Moving that head starts the repository's ordinary CI (2.3). A present
+  file's contents read answers
   JSON with its blob SHA and base64 content, so the next batch can update
   it.
 - **Credentials.** The header is `Authorization: token <value>`; an unknown

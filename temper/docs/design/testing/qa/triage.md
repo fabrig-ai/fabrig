@@ -146,6 +146,10 @@ this order:
   for one of their pages joins it.
 - **The commands** (section 4), the case file's form, and that each is
   recorded at once, so a session ended early loses nothing recorded.
+  Where ctl is configured, the case form says do is ctl or forge drive
+  lines and gives their byte rule in one line: quoted bytes take
+  printable ASCII alone, other bytes as `\xHH`, with `\"` and `\\` for
+  quote and backslash (`../../client/drive.md`, 3.1).
 
 ## 4. Its answers
 
