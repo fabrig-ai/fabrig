@@ -287,7 +287,7 @@ pub struct Domain {
     pub(crate) room: crate::room::State,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
-    releases: Map<u64, ReleaseRow>,
+    pub(crate) releases: Map<u64, ReleaseRow>,
     pub(crate) kept: Map<u64, Box<[Name]>>,
     pub(crate) namespace: Box<[u8]>,
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
@@ -765,7 +765,9 @@ impl Domain {
     /// An ask holds room until this procedure can decide afresh.
     #[must_use]
     pub fn room_asked(&self, task: u64) -> bool {
-        if crate::room::asked(self, crate::room::Waiter::Change(task)) {
+        if crate::room::asked(self, crate::room::Waiter::Change(task))
+            || crate::room::asked(self, crate::room::Waiter::Release(task))
+        {
             return true;
         }
         for (owner, pending) in &self.makings {
@@ -6989,6 +6991,7 @@ fn release_row(
         failed: false,
         effects_settled,
         releasing,
+        room: None,
     }
 }
 
@@ -7138,8 +7141,26 @@ fn release(
     continue_release(d, env, task, entry, out);
 }
 
-#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
 fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
+    crate::room::stepping(d, task);
+    continue_release_inner(d, env, task, entry, out);
+    // A turn waiting on facts rather than room gives its promise back (room.md, 3).
+    if crate::room::asked(d, crate::room::Waiter::Release(task)) {
+        leave_room_release(d, task, out);
+    }
+}
+
+fn leave_room_release(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Release(task));
+    if let Some(row) = d.releases.get_mut(&task)
+        && row.room.take().is_some()
+    {
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
+fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.holds {
         let Some(mut row) = d.releases.get(&task).cloned() else { return };
         if row.failed || row.pending.is_some() {
@@ -7251,6 +7272,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         end_change(d, env, task, out);
         heads::free(d, env, out);
         d.releases.remove(&task);
+        crate::room::leave(d, crate::room::Waiter::Release(task));
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });
         return;
@@ -7422,7 +7444,8 @@ fn enqueue_release(
     resource: Option<Name>,
     out: &mut Queue<Request>,
 ) {
-    if d.entries.len() == env.limits.entries || d.entries.contains_key(&number) {
+    if d.entries.contains_key(&number) {
+        leave_room_release(d, row.task, out);
         emit(out, Request::ReleaseFailed { task: row.task, account: None });
         return;
     }
@@ -7436,6 +7459,27 @@ fn enqueue_release(
         failures: 0,
         queued: false,
     };
+    let permitted = match d.repositories.get(&repository) {
+        Some(repository) => repository.role != Role::Context && effect_permitted(repository.kinds, &entry.effect.write),
+        None => false,
+    };
+    if !permitted || !skein_forge_client::valid_entry(&entry, &env.limits.client) {
+        leave_room_release(d, row.task, out);
+        emit(out, Request::ReleaseFailed { task: row.task, account: None });
+        return;
+    }
+    let waiter = crate::room::Waiter::Release(row.task);
+    if !crate::room::check(d, &env.limits, Some(waiter)) {
+        if row.room.is_none() {
+            row.room = Some(crate::room::next_place(d));
+        }
+        crate::room::leave(d, waiter);
+        d.releases.insert(row.task, row.clone()).expect("replaces release");
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+        return;
+    }
+    row.room = None;
+    crate::room::leave(d, waiter);
     row.pending = Some((number, resource));
     d.releases.insert(row.task, row.clone()).expect("replaces release");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
@@ -9301,6 +9345,23 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             {
                 emit(out, Request::ContinueRelease { task });
             }
+        }
+        let mut releases = List::with_capacity(d.releases.capacity());
+        for (task, row) in &d.releases {
+            let mut removed = match d.changes.get(task) {
+                Some(change) => change.repository.forge == forge,
+                None => false,
+            };
+            for (name, hold) in &d.holds {
+                removed |= hold.task == *task && name.forge == forge;
+            }
+            if row.room.is_some() && removed {
+                releases.push(*task).expect("bounded release rows");
+            }
+        }
+        for task in releases.into_boxed() {
+            leave_room_release(d, task, out);
+            emit(out, Request::ContinueRelease { task });
         }
         let mut changes = List::with_capacity(d.changes.capacity());
         for (task, row) in &d.changes {

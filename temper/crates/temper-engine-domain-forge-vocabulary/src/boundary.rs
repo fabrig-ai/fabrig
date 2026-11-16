@@ -795,6 +795,8 @@ pub enum DriftChange {
 /// Durable progress while a closing task releases its connector resources.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReleaseRow {
+    /// Its durable place in the outbox line (domain/forge/room.md, 3–4).
+    pub room: Option<u64>,
     pub task: u64,
     pub root: u64,
     pub ending: ReleaseEnding,

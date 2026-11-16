@@ -8,7 +8,7 @@ const FIRST: u64 = 52;
 const SECOND: u64 = 51;
 const FRESH: u64 = 101;
 
-fn full() -> Domain {
+pub(super) fn full() -> Domain {
     let mut d = refusals::adopted_domain();
     outputs(&mut d, Event::Client(skein_forge_client::Event::PauseOutbox));
     for number in 1..=u64::from(env().limits.entries) {
@@ -18,7 +18,7 @@ fn full() -> Domain {
     d
 }
 
-fn row(task: u64) -> ChangeRow {
+pub(super) fn row(task: u64) -> ChangeRow {
     let mut row = fixtures::opening_row();
     row.task = task;
     row.change.task = task;
@@ -43,7 +43,7 @@ fn finish(d: &mut Domain) -> Box<[Request]> {
     fixtures::finish_missing(d)
 }
 
-fn open(d: &mut Domain, task: u64, entry: u64) -> Box<[Request]> {
+pub(super) fn open(d: &mut Domain, task: u64, entry: u64) -> Box<[Request]> {
     start(d, task, entry);
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::HEAD)));
     finish(d)

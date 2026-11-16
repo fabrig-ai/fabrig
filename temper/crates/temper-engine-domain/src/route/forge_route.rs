@@ -5696,6 +5696,18 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::ContinueRelease { task } => {
+                if domain.forge.room_asked(task)
+                    && let Some(record) = domain.core.tasks.task(task)
+                {
+                    let held = match record.phase {
+                        tasks::Phase::Held { .. } | tasks::Phase::Ended(_) => true,
+                        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) => false,
+                    };
+                    if held {
+                        domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task }));
+                        continue;
+                    }
+                }
                 if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
                     domain.work.push(Work::Forge(forge::Event::ContinueRelease { task, entry }));
                 } else {

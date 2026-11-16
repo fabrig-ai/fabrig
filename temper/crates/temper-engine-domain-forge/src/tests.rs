@@ -40,6 +40,7 @@ pub(crate) mod records;
 pub(crate) mod reds;
 mod refusals;
 mod release;
+mod release_room;
 mod removal;
 mod requires;
 pub(crate) mod restore_fit;
@@ -1349,6 +1350,7 @@ fn a_held_effect_asked_again_is_looked_for_first_even_with_an_otherwise_full_out
 
 fn settling_release(comment: Option<Box<[u8]>>) -> ReleaseRow {
     ReleaseRow {
+        room: None,
         task: 7,
         root: 7,
         ending: ReleaseEnding::Done,

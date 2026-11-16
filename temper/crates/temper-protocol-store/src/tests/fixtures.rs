@@ -454,6 +454,7 @@ fn add_releases(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) 
         rows.push((
             label,
             top::Stored::Release(top::ReleaseRow {
+                room: None,
                 task: 1,
                 root: 2,
                 ending,

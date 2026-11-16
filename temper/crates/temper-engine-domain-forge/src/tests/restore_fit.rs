@@ -155,6 +155,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             desired: None,
         }),
         RecordKind::Release => Stored::Release(ReleaseRow {
+            room: None,
             task: n,
             root: n,
             ending: ReleaseEnding::Done,

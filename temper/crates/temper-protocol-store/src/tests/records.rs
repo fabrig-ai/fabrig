@@ -1147,6 +1147,7 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             comment.push(b'x').expect("fixture bytes");
         }
         let row = forge::Stored::Release(forge::ReleaseRow {
+            room: None,
             task: 1,
             root: 1,
             ending: forge::ReleaseEnding::Cancelled,
@@ -1158,6 +1159,26 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
             releasing: true,
         });
         assert_eq!(records::decode(&records::encode(&row), &bounds).is_ok(), fits, "{bytes}");
+    }
+}
+
+#[test]
+fn release_room_places_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for room in [None, Some(1), Some(u64::MAX)] {
+        let row = forge::Stored::Release(forge::ReleaseRow {
+            room,
+            task: 1,
+            root: 1,
+            ending: forge::ReleaseEnding::Cancelled,
+            close_pull: Some(3),
+            comment: Some(Box::from(b"cancelled".as_slice())),
+            pending: None,
+            failed: false,
+            effects_settled: true,
+            releasing: true,
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
 

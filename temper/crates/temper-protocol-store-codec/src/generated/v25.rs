@@ -1220,6 +1220,8 @@ pub enum Path {
     ReleaseRowEffectsSettled,
     /// The `releasing` field of `ReleaseRow`.
     ReleaseRowReleasing,
+    /// The `room` field of `ReleaseRow`.
+    ReleaseRowRoom,
     /// Bytes after `ReleaseRow`.
     ReleaseRowTail,
     /// The tag of `Verdict`.
@@ -6287,6 +6289,8 @@ pub struct ReleaseRowParts {
     pub effects_settled: bool,
     /// The `releasing` field.
     pub releasing: bool,
+    /// The `room` field.
+    pub room: Option<u64>,
 }
 
 /// `ReleaseRow` in this codec family.
@@ -6301,13 +6305,14 @@ pub struct ReleaseRow {
     failed: bool,
     effects_settled: bool,
     releasing: bool,
+    room: Option<u64>,
 }
 
 impl ReleaseRow {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ReleaseRowParts) -> Result<Self, Problem> {
-        let ReleaseRowParts { task, root, ending, close_pull, comment, pending_release, failed, effects_settled, releasing } = parts;
-        let value = Self { task, root, ending, close_pull, comment, pending_release, failed, effects_settled, releasing };
+        let ReleaseRowParts { task, root, ending, close_pull, comment, pending_release, failed, effects_settled, releasing, room } = parts;
+        let value = Self { task, root, ending, close_pull, comment, pending_release, failed, effects_settled, releasing, room };
         value.check(limits)?;
         Ok(value)
     }
@@ -6348,9 +6353,13 @@ impl ReleaseRow {
     #[must_use]
     pub fn releasing(&self) -> bool { self.releasing }
 
+    /// Reads the `room` field.
+    #[must_use]
+    pub fn room(&self) -> &Option<u64> { &self.room }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ReleaseRowParts { ReleaseRowParts { task: self.task, root: self.root, ending: self.ending, close_pull: self.close_pull, comment: self.comment, pending_release: self.pending_release, failed: self.failed, effects_settled: self.effects_settled, releasing: self.releasing } }
+    pub fn into_parts(self) -> ReleaseRowParts { ReleaseRowParts { task: self.task, root: self.root, ending: self.ending, close_pull: self.close_pull, comment: self.comment, pending_release: self.pending_release, failed: self.failed, effects_settled: self.effects_settled, releasing: self.releasing, room: self.room } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.comment.as_ref() && some_0.len() > usize::try_from(limits.release_row_comment_some.min(CEILINGS.release_row_comment_some)).expect("u32 fits usize") { return Err(Problem { path: Path::ReleaseRowComment, reason: skein_codec::Reason::Bound }); }
@@ -28850,6 +28859,11 @@ impl ReleaseRow {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_room = &self.room;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_room.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -28892,6 +28906,14 @@ impl ReleaseRow {
         writer.put(&[u8::from(*field_effects_settled)])?;
         let field_releasing = &self.releasing;
         writer.put(&[u8::from(*field_releasing)])?;
+        let field_room = &self.room;
+        match field_room {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -28912,7 +28934,8 @@ impl ReleaseRow {
         let decoded_failed = match reader.u8().ok_or(Problem { path: Path::ReleaseRowFailed, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ReleaseRowFailed, reason: skein_codec::Reason::Bool }) };
         let decoded_effects_settled = match reader.u8().ok_or(Problem { path: Path::ReleaseRowEffectsSettled, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ReleaseRowEffectsSettled, reason: skein_codec::Reason::Bool }) };
         let decoded_releasing = match reader.u8().ok_or(Problem { path: Path::ReleaseRowReleasing, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ReleaseRowReleasing, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { task: decoded_task, root: decoded_root, ending: decoded_ending, close_pull: decoded_close_pull, comment: decoded_comment, pending_release: decoded_pending_release, failed: decoded_failed, effects_settled: decoded_effects_settled, releasing: decoded_releasing })
+        let decoded_room = match reader.u8().ok_or(Problem { path: Path::ReleaseRowRoom, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ReleaseRowRoom, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ReleaseRowRoom, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { task: decoded_task, root: decoded_root, ending: decoded_ending, close_pull: decoded_close_pull, comment: decoded_comment, pending_release: decoded_pending_release, failed: decoded_failed, effects_settled: decoded_effects_settled, releasing: decoded_releasing, room: decoded_room })
     }
 }
 
@@ -51882,7 +51905,7 @@ impl ReleaseRow {
         size = size.checked_add(ReleaseEnding::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.release_row_comment_some))?)?)?.checked_add(1_u64.checked_add(PendingRelease::encoded_bound_within(limits)?)?)?;
         size = size.checked_add(1_u64)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -51899,7 +51922,7 @@ impl ReleaseRow {
         heap = heap.checked_add(ReleaseEnding::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(u64::from(limits.release_row_comment_some))?.checked_add(PendingRelease::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

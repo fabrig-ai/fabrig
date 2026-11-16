@@ -6,6 +6,7 @@ use skein_lib::{Env, Queue, Set, Token};
 pub(crate) enum Waiter {
     Change(u64),
     Making(Token),
+    Release(u64),
 }
 
 #[derive(Hash, Debug)]
@@ -18,8 +19,8 @@ pub(crate) struct State {
 impl State {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self {
-            asked: Set::with_capacity(limits.changes.saturating_add(limits.holds)),
-            passed: Set::with_capacity(limits.changes.saturating_add(limits.holds)),
+            asked: Set::with_capacity(limits.changes.saturating_add(limits.holds).saturating_add(limits.tasks)),
+            passed: Set::with_capacity(limits.changes.saturating_add(limits.holds).saturating_add(limits.tasks)),
             ready: false,
         }
     }
@@ -37,6 +38,7 @@ fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
     match waiter {
         Waiter::Change(task) => d.changes.get(&task)?.room,
         Waiter::Making(owner) => Some(d.makings.get(&owner)?.outbox_wait.as_ref()?.order),
+        Waiter::Release(task) => d.releases.get(&task)?.room,
     }
 }
 
@@ -50,6 +52,11 @@ fn first(d: &Domain) -> Option<Waiter> {
     for (owner, pending) in &d.makings {
         if let Some(wait) = &pending.outbox_wait {
             select(d, &mut next, wait.order, Waiter::Making(*owner));
+        }
+    }
+    for (task, row) in &d.releases {
+        if let Some(order) = row.room {
+            select(d, &mut next, order, Waiter::Release(*task));
         }
     }
     match next {
@@ -105,6 +112,9 @@ pub(crate) fn next_place(d: &Domain) -> u64 {
             last = last.max(wait.order);
         }
     }
+    for (_, row) in &d.releases {
+        last = last.max(row.room.unwrap_or(0));
+    }
     last.checked_add(1).expect("outbox places fit")
 }
 
@@ -122,6 +132,11 @@ pub(crate) fn leave(d: &mut Domain, waiter: Waiter) {
 }
 
 pub(crate) fn pass(d: &mut Domain, task: u64) {
+    let release = Waiter::Release(task);
+    d.room.asked.remove(&release);
+    if place(d, release).is_some() {
+        d.room.passed.insert(release).expect("one pass per waiter");
+    }
     let waiter = Waiter::Change(task);
     d.room.asked.remove(&waiter);
     if place(d, waiter).is_some() {
@@ -138,6 +153,7 @@ pub(crate) fn pass(d: &mut Domain, task: u64) {
 
 pub(crate) fn stepping(d: &mut Domain, task: u64) {
     d.room.passed.remove(&Waiter::Change(task));
+    d.room.passed.remove(&Waiter::Release(task));
     for (owner, pending) in &d.makings {
         if pending.task == task {
             d.room.passed.remove(&Waiter::Making(*owner));
@@ -181,6 +197,7 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 d.procedure_wakes.remove(&task);
                 Request::WakeProcedure { task }
             }
+            Waiter::Release(task) => Request::ContinueRelease { task },
             Waiter::Making(owner) => {
                 let pending = d.makings.get(&owner).expect("selected making");
                 Request::ContinueGoalBranch { task: pending.task }
