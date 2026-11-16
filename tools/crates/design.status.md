@@ -2,7 +2,7 @@
 
 2026-11-16. Where the repository lags or departs from [design.md](design.md).
 
-- **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-protocol-store` until its split.
+- **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-protocol-store` until its split [in flight: change 5418].
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-client-view` until its split [in flight: change 4395].
 
