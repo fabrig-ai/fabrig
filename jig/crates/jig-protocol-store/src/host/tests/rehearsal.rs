@@ -1,6 +1,9 @@
 //! A rehearsal stays runnable across job commits and KV snapshots (protocol/store/jobs.md, 2–3).
 use super::*;
 use crate::{Job, JobAnswer, JobWrite, KeyRange, Keys, Owner, PatchSet, PatchSets, Write};
+use jig_domain_core_vocabulary as core;
+use jig_domain_tasks as tasks;
+use skein_io::file;
 
 const BASE: PatchSet = PatchSet {
     owner: Owner::Application,
@@ -58,6 +61,24 @@ fn source() -> World {
         assert_eq!(found, u64::from(number));
         assert!(world.above.is_empty());
     }
+    // The fixture keeps task history in payload logs.
+    world.store.history_routing = true;
+    world.host.down(
+        &mut world.store,
+        &fixtures::env(),
+        fixtures::commit(
+            4,
+            Box::new([
+                fixtures::header(4),
+                fixtures::save(fixtures::result_index(fixtures::ALICE, 1, fixtures::GOAL)),
+                fixtures::save(fixtures::ended_of(fixtures::GOAL, tasks::Party::Person(fixtures::ALICE))),
+                fixtures::save(fixtures::question_line(fixtures::GOAL, 7, 1)),
+            ]),
+        ),
+        &mut world.above,
+    );
+    world.settle();
+    let Some(Event::Committed { number: 4, .. }) = world.above.pop() else { panic!("history is durable") };
     world.close();
     world
 }
@@ -83,8 +104,17 @@ fn close_rehearsal(world: &mut World) {
     let Some(Event::Closed { removed: true, .. }) = world.above.pop() else { panic!("scratch emptied") };
 }
 
-#[test]
-fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() {
+fn source_was_not_snapshotted(world: &mut World) {
+    let source = world.machine.reopen_root(0);
+    assert_eq!(
+        world.machine.open(source, b"generations/1/store/snapshot", How::Read),
+        Err(skein_fake_machine::Refusal::NotFound),
+        "snapshots only write the rehearsal copy"
+    );
+    world.machine.close(source);
+}
+
+fn opened_rehearsal() -> World {
     let mut world = source();
     let source = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
@@ -99,14 +129,24 @@ fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() 
         .host
         .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::super::Adoption::Rehearse { scratch })
         .unwrap();
-    let mut pages = 0;
-    let mut handed = 0;
-    let mut consumed = 0;
+    let mut pages = 0_u64;
+    let mut handed = 0_u64;
+    let mut consumed = 0_u64;
     let mut ran = false;
     let mut opened = false;
     let mut snapshot_yields = 0_u32;
+    let mut job_snapshot_yields = 0_u32;
+    let mut answering = None;
     for _ in 0_u32..3000 {
         world.step();
+        if let Some((owner, answer)) = answering.take() {
+            world.host.down(
+                &mut world.store,
+                &fixtures::env(),
+                crate::Request::Job { owner, answer: Ok(answer) },
+                &mut world.above,
+            );
+        }
         while let Some(event) = world.above.pop() {
             #[expect(
                 clippy::wildcard_enum_match_arm,
@@ -116,16 +156,11 @@ fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() 
                 Event::Job { owner, of: Owner::Application, job, page } => {
                     assert_eq!(job.as_ref(), JOB.name);
                     assert!(page.rows.len() <= usize::try_from(limits.store.ops).unwrap());
-                    handed += u64::try_from(page.rows.len()).unwrap();
-                    pages += 1;
-                    consumed += u64::try_from(page.rows.len().min(2)).unwrap();
-                    let answer = answer(&page);
-                    world.host.down(
-                        &mut world.store,
-                        &fixtures::env(),
-                        crate::Request::Job { owner, answer: Ok(answer) },
-                        &mut world.above,
-                    );
+                    handed = handed.checked_add(u64::try_from(page.rows.len()).unwrap()).unwrap();
+                    pages = pages.checked_add(1).unwrap();
+                    consumed = consumed.checked_add(u64::try_from(page.rows.len().min(2)).unwrap()).unwrap();
+                    // Let background snapshots run while the shell prepares its answer.
+                    answering = Some((owner, answer(&page)));
                 }
                 Event::Ran { of: Owner::Application, job, rows, commits, .. } => {
                     assert_eq!(job.as_ref(), JOB.name);
@@ -152,14 +187,17 @@ fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() 
         };
         if !opened && hosted.idle() {
             assert!(
-                hosted.work_pending(fixtures::env().now),
+                answering.is_some() || hosted.work_pending(fixtures::env().now),
                 "rehearsal has no I/O in flight and must run again: {:?}",
                 hosted.wait_state()
             );
             if skein_kv::is_ready(&hosted.component.stores.store, &limits.store)
                 && !crate::patching::phase::ready(&hosted.component)
             {
-                snapshot_yields += 1;
+                snapshot_yields = snapshot_yields.checked_add(1).unwrap();
+                if let Some(crate::patching::phase::Patching::Jobs(_)) = crate::directory::patching(&hosted.component) {
+                    job_snapshot_yields = job_snapshot_yields.checked_add(1).unwrap();
+                }
             }
         }
         world.store = hosted.component;
@@ -170,13 +208,77 @@ fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() 
     }
     assert!(ran && opened, "the rehearsal finishes its job and opens");
     assert!(snapshot_yields > 0, "a snapshot yields before the open finishes");
-    let source = world.machine.reopen_root(0);
-    assert_eq!(
-        world.machine.open(source, b"generations/1/store/snapshot", How::Read),
-        Err(skein_fake_machine::Refusal::NotFound),
-        "snapshots only write the rehearsal copy"
+    assert!(job_snapshot_yields > 0, "a snapshot advances while paged jobs are running");
+    source_was_not_snapshotted(&mut world);
+    world
+}
+
+#[test]
+fn rehearsal_with_paged_jobs_and_snapshots_never_waits_without_work_in_flight() {
+    let mut world = opened_rehearsal();
+    close_rehearsal(&mut world);
+    world.close();
+}
+
+#[test]
+fn rehearsal_jobs_and_snapshots_finish_the_restart_census() {
+    let mut world = opened_rehearsal();
+    // Follow the snapshot file from sync to close before restart asks for
+    // history (skein/docs/design/data/kv.md, 5 and 6.3).
+    let mut snapshot = None;
+    let mut closing = false;
+    for _ in 0_u32..64 {
+        crate::fire(&mut world.store, &fixtures::env(), &mut world.above, &mut world.host.below);
+        for request in &world.host.below.store {
+            if let file::Request::Sync { file, .. } = request {
+                snapshot = Some(*file);
+            }
+            if let file::Request::Close { file, .. } = request
+                && Some(*file) == snapshot
+            {
+                closing = true;
+            }
+        }
+        world.step();
+        if closing {
+            break;
+        }
+    }
+    assert!(closing, "the snapshot close awaits delivery at the pending generation switch");
+    world.host.down(
+        &mut world.store,
+        &fixtures::env(),
+        crate::Request::Restore {
+            owner: Token::new(42),
+            range: crate::Restore::Jig(Box::new([core::RestoreRange::Census(core::Census {
+                results: Box::new([core::ReadResults { party: fixtures::ALICE, after: 0 }]),
+                questions: Box::new([(fixtures::GOAL, 7)]),
+            })])),
+            after: None,
+            rows: 4,
+            bytes: 65_536,
+        },
+        &mut world.above,
     );
-    world.machine.close(source);
+    for _ in 0_u32..3000 {
+        world.step();
+        if world.host.idle() && !crate::directory::ready(&world.store) {
+            break;
+        }
+    }
+    let Some(Event::Page { items, next: None, .. }) = world.above.pop() else {
+        panic!("restart census must finish without another request");
+    };
+    let [
+        crate::restore::Item::Row(crate::Row::Jig(core::Record::Tasks(tasks::Stored::Ended(ended)))),
+        crate::restore::Item::Row(crate::Row::Jig(core::Record::Tasks(tasks::Stored::Activity(question)))),
+    ] = items.as_ref()
+    else {
+        panic!("ended task and question joined from its payload log: {items:?}")
+    };
+    assert_eq!(ended.number, fixtures::GOAL);
+    assert_eq!((question.task, question.position), (fixtures::GOAL, 7));
+    assert!(world.above.is_empty());
     close_rehearsal(&mut world);
     world.close();
 }
