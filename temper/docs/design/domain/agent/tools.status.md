@@ -1,8 +1,9 @@
 # tools: status
 
-2026-11-12. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-16. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** 1 and 2: the stock chat's words open a goal's or a change's words with no title line written for a person, and no charter says `decided`'s question is one sentence and each option one line [in flight: change 4293].
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
 
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
