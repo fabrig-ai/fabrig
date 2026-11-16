@@ -180,9 +180,11 @@ new to say. Its charter is the stock's 9
 - **Who signed** (`change/gates.md`, 2, *Sign-offs kept at landing*): a
   title whose change kept sign-offs ends with them, by party, as "- Refund
   amounts round half to even. (signed by person 4 and person 7)"; and,
-  after the goals, the root names each party the words name, once, by the
-  name the project's people give it, else its login, under "People who
-  signed:", as "- person 4: Sam". `Request::StatusRun` carries those
+  after the goals, the root names each party the words name, once, by its
+  member name, the name the project's people give it, else its login
+  (jig's `domain/people/README.md`, section 4), under "People who
+  signed:", as "- person 4: Sam", the name a brief gives the same person
+  (`../agent/agents.md`, section 2, *Its person by name*). `Request::StatusRun` carries those
   parties, `signers`, beside its words, the forge knowing no names. A
   party the project no longer lists is "- person 9: no longer a member".
 - **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest

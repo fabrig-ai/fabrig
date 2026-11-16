@@ -14,7 +14,7 @@ why (1.1), no attempt spent (../tasks/lifecycle.md, 2).
 Its sections come from two places:
 
 - **The core's,** which it holds typed: the task (its number and project,
-  which a run names in a note's scope, its spec and, unless
+  which a run names in a note's scope, its requester, its spec and, unless
   its requester ends it (../tasks/lifecycle.md, 9) or it stands
   (../tasks/standing.md, section 2), its contract,
   and its lineage: its requesters' specs, cut); its dependencies' and
@@ -59,6 +59,17 @@ whom; its delegates, their states, and the
 
 A section is loaded or read as it is cut, asking for no more than it
 keeps. The host's protocol layer renders the whole as text, in order.
+
+**The task's lines.** The task's section closes with a line naming the
+task, `[This task: T, in project P]`, and one naming its requester:
+`[Requested by task N]`, `[Requested by deployment for project P]`, or,
+for a person, `[Requested by person N, NAME]`, NAME their member name in
+the task's project (`../people/README.md`, section 4). Each control byte
+of the name, below 0x20 and 0x7F, is written as a space, so that the
+line stays one line. A person with no member name there, or an empty
+one, is `[Requested by person N]`. The name is for the run's words
+alone: a run still addresses its requester by number. Both lines are
+cut as the section's other text is.
 
 **Within the deadline.** The brief's one deadline covers its gathering
 and its cuts, and every section that can be cut is cut in time, never

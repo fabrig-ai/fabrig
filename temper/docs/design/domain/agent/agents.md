@@ -264,8 +264,9 @@ of `../../draft/v0.1.0.md`, 2.1.
   that a question waits for them.
 - **A goal a person started asks that person.** A goal from the sheet or
   from Goals (`../../client/pages/goal.md`, 3) has a person as its requester.
-  Its brief says `[Requested by person N]`, and `message` reaches tasks
-  alone (jig's `domain/tasks/messages.md`, 5). So, wherever it would ask, it
+  Its brief says `[Requested by person N, NAME]` (*Its person by name*,
+  below), and `message` reaches tasks alone (jig's
+  `domain/tasks/messages.md`, 5). So, wherever it would ask, it
   calls `delegate` with one person task addressed to its requester (jig's
   `domain/people/README.md`, section 7): executor `{kind: person, person: N}`,
   the question in the line form below as its spec's words, a report
@@ -289,6 +290,28 @@ of `../../draft/v0.1.0.md`, 2.1.
     kind as `goal` narrows its authority (`tools.md`, 1 names what it keeps), so
     it may address no one. Among holders of one role, the charter's words
     alone say "its requester" (`README.md`, section 8).
+- **Its person by name** (`../../draft/home-for-a-person.md`, section 7). A
+  brief whose requester is a person names them after their number,
+  `[Requested by person 4, Sam]`: their name in the task's project, else
+  their login, the one name the project's people give them, which the
+  status agent's "People who signed:" writes too (jig's
+  `domain/engine/briefs.md`, 1, *The task's lines*; jig's
+  `domain/people/README.md`, section 4; `../forge/attention.md`, section
+  3). A person the project no longer lists keeps `[Requested by person
+  N]`. Every stock charter whose task a person may request says so in a
+  paragraph of its own: charter 1 (`chat.txt`), the goal's
+  (`../../../charters/stock/goal.md`), and the standing role's, the
+  triager's, the prover's and the porter's (`role.md`, `triager.md`,
+  `prover.md`, `porter.md`), all but `goal.md` in the stock module
+  (`../../protocol/configuration/stock.md`). The paragraph says that the
+  name follows the same person N, whom the run still addresses by
+  number; that wherever its words speak of that person rather than to
+  them (`decided`'s question and why, a report, a Now, a finding, a
+  question to someone else) it names them by that name, "Sam asked to
+  reopen pull #1292", never "person N" or "the user"; and that a line
+  with no name, or a requester that is a task, leaves "your person". So
+  a decision on Home says who asked. A goal a chat calls is requested by
+  the chat, `[Requested by task N]`, and names no one (section 5).
 - **A question's line form.** jig's question carries words alone, so a
   question's options and its recommendation are in its words; the stock
   chat's instructions (charter 1, the goal's paragraph) have a goal
@@ -486,6 +509,12 @@ conversation its person ends, kept, listed among the project's chats.
   design takes up.
 
 ## 5. Open questions
+
+- **A goal a chat calls naming its person** (`agents.md`, 2, *Its person by
+  name*): its requester is the chat, so its brief names no one, and its
+  words say "your person". The root's goal line (`tools.md`, 2), a fixed
+  text that fakes cue on, could name the chat's person. Default: no name;
+  the chat's own words may carry one.
 
 - **A permission for its own requester alone** (`agents.md`, 2): a goal a person
   started may address anyone holding that person's role, since jig's
