@@ -6,8 +6,6 @@
 
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages.
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
-- **Not yet:** 2, *A restart said is waited for longer*: the worker's link keeping the told wait. [in flight: change 4899]
-- **Not yet:** 2, *A restart said is waited for longer*: the system world's story of an engine back past the grace and within the restart wait. [in flight: change 4930]
 
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's

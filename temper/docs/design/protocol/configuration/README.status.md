@@ -2,7 +2,6 @@
 
 2026-11-16. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3, *The restart wait*: `fleet.restart_wait_ms`. [in flight: change 4902]
 
 
 

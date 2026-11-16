@@ -10,7 +10,6 @@ closing location and message within the existing bound; the keeper
 remains a tail.
 
 - **Not yet:**
-  - 4 and 7: a long `grant` wait and *Renewals held*, `parent::Event::Renewals`. [in flight: change 4924]
   - 2, 9.1: live content in one process. The inline agent's LLM deltas
     never reach its owner: `smith-protocol-llm` hands deltas over only
     for a channel's ask, and `smith-local-service`'s `pop_live()` reads

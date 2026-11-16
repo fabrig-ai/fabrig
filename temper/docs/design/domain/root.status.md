@@ -7,7 +7,6 @@
   because standard's map budget is that mark and temper's boxes take standard: under
   small's mark, sign-ins would be refused once the map passed small's budget
   (`temper/crates/temper-engine-domain/src/limits.rs`, `FILL_MARK`).
-- **Not yet:** 8.2, *Then it says it restarts*: `Held::Restarting` routed to `Request::Restarting` and the workers told before the close. [in flight: change 4930]
 
 
 

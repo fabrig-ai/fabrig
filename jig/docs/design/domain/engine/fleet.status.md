@@ -12,5 +12,4 @@
    the pending-reasons continuation gap remains `settings.status.md`, 6.
    the settings-holder gap remains `settings.status.md`, 6.
    the ignored restore stories remain `settings.status.md`, 10.
-- **Not yet:** *A restart said holds its runs*: `fleet.restart_wait`, the held claims through hellos and losses, and `Request::Discharged`. [in flight: change 4902]
 

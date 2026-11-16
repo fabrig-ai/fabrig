@@ -8,5 +8,4 @@
    the undocumented root methods remain `README.status.md`, 4.
    the child-timer departure remains `README.status.md`, 4.1.
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
-- **Not yet:** 1, *Saying it restarts* and *Held across starts*: the word kept at a settled stop and `Held::Restarting`, and the next start's hold and its discharge. [in flight: change 4902]
 
