@@ -307,7 +307,11 @@ own tests:
   name in capital, or "My project" with none, and making its first
   project once, as named, and nothing with no name, opening it on its
   Home, opening the person's project of that name when the name is
-  taken, and offering its act again after any other refusal; its
+  taken, and offering its act again after any other refusal; a
+  welcome's model check on a program's source answered, then Ready's
+  "Create your project" making the project, "Skip" on its To begin,
+  Home saying "Nothing needs you." and "No chats yet.", and Work
+  "Nothing in flight yet."; its
   adoption sent once, after the project is made and never before, the
   project open while it is out, nothing sent with no first repository,
   and a refusal leaving the project made and the adoption offered from
@@ -345,7 +349,8 @@ own tests:
   root and view under skein's text shell, over jig's native transport,
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
-  smoke, a chat's committed reply read on its page, and its live-text
+  smoke, a chat's committed reply read on its page, a welcome's model
+  check answered on a program's source and read on its Ready, and its live-text
   story: a reply held after its first piece is read printed before its
   "▍", then replaced by the committed turn.
 - **The process tier** (`../testing/process-tier.md`): the real `temper-box`

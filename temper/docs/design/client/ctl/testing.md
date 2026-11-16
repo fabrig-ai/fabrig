@@ -64,7 +64,10 @@
 beside the fake person, as a scripted agent making calls (`../testing.md`
 ; `../../testing/checks.md`, 3). Area 1's stories: a chat started, its
 reply waited for, a message, a turn too large for a page read whole,
-the chat closed; a repository adopted; a held task released. The
+the chat closed; a message answered after the chat's first reply, then
+`chat show --before` at the cursor `task activity TASK --json` gives
+reading the older page, the first reply once and not the second, and
+`chat show` both, each once; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
 `task show TASK --until ended` begins, checking the matching terminal
 answer (`tools.md`, 4). A turn too large for a page exists only where the engine's
