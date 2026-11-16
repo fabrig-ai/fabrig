@@ -101,11 +101,7 @@ fn append(words: &mut List<u8>, part: &[u8]) {
     }
 }
 
-pub(super) fn specification(d: &Domain, row: &ProjectFacts, now: Wall) -> (Box<[u8]>, Box<[u64]>) {
-    let since = match &row.brief {
-        Some(brief) => brief.at,
-        None => Wall::EPOCH,
-    };
+pub(super) fn specification(d: &Domain, row: &ProjectFacts, since: Wall, now: Wall) -> (Box<[u8]>, Box<[u64]>) {
     let covered = match &row.brief {
         Some(brief) => brief.landed,
         None => 0,

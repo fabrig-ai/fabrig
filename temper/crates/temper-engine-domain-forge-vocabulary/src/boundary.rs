@@ -2582,6 +2582,7 @@ pub enum Request {
     /// Make Home's brief task (temper/docs/design/domain/forge/attention.md, 3).
     StatusRun {
         project: u32,
+        since: skein_lib::Wall,
         words: Box<[u8]>,
         findings: Box<[u8]>,
         signers: Box<[u64]>,
