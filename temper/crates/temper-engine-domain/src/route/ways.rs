@@ -223,13 +223,14 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
     let templates = domain.core.project_templates(project);
     let mut chosen: Option<&jig_domain_core::Template> = None;
     for template in &templates {
-        if (value.way != 0 && template.number == value.way)
-            || (value.way == 0
-                && template.tracked.is_some()
-                && match chosen {
-                    Some(previous) => template.number < previous.number,
-                    None => true,
-                })
+        if template.tracked.is_some()
+            && template.flags.ended_by != jig_domain_tasks::EndedBy::Requester
+            && ((value.way != 0 && template.number == value.way)
+                || (value.way == 0
+                    && match chosen {
+                        Some(previous) => template.number < previous.number,
+                        None => true,
+                    }))
         {
             chosen = Some(template);
         }
