@@ -1,7 +1,7 @@
 //! A pass's drive session and its one-shot clients (qa/places.md, 5).
 mod server;
 
-use crate::{Home, Refusal, faces::Environment, place::PlacePaths, private, refused};
+use crate::{Home, Kind, Refusal, faces::Environment, place::PlacePaths, private, refused};
 pub use server::Holder;
 use std::{
     fs::{self, File, OpenOptions},
@@ -39,13 +39,20 @@ pub struct Drive {
     files: PathBuf,
     ctl: bool,
 }
+struct SessionSetup {
+    scripts: Vec<PathBuf>,
+    root: Option<PathBuf>,
+}
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
         home.read(|ledger| {
             let number = ledger.pass_command_session(session)?.pass.expect("pass session");
             let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass");
             let place = home.configuration.place_directory(&home.directory, &pass.place)?;
-            let mut paths = PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?);
+            let mut paths = PlacePaths::new(
+                &std::path::absolute(place).map_err(io_refusal)?,
+                home.configuration.place_kind(&pass.place),
+            );
             paths.ports = home.configuration.ports.get(&pass.place).cloned();
             Ok(Self {
                 ctl: false,
@@ -67,30 +74,31 @@ impl Drive {
     fn holder_command(&self, program: &std::path::Path) -> Command {
         let mut command = Command::new(program);
         command.args(["pass", "hold"]);
-        if self.ctl {
+        if self.ctl && self.place.kind == Kind::Box {
             command.arg("--ctl");
         }
         command
     }
 
-    fn session_command(&self, scripts: &[PathBuf]) -> Command {
+    fn session_command(&self, scripts: &SessionSetup) -> Command {
         let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
-        command
-            .arg("drive")
-            .arg("--bin")
-            .arg(&self.place.bin)
-            .arg("--bundle")
-            .arg(&self.place.bundle)
-            .arg("--scratch")
-            .arg(&self.place.scratch);
-        for script in scripts {
+        command.arg("drive");
+        if self.place.kind == Kind::Deployment {
+            command.arg("--deployment").arg(scripts.root.as_ref().expect("deployment setup's root").join("config"));
+        }
+        command.arg("--bin").arg(&self.place.bin);
+        if self.place.kind == Kind::Box {
+            command.arg("--bundle").arg(&self.place.bundle);
+        }
+        command.arg("--scratch").arg(&self.place.scratch);
+        for script in &scripts.scripts {
             command.arg("--scripts").arg(script);
         }
         command.arg("--strict").arg("--files").arg(&self.files);
         if let Some(ports) = &self.place.ports {
             command.args(["--ports", ports]);
         }
-        if self.ctl {
+        if self.ctl && self.place.kind == Kind::Box {
             command.arg("--ctl");
         }
         command
@@ -202,7 +210,7 @@ impl Drive {
         exchange(stream, request, bound, &skein_shell::Clock::new())
     }
 
-    fn scripts(&self) -> Result<Vec<PathBuf>, Refusal> {
+    fn scripts(&self) -> Result<SessionSetup, Refusal> {
         let setup = fs::read_to_string(&self.place.setup).map_err(|why| {
             if why.kind() == std::io::ErrorKind::NotFound {
                 refused(format!(
@@ -215,7 +223,12 @@ impl Drive {
         })?;
         let words: Vec<_> = setup.split_whitespace().collect();
         if words == ["fresh"] {
-            return Ok(Vec::new());
+            if self.place.kind == Kind::Deployment {
+                return Err(refused(
+                    "a deployment's place has no fresh setup: its setups start from their root's config/",
+                ));
+            }
+            return Ok(SessionSetup { scripts: Vec::new(), root: None });
         }
         let [name, hash] = words.as_slice() else {
             return Err(refused("setup: expected NAME HASH or fresh"));
@@ -273,7 +286,7 @@ impl Drive {
             name = parent.into();
         }
         scripts.reverse();
-        Ok(scripts)
+        Ok(SessionSetup { scripts, root: Some(self.setups.join(name)) })
     }
 }
 /// Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,

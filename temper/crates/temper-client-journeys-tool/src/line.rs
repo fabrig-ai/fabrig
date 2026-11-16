@@ -16,6 +16,7 @@ pub enum Record {
     Tui(Tui),
     Ctl(Vec<Box<[u8]>>),
     Forge(Forge),
+    Deployment(Deployment),
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Web {
@@ -36,9 +37,39 @@ pub enum Forge {
     Commit { repository: Box<[u8]>, branch: Option<Box<[u8]>>, message: Box<[u8]>, paths: Vec<Box<[u8]>> },
     Checks { repository: Box<[u8]> },
 }
+/// A deployment's configuration change (client/drive.md, 3.8).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Deployment {
+    Patch { document: Document, path: Box<[u8]> },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Document {
+    Engine,
+    Worker,
+    Agent,
+}
+impl Document {
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Engine => "engine",
+            Self::Worker => "worker",
+            Self::Agent => "agent",
+        }
+    }
+    /// Relative to the scratch directory (testing/qa/deployment.md, 3).
+    #[must_use]
+    pub fn path(self) -> &'static str {
+        match self {
+            Self::Engine => "config/engine/temper.json",
+            Self::Worker => "config/worker/temper.json",
+            Self::Agent => "config/worker/agent.json",
+        }
+    }
+}
 /// Names substituted only in ctl arguments (client/drive.md, 3.4).
-#[derive(Clone, Copy)]
-pub(crate) enum BoxValue {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BoxValue {
     Api,
     Git,
     Admin,
@@ -46,7 +77,8 @@ pub(crate) enum BoxValue {
     ModelKey,
 }
 impl BoxValue {
-    pub(crate) fn parse(bytes: &[u8]) -> Option<Self> {
+    #[must_use]
+    pub fn parse(bytes: &[u8]) -> Option<Self> {
         match bytes {
             b"{forgejo.api}" => Some(Self::Api),
             b"{forgejo.git}" => Some(Self::Git),
@@ -69,6 +101,7 @@ impl Line {
                 b"web" => Record::Web(web(&mut fields)?),
                 b"tui" => Record::Tui(tui(&mut fields)?),
                 b"forge" => Record::Forge(forge(&mut fields)?),
+                b"deployment" => Record::Deployment(deployment(&mut fields)?),
                 b"ctl" => {
                     if fields.remaining() == 0 {
                         return Err("missing ctl argument".into());
@@ -85,7 +118,7 @@ impl Line {
                 }
                 other => {
                     return Err(format!(
-                        "unknown client {:?}; expected web, tui, ctl, forge or end",
+                        "unknown client {:?}; expected web, tui, ctl, forge, deployment or end",
                         String::from_utf8_lossy(other)
                     ));
                 }
@@ -116,6 +149,37 @@ fn word(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
 fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
 }
+fn deployment(fields: &mut Fields) -> Result<Deployment, String> {
+    let record = word(fields, "deployment record: patch")?;
+    if record.as_ref() != b"patch" {
+        return Err(format!("unknown deployment record {}; expected patch", String::from_utf8_lossy(&record)));
+    }
+    let name = word(fields, "DOCUMENT engine, worker or agent")?;
+    let document = match name.as_ref() {
+        b"engine" => Document::Engine,
+        b"worker" => Document::Worker,
+        b"agent" => Document::Agent,
+        _ => {
+            return Err(format!(
+                "unknown DOCUMENT {}; expected engine, worker or agent",
+                String::from_utf8_lossy(&name)
+            ));
+        }
+    };
+    let field = fields.field().ok_or("expected PATH")?;
+    let (Field::Word(path) | Field::Bytes(path)) = field;
+    let path = relative_path(path)?;
+    Ok(Deployment::Patch { document, path })
+}
+fn relative_path(path: Box<[u8]>) -> Result<Box<[u8]>, String> {
+    if path.is_empty()
+        || path.len() > 256
+        || path.split(|b| *b == b'/').any(|p| p.is_empty() || p == b"." || p == b"..")
+    {
+        return Err("expected relative PATH of 1 to 256 bytes without empty, . or .. segments".into());
+    }
+    Ok(path)
+}
 fn forge(fields: &mut Fields) -> Result<Forge, String> {
     let record = word(fields, "forge record: commit, push or checks")?;
     if record.as_ref() != b"commit" && record.as_ref() != b"push" && record.as_ref() != b"checks" {
@@ -136,13 +200,7 @@ fn forge(fields: &mut Fields) -> Result<Forge, String> {
     let message = bytes(fields, "MESSAGE")?;
     let mut paths = vec![];
     while fields.remaining() != 0 {
-        let path = bytes(fields, "PATH")?;
-        if path.is_empty()
-            || path.len() > 256
-            || path.split(|b| *b == b'/').any(|p| p.is_empty() || p == b"." || p == b"..")
-        {
-            return Err("expected relative PATH of 1 to 256 bytes without empty, . or .. segments".into());
-        }
+        let path = relative_path(bytes(fields, "PATH")?)?;
         if paths.contains(&path) {
             return Err("expected distinct PATHs".into());
         }

@@ -1,7 +1,7 @@
 //! Setups restored and recipes proven by the place's own build (qa/places.md, 2, 4, 6–8).
 mod files;
 use crate::faces::{ArchiveFace, DriveFace, RecipeWalk, WalkOutput};
-use crate::{Home, Ledger, Pass, Refusal, document as d, private, refused};
+use crate::{Home, Kind, Ledger, Pass, Refusal, document as d, private, refused};
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
@@ -17,6 +17,7 @@ const BOX_PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
 #[derive(Clone, Debug)]
 pub struct PlacePaths {
     pub directory: PathBuf,
+    pub kind: Kind,
     pub ports: Option<String>,
     pub bin: PathBuf,
     pub bundle: PathBuf,
@@ -28,13 +29,14 @@ pub struct PlacePaths {
 }
 impl PlacePaths {
     #[must_use]
-    pub fn new(directory: &Path) -> Self {
+    pub fn new(directory: &Path, kind: Kind) -> Self {
         Self {
             directory: directory.into(),
+            kind,
             ports: None,
             bin: directory.join("bin"),
             bundle: directory.join("bundle"),
-            scratch: directory.join("box"),
+            scratch: directory.join(kind.name()),
             copies: directory.join("copies"),
             setup: directory.join("setup"),
             walk_log: directory.join("walk.log"),
@@ -123,7 +125,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             std::path::absolute(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
         let setups = std::path::absolute(home.directory.join("passes").join(pass.number.to_string()).join("setups"))
             .map_err(|why| refused(format!("pass {} setups: {why}", pass.number)))?;
-        let mut paths = PlacePaths::new(&directory);
+        let mut paths = PlacePaths::new(&directory, home.configuration.place_kind(&pass.place));
         paths.ports = home.configuration.ports.get(&pass.place).cloned();
         let ctl_only = !home.configuration.surfaces.iter().any(|surface| surface == "web" || surface == "tui");
         let place = Self { paths, setups, pass, drive, archive, ledger, ctl_only };
@@ -142,6 +144,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     pub fn setup(&mut self, name: &str, output: &mut impl Write) -> Result<u8, Refusal> {
         self.available()?;
         if name == "fresh" {
+            self.check_kind(name, Kind::Box)?;
             remove(&self.paths.setup)?;
             self.empty()?;
             self.write_setup("fresh\n")?;
@@ -185,6 +188,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let setup = name;
         let catalogue = self.catalogue()?;
         self.check_name(name, &catalogue)?;
+        self.check_setup_kind(name, &catalogue)?;
         let mut chain: Vec<Recipe> = Vec::new();
         let mut next = Some(name.to_owned());
         while let Some(name) = next.take() {
@@ -213,6 +217,35 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         }
         chain.reverse();
         Ok(chain)
+    }
+    fn check_setup_kind(&self, name: &str, catalogue: &BTreeMap<String, CatalogueEntry>) -> Result<(), Refusal> {
+        if name == "fresh" {
+            return self.check_kind(name, Kind::Box);
+        }
+        let kind = crate::kind::chain_kind(name, |name| {
+            Ok(catalogue.get(name).map(|entry| crate::kind::Setup {
+                parent: entry.parent.clone(),
+                config: self.setups.join(name).join("config").is_dir(),
+            }))
+        })?;
+        if let Some(kind) = kind {
+            self.check_kind(name, kind)?;
+        }
+        Ok(())
+    }
+    fn check_kind(&self, name: &str, kind: Kind) -> Result<(), Refusal> {
+        if self.paths.kind == kind {
+            return Ok(());
+        }
+        if name == "fresh" {
+            return Err(refused("a deployment's place has no fresh setup: its setups start from their root's config/"));
+        }
+        Err(refused(format!(
+            "setup {name} is a {}'s; {} is a {}'s place",
+            kind.name(),
+            self.pass.place,
+            self.paths.kind.name()
+        )))
     }
     fn empty(&self) -> Result<(), Refusal> {
         for name in ["config", "data"] {
@@ -431,6 +464,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         }
         let catalogue = self.catalogue()?;
         self.check_name(&input.after, &catalogue)?;
+        self.check_setup_kind(&input.after, &catalogue)?;
         if input.after == name {
             return Err(refused(format!("recipe {name}: cannot be its own parent")));
         }

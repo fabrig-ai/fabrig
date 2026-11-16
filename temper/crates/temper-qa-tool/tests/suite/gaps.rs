@@ -35,7 +35,7 @@ fn a_pass_gap_leaves_the_queue_at_once_and_is_reported() {
     assert_eq!(report["cases"][0]["outcome"], "gap");
     assert_eq!(report["cases"][0]["gap"], number);
     assert_eq!(report["gaps"][0]["why"], "no setup reaches the pushed branch");
-    assert!(ledger.start_pass("places/1", &["web".into()], "high", 7).is_none());
+    assert!(ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 7).is_none());
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn gap_refusals_record_nothing_for_either_session_kind() {
     let pass_session = start(&mut pass).session;
     queue(&mut pass, "home", "web");
     build(&mut pass, "other-build", &[1, 2], 2);
-    pass.start_pass("places/2", &["web".into()], "high", 4).expect("other pass");
+    pass.start_pass("places/2", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("other pass");
     for (kind, why, expected) in
         [("web", "no tool", "gap refused: web is none of ctl, fake, qa"), ("ctl", " \n", "gap refused: no why")]
     {
@@ -250,7 +250,7 @@ fn closing_trailer_waits_for_a_kept_build_and_requeues_on_that_build() {
     ledger.end_session(triage, Exit::Code(0), None, 10, "qa").expect("end");
     ledger.builds[1].held = Some(99);
     assert!(
-        ledger.start_pass("places/1", &["web".into()], "high", 11).is_none(),
+        ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 11).is_none(),
         "old build lacks the closing landing"
     );
     ledger.builds[1].held = None;

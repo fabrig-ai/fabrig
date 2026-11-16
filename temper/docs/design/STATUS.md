@@ -132,7 +132,7 @@ Fake-model scripts take values from the conversation, so B0's and B1's
 twins replay as setups. By goal 1676 QA runs on the fakes alone: every
 setup's forge is the box's fake Forgejo, connected through ctl lines that
 name the box's values, and a recipe's `forge` lines commit files it
-holds, with no credential named. By goal 3014 QA reaches a deployment,
+holds, with no credential named. By goals 3014 and 5217 QA reaches a deployment,
 ctl first: triage writes a landing's ctl cases first and a pass runs
 them first in a session of ctl and `forge` lines with no browser; a
 place may be of the deployment's kind, the kept build's engine, worker
@@ -141,7 +141,8 @@ the fake Forgejo and the fake model, saved and restored with a newer
 build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
-`batch` of two. Its passes follow landing; QA gaps are filed for people
+`batch` of two, its scripts proven on the real loop. Its passes, and
+the process tier's story of a deployment at its place, follow landing; QA gaps are filed for people
 with no goal, then reopened for judgement by a closing landing. By goal
 5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
 model as the person's account and scripts its reviews' approving

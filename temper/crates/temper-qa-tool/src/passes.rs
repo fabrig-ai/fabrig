@@ -1,6 +1,6 @@
 //! Pass records and starts/resumes (qa/ledger.md, 2.3, 2.5, 2.7 and 4.8–4.16).
 use crate::ledger::next_number;
-use crate::{Build, Case, CaseInput, Ledger, Pages, Refusal, Session, refused};
+use crate::{Build, Case, CaseInput, Kind, Ledger, Pages, Refusal, Session, refused};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaseState {
@@ -81,6 +81,7 @@ pub struct Outcome {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pass {
+    pub kind: Kind,
     pub number: u64,
     pub place: String,
     pub build: String,
@@ -123,21 +124,22 @@ pub struct PassStart {
 }
 
 impl Ledger {
-    fn takeable_build(&self, surfaces: &[String]) -> Option<&crate::Build> {
+    fn takeable_build(&self, surfaces: &[String], kind: Kind) -> Option<&crate::Build> {
         self.builds
             .iter()
             .filter(|build| {
                 self.reached(build)
                     && build.held.is_none()
                     && build.order.is_some()
-                    && self.cases.iter().any(|case| eligible(self, case, build, surfaces))
+                    && self.cases.iter().any(|case| eligible(self, case, build, surfaces, kind))
             })
             .max_by_key(|build| build.order)
     }
 
     /// Called after the loop's resumes and starts (qa/ledger.md, 4.17).
     pub fn update_place_wait(&mut self, surfaces: &[String], free: bool, now: u64) {
-        let pending = self.takeable_build(surfaces).is_some();
+        let pending = self.takeable_build(surfaces, Kind::Box).is_some()
+            || self.takeable_build(surfaces, Kind::Deployment).is_some();
         if let Some(wait) = self.place_waits.last_mut().filter(|wait| wait.to.is_none()) {
             if !pending {
                 wait.to = Some(now);
@@ -147,13 +149,21 @@ impl Ledger {
         }
     }
 
-    pub fn start_pass(&mut self, place: &str, surfaces: &[String], effort: &str, now: u64) -> Option<PassStart> {
+    pub fn start_pass(
+        &mut self,
+        place: &str,
+        kind: Kind,
+        surfaces: &[String],
+        effort: &str,
+        now: u64,
+    ) -> Option<PassStart> {
         if self.passes.iter().any(|pass| pass.state == PassState::Running && pass.place == place) {
             return None;
         }
-        let build = self.takeable_build(surfaces)?.commit.clone();
+        let build = self.takeable_build(surfaces, kind)?.commit.clone();
         let number = next_number(self.passes.iter().map(|pass| pass.number));
         self.passes.push(Pass {
+            kind,
             number,
             place: place.into(),
             build: build.clone(),
@@ -169,31 +179,41 @@ impl Ledger {
     }
 
     /// Oldest eligible waiting pass first; never steals another pass's held build.
-    pub fn resume_pass(&mut self, place: &str, surfaces: &[String], effort: &str, now: u64) -> Option<PassStart> {
+    pub fn resume_pass(
+        &mut self,
+        place: &str,
+        kind: Kind,
+        surfaces: &[String],
+        effort: &str,
+        now: u64,
+    ) -> Option<PassStart> {
         if self.passes.iter().any(|pass| pass.state == PassState::Running && pass.place == place) {
             return None;
         }
-        let (number, build) = self.passes.iter().filter(|pass| pass.state == PassState::Waiting).find_map(|pass| {
-            let request = pass.requests.last().filter(|request| request.filed.is_some())?;
-            let goal = request.goal?;
-            let landing = self.landings.iter().find(|landing| landing.goal == goal);
-            if landing.is_none() && request.ended.is_none() {
-                return None;
-            }
-            let build = self
-                .builds
-                .iter()
-                .filter(|build| {
-                    self.reached(build)
-                        && build.order.is_some()
-                        && (build.held.is_none() || build.held == Some(pass.number))
-                        && landing.is_none_or(|landing| {
-                            build.holds.as_ref().is_some_and(|holds| holds.contains(&landing.number))
+        let (number, build) =
+            self.passes.iter().filter(|pass| pass.state == PassState::Waiting && pass.kind == kind).find_map(
+                |pass| {
+                    let request = pass.requests.last().filter(|request| request.filed.is_some())?;
+                    let goal = request.goal?;
+                    let landing = self.landings.iter().find(|landing| landing.goal == goal);
+                    if landing.is_none() && request.ended.is_none() {
+                        return None;
+                    }
+                    let build = self
+                        .builds
+                        .iter()
+                        .filter(|build| {
+                            self.reached(build)
+                                && build.order.is_some()
+                                && (build.held.is_none() || build.held == Some(pass.number))
+                                && landing.is_none_or(|landing| {
+                                    build.holds.as_ref().is_some_and(|holds| holds.contains(&landing.number))
+                                })
                         })
-                })
-                .max_by_key(|build| build.order)?;
-            Some((pass.number, build.commit.clone()))
-        })?;
+                        .max_by_key(|build| build.order)?;
+                    Some((pass.number, build.commit.clone()))
+                },
+            )?;
         let pass = self.passes.iter().find(|pass| pass.number == number).expect("waiting pass");
         let before = Before {
             state: Some(pass.state),
@@ -215,10 +235,11 @@ impl Ledger {
         now: u64,
         mut before: Before,
     ) -> PassStart {
+        let kind = self.passes.iter().find(|pass| pass.number == number).expect("selected pass").kind;
         let selected = self.builds.iter().find(|record| record.commit == build).expect("selected build");
         for case in &self.cases {
             if (case.pass == Some(number) && (case.state == CaseState::Failed || case.state == CaseState::Assigned))
-                || eligible(self, case, selected, surfaces)
+                || eligible(self, case, selected, surfaces, kind)
             {
                 before.cases.push(CaseBefore { number: case.number, state: case.state, pass: case.pass });
             }
@@ -258,6 +279,7 @@ impl Ledger {
             tokens: None,
             pages: Pages::new(),
             setups: Vec::new(),
+            deployments: Vec::new(),
         });
         PassStart { pass: number, build: build.into(), session }
     }
@@ -286,8 +308,8 @@ impl Ledger {
             .ok_or_else(|| refused(format!("case {number} is not assigned to pass {pass}")))
     }
 
-    pub(crate) fn waiting_match(&self, input: &CaseInput) -> Option<(u64, u64)> {
-        self.passes.iter().filter(|pass| pass.state == PassState::Waiting).find_map(|pass| {
+    pub(crate) fn waiting_match(&self, input: &CaseInput, kind: Kind) -> Option<(u64, u64)> {
+        self.passes.iter().filter(|pass| pass.state == PassState::Waiting && pass.kind == kind).find_map(|pass| {
             self.findings
                 .iter()
                 .find(|finding| {
@@ -339,8 +361,9 @@ impl Ledger {
         if found { Ok(()) } else { Err(refused(format!("no filed request for goal {goal}"))) }
     }
 }
-fn eligible(ledger: &Ledger, case: &Case, build: &Build, surfaces: &[String]) -> bool {
+fn eligible(ledger: &Ledger, case: &Case, build: &Build, surfaces: &[String], kind: Kind) -> bool {
     case.state == CaseState::Queued
+        && case.kind == kind
         && ledger.gap_build_holds(case, build)
         && surfaces.contains(&case.surface)
         && case.landings().iter().all(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))

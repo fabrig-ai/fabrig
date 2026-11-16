@@ -50,6 +50,7 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
                 "low",
                 [("web".into(), vec!["work".into()])].into(),
                 vec!["fresh".into()],
+                Vec::new(),
                 0,
             )?;
             let case = CaseInput::decode(
@@ -60,10 +61,10 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
             ledger.end_session(triage, Exit::Code(0), None, 2, "qa")?;
             ledger.keep_build(COMMIT, 3)?;
             ledger.set_build_holds(COMMIT, vec![1], 1)?;
-            Ok(ledger.start_pass("places/1", &["web".into()], "high", 4).expect("pass"))
+            Ok(ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("pass"))
         })
         .expect("ledger operations");
-    let place = PlacePaths::new(&home.directory.join("places/1"));
+    let place = PlacePaths::new(&home.directory.join("places/1"), temper_qa_tool::Kind::Box);
     place.ensure().expect("place");
     fs::create_dir_all(home.directory.join("passes/1/setups")).expect("setups");
     fs::create_dir_all(home.directory.join("test-bin")).expect("commands");
@@ -125,4 +126,27 @@ esac
     fs::write(home.directory.join("recipe.json"), RECIPE).expect("recipe file");
     let rewritten = run(&home, &["pass", "recipe", "added", "recipe.json"], Some(started.session), None);
     assert_eq!(rewritten.status.code(), Some(0), "{rewritten:?}");
+}
+
+#[test]
+fn a_deployment_place_refuses_fresh_and_box_setups_with_exit_one() {
+    let (_scratch, home, place) = super::hold::home_kind(temper_qa_tool::Kind::Deployment);
+    let fresh = run(&home, &["pass", "setup", "fresh"], Some(2), None);
+    assert_eq!(fresh.status.code(), Some(1));
+    assert_eq!(
+        fresh.stderr,
+        b"temper-qa: a deployment's place has no fresh setup: its setups start from their root's config/\n"
+    );
+    let setups = home.directory.join("passes/1/setups");
+    fs::create_dir_all(setups.join("welcome")).expect("setup");
+    fs::write(setups.join("welcome/recipe"), "recipe 1\ncheck\nctl task list\n").expect("recipe");
+    script(
+        &place.join("bin/temper-client-journeys"),
+        "#!/bin/sh\n[ \"$2\" = list ] || exit 4\nprintf 'welcome: A box.\\n'\n",
+    );
+    let boxed = run(&home, &["pass", "setup", "welcome"], Some(2), None);
+    assert_eq!(boxed.status.code(), Some(1));
+    assert_eq!(boxed.stderr, b"temper-qa: setup welcome is a box's; places/1 is a deployment's place\n");
+    assert!(!place.join("setup").exists());
+    assert_eq!(fs::metadata(place.join("deployment")).expect("scratch").permissions().mode() & 0o777, 0o700);
 }

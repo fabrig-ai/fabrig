@@ -54,7 +54,7 @@ fn explicit_check_refuses_repetition_fields_empty_checks_and_acts() {
         ("check extra\nctl project list\n", 3, "check takes no fields"),
         ("check\n", 3, "at least one line"),
         ("check\nforge checks forgejo work/hello\n", 4, "may follow check"),
-        ("check\ndeployment restart engine\n", 4, "unknown client \"deployment\""),
+        ("check\ndeployment patch engine landing.json\n", 4, "may follow check"),
         ("check\nweb press button \"Start\"\n", 4, "may follow check"),
         ("check\nweb reload \"/\"\n", 4, "may follow check"),
         ("check\ntui key enter\n", 4, "may follow check"),
@@ -91,9 +91,13 @@ fn ctl_chain_plans_a_ctl_session_without_resets_from_fresh_or_copy() {
     assert_eq!(shown(chain.lines(None).expect("fresh")), fresh);
     assert_eq!(shown(chain.lines(Some("root")).expect("root copy")), &fresh[1..]);
     assert_eq!(shown(chain.lines(Some("child")).expect("child copy")), &fresh[3..]);
-    let options = drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
-        .expect("options");
-    assert!(command::session_options(&chain, Path::new("/recipes"), options).ctl);
+    let options = args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]);
+    let options = command::session_options(&chain, Path::new("/recipes"), &options).expect("box options");
+    assert!(options.ctl);
+    assert_eq!(chain.kind(), Kind::Box);
+    assert!(chain.config_dir(Path::new("/recipes")).is_none());
+    assert!(options.deployment.is_none());
+    assert_eq!(options.bundle.as_deref(), Some(Path::new("/bundle")));
 }
 
 #[test]
@@ -106,10 +110,8 @@ fn mixed_chain_keeps_browser_session_and_resets_even_from_a_ctl_copy() {
         let mut files = ctl_chain();
         put(&mut files, recipe, "recipe", contents.as_bytes());
         let chain = read(&files, "child").expect("mixed chain");
-        let options =
-            drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
-                .expect("options");
-        assert!(!command::session_options(&chain, Path::new("/recipes"), options).ctl);
+        let options = args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]);
+        assert!(!command::session_options(&chain, Path::new("/recipes"), &options).expect("box options").ctl);
         let fresh = shown(chain.lines(None).expect("fresh"));
         assert_eq!(fresh.iter().filter(|line| *line == "walk: web reload \"/\"").count(), 2);
         assert_eq!(fresh.iter().filter(|line| *line == "walk: tui stop").count(), 2);
@@ -131,7 +133,7 @@ fn hash_includes_the_check_record_as_written() {
     assert_eq!(implicit.recipes[0].check[0].number, 2);
     assert_eq!(explicit.recipes[0].check[0].number, 3);
     assert_ne!(implicit.hash(), explicit.hash(), "the delimiter counts even when the check has the same meaning");
-    assert_eq!(hex(explicit.hash()), "9d8f84c3ede54c13aeafa0c30328afb2877655906aa08deb740557715586d844");
+    assert_eq!(hex(explicit.hash()), "1f770bfc911226bee546deb98d47e122f0acbac385999391cfa124bb0dd27fc1");
 }
 
 #[test]
@@ -254,6 +256,16 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         "recipe list reads every committed setup: {listed:?}"
     );
 
+    let turn = Chain::read(&setups, "turn-landing").expect("turn-landing chain");
+    assert_eq!(turn.kind(), Kind::Deployment);
+    assert_eq!(turn.names().collect::<Vec<_>>(), ["turn-landing"]);
+    let recipe = turn.recipes.first().expect("deployment root");
+    assert_eq!(recipe.config.len(), 5);
+    assert_eq!(
+        recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
+        [b"ctl project show Hello".as_slice(), b"ctl forge list", b"ctl forge repositories 1"]
+    );
+
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
     assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing"]);
     let welcome = chain.recipes.first().expect("welcome");
@@ -318,11 +330,13 @@ fn ctl_hello_reads_hashes_and_walks_its_steps_and_checks_in_a_ctl_session() {
     std::fs::create_dir(scratch.path().join("session")).expect("session");
     let log = b"box: effective data /box/data\nbox: fake forgejo http://127.0.0.1:4321\nbox: Forgejo elsewhere admin token file /box/admin.token\nbox: model key /box/model.key\n";
     std::fs::write(scratch.path().join("session/box.log"), log).expect("opening lines");
-    let mut options =
-        drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
-            .expect("options");
+    let mut options = command::session_options(
+        &chain,
+        &setups,
+        &args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]),
+    )
+    .expect("options");
     options.scratch = scratch.path().into();
-    let options = command::session_options(&chain, &setups, options);
     assert!(options.ctl);
     run_ctl_hello(options, lines, scratch.path());
 }
@@ -341,7 +355,7 @@ fn run_ctl_hello(options: drive::Options, lines: Vec<WalkLine>, scratch: &Path) 
         Event::Exited { process: Process::SignIn, code: 0, stdout: Box::new([]), stderr: Box::new([]) },
         Time::ZERO,
     );
-    assert!(matches!(actions.as_slice(), [Action::Ready]));
+    assert!(matches!(actions.as_slice(), [Action::RemoveLink, Action::Ready]));
     for line in lines {
         let mut actions = machine.step(Event::Line(line.line.clone()), Time::ZERO);
         if let [Action::ReadBoxLog { path }] = actions.as_slice() {
@@ -434,7 +448,7 @@ fn widget_commits_the_b0_tree_before_waiting_on_checks() {
         .expect("widget")["tree"]
         .as_array()
         .expect("widget tree");
-    let expected: CommitFiles = tree
+    let expected: RecipeFiles = tree
         .iter()
         .map(|entry| {
             (
@@ -646,7 +660,7 @@ fn hash_frames_root_first_bytes_and_excludes_readme() {
     put(&mut files, "root", "scripts.json", b"{}");
     let hash = read(&files, "child").expect("chain").hash();
     // Independently framed SHA-256 vector, not the production list of fields.
-    assert_eq!(hex(hash), "02c50b7858ce88c7d9487dca8454438358f600beedd6dca6224d54a93b2b6b47");
+    assert_eq!(hex(hash), "4594012646a0515f3245725de9d2c7e1869ba8cf53a6894d3d9ca2f4d827f0d5");
     put(&mut files, "root", "README.md", b"Reworded.");
     assert_eq!(read(&files, "child").expect("README ignored").hash(), hash);
     let before = files.clone();
@@ -720,6 +734,177 @@ fn walk_success_and_session_failures_keep_their_statuses() {
         assert_eq!(finished(walk.step(Event::Ended(own.clone()))), own);
     }
 }
+fn config(files: &mut Files, name: &str) {
+    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+        put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
+    }
+}
+fn deployment_chain() -> Files {
+    let mut files = ctl_chain();
+    config(&mut files, "root");
+    files
+}
+
+#[test]
+fn deployment_config_requires_exactly_five_bounded_documents_without_parsing() {
+    let mut files = deployment_chain();
+    put(&mut files, "root", "config/engine.json", &vec![b'x'; 262_144]);
+    let chain = read(&files, "child").expect("256 KiB inclusive, opaque documents");
+    assert_eq!(chain.kind(), Kind::Deployment);
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
+    assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
+    for document in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+        let mut missing = files.clone();
+        let path = format!("config/{document}");
+        missing.get_mut("root").expect("root").remove(OsStr::new(&path));
+        let refusal = read(&missing, "child").map(|_| ()).expect_err("every document required");
+        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), ("root", Some(path.as_str())));
+        assert!(refusal.why.contains("missing"), "{refusal}");
+    }
+    for (path, bytes, why) in [
+        ("config/extra.json", b"extra".to_vec(), "unexpected document"),
+        ("config/sub/engine.json", b"nested".to_vec(), "unexpected document"),
+        ("config/engine.json", vec![b'x'; 262_145], "256 KiB"),
+    ] {
+        let mut invalid = files.clone();
+        put(&mut invalid, "root", path, &bytes);
+        let refusal = read(&invalid, "child").map(|_| ()).expect_err(path);
+        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), ("root", Some(path)));
+        assert!(refusal.why.contains(why), "{refusal}");
+    }
+}
+
+#[test]
+fn config_belongs_only_to_a_root_without_after() {
+    for name in ["child", "root"] {
+        let mut files = deployment_chain();
+        if name == "child" {
+            config(&mut files, name);
+        } else {
+            put(&mut files, name, "recipe", b"recipe 1\nafter \"parent\"\ncheck\nctl project list\n");
+        }
+        let refusal = read(&files, "child").expect_err("config and after refuse before following parent");
+        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), (name, Some("config")));
+        assert!(refusal.why.contains("after"), "{refusal}");
+    }
+}
+
+#[test]
+fn chain_kind_refuses_the_other_kinds_lines_and_deployment_checks() {
+    for name in ["root", "child"] {
+        for line in ["web see \"Hello\"", "tui key enter"] {
+            let mut files = deployment_chain();
+            let after = if name == "child" { "after \"root\"\n" } else { "" };
+            put(&mut files, name, "recipe", format!("recipe 1\n{after}{line}\ncheck\nctl project list\n").as_bytes());
+            let refusal = read(&files, "child").expect_err("deployment has no clients");
+            assert_eq!((refusal.name.as_str(), refusal.line), (name, Some(if name == "child" { 3 } else { 2 })));
+            assert!(refusal.why.contains("deployment recipe takes no web or tui line"), "{refusal}");
+        }
+    }
+    for (deployment, after_check, why) in
+        [(false, false, "a box recipe takes no deployment line"), (true, true, "may follow check")]
+    {
+        let mut files = if deployment { deployment_chain() } else { ctl_chain() };
+        let source = if after_check {
+            b"recipe 1\ncheck\ndeployment patch engine \"patch.json\"\n".as_slice()
+        } else {
+            b"recipe 1\ndeployment patch engine \"patch.json\"\ncheck\nctl project list\n"
+        };
+        put(&mut files, "root", "recipe", source);
+        let refusal = read(&files, "child").expect_err(why);
+        assert_eq!((refusal.name.as_str(), refusal.line), ("root", Some(if after_check { 3 } else { 2 })));
+        assert!(refusal.why.contains(why), "{refusal}");
+    }
+}
+
+#[test]
+fn deployment_hash_frames_config_after_files_in_name_byte_order() {
+    let files = deployment_chain();
+    let mut chain = read(&files, "child").expect("deployment");
+    let hash = chain.hash();
+    assert_eq!(hex(hash), "46a30834bbe460c47946128d8329ed1e1dc8bf638501dc7fd23adfb24d2f0253");
+    let mut changed = files.clone();
+    put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
+    assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);
+    let bytes = chain.recipes[0].config.remove(b"engine.json".as_slice()).expect("engine");
+    chain.recipes[0].config.insert(b"renamed.json".as_slice().into(), bytes);
+    assert_ne!(chain.hash(), hash, "name alone counts, without changing recipe bytes");
+}
+
+#[test]
+fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without_resets() {
+    use command::{Arguments, Mode, session_options};
+    let mut files = deployment_chain();
+    for (name, after, bytes) in [("root", "", b"root patch".as_slice()), ("child", "after \"root\"\n", b"child patch")]
+    {
+        put(
+            &mut files,
+            name,
+            "recipe",
+            format!("recipe 1\n{after}deployment patch engine \"patch.json\"\ncheck\nctl project list\n").as_bytes(),
+        );
+        put(&mut files, name, "files/patch.json", bytes);
+        put(&mut files, name, "README.md", format!("The {name}.").as_bytes());
+    }
+    let chain = read(&files, "child").expect("patches named by deployment lines");
+    let setups = Path::new("/recipes");
+    let ports = "1,2,3,4,5,6,7,8,9";
+    let arguments = Arguments::parse(
+        Mode::Walk,
+        &args(&["child", "--bin", "/build", "--scratch", "/scratch", "--ports", ports, "--setups", "/recipes"]),
+    )
+    .expect("deployment needs no bundle");
+    let options = session_options(&chain, &arguments.setups, &arguments.drive.expect("walk arguments"))
+        .expect("deployment session");
+    assert_eq!(options.deployment, chain.config_dir(setups));
+    assert_eq!(options.ports.as_deref(), Some(ports));
+    assert!(options.bundle.is_none());
+    assert!(!options.ctl, "--deployment selects its ctl session, not --ctl");
+    let fresh = chain.lines(None).expect("fresh lines");
+    assert_eq!(
+        shown(fresh.clone()),
+        [
+            "root:2 deployment patch engine \"patch.json\"",
+            "root:4 ctl project list",
+            "child:3 deployment patch engine \"patch.json\"",
+            "child:5 ctl project list"
+        ]
+    );
+    assert_eq!(shown(chain.lines(Some("root")).expect("root copy")), shown(fresh.clone())[1..]);
+    assert_eq!(shown(chain.lines(Some("child")).expect("child copy")), shown(fresh.clone())[3..]);
+    for (line, name, bytes) in [(&fresh[0], "root", b"root patch".as_slice()), (&fresh[2], "child", b"child patch")] {
+        let directory = line.files(setups).expect("own files");
+        assert_eq!(directory, setups.join(name).join("files"));
+        assert_eq!(
+            chain.recipes.iter().find(|r| r.name == name).expect("recipe").files[b"patch.json".as_slice()],
+            bytes
+        );
+    }
+    let no_ports = args(&["--bin", "/build", "--scratch", "/scratch"]);
+    assert!(
+        session_options(&chain, setups, &no_ports)
+            .expect_err("ports required before session start")
+            .contains("--ports")
+    );
+    let with_bundle = args(&["--bin", "/build", "--scratch", "/scratch", "--ports", ports, "--bundle", "/bundle"]);
+    assert!(
+        session_options(&chain, setups, &with_bundle).expect_err("deployment takes no bundle").contains("--bundle")
+    );
+    let box_chain = read(&ctl_chain(), "child").expect("box");
+    assert!(session_options(&box_chain, setups, &no_ports).expect_err("box requires bundle").contains("--bundle"));
+    assert_eq!(
+        command::catalogue(&Reader::Memory(&files), vec!["root".into(), "child".into()]),
+        ["child (after root): The child.", "root: The root."]
+    );
+    for name in ["root", "child"] {
+        let mut missing = files.clone();
+        missing.get_mut(name).expect("recipe").remove(OsStr::new("files/patch.json"));
+        let refusal = read(&missing, "child").expect_err("patch must be in its own recipe");
+        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), (name, Some("files/patch.json")));
+        assert!(refusal.why.contains("missing"), "{refusal}");
+    }
+}
+
 fn args(words: &[&str]) -> Vec<Box<[u8]>> {
     words.iter().map(|word| word.as_bytes().into()).collect()
 }
@@ -752,7 +937,8 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     .expect("arguments");
     assert_eq!(arguments.name.as_deref(), Some("last"));
     assert_eq!(arguments.from.as_deref(), Some("middle"));
-    let options = session_options(&chain, &arguments.setups, arguments.drive.expect("drive"));
+    let options =
+        session_options(&chain, &arguments.setups, &arguments.drive.expect("drive")).expect("session options");
     assert!(!options.ctl, "a mixed chain keeps its browser session");
     let plan = drive::Plan::new(options, "/chromium".into(), OsStr::new("/bin"));
     let (machine, actions) = drive::Machine::start(plan, skein_lib::Time::ZERO);
@@ -787,7 +973,8 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
             assert!(why.contains("config/") && why.contains("data/"));
         }
     }
-    assert!(Arguments::parse(Mode::Walk, &args(&["last"])).is_err());
+    let missing = Arguments::parse(Mode::Walk, &args(&["last"])).expect("kind checked after reading chain");
+    assert!(session_options(&chain, &missing.setups, &missing.drive.expect("walk arguments")).is_err());
     assert!(Arguments::parse(Mode::Walk, &args(&["last", "--scripts", "external"])).is_err());
     for mode in [Mode::Hash, Mode::List] {
         let words = if mode == Mode::Hash { args(&["last"]) } else { vec![] };
@@ -863,7 +1050,7 @@ fn recipe_files_hash_frames_sorted_paths_and_bytes_after_scripts() {
     put(&mut files, "child", "recipe", b"recipe 1\nafter \"root\"\nweb see \"Child\"\n");
     let mut chain = read(&files, "child").expect("chain with parent files");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "19177e75929c5647896a56acff95b2915436bc8aeda9aa57007657f5fbd4c3c7");
+    assert_eq!(hex(hash), "9784e219ded22670cf0f3ea68d80bd3ca9760b33f247f7acb5683fae8caf3b11");
     chain.recipes[0].files.insert(b"00.txt".as_slice().into(), b"changed".to_vec());
     assert_ne!(chain.hash(), hash, "a parent's file bytes count");
     chain.recipes[0].files.insert(b"00.txt".as_slice().into(), b"bytes".to_vec());
