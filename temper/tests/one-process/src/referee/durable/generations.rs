@@ -16,7 +16,8 @@ fn name(path: &[u8]) -> Option<&[u8]> {
     Some(&path[..path.len() - suffix.len() - 1])
 }
 
-fn behind(rows: &BTreeMap<Vec<u8>, Vec<u8>>, binary: codec::component::Levels) -> bool {
+fn behind(rows: &BTreeMap<Vec<u8>, Vec<u8>>, sets: jig_protocol_store::PatchSets) -> bool {
+    let binary = jig_protocol_store::levels(&sets);
     let key = keys::encode_own(&keys::Own::Format, 64).expect("format key");
     let Some(bytes) = rows.get(key.as_ref()) else { return false };
     let found = codec::component::Format::decode(bytes).expect("observed format row").levels;
@@ -28,6 +29,13 @@ fn behind(rows: &BTreeMap<Vec<u8>, Vec<u8>>, binary: codec::component::Levels) -
     ]
     .into_iter()
     .any(|(found, wanted)| found.unwrap_or(0) < wanted.unwrap_or(0))
+        || sets.sets.iter().any(|set| {
+            set.jobs.iter().any(|job| {
+                let key = keys::encode_own(&keys::Own::Job { owner: set.owner, name: job.name.into() }, 1024)
+                    .expect("job key");
+                !rows.contains_key(key.as_ref())
+            })
+        })
 }
 
 impl Store {
@@ -39,8 +47,8 @@ impl Store {
         self.active.as_deref().is_none_or(|active| name(path) == Some(active))
     }
 
-    fn binary(&self) -> codec::component::Levels {
-        self.levels.unwrap_or_else(|| jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS))
+    fn binary(&self) -> jig_protocol_store::PatchSets {
+        self.sets.unwrap_or(temper_engine_service::store::PATCH_SETS)
     }
 
     /// Retain every raw operation before deciding whether its generation can be decoded.

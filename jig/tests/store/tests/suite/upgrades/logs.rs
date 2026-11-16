@@ -62,7 +62,7 @@ fn source_with(seed: u64, logs: &[u64]) -> World {
             keys::encode(&header.key(), limits.store.key).expect("header key"),
             codec::encode(&header, &codec::limits(&limits.core).expect("fixture codec"), &[]).expect("header"),
         ));
-        frames.extend(super::baseline::source_commit(&rows, position));
+        frames.extend(super::commits::source_commit(&rows, position));
     }
     world.lay(&[Item::file(format!("generations/1/store/log-{:020}", newest + 1).as_bytes(), &frames).mode(0o600)]);
     world

@@ -127,7 +127,7 @@ fn mixed_frames() -> (World, u64) {
     let old = patches::fixture_turn(1, SAID, REPLAY, 0);
     let current = patches::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    (committed(patches::FRESH_AFTER, &[&old, &current]), charge)
+    (committed(patches::FRAME_SETS, &[&old, &current]), charge)
 }
 
 #[test]

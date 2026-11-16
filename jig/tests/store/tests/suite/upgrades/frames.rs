@@ -15,22 +15,6 @@ const OTHER: Token = Token::new(713);
 const READ_BYTES: u64 = 256; // The world's core resume bound (root::CORE_LIMITS).
 const BODY: KeptFamily = frame_reads::SETS.sets[0].families[0];
 const TURN: KeptFamily = frame_reads::SETS.sets[1].families[0];
-const BASE: PatchSets = PatchSets {
-    sets: &[
-        PatchSet {
-            level: Some(0),
-            patches: &[],
-            families: &[KeptFamily { current: BODY.texts[0], texts: &[BODY.texts[0]], ..BODY }],
-            ..frame_reads::SETS.sets[0]
-        },
-        PatchSet {
-            level: Some(0),
-            patches: &[],
-            families: &[KeptFamily { current: TURN.texts[0], texts: &[TURN.texts[0]], ..TURN }],
-            ..frame_reads::SETS.sets[1]
-        },
-    ],
-};
 const EMPTY: PatchSets = PatchSets {
     sets: &[
         PatchSet {
@@ -358,20 +342,18 @@ fn invalid_frame_sets_refuse_before_first_start_writes() {
 }
 
 #[test]
-fn invalid_frame_sets_refuse_at_serving_open_and_behind() {
-    for baseline in [BASE, frame_reads::SETS] {
-        for (label, sets) in invalid_sets() {
-            let mut world = World::unopened_observed(41, patches::limits(), None);
-            world.patch_sets(baseline);
-            assert_eq!(world.open_switched(), Some(0));
-            assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
-            world.crash(42);
-            world.patch_sets(sets);
-            let before = world.contents();
-            assert_eq!(world.open_switched(), None, "{label}");
-            set_refused(&world, label);
-            patches::kept(&before, &world.contents(), &label);
-        }
+fn invalid_frame_sets_refuse_at_serving_open() {
+    for (label, sets) in invalid_sets() {
+        let mut world = World::unopened_observed(41, patches::limits(), None);
+        world.patch_sets(frame_reads::SETS);
+        assert_eq!(world.open_switched(), Some(0));
+        assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
+        world.crash(42);
+        world.patch_sets(sets);
+        let before = world.contents();
+        assert_eq!(world.open_switched(), None, "{label}");
+        set_refused(&world, label);
+        patches::kept(&before, &world.contents(), &label);
     }
 }
 
@@ -431,18 +413,18 @@ fn baseline(sets: PatchSets) -> World {
 #[test]
 fn a_stray_site_stops_patching_idle_and_waiting_reads() {
     // Suspend before the copy's first directory creation, while no walk waits.
-    let mut complete = baseline(BASE);
-    complete.patch_sets(frame_reads::SETS);
+    let mut complete = baseline(patches::FRAME_BASE);
+    complete.patch_sets(patches::FRAME_JOBS);
     complete.trace_writes();
-    assert_eq!(complete.open_switched(), Some(2));
+    assert_eq!(complete.open_switched(), Some(3));
     let copy = complete
         .changes()
         .iter()
         .find(|(_, change)| *change == jig_store_world::world::Change::Make)
         .expect("copy directory")
         .0;
-    let mut patching = baseline(BASE);
-    patching.patch_sets(frame_reads::SETS);
+    let mut patching = baseline(patches::FRAME_BASE);
+    patching.patch_sets(patches::FRAME_JOBS);
     patching.trace_writes();
     patching.cut_at(copy);
     assert_eq!(patching.open_switched(), None);
@@ -599,14 +581,12 @@ fn foreign_frames_refuse_when_every_owner_level_compares() {
     set_refused(&first, "foreign frames at first start");
     assert_eq!(first.contents(), before);
     assert_eq!((first.changes()).len(), 0);
-    for start in [BASE, frame_reads::SETS] {
-        let mut world = baseline(foreign(start, None));
-        world.patch_sets(sets);
-        let before = world.contents();
-        assert_eq!(world.open_switched(), None);
-        set_refused(&world, "foreign frames with comparable levels");
-        patches::kept(&before, &world.contents(), &"foreign frames");
-    }
+    let mut world = baseline(foreign(frame_reads::SETS, None));
+    world.patch_sets(sets);
+    let before = world.contents();
+    assert_eq!(world.open_switched(), None);
+    set_refused(&world, "foreign frames with comparable levels");
+    patches::kept(&before, &world.contents(), &"foreign frames");
 }
 
 #[test]
@@ -614,18 +594,16 @@ fn missing_jig_slot_refuses_levels_before_frame_checks() {
     let mut sets = frame_reads::SETS.sets.to_vec();
     sets[0].owner = Owner::Application;
     let sets = PatchSets { sets: Box::leak(sets.into_boxed_slice()) };
-    for start in [BASE, frame_reads::SETS] {
-        let mut world = baseline(start);
-        world.patch_sets(sets);
-        let before = world.contents();
-        assert_eq!(world.open_switched(), None);
-        assert!(
-            matches!(world.refusal(), Some(store::OpenRefusal::Ahead { owner: Owner::Jig, wanted: None, .. })),
-            "{:?}",
-            world.refusal()
-        );
-        patches::kept(&before, &world.contents(), &"level precedes frames");
-    }
+    let mut world = baseline(frame_reads::SETS);
+    world.patch_sets(sets);
+    let before = world.contents();
+    assert_eq!(world.open_switched(), None);
+    assert!(
+        matches!(world.refusal(), Some(store::OpenRefusal::Ahead { owner: Owner::Jig, wanted: None, .. })),
+        "{:?}",
+        world.refusal()
+    );
+    patches::kept(&before, &world.contents(), &"level precedes frames");
 }
 
 fn party_read(bytes: u64) -> Request {

@@ -34,6 +34,47 @@ impl Image {
         disk
     }
 }
+/// Every source path and byte, including task logs, remains exact across the upgrade.
+pub(super) fn generation(disk: &mut Machine, number: u64) -> std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>> {
+    let root = disk.reopen_root(0);
+    let items = directory(disk, root, format!("generations/{number}").as_bytes());
+    disk.close(root);
+    items
+        .into_iter()
+        .map(|item| {
+            (
+                item.path,
+                match item.made {
+                    Made::File(bytes) => Some(bytes),
+                    Made::Directory => None,
+                    other => panic!("generation entry: {other:?}"),
+                },
+            )
+        })
+        .collect()
+}
+
+pub(super) fn unchanged(
+    before: &std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    disk: &mut Machine,
+    number: u64,
+) {
+    let after = generation(disk, number);
+    for (path, bytes) in before {
+        assert_eq!(after.get(path), Some(bytes), "source path {} unchanged", String::from_utf8_lossy(path));
+    }
+    // Opening the source creates empty KV segments before it plans the copy.
+    for (path, bytes) in after.iter().filter(|(path, _)| !before.contains_key(*path)) {
+        assert!(
+            (path.starts_with(format!("generations/{number}/store/log-").as_bytes())
+                || path.starts_with(format!("generations/{number}/secrets/log-").as_bytes()))
+                && bytes.as_ref().is_some_and(Vec::is_empty),
+            "only an empty recovery segment added to the source: {}",
+            String::from_utf8_lossy(path)
+        );
+    }
+}
+
 fn directory(disk: &mut Machine, root: Opened, prefix: &[u8]) -> Vec<Item> {
     let fd = if prefix.is_empty() {
         root

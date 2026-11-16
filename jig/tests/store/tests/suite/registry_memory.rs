@@ -49,6 +49,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .families
                 .iter()
                 .map(|family| KeptFamily {
+                    flights: &[],
                     retired: if registered { family.retired } else { &[] },
                     current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
                     types: if !registered {
@@ -62,6 +63,8 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 })
                 .collect::<Vec<_>>();
             PatchSet {
+                patches: &[],
+                fresh: None,
                 families: Box::leak(families.into_boxed_slice()),
                 jobs: if !registered {
                     &[]
@@ -128,6 +131,7 @@ fn measure(items: &[Item], sets: PatchSets) -> Measured {
 
 #[test]
 fn real_registry_open_memory() {
+    let current = jig_store_world::patches::current(SETS);
     let plain = sets(false, false);
     let kept = sets(true, true);
     let items = seeded(kept);
@@ -138,7 +142,7 @@ fn real_registry_open_memory() {
     for (label, items, peak_bound, held_bound) in
         [("empty", &[][..], EMPTY_PEAK, EMPTY_REGISTRY), ("seeded", items.as_slice(), SEEDED_PEAK, SEEDED_REGISTRY)]
     {
-        let measured = measure(items, SETS);
+        let measured = measure(items, current);
         let registry = measured.private - baseline;
         eprintln!("registry {label}: peak={}, held={}, registry={registry}", measured.peak, measured.held);
         assert!(measured.peak <= peak_bound, "{label}: open peak {} > {peak_bound}", measured.peak);

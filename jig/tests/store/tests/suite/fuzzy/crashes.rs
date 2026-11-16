@@ -12,15 +12,18 @@ fn history_world() -> World {
         sets: &[jig_protocol_store::PatchSet {
             level: None,
             patches: &[],
+            fresh: None,
             jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
             families: &[
                 jig_protocol_store::KeptFamily {
+                    flights: &[],
                     retired: &[],
                     types: &[],
                     texts: &[],
                     ..jig_protocol_store::STORE_FAMILIES[3]
                 },
                 jig_protocol_store::KeptFamily {
+                    flights: &[],
                     retired: &[],
                     types: &[],
                     texts: &[],
