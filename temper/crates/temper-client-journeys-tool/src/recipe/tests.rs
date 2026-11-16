@@ -286,6 +286,72 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     );
 }
 
+/// The same setup reaches the same state at both kinds of place (testing/qa/setups.md, 5.2, 7).
+#[test]
+fn stock_landing_keeps_ctl_hellos_recipe_and_scripts_byte_for_byte() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    for file in ["recipe", "scripts.json"] {
+        assert_eq!(
+            std::fs::read(setups.join("stock-landing").join(file)).expect("stock-landing file"),
+            std::fs::read(setups.join("ctl-hello").join(file)).expect("ctl-hello file"),
+            "{file} is shared by the two kinds of place"
+        );
+    }
+}
+
+/// Stock landing starts the same deployment processes (testing/qa/setups.md, 5.2, 6).
+#[test]
+fn stock_landing_keeps_turn_landings_configuration_file_for_file() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let stock = Chain::read(&setups, "stock-landing").expect("stock-landing chain");
+    let turn = Chain::read(&setups, "turn-landing").expect("turn-landing chain");
+    let stock = &stock.recipes.first().expect("stock root").config;
+    let turn = &turn.recipes.first().expect("turn root").config;
+    assert_eq!(stock.keys().collect::<Vec<_>>(), turn.keys().collect::<Vec<_>>());
+    for (name, bytes) in stock {
+        assert_eq!(Some(bytes), turn.get(name), "{} is shared", String::from_utf8_lossy(name));
+    }
+}
+
+/// Ctl alone reaches Hello at a fresh deployment's place (testing/qa/setups.md, 5.2, 6).
+#[test]
+fn stock_landing_plans_its_steps_then_check_in_a_deployment_ctl_session() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let chain = Chain::read(&setups, "stock-landing").expect("stock-landing chain");
+    assert_eq!(chain.kind(), Kind::Deployment);
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["stock-landing"]);
+    assert!(chain.ctl_only());
+    assert_ne!(chain.hash(), [0; 32]);
+    let ports = "1,2,3,4,5,6,7,8,9";
+    let options = command::session_options(
+        &chain,
+        &setups,
+        &args(&["--bin", "/build", "--scratch", "/scratch", "--ports", ports, "--bundle", "/bundle"]),
+    )
+    .expect("deployment ctl session");
+    assert!(options.ctl);
+    assert_eq!(options.deployment, Some(setups.join("stock-landing/config")));
+    assert_eq!(options.ports.as_deref(), Some(ports));
+    assert_eq!(options.bundle.as_deref(), Some(Path::new("/bundle")));
+    assert_eq!(options.scripts, vec![setups.join("stock-landing/scripts.json")]);
+    assert_eq!(
+        shown(chain.lines(None).expect("fresh deployment ctl walk")),
+        [
+            "stock-landing:2 ctl project make Hello --key qa-hello-project",
+            "stock-landing:3 ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello",
+            "stock-landing:4 ctl forge list --until made:1",
+            "stock-landing:5 ctl account add-key 1 {model.key} --key qa-model",
+            "stock-landing:6 ctl account list --until usable",
+            "stock-landing:8 ctl project show Hello",
+            "stock-landing:9 ctl account list --until usable",
+        ]
+    );
+    assert_eq!(
+        command::catalogue(&Reader::Directory(&setups), vec!["stock-landing".into()]),
+        ["stock-landing: Hello lands by the stock rule on the deployment's fake Forgejo."]
+    );
+}
+
 /// Both clients see Hello on the deployment's engine (testing/qa/setups.md, 5.1, 6).
 #[test]
 fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy() {
