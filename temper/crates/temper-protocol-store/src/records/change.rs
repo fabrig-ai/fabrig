@@ -581,7 +581,7 @@ fn decode_early(value: w::Early) -> d::Early {
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
-fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
+pub(super) fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
     let clock = clock?;
     Some(
         w::ExecutionClock::new(
@@ -606,7 +606,7 @@ fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
     )
 }
 
-fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
+pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
     let clock = clock?.into_parts();
     Some(d::Clock {
         since: Wall::from_nanos(clock.since),

@@ -301,7 +301,7 @@ record LandingResolve { base: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
-record LandingRun { id: u64 attempt: u32 ended: bool }
+record LandingRun { id: u64 attempt: u32 ended: bool clock: option ExecutionClock = none }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
 enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }

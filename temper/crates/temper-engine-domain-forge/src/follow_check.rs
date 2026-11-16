@@ -143,6 +143,11 @@ fn following(d: &Domain, row: &ChangeRow) -> runs::Follow {
     );
     if let Some(flight) = &check.flight {
         follow.restore(flight, d.writers.get(&row.repository.forge).copied().unwrap_or(0));
+        if let Some(kept) = d.entries.get(&flight.entry)
+            && let Some(attempt) = kept.entry.attempt
+        {
+            follow.wall = Some(attempt.wall);
+        }
     }
     follow.page = check.page;
     follow
@@ -282,6 +287,7 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
     }
     if let Some(attempt) = kept.entry.attempt {
         follow.since = Some(attempt.sent);
+        follow.wall = Some(attempt.wall);
     }
     match outcome {
         Outcome::Made { .. } => {}
@@ -322,7 +328,7 @@ pub(crate) fn answered(
                 }
             } else {
                 let writer = d.writers.get(&row.repository.forge).copied().unwrap_or(0);
-                let _ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime);
+                let _ended = follow.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime);
                 match follow.outcome {
                     Some(key::Verdict::Passed) => finish(d, env, row, &follow, None, out),
                     Some(key::Verdict::Fault(reason)) => {

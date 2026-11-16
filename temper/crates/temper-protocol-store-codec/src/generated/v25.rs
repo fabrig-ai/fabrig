@@ -2754,6 +2754,8 @@ pub enum Path {
     LandingRunAttempt,
     /// The `ended` field of `LandingRun`.
     LandingRunEnded,
+    /// The `clock` field of `LandingRun`.
+    LandingRunClock,
     /// Bytes after `LandingRun`.
     LandingRunTail,
     /// The `entry` field of `LandingEntry`.
@@ -16472,6 +16474,8 @@ pub struct LandingRunParts {
     pub attempt: u32,
     /// The `ended` field.
     pub ended: bool,
+    /// The `clock` field.
+    pub clock: Option<ExecutionClock>,
 }
 
 /// `LandingRun` in this codec family.
@@ -16480,13 +16484,14 @@ pub struct LandingRun {
     id: u64,
     attempt: u32,
     ended: bool,
+    clock: Option<ExecutionClock>,
 }
 
 impl LandingRun {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: LandingRunParts) -> Result<Self, Problem> {
-        let LandingRunParts { id, attempt, ended } = parts;
-        let value = Self { id, attempt, ended };
+        let LandingRunParts { id, attempt, ended, clock } = parts;
+        let value = Self { id, attempt, ended, clock };
         Ok(value)
     }
 
@@ -16502,9 +16507,13 @@ impl LandingRun {
     #[must_use]
     pub fn ended(&self) -> bool { self.ended }
 
+    /// Reads the `clock` field.
+    #[must_use]
+    pub fn clock(&self) -> &Option<ExecutionClock> { &self.clock }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LandingRunParts { LandingRunParts { id: self.id, attempt: self.attempt, ended: self.ended } }
+    pub fn into_parts(self) -> LandingRunParts { LandingRunParts { id: self.id, attempt: self.attempt, ended: self.ended, clock: self.clock } }
 
 }
 
@@ -39262,6 +39271,11 @@ impl LandingRun {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_clock = &self.clock;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_clock.is_some() {
+        size = size.checked_add(85).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -39273,6 +39287,14 @@ impl LandingRun {
         writer.put(&field_attempt.to_be_bytes())?;
         let field_ended = &self.ended;
         writer.put(&[u8::from(*field_ended)])?;
+        let field_clock = &self.clock;
+        match field_clock {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -39283,11 +39305,12 @@ impl LandingRun {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_id = reader.u64().ok_or(Problem { path: Path::LandingRunId, reason: skein_codec::Reason::Short })?;
         let decoded_attempt = reader.u32().ok_or(Problem { path: Path::LandingRunAttempt, reason: skein_codec::Reason::Short })?;
         let decoded_ended = match reader.u8().ok_or(Problem { path: Path::LandingRunEnded, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRunEnded, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { id: decoded_id, attempt: decoded_attempt, ended: decoded_ended })
+        let decoded_clock = match reader.u8().ok_or(Problem { path: Path::LandingRunClock, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ExecutionClock::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRunClock, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { id: decoded_id, attempt: decoded_attempt, ended: decoded_ended, clock: decoded_clock })
     }
 }
 
@@ -39312,8 +39335,8 @@ impl LandingEntry {
         }
         let field_run = &self.run;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_run.is_some() {
-        size = size.checked_add(13).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_run {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
         size
     }
@@ -58873,10 +58896,10 @@ impl LandingRun {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(ExecutionClock::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -58887,10 +58910,10 @@ impl LandingRun {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(ExecutionClock::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

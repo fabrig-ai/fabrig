@@ -1431,6 +1431,7 @@ pub struct LandingRun {
     pub id: u64,
     pub attempt: u32,
     pub ended: bool,
+    pub clock: Option<change::Clock>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
