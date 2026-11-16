@@ -2,9 +2,6 @@
 
 2026-11-16. Where the tree's code lags or departs from [reference-case.md](reference-case.md).
 
-- **Not yet:** the whole document: `suite::fuzzy::case_4_1_4_3` still
-  starts ws and s1 together, not s1 once the director's run holds ws (the
-  row for `fakes.md`, 1). [in flight: change 5885]
 - **Departs:** the whole document: the fuzzy story-placement departure remains `checks.status.md`, 1.
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
