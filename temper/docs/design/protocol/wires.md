@@ -137,6 +137,11 @@ them.
   refused at its opening by name (`wire smith-pieces: the worker states
   none`); and a worker of this build meeting an engine of the build
   before is refused by it for the same wire, the other way.
+- **The restart said** (milestone R8): `jig-worker-wire` 15 adds the
+  `restarting` record (jig's `protocol/channel/restart.md`), its floor
+  kept at 12, so a worker of the build before stays across that
+  landing's redeploy and is not told: it keeps its grace
+  (`../draft/redeploys.md`, 5.2).
 - **From then on,** a landing that moves a wire keeps its floor at or
   below the version before, unless it declares the move breaking, and a
   floor rises alone once dev.fabrig.ai and staging.fabrig.ai have run
@@ -181,7 +186,15 @@ them.
     opening: REASON: TEXT`, then its redial as after any refusal;
   - the worker, at a channel it closes itself after the engine's
     statement or for its absence: jig's text (jig's
-    `protocol/channel/bridges.md`, 3 and 6.3), then its redial.
+    `protocol/channel/bridges.md`, 3 and 6.3), then its redial;
+  - the engine, at its settled stop, for each worker its component
+    tells of (jig's `protocol/channel/restart.md`, 3): `worker NAME
+    told the engine restarts: wait MS ms`, MS the wait sent, or `worker
+    NAME not told the engine restarts: jig-worker-wire V; it keeps its
+    grace`, V the channel's version, below the first that has the word;
+  - the worker, at each word heard (jig's `protocol/channel/restart.md`,
+    4): `the engine said it restarts: runs kept up to MS ms after the
+    link drops`, MS the longer of the wait and its grace.
 
 ## 5. A mismatch costs no task
 
