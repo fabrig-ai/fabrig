@@ -20,8 +20,6 @@ A span counts its thread's allocations (`Span::made`, held by
 and skein-codec's patcher step tests show reuse by rooms and by none
 counted around each reused pass, never by an address.
 
-- **Not yet:** 5: the real world's `Killed` keeps only its host, exit
-  and peak: no time, target, requester or reason, and no `Display`. [in flight: change 4908]
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
