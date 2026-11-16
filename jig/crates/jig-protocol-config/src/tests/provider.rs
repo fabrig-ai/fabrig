@@ -94,7 +94,7 @@ fn provider_is_optional_and_its_private_paths_are_data_paths() {
     assert_eq!(provider.addresses.as_ref(), &[3]);
 }
 #[test]
-fn client_ids_are_visible_ascii_and_unique_and_there_is_at_least_one_client() {
+fn client_ids_are_visible_ascii_and_unique() {
     for (id, what) in [
         ("", What::Bound),
         ("a b", What::Form),
@@ -114,14 +114,29 @@ fn client_ids_are_visible_ascii_and_unique_and_there_is_at_least_one_client() {
             assert_eq!(fixtures::engine(&document).unwrap_err().problems.get(0).unwrap().what, What::Bound);
         }
     }
-    refuses(
-        br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#,
-        br#""clients":[]"#,
-        provider_path().member(b"clients"),
-        What::Bound,
-    );
     refuses(br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#, br#""clients":[{"id":"app","secret":"a","redirect_uri":"https://app.example.com"},{"id":"app","secret":"b","redirect_uri":"https://app.example.com"}]"#, provider_path().member(b"clients").child(Segment::Index(1)).member(b"id"), What::Unique);
 }
+#[test]
+fn provider_accepts_no_configured_clients() {
+    let document = fixtures::with(
+        &bytes(),
+        br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#,
+        br#""clients":[]"#,
+    );
+    let engine = fixtures::engine(&document).expect("provider may start before its clients are added");
+    let provider = engine.clients.provider.as_ref().expect("provider remains configured");
+    assert!(provider.clients.is_empty());
+    assert_eq!(provider.key.as_ref(), b"secrets/provider.pem");
+    assert_eq!(provider.addresses.as_ref(), &[3]);
+    let mut key_file = false;
+    for file in crate::files(&engine) {
+        if file.at == provider_path().member(b"key") {
+            key_file = true;
+        }
+    }
+    assert!(key_file);
+}
+
 #[test]
 fn provider_redirects_require_https_or_loopback_http_with_a_port_and_no_fragment() {
     for uri in [

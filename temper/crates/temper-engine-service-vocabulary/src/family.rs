@@ -48,6 +48,9 @@ pub fn to_root(
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
+        kit::ToApplication::ProviderClientChanged { .. } => {
+            unreachable!("provider changes are not client family requests")
+        }
         kit::ToApplication::Request { reply_to, sign_in, key, family, version, record, digest, scope, carried } => {
             let request = match wire::owner(family) {
                 Some(wire::Owner::Forge) if version == wire::CLIENT_VERSION => wire::decode_requesting(&record, limits),

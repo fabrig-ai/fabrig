@@ -522,6 +522,7 @@ impl Bytes {
     }
     fn application(&mut self, joint: &mut Joint, request: clients::ToApplication) {
         let event = match request {
+            clients::ToApplication::ProviderClientChanged { .. } => panic!("Ops fixture requests no provider changes"),
             clients::ToApplication::Request { reply_to, sign_in, key, family, scope, record, digest, .. } => {
                 assert_eq!(family, 2);
                 joint.engine.peers.application_bytes.push((key, record.clone()));

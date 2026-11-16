@@ -626,7 +626,9 @@ impl Clients {
                 kit::Request::Application(value) => {
                     let carried = match &value {
                         kit::ToApplication::Request { carried, .. } => *carried,
-                        kit::ToApplication::Read { .. } | kit::ToApplication::Watch { .. } => None,
+                        kit::ToApplication::Read { .. }
+                        | kit::ToApplication::Watch { .. }
+                        | kit::ToApplication::ProviderClientChanged { .. } => None,
                     };
                     match crate::family::to_root(
                         &self.directories,
